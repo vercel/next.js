@@ -48,14 +48,12 @@ export async function createAppRouteCode({
   // for the route to ensure that the route is generated.
   const fileBaseName = path.parse(resolvedPagePath).name
   const appDirRelativePath = resolvedPagePath.slice(appDir.length)
-
-  if (
-    isMetadataRouteFile(
-      appDirRelativePath,
-      DEFAULT_METADATA_ROUTE_EXTENSIONS,
-      true
-    )
-  ) {
+  const isMetadataEntryFile = isMetadataRouteFile(
+    appDirRelativePath,
+    DEFAULT_METADATA_ROUTE_EXTENSIONS,
+    true
+  )
+  if (isMetadataEntryFile) {
     const { ext } = getFilenameAndExtension(resolvedPagePath)
     const isDynamicRouteExtension = pageExtensions.includes(ext)
 

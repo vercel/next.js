@@ -101,9 +101,12 @@ export function isMetadataRouteFile(
   ]
 
   const normalizedAppDirRelativePath = normalizePathSep(appDirRelativePath)
-  return metadataRouteFilesRegex.some((r) =>
+  const matched = metadataRouteFilesRegex.some((r) =>
     r.test(normalizedAppDirRelativePath)
   )
+
+  console.log('isMetadataRouteFile', appDirRelativePath, matched)
+  return matched
 }
 
 export function isStaticMetadataRoutePage(appDirRelativePath: string) {

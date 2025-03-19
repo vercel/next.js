@@ -347,19 +347,23 @@ export class FlightClientEntryPlugin {
         const relativeRequest = isAbsoluteRequest
           ? path.relative(compilation.options.context!, entryRequest)
           : entryRequest
-        const appDirRelativeRequest = relativeRequest
-          .replace(/^src[\\/]/, '')
-          .replace(/^app[\\/]/, '/')
 
         // Replace file suffix as `.js` will be added.
+        // bundlePath will have app/ prefix but not src/.
+        // e.g. src/app/foo/page.js -> app/foo/page
         let bundlePath = normalizePathSep(
-          appDirRelativeRequest.replace(/\.[^.\\/]+$/, '')
+          relativeRequest.replace(/\.[^.\\/]+$/, '').replace(/^src[\\/]/, '')
         )
 
         // For metadata routes, the entry name can be used as the bundle path,
         // as it has been normalized already.
         // e.g.
-        // appDirRelativeRequest -> '/sitemap.js'
+        // When `relativeRequest` is 'src/app/sitemap.js',
+        // `appDirRelativeRequest` will be '/sitemap.js'
+        // then `isMetadataEntryFile` will be `true`
+        const appDirRelativeRequest = relativeRequest
+          .replace(/^src[\\/]/, '')
+          .replace(/^app[\\/]/, '/')
         const isMetadataEntryFile = isMetadataRouteFile(
           appDirRelativeRequest,
           DEFAULT_METADATA_ROUTE_EXTENSIONS,
