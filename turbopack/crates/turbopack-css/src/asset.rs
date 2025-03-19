@@ -98,12 +98,13 @@ impl ProcessCss for CssModuleAsset {
     #[turbo_tasks::function]
     fn finalize_css(
         self: Vc<Self>,
+        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         minify_type: MinifyType,
     ) -> Vc<FinalCssResult> {
         let process_result = self.get_css_with_placeholder();
 
-        finalize_css(process_result, chunking_context, minify_type)
+        finalize_css(process_result, module_graph, chunking_context, minify_type)
     }
 }
 
@@ -307,7 +308,11 @@ impl CssChunkItem for CssModuleChunkItem {
 
         let result = self
             .module
-            .finalize_css(*chunking_context, self.module.await?.minify_type)
+            .finalize_css(
+                *self.module_graph,
+                *chunking_context,
+                self.module.await?.minify_type,
+            )
             .await?;
 
         if let FinalCssResult::Ok {
