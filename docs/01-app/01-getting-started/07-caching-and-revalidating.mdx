@@ -22,9 +22,104 @@ This page describes how you can cache and revalidate routes, components, and fun
 
 ## Server-side caching
 
-### Static Routes
+### Static routes
 
 By default, routes are prerendered at build time (static). During development, you can check if a route is static by running `next dev` and opening the [Next.js Dev Tools](/docs/app/api-reference/config/next-config-js/devIndicators) in your local host.
+
+### Dynamic routes and request-time APIs
+
+Using **request-time APIs** will make a route dynamic, meaning it'll be rendered on every request at runtime and the result won't be cached.
+
+These request-time APIs are:
+
+- [`cookies`](/docs/app/api-reference/functions/cookies)
+- [`headers`](/docs/app/api-reference/functions/headers)
+- [`connection`](/docs/app/api-reference/functions/connection)
+- [`draftMode`](/docs/app/api-reference/functions/draft-mode)
+- [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional)
+- [`unstable_noStore`](/docs/app/api-reference/functions/unstable_noStore)
+
+> During development, you can check if a route is dynamic by running `next dev` and opening the [Next.js Dev Tools](/docs/app/api-reference/config/next-config-js/devIndicators) in your local host.
+
+To optimize the initial loading performance of dynamic routes, you can use React's [`<Suspense>` boundary](https://react.dev/reference/react/Suspense) to show an instant loading UI and progressively stream dynamic content to the client.
+
+For example, the `<User>` component fetches the current user's information. To prevent it from blocking the whole route, it can be wrapped in a `Suspense` boundary. This means the `<Navigation>` component and a fallback will be sent to the client first, while the `<User>` component will be streamed when it's ready.
+
+```tsx filename="app/ui/user.tsx" switcher
+import { cookies } from 'next/headers'
+
+export async function User() {
+  const store = await cookies()
+  const { id } = store.get('user')
+  const user = await fetch(`https://api.vercel.app/users/${id}`)
+  return <>...</>
+}
+```
+
+```jsx filename="app/ui/user.js" switcher
+import { cookies } from 'next/headers'
+
+export async function User() {
+  const store = await cookies()
+  const { id } = store.get('user')
+  const user = await fetch(`https://api.vercel.app/users/${id}`)
+  return <>...</>
+}
+```
+
+```tsx filename="app/ui/navigation.tsx" switcher
+export default function Navigation() {
+  return (
+    <nav>
+      <Link href="/">Home</Link>
+      <Suspense fallback={<div>Loading...</div>}>
+        <User />
+      </Suspense>
+    </nav>
+  )
+}
+```
+
+```jsx filename="app/ui/navigation.js" switcher
+export default function Navigation() {
+  return (
+    <nav>
+      <Link href="/">Home</Link>
+      <Suspense fallback={<div>Loading...</div>}>
+        <User />
+      </Suspense>
+    </nav>
+  )
+}
+```
+
+```tsx filename="app/layout.tsx" switcher
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html>
+      <body>
+        <Navigation />
+      </body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        <Navigation />
+      </body>
+    </html>
+  )
+}
+```
 
 To mark a function or component as cacheable, you can use the [`'use cache'`](/docs/app/api-reference/directives/use-cache) directive.
 
