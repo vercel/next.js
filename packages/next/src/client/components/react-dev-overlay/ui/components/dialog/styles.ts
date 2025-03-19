@@ -4,7 +4,9 @@ const styles = `
     --next-dialog-footer-height: var(--size-48);
     --next-dialog-max-width: 960px;
     --next-dialog-row-padding: 16px;
-    --next-dialog-container-padding: 12px;
+    --next-dialog-padding-x: 12px;
+    --next-dialog-notch-height: 42px;
+    --next-dialog-border-width: 1px;
 
     display: flex;
     flex-direction: column-reverse;
@@ -23,24 +25,35 @@ const styles = `
       opacity: 1;
       scale: 1;
     }
+
+    [data-nextjs-scroll-fader][data-side="top"] {
+      left: 1px;
+      top: calc(var(--next-dialog-notch-height) + var(--next-dialog-border-width));
+      width: calc(100% - var(--next-dialog-padding-x));
+      opacity: 0;
+    }
   }
 
   [data-nextjs-dialog] {
     outline: none;
     overflow: hidden;
   }
+
   [data-nextjs-dialog]::-webkit-scrollbar {
     width: 6px;
     border-radius: 0 0 1rem 1rem;
     margin-bottom: 1rem;
   }
+
   [data-nextjs-dialog]::-webkit-scrollbar-button {
     display: none;
   }
+
   [data-nextjs-dialog]::-webkit-scrollbar-track {
     border-radius: 0 0 1rem 1rem;
     background-color: var(--color-background-100);
   }
+    
   [data-nextjs-dialog]::-webkit-scrollbar-thumb {
     border-radius: 1rem;
     background-color: var(--color-gray-500);
@@ -71,7 +84,7 @@ const styles = `
     display: flex;
     flex-direction: column;
     position: relative;
-    padding: 16px 12px;
+    padding: 16px var(--next-dialog-padding-x);
   }
 
   /* Account for the footer height, when present */

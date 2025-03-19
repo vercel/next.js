@@ -3975,9 +3975,9 @@
   },
   "test/e2e/app-dir/ppr-errors/ppr-errors.test.ts": {
     "passed": [
-      "ppr build errors production mode outside of a suspense boundary should fail the build for uncaught errors",
-      "ppr build errors production mode when a postpone call is caught and logged it should should include a message telling why",
-      "ppr build errors production mode within a suspense boundary should fail the build for uncaught prerender errors"
+      "ppr build errors production only outside of a suspense boundary should fail the build for uncaught errors",
+      "ppr build errors production only when a postpone call is caught and logged it should should include a message telling why",
+      "ppr build errors production only within a suspense boundary should fail the build for uncaught prerender errors"
     ],
     "failed": [],
     "pending": [],
@@ -5196,11 +5196,10 @@
       "segment cache (basic tests) navigate with prefetched data",
       "segment cache (basic tests) prefetch interception route",
       "segment cache (basic tests) refreshes page segments when navigating to the exact same URL as the current location",
-      "segment cache (basic tests) skips dynamic request if prefetched data is fully static"
-    ],
-    "failed": [
+      "segment cache (basic tests) skips dynamic request if prefetched data is fully static",
       "segment cache (basic tests) skips static layouts during partially static navigation"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5218,16 +5217,16 @@
   },
   "test/e2e/app-dir/segment-cache/incremental-opt-in/segment-cache-incremental-opt-in.test.ts": {
     "passed": [
-      "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR disabled",
       "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR disabled, and has a loading boundary",
       "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR enabled",
       "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR enabled, and has a dynamic param",
       "segment cache (incremental opt in) prefetches a shared layout on a PPR-enabled route that was previously omitted from a non-PPR-enabled route",
       "segment cache (incremental opt in) when a link is prefetched with <Link prefetch=true>, no dynamic request is made on navigation",
-      "segment cache (incremental opt in) when prefetching with prefetch=true, refetches cache entries that only contain partial data"
+      "segment cache (incremental opt in) when prefetching with prefetch=true, refetches cache entries that only contain partial data",
+      "segment cache (incremental opt in) when prefetching with prefetch=true, refetches partial cache entries even if there's already a pending PPR request"
     ],
     "failed": [
-      "segment cache (incremental opt in) when prefetching with prefetch=true, refetches partial cache entries even if there's already a pending PPR request"
+      "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR disabled"
     ],
     "pending": [],
     "flakey": [],
@@ -6706,21 +6705,18 @@
   },
   "test/e2e/middleware-custom-matchers-i18n/test/index.test.ts": {
     "passed": [
-      "Middleware custom matchers i18n should not match",
-      "Middleware custom matchers with root should not match",
-      "Middleware custom matchers i18n should match /hello",
       "Middleware custom matchers i18n should match /en/hello",
-      "Middleware custom matchers i18n should match /nl-NL/hello",
+      "Middleware custom matchers i18n should match /hello",
       "Middleware custom matchers i18n should match /nl-NL/about",
-      "Middleware custom matchers i18n should not match /invalid/hello",
-      "Middleware custom matchers i18n should not match /hello/invalid",
+      "Middleware custom matchers i18n should match /nl-NL/hello",
+      "Middleware custom matchers i18n should match has query on client routing en_hello",
+      "Middleware custom matchers i18n should match has query on client routing hello",
+      "Middleware custom matchers i18n should match has query on client routing nl-NL_about",
+      "Middleware custom matchers i18n should match has query on client routing nl-NL_hello",
       "Middleware custom matchers i18n should not match /about",
       "Middleware custom matchers i18n should not match /en/about",
-      "Middleware custom matchers i18n should match has query on client routing hello",
-      "Middleware custom matchers i18n should match has query on client routing en_hello",
-      "Middleware custom matchers i18n should match has query on client routing nl-NL_hello",
-      "Middleware custom matchers i18n should match has query on client routing nl-NL_about",
-      "Middleware custom matchers i18n should not match",
+      "Middleware custom matchers i18n should not match /hello/invalid",
+      "Middleware custom matchers i18n should not match /invalid/hello",
       "Middleware custom matchers with root should not match"
     ],
     "failed": [],
@@ -6815,6 +6811,7 @@
       "Middleware Runtime with i18n should be able to rewrite on _next/static/chunks/pages/ 404",
       "Middleware Runtime with i18n should contain `globalThis`",
       "Middleware Runtime with i18n should contain crypto APIs",
+      "Middleware Runtime with i18n should filter request header properly",
       "Middleware Runtime with i18n should handle 404 on fallback: false route correctly",
       "Middleware Runtime with i18n should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime with i18n should have correct dynamic route params on client-transition to dynamic route",
@@ -6856,6 +6853,7 @@
       "Middleware Runtime without i18n should be able to rewrite on _next/static/chunks/pages/ 404",
       "Middleware Runtime without i18n should contain `globalThis`",
       "Middleware Runtime without i18n should contain crypto APIs",
+      "Middleware Runtime without i18n should filter request header properly",
       "Middleware Runtime without i18n should handle 404 on fallback: false route correctly",
       "Middleware Runtime without i18n should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime without i18n should have correct dynamic route params on client-transition to dynamic route",
@@ -6904,6 +6902,7 @@
       "Middleware Runtime with i18n should be able to use node builtins with node runtime",
       "Middleware Runtime with i18n should contain `globalThis`",
       "Middleware Runtime with i18n should contain crypto APIs",
+      "Middleware Runtime with i18n should filter request header properly",
       "Middleware Runtime with i18n should handle 404 on fallback: false route correctly",
       "Middleware Runtime with i18n should have added middleware in functions manifest",
       "Middleware Runtime with i18n should have correct dynamic route params for middleware rewrite to dynamic route",
@@ -6943,6 +6942,7 @@
       "Middleware Runtime without i18n should be able to use node builtins with node runtime",
       "Middleware Runtime without i18n should contain `globalThis`",
       "Middleware Runtime without i18n should contain crypto APIs",
+      "Middleware Runtime without i18n should filter request header properly",
       "Middleware Runtime without i18n should handle 404 on fallback: false route correctly",
       "Middleware Runtime without i18n should have added middleware in functions manifest",
       "Middleware Runtime without i18n should have correct dynamic route params for middleware rewrite to dynamic route",
@@ -8395,6 +8395,10 @@
   },
   "test/integration/amphtml/test/index.test.js": {
     "passed": [
+      "AMP Usage production mode should not contain missing files warning",
+      "AMP Usage production mode should not have deprecation warning"
+    ],
+    "failed": [
       "AMP Usage production mode With AMP context should render nested AMP page with AMP hook",
       "AMP Usage production mode With AMP context should render nested normal page with AMP hook",
       "AMP Usage production mode With AMP context should render the AMP page that uses the AMP hook",
@@ -8402,6 +8406,8 @@
       "AMP Usage production mode With basic AMP usage should auto import extensions",
       "AMP Usage production mode With basic AMP usage should drop custom scripts",
       "AMP Usage production mode With basic AMP usage should not drop custom amp scripts",
+      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only",
+      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration",
       "AMP Usage production mode With basic AMP usage should optimize clean",
       "AMP Usage production mode With basic AMP usage should render the page as valid AMP",
       "AMP Usage production mode With basic AMP usage should render the page without leaving render target",
@@ -8417,13 +8423,7 @@
       "AMP Usage production mode canonical amphtml should render the AMP page that uses the AMP hook",
       "AMP Usage production mode combined styles should combine style tags",
       "AMP Usage production mode combined styles should remove sourceMaps from styles",
-      "AMP Usage production mode should have amp optimizer in trace",
-      "AMP Usage production mode should not contain missing files warning",
-      "AMP Usage production mode should not have deprecation warning"
-    ],
-    "failed": [
-      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only",
-      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration"
+      "AMP Usage production mode should have amp optimizer in trace"
     ],
     "pending": [
       "AMP Usage AMP dev no-warn should not warn on valid amp",
@@ -17975,14 +17975,14 @@
     "runtimeError": false
   },
   "test/production/build-spinners/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "build-spinners should handle build spinners correctly app and pages",
       "build-spinners should handle build spinners correctly app dir - (compile workers)",
       "build-spinners should handle build spinners correctly app dir - basic",
       "build-spinners should handle build spinners correctly page dir",
       "build-spinners should handle build spinners correctly page dir (compile workers)"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

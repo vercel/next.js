@@ -50,6 +50,7 @@ import {
 } from '../request/search-params'
 import type { Params } from '../request/params'
 import React from 'react'
+import type { ImplicitTags } from '../lib/implicit-tags'
 
 type CacheKeyParts = [
   buildId: string,
@@ -152,11 +153,7 @@ function generateCacheEntryWithCacheContext(
   const cacheStore: UseCacheStore = {
     type: 'cache',
     phase: 'render',
-    implicitTags:
-      outerWorkUnitStore === undefined ||
-      outerWorkUnitStore.type === 'unstable-cache'
-        ? []
-        : outerWorkUnitStore.implicitTags,
+    implicitTags: outerWorkUnitStore?.implicitTags,
     revalidate: defaultCacheLife.revalidate,
     expire: defaultCacheLife.expire,
     stale: defaultCacheLife.stale,
@@ -272,7 +269,7 @@ async function collectResult(
       ? innerCacheStore.explicitStale
       : innerCacheStore.stale
 
-  const entry = {
+  const entry: CacheEntry = {
     value: bufferStream,
     timestamp: startTime,
     revalidate: collectedRevalidate,
@@ -687,16 +684,24 @@ export function cache(
           cacheSignal.beginRead()
         }
 
-        const implicitTags =
-          workUnitStore === undefined || workUnitStore.type === 'unstable-cache'
-            ? []
-            : workUnitStore.implicitTags
-
+        const implicitTags = workUnitStore?.implicitTags
         const forceRevalidate = shouldForceRevalidate(workStore, workUnitStore)
 
-        const entry = forceRevalidate
+        let entry = forceRevalidate
           ? undefined
-          : await cacheHandler.get(serializedCacheKey, implicitTags)
+          : 'getExpiration' in cacheHandler
+            ? await cacheHandler.get(serializedCacheKey)
+            : // Legacy cache handlers require implicit tags to be passed in,
+              // instead of checking their staleness here, as we do for modern
+              // cache handlers (see below).
+              await cacheHandler.get(
+                serializedCacheKey,
+                implicitTags?.tags ?? []
+              )
+
+        if (entry && shouldDiscardCacheEntry(entry, workStore, implicitTags)) {
+          entry = undefined
+        }
 
         const currentTime = performance.timeOrigin + performance.now()
         if (
@@ -915,6 +920,54 @@ function shouldForceRevalidate(
     if (workUnitStore.type === 'cache') {
       return workUnitStore.forceRevalidate
     }
+  }
+
+  return false
+}
+
+function shouldDiscardCacheEntry(
+  entry: CacheEntry,
+  workStore: WorkStore,
+  implicitTags: ImplicitTags | undefined
+): boolean {
+  // If the cache entry contains revalidated tags that the cache handler might
+  // not know about yet, we need to discard it.
+  if (entry.tags.some((tag) => isRecentlyRevalidatedTag(tag, workStore))) {
+    return true
+  }
+
+  if (implicitTags) {
+    // If the cache entry was created before any of the implicit tags were
+    // revalidated last, we also need to discard it.
+    if (entry.timestamp <= implicitTags.expiration) {
+      return true
+    }
+
+    // Finally, if any of the implicit tags have been revalidated recently, we
+    // also need to discard the cache entry.
+    if (
+      implicitTags.tags.some((tag) => isRecentlyRevalidatedTag(tag, workStore))
+    ) {
+      return true
+    }
+  }
+
+  return false
+}
+
+function isRecentlyRevalidatedTag(tag: string, workStore: WorkStore): boolean {
+  const { previouslyRevalidatedTags, pendingRevalidatedTags } = workStore
+
+  // Was the tag previously revalidated (e.g. by a redirecting server action)?
+  if (previouslyRevalidatedTags.includes(tag)) {
+    return true
+  }
+
+  // It could also have been revalidated by the currently running server action.
+  // In this case the revalidation might not have been propagated to the cache
+  // handler yet, so we read it from the pending tags in the work store.
+  if (pendingRevalidatedTags?.includes(tag)) {
+    return true
   }
 
   return false

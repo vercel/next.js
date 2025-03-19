@@ -24,6 +24,7 @@
   "include": [
     "test/**/*.test.ts",
     "test/**/*.test.tsx",
+    "test/e2e/app-dir/use-cache-custom-handler/*.js",
     "test/lib/**/*.ts",
     "turbo/**/*.ts"
   ]
