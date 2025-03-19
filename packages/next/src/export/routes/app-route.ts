@@ -103,7 +103,7 @@ export async function exportAppRoute(
     // we don't bail from the static optimization for
     // metadata routes
     const normalizedPage = normalizeAppPath(page)
-    const isMetadataRoute = isMetadataRouteFile(normalizedPage, [], true)
+    const isMetadataRoute = isMetadataRouteFile(normalizedPage, [], false)
 
     if (
       !isStaticGenEnabled(userland) &&

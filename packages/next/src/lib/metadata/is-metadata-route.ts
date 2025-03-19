@@ -52,73 +52,55 @@ export const getExtensionRegexString = (
 export function isMetadataRouteFile(
   appDirRelativePath: string,
   pageExtensions: PageExtensions,
-  withExtension: boolean
+  strictlyMatchExtensions: boolean
 ) {
   const metadataRouteFilesRegex = [
     new RegExp(
-      `^[\\\\/]robots${
-        withExtension
-          ? `${getExtensionRegexString(pageExtensions.concat('txt'), null)}`
-          : ''
-      }$`
+      `^[\\\\/]robots${getExtensionRegexString(
+        pageExtensions.concat('txt'),
+        null
+      )}
+        ${strictlyMatchExtensions ? '' : '$'}`
     ),
     new RegExp(
-      `^[\\\\/]manifest${
-        withExtension
-          ? `${getExtensionRegexString(
-              pageExtensions.concat('webmanifest', 'json'),
-              null
-            )}`
-          : ''
-      }$`
+      `^[\\\\/]manifest${getExtensionRegexString(
+        pageExtensions.concat('webmanifest', 'json'),
+        null
+      )}
+        ${strictlyMatchExtensions ? '' : '$'}`
     ),
     new RegExp(`^[\\\\/]favicon\\.ico$`),
     new RegExp(
-      `[\\\\/]sitemap${
-        withExtension
-          ? `${getExtensionRegexString(['xml'], pageExtensions)}`
-          : ''
-      }$`
+      `[\\\\/]sitemap${getExtensionRegexString(['xml'], pageExtensions)}
+        ${strictlyMatchExtensions ? '' : '$'}`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}\\d?${
-        withExtension
-          ? `${getExtensionRegexString(
-              STATIC_METADATA_IMAGES.icon.extensions,
-              pageExtensions
-            )}`
-          : ''
-      }$`
+      `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}\\d?${getExtensionRegexString(
+        STATIC_METADATA_IMAGES.icon.extensions,
+        pageExtensions
+      )}
+        ${strictlyMatchExtensions ? '' : '$'}`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.apple.filename}\\d?${
-        withExtension
-          ? `${getExtensionRegexString(
-              STATIC_METADATA_IMAGES.apple.extensions,
-              pageExtensions
-            )}`
-          : ''
-      }$`
+      `[\\\\/]${STATIC_METADATA_IMAGES.apple.filename}\\d?${getExtensionRegexString(
+        STATIC_METADATA_IMAGES.apple.extensions,
+        pageExtensions
+      )}
+        ${strictlyMatchExtensions ? '' : '$'}`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.openGraph.filename}\\d?${
-        withExtension
-          ? `${getExtensionRegexString(
-              STATIC_METADATA_IMAGES.openGraph.extensions,
-              pageExtensions
-            )}`
-          : ''
-      }$`
+      `[\\\\/]${STATIC_METADATA_IMAGES.openGraph.filename}\\d?${getExtensionRegexString(
+        STATIC_METADATA_IMAGES.openGraph.extensions,
+        pageExtensions
+      )}
+        ${strictlyMatchExtensions ? '' : '$'}`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.twitter.filename}\\d?${
-        withExtension
-          ? `${getExtensionRegexString(
-              STATIC_METADATA_IMAGES.twitter.extensions,
-              pageExtensions
-            )}`
-          : ''
-      }$`
+      `[\\\\/]${STATIC_METADATA_IMAGES.twitter.filename}\\d?${getExtensionRegexString(
+        STATIC_METADATA_IMAGES.twitter.extensions,
+        pageExtensions
+      )}
+        ${strictlyMatchExtensions ? '' : '$'}`
     ),
   ]
 
@@ -154,6 +136,14 @@ export function isStaticMetadataRoute(route: string) {
 export function isMetadataPage(pathname: string) {
   const res =
     !isAppRouteRoute(pathname) && isMetadataRouteFile(pathname, [], false)
+  if (pathname.endsWith('.png')) {
+    console.trace(
+      'res',
+      res,
+      pathname,
+      isMetadataRouteFile(pathname, [], false)
+    )
+  }
   return res
 }
 
