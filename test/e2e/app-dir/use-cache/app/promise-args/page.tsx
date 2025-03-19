@@ -9,7 +9,7 @@ async function getCachedData(
   const { promise: promiseA } = await a
   const { promise: promiseB } = await b
 
-  return (await promiseA) + (await promiseB) + new Date().toISOString()
+  return (await promiseA) + (await promiseB) + Math.random()
 }
 
 export default async function Page() {

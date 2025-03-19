@@ -1,4 +1,5 @@
 import { connection } from 'next/server'
+import { setTimeout } from 'timers/promises'
 
 async function getCachedData(iterator: AsyncIterator<string>) {
   'use cache'
@@ -9,23 +10,20 @@ async function getCachedData(iterator: AsyncIterator<string>) {
     const result = await iterator.next()
 
     if (result.done) {
+      console.log('async iterator done')
       break
     }
 
     values.push(result.value)
-  }
-
-  while (true) {
-    const result = await iterator.next()
-
-    if (result.done) {
-      break
-    }
-
-    values.push(result.value)
+    console.log('async iterator value:', result.value)
   }
 
   return [...values].sort().join('') + Math.random()
+}
+
+async function cachedDelay() {
+  'use cache'
+  await setTimeout(100)
 }
 
 export default async function Page() {
@@ -33,6 +31,7 @@ export default async function Page() {
 
   const dataA = await getCachedData(
     (async function* () {
+      await cachedDelay() // make sure the iterable is meaningfully async
       yield 'a'
       yield 'b'
     })()
@@ -40,6 +39,7 @@ export default async function Page() {
 
   const dataB = await getCachedData(
     (async function* () {
+      await cachedDelay() // make sure the iterable is meaningfully async
       yield 'b'
       yield 'a'
     })()

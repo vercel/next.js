@@ -53,6 +53,11 @@ import {
 import type { Params } from '../request/params'
 import React from 'react'
 import type { ImplicitTags } from '../lib/implicit-tags'
+import { scheduleOnNextTick as scheduleAfterCurrentMicrotaskQueue } from '../../lib/scheduler'
+import { yellow } from '../../lib/picocolors'
+import { isAbortError } from '../pipe-readable'
+
+const DEBUG = process.env.DEBUG === '1'
 
 type CacheKeyParts = [
   buildId: string,
@@ -561,6 +566,15 @@ export function cache(
         workUnitStore?.type === 'prerender'
           ? createHangingInputAbortSignal(workUnitStore)
           : undefined
+      if (DEBUG) {
+        hangingInputAbortSignal?.addEventListener(
+          'abort',
+          () => {
+            console.log('hangingInputAbortSignal aborted')
+          },
+          { once: true }
+        )
+      }
 
       // When dynamicIO is not enabled, we can not encode searchParams as
       // hanging promises. To still avoid unused search params from making a
@@ -618,24 +632,99 @@ export function cache(
 
       const argsClientTemporaryReferences = createClientTemporaryReferenceSet()
 
+      if (DEBUG) {
+        console.log('\n'.repeat(3) + '*'.repeat(60))
+        console.log('='.repeat(60))
+        console.log('args', args)
+      }
       const encodedArgs = await encodeReply(args, {
         temporaryReferences: argsClientTemporaryReferences,
         signal: hangingInputAbortSignal,
       })
+      if (DEBUG) {
+        console.log('='.repeat(60))
+        console.log('encodedArgs', encodedArgs, argsClientTemporaryReferences)
+      }
 
-      const argsServerTemporaryReferences = createServerTemporaryReferenceSet()
+      // const argsServerTemporaryReferences = createServerTemporaryReferenceSet()
+      const argsServerTemporaryReferences = DEBUG
+        ? (createClientTemporaryReferenceSet() as any) // a Map instead of a WeakMap, for debugging
+        : createServerTemporaryReferenceSet()
 
       const decodedArgs = await decodeReply<unknown[]>(
         workUnitStore,
         encodedArgs,
         argsServerTemporaryReferences
       )
+      if (DEBUG) {
+        console.log('='.repeat(60))
+        console.log('decodedArgs', decodedArgs, argsServerTemporaryReferences)
+      }
 
-      const argsStream = renderToReadableStream(
+      // wait for async values inside `decodedArgs` to resolve.
+      // we already waited for them when doing `encodeReply`, so this should be near instant.
+      // TODO: is this waiting too long?
+      await new Promise<void>((resolve) =>
+        scheduleAfterCurrentMicrotaskQueue(resolve)
+      )
+
+      // by this point, all async values inside `resolvedArgs` should be available microtaskily.
+      // if we need to abort to account for hanging promises, we can just flush the microtask queue.
+      const decodedArgsAbortSignal = hangingInputAbortSignal
+        ? abortAfterCurrentMicrotaskQueue()
+        : undefined
+
+      const argsStreamAbortController = hangingInputAbortSignal
+        ? new AbortController()
+        : undefined
+      const argsStreamAbortSignal = argsStreamAbortController
+        ? argsStreamAbortController.signal
+        : undefined
+
+      let argsStream = renderToReadableStream(
         decodedArgs,
         clientReferenceManifest.clientModules,
-        { temporaryReferences: argsServerTemporaryReferences }
+        {
+          temporaryReferences: argsServerTemporaryReferences,
+          onError(thrownValue) {
+            // If we triggered an abort, there's no need to log an error.
+            if (
+              argsStreamAbortSignal &&
+              argsStreamAbortSignal.aborted &&
+              isAbortError(thrownValue)
+            ) {
+              return
+            }
+            console.error('error while rendering argsStream', thrownValue)
+          },
+          signal: argsStreamAbortSignal,
+        }
       )
+      if (DEBUG) {
+        let teedArgsStream: typeof argsStream
+        ;[argsStream, teedArgsStream] = argsStream.tee()
+
+        void (async () => {
+          const reader = teedArgsStream.getReader()
+          const textDecoder = new TextDecoder()
+          while (true) {
+            const read = await reader.read()
+            if (!read.done) {
+              console.log(
+                yellow(`argsStream:`) + `\n` + textDecoder.decode(read.value)
+              )
+            } else {
+              console.log(
+                yellow(`argsStream ended`),
+                argsServerTemporaryReferences
+              )
+              break
+            }
+          }
+        })().catch((err) => {
+          console.error(yellow('argsStream errored:'), err)
+        })
+      }
 
       const serverConsumerManifest = {
         // moduleLoading must be null because we don't want to trigger preloads
@@ -656,6 +745,10 @@ export function cache(
           temporaryReferences: argsClientTemporaryReferences,
         }
       )
+      if (DEBUG) {
+        console.log('='.repeat(60))
+        console.log('resolvedArgs', resolvedArgs, argsClientTemporaryReferences)
+      }
 
       const cacheKeyParts: CacheKeyParts = [
         buildId,
@@ -665,11 +758,22 @@ export function cache(
       ]
 
       const temporaryReferences = createClientTemporaryReferenceSet()
-
       const encodedCacheKey: FormData | string = await encodeReply(
         cacheKeyParts,
-        { temporaryReferences, signal: hangingInputAbortSignal }
+        {
+          temporaryReferences,
+          signal: decodedArgsAbortSignal,
+        }
       )
+      if (DEBUG) {
+        console.log('='.repeat(60))
+        console.log('encodedCacheKey', encodedCacheKey, temporaryReferences)
+      }
+
+      if (argsStreamAbortController) {
+        if (DEBUG) console.log('aborting argsStream')
+        argsStreamAbortController.abort()
+      }
 
       const serializedCacheKey =
         typeof encodedCacheKey === 'string'
@@ -677,13 +781,6 @@ export function cache(
             // Convert it to an ArrayBuffer if it wants to.
             encodedCacheKey
           : await encodeFormData(encodedCacheKey)
-
-      console.log('encodedArgs', encodedArgs)
-      console.log('decodedArgs', decodedArgs)
-      console.log('resolvedArgs', resolvedArgs)
-      console.log('cacheKeyParts', cacheKeyParts)
-      console.log('encodedCacheKey', encodedCacheKey)
-      console.log('serializedCacheKey', serializedCacheKey)
 
       let stream: undefined | ReadableStream = undefined
 
@@ -1036,4 +1133,13 @@ function isRecentlyRevalidatedTag(tag: string, workStore: WorkStore): boolean {
   }
 
   return false
+}
+
+function abortAfterCurrentMicrotaskQueue(): AbortSignal {
+  const abortController = new AbortController()
+  scheduleAfterCurrentMicrotaskQueue(() => {
+    if (DEBUG) console.log('aborting after exhausting microtask queue')
+    abortController.abort()
+  })
+  return abortController.signal
 }
