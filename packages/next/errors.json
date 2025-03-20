@@ -665,5 +665,6 @@
   "664": "Missing 'next-action' header.",
   "665": "Failed to find Server Action \"%s\". This request might be from an older or newer deployment.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
   "666": "Turbopack builds are only available in canary builds of Next.js.",
-  "667": "receiveExpiredTags is deprecated, and not expected to be called."
+  "667": "receiveExpiredTags is deprecated, and not expected to be called.",
+  "668": "[next] Failed to create virtual TypeScript environment."
 }
