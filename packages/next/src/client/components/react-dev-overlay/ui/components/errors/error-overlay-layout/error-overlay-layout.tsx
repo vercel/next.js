@@ -3,7 +3,7 @@ import type { DebugInfo } from '../../../../types'
 import type { ErrorMessageType } from '../error-message/error-message'
 import type { ErrorType } from '../error-type-label/error-type-label'
 
-import { DialogContent, DialogFooter } from '../../dialog'
+import { DialogContent } from '../../dialog'
 import {
   ErrorOverlayToolbar,
   styles as toolbarStyles,
@@ -112,12 +112,10 @@ export function ErrorOverlayLayout({
           onScroll={onScroll}
           footer={
             hasFooter && (
-              <DialogFooter>
-                <ErrorOverlayFooter
-                  footerMessage={footerMessage}
-                  errorCode={errorCode}
-                />
-              </DialogFooter>
+              <ErrorOverlayFooter
+                footerMessage={footerMessage}
+                errorCode={errorCode}
+              />
             )
           }
         >

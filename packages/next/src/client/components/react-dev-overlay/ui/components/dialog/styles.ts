@@ -94,11 +94,6 @@ const styles = `
     flex: 1 1 auto;
   }
 
-  [data-nextjs-dialog-footer] {
-    position: relative;
-    bottom: 0;
-  }
-
   @media (max-height: 812px) {
     [data-nextjs-dialog-overlay] {
       max-height: calc(100% - 15px);

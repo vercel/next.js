@@ -32,6 +32,7 @@ export function ErrorOverlayDialog({
 
 export const DIALOG_STYLES = `
   .error-overlay-dialog-container {
+    -webkit-font-smoothing: antialiased;
     display: flex;
     flex-direction: column;
     background: var(--color-background-100);
