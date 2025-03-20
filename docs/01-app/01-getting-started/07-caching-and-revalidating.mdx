@@ -226,27 +226,47 @@ You can use the [`cacheLife` function](/docs/app/api-reference/functions/cacheLi
 
 `cacheLife` comes with [default cache profiles](/docs/app/api-reference/functions/cacheLife#default-cache-profiles) such as `'hour'`, `'day'`, and `'week'`. These profiles can be [customized](/docs/app/api-reference/functions/cacheLife#custom-cache-profiles), if needed.
 
-To use `cacheLife`, import it from `next/cache` and nest it within the **scope** of the `'use cache'` directive and the function. For example, to revalidate the blog page after one hour:
+To use `cacheLife`, import it from `next/cache` and nest it within the **scope** of the `'use cache'` directive and the function. For example, to revalidate the blog list page after one hour:
 
-```tsx filename="app/blog/page.tsx" highlight={3,6} switcher
+```tsx filename="app/blog/page.tsx" highlight={8} switcher
 'use cache'
 
-import { cacheLife } from 'next/cache'
+import { BlogPost } from '@/app/ui/BlogPost'
+import { CommentSection } from '@/app/ui/CommentSection'
+import { getPosts } from '@/app/lib/data'
 
-export default async function Page() {
-  cacheLife('hour')
-  return <Posts posts={posts} />
+export default async function BlogListPage() {
+  cacheLife('hours')
+  const posts = await getPosts()
+
+  return (
+    <div>
+      {posts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </div>
+  )
 }
 ```
 
-```jsx filename="app/blog/page.js" highlight={3,6} switcher
+```jsx filename="app/blog/page.js" highlight={8} switcher
 'use cache'
 
-import { cacheLife } from 'next/cache'
+import { BlogPost } from '@/app/ui/BlogPost'
+import { CommentSection } from '@/app/ui/CommentSection'
+import { getPosts } from '@/app/lib/data'
 
-export default async function Page() {
-  cacheLife('hour')
-  return <Posts posts={posts} />
+export default async function BlogListPage() {
+  cacheLife('hours')
+  const posts = await getPosts()
+
+  return (
+    <div>
+      {posts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </div>
+  )
 }
 ```
 
