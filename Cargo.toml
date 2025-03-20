@@ -300,6 +300,7 @@ swc_core = { version = "16.8.0", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
+swc_parallel = { version = "1.3.0", default-features = false, features = ["rayon"] }
 testing = { version = "8.0.0" }
 
 # Keep consistent with preset_env_base through swc_core
