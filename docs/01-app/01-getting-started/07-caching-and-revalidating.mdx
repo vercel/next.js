@@ -9,8 +9,6 @@ related:
     - app/api-reference/directives/use-cache
     - app/api-reference/functions/cacheLife
     - app/api-reference/functions/cacheTag
-    - app/api-reference/functions/revalidateTag
-    - app/api-reference/functions/revalidatePath
 ---
 
 Next.js uses the server and client environments for caching.
@@ -45,13 +43,12 @@ Dynamic APIs rely on information that can only be known at request time. These A
 - [`connection`](/docs/app/api-reference/functions/connection)
 - [`draftMode`](/docs/app/api-reference/functions/draft-mode)
 - [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional)
-- [`unstable_noStore`](/docs/app/api-reference/functions/unstable_noStore)
 
 ### Optimizing dynamic routes with streaming
 
-To optimize the initial loading performance of dynamic routes, you can use React's [`<Suspense>` boundary](https://react.dev/reference/react/Suspense) or [`loading.js`](/docs/app/api-reference/file-conventions/loading) to show loading UI and progressively **stream** dynamic content to the client.
+To optimize the initial loading performance of dynamic routes, you can use a [`<Suspense>` boundary](https://react.dev/reference/react/Suspense) or [`loading.js`](/docs/app/api-reference/file-conventions/loading) to show loading UI and progressively **stream** dynamic content to the client.
 
-With streaming, the route is split into _chunks_ and streamed to the client as it becomes ready. This allows the user to see parts of the page immediately, before all the fetching and rendering work is complete.
+Streaming splits a route into _chunks_ that are sent to the client as they become ready. This allows the user to see parts of the page immediately, before all the fetching and rendering work is complete.
 
 For example, the `<User>` component uses the `cookies` API to fetch the current user's information. Using it anywhere in a route will make the route dynamic and block it from being sent to the client until the data is fetched.
 
@@ -149,7 +146,7 @@ export default function DashboardLayout({ children }) {
 
 In addition to streaming, you can optimize dynamic routes by caching the output of nested components or functions.
 
-Following the example above, the blog list page is now dynamic because `cookies` is nested in the parent blog layout. However, the blog list doesn't need to update on every request. To ensure this page is cached, make the component **asynchronous**, and add the [`'use cache'`](/docs/app/api-reference/directives/use-cache) directive:
+Following the example above, the blog list page is now dynamic because `cookies` is nested in the parent blog layout. However, the blog list doesn't need to update on every request. To ensure this component is cached, make it **asynchronous** and add the [`'use cache'`](/docs/app/api-reference/directives/use-cache) directive:
 
 ```tsx filename="app/blog/page.tsx" highlight={6}switcher
 import { BlogPost } from '@/app/ui/BlogPost'
@@ -380,11 +377,11 @@ When a user navigates between routes, Next.js caches the visited route segments 
 
 ### Invalidation
 
-The client-side cache can be invalidated with [`cacheLife` function](/docs/app/api-reference/functions/cacheLife) or [`cacheTag` function](/docs/app/api-reference/functions/cacheTag).
+The client-side cache can be invalidated with the `stale` option in the [`cacheLife` function](/docs/app/api-reference/functions/cacheLife) or the [`revalidateTag` function](/docs/app/api-reference/functions/revalidateTag).
 
 The cache also has an **automatic invalidation period** that depends on how the route was [prefetched](/docs/app/api-reference/components/link#prefetch), and if the route was [statically generated](/docs/app/building-your-application/rendering/server-components#static-rendering-default):
 
 - **Default Prefetching** (`prefetch={null}` or unspecified): not cached for dynamic routes, 5 minutes for static routes.
-- **Full Prefetching** (`prefetch={true}` or `router.prefetch`): 5 minutes for both static & dynamic routes.
+- **Full Prefetching** (`prefetch={true}` or `router.prefetch`): 5 minutes for both static and dynamic routes.
 
 The cache is cleared on page refresh.
