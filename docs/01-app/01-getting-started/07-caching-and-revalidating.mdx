@@ -18,19 +18,27 @@ Next.js uses the server and client environments for caching.
 - On the server, you can cache the output of components and functions to reduce the need to recompute work for every user request.
 - On the client, the cached content from the server is temporarily stored in the browser to reduce the number of server requests on navigation.
 
-This page describes how you can cache and revalidate routes, components, and functions, and configure the caching behavior.
+This page describes how you can cache and revalidate routes, components, and functions.
 
 ## Server-side caching
 
-### Static routes
+### Static routes (default)
 
-By default, routes are prerendered at build time (static). During development, you can check if a route is static by running `next dev` and opening the [Next.js Dev Tools](/docs/app/api-reference/config/next-config-js/devIndicators) in your local host.
+By default, routes are **prerendered** at build time. The result is cached and shared between users and server requests.
+
+Prerendering is useful when a route has data that is not personalized to the user and can be known ahead of time, such as a static blog post or a product page.
 
 ### Dynamic routes
 
-Using **request-time APIs** will make a route dynamic, meaning it'll be rendered on every request at runtime and the result won't be cached.
+Using a [Dynamic API](#dynamic-apis) or a [fetch](/docs/app/api-reference/functions/fetch) request with the `{ cache: 'no-store' }` option will make a route dynamic, meaning it'll be rendered at runtime and the result won't be cached between user requests.
 
-These request-time APIs are:
+Dynamic rendering is useful when a route has data that is personalized to the user or has information that can only be known at request time.
+
+> During development, you can check if a route is static or dynamic by running `next dev` and opening the [Next.js Dev Tools](/docs/app/api-reference/config/next-config-js/devIndicators) in your local host.
+
+#### Dynamic APIs
+
+Dynamic APIs rely on information that can only be known at request time. These APIs are:
 
 - [`cookies`](/docs/app/api-reference/functions/cookies)
 - [`headers`](/docs/app/api-reference/functions/headers)
@@ -39,15 +47,13 @@ These request-time APIs are:
 - [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional)
 - [`unstable_noStore`](/docs/app/api-reference/functions/unstable_noStore)
 
-> During development, you can check if a route is dynamic by running `next dev` and opening the [Next.js Dev Tools](/docs/app/api-reference/config/next-config-js/devIndicators) in your local host.
+### Optimizing with streaming
 
-### Optimizing dynamic routes with Streaming
+To optimize the initial loading performance of dynamic routes, you can use React's [`<Suspense>` boundary](https://react.dev/reference/react/Suspense) to show loading UI and progressively **stream** dynamic content to the client.
 
-To optimize the initial loading performance of dynamic routes, you can use React's [`<Suspense>` boundary](https://react.dev/reference/react/Suspense) to show loading UI and progressively stream dynamic content to the client.
+With streaming, the route is split into _chunks_ and streamed to the client as it becomes ready. This allows the user to see parts of the page immediately, before all the fetching and rendering work is complete.
 
-For example, the `<User>` component uses the `cookies` API to fetch the current user's information. Since `<User>` is nested inside `<Navigation>` and `<Navigation>` is nested inside the layout, the `cookies` API opts the whole route into dynamic rendering.
-
-To prevent the whole route from being blocked while all data is being fetched, you can wrap `<User>` in a `Suspense` boundary. This means the `<Navigation>` component and a fallback will be sent to the client first, while the `<User>` component will be streamed when it's ready.
+For example, the `<User>` component uses the `cookies` API to fetch the current user's information. Using it anywhere in a route will make it dynamic and block it from being sent to the client until the data is fetched.
 
 ```tsx filename="app/ui/user.tsx" switcher
 import { cookies } from 'next/headers'
@@ -70,6 +76,8 @@ export async function User() {
   return <>...</>
 }
 ```
+
+To prevent the whole route from being blocked, you can wrap the component in a `Suspense` boundary. This means the `<Navigation>` component and a fallback will be sent to the client first, while the nested `<User>` component, which relies on a potentially blocking request, will be streamed when it's ready.
 
 ```tsx filename="app/ui/navigation.tsx" switcher
 import { Suspense } from 'react'
@@ -105,26 +113,22 @@ export default function Navigation() {
 }
 ```
 
-```tsx filename="app/dashboard/layout.tsx" switcher
+```tsx filename="app/layout.tsx" switcher
 import { Navigation } from '@/app/ui/navigation'
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html>
       <body>
         <Navigation />
-        {children}
+        <main>{children}</main>
       </body>
     </html>
   )
 }
 ```
 
-```jsx filename="app/dashboard/layout.js" switcher
+```jsx filename="app/blog/layout.js" switcher
 import { Navigation } from '@/app/ui/navigation'
 
 export default function DashboardLayout({ children }) {
@@ -132,7 +136,7 @@ export default function DashboardLayout({ children }) {
     <html>
       <body>
         <Navigation />
-        {children}
+        <main>{children}</main>
       </body>
     </html>
   )
