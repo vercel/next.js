@@ -4,13 +4,13 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, TryJoinIterExt};
 use turbo_tasks_fs::{File, FileContent, FileSystem};
 use turbopack_core::{
     asset::AssetContent, server_fs::ServerFileSystem, virtual_source::VirtualSource,
 };
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, TraceRawVcs, NonLocalValue)]
 #[serde(rename_all = "camelCase")]
 pub struct EmittedAsset {
     file: RcStr,

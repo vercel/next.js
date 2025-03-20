@@ -24,6 +24,8 @@
  * SOFTWARE.
  */
 
+/// <reference types="webpack/module.d.ts" />
+
 // This file is a modified version of the Create React App HMR dev client that
 // can be found here:
 // https://github.com/facebook/create-react-app/blob/v3.4.1/packages/react-dev-utils/webpackHotDevClient.js
@@ -55,10 +57,8 @@ import {
 } from '../shared'
 import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
 import reportHmrLatency from '../utils/report-hmr-latency'
-import {
-  extractModulesFromTurbopackMessage,
-  TurbopackHmr,
-} from '../utils/turbopack-hot-reloader-common'
+import { TurbopackHmr } from '../utils/turbopack-hot-reloader-common'
+
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
 // https://github.com/webpack/webpack/blob/webpack-1/hot/dev-server.js
@@ -149,7 +149,7 @@ function handleSuccess() {
 
     // Attempt to apply hot updates or reload.
     if (isHotUpdate) {
-      tryApplyUpdates(onBeforeFastRefresh, onFastRefresh)
+      tryApplyUpdatesWebpack()
     }
   }
 
@@ -189,7 +189,7 @@ function handleWarnings(warnings: any) {
 
   // Attempt to apply hot updates or reload.
   if (isHotUpdate) {
-    tryApplyUpdates(onBeforeFastRefresh, onFastRefresh)
+    tryApplyUpdatesWebpack()
   }
 }
 
@@ -233,30 +233,6 @@ const turbopackHmr: TurbopackHmr | null = process.env.TURBOPACK
   : null
 let isrManifest: Record<string, boolean> = {}
 
-function onBeforeFastRefresh(updatedModules: string[]) {
-  if (updatedModules.length > 0) {
-    // Only trigger a pending state if we have updates to apply
-    // (cf. onFastRefresh)
-    onBeforeRefresh()
-  }
-}
-
-function onFastRefresh(updatedModules: ReadonlyArray<string> = []) {
-  onBuildOk()
-  if (updatedModules.length === 0) {
-    return
-  }
-
-  onRefresh()
-
-  reportHmrLatency(
-    sendMessage,
-    updatedModules,
-    webpackStartMsSinceEpoch!,
-    Date.now()
-  )
-}
-
 // There is a newer version of the code available.
 function handleAvailableHash(hash: string) {
   // Update last known compilation hash.
@@ -282,7 +258,7 @@ export function handleStaticIndicator() {
   }
 }
 
-/** Handles messages from the sevrer for the Pages Router. */
+/** Handles messages from the server for the Pages Router. */
 function processMessage(obj: HMR_ACTION_TYPES) {
   if (!('action' in obj)) {
     return
@@ -325,6 +301,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
         return handleErrors(errors)
       }
 
+      // NOTE: Turbopack does not currently send warnings
       const hasWarnings = Boolean(warnings && warnings.length)
       if (hasWarnings) {
         sendMessage(
@@ -371,8 +348,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       break
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE: {
-      const updatedModules = extractModulesFromTurbopackMessage(obj.data)
-      onBeforeFastRefresh([...updatedModules])
+      onBeforeRefresh()
       for (const listener of turbopackMessageListeners) {
         listener({
           type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
@@ -424,10 +400,7 @@ function afterApplyUpdates(fn: () => void) {
 }
 
 // Attempt to update code on the fly, fall back to a hard reload.
-function tryApplyUpdates(
-  onBeforeHotUpdate: ((updatedModules: string[]) => unknown) | undefined,
-  onHotUpdateSuccess: (updatedModules: string[]) => unknown
-) {
+function tryApplyUpdatesWebpack() {
   if (!module.hot) {
     // HotModuleReplacementPlugin is not in Webpack configuration.
     console.error('HotModuleReplacementPlugin is not in Webpack configuration.')
@@ -440,8 +413,11 @@ function tryApplyUpdates(
     return
   }
 
-  function handleApplyUpdates(err: any, updatedModules: string[] | null) {
-    if (err || RuntimeErrorHandler.hadRuntimeError || !updatedModules) {
+  function handleApplyUpdates(
+    err: any,
+    updatedModules: (string | number)[] | null
+  ) {
+    if (err || RuntimeErrorHandler.hadRuntimeError || updatedModules == null) {
       if (err) {
         console.warn(REACT_REFRESH_FULL_RELOAD)
       } else if (RuntimeErrorHandler.hadRuntimeError) {
@@ -451,46 +427,49 @@ function tryApplyUpdates(
       return
     }
 
-    if (typeof onHotUpdateSuccess === 'function') {
-      // Maybe we want to do something.
-      onHotUpdateSuccess(updatedModules)
-    }
+    onBuildOk()
 
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
-      // However, this time, don't trigger a pending refresh state.
-      tryApplyUpdates(
-        updatedModules.length > 0 ? undefined : onBeforeHotUpdate,
-        updatedModules.length > 0 ? onBuildOk : onHotUpdateSuccess
-      )
-    } else {
-      onBuildOk()
-      if (process.env.__NEXT_TEST_MODE) {
-        afterApplyUpdates(() => {
-          if (self.__NEXT_HMR_CB) {
-            self.__NEXT_HMR_CB()
-            self.__NEXT_HMR_CB = null
-          }
-        })
-      }
+      tryApplyUpdatesWebpack()
+      return
+    }
+
+    onRefresh()
+    reportHmrLatency(
+      sendMessage,
+      updatedModules,
+      webpackStartMsSinceEpoch!,
+      Date.now()
+    )
+
+    if (process.env.__NEXT_TEST_MODE) {
+      afterApplyUpdates(() => {
+        if (self.__NEXT_HMR_CB) {
+          self.__NEXT_HMR_CB()
+          self.__NEXT_HMR_CB = null
+        }
+      })
     }
   }
 
   // https://webpack.js.org/api/hot-module-replacement/#check
   module.hot
     .check(/* autoApply */ false)
-    .then((updatedModules: any) => {
-      if (!updatedModules) {
+    .then((updatedModules: (string | number)[] | null) => {
+      if (updatedModules == null) {
         return null
       }
 
-      if (typeof onBeforeHotUpdate === 'function') {
-        onBeforeHotUpdate(updatedModules)
-      }
+      // We should always handle an update, even if updatedModules is empty (but
+      // non-null) for any reason. That's what webpack would normally do:
+      // https://github.com/webpack/webpack/blob/3aa6b6bc3a64/lib/hmr/HotModuleReplacement.runtime.js#L296-L298
+      onBeforeRefresh()
+      // https://webpack.js.org/api/hot-module-replacement/#apply
       return module.hot.apply()
     })
     .then(
-      (updatedModules: any) => {
+      (updatedModules: (string | number)[] | null) => {
         handleApplyUpdates(null, updatedModules)
       },
       (err: any) => {

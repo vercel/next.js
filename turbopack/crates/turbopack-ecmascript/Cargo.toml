@@ -71,6 +71,7 @@ swc_core = { workspace = true, features = [
   "testing",
   "base",
 ] }
+swc_parallel = { workspace = true, default-features = false, features = ["rayon"] }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

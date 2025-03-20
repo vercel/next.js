@@ -979,7 +979,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         if !parent_task.is_transient() {
             let parent_task_type = self.lookup_task_type(parent_task);
             panic!(
-                "Calling transient function {} from persistent function function {} is not allowed",
+                "Calling transient function {} from persistent function {} is not allowed",
                 task_type.get_name(),
                 parent_task_type.map_or("unknown", |t| t.get_name())
             );
@@ -1068,7 +1068,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task.invalidate_serialization();
     }
 
-    fn get_task_description(&self, task_id: TaskId) -> std::string::String {
+    fn get_task_description(&self, task_id: TaskId) -> String {
         self.lookup_task_type(task_id).map_or_else(
             || format!("{task_id:?} transient"),
             |task_type| task_type.to_string(),
@@ -2047,7 +2047,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         self.0.invalidate_serialization(task_id, turbo_tasks);
     }
 
-    fn get_task_description(&self, task: TaskId) -> std::string::String {
+    fn get_task_description(&self, task: TaskId) -> String {
         self.0.get_task_description(task)
     }
 
