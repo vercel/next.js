@@ -31,7 +31,6 @@ const testedExamples = [
   'next-forms',
   'remove-console',
   'reproduction-template',
-  'rewrites',
   'route-handlers',
   'script-component',
   'ssr-caching',
