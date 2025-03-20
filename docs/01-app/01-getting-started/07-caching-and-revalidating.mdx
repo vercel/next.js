@@ -49,11 +49,11 @@ Dynamic APIs rely on information that can only be known at request time. These A
 
 ### Optimizing with streaming
 
-To optimize the initial loading performance of dynamic routes, you can use React's [`<Suspense>` boundary](https://react.dev/reference/react/Suspense) to show loading UI and progressively **stream** dynamic content to the client.
+To optimize the initial loading performance of dynamic routes, you can use React's [`<Suspense>` boundary](https://react.dev/reference/react/Suspense) or [`loading.js`](/docs/app/api-reference/file-conventions/loading) to show loading UI and progressively **stream** dynamic content to the client.
 
 With streaming, the route is split into _chunks_ and streamed to the client as it becomes ready. This allows the user to see parts of the page immediately, before all the fetching and rendering work is complete.
 
-For example, the `<User>` component uses the `cookies` API to fetch the current user's information. Using it anywhere in a route will make it dynamic and block it from being sent to the client until the data is fetched.
+For example, the `<User>` component uses the `cookies` API to fetch the current user's information. Using it anywhere in a route will make the route dynamic and block it from being sent to the client until the data is fetched.
 
 ```tsx filename="app/ui/user.tsx" switcher
 import { cookies } from 'next/headers'
@@ -149,7 +149,7 @@ export default function DashboardLayout({ children }) {
 
 In addition to streaming, you can optimize dynamic routes by caching the output of nested components or functions.
 
-Following the example above, the blog list route is now dynamic because `cookies` is nested in the blog's layout. However, the blog list doesn't need to update on every request. To ensure this page is cached, make the component **asynchronous**, and add the [`'use cache'`](/docs/app/api-reference/directives/use-cache) directive:
+Following the example above, the blog list page is now dynamic because `cookies` is nested in the parent blog layout. However, the blog list doesn't need to update on every request. To ensure this page is cached, make the component **asynchronous**, and add the [`'use cache'`](/docs/app/api-reference/directives/use-cache) directive:
 
 ```tsx filename="app/blog/page.tsx" highlight={6}switcher
 import { BlogPost } from '@/app/ui/BlogPost'
@@ -191,7 +191,7 @@ export default async function BlogListPage() {
 
 In the example above, the component is being cached. But you can also cache a function's return value:
 
-```tsx filename="app/lib/data.ts" switcher
+```tsx filename="app/lib/data.ts" highlight={2} switcher
 export async function getPosts() {
   'use cache'
   const data = await fetch(`https://api.vercel.app/posts`)
@@ -199,7 +199,7 @@ export async function getPosts() {
 }
 ```
 
-```jsx filename="app/lib/data.js" switcher
+```jsx filename="app/lib/data.js" highlight={2} switcher
 export async function getPosts() {
   'use cache'
   const data = await fetch(`https://api.vercel.app/posts`)
@@ -207,10 +207,7 @@ export async function getPosts() {
 }
 ```
 
-With the above approach, whenever `getPosts` function is called in your application, the same cached value will be reused as long as the arguments passed to the function are the same. Learn more about `use cache` in the [API Reference](/docs/app/api-reference/directives/use-cache).
-
-TODO: Talk about functions
-To mark a function or component as cacheable, you can use the [`'use cache'`](/docs/app/api-reference/directives/use-cache) directive.
+With the above approach, whenever the `getPosts` function is called in your application, the same cached value will be reused as long as the arguments passed to the function are the same. Learn more about `use cache` in the [API Reference](/docs/app/api-reference/directives/use-cache).
 
 ### Components
 
