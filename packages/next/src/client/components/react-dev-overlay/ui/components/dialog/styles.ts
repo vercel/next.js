@@ -1,7 +1,6 @@
 const styles = `
   [data-nextjs-dialog-root] {
     --next-dialog-radius: var(--rounded-xl);
-    --next-dialog-footer-height: var(--size-48);
     --next-dialog-max-width: 960px;
     --next-dialog-row-padding: 16px;
     --next-dialog-padding-x: 12px;
@@ -77,7 +76,6 @@ const styles = `
   }
 
   [data-nextjs-dialog-content] {
-    overflow-y: auto;
     border: none;
     margin: 0;
     display: flex;
@@ -97,9 +95,8 @@ const styles = `
   }
 
   [data-nextjs-dialog-footer] {
-    position: sticky;
+    position: relative;
     bottom: 0;
-    &, > * { min-height: var(--next-dialog-footer-height); }
   }
 
   @media (max-height: 812px) {
