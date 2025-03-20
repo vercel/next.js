@@ -18,7 +18,7 @@ import picomatch from 'next/dist/compiled/picomatch'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getPageFilePath } from '../../entries'
 import { resolveExternal } from '../../handle-externals'
-import { isStaticMetadataRoutePage } from '../../../lib/metadata/is-metadata-route'
+import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
 import { getCompilationSpan } from '../utils'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
@@ -243,7 +243,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
           const entryIsStaticMetadataRoute =
             appDirRelativeEntryPath &&
-            isStaticMetadataRoutePage(appDirRelativeEntryPath)
+            isMetadataRouteFile(appDirRelativeEntryPath, [], true)
 
           // Include the client reference manifest in the trace, but not for
           // static metadata routes, for which we don't generate those.
