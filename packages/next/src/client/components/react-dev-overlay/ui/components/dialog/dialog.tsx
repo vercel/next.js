@@ -10,6 +10,7 @@ export type DialogProps = {
   className?: string
   onClose?: () => void
   dialogResizerRef?: React.RefObject<HTMLDivElement | null>
+  footer?: React.ReactNode
 } & React.HTMLAttributes<HTMLDivElement>
 
 const CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE = [
@@ -28,6 +29,7 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   'aria-labelledby': ariaLabelledBy,
   'aria-describedby': ariaDescribedBy,
   dialogResizerRef,
+  footer,
   ...props
 }) {
   const dialogRef = React.useRef<HTMLDivElement | null>(null)
@@ -115,6 +117,7 @@ const Dialog: React.FC<DialogProps> = function Dialog({
       >
         <div ref={ref}>{children}</div>
       </div>
+      {footer}
     </div>
   )
 }
