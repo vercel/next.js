@@ -16,5 +16,5 @@
 }
 
 :global(.global) {
-  color: rgb(17, 119, 34);
+  font-weight: 700;
 }

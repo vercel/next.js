@@ -758,9 +758,9 @@ describe('cssmodules-pure-no-check usage', () => {
 
         const elementWithGlobalStyles = await browser
           .elementByCss('#my-div')
-          .getComputedCss('color')
+          .getComputedCss('font-weight')
 
-        expect(elementWithGlobalStyles).toBe('rgb(17, 119, 34)')
+        expect(elementWithGlobalStyles).toBe('700')
       })
 
       it(`should've emitted a CSS file`, async () => {
@@ -777,7 +777,7 @@ describe('cssmodules-pure-no-check usage', () => {
 
         const cssCode = cssContent.replace(/\/\*.*?\*\//g, '').trim()
 
-        expect(cssCode).toInclude(`.global{color:rgb(17,119,34)}`)
+        expect(cssCode).toInclude(`.global{font-weight:700}`)
 
         expect(cssCode).toInclude(
           `::view-transition-old(root){animation:.3s cubic-bezier(.4,0,.2,1) both var(--fade-in)}`
