@@ -29,7 +29,6 @@ const testedExamples = [
   'middleware',
   'middleware-matcher',
   'nested-components',
-  'next-css',
   'next-forms',
   'redirects',
   'remove-console',

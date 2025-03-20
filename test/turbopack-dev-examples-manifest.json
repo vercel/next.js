@@ -59,7 +59,6 @@
   "middleware": true,
   "middleware-matcher": true,
   "nested-components": true,
-  "next-css": true,
   "next-offline": true,
   "panda-css": true,
   "progressive-web-app": true,
