@@ -23,7 +23,6 @@ const testedExamples = [
   'i18n-routing-pages',
   'image-component',
   'image-legacy-component',
-  'layout-component',
   'mdx',
   'middleware',
   'middleware-matcher',

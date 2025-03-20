@@ -52,7 +52,6 @@
   "image-component": true,
   "image-legacy-component": true,
   "inngest": true,
-  "layout-component": true,
   "mdx": true,
   "mdx-remote": true,
   "middleware": true,
