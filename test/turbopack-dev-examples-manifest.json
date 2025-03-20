@@ -15,7 +15,6 @@
   "blog-starter": true,
   "blog-with-comment": true,
   "cache-handler-redis": true,
-  "catch-all-routes": true,
   "cloudflare-turnstile": true,
   "cms-agilitycms": true,
   "cms-builder-io": true,
