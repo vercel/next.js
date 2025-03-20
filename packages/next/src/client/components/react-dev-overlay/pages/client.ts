@@ -21,7 +21,6 @@ import { attachHydrationErrorState } from '../../errors/attach-hydration-error-s
 import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
 
 let isRegistered = false
-let stackTraceLimit: number | undefined = undefined
 
 function handleError(error: unknown) {
   if (!error || !(error instanceof Error) || typeof error.stack !== 'string') {
@@ -93,32 +92,12 @@ export function register() {
   isRegistered = true
 
   try {
-    const limit = Error.stackTraceLimit
     Error.stackTraceLimit = 50
-    stackTraceLimit = limit
   } catch {}
 
   window.addEventListener('error', onUnhandledError)
   window.addEventListener('unhandledrejection', onUnhandledRejection)
   window.console.error = nextJsHandleConsoleError
-}
-
-export function unregister() {
-  if (!isRegistered) {
-    return
-  }
-  isRegistered = false
-
-  if (stackTraceLimit !== undefined) {
-    try {
-      Error.stackTraceLimit = stackTraceLimit
-    } catch {}
-    stackTraceLimit = undefined
-  }
-
-  window.removeEventListener('error', onUnhandledError)
-  window.removeEventListener('unhandledrejection', onUnhandledRejection)
-  window.console.error = origConsoleError
 }
 
 export function onBuildOk() {
