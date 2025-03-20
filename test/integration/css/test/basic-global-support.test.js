@@ -534,7 +534,7 @@ module.exports = {
 
 
 
-             .blue-text{color:orange;font-weight:bolder;background-image:url(../media/light.180573e4.svg)}
+             .blue-text{color:orange;background-image:url(../media/light.180573e4.svg);font-weight:bolder}
 
 
              .blue-text{color:#00f}"
@@ -547,7 +547,7 @@ module.exports = {
 
 
 
-             .blue-text{color:orange;font-weight:bolder;background-image:url(../media/light.180573e4.svg)}
+             .blue-text{color:orange;background-image:url(../media/light.180573e4.svg);font-weight:bolder}
 
 
              .blue-text{color:#00f}"
@@ -611,7 +611,7 @@ describe('CSS URL via `file-loader` and asset prefix (1)', () => {
            ".red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}
 
 
-           .blue-text{color:orange;font-weight:bolder;background-image:url(../media/light.180573e4.svg)}
+           .blue-text{color:orange;background-image:url(../media/light.180573e4.svg);font-weight:bolder}
 
            .blue-text{color:#00f}"
           `)
@@ -670,7 +670,7 @@ describe('CSS URL via `file-loader` and asset prefix (2)', () => {
 
 
 
-           .blue-text{color:orange;font-weight:bolder;background-image:url(../media/light.180573e4.svg)}
+           .blue-text{color:orange;background-image:url(../media/light.180573e4.svg);font-weight:bolder}
 
 
            .blue-text{color:#00f}"
