@@ -12,6 +12,8 @@ import {
   createFromReadableStream,
   encodeReply,
   createTemporaryReferenceSet as createClientTemporaryReferenceSet,
+  type TemporaryReferenceSet,
+  type ServerConsumerManifest,
 } from 'react-server-dom-webpack/client.edge'
 
 import type { WorkStore } from '../app-render/work-async-storage.external'
@@ -546,24 +548,6 @@ export function cache(
       // In case getClientReferenceManifestSingleton is implemented using AsyncLocalStorage.
       const clientReferenceManifest = getClientReferenceManifestForRsc()
 
-      // Because the Action ID is not yet unique per implementation of that Action we can't
-      // safely reuse the results across builds yet. In the meantime we add the buildId to the
-      // arguments as a seed to ensure they're not reused. Remove this once Action IDs hash
-      // the implementation.
-      const buildId = workStore.buildId
-
-      // In dev mode, when the HMR refresh hash is set, we include it in the
-      // cache key. This ensures that cache entries are not reused when server
-      // components have been edited. This is a very coarse approach. But it's
-      // also only a temporary solution until Action IDs are unique per
-      // implementation. Remove this once Action IDs hash the implementation.
-      const hmrRefreshHash = workUnitStore && getHmrRefreshHash(workUnitStore)
-
-      const hangingInputAbortSignal =
-        workUnitStore?.type === 'prerender'
-          ? createHangingInputAbortSignal(workUnitStore)
-          : undefined
-
       // When dynamicIO is not enabled, we can not encode searchParams as
       // hanging promises. To still avoid unused search params from making a
       // page dynamic, we overwrite them here with a promise that resolves to an
@@ -618,62 +602,7 @@ export function cache(
         args.unshift(boundArgs)
       }
 
-      const argsClientTemporaryReferences = createClientTemporaryReferenceSet()
-
-      const encodedArgs = await encodeReply(args, {
-        temporaryReferences: argsClientTemporaryReferences,
-        signal: hangingInputAbortSignal,
-      })
-
-      const argsServerTemporaryReferences = createServerTemporaryReferenceSet()
-
-      const decodedArgs = await decodeReply<unknown[]>(
-        workUnitStore,
-        encodedArgs,
-        argsServerTemporaryReferences
-      )
-
-      // wait for async values inside `decodedArgs` to resolve.
-      // we already waited for them when doing `encodeReply`, so this should be near instant.
-      // TODO: is this waiting too long?
-      await new Promise<void>((resolve) =>
-        scheduleAfterCurrentMicrotaskQueue(resolve)
-      )
-
-      // by this point, all async values inside `resolvedArgs` should be available microtaskily.
-      // if we need to abort to account for hanging promises, we can just flush the microtask queue.
-      const decodedArgsAbortSignal = hangingInputAbortSignal
-        ? abortAfterCurrentMicrotaskQueue()
-        : undefined
-
-      const argsStreamAbortController = hangingInputAbortSignal
-        ? new AbortController()
-        : undefined
-      const argsStreamAbortSignal = argsStreamAbortController
-        ? argsStreamAbortController.signal
-        : undefined
-
-      let argsStream = renderToReadableStream(
-        decodedArgs,
-        clientReferenceManifest.clientModules,
-        {
-          temporaryReferences: argsServerTemporaryReferences,
-          onError(thrownValue) {
-            // If we triggered an abort, there's no need to log an error.
-            if (
-              argsStreamAbortSignal &&
-              argsStreamAbortSignal.aborted &&
-              isAbortError(thrownValue)
-            ) {
-              return
-            }
-            console.error('error while rendering argsStream', thrownValue)
-          },
-          signal: argsStreamAbortSignal,
-        }
-      )
-
-      const serverConsumerManifest = {
+      const serverConsumerManifest: ServerConsumerManifest = {
         // moduleLoading must be null because we don't want to trigger preloads
         // of ClientReferences to be added to the consumer. Instead, we'll wait
         // for any ClientReference to be emitted which themselves will handle
@@ -685,33 +614,16 @@ export function cache(
         serverModuleMap: getServerModuleMap(),
       }
 
-      const resolvedArgs = await createFromReadableStream<unknown[]>(
-        argsStream,
-        {
-          serverConsumerManifest,
-          temporaryReferences: argsClientTemporaryReferences,
-        }
-      )
-
-      const cacheKeyParts: CacheKeyParts = [
-        buildId,
-        hmrRefreshHash,
-        id,
-        resolvedArgs,
-      ]
-
       const temporaryReferences = createClientTemporaryReferenceSet()
-      const encodedCacheKey: FormData | string = await encodeReply(
-        cacheKeyParts,
-        {
-          temporaryReferences,
-          signal: decodedArgsAbortSignal,
-        }
+      const encodedCacheKey = await createEncodedCacheKey(
+        id,
+        args,
+        workUnitStore,
+        workStore,
+        clientReferenceManifest,
+        serverConsumerManifest,
+        temporaryReferences
       )
-
-      if (argsStreamAbortController) {
-        argsStreamAbortController.abort()
-      }
 
       const serializedCacheKey =
         typeof encodedCacheKey === 'string'
@@ -966,6 +878,127 @@ export function cache(
   }[name]
 
   return React.cache(cachedFn)
+}
+
+async function createEncodedCacheKey(
+  id: string,
+  args: unknown[],
+  workUnitStore: WorkUnitStore | undefined,
+  workStore: WorkStore,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
+  serverConsumerManifest: ServerConsumerManifest,
+  temporaryReferences: TemporaryReferenceSet
+): Promise<FormData | string> {
+  // Because the Action ID is not yet unique per implementation of that Action we can't
+  // safely reuse the results across builds yet. In the meantime we add the buildId to the
+  // arguments as a seed to ensure they're not reused. Remove this once Action IDs hash
+  // the implementation.
+  const buildId = workStore.buildId
+
+  // In dev mode, when the HMR refresh hash is set, we include it in the
+  // cache key. This ensures that cache entries are not reused when server
+  // components have been edited. This is a very coarse approach. But it's
+  // also only a temporary solution until Action IDs are unique per
+  // implementation. Remove this once Action IDs hash the implementation.
+  const hmrRefreshHash = workUnitStore && getHmrRefreshHash(workUnitStore)
+
+  const hangingInputAbortSignal =
+    workUnitStore?.type === 'prerender'
+      ? createHangingInputAbortSignal(workUnitStore)
+      : undefined
+
+  // Encode, decode, serialize, deserialize, and encode again.
+  // Essentially, this is simulating passing a reply from the client to the server and back, and then encoding it.
+  // (Unfortunately, we can't just call `encodeReply` twice, because it consumes ReadableStreams and async iterators)
+  // This is a bit convoluted, but it lets us ensure that all async values
+  // Are serialized deterministically, regardless of the order in which they resolve or stream in.
+  // This is because after the first encoding, we'll have all their values available synchronously,
+  // So they'll be serialized in traversal order.
+
+  // "Client" #1: encode
+
+  const argsClientTemporaryReferences = createClientTemporaryReferenceSet()
+  const encodedArgs = await encodeReply(args, {
+    temporaryReferences: argsClientTemporaryReferences,
+    signal: hangingInputAbortSignal,
+  })
+
+  // "Server": decode and serialize
+
+  const argsServerTemporaryReferences = createServerTemporaryReferenceSet()
+  const decodedArgs = await decodeReply<unknown[]>(
+    workUnitStore,
+    encodedArgs,
+    argsServerTemporaryReferences
+  )
+
+  // Wait for async values inside `decodedArgs` to resolve.
+  // We already waited for them when doing `encodeReply`, so this should be near instant.
+  // TODO: is this waiting too long?
+  await new Promise<void>((resolve) =>
+    scheduleAfterCurrentMicrotaskQueue(resolve)
+  )
+
+  const argsStreamAbortController = hangingInputAbortSignal
+    ? new AbortController()
+    : undefined
+  const argsStreamAbortSignal = argsStreamAbortController
+    ? argsStreamAbortController.signal
+    : undefined
+
+  const argsStream = renderToReadableStream(
+    decodedArgs,
+    clientReferenceManifest.clientModules,
+    {
+      environmentName: 'Cache',
+      temporaryReferences: argsServerTemporaryReferences,
+      onError(thrownValue) {
+        // If we triggered an abort, there's no need to log an error.
+        if (
+          argsStreamAbortSignal &&
+          argsStreamAbortSignal.aborted &&
+          isAbortError(thrownValue)
+        ) {
+          return
+        }
+        console.error(thrownValue)
+      },
+      signal: argsStreamAbortSignal,
+    }
+  )
+
+  // "Client" #2: deserialize, and do the final encoding
+
+  const resolvedArgs = await createFromReadableStream<unknown[]>(argsStream, {
+    serverConsumerManifest,
+    temporaryReferences: argsClientTemporaryReferences,
+  })
+
+  const cacheKeyParts: CacheKeyParts = [
+    buildId,
+    hmrRefreshHash,
+    id,
+    resolvedArgs,
+  ]
+
+  // By this point, all async values inside `resolvedArgs` should be available microtaskily,
+  // because the first `encodeReply` waited for all of them when serializing.
+  // we still might need to abort to account for hanging promises,
+  // but since everything else is microtasky, we can just flush the microtask queue and then abort.
+  const encodedCacheKeyAbortSignal = hangingInputAbortSignal
+    ? abortAfterCurrentMicrotaskQueue()
+    : undefined
+
+  const encodedCacheKey: FormData | string = await encodeReply(cacheKeyParts, {
+    temporaryReferences,
+    signal: encodedCacheKeyAbortSignal,
+  })
+
+  if (argsStreamAbortController) {
+    argsStreamAbortController.abort()
+  }
+
+  return encodedCacheKey
 }
 
 /**
