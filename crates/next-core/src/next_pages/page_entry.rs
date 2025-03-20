@@ -23,13 +23,6 @@ use crate::{
     util::{file_content_rope, load_next_js_template, NextRuntime},
 };
 
-#[turbo_tasks::value]
-pub struct PageSsrEntryModule {
-    pub ssr_module: ResolvedVc<Box<dyn Module>>,
-    pub app_module: Option<ResolvedVc<Box<dyn Module>>>,
-    pub document_module: Option<ResolvedVc<Box<dyn Module>>>,
-}
-
 #[turbo_tasks::function]
 pub async fn create_page_ssr_entry_module(
     pathname: Vc<RcStr>,
@@ -41,7 +34,7 @@ pub async fn create_page_ssr_entry_module(
     pages_structure: Vc<PagesStructure>,
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
-) -> Result<Vc<PageSsrEntryModule>> {
+) -> Result<Vc<Box<dyn Module>>> {
     let definition_page = &*next_original_name.await?;
     let definition_pathname = &*pathname.await?;
 
@@ -125,28 +118,28 @@ pub async fn create_page_ssr_entry_module(
 
     let pages_structure_ref = pages_structure.await?;
 
-    let (app_module, document_module) =
-        if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
-            let document_module = process_global_item(
+    if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
+        inner_assets.insert(
+            INNER_DOCUMENT.into(),
+            process_global_item(
                 *pages_structure_ref.document,
                 Value::new(reference_type.clone()),
                 ssr_module_context,
             )
             .to_resolved()
-            .await?;
-            let app_module = process_global_item(
+            .await?,
+        );
+        inner_assets.insert(
+            INNER_APP.into(),
+            process_global_item(
                 *pages_structure_ref.app,
                 Value::new(reference_type.clone()),
                 ssr_module_context,
             )
             .to_resolved()
-            .await?;
-            inner_assets.insert(INNER_DOCUMENT.into(), document_module);
-            inner_assets.insert(INNER_APP.into(), app_module);
-            (Some(app_module), Some(document_module))
-        } else {
-            (None, None)
-        };
+            .await?,
+        );
+    }
 
     let mut ssr_module = ssr_module_context
         .process(
@@ -177,12 +170,7 @@ pub async fn create_page_ssr_entry_module(
         }
     }
 
-    Ok(PageSsrEntryModule {
-        ssr_module: ssr_module.to_resolved().await?,
-        app_module,
-        document_module,
-    }
-    .cell())
+    Ok(ssr_module)
 }
 
 #[turbo_tasks::function]
