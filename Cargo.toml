@@ -296,7 +296,7 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "16.8.0", features = [
+swc_core = { version = "16.9.0", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
