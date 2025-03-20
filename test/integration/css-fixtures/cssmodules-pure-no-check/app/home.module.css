@@ -1,0 +1,20 @@
+/* View Transitions API - requires global scope to work properly */
+/* cssmodules-pure-no-check */
+::view-transition-old(root) {
+  animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both var(--fade-in);
+}
+
+::view-transition-new(root) {
+  animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both var(--fade-out);
+}
+
+.home {
+  background-color: #f0f0f0;
+  color: #333;
+  font-size: 16px;
+  padding: 20px;
+}
+
+:global(.global) {
+  color: rgb(17, 119, 34);
+}

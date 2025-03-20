@@ -724,3 +724,65 @@ describe('Catch-all Route CSS Module Usage', () => {
     }
   )
 })
+
+describe('cssmodules-pure-no-check usage', () => {
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      const appDir = join(fixturesDir, 'cssmodules-pure-no-check')
+
+      let stdout
+      let code
+      let app
+      let appPort
+
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+        ;({ code, stdout } = await nextBuild(appDir, [], {
+          stdout: true,
+        }))
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+
+      afterAll(() => killApp(app))
+
+      it('should have compiled successfully', () => {
+        console.log(stdout)
+        expect(code).toBe(0)
+        expect(stdout).toMatch(/Compiled successfully/)
+      })
+
+      it('should apply styles correctly', async () => {
+        const browser = await webdriver(appPort, '/')
+
+        const elementWithGlobalStyles = await browser
+          .elementByCss('#my-div')
+          .getComputedCss('color')
+
+        expect(elementWithGlobalStyles).toBe('rgb(17, 119, 34)')
+      })
+
+      it(`should've emitted a CSS file`, async () => {
+        const content = await renderViaHTTP(appPort, '/')
+        const $ = cheerio.load(content)
+
+        const cssSheet = $('link[rel="stylesheet"]')
+        expect(cssSheet.length).toBe(1)
+        const stylesheet = cssSheet[0].attribs['href']
+
+        const cssContent = await fetchViaHTTP(appPort, stylesheet).then((res) =>
+          res.text()
+        )
+
+        const cssCode = cssContent.replace(/\/\*.*?\*\//g, '').trim()
+
+        expect(cssCode).toInclude(`.global{color:rgb(17,119,34)}`)
+
+        expect(cssCode).toInclude(
+          `::view-transition-old(root){animation:.3s cubic-bezier(.4,0,.2,1) both var(--fade-in)}`
+        )
+      })
+    }
+  )
+})

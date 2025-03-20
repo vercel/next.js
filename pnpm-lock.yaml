@@ -1402,8 +1402,8 @@ importers:
         specifier: 3.0.0
         version: 3.0.0(postcss@8.4.31)
       postcss-modules-local-by-default:
-        specifier: 4.0.4
-        version: 4.0.4(postcss@8.4.31)
+        specifier: 4.2.0
+        version: 4.2.0(postcss@8.4.31)
       postcss-modules-scope:
         specifier: 3.0.0
         version: 3.0.0(postcss@8.4.31)
@@ -13655,12 +13655,6 @@ packages:
 
   postcss-modules-extract-imports@3.1.0:
     resolution: {integrity: sha512-k3kNe0aNFQDAZGbin48pL2VNidTF0w4/eASDsxlyspobzU3wZQLOGj7L9gfRe0Jo9/4uud09DsjFNH7winGv8Q==}
-    engines: {node: ^10 || ^12 || >= 14}
-    peerDependencies:
-      postcss: ^8.1.0
-
-  postcss-modules-local-by-default@4.0.4:
-    resolution: {integrity: sha512-L4QzMnOdVwRm1Qb8m4x8jsZzKAaPAgrUF1r/hjDR2Xj7R+8Zsf97jAlSQzWtKx5YNiNGN8QxmPFIc/sh+RQl+Q==}
     engines: {node: ^10 || ^12 || >= 14}
     peerDependencies:
       postcss: ^8.1.0
@@ -32376,11 +32370,11 @@ snapshots:
     dependencies:
       postcss: 8.4.49
 
-  postcss-modules-local-by-default@4.0.4(postcss@8.4.31):
+  postcss-modules-local-by-default@4.2.0(postcss@8.4.31):
     dependencies:
       icss-utils: 5.1.0(postcss@8.4.31)
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.11
+      postcss-selector-parser: 7.0.0
       postcss-value-parser: 4.2.0
 
   postcss-modules-local-by-default@4.2.0(postcss@8.4.49):
@@ -32417,7 +32411,7 @@ snapshots:
       lodash.camelcase: 4.3.0
       postcss: 8.4.31
       postcss-modules-extract-imports: 3.0.0(postcss@8.4.31)
-      postcss-modules-local-by-default: 4.0.4(postcss@8.4.31)
+      postcss-modules-local-by-default: 4.2.0(postcss@8.4.31)
       postcss-modules-scope: 3.0.0(postcss@8.4.31)
       postcss-modules-values: 4.0.0(postcss@8.4.31)
       string-hash: 1.1.3
