@@ -44,7 +44,6 @@
   "dynamic-routing": true,
   "environment-variables": true,
   "github-pages": true,
-  "head-elements": true,
   "headers": true,
   "hello-world": true,
   "i18n-routing": true,

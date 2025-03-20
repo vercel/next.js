@@ -16,7 +16,6 @@ const testedExamples = [
   'custom-server',
   'dynamic-routing',
   'environment-variables',
-  'head-elements',
   'headers',
   'hello-world',
   'i18n-routing',
