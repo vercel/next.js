@@ -47,7 +47,7 @@ Dynamic APIs rely on information that can only be known at request time. These A
 - [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional)
 - [`unstable_noStore`](/docs/app/api-reference/functions/unstable_noStore)
 
-### Optimizing with streaming
+### Optimizing dynamic routes with streaming
 
 To optimize the initial loading performance of dynamic routes, you can use React's [`<Suspense>` boundary](https://react.dev/reference/react/Suspense) or [`loading.js`](/docs/app/api-reference/file-conventions/loading) to show loading UI and progressively **stream** dynamic content to the client.
 
@@ -143,7 +143,7 @@ export default function DashboardLayout({ children }) {
 }
 ```
 
-### Optimizing with `"use cache"`
+### Optimizing dynamic routes with `"use cache"`
 
 > **Warning:** This section assumes the [`useCache` config option](/docs/app/api-reference/config/next-config-js/useCache) is enabled in your application. This option was introduced in Next.js 15 canary.
 
@@ -220,7 +220,7 @@ In Next.js, there are two types of revalidation:
 - [Time-based](#time-based-revalidation): Based on a time interval (e.g. every hour).
 - [On-demand](#on-demand-revalidation): Triggered by a specific event (e.g. a CMS webhook).
 
-## Time-based Revalidation
+### Time-based Revalidation
 
 You can use the [`cacheLife` function](/docs/app/api-reference/functions/cacheLife) to define a time interval for how long a cached value should remain stale before it's revalidated.
 
@@ -270,7 +270,7 @@ export default async function BlogListPage() {
 }
 ```
 
-## On-demand Revalidation
+### On-demand Revalidation
 
 You can use the [`cacheTag` function](/docs/app/api-reference/functions/cacheTag) to define a tag for a cache entry. The entry can then be revalidated using the [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) function in another part of your application, such as a [Server Action](https://react.dev/reference/rsc/server-functions) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
 
