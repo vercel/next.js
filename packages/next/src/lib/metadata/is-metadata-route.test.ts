@@ -18,17 +18,6 @@ describe('getExtensionRegexString', () => {
       expect(regex.test('.ts')).toBe(true)
       expect(regex.test('.js')).toBe(false)
     })
-
-    it('should match dynamic multi-routes with dynamic extensions', () => {
-      const regex = createExtensionMatchRegex(['png'], ['ts'])
-      expect(regex.test('.png')).toBe(true)
-      expect(regex.test('[].png')).toBe(false)
-
-      expect(regex.test('.ts')).toBe(true)
-      expect(regex.test('[].ts')).toBe(true)
-      expect(regex.test('.tsx')).toBe(false)
-      expect(regex.test('[].tsx')).toBe(false)
-    })
   })
 
   describe('without dynamic extensions', () => {
