@@ -12,7 +12,6 @@
   "auth-with-stytch": true,
   "auth0": true,
   "basic-css": true,
-  "basic-export": true,
   "blog-starter": true,
   "blog-with-comment": true,
   "cache-handler-redis": true,
