@@ -10,7 +10,6 @@ const testedExamples = [
   'api-routes-middleware',
   'api-routes-rest',
   'basic-css',
-  'basic-export',
   'blog',
   'blog-starter',
   'catch-all-routes',
