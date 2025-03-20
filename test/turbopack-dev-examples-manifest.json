@@ -63,7 +63,6 @@
   "panda-css": true,
   "progressive-web-app": true,
   "radix-ui": true,
-  "redirects": true,
   "reproduction-template": true,
   "reproduction-template-pages": true,
   "rewrites": true,

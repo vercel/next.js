@@ -30,7 +30,6 @@ const testedExamples = [
   'middleware-matcher',
   'nested-components',
   'next-forms',
-  'redirects',
   'remove-console',
   'reproduction-template',
   'rewrites',
