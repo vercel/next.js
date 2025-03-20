@@ -6,7 +6,7 @@ declare global {
 
 export default function reportHmrLatency(
   sendMessage: (message: string) => void,
-  updatedModules: ReadonlyArray<string>,
+  updatedModules: ReadonlyArray<string | number>,
   startMsSinceEpoch: number,
   endMsSinceEpoch: number
 ) {

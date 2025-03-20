@@ -4,6 +4,7 @@ pub mod source_map;
 use std::fmt::Write;
 
 use anyhow::{bail, Result};
+use swc_core::common::pass::Either;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueDefault, ValueToString,
@@ -218,19 +219,23 @@ impl OutputChunk for CssChunk {
             .into_iter()
             .flatten()
             .collect();
-        let module_chunks = content
-            .chunk_items
-            .iter()
-            .chain(imports_chunk_items.iter())
-            .map(|item| {
-                Vc::upcast::<Box<dyn OutputAsset>>(SingleItemCssChunk::new(
-                    *self.chunking_context,
-                    **item,
-                ))
-                .to_resolved()
-            })
-            .try_join()
-            .await?;
+        let module_chunks = if entries_chunk_items.len() > 1 {
+            content
+                .chunk_items
+                .iter()
+                .chain(imports_chunk_items.iter())
+                .map(|item| {
+                    Vc::upcast::<Box<dyn OutputAsset>>(SingleItemCssChunk::new(
+                        *self.chunking_context,
+                        **item,
+                    ))
+                    .to_resolved()
+                })
+                .try_join()
+                .await?
+        } else {
+            Vec::new()
+        };
         Ok(OutputChunkRuntimeInfo {
             included_ids: Some(ResolvedVc::cell(included_ids)),
             module_chunks: Some(ResolvedVc::cell(module_chunks)),
@@ -310,21 +315,24 @@ impl OutputAsset for CssChunk {
         let this = self.await?;
         let content = this.content.await?;
         let mut references = content.referenced_output_assets.owned().await?;
+        let single_item_chunks = content.chunk_items.len() > 1;
         references.extend(
             content
                 .chunk_items
                 .iter()
                 .map(|item| async {
-                    Ok(item
-                        .references()
-                        .await?
-                        .into_iter()
-                        .copied()
-                        .chain(std::iter::once(ResolvedVc::upcast(
-                            SingleItemCssChunk::new(*this.chunking_context, **item)
-                                .to_resolved()
-                                .await?,
-                        ))))
+                    let references = item.references().await?.into_iter().copied();
+                    Ok(if single_item_chunks {
+                        Either::Left(
+                            references.chain(std::iter::once(ResolvedVc::upcast(
+                                SingleItemCssChunk::new(*this.chunking_context, **item)
+                                    .to_resolved()
+                                    .await?,
+                            ))),
+                        )
+                    } else {
+                        Either::Right(references)
+                    })
                 })
                 .try_flat_join()
                 .await?,

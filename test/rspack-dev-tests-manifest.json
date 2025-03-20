@@ -2139,7 +2139,6 @@
       "ReactRefreshRequire can replace a module before it is loaded",
       "ReactRefreshRequire does not accumulate stale exports over time",
       "ReactRefreshRequire propagates a hot update to closest accepted module",
-      "ReactRefreshRequire propagates a module that stops accepting in next version",
       "ReactRefreshRequire propagates hot update to all inverse dependencies",
       "ReactRefreshRequire provides fresh value for ES6 default import in parents",
       "ReactRefreshRequire provides fresh value for ES6 named import in parents",
@@ -2149,7 +2148,9 @@
       "ReactRefreshRequire runs dependencies before dependents",
       "ReactRefreshRequire stops update propagation after module-level errors"
     ],
-    "failed": [],
+    "failed": [
+      "ReactRefreshRequire propagates a module that stops accepting in next version"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2258,8 +2259,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/build-error-logs/build-error-logs.test.ts": {
-    "passed": ["build-error-logs should only log error a single time"],
-    "failed": [],
+    "passed": [],
+    "failed": ["build-error-logs should only log error a single time"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2373,11 +2374,10 @@
   },
   "test/development/app-dir/edge-errors-hmr/index.test.ts": {
     "passed": [
+      "develop - app-dir - edge errros hmr should recover from build errors when client component error",
       "develop - app-dir - edge errros hmr should recover from build errors when server component error"
     ],
-    "failed": [
-      "develop - app-dir - edge errros hmr should recover from build errors when client component error"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2509,11 +2509,12 @@
   },
   "test/development/app-dir/missing-required-html-tags/index.test.ts": {
     "passed": [
-      "app-dir - missing required html tags should display correct error count in dev indicator",
+      "app-dir - missing required html tags should display correct error count in dev indicator"
+    ],
+    "failed": [
       "app-dir - missing required html tags should hmr when you fix the error",
       "app-dir - missing required html tags should show error overlay"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4033,7 +4034,6 @@
       "app dir - css HMR should not create duplicate link tags during HMR",
       "app dir - css HMR should support HMR for CSS imports in client components",
       "app dir - css HMR should support HMR for CSS imports in server components",
-      "app dir - css HMR should support HMR with sass/scss",
       "app dir - css Suspensey CSS should suspend on CSS imports if its slow on client navigation",
       "app dir - css css support chunks should bundle css resources into chunks",
       "app dir - css css support client components should support css modules inside client components",
@@ -4054,7 +4054,6 @@
       "app dir - css css support server pages should support global css inside server pages",
       "app dir - css css support should not affect css orders during HMR",
       "app dir - css css support should not preload styles twice during HMR",
-      "app dir - css css support should reload @import styles during HMR",
       "app dir - css css support special entries should include css imported in client not-found.js",
       "app dir - css css support special entries should include css imported in client template.js",
       "app dir - css css support special entries should include css imported in error.js",
@@ -4072,7 +4071,10 @@
       "app dir - css sass support server pages should support global sass/scss inside server pages",
       "app dir - css sass support server pages should support sass/scss modules inside server pages"
     ],
-    "failed": [],
+    "failed": [
+      "app dir - css HMR should support HMR with sass/scss",
+      "app dir - css css support should reload @import styles during HMR"
+    ],
     "pending": [
       "app dir - css css support multiple entries should only inject the same style once if used by different layers",
       "app dir - css css support multiple entries should only load chunks for the css module that is used by the specific entrypoint",
@@ -7465,13 +7467,13 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/ppr-errors/ppr-errors.test.ts": {
-    "passed": [
-      "ppr build errors production mode outside of a suspense boundary should fail the build for uncaught errors",
-      "ppr build errors production mode when a postpone call is caught and logged it should should include a message telling why",
-      "ppr build errors production mode within a suspense boundary should fail the build for uncaught prerender errors"
-    ],
+    "passed": [],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "ppr build errors production only outside of a suspense boundary should fail the build for uncaught errors",
+      "ppr build errors production only when a postpone call is caught and logged it should should include a message telling why",
+      "ppr build errors production only within a suspense boundary should fail the build for uncaught prerender errors"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -8834,7 +8836,10 @@
   },
   "test/e2e/app-dir/use-cache-custom-handler/use-cache-custom-handler.test.ts": {
     "passed": [
-      "use-cache-custom-handler should use custom cache handler if provided"
+      "use-cache-custom-handler should revalidate using a legacy custom cache handler",
+      "use-cache-custom-handler should revalidate using a modern custom cache handler",
+      "use-cache-custom-handler should use a legacy custom cache handler if provided",
+      "use-cache-custom-handler should use a modern custom cache handler if provided"
     ],
     "failed": [],
     "pending": [],
@@ -8943,10 +8948,14 @@
       "use-cache should dedupe with react cache inside \"use cache\"",
       "use-cache should error when cookies/headers/draftMode is used inside \"use cache\"",
       "use-cache should not have unhandled rejection of Request data promises when use cache is enabled without dynamicIO",
+      "use-cache should not use stale caches in server actions that have revalidated",
       "use-cache should override fetch with cookies/auth in use cache properly",
       "use-cache should override fetch with no-store in use cache properly",
       "use-cache should return the same object reference for multiple invocations",
+      "use-cache should revalidate before redirecting in a route handlers",
+      "use-cache should revalidate caches after redirect",
       "use-cache should revalidate caches during on-demand revalidation",
+      "use-cache should revalidate caches nested in unstable_cache",
       "use-cache should update after unstable_expireTag correctly",
       "use-cache should use revalidate config in fetch",
       "use-cache works with \"use cache\" in method props",
@@ -9906,6 +9915,28 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/link-on-navigate-prop/index.test.ts": {
+    "passed": [
+      "<Link /> onNavigate prop App Router should only trigger both onClick for external links",
+      "<Link /> onNavigate prop App Router should only trigger onClick for download links",
+      "<Link /> onNavigate prop App Router should only trigger onClick for external links with target=\"_blank\"",
+      "<Link /> onNavigate prop App Router should prevent navigation when onNavigate calls preventDefault",
+      "<Link /> onNavigate prop App Router should replace history state for external links with replace prop",
+      "<Link /> onNavigate prop App Router should trigger both onClick and onNavigate for internal navigation",
+      "<Link /> onNavigate prop App Router should trigger onClick but not onNavigate when using modifier key",
+      "<Link /> onNavigate prop Pages Router should only trigger both onClick for external links",
+      "<Link /> onNavigate prop Pages Router should only trigger onClick for download links",
+      "<Link /> onNavigate prop Pages Router should only trigger onClick for external links with target=\"_blank\"",
+      "<Link /> onNavigate prop Pages Router should prevent navigation when onNavigate calls preventDefault",
+      "<Link /> onNavigate prop Pages Router should replace history state for external links with replace prop",
+      "<Link /> onNavigate prop Pages Router should trigger both onClick and onNavigate for internal navigation",
+      "<Link /> onNavigate prop Pages Router should trigger onClick but not onNavigate when using modifier key"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/link-with-api-rewrite/index.test.ts": {
     "passed": [
       "link-with-api-rewrite should perform hard navigation for direct urls",
@@ -9954,21 +9985,18 @@
   },
   "test/e2e/middleware-custom-matchers-i18n/test/index.test.ts": {
     "passed": [
-      "Middleware custom matchers i18n should not match",
-      "Middleware custom matchers with root should not match",
-      "Middleware custom matchers i18n should match /hello",
       "Middleware custom matchers i18n should match /en/hello",
-      "Middleware custom matchers i18n should match /nl-NL/hello",
+      "Middleware custom matchers i18n should match /hello",
       "Middleware custom matchers i18n should match /nl-NL/about",
-      "Middleware custom matchers i18n should not match /invalid/hello",
-      "Middleware custom matchers i18n should not match /hello/invalid",
+      "Middleware custom matchers i18n should match /nl-NL/hello",
+      "Middleware custom matchers i18n should match has query on client routing en_hello",
+      "Middleware custom matchers i18n should match has query on client routing hello",
+      "Middleware custom matchers i18n should match has query on client routing nl-NL_about",
+      "Middleware custom matchers i18n should match has query on client routing nl-NL_hello",
       "Middleware custom matchers i18n should not match /about",
       "Middleware custom matchers i18n should not match /en/about",
-      "Middleware custom matchers i18n should match has query on client routing hello",
-      "Middleware custom matchers i18n should match has query on client routing en_hello",
-      "Middleware custom matchers i18n should match has query on client routing nl-NL_hello",
-      "Middleware custom matchers i18n should match has query on client routing nl-NL_about",
-      "Middleware custom matchers i18n should not match",
+      "Middleware custom matchers i18n should not match /hello/invalid",
+      "Middleware custom matchers i18n should not match /invalid/hello",
       "Middleware custom matchers with root should not match"
     ],
     "failed": [],
@@ -10064,6 +10092,7 @@
       "Middleware Runtime with i18n should be able to rewrite on _next/static/chunks/pages/ 404",
       "Middleware Runtime with i18n should contain `globalThis`",
       "Middleware Runtime with i18n should contain crypto APIs",
+      "Middleware Runtime with i18n should filter request header properly",
       "Middleware Runtime with i18n should handle 404 on fallback: false route correctly",
       "Middleware Runtime with i18n should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime with i18n should have correct dynamic route params on client-transition to dynamic route",
@@ -10103,6 +10132,7 @@
       "Middleware Runtime without i18n should be able to rewrite on _next/static/chunks/pages/ 404",
       "Middleware Runtime without i18n should contain `globalThis`",
       "Middleware Runtime without i18n should contain crypto APIs",
+      "Middleware Runtime without i18n should filter request header properly",
       "Middleware Runtime without i18n should handle 404 on fallback: false route correctly",
       "Middleware Runtime without i18n should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime without i18n should have correct dynamic route params on client-transition to dynamic route",
@@ -10149,6 +10179,7 @@
       "Middleware Runtime with i18n should be able to use node builtins with node runtime",
       "Middleware Runtime with i18n should contain `globalThis`",
       "Middleware Runtime with i18n should contain crypto APIs",
+      "Middleware Runtime with i18n should filter request header properly",
       "Middleware Runtime with i18n should handle 404 on fallback: false route correctly",
       "Middleware Runtime with i18n should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime with i18n should have correct dynamic route params on client-transition to dynamic route",
@@ -10189,6 +10220,7 @@
       "Middleware Runtime without i18n should be able to use node builtins with node runtime",
       "Middleware Runtime without i18n should contain `globalThis`",
       "Middleware Runtime without i18n should contain crypto APIs",
+      "Middleware Runtime without i18n should filter request header properly",
       "Middleware Runtime without i18n should handle 404 on fallback: false route correctly",
       "Middleware Runtime without i18n should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime without i18n should have correct dynamic route params on client-transition to dynamic route",
@@ -11530,10 +11562,11 @@
     "runtimeError": false
   },
   "test/integration/amp-export-validation/test/index.test.js": {
-    "passed": [],
+    "passed": [
+      "AMP Validation on Export production mode should have shown errors during build"
+    ],
     "failed": [],
     "pending": [
-      "AMP Validation on Export production mode should have shown errors during build",
       "AMP Validation on Export production mode shows AMP warning without throwing error",
       "AMP Validation on Export production mode shows warning and error when throwing error",
       "AMP Validation on Export production mode throws error on AMP error"
@@ -11542,32 +11575,31 @@
     "runtimeError": false
   },
   "test/integration/amphtml-custom-optimizer/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
+    "passed": [
       "AMP Custom Optimizer production mode should build and start for dynamic page",
       "AMP Custom Optimizer production mode should build and start for static page"
     ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/amphtml-custom-validator/test/index.test.js": {
     "passed": [
-      "AMP Custom Validator development mode should run in development mode successfully"
-    ],
-    "failed": [],
-    "pending": [
+      "AMP Custom Validator development mode should run in development mode successfully",
       "AMP Custom Validator production mode should build and start successfully"
     ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/amphtml-fragment-style/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
+    "passed": [
       "AMP Fragment Styles production mode adds styles from fragment in AMP mode correctly"
     ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -11578,10 +11610,7 @@
       "AMP SSG Support development mode should load an amp first page correctly",
       "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page",
       "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page with query",
-      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page with trailing slash"
-    ],
-    "failed": [],
-    "pending": [
+      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page with trailing slash",
       "AMP SSG Support export mode production mode should have copied SSG files correctly",
       "AMP SSG Support production mode should load a hybrid amp page with query correctly",
       "AMP SSG Support production mode should load a hybrid amp page without query correctly",
@@ -11591,6 +11620,8 @@
       "AMP SSG Support production mode should load dynamic hybrid SSG/AMP page with trailing slash",
       "AMP SSG Support production mode should output prerendered files correctly during build"
     ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -11602,10 +11633,6 @@
       "AMP Usage AMP development mode should detect amp validator warning on invalid amp",
       "AMP Usage AMP development mode should navigate from non-AMP to AMP without error",
       "AMP Usage AMP development mode should not contain missing files warning",
-      "AMP Usage production mode should not contain missing files warning",
-      "AMP Usage production mode should not have deprecation warning"
-    ],
-    "failed": [
       "AMP Usage production mode With AMP context should render nested AMP page with AMP hook",
       "AMP Usage production mode With AMP context should render nested normal page with AMP hook",
       "AMP Usage production mode With AMP context should render the AMP page that uses the AMP hook",
@@ -11613,8 +11640,6 @@
       "AMP Usage production mode With basic AMP usage should auto import extensions",
       "AMP Usage production mode With basic AMP usage should drop custom scripts",
       "AMP Usage production mode With basic AMP usage should not drop custom amp scripts",
-      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only",
-      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration",
       "AMP Usage production mode With basic AMP usage should optimize clean",
       "AMP Usage production mode With basic AMP usage should render the page as valid AMP",
       "AMP Usage production mode With basic AMP usage should render the page without leaving render target",
@@ -11630,7 +11655,13 @@
       "AMP Usage production mode canonical amphtml should render the AMP page that uses the AMP hook",
       "AMP Usage production mode combined styles should combine style tags",
       "AMP Usage production mode combined styles should remove sourceMaps from styles",
-      "AMP Usage production mode should have amp optimizer in trace"
+      "AMP Usage production mode should have amp optimizer in trace",
+      "AMP Usage production mode should not contain missing files warning",
+      "AMP Usage production mode should not have deprecation warning"
+    ],
+    "failed": [
+      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only",
+      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration"
     ],
     "pending": [
       "AMP Usage AMP development mode should detect changes and refresh a hybrid AMP page",
@@ -19909,13 +19940,14 @@
       "server-side dev errors should show server-side error for dynamic api route correctly",
       "server-side dev errors should show server-side error for dynamic gssp page correctly",
       "server-side dev errors should show server-side error for gsp page correctly",
-      "server-side dev errors should show server-side error for gssp page correctly",
       "server-side dev errors should show server-side error for uncaught empty exception correctly",
       "server-side dev errors should show server-side error for uncaught empty rejection correctly",
       "server-side dev errors should show server-side error for uncaught exception correctly",
       "server-side dev errors should show server-side error for uncaught rejection correctly"
     ],
-    "failed": [],
+    "failed": [
+      "server-side dev errors should show server-side error for gssp page correctly"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false

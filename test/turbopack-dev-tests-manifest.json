@@ -4994,8 +4994,6 @@
   },
   "test/e2e/app-dir/css-order/css-order.test.ts": {
     "passed": [
-      "css-order turbo should load correct styles navigating big-interleaved-a -> big-interleaved-b",
-      "css-order turbo should load correct styles navigating big-interleaved-b -> big-interleaved-a",
       "css-order turbo should load correct styles navigating first -> first-client",
       "css-order turbo should load correct styles navigating first -> second",
       "css-order turbo should load correct styles navigating first -> second-client",
@@ -5004,24 +5002,12 @@
       "css-order turbo should load correct styles navigating first-client -> second",
       "css-order turbo should load correct styles navigating first-client -> second-client",
       "css-order turbo should load correct styles navigating first-client -> third",
-      "css-order turbo should load correct styles navigating global-first -> global-second",
-      "css-order turbo should load correct styles navigating global-second -> global-first",
-      "css-order turbo should load correct styles navigating interleaved-a -> interleaved-b",
-      "css-order turbo should load correct styles navigating interleaved-b -> interleaved-a",
       "css-order turbo should load correct styles navigating pages-first -> pages-second",
       "css-order turbo should load correct styles navigating pages-first -> pages-third",
-      "css-order turbo should load correct styles navigating pages-partial-reversed-a -> pages-partial-reversed-b",
-      "css-order turbo should load correct styles navigating pages-partial-reversed-b -> pages-partial-reversed-a",
-      "css-order turbo should load correct styles navigating pages-reversed-a -> pages-reversed-b",
-      "css-order turbo should load correct styles navigating pages-reversed-b -> pages-reversed-a",
       "css-order turbo should load correct styles navigating pages-second -> pages-first",
       "css-order turbo should load correct styles navigating pages-second -> pages-third",
       "css-order turbo should load correct styles navigating pages-third -> pages-first",
       "css-order turbo should load correct styles navigating pages-third -> pages-second",
-      "css-order turbo should load correct styles navigating partial-reversed-a -> partial-reversed-b",
-      "css-order turbo should load correct styles navigating partial-reversed-b -> partial-reversed-a",
-      "css-order turbo should load correct styles navigating reversed-a -> reversed-b",
-      "css-order turbo should load correct styles navigating reversed-b -> reversed-a",
       "css-order turbo should load correct styles navigating second -> first",
       "css-order turbo should load correct styles navigating second -> first-client",
       "css-order turbo should load correct styles navigating second -> second-client",
@@ -5098,8 +5084,16 @@
       "css-order turbo should load correct styles navigating back again third -> first-client -> third -> first-client",
       "css-order turbo should load correct styles navigating back again third -> second -> third -> second",
       "css-order turbo should load correct styles navigating back again third -> second-client -> third -> second-client",
+      "css-order turbo should load correct styles navigating big-interleaved-a -> big-interleaved-b",
+      "css-order turbo should load correct styles navigating big-interleaved-b -> big-interleaved-a",
+      "css-order turbo should load correct styles navigating interleaved-a -> interleaved-b",
+      "css-order turbo should load correct styles navigating interleaved-b -> interleaved-a",
       "css-order turbo should load correct styles navigating pages-interleaved-a -> pages-interleaved-b",
-      "css-order turbo should load correct styles navigating pages-interleaved-b -> pages-interleaved-a"
+      "css-order turbo should load correct styles navigating pages-interleaved-b -> pages-interleaved-a",
+      "css-order turbo should load correct styles navigating pages-partial-reversed-a -> pages-partial-reversed-b",
+      "css-order turbo should load correct styles navigating pages-partial-reversed-b -> pages-partial-reversed-a",
+      "css-order turbo should load correct styles navigating pages-reversed-a -> pages-reversed-b",
+      "css-order turbo should load correct styles navigating pages-reversed-b -> pages-reversed-a"
     ],
     "flakey": [],
     "runtimeError": false
@@ -8703,7 +8697,10 @@
   },
   "test/e2e/app-dir/use-cache-custom-handler/use-cache-custom-handler.test.ts": {
     "passed": [
-      "use-cache-custom-handler should use custom cache handler if provided"
+      "use-cache-custom-handler should revalidate using a legacy custom cache handler",
+      "use-cache-custom-handler should revalidate using a modern custom cache handler",
+      "use-cache-custom-handler should use a legacy custom cache handler if provided",
+      "use-cache-custom-handler should use a modern custom cache handler if provided"
     ],
     "failed": [],
     "pending": [],
@@ -8811,10 +8808,14 @@
       "use-cache should dedupe with react cache inside \"use cache\"",
       "use-cache should error when cookies/headers/draftMode is used inside \"use cache\"",
       "use-cache should not have unhandled rejection of Request data promises when use cache is enabled without dynamicIO",
+      "use-cache should not use stale caches in server actions that have revalidated",
       "use-cache should override fetch with cookies/auth in use cache properly",
       "use-cache should override fetch with no-store in use cache properly",
       "use-cache should return the same object reference for multiple invocations",
+      "use-cache should revalidate before redirecting in a route handlers",
+      "use-cache should revalidate caches after redirect",
       "use-cache should revalidate caches during on-demand revalidation",
+      "use-cache should revalidate caches nested in unstable_cache",
       "use-cache should update after unstable_expireTag correctly",
       "use-cache should use revalidate config in fetch",
       "use-cache works with \"use cache\" in method props",
@@ -9769,6 +9770,28 @@
     "passed": [
       "instrumentation-hook - register-once should not error when concurrent requests are made",
       "instrumentation-hook - register-once should only register once"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/link-on-navigate-prop/index.test.ts": {
+    "passed": [
+      "<Link /> onNavigate prop App Router should only trigger both onClick for external links",
+      "<Link /> onNavigate prop App Router should only trigger onClick for download links",
+      "<Link /> onNavigate prop App Router should only trigger onClick for external links with target=\"_blank\"",
+      "<Link /> onNavigate prop App Router should prevent navigation when onNavigate calls preventDefault",
+      "<Link /> onNavigate prop App Router should replace history state for external links with replace prop",
+      "<Link /> onNavigate prop App Router should trigger both onClick and onNavigate for internal navigation",
+      "<Link /> onNavigate prop App Router should trigger onClick but not onNavigate when using modifier key",
+      "<Link /> onNavigate prop Pages Router should only trigger both onClick for external links",
+      "<Link /> onNavigate prop Pages Router should only trigger onClick for download links",
+      "<Link /> onNavigate prop Pages Router should only trigger onClick for external links with target=\"_blank\"",
+      "<Link /> onNavigate prop Pages Router should prevent navigation when onNavigate calls preventDefault",
+      "<Link /> onNavigate prop Pages Router should replace history state for external links with replace prop",
+      "<Link /> onNavigate prop Pages Router should trigger both onClick and onNavigate for internal navigation",
+      "<Link /> onNavigate prop Pages Router should trigger onClick but not onNavigate when using modifier key"
     ],
     "failed": [],
     "pending": [],
@@ -11442,16 +11465,15 @@
     "runtimeError": false
   },
   "test/integration/amphtml-ssg/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "AMP SSG Support development mode should load a hybrid amp page with query correctly",
       "AMP SSG Support development mode should load a hybrid amp page without query correctly",
       "AMP SSG Support development mode should load an amp first page correctly",
       "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page",
       "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page with query",
-      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page with trailing slash"
-    ],
-    "failed": [],
-    "pending": [
+      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page with trailing slash",
       "AMP SSG Support export mode production mode should have copied SSG files correctly",
       "AMP SSG Support production mode should load a hybrid amp page with query correctly",
       "AMP SSG Support production mode should load a hybrid amp page without query correctly",
@@ -11465,21 +11487,20 @@
     "runtimeError": false
   },
   "test/integration/amphtml/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "AMP Usage AMP dev no-warn should not warn on valid amp",
       "AMP Usage AMP development mode should add data-ampdevmode to development script tags",
       "AMP Usage AMP development mode should detect amp validator warning on custom scripts",
       "AMP Usage AMP development mode should detect amp validator warning on invalid amp",
-      "AMP Usage AMP development mode should navigate from non-AMP to AMP without error",
-      "AMP Usage AMP development mode should not contain missing files warning"
-    ],
-    "failed": [],
-    "pending": [
       "AMP Usage AMP development mode should detect changes and refresh a hybrid AMP page",
       "AMP Usage AMP development mode should detect changes and refresh an AMP page",
       "AMP Usage AMP development mode should detect changes and refresh an AMP page at root pages/",
       "AMP Usage AMP development mode should detect changes to component and refresh an AMP page",
       "AMP Usage AMP development mode should detect the changes and display it",
+      "AMP Usage AMP development mode should navigate from non-AMP to AMP without error",
+      "AMP Usage AMP development mode should not contain missing files warning",
       "AMP Usage AMP development mode should not reload unless the page is edited for an AMP page",
       "AMP Usage production mode With AMP context should render nested AMP page with AMP hook",
       "AMP Usage production mode With AMP context should render nested normal page with AMP hook",
