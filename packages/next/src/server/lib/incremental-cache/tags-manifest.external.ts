@@ -1,23 +1,17 @@
-type TagsManifest = {
-  items: { [tag: string]: { revalidatedAt?: number } }
-}
+import type { Timestamp } from '../cache-handlers/types'
 
-// we share tags manifest between "use cache" handlers and
-// previous file-system-cache
-export const tagsManifest: TagsManifest = {
-  items: {},
-}
+// We share the tags manifest between the "use cache" handlers and the previous
+// file-system cache.
+export const tagsManifest = new Map<string, number>()
 
-export const isTagStale = (tags: string[], timestamp: number) => {
+export const isStale = (tags: string[], timestamp: Timestamp) => {
   for (const tag of tags) {
-    const tagEntry = tagsManifest.items[tag]
-    if (
-      typeof tagEntry?.revalidatedAt === 'number' &&
-      // TODO: use performance.now and update file-system-cache?
-      tagEntry.revalidatedAt >= timestamp
-    ) {
+    const revalidatedAt = tagsManifest.get(tag)
+
+    if (typeof revalidatedAt === 'number' && revalidatedAt >= timestamp) {
       return true
     }
   }
+
   return false
 }

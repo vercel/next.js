@@ -176,6 +176,7 @@ export const CODE_FRAME_STYLES = `
 
   [data-nextjs-codeframe-line][data-nextjs-codeframe-line--errored="true"] {
     position: relative;
+    isolation: isolate;
 
     > span { 
       position: relative;

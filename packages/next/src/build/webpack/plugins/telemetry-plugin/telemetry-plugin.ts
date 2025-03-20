@@ -1,5 +1,4 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import { NormalModule } from 'next/dist/compiled/webpack/webpack'
 import {
   createUseCacheTracker,
   type UseCacheTrackerKey,
@@ -127,7 +126,8 @@ function findFeatureInModule(module: webpack.Module): Feature | undefined {
   }
 
   for (const [feature, path] of FEATURE_MODULE_MAP) {
-    if ((module as webpack.NormalModule).resource.endsWith(path)) {
+    // imports like "http" will be undefined resource in rspack
+    if ((module as webpack.NormalModule).resource?.endsWith(path)) {
       return feature
     }
   }
@@ -238,7 +238,8 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
       compiler.hooks.thisCompilation.tap(
         TelemetryPlugin.name,
         (compilation) => {
-          const moduleHooks = NormalModule.getCompilationHooks(compilation)
+          const moduleHooks =
+            compiler.webpack.NormalModule.getCompilationHooks(compilation)
           moduleHooks.loader.tap(TelemetryPlugin.name, (loaderContext) => {
             ;(loaderContext as TelemetryLoaderContext).eliminatedPackages =
               eliminatedPackages

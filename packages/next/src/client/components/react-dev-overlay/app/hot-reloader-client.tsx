@@ -1,12 +1,7 @@
+/// <reference types="webpack/module.d.ts" />
+
 import type { ReactNode } from 'react'
-import {
-  useCallback,
-  useEffect,
-  startTransition,
-  useMemo,
-  useRef,
-  useSyncExternalStore,
-} from 'react'
+import { useCallback, useEffect, startTransition, useMemo, useRef } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../utils/format-webpack-messages'
 import { useRouter } from '../../navigation'
@@ -47,7 +42,6 @@ import type { HydrationErrorState } from '../../errors/hydration-error-info'
 import type { DebugInfo } from '../types'
 import { useUntrackedPathname } from '../../navigation-untracked'
 import { getReactStitchedError } from '../../errors/stitched-error'
-import { shouldRenderRootLevelErrorOverlay } from '../../../lib/is-error-thrown-while-rendering-rsc'
 import { handleDevBuildIndicatorHmrEvents } from '../../../dev/dev-build-indicator/internal/handle-dev-build-indicator-hmr-events'
 import type { GlobalErrorComponent } from '../../error-boundary'
 import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
@@ -87,23 +81,6 @@ export function waitForWebpackRuntimeHotUpdate() {
   return pendingHotUpdateWebpack
 }
 
-function handleSuccessfulHotUpdateWebpack(
-  dispatcher: Dispatcher,
-  sendMessage: (message: string) => void,
-  updatedModules: ReadonlyArray<string>
-) {
-  resolvePendingHotUpdateWebpack()
-  dispatcher.onBuildOk()
-  reportHmrLatency(
-    sendMessage,
-    updatedModules,
-    webpackStartMsSinceEpoch!,
-    Date.now()
-  )
-
-  dispatcher.onRefresh()
-}
-
 // There is a newer version of the code available.
 function handleAvailableHash(hash: string) {
   // Update last known compilation hash.
@@ -128,7 +105,6 @@ function isUpdateAvailable() {
 
 // Webpack disallows updates in other states.
 function canApplyUpdates() {
-  // @ts-expect-error module.hot exists
   return module.hot.status() === 'idle'
 }
 function afterApplyUpdates(fn: any) {
@@ -137,12 +113,10 @@ function afterApplyUpdates(fn: any) {
   } else {
     function handler(status: any) {
       if (status === 'idle') {
-        // @ts-expect-error module.hot exists
         module.hot.removeStatusHandler(handler)
         fn()
       }
     }
-    // @ts-expect-error module.hot exists
     module.hot.addStatusHandler(handler)
   }
 }
@@ -169,10 +143,8 @@ function performFullReload(err: any, sendMessage: any) {
 }
 
 // Attempt to update code on the fly, fall back to a hard reload.
-function tryApplyUpdates(
-  onBeforeUpdate: (hasUpdates: boolean) => void,
-  onHotUpdateSuccess: (updatedModules: string[]) => void,
-  sendMessage: any,
+function tryApplyUpdatesWebpack(
+  sendMessage: (message: string) => void,
   dispatcher: Dispatcher
 ) {
   if (!isUpdateAvailable() || !canApplyUpdates()) {
@@ -182,8 +154,11 @@ function tryApplyUpdates(
     return
   }
 
-  function handleApplyUpdates(err: any, updatedModules: string[] | null) {
-    if (err || RuntimeErrorHandler.hadRuntimeError || !updatedModules) {
+  function handleApplyUpdates(
+    err: any,
+    updatedModules: (string | number)[] | null
+  ) {
+    if (err || RuntimeErrorHandler.hadRuntimeError || updatedModules == null) {
       if (err) {
         console.warn(REACT_REFRESH_FULL_RELOAD)
       } else if (RuntimeErrorHandler.hadRuntimeError) {
@@ -193,52 +168,50 @@ function tryApplyUpdates(
       return
     }
 
-    const hasUpdates = Boolean(updatedModules.length)
-    if (typeof onHotUpdateSuccess === 'function') {
-      // Maybe we want to do something.
-      onHotUpdateSuccess(updatedModules)
-    }
+    dispatcher.onBuildOk()
 
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
-      tryApplyUpdates(
-        hasUpdates ? () => {} : onBeforeUpdate,
-        hasUpdates ? () => dispatcher.onBuildOk() : onHotUpdateSuccess,
-        sendMessage,
-        dispatcher
-      )
-    } else {
-      dispatcher.onBuildOk()
-      if (process.env.__NEXT_TEST_MODE) {
-        afterApplyUpdates(() => {
-          if (self.__NEXT_HMR_CB) {
-            self.__NEXT_HMR_CB()
-            self.__NEXT_HMR_CB = null
-          }
-        })
-      }
+      tryApplyUpdatesWebpack(sendMessage, dispatcher)
+      return
+    }
+
+    dispatcher.onRefresh()
+    resolvePendingHotUpdateWebpack()
+    reportHmrLatency(
+      sendMessage,
+      updatedModules,
+      webpackStartMsSinceEpoch!,
+      Date.now()
+    )
+
+    if (process.env.__NEXT_TEST_MODE) {
+      afterApplyUpdates(() => {
+        if (self.__NEXT_HMR_CB) {
+          self.__NEXT_HMR_CB()
+          self.__NEXT_HMR_CB = null
+        }
+      })
     }
   }
 
   // https://webpack.js.org/api/hot-module-replacement/#check
-  // @ts-expect-error module.hot exists
   module.hot
     .check(/* autoApply */ false)
-    .then((updatedModules: any[] | null) => {
-      if (!updatedModules) {
+    .then((updatedModules: (string | number)[] | null) => {
+      if (updatedModules == null) {
         return null
       }
 
-      if (typeof onBeforeUpdate === 'function') {
-        const hasUpdates = Boolean(updatedModules.length)
-        onBeforeUpdate(hasUpdates)
-      }
+      // We should always handle an update, even if updatedModules is empty (but
+      // non-null) for any reason. That's what webpack would normally do:
+      // https://github.com/webpack/webpack/blob/3aa6b6bc3a64/lib/hmr/HotModuleReplacement.runtime.js#L296-L298
+      dispatcher.onBeforeRefresh()
       // https://webpack.js.org/api/hot-module-replacement/#apply
-      // @ts-expect-error module.hot exists
       return module.hot.apply()
     })
     .then(
-      (updatedModules: any[] | null) => {
+      (updatedModules: (string | number)[] | null) => {
         handleApplyUpdates(null, updatedModules)
       },
       (err: any) => {
@@ -247,7 +220,7 @@ function tryApplyUpdates(
     )
 }
 
-/** Handles messages from the sevrer for the App Router. */
+/** Handles messages from the server for the App Router. */
 function processMessage(
   obj: HMR_ACTION_TYPES,
   sendMessage: (message: string) => void,
@@ -299,24 +272,7 @@ function processMessage(
       }
       dispatcher.onBuildOk()
     } else {
-      tryApplyUpdates(
-        function onBeforeHotUpdate(hasUpdates: boolean) {
-          if (hasUpdates) {
-            dispatcher.onBeforeRefresh()
-          }
-        },
-        function onSuccessfulHotUpdate(webpackUpdatedModules: string[]) {
-          // Only dismiss it when we're sure it's a hot update.
-          // Otherwise it would flicker right before the reload.
-          handleSuccessfulHotUpdateWebpack(
-            dispatcher,
-            sendMessage,
-            webpackUpdatedModules
-          )
-        },
-        sendMessage,
-        dispatcher
-      )
+      tryApplyUpdatesWebpack(sendMessage, dispatcher)
     }
   }
 
@@ -553,15 +509,6 @@ export default function HotReload({
     }
   }, [dispatch])
 
-  //  We render a separate error overlay at the root when an error is thrown from rendering RSC, so
-  //  we should not render an additional error overlay in the descendent. However, we need to
-  //  keep rendering these hooks to ensure HMR works when the error is addressed.
-  const shouldRenderErrorOverlay = useSyncExternalStore(
-    () => () => {},
-    () => !shouldRenderRootLevelErrorOverlay(),
-    () => true
-  )
-
   const handleOnUnhandledError = useCallback(
     (error: Error): void => {
       const errorDetails = (error as any).details as
@@ -681,13 +628,9 @@ export default function HotReload({
     appIsrManifestRef,
   ])
 
-  if (shouldRenderErrorOverlay) {
-    return (
-      <AppDevOverlay state={state} globalError={globalError}>
-        {children}
-      </AppDevOverlay>
-    )
-  }
-
-  return children
+  return (
+    <AppDevOverlay state={state} globalError={globalError}>
+      {children}
+    </AppDevOverlay>
+  )
 }

@@ -970,6 +970,7 @@
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-node",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
+      "app-dir static/dynamic handling unstable_cache should be able to read the draft mode status",
       "app-dir static/dynamic handling unstable_cache should bypass cache in draft mode",
       "app-dir static/dynamic handling unstable_cache should not cache new result in draft mode",
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-cache",
@@ -1082,6 +1083,7 @@
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-node",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
+      "app-dir static/dynamic handling unstable_cache should be able to read the draft mode status",
       "app-dir static/dynamic handling unstable_cache should bypass cache in draft mode",
       "app-dir static/dynamic handling unstable_cache should not cache new result in draft mode",
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-cache",
@@ -1543,10 +1545,33 @@
   },
   "test/e2e/app-dir/css-order/css-order.test.ts": {
     "passed": [
-      "css-order turbo should load correct styles navigating back again interleaved-a -> interleaved-b -> interleaved-a -> interleaved-b",
+      "css-order turbo should load correct styles navigating back again first -> first-client -> first -> first-client",
+      "css-order turbo should load correct styles navigating back again first -> second -> first -> second",
+      "css-order turbo should load correct styles navigating back again first -> second-client -> first -> second-client",
+      "css-order turbo should load correct styles navigating back again first -> third -> first -> third",
+      "css-order turbo should load correct styles navigating back again first-client -> first -> first-client -> first",
+      "css-order turbo should load correct styles navigating back again first-client -> second -> first-client -> second",
+      "css-order turbo should load correct styles navigating back again first-client -> second-client -> first-client -> second-client",
+      "css-order turbo should load correct styles navigating back again first-client -> third -> first-client -> third",
+      "css-order turbo should load correct styles navigating back again pages-first -> pages-second -> pages-first -> pages-second",
+      "css-order turbo should load correct styles navigating back again pages-first -> pages-third -> pages-first -> pages-third",
       "css-order turbo should load correct styles navigating back again pages-interleaved-a -> pages-interleaved-b -> pages-interleaved-a -> pages-interleaved-b",
-      "css-order turbo should load correct styles navigating big-interleaved-a -> big-interleaved-b",
-      "css-order turbo should load correct styles navigating big-interleaved-b -> big-interleaved-a",
+      "css-order turbo should load correct styles navigating back again pages-second -> pages-first -> pages-second -> pages-first",
+      "css-order turbo should load correct styles navigating back again pages-second -> pages-third -> pages-second -> pages-third",
+      "css-order turbo should load correct styles navigating back again pages-third -> pages-first -> pages-third -> pages-first",
+      "css-order turbo should load correct styles navigating back again pages-third -> pages-second -> pages-third -> pages-second",
+      "css-order turbo should load correct styles navigating back again second -> first -> second -> first",
+      "css-order turbo should load correct styles navigating back again second -> first-client -> second -> first-client",
+      "css-order turbo should load correct styles navigating back again second -> second-client -> second -> second-client",
+      "css-order turbo should load correct styles navigating back again second -> third -> second -> third",
+      "css-order turbo should load correct styles navigating back again second-client -> first -> second-client -> first",
+      "css-order turbo should load correct styles navigating back again second-client -> first-client -> second-client -> first-client",
+      "css-order turbo should load correct styles navigating back again second-client -> second -> second-client -> second",
+      "css-order turbo should load correct styles navigating back again second-client -> third -> second-client -> third",
+      "css-order turbo should load correct styles navigating back again third -> first -> third -> first",
+      "css-order turbo should load correct styles navigating back again third -> first-client -> third -> first-client",
+      "css-order turbo should load correct styles navigating back again third -> second -> third -> second",
+      "css-order turbo should load correct styles navigating back again third -> second-client -> third -> second-client",
       "css-order turbo should load correct styles navigating first -> first-client",
       "css-order turbo should load correct styles navigating first -> second",
       "css-order turbo should load correct styles navigating first -> second-client",
@@ -1555,14 +1580,13 @@
       "css-order turbo should load correct styles navigating first-client -> second",
       "css-order turbo should load correct styles navigating first-client -> second-client",
       "css-order turbo should load correct styles navigating first-client -> third",
-      "css-order turbo should load correct styles navigating global-first -> global-second",
-      "css-order turbo should load correct styles navigating global-second -> global-first",
-      "css-order turbo should load correct styles navigating interleaved-a -> interleaved-b",
-      "css-order turbo should load correct styles navigating interleaved-b -> interleaved-a",
-      "css-order turbo should load correct styles navigating partial-reversed-a -> partial-reversed-b",
-      "css-order turbo should load correct styles navigating partial-reversed-b -> partial-reversed-a",
-      "css-order turbo should load correct styles navigating reversed-a -> reversed-b",
-      "css-order turbo should load correct styles navigating reversed-b -> reversed-a",
+      "css-order turbo should load correct styles navigating pages-first -> pages-second",
+      "css-order turbo should load correct styles navigating pages-first -> pages-third",
+      "css-order turbo should load correct styles navigating pages-interleaved-a -> pages-interleaved-b",
+      "css-order turbo should load correct styles navigating pages-second -> pages-first",
+      "css-order turbo should load correct styles navigating pages-second -> pages-third",
+      "css-order turbo should load correct styles navigating pages-third -> pages-first",
+      "css-order turbo should load correct styles navigating pages-third -> pages-second",
       "css-order turbo should load correct styles navigating second -> first",
       "css-order turbo should load correct styles navigating second -> first-client",
       "css-order turbo should load correct styles navigating second -> second-client",
@@ -1583,7 +1607,15 @@
       "css-order turbo should load correct styles on global-second",
       "css-order turbo should load correct styles on interleaved-a",
       "css-order turbo should load correct styles on interleaved-b",
+      "css-order turbo should load correct styles on pages-first",
       "css-order turbo should load correct styles on pages-interleaved-a",
+      "css-order turbo should load correct styles on pages-interleaved-b",
+      "css-order turbo should load correct styles on pages-partial-reversed-a",
+      "css-order turbo should load correct styles on pages-partial-reversed-b",
+      "css-order turbo should load correct styles on pages-reversed-a",
+      "css-order turbo should load correct styles on pages-reversed-b",
+      "css-order turbo should load correct styles on pages-second",
+      "css-order turbo should load correct styles on pages-third",
       "css-order turbo should load correct styles on partial-reversed-a",
       "css-order turbo should load correct styles on partial-reversed-b",
       "css-order turbo should load correct styles on reversed-a",
@@ -1594,62 +1626,26 @@
       "css-order turbo should load correct styles on vendor"
     ],
     "failed": [
-      "css-order turbo should load correct styles navigating back again first -> first-client -> first -> first-client",
-      "css-order turbo should load correct styles navigating back again first -> second -> first -> second",
-      "css-order turbo should load correct styles navigating back again first -> second-client -> first -> second-client",
-      "css-order turbo should load correct styles navigating back again first -> third -> first -> third",
-      "css-order turbo should load correct styles navigating back again first-client -> first -> first-client -> first",
-      "css-order turbo should load correct styles navigating back again first-client -> second -> first-client -> second",
-      "css-order turbo should load correct styles navigating back again first-client -> second-client -> first-client -> second-client",
-      "css-order turbo should load correct styles navigating back again first-client -> third -> first-client -> third",
-      "css-order turbo should load correct styles navigating back again interleaved-b -> interleaved-a -> interleaved-b -> interleaved-a",
-      "css-order turbo should load correct styles navigating back again pages-first -> pages-second -> pages-first -> pages-second",
-      "css-order turbo should load correct styles navigating back again pages-first -> pages-third -> pages-first -> pages-third",
       "css-order turbo should load correct styles navigating back again pages-interleaved-b -> pages-interleaved-a -> pages-interleaved-b -> pages-interleaved-a",
       "css-order turbo should load correct styles navigating back again pages-partial-reversed-a -> pages-partial-reversed-b -> pages-partial-reversed-a -> pages-partial-reversed-b",
       "css-order turbo should load correct styles navigating back again pages-partial-reversed-b -> pages-partial-reversed-a -> pages-partial-reversed-b -> pages-partial-reversed-a",
       "css-order turbo should load correct styles navigating back again pages-reversed-a -> pages-reversed-b -> pages-reversed-a -> pages-reversed-b",
       "css-order turbo should load correct styles navigating back again pages-reversed-b -> pages-reversed-a -> pages-reversed-b -> pages-reversed-a",
-      "css-order turbo should load correct styles navigating back again pages-second -> pages-first -> pages-second -> pages-first",
-      "css-order turbo should load correct styles navigating back again pages-second -> pages-third -> pages-second -> pages-third",
-      "css-order turbo should load correct styles navigating back again pages-third -> pages-first -> pages-third -> pages-first",
-      "css-order turbo should load correct styles navigating back again pages-third -> pages-second -> pages-third -> pages-second",
-      "css-order turbo should load correct styles navigating back again second -> first -> second -> first",
-      "css-order turbo should load correct styles navigating back again second -> first-client -> second -> first-client",
-      "css-order turbo should load correct styles navigating back again second -> second-client -> second -> second-client",
-      "css-order turbo should load correct styles navigating back again second -> third -> second -> third",
-      "css-order turbo should load correct styles navigating back again second-client -> first -> second-client -> first",
-      "css-order turbo should load correct styles navigating back again second-client -> first-client -> second-client -> first-client",
-      "css-order turbo should load correct styles navigating back again second-client -> second -> second-client -> second",
-      "css-order turbo should load correct styles navigating back again second-client -> third -> second-client -> third",
-      "css-order turbo should load correct styles navigating back again third -> first -> third -> first",
-      "css-order turbo should load correct styles navigating back again third -> first-client -> third -> first-client",
-      "css-order turbo should load correct styles navigating back again third -> second -> third -> second",
-      "css-order turbo should load correct styles navigating back again third -> second-client -> third -> second-client",
-      "css-order turbo should load correct styles navigating pages-first -> pages-second",
-      "css-order turbo should load correct styles navigating pages-first -> pages-third",
+      "css-order turbo should load correct styles navigating pages-interleaved-b -> pages-interleaved-a",
       "css-order turbo should load correct styles navigating pages-partial-reversed-a -> pages-partial-reversed-b",
       "css-order turbo should load correct styles navigating pages-partial-reversed-b -> pages-partial-reversed-a",
       "css-order turbo should load correct styles navigating pages-reversed-a -> pages-reversed-b",
-      "css-order turbo should load correct styles navigating pages-reversed-b -> pages-reversed-a",
-      "css-order turbo should load correct styles navigating pages-second -> pages-first",
-      "css-order turbo should load correct styles navigating pages-second -> pages-third",
-      "css-order turbo should load correct styles navigating pages-third -> pages-first",
-      "css-order turbo should load correct styles navigating pages-third -> pages-second",
-      "css-order turbo should load correct styles on pages-first",
-      "css-order turbo should load correct styles on pages-interleaved-b",
-      "css-order turbo should load correct styles on pages-partial-reversed-a",
-      "css-order turbo should load correct styles on pages-partial-reversed-b",
-      "css-order turbo should load correct styles on pages-reversed-a",
-      "css-order turbo should load correct styles on pages-reversed-b",
-      "css-order turbo should load correct styles on pages-second",
-      "css-order turbo should load correct styles on pages-third"
+      "css-order turbo should load correct styles navigating pages-reversed-b -> pages-reversed-a"
     ],
     "pending": [
       "css-order turbo should load correct styles navigating back again big-interleaved-a -> big-interleaved-b -> big-interleaved-a -> big-interleaved-b",
       "css-order turbo should load correct styles navigating back again big-interleaved-b -> big-interleaved-a -> big-interleaved-b -> big-interleaved-a",
-      "css-order turbo should load correct styles navigating pages-interleaved-a -> pages-interleaved-b",
-      "css-order turbo should load correct styles navigating pages-interleaved-b -> pages-interleaved-a"
+      "css-order turbo should load correct styles navigating back again interleaved-a -> interleaved-b -> interleaved-a -> interleaved-b",
+      "css-order turbo should load correct styles navigating back again interleaved-b -> interleaved-a -> interleaved-b -> interleaved-a",
+      "css-order turbo should load correct styles navigating big-interleaved-a -> big-interleaved-b",
+      "css-order turbo should load correct styles navigating big-interleaved-b -> big-interleaved-a",
+      "css-order turbo should load correct styles navigating interleaved-a -> interleaved-b",
+      "css-order turbo should load correct styles navigating interleaved-b -> interleaved-a"
     ],
     "flakey": [],
     "runtimeError": false
@@ -2856,7 +2852,8 @@
       "app-dir - metadata-streaming should render the metadata in the browser",
       "app-dir - metadata-streaming should send streaming response for headless browser bots",
       "app-dir - metadata-streaming should send the blocking response for html limited bots",
-      "app-dir - metadata-streaming should still load viewport meta tags even if metadata is delayed"
+      "app-dir - metadata-streaming should still load viewport meta tags even if metadata is delayed",
+      "app-dir - metadata-streaming should still render metadata if children is not rendered in parallel routes layout"
     ],
     "failed": [],
     "pending": [],
@@ -3882,9 +3879,9 @@
   },
   "test/e2e/app-dir/ppr-errors/ppr-errors.test.ts": {
     "passed": [
-      "ppr build errors production mode outside of a suspense boundary should fail the build for uncaught errors",
-      "ppr build errors production mode when a postpone call is caught and logged it should should include a message telling why",
-      "ppr build errors production mode within a suspense boundary should fail the build for uncaught prerender errors"
+      "ppr build errors production only outside of a suspense boundary should fail the build for uncaught errors",
+      "ppr build errors production only when a postpone call is caught and logged it should should include a message telling why",
+      "ppr build errors production only within a suspense boundary should fail the build for uncaught prerender errors"
     ],
     "failed": [],
     "pending": [],
@@ -5500,7 +5497,10 @@
   },
   "test/e2e/app-dir/use-cache-custom-handler/use-cache-custom-handler.test.ts": {
     "passed": [
-      "use-cache-custom-handler should use custom cache handler if provided"
+      "use-cache-custom-handler should revalidate using a legacy custom cache handler",
+      "use-cache-custom-handler should revalidate using a modern custom cache handler",
+      "use-cache-custom-handler should use a legacy custom cache handler if provided",
+      "use-cache-custom-handler should use a modern custom cache handler if provided"
     ],
     "failed": [],
     "pending": [],
@@ -5601,12 +5601,17 @@
       "use-cache should error when cookies/headers/draftMode is used inside \"use cache\"",
       "use-cache should match the expected revalidate and expire configs on the prerender manifest",
       "use-cache should match the expected stale config in the page header",
+      "use-cache should not read nor write cached data when draft mode is enabled",
+      "use-cache should not use stale caches in server actions that have revalidated",
       "use-cache should override fetch with cookies/auth in use cache properly",
       "use-cache should override fetch with no-store in use cache properly",
       "use-cache should prerender fully cacheable pages as static HTML",
       "use-cache should propagate unstable_cache tags correctly",
       "use-cache should return the same object reference for multiple invocations",
+      "use-cache should revalidate before redirecting in a route handlers",
+      "use-cache should revalidate caches after redirect",
       "use-cache should revalidate caches during on-demand revalidation",
+      "use-cache should revalidate caches nested in unstable_cache",
       "use-cache should send an SWR cache-control header based on the revalidate and expire values",
       "use-cache should update after unstable_expireTag correctly",
       "use-cache should use revalidate config in fetch",
@@ -6517,6 +6522,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/instrumentation-client-hook/instrumentation-client-hook.test.ts": {
+    "passed": [
+      "Instrumentation Client Hook App Router should execute instrumentation-client from app router before hydration",
+      "Instrumentation Client Hook HMR in development mode skips tests in non-dev mode",
+      "Instrumentation Client Hook Pages Router should execute instrumentation-client from pages router before hydration",
+      "Instrumentation Client Hook With src folder should execute instrumentation-client from with src folder before hydration"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/instrumentation-hook-src/instrumentation-hook-src.test.ts": {
     "passed": [
       "instrumentation-hook-rsc instrumentation should not overlap with a instrumentation page",
@@ -6549,6 +6566,28 @@
     "passed": [
       "instrumentation-hook - register-once should not error when concurrent requests are made",
       "instrumentation-hook - register-once should only register once"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/link-on-navigate-prop/index.test.ts": {
+    "passed": [
+      "<Link /> onNavigate prop App Router should only trigger both onClick for external links",
+      "<Link /> onNavigate prop App Router should only trigger onClick for download links",
+      "<Link /> onNavigate prop App Router should only trigger onClick for external links with target=\"_blank\"",
+      "<Link /> onNavigate prop App Router should prevent navigation when onNavigate calls preventDefault",
+      "<Link /> onNavigate prop App Router should replace history state for external links with replace prop",
+      "<Link /> onNavigate prop App Router should trigger both onClick and onNavigate for internal navigation",
+      "<Link /> onNavigate prop App Router should trigger onClick but not onNavigate when using modifier key",
+      "<Link /> onNavigate prop Pages Router should only trigger both onClick for external links",
+      "<Link /> onNavigate prop Pages Router should only trigger onClick for download links",
+      "<Link /> onNavigate prop Pages Router should only trigger onClick for external links with target=\"_blank\"",
+      "<Link /> onNavigate prop Pages Router should prevent navigation when onNavigate calls preventDefault",
+      "<Link /> onNavigate prop Pages Router should replace history state for external links with replace prop",
+      "<Link /> onNavigate prop Pages Router should trigger both onClick and onNavigate for internal navigation",
+      "<Link /> onNavigate prop Pages Router should trigger onClick but not onNavigate when using modifier key"
     ],
     "failed": [],
     "pending": [],
@@ -6603,12 +6642,21 @@
   },
   "test/e2e/middleware-custom-matchers-i18n/test/index.test.ts": {
     "passed": [
-      "Middleware custom matchers i18n should not match",
+      "Middleware custom matchers i18n should match /en/hello",
+      "Middleware custom matchers i18n should match /hello",
+      "Middleware custom matchers i18n should match /nl-NL/hello",
+      "Middleware custom matchers i18n should match has query on client routing en_hello",
+      "Middleware custom matchers i18n should match has query on client routing hello",
+      "Middleware custom matchers i18n should match has query on client routing nl-NL_hello",
+      "Middleware custom matchers i18n should not match /about",
+      "Middleware custom matchers i18n should not match /en/about",
+      "Middleware custom matchers i18n should not match /hello/invalid",
+      "Middleware custom matchers i18n should not match /invalid/hello",
       "Middleware custom matchers with root should not match"
     ],
     "failed": [
-      "Middleware custom matchers i18n should match",
-      "Middleware custom matchers i18n should match has query on client routing"
+      "Middleware custom matchers i18n should match /nl-NL/about",
+      "Middleware custom matchers i18n should match has query on client routing nl-NL_about"
     ],
     "pending": [],
     "flakey": [],
@@ -6701,6 +6749,7 @@
       "Middleware Runtime with i18n should be able to rewrite on _next/static/chunks/pages/ 404",
       "Middleware Runtime with i18n should contain `globalThis`",
       "Middleware Runtime with i18n should contain crypto APIs",
+      "Middleware Runtime with i18n should filter request header properly",
       "Middleware Runtime with i18n should handle 404 on fallback: false route correctly",
       "Middleware Runtime with i18n should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime with i18n should have correct dynamic route params on client-transition to dynamic route",
@@ -6741,6 +6790,7 @@
       "Middleware Runtime without i18n should be able to rewrite on _next/static/chunks/pages/ 404",
       "Middleware Runtime without i18n should contain `globalThis`",
       "Middleware Runtime without i18n should contain crypto APIs",
+      "Middleware Runtime without i18n should filter request header properly",
       "Middleware Runtime without i18n should handle 404 on fallback: false route correctly",
       "Middleware Runtime without i18n should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime without i18n should have correct dynamic route params on client-transition to dynamic route",
@@ -6791,6 +6841,7 @@
       "Middleware Runtime with i18n should be able to use node builtins with node runtime",
       "Middleware Runtime with i18n should contain `globalThis`",
       "Middleware Runtime with i18n should contain crypto APIs",
+      "Middleware Runtime with i18n should filter request header properly",
       "Middleware Runtime with i18n should handle 404 on fallback: false route correctly",
       "Middleware Runtime with i18n should have added middleware in functions manifest",
       "Middleware Runtime with i18n should have correct dynamic route params for middleware rewrite to dynamic route",
@@ -6830,6 +6881,7 @@
       "Middleware Runtime without i18n should be able to use node builtins with node runtime",
       "Middleware Runtime without i18n should contain `globalThis`",
       "Middleware Runtime without i18n should contain crypto APIs",
+      "Middleware Runtime without i18n should filter request header properly",
       "Middleware Runtime without i18n should handle 404 on fallback: false route correctly",
       "Middleware Runtime without i18n should have added middleware in functions manifest",
       "Middleware Runtime without i18n should have correct dynamic route params for middleware rewrite to dynamic route",
@@ -8213,11 +8265,10 @@
     "runtimeError": false
   },
   "test/integration/amp-export-validation/test/index.test.js": {
-    "passed": [
-      "AMP Validation on Export production mode should have shown errors during build"
-    ],
+    "passed": [],
     "failed": [],
     "pending": [
+      "AMP Validation on Export production mode should have shown errors during build",
       "AMP Validation on Export production mode shows AMP warning without throwing error",
       "AMP Validation on Export production mode shows warning and error when throwing error",
       "AMP Validation on Export production mode throws error on AMP error"
@@ -8226,12 +8277,12 @@
     "runtimeError": false
   },
   "test/integration/amphtml-custom-optimizer/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "AMP Custom Optimizer production mode should build and start for dynamic page",
       "AMP Custom Optimizer production mode should build and start for static page"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -8246,16 +8297,24 @@
     "runtimeError": false
   },
   "test/integration/amphtml-fragment-style/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "AMP Fragment Styles production mode adds styles from fragment in AMP mode correctly"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/amphtml-ssg/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "AMP SSG Support development mode should load a hybrid amp page with query correctly",
+      "AMP SSG Support development mode should load a hybrid amp page without query correctly",
+      "AMP SSG Support development mode should load an amp first page correctly",
+      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page",
+      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page with query",
+      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page with trailing slash",
       "AMP SSG Support export mode production mode should have copied SSG files correctly",
       "AMP SSG Support production mode should load a hybrid amp page with query correctly",
       "AMP SSG Support production mode should load a hybrid amp page without query correctly",
@@ -8264,15 +8323,6 @@
       "AMP SSG Support production mode should load dynamic hybrid SSG/AMP page with query",
       "AMP SSG Support production mode should load dynamic hybrid SSG/AMP page with trailing slash",
       "AMP SSG Support production mode should output prerendered files correctly during build"
-    ],
-    "failed": [],
-    "pending": [
-      "AMP SSG Support development mode should load a hybrid amp page with query correctly",
-      "AMP SSG Support development mode should load a hybrid amp page without query correctly",
-      "AMP SSG Support development mode should load an amp first page correctly",
-      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page",
-      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page with query",
-      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page with trailing slash"
     ],
     "flakey": [],
     "runtimeError": false
@@ -9634,13 +9684,12 @@
       "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(true) production mode should hydrate black without dependencies manifest",
       "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(true) production mode should hydrate red without dependencies manifest",
       "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(true) production mode should route from black to red without dependencies",
+      "CSS Support Page reload on CSS missing useLightnincsss(false) production mode should fall back to server-side transition on missing CSS",
+      "CSS Support Page reload on CSS missing useLightnincsss(true) production mode should fall back to server-side transition on missing CSS",
       "CSS Support production mode CSS Import from node_modules useLightnincsss(false) should fail the build",
       "CSS Support production mode CSS Import from node_modules useLightnincsss(true) should fail the build"
     ],
-    "failed": [
-      "CSS Support Page reload on CSS missing useLightnincsss(false) production mode should fall back to server-side transition on missing CSS",
-      "CSS Support Page reload on CSS missing useLightnincsss(true) production mode should fall back to server-side transition on missing CSS"
-    ],
+    "failed": [],
     "pending": [
       "CSS Support CSS Cleanup on Render Failure useLightnincsss(false) production mode not have intermediary page styles on error rendering",
       "CSS Support CSS Cleanup on Render Failure useLightnincsss(true) production mode not have intermediary page styles on error rendering"
@@ -17378,24 +17427,22 @@
   },
   "test/production/app-dir/actions-tree-shaking/reexport/reexport-edge.test.ts": {
     "passed": [
+      "actions-tree-shaking - reexport should keep all the action exports for namespace export case on client layer",
       "actions-tree-shaking - reexport should keep all the action exports for namespace export case on server layer",
       "actions-tree-shaking - reexport should not tree-shake namespace exports the manifest"
     ],
-    "failed": [
-      "actions-tree-shaking - reexport should keep all the action exports for namespace export case on client layer"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/production/app-dir/actions-tree-shaking/reexport/reexport.test.ts": {
     "passed": [
+      "actions-tree-shaking - reexport should keep all the action exports for namespace export case on client layer",
       "actions-tree-shaking - reexport should keep all the action exports for namespace export case on server layer",
       "actions-tree-shaking - reexport should not tree-shake namespace exports the manifest"
     ],
-    "failed": [
-      "actions-tree-shaking - reexport should keep all the action exports for namespace export case on client layer"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -17570,8 +17617,7 @@
   "test/production/app-dir/dynamic-io-cache-handlers/dynamic-io-cache-handlers.test.ts": {
     "passed": [
       "dynamic-io-cache-handlers should call expireTags on global default cache handler",
-      "dynamic-io-cache-handlers should call receiveExpiredTags on global default cache handler",
-      "dynamic-io-cache-handlers should call receiveExpiredTags on global default cache handler without tags if none are provided",
+      "dynamic-io-cache-handlers should call refreshTags on global default cache handler",
       "dynamic-io-cache-handlers should use global symbol for default cache handler"
     ],
     "failed": [],
@@ -17842,14 +17888,14 @@
     "runtimeError": false
   },
   "test/production/build-spinners/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "build-spinners should handle build spinners correctly app and pages",
       "build-spinners should handle build spinners correctly app dir - (compile workers)",
       "build-spinners should handle build spinners correctly app dir - basic",
       "build-spinners should handle build spinners correctly page dir",
       "build-spinners should handle build spinners correctly page dir (compile workers)"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18321,7 +18367,7 @@
       "Production Usage Dynamic import default behavior should bundle two css modules for nested components into one css file",
       "Production Usage Dynamic import default behavior should bundle two css modules for one dynamically imported component into one css file",
       "Production Usage Dynamic import default behavior should not remove css styles for same css file between page transitions",
-      "Production Usage Dynamic import default behavior should output two css files even in case of three css module files while one is shared across files",
+      "Production Usage Dynamic import default behavior should output correct css even in case of three css module files while one is shared across files",
       "Production Usage Dynamic import default behavior should render dynamic import components",
       "Production Usage Dynamic import default behavior should render even there are no physical chunk exists",
       "Production Usage Dynamic import default behavior should render one dynamically imported component and load its css files",

@@ -70,7 +70,7 @@ import {
   getRedirectStatusCodeFromError,
 } from '../../client/components/redirect'
 import { isRedirectError } from '../../client/components/redirect-error'
-import { getImplicitTags } from '../lib/implicit-tags'
+import { getImplicitTags, type ImplicitTags } from '../lib/implicit-tags'
 import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
 import { FlightRenderResult } from './flight-render-result'
@@ -186,6 +186,7 @@ import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
 import isError from '../../lib/is-error'
 import { isUseCacheTimeoutError } from '../use-cache/use-cache-errors'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
+import { getPreviouslyRevalidatedTags } from '../server-utils'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -229,6 +230,7 @@ export type AppRenderContext = {
 interface ParseRequestHeadersOptions {
   readonly isDevWarmup: undefined | boolean
   readonly isRoutePPREnabled: boolean
+  readonly previewModeId: string | undefined
 }
 
 const flightDataPathHeadKey = 'h'
@@ -247,6 +249,7 @@ interface ParsedRequestHeaders {
   readonly isHmrRefresh: boolean
   readonly isRSCRequest: boolean
   readonly nonce: string | undefined
+  readonly previouslyRevalidatedTags: string[]
 }
 
 function parseRequestHeaders(
@@ -287,6 +290,11 @@ function parseRequestHeaders(
   const nonce =
     typeof csp === 'string' ? getScriptNonceFromHeader(csp) : undefined
 
+  const previouslyRevalidatedTags = getPreviouslyRevalidatedTags(
+    headers,
+    options.previewModeId
+  )
+
   return {
     flightRouterState,
     isPrefetchRequest,
@@ -295,6 +303,7 @@ function parseRequestHeaders(
     isRSCRequest,
     isDevWarmupRequest,
     nonce,
+    previouslyRevalidatedTags,
   }
 }
 
@@ -698,7 +707,7 @@ async function warmupDevRender(
     type: 'prerender',
     phase: 'render',
     rootParams,
-    implicitTags: [],
+    implicitTags: undefined,
     renderSignal: renderController.signal,
     controller: prerenderController,
     cacheSignal,
@@ -1157,7 +1166,6 @@ async function renderToHTMLOrFlightImpl(
   parsedRequestHeaders: ParsedRequestHeaders,
   requestEndedState: { ended?: boolean },
   postponedState: PostponedState | null,
-  implicitTags: Array<string>,
   serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
   sharedContext: AppSharedContext
 ) {
@@ -1332,6 +1340,12 @@ async function renderToHTMLOrFlightImpl(
 
   getTracer().setRootSpanAttribute('next.route', pagePath)
 
+  const implicitTags = await getImplicitTags(
+    workStore.page,
+    url,
+    fallbackRouteParams
+  )
+
   if (isStaticGeneration) {
     // We're either building or revalidating. In either case we need to
     // prerender our page rather than render it.
@@ -1391,11 +1405,11 @@ async function renderToHTMLOrFlightImpl(
     if (
       workStore.pendingRevalidates ||
       workStore.pendingRevalidateWrites ||
-      workStore.revalidatedTags
+      workStore.pendingRevalidatedTags
     ) {
       const pendingPromise = Promise.all([
         workStore.incrementalCache?.revalidateTag(
-          workStore.revalidatedTags || []
+          workStore.pendingRevalidatedTags || []
         ),
         ...Object.values(workStore.pendingRevalidates || {}),
         ...(workStore.pendingRevalidateWrites || []),
@@ -1566,11 +1580,11 @@ async function renderToHTMLOrFlightImpl(
     if (
       workStore.pendingRevalidates ||
       workStore.pendingRevalidateWrites ||
-      workStore.revalidatedTags
+      workStore.pendingRevalidatedTags
     ) {
       const pendingPromise = Promise.all([
         workStore.incrementalCache?.revalidateTag(
-          workStore.revalidatedTags || []
+          workStore.pendingRevalidatedTags || []
         ),
         ...Object.values(workStore.pendingRevalidates || {}),
         ...(workStore.pendingRevalidateWrites || []),
@@ -1626,9 +1640,10 @@ export const renderToHTMLOrFlight: AppPageRender = (
   const parsedRequestHeaders = parseRequestHeaders(req.headers, {
     isDevWarmup,
     isRoutePPREnabled: renderOpts.experimental.isRoutePPREnabled === true,
+    previewModeId: renderOpts.previewProps?.previewModeId,
   })
 
-  const { isPrefetchRequest } = parsedRequestHeaders
+  const { isPrefetchRequest, previouslyRevalidatedTags } = parsedRequestHeaders
 
   const requestEndedState = { ended: false }
   let postponedState: PostponedState | null = null
@@ -1657,12 +1672,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
     )
   }
 
-  const implicitTags = getImplicitTags(
-    renderOpts.routeModule.definition.page,
-    url,
-    fallbackRouteParams
-  )
-
   const workStore = createWorkStore({
     page: renderOpts.routeModule.definition.page,
     fallbackRouteParams,
@@ -1671,6 +1680,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
     // @TODO move to workUnitStore of type Request
     isPrefetchRequest,
     buildId: sharedContext.buildId,
+    previouslyRevalidatedTags,
   })
 
   return workAsyncStorage.run(
@@ -1688,7 +1698,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
     parsedRequestHeaders,
     requestEndedState,
     postponedState,
-    implicitTags,
     serverComponentsHmrCache,
     sharedContext
   )
@@ -2213,7 +2222,7 @@ async function spawnDynamicValidationInDev(
     type: 'prerender',
     phase: 'render',
     rootParams,
-    implicitTags: [],
+    implicitTags: undefined,
     renderSignal: initialServerRenderController.signal,
     controller: initialServerPrerenderController,
     cacheSignal,
@@ -2230,7 +2239,7 @@ async function spawnDynamicValidationInDev(
     type: 'prerender',
     phase: 'render',
     rootParams,
-    implicitTags: [],
+    implicitTags: undefined,
     renderSignal: initialClientController.signal,
     controller: initialClientController,
     cacheSignal,
@@ -2376,7 +2385,7 @@ async function spawnDynamicValidationInDev(
     type: 'prerender',
     phase: 'render',
     rootParams,
-    implicitTags: [],
+    implicitTags: undefined,
     renderSignal: finalServerController.signal,
     controller: finalServerController,
     // During the final prerender we don't need to track cache access so we omit the signal
@@ -2397,7 +2406,7 @@ async function spawnDynamicValidationInDev(
     type: 'prerender',
     phase: 'render',
     rootParams,
-    implicitTags: [],
+    implicitTags: undefined,
     renderSignal: finalClientController.signal,
     controller: finalClientController,
     // During the final prerender we don't need to track cache access so we omit the signal
@@ -2568,7 +2577,7 @@ async function prerenderToStream(
   metadata: AppPageRenderResultMetadata,
   workStore: WorkStore,
   tree: LoaderTree,
-  implicitTags: Array<string>
+  implicitTags: ImplicitTags
 ): Promise<PrerenderToStreamResult> {
   // When prerendering formState is always null. We still include it
   // because some shared APIs expect a formState value and this is slightly
@@ -2724,7 +2733,7 @@ async function prerenderToStream(
           type: 'prerender',
           phase: 'render',
           rootParams,
-          implicitTags: implicitTags,
+          implicitTags,
           renderSignal: initialServerRenderController.signal,
           controller: initialServerPrerenderController,
           cacheSignal,
@@ -2732,7 +2741,7 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
-          tags: [...implicitTags],
+          tags: [...implicitTags.tags],
           prerenderResumeDataCache,
         })
 
@@ -2818,7 +2827,7 @@ async function prerenderToStream(
             type: 'prerender',
             phase: 'render',
             rootParams,
-            implicitTags: implicitTags,
+            implicitTags,
             renderSignal: initialClientController.signal,
             controller: initialClientController,
             cacheSignal: null,
@@ -2826,7 +2835,7 @@ async function prerenderToStream(
             revalidate: INFINITE_CACHE,
             expire: INFINITE_CACHE,
             stale: INFINITE_CACHE,
-            tags: [...implicitTags],
+            tags: [...implicitTags.tags],
             prerenderResumeDataCache,
           }
 
@@ -2903,7 +2912,7 @@ async function prerenderToStream(
           type: 'prerender',
           phase: 'render',
           rootParams,
-          implicitTags: implicitTags,
+          implicitTags,
           renderSignal: finalServerController.signal,
           controller: finalServerController,
           // During the final prerender we don't need to track cache access so we omit the signal
@@ -2912,7 +2921,7 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
-          tags: [...implicitTags],
+          tags: [...implicitTags.tags],
           prerenderResumeDataCache,
         })
 
@@ -2972,7 +2981,7 @@ async function prerenderToStream(
           type: 'prerender',
           phase: 'render',
           rootParams,
-          implicitTags: implicitTags,
+          implicitTags,
           renderSignal: finalClientController.signal,
           controller: finalClientController,
           // For HTML Generation we don't need to track cache reads (RSC only)
@@ -2981,7 +2990,7 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
-          tags: [...implicitTags],
+          tags: [...implicitTags.tags],
           prerenderResumeDataCache,
         }
 
@@ -3207,7 +3216,7 @@ async function prerenderToStream(
           type: 'prerender',
           phase: 'render',
           rootParams,
-          implicitTags: implicitTags,
+          implicitTags,
           renderSignal: initialServerRenderController.signal,
           controller: initialServerPrerenderController,
           cacheSignal,
@@ -3215,7 +3224,7 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
-          tags: [...implicitTags],
+          tags: [...implicitTags.tags],
           prerenderResumeDataCache,
         })
 
@@ -3224,7 +3233,7 @@ async function prerenderToStream(
           type: 'prerender',
           phase: 'render',
           rootParams,
-          implicitTags: implicitTags,
+          implicitTags,
           renderSignal: initialClientController.signal,
           controller: initialClientController,
           cacheSignal,
@@ -3232,7 +3241,7 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
-          tags: [...implicitTags],
+          tags: [...implicitTags.tags],
           prerenderResumeDataCache,
         })
 
@@ -3376,7 +3385,7 @@ async function prerenderToStream(
           type: 'prerender',
           phase: 'render',
           rootParams,
-          implicitTags: implicitTags,
+          implicitTags,
           renderSignal: finalServerController.signal,
           controller: finalServerController,
           // During the final prerender we don't need to track cache access so we omit the signal
@@ -3385,7 +3394,7 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
-          tags: [...implicitTags],
+          tags: [...implicitTags.tags],
           prerenderResumeDataCache,
         })
 
@@ -3400,7 +3409,7 @@ async function prerenderToStream(
           type: 'prerender',
           phase: 'render',
           rootParams,
-          implicitTags: implicitTags,
+          implicitTags,
           renderSignal: finalClientController.signal,
           controller: finalClientController,
           // During the final prerender we don't need to track cache access so we omit the signal
@@ -3409,7 +3418,7 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
-          tags: [...implicitTags],
+          tags: [...implicitTags.tags],
           prerenderResumeDataCache,
         })
 
@@ -3595,12 +3604,12 @@ async function prerenderToStream(
         type: 'prerender-ppr',
         phase: 'render',
         rootParams,
-        implicitTags: implicitTags,
+        implicitTags,
         dynamicTracking,
         revalidate: INFINITE_CACHE,
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
-        tags: [...implicitTags],
+        tags: [...implicitTags.tags],
         prerenderResumeDataCache,
       })
       const RSCPayload = await workUnitAsyncStorage.run(
@@ -3628,12 +3637,12 @@ async function prerenderToStream(
         type: 'prerender-ppr',
         phase: 'render',
         rootParams,
-        implicitTags: implicitTags,
+        implicitTags,
         dynamicTracking,
         revalidate: INFINITE_CACHE,
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
-        tags: [...implicitTags],
+        tags: [...implicitTags.tags],
         prerenderResumeDataCache,
       }
       const prerender = require('react-dom/static.edge')
@@ -3818,11 +3827,11 @@ async function prerenderToStream(
         type: 'prerender-legacy',
         phase: 'render',
         rootParams,
-        implicitTags: implicitTags,
+        implicitTags,
         revalidate: INFINITE_CACHE,
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
-        tags: [...implicitTags],
+        tags: [...implicitTags.tags],
       })
       // This is a regular static generation. We don't do dynamic tracking because we rely on
       // the old-school dynamic error handling to bail out of static generation
@@ -3991,7 +4000,7 @@ async function prerenderToStream(
         typeof prerenderStore?.stale !== 'undefined'
           ? prerenderStore.stale
           : INFINITE_CACHE,
-      tags: [...(prerenderStore?.tags || implicitTags)],
+      tags: [...(prerenderStore?.tags || implicitTags.tags)],
     })
     const errorRSCPayload = await workUnitAsyncStorage.run(
       prerenderLegacyStore,

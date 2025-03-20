@@ -64,7 +64,7 @@ var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
   REACT_SCOPE_TYPE = Symbol.for("react.scope"),
-  REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
+  REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
   REACT_LEGACY_HIDDEN_TYPE = Symbol.for("react.legacy_hidden"),
   REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
   REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
@@ -2748,17 +2748,17 @@ function createRenderState(resumableState, generateStaticMarkup) {
       "\x3c/script>"
     );
   bootstrapScriptContent = idPrefix + "P:";
-  var JSCompiler_object_inline_segmentPrefix_1704 = idPrefix + "S:";
+  var JSCompiler_object_inline_segmentPrefix_1712 = idPrefix + "S:";
   idPrefix += "B:";
-  var JSCompiler_object_inline_preamble_1707 = createPreambleState(),
-    JSCompiler_object_inline_preconnects_1717 = new Set(),
-    JSCompiler_object_inline_fontPreloads_1718 = new Set(),
-    JSCompiler_object_inline_highImagePreloads_1719 = new Set(),
-    JSCompiler_object_inline_styles_1720 = new Map(),
-    JSCompiler_object_inline_bootstrapScripts_1721 = new Set(),
-    JSCompiler_object_inline_scripts_1722 = new Set(),
-    JSCompiler_object_inline_bulkPreloads_1723 = new Set(),
-    JSCompiler_object_inline_preloads_1724 = {
+  var JSCompiler_object_inline_preamble_1715 = createPreambleState(),
+    JSCompiler_object_inline_preconnects_1725 = new Set(),
+    JSCompiler_object_inline_fontPreloads_1726 = new Set(),
+    JSCompiler_object_inline_highImagePreloads_1727 = new Set(),
+    JSCompiler_object_inline_styles_1728 = new Map(),
+    JSCompiler_object_inline_bootstrapScripts_1729 = new Set(),
+    JSCompiler_object_inline_scripts_1730 = new Set(),
+    JSCompiler_object_inline_bulkPreloads_1731 = new Set(),
+    JSCompiler_object_inline_preloads_1732 = {
       images: new Map(),
       stylesheets: new Map(),
       scripts: new Map(),
@@ -2795,7 +2795,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
       scriptConfig.moduleScriptResources[href] = null;
       scriptConfig = [];
       pushLinkImpl(scriptConfig, props);
-      JSCompiler_object_inline_bootstrapScripts_1721.add(scriptConfig);
+      JSCompiler_object_inline_bootstrapScripts_1729.add(scriptConfig);
       bootstrapChunks.push('<script src="', escapeTextForBrowser(src));
       "string" === typeof integrity &&
         bootstrapChunks.push('" integrity="', escapeTextForBrowser(integrity));
@@ -2836,7 +2836,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
         (props.moduleScriptResources[scriptConfig] = null),
         (props = []),
         pushLinkImpl(props, integrity),
-        JSCompiler_object_inline_bootstrapScripts_1721.add(props),
+        JSCompiler_object_inline_bootstrapScripts_1729.add(props),
         bootstrapChunks.push(
           '<script type="module" src="',
           escapeTextForBrowser(i)
@@ -2851,10 +2851,10 @@ function createRenderState(resumableState, generateStaticMarkup) {
         bootstrapChunks.push('" async="">\x3c/script>');
   return {
     placeholderPrefix: bootstrapScriptContent,
-    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1704,
+    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1712,
     boundaryPrefix: idPrefix,
     startInlineScript: "<script>",
-    preamble: JSCompiler_object_inline_preamble_1707,
+    preamble: JSCompiler_object_inline_preamble_1715,
     externalRuntimeScript: null,
     bootstrapChunks: bootstrapChunks,
     importMapChunks: [],
@@ -2870,14 +2870,14 @@ function createRenderState(resumableState, generateStaticMarkup) {
     charsetChunks: [],
     viewportChunks: [],
     hoistableChunks: [],
-    preconnects: JSCompiler_object_inline_preconnects_1717,
-    fontPreloads: JSCompiler_object_inline_fontPreloads_1718,
-    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1719,
-    styles: JSCompiler_object_inline_styles_1720,
-    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1721,
-    scripts: JSCompiler_object_inline_scripts_1722,
-    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1723,
-    preloads: JSCompiler_object_inline_preloads_1724,
+    preconnects: JSCompiler_object_inline_preconnects_1725,
+    fontPreloads: JSCompiler_object_inline_fontPreloads_1726,
+    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1727,
+    styles: JSCompiler_object_inline_styles_1728,
+    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1729,
+    scripts: JSCompiler_object_inline_scripts_1730,
+    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1731,
+    preloads: JSCompiler_object_inline_preloads_1732,
     stylesToHoist: !1,
     generateStaticMarkup: generateStaticMarkup
   };
@@ -2908,8 +2908,6 @@ function getComponentNameFromType(type) {
   switch (type) {
     case REACT_FRAGMENT_TYPE:
       return "Fragment";
-    case REACT_PORTAL_TYPE:
-      return "Portal";
     case REACT_PROFILER_TYPE:
       return "Profiler";
     case REACT_STRICT_MODE_TYPE:
@@ -2918,11 +2916,15 @@ function getComponentNameFromType(type) {
       return "Suspense";
     case REACT_SUSPENSE_LIST_TYPE:
       return "SuspenseList";
+    case REACT_ACTIVITY_TYPE:
+      return "Activity";
     case REACT_VIEW_TRANSITION_TYPE:
       return "ViewTransition";
   }
   if ("object" === typeof type)
     switch (type.$$typeof) {
+      case REACT_PORTAL_TYPE:
+        return "Portal";
       case REACT_CONTEXT_TYPE:
         return (type.displayName || "Context") + ".Provider";
       case REACT_CONSUMER_TYPE:
@@ -4215,7 +4217,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
         renderNodeDestructive(request, task, props.children, -1);
         task.keyPath = type;
         return;
-      case REACT_OFFSCREEN_TYPE:
+      case REACT_ACTIVITY_TYPE:
         "hidden" !== props.mode &&
           ((type = task.keyPath),
           (task.keyPath = keyPath),
@@ -4231,7 +4233,12 @@ function renderElement(request, task, keyPath, type, props, ref) {
       case REACT_VIEW_TRANSITION_TYPE:
         type = task.keyPath;
         task.keyPath = keyPath;
-        renderNodeDestructive(request, task, props.children, -1);
+        null != props.name && "auto" !== props.name
+          ? renderNodeDestructive(request, task, props.children, -1)
+          : ((keyPath = task.treeContext),
+            (task.treeContext = pushTreeContext(keyPath, 1, 0)),
+            renderNode(request, task, props.children, -1),
+            (task.treeContext = keyPath));
         task.keyPath = type;
         return;
       case REACT_SCOPE_TYPE:
@@ -4905,9 +4912,9 @@ function trackPostpone(request, trackedPostpones, task, segment) {
         addToReplayParent(segment, boundaryKeyPath[0], trackedPostpones);
         return;
       }
-      var boundaryNode$44 = trackedPostpones.workingMap.get(boundaryKeyPath);
-      void 0 === boundaryNode$44
-        ? ((boundaryNode$44 = [
+      var boundaryNode$43 = trackedPostpones.workingMap.get(boundaryKeyPath);
+      void 0 === boundaryNode$43
+        ? ((boundaryNode$43 = [
             boundaryKeyPath[1],
             boundaryKeyPath[2],
             children,
@@ -4915,13 +4922,13 @@ function trackPostpone(request, trackedPostpones, task, segment) {
             fallbackReplayNode,
             boundary.rootSegmentID
           ]),
-          trackedPostpones.workingMap.set(boundaryKeyPath, boundaryNode$44),
+          trackedPostpones.workingMap.set(boundaryKeyPath, boundaryNode$43),
           addToReplayParent(
-            boundaryNode$44,
+            boundaryNode$43,
             boundaryKeyPath[0],
             trackedPostpones
           ))
-        : ((boundaryKeyPath = boundaryNode$44),
+        : ((boundaryKeyPath = boundaryNode$43),
           (boundaryKeyPath[4] = fallbackReplayNode),
           (boundaryKeyPath[5] = boundary.rootSegmentID));
     }
@@ -5071,15 +5078,15 @@ function renderNode(request, task, node, childIndex) {
       chunkLength = segment.chunks.length;
     try {
       return renderNodeDestructive(request, task, node, childIndex);
-    } catch (thrownValue$56) {
+    } catch (thrownValue$55) {
       if (
         (resetHooksState(),
         (segment.children.length = childrenLength),
         (segment.chunks.length = chunkLength),
         (childIndex =
-          thrownValue$56 === SuspenseException
+          thrownValue$55 === SuspenseException
             ? getSuspendedThenable()
-            : thrownValue$56),
+            : thrownValue$55),
         "object" === typeof childIndex && null !== childIndex)
       ) {
         if ("function" === typeof childIndex.then) {
@@ -5274,16 +5281,16 @@ function abortTask(task, request, error) {
     }
   } else {
     boundary.pendingTasks--;
-    var trackedPostpones$59 = request.trackedPostpones;
+    var trackedPostpones$58 = request.trackedPostpones;
     if (4 !== boundary.status) {
-      if (null !== trackedPostpones$59 && null !== segment)
+      if (null !== trackedPostpones$58 && null !== segment)
         return (
           "object" === typeof error &&
           null !== error &&
           error.$$typeof === REACT_POSTPONE_TYPE
             ? logPostpone(request, error.message, errorInfo)
             : logRecoverableError(request, error, errorInfo),
-          trackPostpone(request, trackedPostpones$59, task, segment),
+          trackPostpone(request, trackedPostpones$58, task, segment),
           boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
             return abortTask(fallbackTask, request, error);
           }),
@@ -5591,13 +5598,13 @@ function performWork(request$jscomp$1) {
                       null !== request.trackedPostpones &&
                       x$jscomp$0.$$typeof === REACT_POSTPONE_TYPE
                     ) {
-                      var trackedPostpones$63 = request.trackedPostpones;
+                      var trackedPostpones$62 = request.trackedPostpones;
                       task.abortSet.delete(task);
                       var postponeInfo = getThrownInfo(task.componentStack);
                       logPostpone(request, x$jscomp$0.message, postponeInfo);
                       trackPostpone(
                         request,
-                        trackedPostpones$63,
+                        trackedPostpones$62,
                         task,
                         segment$jscomp$0
                       );
@@ -6158,11 +6165,11 @@ function flushCompletedQueues(request, destination) {
       completedBoundaries.splice(0, i);
       var partialBoundaries = request.partialBoundaries;
       for (i = 0; i < partialBoundaries.length; i++) {
-        var boundary$66 = partialBoundaries[i];
+        var boundary$65 = partialBoundaries[i];
         a: {
           clientRenderedBoundaries = request;
           boundary = destination;
-          var completedSegments = boundary$66.completedSegments;
+          var completedSegments = boundary$65.completedSegments;
           for (
             JSCompiler_inline_result = 0;
             JSCompiler_inline_result < completedSegments.length;
@@ -6172,7 +6179,7 @@ function flushCompletedQueues(request, destination) {
               !flushPartiallyCompletedSegment(
                 clientRenderedBoundaries,
                 boundary,
-                boundary$66,
+                boundary$65,
                 completedSegments[JSCompiler_inline_result]
               )
             ) {
@@ -6184,7 +6191,7 @@ function flushCompletedQueues(request, destination) {
           completedSegments.splice(0, JSCompiler_inline_result);
           JSCompiler_inline_result$jscomp$0 = writeHoistablesForBoundary(
             boundary,
-            boundary$66.contentState,
+            boundary$65.contentState,
             clientRenderedBoundaries.renderState
           );
         }
@@ -6269,8 +6276,8 @@ function abort(request, reason) {
     }
     null !== request.destination &&
       flushCompletedQueues(request, request.destination);
-  } catch (error$68) {
-    logRecoverableError(request, error$68, {}), fatalError(request, error$68);
+  } catch (error$67) {
+    logRecoverableError(request, error$67, {}), fatalError(request, error$67);
   }
 }
 function addToReplayParent(node, parentKeyPath, trackedPostpones) {
@@ -6351,4 +6358,4 @@ exports.renderToString = function (children, options) {
     'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
   );
 };
-exports.version = "19.1.0-experimental-6aa8254b-20250312";
+exports.version = "19.1.0-experimental-db7dfe05-20250319";

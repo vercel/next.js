@@ -855,7 +855,13 @@ impl AppProject {
                     graphs.push(graph);
                     let mut visited_modules = VisitedModules::from_graph(graph);
 
-                    for module in server_component_entries.iter() {
+                    // Skip the last server component, which is the page itself, because that one
+                    // won't have it's visited modules added, and will be visited in the next step
+                    // as part of rsc_entry
+                    for module in server_component_entries
+                        .iter()
+                        .take(server_component_entries.len().saturating_sub(1))
+                    {
                         let graph = SingleModuleGraph::new_with_entries_visited_intern(
                             // This should really be ChunkGroupEntry::Shared(module.await?.module),
                             // but that breaks everything for some reason.
