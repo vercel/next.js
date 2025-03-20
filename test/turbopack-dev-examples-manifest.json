@@ -1,6 +1,5 @@
 {
   "active-class-name": true,
-  "analyze-bundles": true,
   "api-routes": true,
   "api-routes-apollo-server": true,
   "api-routes-apollo-server-and-client": true,
