@@ -663,8 +663,8 @@ describe('CSS URL via `file-loader` and asset prefix (1)', () => {
         } else {
           expect(cssContent).toMatchInlineSnapshot(`
            [
-             "/foo/_next/static/css/18198e5ba4d54f6f.css:
-           <!DOCTYPE html><html><head><meta charSet="utf-8" data-next-head=""/><meta name="viewport" content="width=device-width" data-next-head=""/><title data-next-head="">404: This page could not be found</title><link rel="preload" href="/foo/_next/static/css/18198e5ba4d54f6f.css" as="style"/><link rel="stylesheet" href="/foo/_next/static/css/18198e5ba4d54f6f.css" data-n-g=""/><noscript data-n-css=""></noscript><script defer="" noModule="" src="/foo/_next/static/chunks/polyfills-42372ed130431b0a.js"></script><script src="/foo/_next/static/chunks/webpack-04302e38cef90fa6.js" defer=""></script><script src="/foo/_next/static/chunks/framework-9521b7559cbf54a7.js" defer=""></script><script src="/foo/_next/static/chunks/main-9ece92bd6dcce11d.js" defer=""></script><script src="/foo/_next/static/chunks/pages/_app-b9af1591d249bbc9.js" defer=""></script><script src="/foo/_next/static/chunks/pages/_error-3a3931029eb8770c.js" defer=""></script><script src="/foo/_next/static/F3opYg5W_StiO7JM5YS6V/_buildManifest.js" defer=""></script><script src="/foo/_next/static/F3opYg5W_StiO7JM5YS6V/_ssgManifest.js" defer=""></script></head><body><div id="__next"><div style="font-family:system-ui,&quot;Segoe UI&quot;,Roboto,Helvetica,Arial,sans-serif,&quot;Apple Color Emoji&quot;,&quot;Segoe UI Emoji&quot;;height:100vh;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center"><div style="line-height:48px"><style>body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}</style><h1 class="next-error-h1" style="display:inline-block;margin:0 20px 0 0;padding-right:23px;font-size:24px;font-weight:500;vertical-align:top">404</h1><div style="display:inline-block"><h2 style="font-size:14px;font-weight:400;line-height:28px">This page could not be found<!-- -->.</h2></div></div></div></div><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"statusCode":404}},"page":"/_error","query":{},"buildId":"F3opYg5W_StiO7JM5YS6V","assetPrefix":"/foo","nextExport":true,"isFallback":false,"gip":true,"scriptLoader":[]}</script></body></html>",
+             "/_next/static/css/18198e5ba4d54f6f.css:
+           .red-text{color:red;background-image:url(/foo/_next/static/media/dark.6b01655b.svg) url(/foo/_next/static/media/dark2.6b01655b.svg)}.blue-text{color:orange;font-weight:bolder;background-image:url(/foo/_next/static/media/light.2da1d3d6.svg);color:blue}",
            ]
           `)
         }
@@ -718,7 +718,7 @@ describe('CSS URL via `file-loader` and asset prefix (2)', () => {
         } else {
           expect(cssContent).toMatchInlineSnapshot(`
            [
-             "/foo/_next/static/css/18198e5ba4d54f6f.css:
+             "/_next/static/css/18198e5ba4d54f6f.css:
            .red-text{color:red;background-image:url(/foo/_next/static/media/dark.6b01655b.svg) url(/foo/_next/static/media/dark2.6b01655b.svg)}.blue-text{color:orange;font-weight:bolder;background-image:url(/foo/_next/static/media/light.2da1d3d6.svg);color:blue}",
            ]
           `)
