@@ -8,7 +8,6 @@
   "api-routes-cors": true,
   "api-routes-graphql": true,
   "api-routes-middleware": true,
-  "api-routes-rate-limit": true,
   "api-routes-rest": true,
   "auth": true,
   "auth-with-stytch": true,

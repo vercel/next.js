@@ -8,7 +8,6 @@ const testedExamples = [
   'amp',
   'api-routes-cors',
   'api-routes-middleware',
-  'api-routes-rate-limit',
   'api-routes-rest',
   'basic-css',
   'basic-export',
