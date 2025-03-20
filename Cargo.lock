@@ -4586,6 +4586,7 @@ dependencies = [
  "serde_json",
  "supports-hyperlinks",
  "swc_core",
+ "swc_parallel",
  "terminal_hyperlink",
  "tokio",
  "tracing",
@@ -8226,6 +8227,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f16052d5123ec45c1c49100781363f3f4e4a6be2da6d82f473b79db1e3abeb8"
 dependencies = [
  "once_cell",
+ "rayon",
 ]
 
 [[package]]
@@ -9744,6 +9746,7 @@ dependencies = [
  "sourcemap",
  "strsim 0.11.1",
  "swc_core",
+ "swc_parallel",
  "tokio",
  "tracing",
  "turbo-rcstr",
