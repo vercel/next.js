@@ -49,6 +49,8 @@ export const styles = `
 
     width: 100%;
 
+    position: relative;
+    z-index: 2;
     outline: none;
     translate: 1px 1px;
     max-width: var(--next-dialog-max-width);
