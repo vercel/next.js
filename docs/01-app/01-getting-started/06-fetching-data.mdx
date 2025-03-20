@@ -10,7 +10,7 @@ related:
     - app/api-reference/file-conventions/loading
 ---
 
-This page will walk you through how you can fetch data in [Server Components](#server-components) and [Client Components](#client-components). As well as how to [stream](#streaming) content that depends on data.
+This page will walk you through how you can fetch data in [Server Components](#server-components) and [Client Components](#client-components).
 
 ## Fetching data
 
@@ -170,7 +170,7 @@ export default function Posts({ posts }) {
 }
 ```
 
-In the example above, you need to wrap the `<Posts />` component in a [`<Suspense>` boundary](https://react.dev/reference/react/Suspense). This means the fallback will be shown while the promise is being resolved. Learn more about [streaming](#streaming).
+In the example above, you need to wrap the `<Posts />` component in a [`<Suspense>` boundary](https://react.dev/reference/react/Suspense). This means the fallback will be shown while the promise is being resolved. Learn more about [streaming](/docs/app/getting-started/caching-and-revalidating#streaming).
 
 #### Community libraries
 

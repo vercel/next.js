@@ -16,7 +16,7 @@ Next.js uses the server and client environments for caching.
 - On the server, you can cache the output of components and functions to reduce the need to recompute work for every user request.
 - On the client, the cached content from the server is temporarily stored in the browser to reduce the number of server requests on navigation.
 
-This page describes how you can cache and revalidate routes, components, and functions.
+This page describes how you can cache and revalidate routes, components, and functions. As well as how to [stream](#streaming) dynamic content.
 
 ## Server-side caching
 
@@ -60,8 +60,8 @@ To improve the initial load time and user experience, you can use streaming to b
 
 There are two ways you can implement streaming in your application:
 
-1. With the [`loading.js` file](#with-loadingjs)
-2. With React's [`<Suspense>` component](#with-suspense)
+1. With the [`loading.js` file](#loadingjs)
+2. With React's [`<Suspense>` component](#suspense)
 
 #### `loading.js`
 
