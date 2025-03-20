@@ -1,5 +1,20 @@
 import { NEXT_CACHE_IMPLICIT_TAG_ID } from '../../lib/constants'
 import type { FallbackRouteParams } from '../request/fallback-params'
+import { getCacheHandlers } from '../use-cache/handlers'
+
+export interface ImplicitTags {
+  /**
+   * For legacy usage, the implicit tags are passed to the incremental cache
+   * handler in `get` calls.
+   */
+  readonly tags: string[]
+  /**
+   * Modern cache handlers don't receive implicit tags. Instead, the
+   * implicit tags' expiration is stored in the work unit store, and used to
+   * compare with a cache entry's timestamp.
+   */
+  expiration: number
+}
 
 const getDerivedTags = (pathname: string): string[] => {
   const derivedTags: string[] = [`/layout`]
@@ -26,16 +41,56 @@ const getDerivedTags = (pathname: string): string[] => {
   return derivedTags
 }
 
-export function getImplicitTags(
+async function getImplicitTagsExpiration(tags: string[]): Promise<number> {
+  // We're starting off with assuming that implicit tags are not expired, so we
+  // use an artificial timestamp of 0.
+  let expiration = 0
+
+  const cacheHandlers = getCacheHandlers()
+
+  if (cacheHandlers) {
+    const expirations = await Promise.all(
+      [...cacheHandlers].map(async (handler) => {
+        if ('getExpiration' in handler) {
+          return handler.getExpiration(...tags)
+        }
+
+        // Use 0 as fallback of legacy cache handlers. We don't need to track
+        // the expiration of implicit tags for those, because they're passed
+        // into the `get()` method and are checked internally by the cache
+        // handler.
+        return 0
+      })
+    )
+
+    // We use the most recent expiration from all cache handlers, i.e. the
+    // largest timestamp. Semantically, they should all be the same though.
+    expiration = Math.max(...expirations)
+  }
+
+  return expiration
+}
+
+/**
+ * Fetches a new expiration value for the given `implicitTags`, and mutates its
+ * `expiration` property.
+ */
+export async function updateImplicitTagsExpiration(
+  implicitTags: ImplicitTags
+): Promise<void> {
+  implicitTags.expiration = await getImplicitTagsExpiration(implicitTags.tags)
+}
+
+export async function getImplicitTags(
   page: string,
   url: {
     pathname: string
     search?: string
   },
   fallbackRouteParams: null | FallbackRouteParams
-) {
+): Promise<ImplicitTags> {
   // TODO: Cache the result
-  const newTags: string[] = []
+  const tags: string[] = []
   const hasFallbackRouteParams =
     fallbackRouteParams && fallbackRouteParams.size > 0
 
@@ -43,15 +98,17 @@ export function getImplicitTags(
   const derivedTags = getDerivedTags(page)
   for (let tag of derivedTags) {
     tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${tag}`
-    newTags.push(tag)
+    tags.push(tag)
   }
 
   // Add the tags from the pathname. If the route has unknown params, we don't
   // want to add the pathname as a tag, as it will be invalid.
   if (url.pathname && !hasFallbackRouteParams) {
     const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${url.pathname}`
-    newTags.push(tag)
+    tags.push(tag)
   }
 
-  return newTags
+  const expiration = await getImplicitTagsExpiration(tags)
+
+  return { tags, expiration }
 }

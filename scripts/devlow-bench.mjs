@@ -8,6 +8,8 @@ import { command } from '@vercel/devlow-bench/shell'
 import { waitForFile } from '@vercel/devlow-bench/file'
 
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url))
+const START_SERVER_REGEXP = /Ready in \d+/
+const URL_REGEXP = /Local:\s+(?<url>.+)\n/
 
 const GIT_SHA =
   process.env.GITHUB_SHA ??
@@ -40,6 +42,8 @@ const nextBuildWorkflow =
         PWD: process.env.PWD,
         NEXT_TRACE_UPLOAD_DISABLED: 'true',
         NEXT_PRIVATE_SKIP_CANARY_CHECK: 'true',
+        // Enable next.js test mode to get HMR events and silence canary only
+        __NEXT_TEST_MODE: '1',
       }
 
       const serverEnv = {
@@ -99,10 +103,12 @@ const nextBuildWorkflow =
       cleanupTasks.push(killShell)
 
       // wait for server to be ready
-      const START_SERVER_REGEXP = /Local:\s+(?<url>.+)\n/
       const {
         groups: { url },
-      } = await shell.waitForOutput(START_SERVER_REGEXP)
+      } = await shell.waitForOutput(URL_REGEXP)
+
+      // wait for server to be ready
+      await shell.waitForOutput(START_SERVER_REGEXP)
       await measureTime('server startup', { props: { turbopack, page } })
       await shell.reportMemUsage('mem usage after startup', {
         props: { turbopack, page },
@@ -186,7 +192,7 @@ const nextBuildWorkflow =
       // wait for server to be ready
       const {
         groups: { url: url2 },
-      } = await shell.waitForOutput(START_SERVER_REGEXP)
+      } = await shell.waitForOutput(URL_REGEXP)
       await shell.reportMemUsage('mem usage after startup with cache')
 
       // open page
@@ -253,7 +259,7 @@ const nextDevWorkflow =
         NEXT_PUBLIC_OTEL_SENTRY: 'true',
         NEXT_PUBLIC_OTEL_DEV_DISABLED: 'true',
         NEXT_TRACE_UPLOAD_DISABLED: 'true',
-        // Enable next.js test mode to get HMR events
+        // Enable next.js test mode to get HMR events and silence canary only
         __NEXT_TEST_MODE: '1',
       }
 
@@ -277,10 +283,12 @@ const nextDevWorkflow =
       cleanupTasks.push(killShell)
 
       // wait for server to be ready
-      const START_SERVER_REGEXP = /Local:\s+(?<url>.+)\n/
       const {
         groups: { url },
-      } = await shell.waitForOutput(START_SERVER_REGEXP)
+      } = await shell.waitForOutput(URL_REGEXP)
+
+      // wait for server to be ready
+      await shell.waitForOutput(START_SERVER_REGEXP)
       await measureTime('server startup', { props: { turbopack, page } })
       await shell.reportMemUsage('mem usage after startup', {
         props: { turbopack, page },
@@ -506,7 +514,7 @@ const nextDevWorkflow =
       // wait for server to be ready
       const {
         groups: { url: url2 },
-      } = await shell.waitForOutput(START_SERVER_REGEXP)
+      } = await shell.waitForOutput(URL_REGEXP)
       await shell.reportMemUsage('mem usage after startup with cache')
 
       // open page

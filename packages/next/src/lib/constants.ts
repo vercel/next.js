@@ -118,9 +118,13 @@ const WEBPACK_LAYERS_NAMES = {
    */
   actionBrowser: 'action-browser',
   /**
-   * The layer for the API routes.
+   * The Node.js bundle layer for the API routes.
    */
-  api: 'api',
+  apiNode: 'api-node',
+  /**
+   * The Edge Lite bundle layer for the API routes.
+   */
+  apiEdge: 'api-edge',
   /**
    * The layer for the middleware code.
    */
@@ -169,7 +173,8 @@ const WEBPACK_LAYERS = {
     ],
     neutralTarget: [
       // pages api
-      WEBPACK_LAYERS_NAMES.api,
+      WEBPACK_LAYERS_NAMES.apiNode,
+      WEBPACK_LAYERS_NAMES.apiEdge,
     ],
     clientOnly: [
       WEBPACK_LAYERS_NAMES.serverSideRendering,

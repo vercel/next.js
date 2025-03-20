@@ -12,10 +12,11 @@ const nextConfig = new File(join(appDir, 'next.config.js'))
 
 let buildOutput
 
-describe('AMP Validation on Export', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
+  // Turbopack does not support AMP rendering.
+;(process.env.TURBOPACK ? describe.skip : describe)(
+  'AMP Validation on Export',
+  () => {
+    describe('production mode', () => {
       beforeAll(async () => {
         const { stdout = '', stderr = '' } = await nextBuild(appDir, [], {
           stdout: true,
@@ -120,6 +121,6 @@ describe('AMP Validation on Export', () => {
           nextConfig.restore()
         }
       })
-    }
-  )
-})
+    })
+  }
+)

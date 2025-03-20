@@ -54,7 +54,15 @@ export interface WorkStore {
   nextFetchId?: number
   pathWasRevalidated?: boolean
 
-  revalidatedTags?: string[]
+  // Tags that were revalidated during the current request. They need to be sent
+  // to cache handlers to propagate their revalidation.
+  pendingRevalidatedTags?: string[]
+
+  // Tags that were previously revalidated (e.g. by a redirecting server action)
+  // and have already been sent to cache handlers. Retrieved cache entries that
+  // include any of these tags must be discarded.
+  readonly previouslyRevalidatedTags: readonly string[]
+
   fetchMetrics?: FetchMetrics
 
   isDraftMode?: boolean

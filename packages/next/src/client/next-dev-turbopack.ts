@@ -21,7 +21,7 @@ window.next = {
 // for the page loader
 declare let __turbopack_load__: any
 
-const devClient = initHMR('turbopack')
+const devClient = initHMR()
 initialize({
   devClient,
 })

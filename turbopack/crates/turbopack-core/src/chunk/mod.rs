@@ -205,25 +205,34 @@ pub enum ChunkingType {
 
 impl ChunkingType {
     pub fn is_inherit_async(&self) -> bool {
-        match self {
-            ChunkingType::Parallel => false,
-            ChunkingType::ParallelInheritAsync => true,
-            ChunkingType::Async => false,
-            ChunkingType::Isolated { .. } => false,
-            ChunkingType::Shared { inherit_async, .. } => *inherit_async,
-            ChunkingType::Traced => false,
-        }
+        matches!(
+            self,
+            ChunkingType::ParallelInheritAsync
+                | ChunkingType::Shared {
+                    inherit_async: true,
+                    ..
+                }
+        )
     }
 
     pub fn is_parallel(&self) -> bool {
-        match self {
-            ChunkingType::Parallel => true,
-            ChunkingType::ParallelInheritAsync => true,
-            ChunkingType::Async => false,
-            ChunkingType::Isolated { .. } => false,
-            ChunkingType::Shared { .. } => false,
-            ChunkingType::Traced => false,
-        }
+        matches!(
+            self,
+            ChunkingType::Parallel | ChunkingType::ParallelInheritAsync
+        )
+    }
+
+    pub fn is_merged(&self) -> bool {
+        matches!(
+            self,
+            ChunkingType::Isolated {
+                merge_tag: Some(_),
+                ..
+            } | ChunkingType::Shared {
+                merge_tag: Some(_),
+                ..
+            }
+        )
     }
 
     pub fn without_inherit_async(&self) -> Self {

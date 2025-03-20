@@ -1,0 +1,6 @@
+(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([
+    "output/4e721_crates_turbopack-tests_tests_snapshot_css_embed-url_input_index_effff57f.js",
+    {},
+    {"otherChunks":[{"path":"output/turbopack_crates_turbopack-tests_tests_snapshot_css_embed-url_input_14a7ded7._.css","included":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/image.png (static in css)","[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.module.css [test] (css)","[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.css [test] (css)"],"moduleChunks":["output/4e721_crates_turbopack-tests_tests_snapshot_css_embed-url_input_image_png_ba3284f5._.single.css","output/b1abf_turbopack-tests_tests_snapshot_css_embed-url_input_style_module_css_b7298ed4._.single.css","output/4e721_crates_turbopack-tests_tests_snapshot_css_embed-url_input_style_css_b7298ed4._.single.css"]},"output/turbopack_crates_turbopack-tests_tests_snapshot_css_embed-url_input_39fdb40e._.js","output/turbopack_crates_turbopack-tests_tests_snapshot_css_embed-url_input_4242144a._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/index.js [test] (ecmascript)"]}
+]);
+// Dummy runtime

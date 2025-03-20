@@ -84,7 +84,7 @@ import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import * as Log from '../build/output/log'
-import { getUtils } from './server-utils'
+import { getPreviouslyRevalidatedTags, getUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
 import {
   addRequestMeta,
@@ -131,7 +131,6 @@ import {
   CACHE_ONE_YEAR,
   INFINITE_CACHE,
   MATCHED_PATH_HEADER,
-  NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_RESUME_HEADER,
 } from '../lib/constants'
@@ -153,7 +152,7 @@ import {
 import { PrefetchRSCPathnameNormalizer } from './normalizers/request/prefetch-rsc'
 import { NextDataPathnameNormalizer } from './normalizers/request/next-data'
 import { getIsServerAction } from './lib/server-action-request-meta'
-import { isInterceptionRouteAppPath } from './lib/interception-routes'
+import { isInterceptionRouteAppPath } from '../shared/lib/router/utils/interception-routes'
 import { toRoute } from './lib/to-route'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
@@ -176,8 +175,9 @@ import {
   shouldServeStreamingMetadata,
   isHtmlBotRequest,
 } from './lib/streaming-metadata'
-import { getCacheHandlers } from './use-cache/handlers'
 import { InvariantError } from '../shared/lib/invariant-error'
+import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
+import { getCacheHandlers } from './use-cache/handlers'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1218,7 +1218,10 @@ export default abstract class Server<
             delete parsedUrl.query[key]
 
             if (typeof value === 'undefined') continue
-            queryParams[normalizedKey] = value
+
+            queryParams[normalizedKey] = Array.isArray(value)
+              ? value.map((v) => decodeQueryPathParameter(v))
+              : decodeQueryPathParameter(value)
           }
 
           // interpolate dynamic params and normalize URL if needed
@@ -1430,20 +1433,25 @@ export default abstract class Server<
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
 
-      // If the header is present, receive the expired tags from all the
-      // cache handlers.
-      const handlers = getCacheHandlers()
-      if (handlers) {
-        const header = req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER]
-        const expiredTags = typeof header === 'string' ? header.split(',') : []
+      const cacheHandlers = getCacheHandlers()
 
-        const promises: Promise<void>[] = []
-        for (const handler of handlers) {
-          promises.push(handler.receiveExpiredTags(...expiredTags))
-        }
+      if (cacheHandlers) {
+        await Promise.all(
+          [...cacheHandlers].map(async (cacheHandler) => {
+            if ('refreshTags' in cacheHandler) {
+              await cacheHandler.refreshTags()
+            } else {
+              const previouslyRevalidatedTags = getPreviouslyRevalidatedTags(
+                req.headers,
+                this.getPrerenderManifest().preview.previewModeId
+              )
 
-        // Only await if there are any promises to wait for.
-        if (promises.length > 0) await Promise.all(promises)
+              await cacheHandler.receiveExpiredTags(
+                ...previouslyRevalidatedTags
+              )
+            }
+          })
+        )
       }
 
       // set server components HMR cache to request meta so it can be passed
@@ -2247,7 +2255,7 @@ export default abstract class Server<
     ) {
       res.statusCode = 405
       res.setHeader('Allow', ['GET', 'HEAD'])
-      await this.renderError(null, req, res, pathname)
+      res.body('Method Not Allowed').send()
       return null
     }
 
