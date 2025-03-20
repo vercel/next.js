@@ -981,6 +981,16 @@ When self-hosting your Next.js application across multiple servers, each server 
 
 To mitigate this, you can overwrite the encryption key using the `process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` environment variable. Specifying this variable ensures that your encryption keys are persistent across builds, and all server instances use the same key. This variable **must** be AES-GCM encrypted.
 
+```
+import * as crypto from 'crypto';
+
+function generateKey() {
+  const key = crypto.randomBytes(32); // Generate a 256-bit key
+  const base64Key = key.toString('base64'); // Encode key in base64
+  console.log(base64Key);
+}
+```
+
 This is an advanced use case where consistent encryption behavior across multiple deployments is critical for your application. You should consider standard security practices such key rotation and signing.
 
 > **Good to know:** Next.js applications deployed to Vercel automatically handle this.
