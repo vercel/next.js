@@ -1,7 +1,7 @@
 /// <reference types="webpack/module.d.ts" />
 
 import type { ReactNode } from 'react'
-import { useCallback, useEffect, startTransition, useMemo, useRef } from 'react'
+import { useEffect, startTransition, useMemo, useRef } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../utils/format-webpack-messages'
 import { useRouter } from '../../navigation'
@@ -13,16 +13,13 @@ import {
   ACTION_DEV_INDICATOR,
   ACTION_REFRESH,
   ACTION_STATIC_INDICATOR,
-  ACTION_UNHANDLED_ERROR,
-  ACTION_UNHANDLED_REJECTION,
   ACTION_VERSION_INFO,
   REACT_REFRESH_FULL_RELOAD,
   reportInvalidHmrMessage,
   useErrorOverlayReducer,
 } from '../shared'
-import { parseStack } from '../utils/parse-stack'
 import { AppDevOverlay } from './app-dev-overlay'
-import { useErrorHandler } from '../../errors/use-error-handler'
+import { useErrorHandlers } from '../../errors/use-error-handler'
 import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
 import {
   useSendMessage,
@@ -30,7 +27,6 @@ import {
   useWebsocket,
   useWebsocketPing,
 } from '../utils/use-websocket'
-import { parseComponentStack } from '../utils/parse-component-stack'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
@@ -40,7 +36,6 @@ import type {
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
 import type { DebugInfo } from '../types'
 import { useUntrackedPathname } from '../../navigation-untracked'
-import { getReactStitchedError } from '../../errors/stitched-error'
 import { handleDevBuildIndicatorHmrEvents } from '../../../dev/dev-build-indicator/internal/handle-dev-build-indicator-hmr-events'
 import type { GlobalErrorComponent } from '../../error-boundary'
 import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
@@ -480,6 +475,7 @@ export default function HotReload({
   globalError: [GlobalErrorComponent, React.ReactNode]
 }) {
   const [state, dispatch] = useErrorOverlayReducer('app')
+  useErrorHandlers(dispatch)
 
   const dispatcher = useMemo<Dispatcher>(() => {
     return {
@@ -512,37 +508,6 @@ export default function HotReload({
       },
     }
   }, [dispatch])
-
-  const handleOnUnhandledError = useCallback(
-    (error: Error): void => {
-      // Component stack is added to the error in use-error-handler in case there was a hydration error
-      const componentStackTrace = (error as any)._componentStack
-
-      dispatch({
-        type: ACTION_UNHANDLED_ERROR,
-        reason: error,
-        frames: parseStack(error.stack || ''),
-        componentStackFrames:
-          typeof componentStackTrace === 'string'
-            ? parseComponentStack(componentStackTrace)
-            : undefined,
-      })
-    },
-    [dispatch]
-  )
-
-  const handleOnUnhandledRejection = useCallback(
-    (reason: Error): void => {
-      const stitchedError = getReactStitchedError(reason)
-      dispatch({
-        type: ACTION_UNHANDLED_REJECTION,
-        reason: stitchedError,
-        frames: parseStack(stitchedError.stack || ''),
-      })
-    },
-    [dispatch]
-  )
-  useErrorHandler(handleOnUnhandledError, handleOnUnhandledRejection)
 
   const webSocketRef = useWebsocket(assetPrefix)
   useWebsocketPing(webSocketRef)

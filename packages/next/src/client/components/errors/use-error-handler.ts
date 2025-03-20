@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { attachHydrationErrorState } from './attach-hydration-error-state'
 import { isNextRouterError } from '../is-next-router-error'
 import { storeHydrationErrorStateFromConsoleArgs } from './hydration-error-info'
@@ -7,6 +7,13 @@ import isError from '../../../lib/is-error'
 import { createConsoleError } from './console-error'
 import { enqueueConsecutiveDedupedError } from './enqueue-client-error'
 import { getReactStitchedError } from '../errors/stitched-error'
+import {
+  ACTION_UNHANDLED_ERROR,
+  ACTION_UNHANDLED_REJECTION,
+  type useErrorOverlayReducer,
+} from '../react-dev-overlay/shared'
+import { parseStack } from '../react-dev-overlay/utils/parse-stack'
+import { parseComponentStack } from '../react-dev-overlay/utils/parse-component-stack'
 
 const queueMicroTask =
   globalThis.queueMicrotask || ((cb: () => void) => Promise.resolve().then(cb))
@@ -70,7 +77,42 @@ export function handleClientError(originError: unknown) {
   }
 }
 
-export function useErrorHandler(
+export function useErrorHandlers(
+  dispatch: ReturnType<typeof useErrorOverlayReducer>[1]
+): void {
+  const handleOnUnhandledError = useCallback(
+    (error: Error): void => {
+      // Component stack is added to the error in use-error-handler in case there was a hydration error
+      const componentStackTrace = (error as any)._componentStack
+
+      dispatch({
+        type: ACTION_UNHANDLED_ERROR,
+        reason: error,
+        frames: parseStack(error.stack || ''),
+        componentStackFrames:
+          typeof componentStackTrace === 'string'
+            ? parseComponentStack(componentStackTrace)
+            : undefined,
+      })
+    },
+    [dispatch]
+  )
+
+  const handleOnUnhandledRejection = useCallback(
+    (reason: Error): void => {
+      const stitchedError = getReactStitchedError(reason)
+      dispatch({
+        type: ACTION_UNHANDLED_REJECTION,
+        reason: stitchedError,
+        frames: parseStack(stitchedError.stack || ''),
+      })
+    },
+    [dispatch]
+  )
+  useErrorHandler(handleOnUnhandledError, handleOnUnhandledRejection)
+}
+
+function useErrorHandler(
   handleOnUnhandledError: ErrorHandler,
   handleOnUnhandledRejection: ErrorHandler
 ) {

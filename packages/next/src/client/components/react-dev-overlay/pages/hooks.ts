@@ -1,10 +1,12 @@
 import React from 'react'
 import * as Bus from './bus'
 import { useErrorOverlayReducer } from '../shared'
+import { useErrorHandlers } from '../../errors/use-error-handler'
 import { Router } from '../../../router'
 
 export const usePagesDevOverlay = () => {
   const [state, dispatch] = useErrorOverlayReducer('pages')
+  useErrorHandlers(dispatch)
 
   React.useEffect(() => {
     Bus.on(dispatch)
