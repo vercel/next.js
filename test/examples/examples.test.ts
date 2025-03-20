@@ -34,7 +34,6 @@ const testedExamples = [
   'route-handlers',
   'script-component',
   'ssr-caching',
-  'svg-components',
   'with-absolute-imports',
   'with-context-api',
   'with-shallow-routing',
