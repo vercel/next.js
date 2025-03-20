@@ -29,7 +29,6 @@ const testedExamples = [
   'next-forms',
   'remove-console',
   'reproduction-template',
-  'ssr-caching',
   'with-absolute-imports',
   'with-context-api',
   'with-shallow-routing',
