@@ -614,16 +614,15 @@ export function cache(
         serverModuleMap: getServerModuleMap(),
       }
 
-      const temporaryReferences = createClientTemporaryReferenceSet()
-      const encodedCacheKey = await createEncodedCacheKey(
-        id,
-        args,
-        workUnitStore,
-        workStore,
-        clientReferenceManifest,
-        serverConsumerManifest,
-        temporaryReferences
-      )
+      const [encodedCacheKey, temporaryReferences] =
+        await createEncodedCacheKey(
+          id,
+          args,
+          workUnitStore,
+          workStore,
+          clientReferenceManifest,
+          serverConsumerManifest
+        )
 
       const serializedCacheKey =
         typeof encodedCacheKey === 'string'
@@ -886,9 +885,8 @@ async function createEncodedCacheKey(
   workUnitStore: WorkUnitStore | undefined,
   workStore: WorkStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
-  serverConsumerManifest: ServerConsumerManifest,
-  temporaryReferences: TemporaryReferenceSet
-): Promise<FormData | string> {
+  serverConsumerManifest: ServerConsumerManifest
+): Promise<[FormData | string, TemporaryReferenceSet]> {
   // Because the Action ID is not yet unique per implementation of that Action we can't
   // safely reuse the results across builds yet. In the meantime we add the buildId to the
   // arguments as a seed to ensure they're not reused. Remove this once Action IDs hash
@@ -907,98 +905,100 @@ async function createEncodedCacheKey(
       ? createHangingInputAbortSignal(workUnitStore)
       : undefined
 
-  // Encode, decode, serialize, deserialize, and encode again.
-  // Essentially, this is simulating passing a reply from the client to the server and back, and then encoding it.
-  // (Unfortunately, we can't just call `encodeReply` twice, because it consumes ReadableStreams and async iterators)
-  // This is a bit convoluted, but it lets us ensure that all async values
-  // Are serialized deterministically, regardless of the order in which they resolve or stream in.
-  // This is because after the first encoding, we'll have all their values available synchronously,
-  // So they'll be serialized in traversal order.
+  const cacheKeyParts: CacheKeyParts = [buildId, hmrRefreshHash, id, args]
 
-  // "Client" #1: encode
-
-  const argsClientTemporaryReferences = createClientTemporaryReferenceSet()
-  const encodedArgs = await encodeReply(args, {
-    temporaryReferences: argsClientTemporaryReferences,
+  let temporaryReferences = createClientTemporaryReferenceSet()
+  let encodedCacheKey = await encodeReply(cacheKeyParts, {
+    temporaryReferences,
     signal: hangingInputAbortSignal,
   })
 
-  // "Server": decode and serialize
+  if (mayContainSerializedAsyncValues(encodedCacheKey)) {
+    // decode, serialize, deserialize, and encode again.
+    // Essentially, this is simulating passing a reply from the client to the server and back, and then encoding it.
+    // (Unfortunately, we can't just call `encodeReply` twice, because it consumes ReadableStreams and async iterators)
+    // This is a bit convoluted, but it lets us ensure that all async values
+    // Are serialized deterministically, regardless of the order in which they resolve or stream in.
+    // This is because after the first encoding, we'll have all their values available synchronously,
+    // So they'll be serialized in traversal order.
 
-  const argsServerTemporaryReferences = createServerTemporaryReferenceSet()
-  const decodedArgs = await decodeReply<unknown[]>(
-    workUnitStore,
-    encodedArgs,
-    argsServerTemporaryReferences
-  )
+    // "Server": decode and serialize
 
-  // Wait for async values inside `decodedArgs` to resolve.
-  // We already waited for them when doing `encodeReply`, so this should be near instant.
-  // TODO: is this waiting too long?
-  await new Promise<void>((resolve) =>
-    scheduleAfterCurrentMicrotaskQueue(resolve)
-  )
+    const serverTemporaryReferences = createServerTemporaryReferenceSet()
+    const decodedCacheKey = await decodeReply<CacheKeyParts>(
+      workUnitStore,
+      encodedCacheKey,
+      serverTemporaryReferences
+    )
 
-  const argsStreamAbortController = hangingInputAbortSignal
-    ? new AbortController()
-    : undefined
-  const argsStreamAbortSignal = argsStreamAbortController
-    ? argsStreamAbortController.signal
-    : undefined
+    // Wait for async values inside `decodedCacheKey` to resolve.
+    // We already waited for them when doing `encodeReply`, so this should be near instant.
+    // TODO: is this waiting too long?
+    await new Promise<void>((resolve) =>
+      scheduleAfterCurrentMicrotaskQueue(resolve)
+    )
 
-  const argsStream = renderToReadableStream(
-    decodedArgs,
-    clientReferenceManifest.clientModules,
-    {
-      environmentName: 'Cache',
-      temporaryReferences: argsServerTemporaryReferences,
-      onError(thrownValue) {
-        // If we triggered an abort, there's no need to log an error.
-        if (
-          argsStreamAbortSignal &&
-          argsStreamAbortSignal.aborted &&
-          isAbortError(thrownValue)
-        ) {
-          return
-        }
-        console.error(thrownValue)
-      },
-      signal: argsStreamAbortSignal,
+    const serverStreamAbortController = hangingInputAbortSignal
+      ? new AbortController()
+      : undefined
+    const serverStreamAbortSignal = serverStreamAbortController
+      ? serverStreamAbortController.signal
+      : undefined
+
+    const serverStream = renderToReadableStream(
+      decodedCacheKey,
+      clientReferenceManifest.clientModules,
+      {
+        environmentName: 'Cache',
+        temporaryReferences: serverTemporaryReferences,
+        onError(thrownValue) {
+          // If we triggered an abort, there's no need to log an error.
+          if (
+            serverStreamAbortSignal &&
+            serverStreamAbortSignal.aborted &&
+            isAbortError(thrownValue)
+          ) {
+            return
+          }
+          console.error(thrownValue)
+        },
+        signal: serverStreamAbortSignal,
+      }
+    )
+
+    // "Client" #2: deserialize, and do the final encoding
+
+    const resolvedCacheKey = await createFromReadableStream<CacheKeyParts>(
+      serverStream,
+      {
+        serverConsumerManifest,
+        temporaryReferences,
+      }
+    )
+
+    // By this point, all async values inside `resolvedCacheKey` should be available microtaskily,
+    // because the first `encodeReply` waited for all of them when serializing.
+    // we still might need to abort to account for hanging promises,
+    // but since everything else is microtasky, we can just flush the microtask queue and then abort.
+    const encodedCacheKeyAbortSignal = hangingInputAbortSignal
+      ? abortAfterCurrentMicrotaskQueue()
+      : undefined
+
+    // use a clean temporary reference set. some values may not be referentially equal due to serialization,
+    // so we shouldn't re-use the original one.
+    temporaryReferences = createClientTemporaryReferenceSet()
+
+    encodedCacheKey = await encodeReply(resolvedCacheKey, {
+      temporaryReferences,
+      signal: encodedCacheKeyAbortSignal,
+    })
+
+    if (serverStreamAbortController) {
+      serverStreamAbortController.abort()
     }
-  )
-
-  // "Client" #2: deserialize, and do the final encoding
-
-  const resolvedArgs = await createFromReadableStream<unknown[]>(argsStream, {
-    serverConsumerManifest,
-    temporaryReferences: argsClientTemporaryReferences,
-  })
-
-  const cacheKeyParts: CacheKeyParts = [
-    buildId,
-    hmrRefreshHash,
-    id,
-    resolvedArgs,
-  ]
-
-  // By this point, all async values inside `resolvedArgs` should be available microtaskily,
-  // because the first `encodeReply` waited for all of them when serializing.
-  // we still might need to abort to account for hanging promises,
-  // but since everything else is microtasky, we can just flush the microtask queue and then abort.
-  const encodedCacheKeyAbortSignal = hangingInputAbortSignal
-    ? abortAfterCurrentMicrotaskQueue()
-    : undefined
-
-  const encodedCacheKey: FormData | string = await encodeReply(cacheKeyParts, {
-    temporaryReferences,
-    signal: encodedCacheKeyAbortSignal,
-  })
-
-  if (argsStreamAbortController) {
-    argsStreamAbortController.abort()
   }
 
-  return encodedCacheKey
+  return [encodedCacheKey, temporaryReferences]
 }
 
 /**
@@ -1112,4 +1112,28 @@ function abortAfterCurrentMicrotaskQueue(): AbortSignal {
     abortController.abort()
   })
   return abortController.signal
+}
+
+function mayContainSerializedAsyncValues(encoded: string | FormData): boolean {
+  if (typeof encoded === 'string') {
+    // async values are always encoded as multiple rows,
+    // which are always represented as FormData, never strings.
+    return false
+  }
+
+  for (const entry of encoded.values()) {
+    if (typeof entry !== 'string') {
+      // possibly a blob used for binary ReadableStreams, although it could also be a TypedArray
+      return true
+    }
+
+    // - promise: "$@1"
+    // - AsyncIterable: "$X1"
+    // - AsyncIterator: "$x1"
+    // - ReadableStream: "$r1" or "$R1"
+    if (/"\$[@xXrR][0-9a-f]+"/.test(entry)) {
+      return true
+    }
+  }
+  return false
 }
