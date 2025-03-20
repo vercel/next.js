@@ -517,7 +517,11 @@ module.exports = {
           const $ = cheerio.load(content)
 
           const cssSheet = $('link[rel="stylesheet"]')
-          expect(cssSheet.length).toBe(1)
+          if (process.env.TURBOPACK) {
+            expect(cssSheet.length).toBe(2)
+          } else {
+            expect(cssSheet.length).toBe(1)
+          }
           const stylesheet = cssSheet.attr('href')
 
           const cssContent = (
