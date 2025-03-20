@@ -7,7 +7,7 @@ description: Learn how to combine the benefits of static and dynamic rendering w
 
 Partial Prerendering (PPR) enables you to combine static and dynamic components together in the same route.
 
-During the build, Next.js prerenders as much of the route as possible. If [dynamic](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) code is detected, like reading from the incoming request, you can wrap the relevant component with a [React Suspense](https://react.dev/reference/react/Suspense) boundary. The Suspense boundary fallback will then be included in the prerendered HTML.
+During the build, Next.js prerenders as much of the route as possible. If [dynamic](/docs/app/getting-started/caching-and-revalidating#dynamic-routes) code is detected, like reading from the incoming request, you can wrap the relevant component with a [React Suspense](https://react.dev/reference/react/Suspense) boundary. The Suspense boundary fallback will then be included in the prerendered HTML.
 
 <Image
   alt="Partially Prerendered Product Page showing static nav and product information, and dynamic cart and recommended products"

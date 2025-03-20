@@ -49,7 +49,7 @@ Configure how the request should interact with Next.js [Data Cache](/docs/app/bu
 fetch(`https://...`, { cache: 'force-cache' | 'no-store' })
 ```
 
-- **`auto no cache`** (default): Next.js fetches the resource from the remote server on every request in development, but will fetch once during `next build` because the route will be statically prerendered. If [Dynamic APIs](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) are detected on the route, Next.js will fetch the resource on every request.
+- **`auto no cache`** (default): Next.js fetches the resource from the remote server on every request in development, but will fetch once during `next build` because the route will be statically prerendered. If [Dynamic APIs](/docs/app/getting-started/caching-and-revalidating#dynamic-routes) are detected on the route, Next.js will fetch the resource on every request.
 - **`no-store`**: Next.js fetches the resource from the remote server on every request, even if Dynamic APIs are not detected on the route.
 - **`force-cache`**: Next.js looks for a matching request in its Data Cache.
   - If there is a match and it is fresh, it will be returned from the cache.

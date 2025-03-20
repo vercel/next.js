@@ -22,7 +22,7 @@ Setting `devIndicators` to `false` will hide the indicator, however Next.js will
 
 If you expect a route to be static and the indicator has marked it as dynamic, it's likely the route has opted out of static rendering.
 
-You can confirm if a route is [static](/docs/app/building-your-application/rendering/server-components#static-rendering-default) or [dynamic](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) by building your application using `next build --debug`, and checking the output in your terminal. Static (or prerendered) routes will display a `○` symbol, whereas dynamic routes will display a `ƒ` symbol. For example:
+You can confirm if a route is [static](/docs/app/getting-started/caching-and-revalidating#static-routes-default) or [dynamic](/docs/app/getting-started/caching-and-revalidating#dynamic-routes) by building your application using `next build --debug`, and checking the output in your terminal. Static (or prerendered) routes will display a `○` symbol, whereas dynamic routes will display a `ƒ` symbol. For example:
 
 ```bash filename="Build Output"
 Route (app)                              Size     First Load JS
@@ -37,7 +37,7 @@ Route (app)                              Size     First Load JS
 
 There are two reasons a route might opt out of static rendering:
 
-- The presence of [Dynamic APIs](/docs/app/building-your-application/rendering/server-components#dynamic-apis) which rely on runtime information.
+- The presence of [Dynamic APIs](/docs/app/getting-started/caching-and-revalidating#dynamic-apis) which rely on runtime information.
 - An [uncached data request](/docs/app/building-your-application/data-fetching/fetching), like a call to an ORM or database driver.
 
 Check your route for any of these conditions, and if you are not able to statically render the route, then consider using [`loading.js`](/docs/app/api-reference/file-conventions/loading) or [`<Suspense />`](https://react.dev/reference/react/Suspense) to leverage [streaming](/docs/app/building-your-application/routing/loading-ui-and-streaming#what-is-streaming).

@@ -5,7 +5,7 @@ description: API Reference for the connection function.
 
 The `connection()` function allows you to indicate rendering should wait for an incoming user request before continuing.
 
-It's useful when a component doesn’t use [Dynamic APIs](/docs/app/building-your-application/rendering/server-components#dynamic-apis), but you want it to be dynamically rendered at runtime and not statically rendered at build time. This usually occurs when you access external information that you intentionally want to change the result of a render, such as `Math.random()` or `new Date()`.
+It's useful when a component doesn’t use [Dynamic APIs](/docs/app/getting-started/caching-and-revalidating#dynamic-apis), but you want it to be dynamically rendered at runtime and not statically rendered at build time. This usually occurs when you access external information that you intentionally want to change the result of a render, such as `Math.random()` or `new Date()`.
 
 ```ts filename="app/page.tsx" switcher
 import { connection } from 'next/server'

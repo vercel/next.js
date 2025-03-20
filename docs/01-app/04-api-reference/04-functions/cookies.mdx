@@ -68,7 +68,7 @@ To learn more about these options, see the [MDN docs](https://developer.mozilla.
 
 - `cookies` is an **asynchronous** function that returns a promise. You must use `async/await` or React's [`use`](https://react.dev/reference/react/use) function to access cookies.
   - In version 14 and earlier, `cookies` was a synchronous function. To help with backwards compatibility, you can still access it synchronously in Next.js 15, but this behavior will be deprecated in the future.
-- `cookies` is a [Dynamic API](/docs/app/building-your-application/rendering/server-components#dynamic-apis) whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into [dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering).
+- `cookies` is a [Dynamic API](/docs/app/getting-started/caching-and-revalidating#dynamic-apis) whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into [dynamic rendering](/docs/app/getting-started/caching-and-revalidating#dynamic-routes).
 - The `.delete` method can only be called:
   - In a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
   - If it belongs to the same domain from which `.set` is called. For wildcard domains, the specific subdomain must be an exact match. Additionally, the code must be executed on the same protocol (HTTP or HTTPS) as the cookie you want to delete.

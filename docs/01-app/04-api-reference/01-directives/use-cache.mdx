@@ -109,7 +109,7 @@ The return value of the cacheable function must be serializable. This ensures th
 
 When used at the top of a [layout](/docs/app/api-reference/file-conventions/layout) or [page](/docs/app/api-reference/file-conventions/page), the route segment will be prerendered, allowing it to later be [revalidated](#during-revalidation).
 
-This means `use cache` cannot be used with [request-time APIs](/docs/app/building-your-application/rendering/server-components#dynamic-apis) like `cookies` or `headers`.
+This means `use cache` cannot be used with [request-time APIs](/docs/app/getting-started/caching-and-revalidating#dynamic-apis) like `cookies` or `headers`.
 
 ## At runtime
 

@@ -55,7 +55,7 @@ See the [generateStaticParams()](#generating-static-params) page to learn how to
 
 ## Generating Static Params
 
-The `generateStaticParams` function can be used in combination with [dynamic route segments](/docs/app/building-your-application/routing/dynamic-routes) to [**statically generate**](/docs/app/building-your-application/rendering/server-components#static-rendering-default) routes at build time instead of on-demand at request time.
+The `generateStaticParams` function can be used in combination with [dynamic route segments](/docs/app/building-your-application/routing/dynamic-routes) to [**statically generate**](/docs/app/getting-started/caching-and-revalidating#static-routes-default) routes at build time instead of on-demand at request time.
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 export async function generateStaticParams() {

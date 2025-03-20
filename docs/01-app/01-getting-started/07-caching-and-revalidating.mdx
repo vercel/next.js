@@ -379,7 +379,7 @@ When a user navigates between routes, Next.js caches the visited route segments 
 
 The client-side cache can be invalidated with the `stale` option in the [`cacheLife` function](/docs/app/api-reference/functions/cacheLife) or the [`revalidateTag` function](/docs/app/api-reference/functions/revalidateTag).
 
-The cache also has an **automatic invalidation period** that depends on how the route was [prefetched](/docs/app/api-reference/components/link#prefetch), and if the route was [statically generated](/docs/app/building-your-application/rendering/server-components#static-rendering-default):
+The cache also has an **automatic invalidation period** that depends on how the route was [prefetched](/docs/app/api-reference/components/link#prefetch), and if the route was [statically generated](/docs/app/getting-started/caching-and-revalidating#static-routes-default):
 
 - **Default Prefetching** (`prefetch={null}` or unspecified): not cached for dynamic routes, 5 minutes for static routes.
 - **Full Prefetching** (`prefetch={true}` or `router.prefetch`): 5 minutes for both static and dynamic routes.

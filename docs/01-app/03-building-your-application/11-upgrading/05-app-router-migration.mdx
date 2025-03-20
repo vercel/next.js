@@ -473,7 +473,7 @@ In addition, the new `useRouter` hook has the following changes:
 - The `locale`, `locales`, `defaultLocales`, `domainLocales` values have been removed because built-in i18n Next.js features are no longer necessary in the `app` directory. [Learn more about i18n](/docs/app/building-your-application/routing/internationalization).
 - `basePath` has been removed. The alternative will not be part of `useRouter`. It has not yet been implemented.
 - `asPath` has been removed because the concept of `as` has been removed from the new router.
-- `isReady` has been removed because it is no longer necessary. During [static rendering](/docs/app/building-your-application/rendering/server-components#static-rendering-default), any component that uses the [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) hook will skip the prerendering step and instead be rendered on the client at runtime.
+- `isReady` has been removed because it is no longer necessary. During [static rendering](/docs/app/getting-started/caching-and-revalidating#static-routes-default), any component that uses the [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) hook will skip the prerendering step and instead be rendered on the client at runtime.
 - `route` has been removed. `usePathname` or `useSelectedLayoutSegments()` provide an alternative.
 
 [View the `useRouter()` API reference](/docs/app/api-reference/functions/use-router).

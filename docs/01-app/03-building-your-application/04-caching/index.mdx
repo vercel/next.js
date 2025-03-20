@@ -331,7 +331,7 @@ With the Router Cache:
 The cache is stored in the browser's temporary memory. Two factors determine how long the router cache lasts:
 
 - **Session**: The cache persists across navigation. However, it's cleared on page refresh.
-- **Automatic Invalidation Period**: The cache of layouts and loading states is automatically invalidated after a specific time. The duration depends on how the resource was [prefetched](/docs/app/api-reference/components/link#prefetch), and if the resource was [statically generated](/docs/app/building-your-application/rendering/server-components#static-rendering-default):
+- **Automatic Invalidation Period**: The cache of layouts and loading states is automatically invalidated after a specific time. The duration depends on how the resource was [prefetched](/docs/app/api-reference/components/link#prefetch), and if the resource was [statically generated](/docs/app/getting-started/caching-and-revalidating#static-routes-default):
   - **Default Prefetching** (`prefetch={null}` or unspecified): not cached for dynamic pages, 5 minutes for static pages.
   - **Full Prefetching** (`prefetch={true}` or `router.prefetch`): 5 minutes for both static & dynamic pages.
 

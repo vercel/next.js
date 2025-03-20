@@ -88,7 +88,7 @@ Generate a route segment's shared image by creating an `opengraph-image` or `twi
 
 > **Good to know**:
 >
-> - By default, generated images are [**statically optimized**](/docs/app/building-your-application/rendering/server-components#static-rendering-default) (generated at build time and cached) unless they use [Dynamic APIs](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-apis) or uncached data.
+> - By default, generated images are [**statically optimized**](/docs/app/getting-started/caching-and-revalidating#static-routes-default) (generated at build time and cached) unless they use [Dynamic APIs](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-apis) or uncached data.
 > - You can generate multiple Images in the same file using [`generateImageMetadata`](/docs/app/api-reference/functions/generate-image-metadata).
 > - `opengraph-image.js` and `twitter-image.js` are special Route Handlers that is cached by default unless it uses a [Dynamic API](/docs/app/building-your-application/caching#dynamic-apis) or [dynamic config](/docs/app/building-your-application/caching#segment-config-options) option.
 
@@ -322,7 +322,7 @@ export default function Image() {}
 This example uses the `params` object and external data to generate the image.
 
 > **Good to know**:
-> By default, this generated image will be [statically optimized](/docs/app/building-your-application/rendering/server-components#static-rendering-default). You can configure the individual `fetch` [`options`](/docs/app/api-reference/functions/fetch) or route segments [options](/docs/app/api-reference/file-conventions/route-segment-config#revalidate) to change this behavior.
+> By default, this generated image will be [statically optimized](/docs/app/getting-started/caching-and-revalidating#static-routes-default). You can configure the individual `fetch` [`options`](/docs/app/api-reference/functions/fetch) or route segments [options](/docs/app/api-reference/file-conventions/route-segment-config#revalidate) to change this behavior.
 
 ```tsx filename="app/posts/[slug]/opengraph-image.tsx" switcher
 import { ImageResponse } from 'next/og'
