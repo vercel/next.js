@@ -191,6 +191,8 @@ pub async fn process_css_with_placeholder(
                 _ => bail!("this case should be filtered out while parsing"),
             };
 
+            // We use NoMinify because this is not a final css. We need to replace url references,
+            // and we do final codegen with proper minification.
             let (result, _) = stylesheet.to_css(&code, MinifyType::NoMinify, false, false)?;
 
             let exports = result.exports.map(|exports| {
