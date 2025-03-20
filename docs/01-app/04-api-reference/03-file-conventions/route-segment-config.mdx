@@ -103,7 +103,7 @@ export const revalidate = false
 // false | 0 | number
 ```
 
-- **`false`** (default): The default heuristic to cache any `fetch` requests that set their `cache` option to `'force-cache'` or are discovered before a [Dynamic API](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-apis) is used. Semantically equivalent to `revalidate: Infinity` which effectively means the resource should be cached indefinitely. It is still possible for individual `fetch` requests to use `cache: 'no-store'` or `revalidate: 0` to avoid being cached and make the route dynamically rendered. Or set `revalidate` to a positive number lower than the route default to increase the revalidation frequency of a route.
+- **`false`** (default): The default heuristic to cache any `fetch` requests that set their `cache` option to `'force-cache'` or are discovered before a [Dynamic API](/docs/app/getting-started/caching-and-revalidating#dynamic-apis) is used. Semantically equivalent to `revalidate: Infinity` which effectively means the resource should be cached indefinitely. It is still possible for individual `fetch` requests to use `cache: 'no-store'` or `revalidate: 0` to avoid being cached and make the route dynamically rendered. Or set `revalidate` to a positive number lower than the route default to increase the revalidation frequency of a route.
 - **`0`**: Ensure a layout or page is always [dynamically rendered](/docs/app/getting-started/caching-and-revalidating#dynamic-routes) even if no Dynamic APIs or uncached data fetches are discovered. This option changes the default of `fetch` requests that do not set a `cache` option to `'no-store'` but leaves `fetch` requests that opt into `'force-cache'` or use a positive `revalidate` as is.
 - **`number`**: (in seconds) Set the default revalidation frequency of a layout or page to `n` seconds.
 
@@ -123,7 +123,7 @@ export const revalidate = false
 <details>
   <summary>This is an advanced option that should only be used if you specifically need to override the default behavior.</summary>
 
-By default, Next.js **will cache** any `fetch()` requests that are reachable **before** any [Dynamic APIs](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-apis) are used and **will not cache** `fetch` requests that are discovered **after** Dynamic APIs are used.
+By default, Next.js **will cache** any `fetch()` requests that are reachable **before** any [Dynamic APIs](/docs/app/getting-started/caching-and-revalidating#dynamic-apis) are used and **will not cache** `fetch` requests that are discovered **after** Dynamic APIs are used.
 
 `fetchCache` allows you to override the default `cache` option of all `fetch` requests in a layout or page.
 
