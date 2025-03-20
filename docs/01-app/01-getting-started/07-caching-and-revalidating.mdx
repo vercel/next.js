@@ -46,99 +46,128 @@ Dynamic APIs rely on information that can only be known at request time. These A
 
 ### Optimizing dynamic routes with streaming
 
-To optimize the initial loading performance of dynamic routes, you can use a [`<Suspense>` boundary](https://react.dev/reference/react/Suspense) or [`loading.js`](/docs/app/api-reference/file-conventions/loading) to show loading UI and progressively **stream** dynamic content to the client.
+When a route is dynamic, data will be fetched and rendered on the server for every user request. If there are any slow data requests, the whole route will be blocked from rendering.
 
-Streaming splits a route into _chunks_ that are sent to the client as they become ready. This allows the user to see parts of the page immediately, before all the fetching and rendering work is complete.
+To improve the initial load time and user experience, you can use streaming to break up the page's HTML into smaller _chunks_ and progressively send those chunks from the server to the client. This allows the user to see parts of the page immediately, before all the fetching and rendering work is complete.
 
-For example, the `<User>` component uses the `cookies` API to fetch the current user's information. Using it anywhere in a route will make the route dynamic and block it from being sent to the client until the data is fetched.
+<Image
+  alt="How Server Rendering with Streaming Works"
+  srcLight="/docs/light/server-rendering-with-streaming.png"
+  srcDark="/docs/dark/server-rendering-with-streaming.png"
+  width="1600"
+  height="785"
+/>
 
-```tsx filename="app/ui/user.tsx" switcher
-import { cookies } from 'next/headers'
+There are two ways you can implement streaming in your application:
 
-export async function User() {
-  const store = await cookies()
-  const { id } = store.get('user')
-  const user = await fetch(`https://api.vercel.app/users/${id}`)
-  return <>...</>
+1. With the [`loading.js` file](#with-loadingjs)
+2. With React's [`<Suspense>` component](#with-suspense)
+
+#### `loading.js`
+
+You can create a `loading.js` file in the same folder as your page to stream the **entire page** while the data is being fetched. For example, to stream `app/blog/page.js`, add the file inside the `app/blog` folder.
+
+<Image
+  alt="Blog folder structure with loading.js file"
+  srcLight="/docs/light/loading-file.png"
+  srcDark="/docs/dark/loading-file.png"
+  width="1600"
+  height="525"
+/>
+
+```tsx filename="app/blog/loading.tsx" switcher
+export default function Loading() {
+  // Define the Loading UI here
+  return <div>Loading...</div>
 }
 ```
 
-```jsx filename="app/ui/user.js" switcher
-import { cookies } from 'next/headers'
-
-export async function User() {
-  const store = await cookies()
-  const { id } = store.get('user')
-  const user = await fetch(`https://api.vercel.app/users/${id}`)
-  return <>...</>
+```jsx filename="app/blog/loading.js" switcher
+export default function Loading() {
+  // Define the Loading UI here
+  return <div>Loading...</div>
 }
 ```
 
-To prevent the whole route from being blocked, you can wrap the component in a `Suspense` boundary. This means the `<Navigation>` component and a fallback will be sent to the client first, while the nested `<User>` component, which relies on a potentially blocking request, will be streamed when it's ready.
+On navigation, the user will immediately see the layout and a [loading state](#creating-meaningful-loading-states) while the page is being rendered. The new content will then be automatically swapped in once rendering is complete.
 
-```tsx filename="app/ui/navigation.tsx" switcher
+<Image
+  alt="Loading UI"
+  srcLight="/docs/light/loading-ui.png"
+  srcDark="/docs/dark/loading-ui.png"
+  width="1600"
+  height="691"
+/>
+
+Behind-the-scenes, `loading.js` will be nested inside `layout.js`, and will automatically wrap the `page.js` file and any children below in a `<Suspense>` boundary.
+
+<Image
+  alt="loading.js overview"
+  srcLight="/docs/light/loading-overview.png"
+  srcDark="/docs/dark/loading-overview.png"
+  width="1600"
+  height="768"
+/>
+
+This approach works well for route segments (layouts and pages), but for more granular streaming, you can use `<Suspense>`.
+
+#### `<Suspense>`
+
+`<Suspense>` allows you to be more granular about what parts of the page to stream. For example, you can immediately show any page content that falls outside of the `<Suspense>` boundary, and stream in the list of blog posts inside the boundary.
+
+```tsx filename="app/blog/page.tsx" switcher
 import { Suspense } from 'react'
-import { Link } from 'next/link'
-import { User } from '@/app/ui/user'
+import BlogList from '@/components/BlogList'
+import BlogListSkeleton from '@/components/BlogListSkeleton'
 
-export default function Navigation() {
+export default function BlogPage() {
   return (
-    <nav>
-      <Link href="/">Home</Link>
-      <Suspense fallback={<div>Loading...</div>}>
-        <User />
-      </Suspense>
-    </nav>
+    <div>
+      {/* This content will be sent to the client immediately */}
+      <header>
+        <h1>Welcome to the Blog</h1>
+        <p>Read the latest posts below.</p>
+      </header>
+      <main>
+        {/* Any content wrapped in a <Suspense> boundary will be streamed */}
+        <Suspense fallback={<BlogListSkeleton />}>
+          <BlogList />
+        </Suspense>
+      </main>
+    </div>
   )
 }
 ```
 
-```jsx filename="app/ui/navigation.js" switcher
+```jsx filename="app/blog/page.js" switcher
 import { Suspense } from 'react'
-import { Link } from 'next/link'
-import { User } from '@/app/ui/user'
+import BlogList from '@/components/BlogList'
+import BlogListSkeleton from '@/components/BlogListSkeleton'
 
-export default function Navigation() {
+export default function BlogPage() {
   return (
-    <nav>
-      <Link href="/">Home</Link>
-      <Suspense fallback={<div>Loading...</div>}>
-        <User />
-      </Suspense>
-    </nav>
+    <div>
+      {/* This content will be sent to the client immediately */}
+      <header>
+        <h1>Welcome to the Blog</h1>
+        <p>Read the latest posts below.</p>
+      </header>
+      <main>
+        {/* Any content wrapped in a <Suspense> boundary will be streamed */}
+        <Suspense fallback={<BlogListSkeleton />}>
+          <BlogList />
+        </Suspense>
+      </main>
+    </div>
   )
 }
 ```
 
-```tsx filename="app/layout.tsx" switcher
-import { Navigation } from '@/app/ui/navigation'
+#### Creating meaningful loading states
 
-export default function Layout({ children }: { children: React.ReactNode }) {
-  return (
-    <html>
-      <body>
-        <Navigation />
-        <main>{children}</main>
-      </body>
-    </html>
-  )
-}
-```
+An instant loading state is fallback UI that is shown immediately to the user after navigation. For the best user experience, we recommend designing loading states that are meaningful and help users understand the app is responding. For example, you can use skeletons and spinners, or a small but meaningful part of future screens such as a cover photo, title, etc.
 
-```jsx filename="app/blog/layout.js" switcher
-import { Navigation } from '@/app/ui/navigation'
-
-export default function DashboardLayout({ children }) {
-  return (
-    <html>
-      <body>
-        <Navigation />
-        <main>{children}</main>
-      </body>
-    </html>
-  )
-}
-```
+In development, you can preview and inspect the loading state of your components using the [React Devtools](https://react.dev/learn/react-developer-tools).
 
 ### Optimizing dynamic routes with `"use cache"`
 
@@ -146,17 +175,14 @@ export default function DashboardLayout({ children }) {
 
 In addition to streaming, you can optimize dynamic routes by caching the output of nested components or functions.
 
-Following the example above, the blog list page is now dynamic because `cookies` is nested in the parent blog layout. However, the blog list doesn't need to update on every request. To ensure this component is cached, make it **asynchronous** and add the [`'use cache'`](/docs/app/api-reference/directives/use-cache) directive:
+Following the example above, let's say you want to cache the blog list rather than stream it. To ensure the `<BlogList />` component is cached, make it **asynchronous** and add the [`'use cache'`](/docs/app/api-reference/directives/use-cache) directive:
 
-```tsx filename="app/blog/page.tsx" highlight={6}switcher
-import { BlogPost } from '@/app/ui/BlogPost'
-import { CommentSection } from '@/app/ui/CommentSection'
+```tsx filename="app/ui/BlogList.tsx" highlight={4} switcher
 import { getPosts } from '@/app/lib/data'
 
-export default async function BlogListPage() {
+export default async function BlogList() {
   'use cache'
   const posts = await getPosts()
-
   return (
     <div>
       {posts.map((post) => (
@@ -167,15 +193,12 @@ export default async function BlogListPage() {
 }
 ```
 
-```jsx filename="app/blog/page.js" highlight={6} switcher
-import { BlogPost } from '@/app/ui/BlogPost'
-import { CommentSection } from '@/app/ui/CommentSection'
+```jsx filename="app/blog/page.js" highlight={4} switcher
 import { getPosts } from '@/app/lib/data'
 
-export default async function BlogListPage() {
+export default async function BlogList() {
   'use cache'
   const posts = await getPosts()
-
   return (
     <div>
       {posts.map((post) => (
@@ -225,15 +248,14 @@ You can use the [`cacheLife` function](/docs/app/api-reference/functions/cacheLi
 
 To use `cacheLife`, import it from `next/cache` and nest it within the **scope** of the `'use cache'` directive and the function. For example, to revalidate the blog list page after one hour:
 
-```tsx filename="app/blog/page.tsx" highlight={8} switcher
-'use cache'
-
-import { BlogPost } from '@/app/ui/BlogPost'
-import { CommentSection } from '@/app/ui/CommentSection'
+```tsx filename="app/blog/page.tsx" highlight={6} switcher
 import { getPosts } from '@/app/lib/data'
+import { cacheLife } from 'next/cache'
 
-export default async function BlogListPage() {
+export default async function BlogList() {
+  'use cache'
   cacheLife('hours')
+
   const posts = await getPosts()
 
   return (
@@ -246,17 +268,15 @@ export default async function BlogListPage() {
 }
 ```
 
-```jsx filename="app/blog/page.js" highlight={8} switcher
-'use cache'
-
-import { BlogPost } from '@/app/ui/BlogPost'
-import { CommentSection } from '@/app/ui/CommentSection'
+```jsx filename="app/blog/page.js" highlight={6} switcher
 import { getPosts } from '@/app/lib/data'
+import { cacheLife } from 'next/cache'
 
-export default async function BlogListPage() {
+export default async function BlogList() {
+  'use cache'
   cacheLife('hours')
-  const posts = await getPosts()
 
+  const posts = await getPosts()
   return (
     <div>
       {posts.map((post) => (
