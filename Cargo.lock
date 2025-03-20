@@ -7200,9 +7200,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "16.8.0"
+version = "16.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53aab44edf803a2aa9524d621c55ec763ff634b45ed24b9bd3fc0a69348b17fc"
+checksum = "713c3ffe5b2378ee62315875422840943e15fb956f5a7c24e04fd0bc1d4fe141"
 dependencies = [
  "binding_macros",
  "swc",
@@ -7683,9 +7683,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_minifier"
-version = "12.2.0"
+version = "12.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ecb9f5964120e890a88ec048f049fe1f5e525d54aa394b50de2fcf2fd9bbb228"
+checksum = "a7866d3eea5cfafe9fc730f5d3bf1eba60d5d63e4823ec83dd15acfcce21cc8d"
 dependencies = [
  "arrayvec 0.7.4",
  "indexmap 2.7.1",
@@ -8053,9 +8053,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_usage_analyzer"
-version = "12.0.1"
+version = "12.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "384c49a5891a06857543370518bd37e1e27727e3174e439dc662b79333d6a652"
+checksum = "8af89be14ef84b16529f89a70972c7f85b0e9e2599ea09d9f7c3e5b186b8f225"
 dependencies = [
  "indexmap 2.7.1",
  "rustc-hash 2.1.0",
