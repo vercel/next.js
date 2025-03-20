@@ -19,15 +19,26 @@ describe('getExtensionRegexString', () => {
       expect(regex.test('.js')).toBe(false)
     })
 
-    it('should match dynamic multi-routes with dynamic extensions', () => {
-      const regex = createExtensionMatchRegex(['png'], ['ts'])
+    it('should not handle js extensions with empty dynamic extensions', () => {
+      const regex = createExtensionMatchRegex(['png', 'jpg'], [])
       expect(regex.test('.png')).toBe(true)
-      expect(regex.test('[].png')).toBe(false)
+      expect(regex.test('.jpg')).toBe(true)
+      expect(regex.test('.webp')).toBe(false)
 
-      expect(regex.test('.ts')).toBe(true)
-      expect(regex.test('[].ts')).toBe(true)
+      expect(regex.test('.ts')).toBe(false)
       expect(regex.test('.tsx')).toBe(false)
-      expect(regex.test('[].tsx')).toBe(false)
+      expect(regex.test('.js')).toBe(false)
+    })
+
+    it('should not handle js extensions with passing null for dynamic extensions', () => {
+      const regex = createExtensionMatchRegex(['png', 'jpg'], null)
+      expect(regex.test('.png')).toBe(true)
+      expect(regex.test('.jpg')).toBe(true)
+      expect(regex.test('.webp')).toBe(false)
+
+      expect(regex.test('.ts')).toBe(false)
+      expect(regex.test('.tsx')).toBe(false)
+      expect(regex.test('.js')).toBe(false)
     })
   })
 

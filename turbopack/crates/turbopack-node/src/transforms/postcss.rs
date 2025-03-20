@@ -43,7 +43,6 @@ use crate::{
 struct PostCssProcessingResult {
     css: String,
     map: Option<String>,
-    #[turbo_tasks(trace_ignore)]
     assets: Option<Vec<EmittedAsset>>,
 }
 
