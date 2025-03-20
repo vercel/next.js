@@ -297,6 +297,10 @@ jobs:
       # we use checkout here instead of the build cache since
       # it can fail to restore in different OS'
       - uses: actions/checkout@v4
+        with:
+          # crates/napi/build.rs uses git-describe to find the most recent git tag. It's okay if
+          # this fails, but fetch with enough depth that we're likely to find a recent tag.
+          fetch-depth: 100
 
       - name: Setup node
         uses: actions/setup-node@v4
@@ -347,7 +351,17 @@ jobs:
 
       - name: Build in docker
         if: ${{ matrix.settings.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
-        run: docker run -v "/var/run/docker.sock":"/var/run/docker.sock" -e RUST_BACKTRACE -e NAPI_CLI_VERSION -e CARGO_TERM_COLOR -e CARGO_INCREMENTAL -e CARGO_PROFILE_RELEASE_LTO -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL -e TURBO_API -e TURBO_TEAM -e TURBO_TOKEN -e TURBO_VERSION -e TURBO_CACHE="remote:rw" -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build --entrypoint=bash ${{ matrix.settings.docker }} -c "${{ matrix.settings.build }}"
+        run: |
+          docker run -v "/var/run/docker.sock":"/var/run/docker.sock" \
+            -e CI -e RUST_BACKTRACE -e NAPI_CLI_VERSION -e CARGO_TERM_COLOR -e CARGO_INCREMENTAL \
+            -e CARGO_PROFILE_RELEASE_LTO -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL -e TURBO_API \
+            -e TURBO_TEAM -e TURBO_TOKEN -e TURBO_VERSION -e TURBO_CACHE="remote:rw" \
+            -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git \
+            -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry \
+            -v ${{ github.workspace }}:/build \
+            -w /build \
+            --entrypoint=bash ${{ matrix.settings.docker }} \
+            -c "${{ matrix.settings.build }}"
 
       - name: cache build
         if: ${{ matrix.settings.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
