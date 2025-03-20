@@ -9,6 +9,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssets,
     reference::{ModuleReference, ModuleReferences},
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
@@ -22,7 +23,9 @@ use crate::{
         finalize_css, parse_css, process_css_with_placeholder, CssWithPlaceholderResult,
         FinalCssResult, ParseCss, ParseCssResult, ProcessCss,
     },
-    references::{compose::CssModuleComposeReference, import::ImportAssetReference},
+    references::{
+        compose::CssModuleComposeReference, import::ImportAssetReference, url::ReferencedAsset,
+    },
     CssModuleAssetType,
 };
 
@@ -95,13 +98,12 @@ impl ProcessCss for CssModuleAsset {
     #[turbo_tasks::function]
     fn finalize_css(
         self: Vc<Self>,
-        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         minify_type: MinifyType,
     ) -> Vc<FinalCssResult> {
         let process_result = self.get_css_with_placeholder();
 
-        finalize_css(process_result, module_graph, chunking_context, minify_type)
+        finalize_css(process_result, chunking_context, minify_type)
     }
 }
 
@@ -201,6 +203,22 @@ impl ChunkItem for CssModuleChunkItem {
     fn module(&self) -> Vc<Box<dyn Module>> {
         Vc::upcast(*self.module)
     }
+
+    #[turbo_tasks::function]
+    async fn references(&self) -> Result<Vc<OutputAssets>> {
+        let mut references = Vec::new();
+        if let ParseCssResult::Ok { url_references, .. } = &*self.module.parse_css().await? {
+            for (_, reference) in url_references.await? {
+                if let ReferencedAsset::Some(asset) = *reference
+                    .get_referenced_asset(*self.chunking_context)
+                    .await?
+                {
+                    references.push(asset);
+                }
+            }
+        }
+        Ok(Vc::cell(references))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -280,11 +298,7 @@ impl CssChunkItem for CssModuleChunkItem {
 
         let result = self
             .module
-            .finalize_css(
-                *self.module_graph,
-                *chunking_context,
-                self.module.await?.minify_type,
-            )
+            .finalize_css(*chunking_context, self.module.await?.minify_type)
             .await?;
 
         if let FinalCssResult::Ok {

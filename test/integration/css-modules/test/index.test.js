@@ -522,7 +522,7 @@ describe('CSS Module Composes Usage (Basic)', () => {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
-            `".index-module__QppuLW__className{background:red;color:#ff0}.index-module__QppuLW__subClass{background:#00f;}"`
+            `".index-module__QppuLW__className{color:#ff0;background:red}.index-module__QppuLW__subClass{background:#00f;}"`
           )
         } else {
           expect(

@@ -31,13 +31,13 @@ const defaultExtensions = ['js', 'jsx', 'ts', 'tsx']
 
 // Match the file extension with the dynamic multi-routes extensions
 // e.g. ([xml, js], null) -> can match `/sitemap.xml/route`, `sitemap.js/route`
-// e.g. ([png], [ts]) -> can match `/opengrapg-image.png/route`, `/opengraph-image.ts[]/route`
+// e.g. ([png], [ts]) -> can match `/opengrapg-image.png`, `/opengraph-image.ts`
 export const getExtensionRegexString = (
   staticExtensions: readonly string[],
   dynamicExtensions: readonly string[] | null
 ) => {
   // If there's no possible multi dynamic routes, will not match any <name>[].<ext> files
-  if (!dynamicExtensions) {
+  if (!dynamicExtensions || dynamicExtensions.length === 0) {
     return `\\.(?:${staticExtensions.join('|')})`
   }
   return `(?:\\.(${staticExtensions.join('|')})|((\\[\\])?\\.(${dynamicExtensions.join('|')})))`
