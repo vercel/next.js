@@ -32,7 +32,6 @@ const testedExamples = [
   'remove-console',
   'reproduction-template',
   'route-handlers',
-  'script-component',
   'ssr-caching',
   'with-absolute-imports',
   'with-context-api',

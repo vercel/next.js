@@ -64,7 +64,6 @@
   "radix-ui": true,
   "reproduction-template": true,
   "reproduction-template-pages": true,
-  "script-component": true,
   "server-actions-upload": true,
   "ssr-caching": true,
   "with-ably": true,
