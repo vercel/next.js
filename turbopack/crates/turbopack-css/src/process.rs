@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use lightningcss::{
     css_modules::{CssModuleExport, CssModuleExports, Pattern, Segment},
     stylesheet::{ParserOptions, PrinterOptions, StyleSheet, ToCssResult},
@@ -434,6 +434,14 @@ async fn process_content(
                         }
                     }
                 }
+
+                // minify() is actually transform, and it performs operations like CSS modules
+                // handling.
+                //
+                //
+                // See: https://github.com/parcel-bundler/lightningcss/issues/935#issuecomment-2739325537
+                ss.minify(Default::default())
+                    .context("failed to transform css")?;
 
                 stylesheet_into_static(&ss, without_warnings(config.clone()))
             }
