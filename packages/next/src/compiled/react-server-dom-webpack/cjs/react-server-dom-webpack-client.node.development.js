@@ -12,6 +12,16 @@
 "production" !== process.env.NODE_ENV &&
   (function () {
     function _defineProperty(obj, key, value) {
+      a: if ("object" == typeof key && key) {
+        var e = key[Symbol.toPrimitive];
+        if (void 0 !== e) {
+          key = e.call(key, "string");
+          if ("object" != typeof key) break a;
+          throw new TypeError("@@toPrimitive must return a primitive value.");
+        }
+        key = String(key);
+      }
+      key = "symbol" == typeof key ? key : key + "";
       key in obj
         ? Object.defineProperty(obj, key, {
             value: value,
@@ -698,7 +708,10 @@
           parentReference = knownServerReferences.get(value);
           if (void 0 !== parentReference)
             return (
-              (key = JSON.stringify(parentReference, resolveToJSON)),
+              (key = JSON.stringify(
+                { id: parentReference.id, bound: parentReference.bound },
+                resolveToJSON
+              )),
               null === formData && (formData = new FormData()),
               (parentReference = nextPartId++),
               formData.set(formFieldPrefix + parentReference, key),
@@ -794,41 +807,45 @@
       return thenable;
     }
     function defaultEncodeFormAction(identifierPrefix) {
-      var reference = knownServerReferences.get(this);
-      if (!reference)
+      var referenceClosure = knownServerReferences.get(this);
+      if (!referenceClosure)
         throw Error(
           "Tried to encode a Server Action from a different instance than the encoder is from. This is a bug in React."
         );
       var data = null;
-      if (null !== reference.bound) {
-        data = boundCache.get(reference);
+      if (null !== referenceClosure.bound) {
+        data = boundCache.get(referenceClosure);
         data ||
-          ((data = encodeFormData(reference)), boundCache.set(reference, data));
+          ((data = encodeFormData({
+            id: referenceClosure.id,
+            bound: referenceClosure.bound
+          })),
+          boundCache.set(referenceClosure, data));
         if ("rejected" === data.status) throw data.reason;
         if ("fulfilled" !== data.status) throw data;
-        reference = data.value;
+        referenceClosure = data.value;
         var prefixedData = new FormData();
-        reference.forEach(function (value, key) {
+        referenceClosure.forEach(function (value, key) {
           prefixedData.append("$ACTION_" + identifierPrefix + ":" + key, value);
         });
         data = prefixedData;
-        reference = "$ACTION_REF_" + identifierPrefix;
-      } else reference = "$ACTION_ID_" + reference.id;
+        referenceClosure = "$ACTION_REF_" + identifierPrefix;
+      } else referenceClosure = "$ACTION_ID_" + referenceClosure.id;
       return {
-        name: reference,
+        name: referenceClosure,
         method: "POST",
         encType: "multipart/form-data",
         data: data
       };
     }
     function isSignatureEqual(referenceId, numberOfBoundArgs) {
-      var reference = knownServerReferences.get(this);
-      if (!reference)
+      var referenceClosure = knownServerReferences.get(this);
+      if (!referenceClosure)
         throw Error(
           "Tried to encode a Server Action from a different instance than the encoder is from. This is a bug in React."
         );
-      if (reference.id !== referenceId) return !1;
-      var boundPromise = reference.bound;
+      if (referenceClosure.id !== referenceId) return !1;
+      var boundPromise = referenceClosure.bound;
       if (null === boundPromise) return 0 === numberOfBoundArgs;
       switch (boundPromise.status) {
         case "fulfilled":
@@ -898,58 +915,65 @@
         return innerFunction;
       }
     }
-    function registerServerReference(
-      proxy,
-      reference$jscomp$0,
+    function registerBoundServerReference(
+      reference,
+      id,
+      bound,
       encodeFormAction
     ) {
-      Object.defineProperties(proxy, {
-        $$FORM_ACTION: {
-          value:
-            void 0 === encodeFormAction
-              ? defaultEncodeFormAction
-              : function () {
-                  var reference = knownServerReferences.get(this);
-                  if (!reference)
-                    throw Error(
-                      "Tried to encode a Server Action from a different instance than the encoder is from. This is a bug in React."
-                    );
-                  var boundPromise = reference.bound;
-                  null === boundPromise && (boundPromise = Promise.resolve([]));
-                  return encodeFormAction(reference.id, boundPromise);
-                }
-        },
+      knownServerReferences.has(reference) ||
+        (knownServerReferences.set(reference, {
+          id: id,
+          originalBind: reference.bind,
+          bound: bound
+        }),
+        Object.defineProperties(reference, {
+          $$FORM_ACTION: {
+            value:
+              void 0 === encodeFormAction
+                ? defaultEncodeFormAction
+                : function () {
+                    var referenceClosure = knownServerReferences.get(this);
+                    if (!referenceClosure)
+                      throw Error(
+                        "Tried to encode a Server Action from a different instance than the encoder is from. This is a bug in React."
+                      );
+                    var boundPromise = referenceClosure.bound;
+                    null === boundPromise &&
+                      (boundPromise = Promise.resolve([]));
+                    return encodeFormAction(referenceClosure.id, boundPromise);
+                  }
+          },
+          $$IS_SIGNATURE_EQUAL: { value: isSignatureEqual },
+          bind: { value: bind }
+        }));
+    }
+    function bind() {
+      var referenceClosure = knownServerReferences.get(this);
+      if (!referenceClosure) return FunctionBind.apply(this, arguments);
+      var newFn = referenceClosure.originalBind.apply(this, arguments);
+      null != arguments[0] &&
+        console.error(
+          'Cannot bind "this" of a Server Action. Pass null or undefined as the first argument to .bind().'
+        );
+      var args = ArraySlice.call(arguments, 1),
+        boundPromise = null;
+      boundPromise =
+        null !== referenceClosure.bound
+          ? Promise.resolve(referenceClosure.bound).then(function (boundArgs) {
+              return boundArgs.concat(args);
+            })
+          : Promise.resolve(args);
+      knownServerReferences.set(newFn, {
+        id: referenceClosure.id,
+        originalBind: newFn.bind,
+        bound: boundPromise
+      });
+      Object.defineProperties(newFn, {
+        $$FORM_ACTION: { value: this.$$FORM_ACTION },
         $$IS_SIGNATURE_EQUAL: { value: isSignatureEqual },
         bind: { value: bind }
       });
-      knownServerReferences.set(proxy, reference$jscomp$0);
-    }
-    function bind() {
-      var newFn = FunctionBind.apply(this, arguments),
-        reference = knownServerReferences.get(this);
-      if (reference) {
-        null != arguments[0] &&
-          console.error(
-            'Cannot bind "this" of a Server Action. Pass null or undefined as the first argument to .bind().'
-          );
-        var args = ArraySlice.call(arguments, 1),
-          boundPromise = null;
-        boundPromise =
-          null !== reference.bound
-            ? Promise.resolve(reference.bound).then(function (boundArgs) {
-                return boundArgs.concat(args);
-              })
-            : Promise.resolve(args);
-        Object.defineProperties(newFn, {
-          $$FORM_ACTION: { value: this.$$FORM_ACTION },
-          $$IS_SIGNATURE_EQUAL: { value: isSignatureEqual },
-          bind: { value: bind }
-        });
-        knownServerReferences.set(newFn, {
-          id: reference.id,
-          bound: boundPromise
-        });
-      }
       return newFn;
     }
     function createBoundServerReference(
@@ -991,11 +1015,7 @@
           action
         );
       }
-      registerServerReference(
-        action,
-        { id: id, bound: bound },
-        encodeFormAction
-      );
+      registerBoundServerReference(action, id, bound, encodeFormAction);
       return action;
     }
     function parseStackLocation(error) {
@@ -1057,11 +1077,7 @@
           action
         );
       }
-      registerServerReference(
-        action,
-        { id: id, bound: null },
-        encodeFormAction
-      );
+      registerBoundServerReference(action, id, null, encodeFormAction);
       return action;
     }
     function getComponentNameFromType(type) {
@@ -1074,8 +1090,6 @@
       switch (type) {
         case REACT_FRAGMENT_TYPE:
           return "Fragment";
-        case REACT_PORTAL_TYPE:
-          return "Portal";
         case REACT_PROFILER_TYPE:
           return "Profiler";
         case REACT_STRICT_MODE_TYPE:
@@ -1084,6 +1098,8 @@
           return "Suspense";
         case REACT_SUSPENSE_LIST_TYPE:
           return "SuspenseList";
+        case REACT_ACTIVITY_TYPE:
+          return "Activity";
       }
       if ("object" === typeof type)
         switch (
@@ -1093,6 +1109,8 @@
             ),
           type.$$typeof)
         ) {
+          case REACT_PORTAL_TYPE:
+            return "Portal";
           case REACT_CONTEXT_TYPE:
             return (type.displayName || "Context") + ".Provider";
           case REACT_CONSUMER_TYPE:
@@ -1415,13 +1433,24 @@
           response._debugFindSourceMapURL
         );
       var serverReference = resolveServerReference(
-        response._serverReferenceConfig,
-        metaData.id
-      );
-      if ((response = preloadModule(serverReference)))
-        metaData.bound && (response = Promise.all([response, metaData.bound]));
-      else if (metaData.bound) response = Promise.resolve(metaData.bound);
-      else return requireModule(serverReference);
+          response._serverReferenceConfig,
+          metaData.id
+        ),
+        promise = preloadModule(serverReference);
+      if (promise)
+        metaData.bound && (promise = Promise.all([promise, metaData.bound]));
+      else if (metaData.bound) promise = Promise.resolve(metaData.bound);
+      else
+        return (
+          (promise = requireModule(serverReference)),
+          registerBoundServerReference(
+            promise,
+            metaData.id,
+            metaData.bound,
+            response._encodeFormAction
+          ),
+          promise
+        );
       if (initializingHandler) {
         var handler = initializingHandler;
         handler.deps++;
@@ -1433,7 +1462,7 @@
           deps: 1,
           errored: !1
         };
-      response.then(
+      promise.then(
         function () {
           var resolvedValue = requireModule(serverReference);
           if (metaData.bound) {
@@ -1441,6 +1470,12 @@
             boundArgs.unshift(null);
             resolvedValue = resolvedValue.bind.apply(resolvedValue, boundArgs);
           }
+          registerBoundServerReference(
+            resolvedValue,
+            metaData.id,
+            metaData.bound,
+            response._encodeFormAction
+          );
           parentObject[key] = resolvedValue;
           "" === key &&
             null === handler.value &&
@@ -2603,6 +2638,7 @@
       REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"),
       REACT_MEMO_TYPE = Symbol.for("react.memo"),
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
+      REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
       isArrayImpl = Array.isArray,
@@ -2954,5 +2990,13 @@
     };
     exports.createServerReference = function (id) {
       return createServerReference$1(id, noServerCall);
+    };
+    exports.registerServerReference = function (
+      reference,
+      id,
+      encodeFormAction
+    ) {
+      registerBoundServerReference(reference, id, null, encodeFormAction);
+      return reference;
     };
   })();

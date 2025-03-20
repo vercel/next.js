@@ -162,7 +162,7 @@ var assign = Object.assign,
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy");
 Symbol.for("react.scope");
-var REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen");
+var REACT_ACTIVITY_TYPE = Symbol.for("react.activity");
 Symbol.for("react.legacy_hidden");
 Symbol.for("react.tracing_marker");
 var REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel");
@@ -186,8 +186,6 @@ function getComponentNameFromType(type) {
   switch (type) {
     case REACT_FRAGMENT_TYPE:
       return "Fragment";
-    case REACT_PORTAL_TYPE:
-      return "Portal";
     case REACT_PROFILER_TYPE:
       return "Profiler";
     case REACT_STRICT_MODE_TYPE:
@@ -196,9 +194,13 @@ function getComponentNameFromType(type) {
       return "Suspense";
     case REACT_SUSPENSE_LIST_TYPE:
       return "SuspenseList";
+    case REACT_ACTIVITY_TYPE:
+      return "Activity";
   }
   if ("object" === typeof type)
     switch (type.$$typeof) {
+      case REACT_PORTAL_TYPE:
+        return "Portal";
       case REACT_CONTEXT_TYPE:
         return (type.displayName || "Context") + ".Provider";
       case REACT_CONSUMER_TYPE:
@@ -1039,6 +1041,8 @@ function describeFiber(fiber) {
       return describeNativeComponentFrame(fiber.type.render, !1);
     case 1:
       return describeNativeComponentFrame(fiber.type, !0);
+    case 31:
+      return describeBuiltInComponentFrame("Activity");
     default:
       return "";
   }
@@ -2094,19 +2098,19 @@ function getTargetInstForChangeEvent(domEventName, targetInst) {
 }
 var isInputEventSupported = !1;
 if (canUseDOM) {
-  var JSCompiler_inline_result$jscomp$297;
+  var JSCompiler_inline_result$jscomp$298;
   if (canUseDOM) {
-    var isSupported$jscomp$inline_433 = "oninput" in document;
-    if (!isSupported$jscomp$inline_433) {
-      var element$jscomp$inline_434 = document.createElement("div");
-      element$jscomp$inline_434.setAttribute("oninput", "return;");
-      isSupported$jscomp$inline_433 =
-        "function" === typeof element$jscomp$inline_434.oninput;
+    var isSupported$jscomp$inline_439 = "oninput" in document;
+    if (!isSupported$jscomp$inline_439) {
+      var element$jscomp$inline_440 = document.createElement("div");
+      element$jscomp$inline_440.setAttribute("oninput", "return;");
+      isSupported$jscomp$inline_439 =
+        "function" === typeof element$jscomp$inline_440.oninput;
     }
-    JSCompiler_inline_result$jscomp$297 = isSupported$jscomp$inline_433;
-  } else JSCompiler_inline_result$jscomp$297 = !1;
+    JSCompiler_inline_result$jscomp$298 = isSupported$jscomp$inline_439;
+  } else JSCompiler_inline_result$jscomp$298 = !1;
   isInputEventSupported =
-    JSCompiler_inline_result$jscomp$297 &&
+    JSCompiler_inline_result$jscomp$298 &&
     (!document.documentMode || 9 < document.documentMode);
 }
 function stopWatchingForValueChange() {
@@ -2346,9 +2350,10 @@ var ANIMATION_END = getVendorPrefixedEventName("animationend"),
   TRANSITION_END = getVendorPrefixedEventName("transitionend"),
   topLevelEventsToReactNames = new Map(),
   simpleEventPluginEvents =
-    "abort auxClick beforeToggle cancel canPlay canPlayThrough click close contextMenu copy cut drag dragEnd dragEnter dragExit dragLeave dragOver dragStart drop durationChange emptied encrypted ended error gotPointerCapture input invalid keyDown keyPress keyUp load loadedData loadedMetadata loadStart lostPointerCapture mouseDown mouseMove mouseOut mouseOver mouseUp paste pause play playing pointerCancel pointerDown pointerMove pointerOut pointerOver pointerUp progress rateChange reset resize seeked seeking stalled submit suspend timeUpdate touchCancel touchEnd touchStart volumeChange scroll scrollEnd toggle touchMove waiting wheel".split(
+    "abort auxClick beforeToggle cancel canPlay canPlayThrough click close contextMenu copy cut drag dragEnd dragEnter dragExit dragLeave dragOver dragStart drop durationChange emptied encrypted ended error gotPointerCapture input invalid keyDown keyPress keyUp load loadedData loadedMetadata loadStart lostPointerCapture mouseDown mouseMove mouseOut mouseOver mouseUp paste pause play playing pointerCancel pointerDown pointerMove pointerOut pointerOver pointerUp progress rateChange reset resize seeked seeking stalled submit suspend timeUpdate touchCancel touchEnd touchStart volumeChange scroll toggle touchMove waiting wheel".split(
       " "
     );
+simpleEventPluginEvents.push("scrollEnd");
 function registerSimpleEvent(domEventName, reactName) {
   topLevelEventsToReactNames.set(domEventName, reactName);
   registerTwoPhaseEvent(reactName, [domEventName]);
@@ -7366,6 +7371,30 @@ function beginWork(current, workInProgress, renderLanes) {
       );
     case 19:
       return updateSuspenseListComponent(current, workInProgress, renderLanes);
+    case 31:
+      return (
+        (lazyComponent = workInProgress.pendingProps),
+        (renderLanes = workInProgress.mode),
+        (lazyComponent = {
+          mode: lazyComponent.mode,
+          children: lazyComponent.children
+        }),
+        null === current
+          ? ((renderLanes = mountWorkInProgressOffscreenFiber(
+              lazyComponent,
+              renderLanes
+            )),
+            (renderLanes.ref = workInProgress.ref),
+            (workInProgress.child = renderLanes),
+            (renderLanes.return = workInProgress),
+            (workInProgress = renderLanes))
+          : ((renderLanes = createWorkInProgress(current.child, lazyComponent)),
+            (renderLanes.ref = workInProgress.ref),
+            (workInProgress.child = renderLanes),
+            (renderLanes.return = workInProgress),
+            (workInProgress = renderLanes)),
+        workInProgress
+      );
     case 22:
       return updateOffscreenComponent(current, workInProgress, renderLanes);
     case 24:
@@ -7618,8 +7647,8 @@ function safelyCallComponentWillUnmount(
   } else
     try {
       instance.componentWillUnmount();
-    } catch (error$117) {
-      captureCommitPhaseError(current, nearestMountedAncestor, error$117);
+    } catch (error$118) {
+      captureCommitPhaseError(current, nearestMountedAncestor, error$118);
     }
 }
 function safelyAttachRef(current, nearestMountedAncestor) {
@@ -7631,6 +7660,9 @@ function safelyAttachRef(current, nearestMountedAncestor) {
         case 27:
         case 5:
           var instanceToUse = current.stateNode;
+          break;
+        case 30:
+          instanceToUse = current.stateNode;
           break;
         default:
           instanceToUse = current.stateNode;
@@ -7678,8 +7710,8 @@ function safelyDetachRef(current, nearestMountedAncestor) {
             recordEffectDuration(current);
           }
         else ref(null);
-      } catch (error$118) {
-        captureCommitPhaseError(current, nearestMountedAncestor, error$118);
+      } catch (error$119) {
+        captureCommitPhaseError(current, nearestMountedAncestor, error$119);
       }
     else ref.current = null;
 }
@@ -8034,11 +8066,11 @@ function commitLayoutEffectOnFiber(finishedRoot, current, finishedWork) {
           } else
             try {
               finishedRoot.componentDidMount();
-            } catch (error$114) {
+            } catch (error$115) {
               captureCommitPhaseError(
                 finishedWork,
                 finishedWork.return,
-                error$114
+                error$115
               );
             }
         else {
@@ -8055,11 +8087,11 @@ function commitLayoutEffectOnFiber(finishedRoot, current, finishedWork) {
                 current,
                 finishedRoot.__reactInternalSnapshotBeforeUpdate
               );
-            } catch (error$115) {
+            } catch (error$116) {
               captureCommitPhaseError(
                 finishedWork,
                 finishedWork.return,
-                error$115
+                error$116
               );
             }
             recordEffectDuration();
@@ -8070,11 +8102,11 @@ function commitLayoutEffectOnFiber(finishedRoot, current, finishedWork) {
                 current,
                 finishedRoot.__reactInternalSnapshotBeforeUpdate
               );
-            } catch (error$116) {
+            } catch (error$117) {
               captureCommitPhaseError(
                 finishedWork,
                 finishedWork.return,
-                error$116
+                error$117
               );
             }
         }
@@ -8165,6 +8197,8 @@ function commitLayoutEffectOnFiber(finishedRoot, current, finishedWork) {
         ("manual" === finishedWork.memoizedProps.mode
           ? safelyAttachRef(finishedWork, finishedWork.return)
           : safelyDetachRef(finishedWork, finishedWork.return));
+      break;
+    case 30:
       break;
     default:
       recursivelyTraverseLayoutEffects(finishedRoot, finishedWork);
@@ -8857,6 +8891,7 @@ function commitMutationEffectsOnFiber(finishedWork, root) {
           attachSuspenseRetryListeners(finishedWork, flags)));
       break;
     case 30:
+      break;
     case 21:
       break;
     default:
@@ -8868,38 +8903,39 @@ function commitReconciliationEffects(finishedWork) {
   var flags = finishedWork.flags;
   if (flags & 2) {
     try {
-      a: {
-        for (var parent = finishedWork.return; null !== parent; ) {
-          if (isHostParent(parent)) {
-            var JSCompiler_inline_result = parent;
-            break a;
-          }
-          parent = parent.return;
+      for (
+        var hostParentFiber, parentFiber = finishedWork.return;
+        null !== parentFiber;
+
+      ) {
+        if (isHostParent(parentFiber)) {
+          hostParentFiber = parentFiber;
+          break;
         }
-        throw Error(formatProdErrorMessage(160));
+        parentFiber = parentFiber.return;
       }
-      switch (JSCompiler_inline_result.tag) {
+      if (null == hostParentFiber) throw Error(formatProdErrorMessage(160));
+      switch (hostParentFiber.tag) {
         case 27:
-          var parent$jscomp$0 = JSCompiler_inline_result.stateNode,
+          var parent = hostParentFiber.stateNode,
             before = getHostSibling(finishedWork);
-          insertOrAppendPlacementNode(finishedWork, before, parent$jscomp$0);
+          insertOrAppendPlacementNode(finishedWork, before, parent);
           break;
         case 5:
-          var parent$119 = JSCompiler_inline_result.stateNode;
-          JSCompiler_inline_result.flags & 32 &&
-            (setTextContent(parent$119, ""),
-            (JSCompiler_inline_result.flags &= -33));
-          var before$120 = getHostSibling(finishedWork);
-          insertOrAppendPlacementNode(finishedWork, before$120, parent$119);
+          var parent$120 = hostParentFiber.stateNode;
+          hostParentFiber.flags & 32 &&
+            (setTextContent(parent$120, ""), (hostParentFiber.flags &= -33));
+          var before$121 = getHostSibling(finishedWork);
+          insertOrAppendPlacementNode(finishedWork, before$121, parent$120);
           break;
         case 3:
         case 4:
-          var parent$121 = JSCompiler_inline_result.stateNode.containerInfo,
-            before$122 = getHostSibling(finishedWork);
+          var parent$122 = hostParentFiber.stateNode.containerInfo,
+            before$123 = getHostSibling(finishedWork);
           insertOrAppendPlacementNodeIntoContainer(
             finishedWork,
-            before$122,
-            parent$121
+            before$123,
+            parent$122
           );
           break;
         default:
@@ -8960,6 +8996,9 @@ function recursivelyTraverseDisappearLayoutEffects(parentFiber) {
         safelyDetachRef(finishedWork, finishedWork.return);
         null === finishedWork.memoizedState &&
           recursivelyTraverseDisappearLayoutEffects(finishedWork);
+        break;
+      case 30:
+        recursivelyTraverseDisappearLayoutEffects(finishedWork);
         break;
       default:
         recursivelyTraverseDisappearLayoutEffects(finishedWork);
@@ -9081,6 +9120,8 @@ function recursivelyTraverseReappearLayoutEffects(
             includeWorkInProgressEffects
           );
         safelyAttachRef(finishedWork, finishedWork.return);
+        break;
+      case 30:
         break;
       default:
         recursivelyTraverseReappearLayoutEffects(
@@ -9709,6 +9750,13 @@ function createFiberFromTypeAndProps(
         : 5;
   else
     a: switch (type) {
+      case REACT_ACTIVITY_TYPE:
+        return (
+          (type = createFiberImplClass(31, pendingProps, key, mode)),
+          (type.elementType = REACT_ACTIVITY_TYPE),
+          (type.lanes = lanes),
+          type
+        );
       case REACT_FRAGMENT_TYPE:
         return createFiberFromFragment(pendingProps.children, mode, lanes, key);
       case REACT_STRICT_MODE_TYPE:
@@ -9737,8 +9785,6 @@ function createFiberFromTypeAndProps(
           (type.lanes = lanes),
           type
         );
-      case REACT_OFFSCREEN_TYPE:
-        return createFiberFromOffscreen(pendingProps, mode, lanes, key);
       default:
         if ("object" === typeof type && null !== type)
           switch (type.$$typeof) {
@@ -9779,7 +9825,6 @@ function createFiberFromFragment(elements, mode, lanes, key) {
 }
 function createFiberFromOffscreen(pendingProps, mode, lanes, key) {
   pendingProps = createFiberImplClass(22, pendingProps, key, mode);
-  pendingProps.elementType = REACT_OFFSCREEN_TYPE;
   pendingProps.lanes = lanes;
   var primaryChildInstance = {
     _visibility: 1,
@@ -10051,14 +10096,14 @@ function cutOffTailIfNeeded(renderState, hasRenderedATailFallback) {
         break;
       case "collapsed":
         lastTailNode = renderState.tail;
-        for (var lastTailNode$143 = null; null !== lastTailNode; )
-          null !== lastTailNode.alternate && (lastTailNode$143 = lastTailNode),
+        for (var lastTailNode$144 = null; null !== lastTailNode; )
+          null !== lastTailNode.alternate && (lastTailNode$144 = lastTailNode),
             (lastTailNode = lastTailNode.sibling);
-        null === lastTailNode$143
+        null === lastTailNode$144
           ? hasRenderedATailFallback || null === renderState.tail
             ? (renderState.tail = null)
             : (renderState.tail.sibling = null)
-          : (lastTailNode$143.sibling = null);
+          : (lastTailNode$144.sibling = null);
     }
 }
 function bubbleProperties(completedWork) {
@@ -10070,53 +10115,53 @@ function bubbleProperties(completedWork) {
   if (didBailout)
     if (0 !== (completedWork.mode & 2)) {
       for (
-        var treeBaseDuration$145 = completedWork.selfBaseDuration,
-          child$146 = completedWork.child;
-        null !== child$146;
+        var treeBaseDuration$146 = completedWork.selfBaseDuration,
+          child$147 = completedWork.child;
+        null !== child$147;
 
       )
-        (newChildLanes |= child$146.lanes | child$146.childLanes),
-          (subtreeFlags |= child$146.subtreeFlags & 65011712),
-          (subtreeFlags |= child$146.flags & 65011712),
-          (treeBaseDuration$145 += child$146.treeBaseDuration),
-          (child$146 = child$146.sibling);
-      completedWork.treeBaseDuration = treeBaseDuration$145;
+        (newChildLanes |= child$147.lanes | child$147.childLanes),
+          (subtreeFlags |= child$147.subtreeFlags & 65011712),
+          (subtreeFlags |= child$147.flags & 65011712),
+          (treeBaseDuration$146 += child$147.treeBaseDuration),
+          (child$147 = child$147.sibling);
+      completedWork.treeBaseDuration = treeBaseDuration$146;
     } else
       for (
-        treeBaseDuration$145 = completedWork.child;
-        null !== treeBaseDuration$145;
+        treeBaseDuration$146 = completedWork.child;
+        null !== treeBaseDuration$146;
 
       )
         (newChildLanes |=
-          treeBaseDuration$145.lanes | treeBaseDuration$145.childLanes),
-          (subtreeFlags |= treeBaseDuration$145.subtreeFlags & 65011712),
-          (subtreeFlags |= treeBaseDuration$145.flags & 65011712),
-          (treeBaseDuration$145.return = completedWork),
-          (treeBaseDuration$145 = treeBaseDuration$145.sibling);
+          treeBaseDuration$146.lanes | treeBaseDuration$146.childLanes),
+          (subtreeFlags |= treeBaseDuration$146.subtreeFlags & 65011712),
+          (subtreeFlags |= treeBaseDuration$146.flags & 65011712),
+          (treeBaseDuration$146.return = completedWork),
+          (treeBaseDuration$146 = treeBaseDuration$146.sibling);
   else if (0 !== (completedWork.mode & 2)) {
-    treeBaseDuration$145 = completedWork.actualDuration;
-    child$146 = completedWork.selfBaseDuration;
+    treeBaseDuration$146 = completedWork.actualDuration;
+    child$147 = completedWork.selfBaseDuration;
     for (var child = completedWork.child; null !== child; )
       (newChildLanes |= child.lanes | child.childLanes),
         (subtreeFlags |= child.subtreeFlags),
         (subtreeFlags |= child.flags),
-        (treeBaseDuration$145 += child.actualDuration),
-        (child$146 += child.treeBaseDuration),
+        (treeBaseDuration$146 += child.actualDuration),
+        (child$147 += child.treeBaseDuration),
         (child = child.sibling);
-    completedWork.actualDuration = treeBaseDuration$145;
-    completedWork.treeBaseDuration = child$146;
+    completedWork.actualDuration = treeBaseDuration$146;
+    completedWork.treeBaseDuration = child$147;
   } else
     for (
-      treeBaseDuration$145 = completedWork.child;
-      null !== treeBaseDuration$145;
+      treeBaseDuration$146 = completedWork.child;
+      null !== treeBaseDuration$146;
 
     )
       (newChildLanes |=
-        treeBaseDuration$145.lanes | treeBaseDuration$145.childLanes),
-        (subtreeFlags |= treeBaseDuration$145.subtreeFlags),
-        (subtreeFlags |= treeBaseDuration$145.flags),
-        (treeBaseDuration$145.return = completedWork),
-        (treeBaseDuration$145 = treeBaseDuration$145.sibling);
+        treeBaseDuration$146.lanes | treeBaseDuration$146.childLanes),
+        (subtreeFlags |= treeBaseDuration$146.subtreeFlags),
+        (subtreeFlags |= treeBaseDuration$146.flags),
+        (treeBaseDuration$146.return = completedWork),
+        (treeBaseDuration$146 = treeBaseDuration$146.sibling);
   completedWork.subtreeFlags |= subtreeFlags;
   completedWork.childLanes = newChildLanes;
   return didBailout;
@@ -10125,6 +10170,7 @@ function completeWork(current, workInProgress, renderLanes) {
   var newProps = workInProgress.pendingProps;
   popTreeContext(workInProgress);
   switch (workInProgress.tag) {
+    case 31:
     case 16:
     case 15:
     case 0:
@@ -10409,11 +10455,11 @@ function completeWork(current, workInProgress, renderLanes) {
           null !== newProps.alternate.memoizedState &&
           null !== newProps.alternate.memoizedState.cachePool &&
           (type = newProps.alternate.memoizedState.cachePool.pool);
-        var cache$162 = null;
+        var cache$163 = null;
         null !== newProps.memoizedState &&
           null !== newProps.memoizedState.cachePool &&
-          (cache$162 = newProps.memoizedState.cachePool.pool);
-        cache$162 !== type && (newProps.flags |= 2048);
+          (cache$163 = newProps.memoizedState.cachePool.pool);
+        cache$163 !== type && (newProps.flags |= 2048);
       }
       renderLanes !== current &&
         renderLanes &&
@@ -10443,8 +10489,8 @@ function completeWork(current, workInProgress, renderLanes) {
       type = workInProgress.memoizedState;
       if (null === type) return bubbleProperties(workInProgress), null;
       newProps = 0 !== (workInProgress.flags & 128);
-      cache$162 = type.rendering;
-      if (null === cache$162)
+      cache$163 = type.rendering;
+      if (null === cache$163)
         if (newProps) cutOffTailIfNeeded(type, !1);
         else {
           if (
@@ -10452,11 +10498,11 @@ function completeWork(current, workInProgress, renderLanes) {
             (null !== current && 0 !== (current.flags & 128))
           )
             for (current = workInProgress.child; null !== current; ) {
-              cache$162 = findFirstSuspended(current);
-              if (null !== cache$162) {
+              cache$163 = findFirstSuspended(current);
+              if (null !== cache$163) {
                 workInProgress.flags |= 128;
                 cutOffTailIfNeeded(type, !1);
-                current = cache$162.updateQueue;
+                current = cache$163.updateQueue;
                 workInProgress.updateQueue = current;
                 scheduleRetryEffect(workInProgress, current);
                 workInProgress.subtreeFlags = 0;
@@ -10481,7 +10527,7 @@ function completeWork(current, workInProgress, renderLanes) {
         }
       else {
         if (!newProps)
-          if (((current = findFirstSuspended(cache$162)), null !== current)) {
+          if (((current = findFirstSuspended(cache$163)), null !== current)) {
             if (
               ((workInProgress.flags |= 128),
               (newProps = !0),
@@ -10491,7 +10537,7 @@ function completeWork(current, workInProgress, renderLanes) {
               cutOffTailIfNeeded(type, !0),
               null === type.tail &&
                 "hidden" === type.tailMode &&
-                !cache$162.alternate &&
+                !cache$163.alternate &&
                 !isHydrating)
             )
               return bubbleProperties(workInProgress), null;
@@ -10504,13 +10550,13 @@ function completeWork(current, workInProgress, renderLanes) {
               cutOffTailIfNeeded(type, !1),
               (workInProgress.lanes = 4194304));
         type.isBackwards
-          ? ((cache$162.sibling = workInProgress.child),
-            (workInProgress.child = cache$162))
+          ? ((cache$163.sibling = workInProgress.child),
+            (workInProgress.child = cache$163))
           : ((current = type.last),
             null !== current
-              ? (current.sibling = cache$162)
-              : (workInProgress.child = cache$162),
-            (type.last = cache$162));
+              ? (current.sibling = cache$163)
+              : (workInProgress.child = cache$163),
+            (type.last = cache$163));
       }
       if (null !== type.tail)
         return (
@@ -11253,8 +11299,8 @@ function renderRootSync(root, lanes, shouldYieldForPrerendering) {
       workLoopSync();
       memoizedUpdaters = workInProgressRootExitStatus;
       break;
-    } catch (thrownValue$181) {
-      handleThrow(root, thrownValue$181);
+    } catch (thrownValue$182) {
+      handleThrow(root, thrownValue$182);
     }
   while (1);
   lanes && root.shellSuspendCounter++;
@@ -11377,8 +11423,8 @@ function renderRootConcurrent(root, lanes) {
         }
       workLoopConcurrentByScheduler();
       break;
-    } catch (thrownValue$183) {
-      handleThrow(root, thrownValue$183);
+    } catch (thrownValue$184) {
+      handleThrow(root, thrownValue$184);
     }
   while (1);
   lastContextDependency = currentlyRenderingFiber$1 = null;
@@ -11887,45 +11933,6 @@ function flushSpawnedWork() {
     markCommitStopped();
   }
 }
-function flushGestureMutations() {
-  if (6 === pendingEffectsStatus) {
-    pendingEffectsStatus = 0;
-    var root = pendingEffectsRoot,
-      prevTransition = ReactSharedInternals.T;
-    ReactSharedInternals.T = null;
-    var previousPriority = ReactDOMSharedInternals.p;
-    ReactDOMSharedInternals.p = 2;
-    var prevExecutionContext = executionContext;
-    executionContext |= 4;
-    try {
-      var rootContainer = root.containerInfo,
-        documentElement =
-          9 === rootContainer.nodeType
-            ? rootContainer.documentElement
-            : rootContainer.ownerDocument.documentElement;
-      null !== documentElement &&
-        "" === documentElement.style.viewTransitionName &&
-        ((documentElement.style.viewTransitionName = "none"),
-        documentElement.animate(
-          { opacity: [0, 0], pointerEvents: ["none", "none"] },
-          {
-            duration: 0,
-            fill: "forwards",
-            pseudoElement: "::view-transition-group(root)"
-          }
-        ),
-        documentElement.animate(
-          { width: [0, 0], height: [0, 0] },
-          { duration: 0, fill: "forwards", pseudoElement: "::view-transition" }
-        ));
-    } finally {
-      (executionContext = prevExecutionContext),
-        (ReactDOMSharedInternals.p = previousPriority),
-        (ReactSharedInternals.T = prevTransition);
-    }
-    pendingEffectsStatus = 7;
-  }
-}
 function releaseRootPooledCache(root, remainingLanes) {
   0 === (root.pooledCacheLanes &= remainingLanes) &&
     ((remainingLanes = root.pooledCache),
@@ -11933,35 +11940,6 @@ function releaseRootPooledCache(root, remainingLanes) {
       ((root.pooledCache = null), releaseCache(remainingLanes)));
 }
 function flushPendingEffects(wasDelayedCommit) {
-  flushGestureMutations();
-  flushGestureMutations();
-  if (7 === pendingEffectsStatus) {
-    pendingEffectsStatus = 0;
-    var root = pendingEffectsRoot;
-    pendingFinishedWork = pendingEffectsRoot = null;
-    pendingEffectsLanes = 0;
-    var prevTransition = ReactSharedInternals.T;
-    ReactSharedInternals.T = null;
-    var previousPriority = ReactDOMSharedInternals.p;
-    ReactDOMSharedInternals.p = 2;
-    var prevExecutionContext = executionContext;
-    executionContext |= 4;
-    try {
-      var rootContainer = root.containerInfo,
-        documentElement =
-          9 === rootContainer.nodeType
-            ? rootContainer.documentElement
-            : rootContainer.ownerDocument.documentElement;
-      null !== documentElement &&
-        "none" === documentElement.style.viewTransitionName &&
-        (documentElement.style.viewTransitionName = "");
-    } finally {
-      (executionContext = prevExecutionContext),
-        (ReactDOMSharedInternals.p = previousPriority),
-        (ReactSharedInternals.T = prevTransition);
-    }
-    ensureRootIsScheduled(root);
-  }
   flushMutationEffects();
   flushLayoutEffects();
   flushSpawnedWork();
@@ -12164,14 +12142,14 @@ function flushSyncWorkAcrossRoots_impl(syncTransitionLanes, onlyLegacy) {
     isFlushingWork = !0;
     do {
       var didPerformSomeWork = !1;
-      for (var root$188 = firstScheduledRoot; null !== root$188; ) {
+      for (var root$189 = firstScheduledRoot; null !== root$189; ) {
         if (!onlyLegacy)
           if (0 !== syncTransitionLanes) {
-            var pendingLanes = root$188.pendingLanes;
+            var pendingLanes = root$189.pendingLanes;
             if (0 === pendingLanes) var JSCompiler_inline_result = 0;
             else {
-              var suspendedLanes = root$188.suspendedLanes,
-                pingedLanes = root$188.pingedLanes;
+              var suspendedLanes = root$189.suspendedLanes,
+                pingedLanes = root$189.pingedLanes;
               JSCompiler_inline_result =
                 (1 << (31 - clz32(42 | syncTransitionLanes) + 1)) - 1;
               JSCompiler_inline_result &=
@@ -12185,20 +12163,20 @@ function flushSyncWorkAcrossRoots_impl(syncTransitionLanes, onlyLegacy) {
             }
             0 !== JSCompiler_inline_result &&
               ((didPerformSomeWork = !0),
-              performSyncWorkOnRoot(root$188, JSCompiler_inline_result));
+              performSyncWorkOnRoot(root$189, JSCompiler_inline_result));
           } else
             (JSCompiler_inline_result = workInProgressRootRenderLanes),
               (JSCompiler_inline_result = getNextLanes(
-                root$188,
-                root$188 === workInProgressRoot ? JSCompiler_inline_result : 0,
-                null !== root$188.cancelPendingCommit ||
-                  -1 !== root$188.timeoutHandle
+                root$189,
+                root$189 === workInProgressRoot ? JSCompiler_inline_result : 0,
+                null !== root$189.cancelPendingCommit ||
+                  -1 !== root$189.timeoutHandle
               )),
               0 === (JSCompiler_inline_result & 3) ||
-                checkIfRootIsPrerendering(root$188, JSCompiler_inline_result) ||
+                checkIfRootIsPrerendering(root$189, JSCompiler_inline_result) ||
                 ((didPerformSomeWork = !0),
-                performSyncWorkOnRoot(root$188, JSCompiler_inline_result));
-        root$188 = root$188.next;
+                performSyncWorkOnRoot(root$189, JSCompiler_inline_result));
+        root$189 = root$189.next;
       }
     } while (didPerformSomeWork);
     isFlushingWork = !1;
@@ -12441,20 +12419,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1630 = 0;
-  i$jscomp$inline_1630 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1630++
+  var i$jscomp$inline_1648 = 0;
+  i$jscomp$inline_1648 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1648++
 ) {
-  var eventName$jscomp$inline_1631 =
-      simpleEventPluginEvents[i$jscomp$inline_1630],
-    domEventName$jscomp$inline_1632 =
-      eventName$jscomp$inline_1631.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1633 =
-      eventName$jscomp$inline_1631[0].toUpperCase() +
-      eventName$jscomp$inline_1631.slice(1);
+  var eventName$jscomp$inline_1649 =
+      simpleEventPluginEvents[i$jscomp$inline_1648],
+    domEventName$jscomp$inline_1650 =
+      eventName$jscomp$inline_1649.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1651 =
+      eventName$jscomp$inline_1649[0].toUpperCase() +
+      eventName$jscomp$inline_1649.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1632,
-    "on" + capitalizedEvent$jscomp$inline_1633
+    domEventName$jscomp$inline_1650,
+    "on" + capitalizedEvent$jscomp$inline_1651
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -13136,9 +13114,10 @@ function accumulateTwoPhaseListeners(targetFiber, reactName) {
         listeners.push(
           createDispatchListener(targetFiber, _instance2, stateNode)
         ));
+    if (3 === targetFiber.tag) return listeners;
     targetFiber = targetFiber.return;
   }
-  return listeners;
+  return [];
 }
 function getParent(inst) {
   if (null === inst) return null;
@@ -13630,34 +13609,34 @@ function setInitialProperties(domElement, tag, props) {
         defaultChecked = null;
       for (hasSrc in props)
         if (props.hasOwnProperty(hasSrc)) {
-          var propValue$202 = props[hasSrc];
-          if (null != propValue$202)
+          var propValue$203 = props[hasSrc];
+          if (null != propValue$203)
             switch (hasSrc) {
               case "name":
-                hasSrcSet = propValue$202;
+                hasSrcSet = propValue$203;
                 break;
               case "type":
-                propValue = propValue$202;
+                propValue = propValue$203;
                 break;
               case "checked":
-                checked = propValue$202;
+                checked = propValue$203;
                 break;
               case "defaultChecked":
-                defaultChecked = propValue$202;
+                defaultChecked = propValue$203;
                 break;
               case "value":
-                propKey = propValue$202;
+                propKey = propValue$203;
                 break;
               case "defaultValue":
-                defaultValue = propValue$202;
+                defaultValue = propValue$203;
                 break;
               case "children":
               case "dangerouslySetInnerHTML":
-                if (null != propValue$202)
+                if (null != propValue$203)
                   throw Error(formatProdErrorMessage(137, tag));
                 break;
               default:
-                setProp(domElement, tag, hasSrc, propValue$202, props, null);
+                setProp(domElement, tag, hasSrc, propValue$203, props, null);
             }
         }
       initInput(
@@ -13744,6 +13723,8 @@ function setInitialProperties(domElement, tag, props) {
           }
       return;
     case "dialog":
+      listenToNonDelegatedEvent("beforetoggle", domElement);
+      listenToNonDelegatedEvent("toggle", domElement);
       listenToNonDelegatedEvent("cancel", domElement);
       listenToNonDelegatedEvent("close", domElement);
       break;
@@ -13794,14 +13775,14 @@ function setInitialProperties(domElement, tag, props) {
       return;
     default:
       if (isCustomElement(tag)) {
-        for (propValue$202 in props)
-          props.hasOwnProperty(propValue$202) &&
-            ((hasSrc = props[propValue$202]),
+        for (propValue$203 in props)
+          props.hasOwnProperty(propValue$203) &&
+            ((hasSrc = props[propValue$203]),
             void 0 !== hasSrc &&
               setPropOnCustomElement(
                 domElement,
                 tag,
-                propValue$202,
+                propValue$203,
                 hasSrc,
                 props,
                 void 0
@@ -13849,14 +13830,14 @@ function updateProperties(domElement, tag, lastProps, nextProps) {
                 setProp(domElement, tag, propKey, null, nextProps, lastProp);
           }
       }
-      for (var propKey$219 in nextProps) {
-        var propKey = nextProps[propKey$219];
-        lastProp = lastProps[propKey$219];
+      for (var propKey$220 in nextProps) {
+        var propKey = nextProps[propKey$220];
+        lastProp = lastProps[propKey$220];
         if (
-          nextProps.hasOwnProperty(propKey$219) &&
+          nextProps.hasOwnProperty(propKey$220) &&
           (null != propKey || null != lastProp)
         )
-          switch (propKey$219) {
+          switch (propKey$220) {
             case "type":
               type = propKey;
               break;
@@ -13885,7 +13866,7 @@ function updateProperties(domElement, tag, lastProps, nextProps) {
                 setProp(
                   domElement,
                   tag,
-                  propKey$219,
+                  propKey$220,
                   propKey,
                   nextProps,
                   lastProp
@@ -13904,7 +13885,7 @@ function updateProperties(domElement, tag, lastProps, nextProps) {
       );
       return;
     case "select":
-      propKey = value = defaultValue = propKey$219 = null;
+      propKey = value = defaultValue = propKey$220 = null;
       for (type in lastProps)
         if (
           ((lastDefaultValue = lastProps[type]),
@@ -13935,7 +13916,7 @@ function updateProperties(domElement, tag, lastProps, nextProps) {
         )
           switch (name) {
             case "value":
-              propKey$219 = type;
+              propKey$220 = type;
               break;
             case "defaultValue":
               defaultValue = type;
@@ -13956,15 +13937,15 @@ function updateProperties(domElement, tag, lastProps, nextProps) {
       tag = defaultValue;
       lastProps = value;
       nextProps = propKey;
-      null != propKey$219
-        ? updateOptions(domElement, !!lastProps, propKey$219, !1)
+      null != propKey$220
+        ? updateOptions(domElement, !!lastProps, propKey$220, !1)
         : !!nextProps !== !!lastProps &&
           (null != tag
             ? updateOptions(domElement, !!lastProps, tag, !0)
             : updateOptions(domElement, !!lastProps, lastProps ? [] : "", !1));
       return;
     case "textarea":
-      propKey = propKey$219 = null;
+      propKey = propKey$220 = null;
       for (defaultValue in lastProps)
         if (
           ((name = lastProps[defaultValue]),
@@ -13988,7 +13969,7 @@ function updateProperties(domElement, tag, lastProps, nextProps) {
         )
           switch (value) {
             case "value":
-              propKey$219 = name;
+              propKey$220 = name;
               break;
             case "defaultValue":
               propKey = name;
@@ -14002,17 +13983,17 @@ function updateProperties(domElement, tag, lastProps, nextProps) {
               name !== type &&
                 setProp(domElement, tag, value, name, nextProps, type);
           }
-      updateTextarea(domElement, propKey$219, propKey);
+      updateTextarea(domElement, propKey$220, propKey);
       return;
     case "option":
-      for (var propKey$235 in lastProps)
+      for (var propKey$236 in lastProps)
         if (
-          ((propKey$219 = lastProps[propKey$235]),
-          lastProps.hasOwnProperty(propKey$235) &&
-            null != propKey$219 &&
-            !nextProps.hasOwnProperty(propKey$235))
+          ((propKey$220 = lastProps[propKey$236]),
+          lastProps.hasOwnProperty(propKey$236) &&
+            null != propKey$220 &&
+            !nextProps.hasOwnProperty(propKey$236))
         )
-          switch (propKey$235) {
+          switch (propKey$236) {
             case "selected":
               domElement.selected = !1;
               break;
@@ -14020,33 +14001,33 @@ function updateProperties(domElement, tag, lastProps, nextProps) {
               setProp(
                 domElement,
                 tag,
-                propKey$235,
+                propKey$236,
                 null,
                 nextProps,
-                propKey$219
+                propKey$220
               );
           }
       for (lastDefaultValue in nextProps)
         if (
-          ((propKey$219 = nextProps[lastDefaultValue]),
+          ((propKey$220 = nextProps[lastDefaultValue]),
           (propKey = lastProps[lastDefaultValue]),
           nextProps.hasOwnProperty(lastDefaultValue) &&
-            propKey$219 !== propKey &&
-            (null != propKey$219 || null != propKey))
+            propKey$220 !== propKey &&
+            (null != propKey$220 || null != propKey))
         )
           switch (lastDefaultValue) {
             case "selected":
               domElement.selected =
-                propKey$219 &&
-                "function" !== typeof propKey$219 &&
-                "symbol" !== typeof propKey$219;
+                propKey$220 &&
+                "function" !== typeof propKey$220 &&
+                "symbol" !== typeof propKey$220;
               break;
             default:
               setProp(
                 domElement,
                 tag,
                 lastDefaultValue,
-                propKey$219,
+                propKey$220,
                 nextProps,
                 propKey
               );
@@ -14067,24 +14048,24 @@ function updateProperties(domElement, tag, lastProps, nextProps) {
     case "track":
     case "wbr":
     case "menuitem":
-      for (var propKey$240 in lastProps)
-        (propKey$219 = lastProps[propKey$240]),
-          lastProps.hasOwnProperty(propKey$240) &&
-            null != propKey$219 &&
-            !nextProps.hasOwnProperty(propKey$240) &&
-            setProp(domElement, tag, propKey$240, null, nextProps, propKey$219);
+      for (var propKey$241 in lastProps)
+        (propKey$220 = lastProps[propKey$241]),
+          lastProps.hasOwnProperty(propKey$241) &&
+            null != propKey$220 &&
+            !nextProps.hasOwnProperty(propKey$241) &&
+            setProp(domElement, tag, propKey$241, null, nextProps, propKey$220);
       for (checked in nextProps)
         if (
-          ((propKey$219 = nextProps[checked]),
+          ((propKey$220 = nextProps[checked]),
           (propKey = lastProps[checked]),
           nextProps.hasOwnProperty(checked) &&
-            propKey$219 !== propKey &&
-            (null != propKey$219 || null != propKey))
+            propKey$220 !== propKey &&
+            (null != propKey$220 || null != propKey))
         )
           switch (checked) {
             case "children":
             case "dangerouslySetInnerHTML":
-              if (null != propKey$219)
+              if (null != propKey$220)
                 throw Error(formatProdErrorMessage(137, tag));
               break;
             default:
@@ -14092,7 +14073,7 @@ function updateProperties(domElement, tag, lastProps, nextProps) {
                 domElement,
                 tag,
                 checked,
-                propKey$219,
+                propKey$220,
                 nextProps,
                 propKey
               );
@@ -14100,49 +14081,49 @@ function updateProperties(domElement, tag, lastProps, nextProps) {
       return;
     default:
       if (isCustomElement(tag)) {
-        for (var propKey$245 in lastProps)
-          (propKey$219 = lastProps[propKey$245]),
-            lastProps.hasOwnProperty(propKey$245) &&
-              void 0 !== propKey$219 &&
-              !nextProps.hasOwnProperty(propKey$245) &&
+        for (var propKey$246 in lastProps)
+          (propKey$220 = lastProps[propKey$246]),
+            lastProps.hasOwnProperty(propKey$246) &&
+              void 0 !== propKey$220 &&
+              !nextProps.hasOwnProperty(propKey$246) &&
               setPropOnCustomElement(
                 domElement,
                 tag,
-                propKey$245,
+                propKey$246,
                 void 0,
                 nextProps,
-                propKey$219
+                propKey$220
               );
         for (defaultChecked in nextProps)
-          (propKey$219 = nextProps[defaultChecked]),
+          (propKey$220 = nextProps[defaultChecked]),
             (propKey = lastProps[defaultChecked]),
             !nextProps.hasOwnProperty(defaultChecked) ||
-              propKey$219 === propKey ||
-              (void 0 === propKey$219 && void 0 === propKey) ||
+              propKey$220 === propKey ||
+              (void 0 === propKey$220 && void 0 === propKey) ||
               setPropOnCustomElement(
                 domElement,
                 tag,
                 defaultChecked,
-                propKey$219,
+                propKey$220,
                 nextProps,
                 propKey
               );
         return;
       }
   }
-  for (var propKey$250 in lastProps)
-    (propKey$219 = lastProps[propKey$250]),
-      lastProps.hasOwnProperty(propKey$250) &&
-        null != propKey$219 &&
-        !nextProps.hasOwnProperty(propKey$250) &&
-        setProp(domElement, tag, propKey$250, null, nextProps, propKey$219);
+  for (var propKey$251 in lastProps)
+    (propKey$220 = lastProps[propKey$251]),
+      lastProps.hasOwnProperty(propKey$251) &&
+        null != propKey$220 &&
+        !nextProps.hasOwnProperty(propKey$251) &&
+        setProp(domElement, tag, propKey$251, null, nextProps, propKey$220);
   for (lastProp in nextProps)
-    (propKey$219 = nextProps[lastProp]),
+    (propKey$220 = nextProps[lastProp]),
       (propKey = lastProps[lastProp]),
       !nextProps.hasOwnProperty(lastProp) ||
-        propKey$219 === propKey ||
-        (null == propKey$219 && null == propKey) ||
-        setProp(domElement, tag, lastProp, propKey$219, nextProps, propKey);
+        propKey$220 === propKey ||
+        (null == propKey$220 && null == propKey) ||
+        setProp(domElement, tag, lastProp, propKey$220, nextProps, propKey);
 }
 var eventsEnabled = null,
   selectionInformation = null;
@@ -14751,26 +14732,26 @@ function getResource(type, currentProps, pendingProps, currentResource) {
         "string" === typeof pendingProps.precedence
       ) {
         type = getStyleKey(pendingProps.href);
-        var styles$258 = getResourcesFromRoot(
+        var styles$259 = getResourcesFromRoot(
             JSCompiler_inline_result
           ).hoistableStyles,
-          resource$259 = styles$258.get(type);
-        resource$259 ||
+          resource$260 = styles$259.get(type);
+        resource$260 ||
           ((JSCompiler_inline_result =
             JSCompiler_inline_result.ownerDocument || JSCompiler_inline_result),
-          (resource$259 = {
+          (resource$260 = {
             type: "stylesheet",
             instance: null,
             count: 0,
             state: { loading: 0, preload: null }
           }),
-          styles$258.set(type, resource$259),
-          (styles$258 = JSCompiler_inline_result.querySelector(
+          styles$259.set(type, resource$260),
+          (styles$259 = JSCompiler_inline_result.querySelector(
             getStylesheetSelectorFromKey(type)
           )) &&
-            !styles$258._p &&
-            ((resource$259.instance = styles$258),
-            (resource$259.state.loading = 5)),
+            !styles$259._p &&
+            ((resource$260.instance = styles$259),
+            (resource$260.state.loading = 5)),
           preloadPropsMap.has(type) ||
             ((pendingProps = {
               rel: "preload",
@@ -14783,16 +14764,16 @@ function getResource(type, currentProps, pendingProps, currentResource) {
               referrerPolicy: pendingProps.referrerPolicy
             }),
             preloadPropsMap.set(type, pendingProps),
-            styles$258 ||
+            styles$259 ||
               preloadStylesheet(
                 JSCompiler_inline_result,
                 type,
                 pendingProps,
-                resource$259.state
+                resource$260.state
               )));
         if (currentProps && null === currentResource)
           throw Error(formatProdErrorMessage(528, ""));
-        return resource$259;
+        return resource$260;
       }
       if (currentProps && null !== currentResource)
         throw Error(formatProdErrorMessage(529, ""));
@@ -14889,37 +14870,37 @@ function acquireResource(hoistableRoot, resource, props) {
         return (resource.instance = instance);
       case "stylesheet":
         styleProps = getStyleKey(props.href);
-        var instance$264 = hoistableRoot.querySelector(
+        var instance$265 = hoistableRoot.querySelector(
           getStylesheetSelectorFromKey(styleProps)
         );
-        if (instance$264)
+        if (instance$265)
           return (
             (resource.state.loading |= 4),
-            (resource.instance = instance$264),
-            markNodeAsHoistable(instance$264),
-            instance$264
+            (resource.instance = instance$265),
+            markNodeAsHoistable(instance$265),
+            instance$265
           );
         instance = stylesheetPropsFromRawProps(props);
         (styleProps = preloadPropsMap.get(styleProps)) &&
           adoptPreloadPropsForStylesheet(instance, styleProps);
-        instance$264 = (
+        instance$265 = (
           hoistableRoot.ownerDocument || hoistableRoot
         ).createElement("link");
-        markNodeAsHoistable(instance$264);
-        var linkInstance = instance$264;
+        markNodeAsHoistable(instance$265);
+        var linkInstance = instance$265;
         linkInstance._p = new Promise(function (resolve, reject) {
           linkInstance.onload = resolve;
           linkInstance.onerror = reject;
         });
-        setInitialProperties(instance$264, "link", instance);
+        setInitialProperties(instance$265, "link", instance);
         resource.state.loading |= 4;
-        insertStylesheet(instance$264, props.precedence, hoistableRoot);
-        return (resource.instance = instance$264);
+        insertStylesheet(instance$265, props.precedence, hoistableRoot);
+        return (resource.instance = instance$265);
       case "script":
-        instance$264 = getScriptKey(props.src);
+        instance$265 = getScriptKey(props.src);
         if (
           (styleProps = hoistableRoot.querySelector(
-            getScriptSelectorFromKey(instance$264)
+            getScriptSelectorFromKey(instance$265)
           ))
         )
           return (
@@ -14928,7 +14909,7 @@ function acquireResource(hoistableRoot, resource, props) {
             styleProps
           );
         instance = props;
-        if ((styleProps = preloadPropsMap.get(instance$264)))
+        if ((styleProps = preloadPropsMap.get(instance$265)))
           (instance = assign({}, props)),
             adoptPreloadPropsForScript(instance, styleProps);
         hoistableRoot = hoistableRoot.ownerDocument || hoistableRoot;
@@ -15966,16 +15947,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_1884 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_1907 = React.version;
 if (
-  "19.1.0-canary-d55cc79b-20250228" !==
-  isomorphicReactPackageVersion$jscomp$inline_1884
+  "19.1.0-canary-db7dfe05-20250319" !==
+  isomorphicReactPackageVersion$jscomp$inline_1907
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_1884,
-      "19.1.0-canary-d55cc79b-20250228"
+      isomorphicReactPackageVersion$jscomp$inline_1907,
+      "19.1.0-canary-db7dfe05-20250319"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -15995,17 +15976,17 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_1891 = {
+var internals$jscomp$inline_1914 = {
   bundleType: 0,
-  version: "19.1.0-canary-d55cc79b-20250228",
+  version: "19.1.0-canary-db7dfe05-20250319",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.1.0-canary-d55cc79b-20250228",
+  reconcilerVersion: "19.1.0-canary-db7dfe05-20250319",
   getLaneLabelMap: function () {
     for (
-      var map = new Map(), lane = 1, index$281 = 0;
-      31 > index$281;
-      index$281++
+      var map = new Map(), lane = 1, index$282 = 0;
+      31 > index$282;
+      index$282++
     ) {
       var label = getLabelForLane(lane);
       map.set(lane, label);
@@ -16018,16 +15999,16 @@ var internals$jscomp$inline_1891 = {
   }
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2344 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2358 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2344.isDisabled &&
-    hook$jscomp$inline_2344.supportsFiber
+    !hook$jscomp$inline_2358.isDisabled &&
+    hook$jscomp$inline_2358.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2344.inject(
-        internals$jscomp$inline_1891
+      (rendererID = hook$jscomp$inline_2358.inject(
+        internals$jscomp$inline_1914
       )),
-        (injectedHook = hook$jscomp$inline_2344);
+        (injectedHook = hook$jscomp$inline_2358);
     } catch (err) {}
 }
 function noop() {}
@@ -16280,7 +16261,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.1.0-canary-d55cc79b-20250228";
+exports.version = "19.1.0-canary-db7dfe05-20250319";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

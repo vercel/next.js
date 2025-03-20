@@ -1,5 +1,9 @@
+import { unstable_cacheTag } from 'next/cache'
+
 async function getCachedRandom() {
   'use cache'
+  unstable_cacheTag('api')
+
   return Math.random()
 }
 
@@ -7,9 +11,5 @@ export async function GET() {
   const rand1 = await getCachedRandom()
   const rand2 = await getCachedRandom()
 
-  const response = JSON.stringify({ rand1, rand2 })
-
-  return new Response(response, {
-    headers: { 'content-type': 'application/json' },
-  })
+  return Response.json({ rand1, rand2 })
 }

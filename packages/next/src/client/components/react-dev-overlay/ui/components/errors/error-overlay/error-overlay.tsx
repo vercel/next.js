@@ -3,7 +3,6 @@ import type { OverlayState } from '../../../../shared'
 import { Suspense } from 'react'
 import { BuildError } from '../../../container/build-error'
 import { Errors } from '../../../container/errors'
-import { RootLayoutMissingTagsError } from '../../../container/root-layout-missing-tags-error'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
 import type { ReadyRuntimeError } from '../../../../utils/get-error-by-type'
 
@@ -39,17 +38,6 @@ export function ErrorOverlay({
     transitionDurationMs,
     isTurbopack,
     versionInfo: state.versionInfo,
-  }
-
-  if (!!state.rootLayoutMissingTags?.length) {
-    return (
-      <RootLayoutMissingTagsError
-        {...commonProps}
-        // This is not a runtime error, forcedly display error overlay
-        rendered
-        missingTags={state.rootLayoutMissingTags}
-      />
-    )
   }
 
   if (state.buildError !== null) {

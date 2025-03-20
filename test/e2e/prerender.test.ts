@@ -551,7 +551,7 @@ describe('Prerender', () => {
     })
   }
 
-  const runTests = (isDev = false, isDeploy) => {
+  const runTests = (isDev: boolean = false, isDeploy: boolean) => {
     navigateTest(isDev)
 
     it('should respond with 405 for POST to static page', async () => {
@@ -926,33 +926,45 @@ describe('Prerender', () => {
       const text = await browser.elementByCss('p').text()
       expect(text).toContain('hi fallback')
 
-      // wait for fallback data to load
-      await check(() => browser.elementByCss('p').text(), /Post/)
+      if (isDeploy) {
+        // patchFile does not work with deploy tests
+        return
+      }
 
-      // check fallback data
-      const post = await browser.elementByCss('p').text()
-      const query = JSON.parse(await browser.elementByCss('#query').text())
-      const params = JSON.parse(await browser.elementByCss('#params').text())
+      await next.patchFile('resolve-static-props', '', async () => {
+        // wait for fallback data to load
+        await check(() => browser.elementByCss('p').text(), /Post/)
 
-      expect(post).toContain('first/post')
-      expect(params).toEqual({
-        slug: 'first/post',
-      })
-      expect(query).toEqual(params)
-    })
+        // check fallback data
+        const post = await browser.elementByCss('p').text()
+        const query = JSON.parse(await browser.elementByCss('#query').text())
+        const params = JSON.parse(await browser.elementByCss('#params').text())
 
-    it('should handle fallback only page correctly data', async () => {
-      const data = JSON.parse(
-        await renderViaHTTP(
-          next.url,
-          `/_next/data/${next.buildId}/fallback-only/second%2Fpost.json`
-        )
-      )
-
-      expect(data.pageProps.params).toEqual({
-        slug: 'second/post',
+        expect(post).toContain('first/post')
+        expect(params).toEqual({
+          slug: 'first/post',
+        })
+        expect(query).toEqual(params)
       })
     })
+
+    // patchFile does not work with deploy tests
+    if (!isDeploy) {
+      it('should handle fallback only page correctly data', async () => {
+        await next.patchFile('resolve-static-props', '', async () => {
+          const data = JSON.parse(
+            await renderViaHTTP(
+              next.url,
+              `/_next/data/${next.buildId}/fallback-only/second%2Fpost.json`
+            )
+          )
+
+          expect(data.pageProps.params).toEqual({
+            slug: 'second/post',
+          })
+        })
+      })
+    }
 
     it('should 404 for a missing catchall explicit route', async () => {
       const res = await fetchViaHTTP(
@@ -1150,28 +1162,6 @@ describe('Prerender', () => {
         const html2 = await renderViaHTTP(next.url, '/blocking-fallback-some/b')
         const $2 = cheerio.load(html2)
         expect(JSON.parse($2('#__NEXT_DATA__').text()).isFallback).toBe(false)
-      })
-
-      it('should log error in console and browser in development mode', async () => {
-        const browser = await webdriver(next.url, '/')
-        expect(await browser.elementByCss('p').text()).toMatch(/hello.*?world/)
-
-        await next.patchFile(
-          'pages/index.js',
-          (content) => content.replace('// throw new', 'throw new'),
-          async () => {
-            // we need to reload the page to trigger getStaticProps
-            await browser.refresh()
-
-            return retry(async () => {
-              await assertHasRedbox(browser)
-              const errOverlayContent = await getRedboxHeader(browser)
-              const errorMsg = /oops from getStaticProps/
-              expect(next.cliOutput).toMatch(errorMsg)
-              expect(errOverlayContent).toMatch(errorMsg)
-            })
-          }
-        )
       })
 
       it('should always call getStaticProps without caching in dev', async () => {

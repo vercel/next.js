@@ -106,6 +106,15 @@ export type ResolvedFacebook = {
   admins?: string[] | undefined
 }
 
+export type Pinterest = PinterestRichPin
+export type PinterestRichPin = {
+  richPin: string | boolean
+}
+
+export type ResolvedPinterest = {
+  richPin?: string
+}
+
 // Format Detection
 // This is a poorly specified metadata export type that is supposed to
 // control whether the device attempts to conver text that matches

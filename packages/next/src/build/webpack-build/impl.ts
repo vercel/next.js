@@ -107,6 +107,7 @@ export async function webpackBuildImpl(
 
   const commonWebpackOptions = {
     isServer: false,
+    isCompileMode: NextBuildContext.isCompileMode,
     buildId: NextBuildContext.buildId!,
     encryptionKey: NextBuildContext.encryptionKey!,
     config: config,
@@ -333,7 +334,9 @@ export async function webpackBuildImpl(
       err.code = 'INVALID_RESOLVE_ALIAS'
       throw err
     }
-    const err = new Error('Build failed because of webpack errors') as NextError
+    const err = new Error(
+      `Build failed because of ${process.env.NEXT_RSPACK ? 'rspack' : 'webpack'} errors`
+    ) as NextError
     err.code = 'WEBPACK_ERRORS'
     throw err
   } else {

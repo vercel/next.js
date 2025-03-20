@@ -93,7 +93,7 @@ import {
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
 } from './next-dir-paths'
-import { getRspackReactRefresh } from '../shared/lib/get-rspack'
+import { getRspackCore, getRspackReactRefresh } from '../shared/lib/get-rspack'
 import { RspackProfilingPlugin } from './webpack/plugins/rspack-profiling-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -306,7 +306,9 @@ export default async function getBaseWebpackConfig(
     clientRouterFilters,
     fetchCacheKeyPrefix,
     edgePreviewProps,
+    isCompileMode,
   }: {
+    isCompileMode?: boolean
     buildId: string
     encryptionKey: string
     config: NextConfigComplete
@@ -645,7 +647,7 @@ export default async function getBaseWebpackConfig(
   const apiRoutesLayerLoaders = useSWCLoader
     ? getSwcLoader({
         serverComponents: false,
-        bundleLayer: WEBPACK_LAYERS.api,
+        bundleLayer: WEBPACK_LAYERS.apiNode,
       })
     : defaultLoaders.babel
 
@@ -891,7 +893,6 @@ export default async function getBaseWebpackConfig(
   }
 
   const telemetryPlugin =
-    !isRspack &&
     !dev &&
     isClient &&
     new (
@@ -1171,12 +1172,10 @@ export default async function getBaseWebpackConfig(
           (isNodeServer && config.experimental.serverMinification)),
       minimizer: isRspack
         ? [
-            // @ts-expect-error
-            new webpack.SwcJsMinimizerRspackPlugin({
+            new (getRspackCore().SwcJsMinimizerRspackPlugin)({
               // JS minimizer configuration
             }),
-            // @ts-expect-error
-            new webpack.LightningCssMinimizerRspackPlugin({
+            new (getRspackCore().LightningCssMinimizerRspackPlugin)({
               // CSS minimizer configuration
             }),
           ]
@@ -1575,15 +1574,20 @@ export default async function getBaseWebpackConfig(
           oneOf: [
             {
               ...codeCondition,
-              issuerLayer: WEBPACK_LAYERS.api,
-              parser: {
-                // In Node.js, switch back to normal URL handling.
-                // In Edge runtime, we should disable parser.url handling in webpack so URLDependency is not added.
-                // Then there's browser code won't be injected into the edge runtime chunk.
-                // x-ref: https://github.com/webpack/webpack/blob/d9ce3b1f87e63c809d8a19bbd92257d65922e81f/lib/web/JsonpChunkLoadingRuntimeModule.js#L69
-                url: !isEdgeServer,
-              },
+              issuerLayer: WEBPACK_LAYERS.apiNode,
               use: apiRoutesLayerLoaders,
+              // In Node.js, switch back to normal URL handling.
+              // We won't bundle `new URL()` cases in Node.js bundler layer.
+              parser: {
+                url: true,
+              },
+            },
+            {
+              ...codeCondition,
+              issuerLayer: WEBPACK_LAYERS.apiEdge,
+              use: apiRoutesLayerLoaders,
+              // In Edge runtime, we leave the url handling by default.
+              // The new URL assets will be converted into edge assets through assets loader.
             },
             {
               test: codeCondition.test,
@@ -1904,6 +1908,7 @@ export default async function getBaseWebpackConfig(
         isNodeOrEdgeCompilation,
         isNodeServer,
         middlewareMatchers,
+        omitNonDeterministic: isCompileMode,
       }),
       isClient &&
         new ReactLoadablePlugin({
@@ -2050,8 +2055,7 @@ export default async function getBaseWebpackConfig(
         config.experimental.cssChunking &&
         new CssChunkingPlugin(config.experimental.cssChunking === 'strict'),
       telemetryPlugin,
-      !isRspack &&
-        !dev &&
+      !dev &&
         isNodeServer &&
         new (
           require('./webpack/plugins/telemetry-plugin/telemetry-plugin') as typeof import('./webpack/plugins/telemetry-plugin/telemetry-plugin')

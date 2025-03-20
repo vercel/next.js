@@ -9,17 +9,20 @@ use napi::{
 use rustc_hash::FxHashMap;
 use serde::Serialize;
 use turbo_tasks::{
-    task_statistics::TaskStatisticsApi, trace::TraceRawVcs, OperationVc, ReadRef, TaskId,
-    TryJoinIterExt, TurboTasks, TurboTasksApi, UpdateInfo, Vc,
+    get_effects, task_statistics::TaskStatisticsApi, trace::TraceRawVcs, Effects, OperationVc,
+    ReadRef, TaskId, TryJoinIterExt, TurboTasks, TurboTasksApi, UpdateInfo, Vc, VcValueType,
 };
 use turbo_tasks_backend::{
-    default_backing_storage, noop_backing_storage, DefaultBackingStorage, NoopBackingStorage,
+    default_backing_storage, noop_backing_storage, DefaultBackingStorage, GitVersionInfo,
+    NoopBackingStorage,
 };
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
     error::PrettyPrintError,
-    issue::{IssueDescriptionExt, PlainIssue, PlainIssueSource, PlainSource, StyledString},
+    issue::{
+        IssueDescriptionExt, IssueSeverity, PlainIssue, PlainIssueSource, PlainSource, StyledString,
+    },
     source_pos::SourcePos,
 };
 
@@ -130,26 +133,10 @@ pub fn create_turbo_tasks(
     dependency_tracking: bool,
 ) -> Result<NextTurboTasks> {
     Ok(if persistent_caching {
-        let dirty_suffix = if crate::build::GIT_CLEAN
-            || option_env!("CI").is_some_and(|value| !value.is_empty())
-        {
-            ""
-        } else {
-            "-dirty"
-        };
-        #[allow(
-            clippy::const_is_empty,
-            reason = "LAST_TAG might be empty if the tag can't be determined"
-        )]
-        let version_info = if crate::build::LAST_TAG.is_empty() {
-            format!("{}{}", crate::build::SHORT_COMMIT, dirty_suffix)
-        } else {
-            format!(
-                "{}-{}{}",
-                crate::build::LAST_TAG,
-                crate::build::SHORT_COMMIT,
-                dirty_suffix
-            )
+        let version_info = GitVersionInfo {
+            describe: env!("VERGEN_GIT_DESCRIBE"),
+            dirty: option_env!("CI").is_none_or(|value| value.is_empty())
+                && env!("VERGEN_GIT_DIRTY") == "true",
         };
         NextTurboTasks::PersistentCaching(TurboTasks::new(
             turbo_tasks_backend::TurboTasksBackend::new(
@@ -477,9 +464,8 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
 
             let status = func.call(
                 result.map_err(|e| {
-                    let error = PrettyPrintError(&e).to_string();
-                    log_internal_error_and_inform(&error);
-                    napi::Error::from_reason(error)
+                    log_internal_error_and_inform(&e);
+                    napi::Error::from_reason(PrettyPrintError(&e).to_string())
                 }),
                 ThreadsafeFunctionCallMode::NonBlocking,
             );
@@ -495,4 +481,28 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
         turbo_tasks,
         task_id: Some(task_id),
     }))
+}
+
+// Await the source and return fatal issues if there are any, otherwise
+// propagate any actual error results.
+pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
+    source_op: OperationVc<R>,
+) -> Result<(
+    Option<ReadRef<R>>,
+    Arc<Vec<ReadRef<PlainIssue>>>,
+    Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    Arc<Effects>,
+)> {
+    let result = source_op.read_strongly_consistent().await;
+    let issues = get_issues(source_op).await?;
+    let diagnostics = get_diagnostics(source_op).await?;
+    let effects = Arc::new(get_effects(source_op).await?);
+
+    let result = if result.is_err() && issues.iter().any(|i| i.severity <= IssueSeverity::Error) {
+        None
+    } else {
+        Some(result?)
+    };
+
+    Ok((result, issues, diagnostics, effects))
 }

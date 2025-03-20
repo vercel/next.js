@@ -1,5 +1,6 @@
 import type { PageExtensions } from '../../build/page-extensions-type'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
+import { isAppRouteRoute } from '../is-app-route-route'
 
 export const STATIC_METADATA_IMAGES = {
   icon: {
@@ -127,15 +128,24 @@ export function isMetadataRouteFile(
   )
 }
 
-export function isStaticMetadataRouteFile(appDirRelativePath: string) {
+export function isStaticMetadataRoutePage(appDirRelativePath: string) {
   return isMetadataRouteFile(appDirRelativePath, [], true)
 }
 
-export function isStaticMetadataRoute(page: string) {
+// Check if the route is a static metadata route, with /route suffix
+// e.g. /favicon.ico/route, /icon.png/route, etc.
+// But skip the text routes like robots.txt since they might also be dynamic.
+// Checking route path is not enough to determine if text routes is dynamic.
+export function isStaticMetadataRoute(route: string) {
+  const pathname = route.slice(0, -'/route'.length)
   return (
-    page === '/robots' ||
-    page === '/manifest' ||
-    isStaticMetadataRouteFile(page)
+    isAppRouteRoute(route) &&
+    isStaticMetadataRoutePage(pathname) &&
+    // These routes can either be built by static or dynamic entrypoints,
+    // so we assume they're dynamic
+    pathname !== '/robots.txt' &&
+    pathname !== '/manifest.webmanifest' &&
+    !pathname.endsWith('/sitemap.xml')
   )
 }
 

@@ -145,13 +145,13 @@ function revalidate(tags: string[], expression: string) {
     }
   }
 
-  if (!store.revalidatedTags) {
-    store.revalidatedTags = []
+  if (!store.pendingRevalidatedTags) {
+    store.pendingRevalidatedTags = []
   }
 
   for (const tag of tags) {
-    if (!store.revalidatedTags.includes(tag)) {
-      store.revalidatedTags.push(tag)
+    if (!store.pendingRevalidatedTags.includes(tag)) {
+      store.pendingRevalidatedTags.push(tag)
     }
   }
 

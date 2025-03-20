@@ -21,6 +21,7 @@ use crate::{
         },
         chunking::{
             dev::{app_vendors_split, expand_batches},
+            ordered_production::make_production_chunks_keeping_order,
             production::make_production_chunks,
         },
     },
@@ -29,6 +30,7 @@ use crate::{
 };
 
 mod dev;
+mod ordered_production;
 mod production;
 
 #[turbo_tasks::value]
@@ -334,14 +336,25 @@ pub async fn make_chunks(
 
             if let Some(chunking_config) = chunking_configs.get(&ty) {
                 // Production chunking
-                make_production_chunks(
-                    chunk_items,
-                    batch_groups.into_iter().collect(),
-                    module_graph,
-                    chunking_config,
-                    split_context,
-                )
-                .await?;
+                if !*ty.must_keep_item_order().await? {
+                    make_production_chunks(
+                        chunk_items,
+                        batch_groups.into_iter().collect(),
+                        module_graph,
+                        chunking_config,
+                        split_context,
+                    )
+                    .await?;
+                } else {
+                    make_production_chunks_keeping_order(
+                        chunk_items,
+                        batch_groups.into_iter().collect(),
+                        module_graph,
+                        chunking_config,
+                        split_context,
+                    )
+                    .await?;
+                }
             } else {
                 // Development chunking
                 if !*ty.must_keep_item_order().await? {

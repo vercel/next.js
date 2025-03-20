@@ -76,9 +76,10 @@ impl EcmascriptBrowserEvaluateChunk {
 
         let output_root = this.chunking_context.output_root().await?;
         let output_root_to_root_path = this.chunking_context.output_root_to_root_path();
-        let source_maps = this
+        let source_maps = *this
             .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self));
+            .reference_chunk_source_maps(Vc::upcast(self))
+            .await?;
         let chunk_path_vc = self.path();
         let chunk_path = chunk_path_vc.await?;
         let chunk_public_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
@@ -152,6 +153,7 @@ impl EcmascriptBrowserEvaluateChunk {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
                     environment,
                     chunking_context.chunk_base_path(),
+                    chunking_context.chunk_suffix_path(),
                     Value::new(chunking_context.runtime_type()),
                     output_root_to_root_path,
                     source_maps,
@@ -162,6 +164,7 @@ impl EcmascriptBrowserEvaluateChunk {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
                     environment,
                     chunking_context.chunk_base_path(),
+                    chunking_context.chunk_suffix_path(),
                     Value::new(chunking_context.runtime_type()),
                     output_root_to_root_path,
                     source_maps,
@@ -175,7 +178,7 @@ impl EcmascriptBrowserEvaluateChunk {
             }
         }
 
-        if *source_maps.await? && code.has_source_map() {
+        if source_maps && code.has_source_map() {
             let filename = chunk_path.file_name();
             write!(
                 code,
@@ -186,13 +189,13 @@ impl EcmascriptBrowserEvaluateChunk {
             )?;
         }
 
-        let code = code.build().cell();
+        let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
-            return Ok(minify(chunk_path_vc, code, source_maps, mangle));
+            code = minify(&*chunk_path_vc.await?, &code, source_maps, mangle)?;
         }
 
-        Ok(code)
+        Ok(code.cell())
     }
 }
 

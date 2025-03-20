@@ -39,12 +39,16 @@ describe('dynamic-io-cache-handlers', () => {
             console.log('symbol set', cacheKey)
           },
         
-          expireTags(...tags) {
-            console.log('symbol expireTags', tags)
+          refreshTags() {
+            console.log('symbol refreshTags')
+          },
+
+          getExpiration(...tags) {
+            console.log('symbol getExpiration', tags)
           },
         
-          receiveExpiredTags(...tags) {
-            console.log('symbol receiveExpiredTags', tags)
+          expireTags(...tags) {
+            console.log('symbol expireTags', tags)
           }
         }
       }
@@ -103,30 +107,12 @@ describe('dynamic-io-cache-handlers', () => {
     })
   })
 
-  it('should call receiveExpiredTags on global default cache handler without tags if none are provided', async () => {
+  it('should call refreshTags on global default cache handler', async () => {
     const res = await fetchViaHTTP(appPort, '/', {})
     expect(res.status).toBe(200)
 
     await retry(async () => {
-      expect(output).toContain('symbol receiveExpiredTags []')
-    })
-  })
-
-  it('should call receiveExpiredTags on global default cache handler', async () => {
-    const res = await fetchViaHTTP(
-      appPort,
-      '/',
-      {},
-      {
-        headers: {
-          'x-next-revalidated-tags': 'tag1',
-        },
-      }
-    )
-    expect(res.status).toBe(200)
-
-    await retry(async () => {
-      expect(output).toContain("symbol receiveExpiredTags [ 'tag1' ]")
+      expect(output).toContain('symbol refreshTags')
     })
   })
 })

@@ -65,9 +65,10 @@ impl EcmascriptBrowserChunkContent {
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
         let output_root = this.chunking_context.output_root().await?;
-        let source_maps = this
+        let source_maps = *this
             .chunking_context
-            .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk));
+            .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk))
+            .await?;
         let chunk_path_vc = this.chunk.path();
         let chunk_path = chunk_path_vc.await?;
         let chunk_server_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
@@ -108,7 +109,7 @@ impl EcmascriptBrowserChunkContent {
 
         write!(code, "\n}}]);")?;
 
-        if *source_maps.await? && code.has_source_map() {
+        if source_maps && code.has_source_map() {
             let filename = chunk_path.file_name();
             write!(
                 code,
@@ -119,13 +120,13 @@ impl EcmascriptBrowserChunkContent {
             )?;
         }
 
-        let code = code.build().cell();
+        let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
-            return Ok(minify(chunk_path_vc, code, source_maps, mangle));
+            code = minify(&*chunk_path_vc.await?, &code, source_maps, mangle)?;
         }
 
-        Ok(code)
+        Ok(code.cell())
     }
 }
 
