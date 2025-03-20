@@ -18,6 +18,17 @@ describe('getExtensionRegexString', () => {
       expect(regex.test('.ts')).toBe(true)
       expect(regex.test('.js')).toBe(false)
     })
+
+    it('should not handle js extensions with empty dynamic extensions', () => {
+      const regex = createExtensionMatchRegex(['png', 'jpg'], [])
+      expect(regex.test('.png')).toBe(true)
+      expect(regex.test('.jpg')).toBe(true)
+      expect(regex.test('.webp')).toBe(false)
+
+      expect(regex.test('.ts')).toBe(false)
+      expect(regex.test('.tsx')).toBe(false)
+      expect(regex.test('.js')).toBe(false)
+    })
   })
 
   describe('without dynamic extensions', () => {
