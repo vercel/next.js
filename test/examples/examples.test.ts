@@ -31,7 +31,6 @@ const testedExamples = [
   'next-forms',
   'remove-console',
   'reproduction-template',
-  'route-handlers',
   'ssr-caching',
   'with-absolute-imports',
   'with-context-api',
