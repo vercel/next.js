@@ -26,15 +26,21 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
+use std::sync::Arc;
+
 use napi::bindgen_prelude::*;
+use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use swc_core::{
-    base::{config::JsMinifyOptions, try_with_handler, BoolOrDataConfig, TransformOutput},
+    base::{
+        config::JsMinifyOptions, try_with_handler, BoolOrDataConfig, JsMinifyExtras,
+        TransformOutput,
+    },
     common::{errors::ColorConfig, sync::Lrc, FileName, SourceFile, SourceMap, GLOBALS},
     ecma::minifier::option::{
         terser::{TerserCompressorOptions, TerserInlineOption},
-        MangleOptions,
+        MangleCache, MangleOptions, SimpleMangleCache,
     },
 };
 
@@ -45,6 +51,9 @@ pub struct MinifyTask {
     code: MinifyTarget,
     opts: swc_core::base::config::JsMinifyOptions,
 }
+
+static NAME_MANLGE_CACHE: Lazy<Arc<dyn MangleCache>> =
+    Lazy::new(|| Arc::new(SimpleMangleCache::default()));
 
 #[derive(Deserialize)]
 #[serde(untagged)]
@@ -91,7 +100,7 @@ impl Task for MinifyTask {
                 GLOBALS.set(&Default::default(), || {
                     let fm = self.code.to_file(self.c.cm.clone());
 
-                    self.c.minify(fm, handler, &self.opts, Default::default())
+                    self.c.minify(fm, handler, &self.opts, minify_extras())
                 })
             },
         )
@@ -166,9 +175,15 @@ pub fn minify_sync(input: Buffer, opts: Buffer) -> napi::Result<TransformOutput>
         },
         |handler| {
             GLOBALS.set(&Default::default(), || {
-                c.minify(fm, handler, &opts, Default::default())
+                c.minify(fm, handler, &opts, minify_extras())
             })
         },
     )
     .convert_err()
+}
+
+fn minify_extras() -> JsMinifyExtras {
+    let mut extras = JsMinifyExtras::default();
+    extras.mangle_name_cache = Some(NAME_MANLGE_CACHE.clone());
+    extras
 }
