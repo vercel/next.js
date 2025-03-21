@@ -365,7 +365,7 @@ function DevToolsPopover({
                 <MenuItem
                   index={2}
                   title="Learn about Turbopack and how to enable it in your application."
-                  label="适用Turbopack"
+                  label="适用Turbopack111"
                   value={<ChevronRight />}
                   onClick={() => setOpen(OVERLAYS.Turbo)}
                 />
