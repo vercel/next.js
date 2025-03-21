@@ -602,15 +602,15 @@ module.exports = {
           } else if (useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
              [
-               "/_next/static/css/b52d68d7050c7314.css:
-             .red-text{color:red;background-image:url(/_next/static/media/dark.6b01655b.svg) url(/_next/static/media/dark2.6b01655b.svg)}.blue-text{color:orange;background-image:url(/_next/static/media/light.2da1d3d6.svg);font-weight:bolder;color:#00f}",
+               "/_next/static/css/02830b0dd136adeb.css:
+             .red-text{color:red;background-image:url(/_next/static/media/dark.6b01655b.svg),url(/_next/static/media/dark2.6b01655b.svg)}.blue-text{color:orange;background-image:url(/_next/static/media/light.2da1d3d6.svg);font-weight:bolder;color:#00f}",
              ]
             `)
           } else {
             expect(cssContent).toMatchInlineSnapshot(`
              [
-               "/_next/static/css/766d42b9536ee6bb.css:
-             .red-text{color:red;background-image:url(/_next/static/media/dark.6b01655b.svg) url(/_next/static/media/dark2.6b01655b.svg)}.blue-text{color:orange;font-weight:bolder;background-image:url(/_next/static/media/light.2da1d3d6.svg);color:blue}",
+               "/_next/static/css/bf86b6e30872ca37.css:
+             .red-text{color:red;background-image:url(/_next/static/media/dark.6b01655b.svg),url(/_next/static/media/dark2.6b01655b.svg)}.blue-text{color:orange;font-weight:bolder;background-image:url(/_next/static/media/light.2da1d3d6.svg);color:blue}",
              ]
             `)
           }
