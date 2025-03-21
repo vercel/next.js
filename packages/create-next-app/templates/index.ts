@@ -238,6 +238,20 @@ export const installTemplate = async ({
   const devDeps = Object.keys(packageJson.devDependencies).length;
   if (!devDeps) delete packageJson.devDependencies;
 
+  // Sort dependencies and devDependencies alphabetically
+  packageJson.dependencies = Object.fromEntries(
+    Object.entries(packageJson.dependencies).sort(([a], [b]) =>
+      a < b ? -1 : a > b ? 1 : 0,
+    ),
+  );
+  if (packageJson.devDependencies) {
+    packageJson.devDependencies = Object.fromEntries(
+      Object.entries(packageJson.devDependencies).sort(([a], [b]) =>
+        a < b ? -1 : a > b ? 1 : 0,
+      ),
+    );
+  }
+
   await fs.writeFile(
     path.join(root, "package.json"),
     JSON.stringify(packageJson, null, 2) + os.EOL,
