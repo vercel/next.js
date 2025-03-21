@@ -7,19 +7,20 @@ import { isCsrfOriginAllowed } from '../../app-render/csrf-protection'
 
 function warnOrBlockRequest(
   res: ServerResponse | Duplex,
-  requestPath: string,
+  origin: string | undefined,
   mode: 'warn' | 'block'
 ): boolean {
+  const originString = origin ? `from ${origin}` : ''
   if (mode === 'warn') {
     warnOnce(
-      `Cross origin request detected from ${requestPath}. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.\nRead more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins`
+      `Cross origin request detected ${originString} to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.\nRead more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins`
     )
 
     return false
   }
 
   warnOnce(
-    `Blocked cross-origin request from ${requestPath}. To allow this, configure "allowedDevOrigins" in next.config\nRead more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins`
+    `Blocked cross-origin request ${originString} to /_next/* resource. To allow this, configure "allowedDevOrigins" in next.config\nRead more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins`
   )
 
   if ('statusCode' in res) {
@@ -61,7 +62,7 @@ export const blockCrossSite = (
     req.headers['sec-fetch-mode'] === 'no-cors' &&
     req.headers['sec-fetch-site'] === 'cross-site'
   ) {
-    return warnOrBlockRequest(res, ' /_next/*', mode)
+    return warnOrBlockRequest(res, undefined, mode)
   }
 
   // ensure websocket requests from allowed origin
