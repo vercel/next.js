@@ -576,9 +576,10 @@ module.exports = {
           if (process.env.TURBOPACK && useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
              [
-               "/_next/static/chunks/test_integration_css-fixtures_url-global_styles_global1_69590c47.css:
-             .red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}",
-               "/_next/static/chunks/test_integration_css-fixtures_url-global_styles_3a258468._.css:
+               "/_next/static/chunks/test_integration_css-fixtures_url-global_styles_46281715._.css:
+             .red-text{color:red;background-image:url(../media/dark.993bedd3.svg),url(../media/dark2.993bedd3.svg)}
+
+
              .blue-text{color:orange;background-image:url(../media/light.180573e4.svg);font-weight:bolder}
 
 
@@ -588,9 +589,10 @@ module.exports = {
           } else if (process.env.TURBOPACK && !useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
              [
-               "/_next/static/chunks/test_integration_css-fixtures_url-global_styles_global1_69590c47.css:
-             .red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}",
-               "/_next/static/chunks/test_integration_css-fixtures_url-global_styles_3a258468._.css:
+               "/_next/static/chunks/test_integration_css-fixtures_url-global_styles_46281715._.css:
+             .red-text{color:red;background-image:url(../media/dark.993bedd3.svg),url(../media/dark2.993bedd3.svg)}
+
+
              .blue-text{color:orange;background-image:url(../media/light.180573e4.svg);font-weight:bolder}
 
 
