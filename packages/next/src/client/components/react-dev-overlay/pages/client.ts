@@ -1,10 +1,7 @@
 import * as Bus from './bus'
 import { parseStack } from '../utils/parse-stack'
 import { parseComponentStack } from '../utils/parse-component-stack'
-import {
-  hydrationErrorState,
-  storeHydrationErrorStateFromConsoleArgs,
-} from '../../errors/hydration-error-info'
+import { storeHydrationErrorStateFromConsoleArgs } from '../../errors/hydration-error-info'
 import {
   ACTION_BEFORE_REFRESH,
   ACTION_BUILD_ERROR,
@@ -30,8 +27,7 @@ function handleError(error: unknown) {
 
   attachHydrationErrorState(error)
 
-  const componentStackTrace =
-    (error as any)._componentStack || hydrationErrorState.componentStack
+  const componentStackTrace = (error as any)._componentStack
   const componentStackFrames =
     typeof componentStackTrace === 'string'
       ? parseComponentStack(componentStackTrace)

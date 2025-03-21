@@ -515,8 +515,7 @@ export default function HotReload({
         | HydrationErrorState
         | undefined
       // Component stack is added to the error in use-error-handler in case there was a hydration error
-      const componentStackTrace =
-        (error as any)._componentStack || errorDetails?.componentStack
+      const componentStackTrace = (error as any)._componentStack
       const warning = errorDetails?.warning
 
       dispatch({
