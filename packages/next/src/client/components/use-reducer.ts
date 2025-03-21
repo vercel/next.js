@@ -17,36 +17,38 @@ export function useUnwrapState(state: ReducerState): AppRouterState {
 
   return state
 }
-
 export function useReducer(
   actionQueue: AppRouterActionQueue
 ): [ReducerState, Dispatch<ReducerActions>] {
   const [state, setState] = React.useState<ReducerState>(actionQueue.state)
-  const actionDispatch = (action: ReducerActions) => {
-    actionQueue.dispatch(action, setState)
-  }
 
-  let syncDevRenderIndicator
+  const syncDevRenderIndicatorInDevelopment =
+    useSyncDevRenderIndicatorInDevelopment()
+
+  const dispatch = useCallback(
+    (action: ReducerActions) => {
+      syncDevRenderIndicatorInDevelopment(() =>
+        actionQueue.dispatch(action, setState)
+      )
+    },
+    [actionQueue, syncDevRenderIndicatorInDevelopment]
+  )
+
+  return [state, dispatch]
+}
+
+const PASS_THROUGH = (fn: () => void) => fn()
+
+const useSyncDevRenderIndicatorInDevelopment = () => {
   if (process.env.NODE_ENV !== 'production') {
     const useSyncDevRenderIndicator =
       require('./react-dev-overlay/utils/dev-indicator/use-sync-dev-render-indicator')
         .useSyncDevRenderIndicator as typeof import('./react-dev-overlay/utils/dev-indicator/use-sync-dev-render-indicator').useSyncDevRenderIndicator
+
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    syncDevRenderIndicator = useSyncDevRenderIndicator()
+    const syncDevRenderIndicator = useSyncDevRenderIndicator()
+    return syncDevRenderIndicator
+  } else {
+    return PASS_THROUGH
   }
-
-  const dispatchCallback =
-    process.env.NODE_ENV !== 'production'
-      ? (action: ReducerActions) => {
-          syncDevRenderIndicator!(() => actionDispatch(action))
-        }
-      : actionDispatch
-
-  const dispatch = useCallback(dispatchCallback, [
-    actionQueue,
-    dispatchCallback,
-    syncDevRenderIndicator,
-  ])
-
-  return [state, dispatch]
 }
