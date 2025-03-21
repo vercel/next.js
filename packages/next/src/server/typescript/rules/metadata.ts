@@ -1,6 +1,7 @@
 import { NEXT_TS_ERRORS } from '../constant'
 import {
   getSource,
+  getSourceFromVirtualTsEnv,
   getTs,
   getTypeChecker,
   isPositionInsideNode,
@@ -108,10 +109,9 @@ function proxyDiagnostics(
   n: tsModule.VariableDeclaration | tsModule.FunctionDeclaration
 ) {
   // Get diagnostics
-  const diagnostics = virtualTsEnv.languageService.getSemanticDiagnostics.bind(
-    virtualTsEnv.languageService
-  )(fileName)
-  const source = getSource(fileName)
+  const diagnostics =
+    virtualTsEnv.languageService.getSemanticDiagnostics(fileName)
+  const source = getSourceFromVirtualTsEnv(fileName)
 
   // Filter and map the results
   return diagnostics
@@ -153,10 +153,18 @@ const metadata = {
 
     // Get completions
     const newPos = position <= pos[0] ? position : position + pos[1]
-    const completions =
-      virtualTsEnv.languageService.getCompletionsAtPosition.bind(
-        virtualTsEnv.languageService
-      )(fileName, newPos, undefined)
+    log('Getting completions at position: ' + newPos)
+    log(
+      JSON.stringify({
+        fileExists: virtualTsEnv.sys.fileExists(fileName),
+        getSource: virtualTsEnv.getSourceFile(fileName)?.text,
+      })
+    )
+    const completions = virtualTsEnv.languageService.getCompletionsAtPosition(
+      fileName,
+      newPos,
+      undefined
+    )
 
     if (completions) {
       completions.isIncomplete = true
@@ -199,7 +207,7 @@ const metadata = {
     fileName: string,
     node: tsModule.VariableStatement | tsModule.FunctionDeclaration
   ) {
-    const source = getSource(fileName)
+    const source = getSourceFromVirtualTsEnv(fileName)
     const ts = getTs()
 
     // It is not allowed to export `metadata` or `generateMetadata` in client entry
@@ -273,7 +281,7 @@ const metadata = {
     node: tsModule.ExportDeclaration
   ) {
     const ts = getTs()
-    const source = getSource(fileName)
+    const source = getSourceFromVirtualTsEnv(fileName)
     const diagnostics: tsModule.Diagnostic[] = []
 
     const exportClause = node.exportClause
@@ -338,7 +346,7 @@ const metadata = {
                     } else {
                       return [
                         {
-                          file: getSource(fileName),
+                          file: getSourceFromVirtualTsEnv(fileName),
                           category: ts.DiagnosticCategory.Error,
                           code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
                           messageText: `The 'metadata' export value is not typed correctly, please make sure it is typed as 'Metadata':\nhttps://nextjs.org/docs/app/building-your-application/optimizing/metadata#static-metadata`,
@@ -378,9 +386,15 @@ const metadata = {
 
     const newPos = position <= pos[0] ? position : position + pos[1]
 
-    const details = virtualTsEnv.languageService.getCompletionEntryDetails.bind(
-      virtualTsEnv.languageService
-    )(fileName, newPos, entryName, formatOptions, source, preferences, data)
+    const details = virtualTsEnv.languageService.getCompletionEntryDetails(
+      fileName,
+      newPos,
+      entryName,
+      formatOptions,
+      source,
+      preferences,
+      data
+    )
     return details
   },
 
@@ -394,9 +408,10 @@ const metadata = {
     if (pos === undefined) return
 
     const newPos = position <= pos[0] ? position : position + pos[1]
-    const insight = virtualTsEnv.languageService.getQuickInfoAtPosition.bind(
-      virtualTsEnv.languageService
-    )(fileName, newPos)
+    const insight = virtualTsEnv.languageService.getQuickInfoAtPosition(
+      fileName,
+      newPos
+    )
     return insight
   },
 
@@ -411,9 +426,7 @@ const metadata = {
     const newPos = position <= pos[0] ? position : position + pos[1]
 
     const definitionInfoAndBoundSpan =
-      virtualTsEnv.languageService.getDefinitionAndBoundSpan.bind(
-        virtualTsEnv.languageService
-      )(fileName, newPos)
+      virtualTsEnv.languageService.getDefinitionAndBoundSpan(fileName, newPos)
 
     if (definitionInfoAndBoundSpan) {
       // Adjust the start position of the text span

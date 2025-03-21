@@ -32,6 +32,13 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
   typescript: ts,
 }) => {
   function create(info: tsModule.server.PluginCreateInfo) {
+    // Set up decorator object
+    const proxy = Object.create(null)
+    for (let k of Object.keys(info.languageService)) {
+      const x = (info.languageService as any)[k]
+      proxy[k] = (...args: Array<{}>) => x.apply(info.languageService, args)
+    }
+
     // Get plugin options
     // config is the plugin options from the user's tsconfig.json
     // e.g. { "plugins": [{ "name": "next", "enabled": true }] }
@@ -40,16 +47,16 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
     const isPluginEnabled = info.config.enabled ?? true
 
     if (!isPluginEnabled) {
-      return info.languageService
+      return proxy
     }
 
-    const env = init({
+    init({
       ts,
       info,
     })
 
     // Auto completion
-    env.languageService.getCompletionsAtPosition = (
+    proxy.getCompletionsAtPosition = (
       fileName: string,
       position: number,
       options: any
@@ -107,7 +114,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
     }
 
     // Show auto completion details
-    env.languageService.getCompletionEntryDetails = (
+    proxy.getCompletionEntryDetails = (
       fileName: string,
       position: number,
       entryName: string,
@@ -145,10 +152,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
     }
 
     // Quick info
-    env.languageService.getQuickInfoAtPosition = (
-      fileName: string,
-      position: number
-    ) => {
+    proxy.getQuickInfoAtPosition = (fileName: string, position: number) => {
       const prior = info.languageService.getQuickInfoAtPosition(
         fileName,
         position
@@ -180,7 +184,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
     }
 
     // Show errors for disallowed imports
-    env.languageService.getSemanticDiagnostics = (fileName: string) => {
+    proxy.getSemanticDiagnostics = (fileName: string) => {
       const prior = info.languageService.getSemanticDiagnostics(fileName)
       const source = getSource(fileName)
       if (!source) return prior
@@ -360,10 +364,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
     }
 
     // Get definition and link for specific node
-    env.languageService.getDefinitionAndBoundSpan = (
-      fileName: string,
-      position: number
-    ) => {
+    proxy.getDefinitionAndBoundSpan = (fileName: string, position: number) => {
       const entryInfo = getEntryInfo(fileName)
       if (isAppEntryFile(fileName) && !entryInfo.client) {
         const metadataDefinition = metadata.getDefinitionAndBoundSpan(
@@ -376,7 +377,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       return info.languageService.getDefinitionAndBoundSpan(fileName, position)
     }
 
-    return env.languageService
+    return proxy
   }
 
   return { create }

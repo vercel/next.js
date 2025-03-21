@@ -10,10 +10,13 @@ import type tsModule from 'typescript/lib/tsserverlibrary'
 type TypeScript = typeof import('typescript/lib/tsserverlibrary')
 
 let ts: TypeScript
+let info: tsModule.server.PluginCreateInfo
 let appDirRegExp: RegExp
 export let virtualTsEnv: VirtualTypeScriptEnvironment
 
-export let log: (message: string) => void
+export function log(message: string) {
+  info.project.projectService.logger.info(message)
+}
 
 // This function has to be called initially.
 export function init(opts: {
@@ -22,16 +25,16 @@ export function init(opts: {
 }) {
   const projectDir = opts.info.project.getCurrentDirectory()
   ts = opts.ts
+  info = opts.info
   appDirRegExp = new RegExp(
     '^' + (projectDir + '(/src)?/app').replace(/[\\/]/g, '[\\/]')
   )
-  log = opts.info.project.projectService.logger.info
 
   log('[next] Initializing Next.js TypeScript plugin at ' + projectDir)
 
   const fsMap = new Map<string, string>()
   const system = createSystem(fsMap)
-  const compilerOptions = opts.info.project.getCompilerOptions()
+  const compilerOptions = info.project.getCompilerOptions()
   virtualTsEnv = createVirtualTypeScriptEnvironment(
     system,
     [],
@@ -43,7 +46,7 @@ export function init(opts: {
     throw new Error('[next] Failed to create virtual TypeScript environment.')
   }
 
-  log('[next] Successfully initialized Next.js TypeScript plugin!')
+  log('[next] Successfully initialized Next.js TypeScript plugin!!')
 
   return virtualTsEnv
 }
@@ -52,12 +55,23 @@ export function getTs() {
   return ts
 }
 
+export function getInfo() {
+  return info
+}
+
 export function getTypeChecker() {
-  return virtualTsEnv.languageService.getProgram()?.getTypeChecker()
+  return info.languageService.getProgram()?.getTypeChecker()
 }
 
 export function getSource(fileName: string) {
-  return virtualTsEnv.getSourceFile(fileName)
+  return info.languageService.getProgram()?.getSourceFile(fileName)
+}
+
+export function getSourceFromVirtualTsEnv(fileName: string) {
+  if (virtualTsEnv.sys.fileExists(fileName)) {
+    return virtualTsEnv.getSourceFile(fileName)
+  }
+  return getSource(fileName)
 }
 
 export function removeStringQuotes(str: string): string {
