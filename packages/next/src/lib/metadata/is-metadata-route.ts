@@ -1,5 +1,6 @@
 import type { PageExtensions } from '../../build/page-extensions-type'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { isAppRouteRoute } from '../is-app-route-route'
 
 export const STATIC_METADATA_IMAGES = {
@@ -27,7 +28,7 @@ export const STATIC_METADATA_IMAGES = {
 
 // Match routes that are metadata routes, e.g. /sitemap.xml, /favicon.<ext>, /<icon>.<ext>, etc.
 // TODO-METADATA: support more metadata routes with more extensions
-const defaultExtensions = ['js', 'jsx', 'ts', 'tsx']
+export const DEFAULT_METADATA_ROUTE_EXTENSIONS = ['js', 'jsx', 'ts', 'tsx']
 
 // Match the file extension with the dynamic multi-routes extensions
 // e.g. ([xml, js], null) -> can match `/sitemap.xml/route`, `sitemap.js/route`
@@ -38,98 +39,84 @@ export const getExtensionRegexString = (
 ) => {
   // If there's no possible multi dynamic routes, will not match any <name>[].<ext> files
   if (!dynamicExtensions || dynamicExtensions.length === 0) {
-    return `\\.(?:${staticExtensions.join('|')})`
+    return `(\\.(?:${staticExtensions.join('|')}))`
   }
-  return `(?:\\.(${staticExtensions.join('|')})|((\\[\\])?\\.(${dynamicExtensions.join('|')})))`
+  return `(?:\\.(${staticExtensions.join('|')})|(\\.(${dynamicExtensions.join('|')})))`
 }
 
-// When you only pass the file extension as `[]`, it will only match the static convention files
-// e.g. /robots.txt, /sitemap.xml, /favicon.ico, /manifest.json
-// When you pass the file extension as `['js', 'jsx', 'ts', 'tsx']`, it will also match the dynamic convention files
-// e.g. /robots.js, /sitemap.tsx, /favicon.jsx, /manifest.ts
-// When `withExtension` is false, it will match the static convention files without the extension, by default it's true
-// e.g. /robots, /sitemap, /favicon, /manifest, use to match dynamic API routes like app/robots.ts
+/**
+ * Determine if the file is a metadata route file entry
+ * @param appDirRelativePath the relative file path to app/
+ * @param pageExtensions the js extensions, such as ['js', 'jsx', 'ts', 'tsx']
+ * @param strictlyMatchExtensions if it's true, match the file with page extension, otherwise match the file with default corresponding extension
+ * @returns {boolean} if the file is a metadata route file
+ */
 export function isMetadataRouteFile(
   appDirRelativePath: string,
   pageExtensions: PageExtensions,
-  withExtension: boolean
+  strictlyMatchExtensions: boolean
 ) {
+  // End with the extension or optional to have the extension
+  // When strictlyMatchExtensions is true, it's used for match file path;
+  // When strictlyMatchExtensions, the dynamic extension is skipped but
+  // static extension is kept, which is usually used for matching route path.
+  const trailingMatcher = (strictlyMatchExtensions ? '' : '?') + '$'
+  // Match the optional variants like /opengraph-image2, /icon-a102f4.png, etc.
+  const variantsMatcher = '\\d?'
+  // The -\w{6} is the suffix that normalized from group routes;
+  const groupSuffix = strictlyMatchExtensions ? '' : '(-\\w{6})?'
+
+  const suffixMatcher = `${variantsMatcher}${groupSuffix}`
+
   const metadataRouteFilesRegex = [
     new RegExp(
-      `^[\\\\/]robots${
-        withExtension
-          ? `${getExtensionRegexString(pageExtensions.concat('txt'), null)}$`
-          : ''
-      }`
+      `^[\\\\/]robots${getExtensionRegexString(
+        pageExtensions.concat('txt'),
+        null
+      )}${trailingMatcher}`
     ),
     new RegExp(
-      `^[\\\\/]manifest${
-        withExtension
-          ? `${getExtensionRegexString(
-              pageExtensions.concat('webmanifest', 'json'),
-              null
-            )}$`
-          : ''
-      }`
+      `^[\\\\/]manifest${getExtensionRegexString(
+        pageExtensions.concat('webmanifest', 'json'),
+        null
+      )}${trailingMatcher}`
     ),
     new RegExp(`^[\\\\/]favicon\\.ico$`),
     new RegExp(
-      `[\\\\/]sitemap${
-        withExtension
-          ? `${getExtensionRegexString(['xml'], pageExtensions)}$`
-          : ''
-      }`
+      `[\\\\/]sitemap${getExtensionRegexString(['xml'], pageExtensions)}${trailingMatcher}`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}\\d?${
-        withExtension
-          ? `${getExtensionRegexString(
-              STATIC_METADATA_IMAGES.icon.extensions,
-              pageExtensions
-            )}$`
-          : ''
-      }`
+      `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}${suffixMatcher}${getExtensionRegexString(
+        STATIC_METADATA_IMAGES.icon.extensions,
+        pageExtensions
+      )}${trailingMatcher}`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.apple.filename}\\d?${
-        withExtension
-          ? `${getExtensionRegexString(
-              STATIC_METADATA_IMAGES.apple.extensions,
-              pageExtensions
-            )}$`
-          : ''
-      }`
+      `[\\\\/]${STATIC_METADATA_IMAGES.apple.filename}${suffixMatcher}${getExtensionRegexString(
+        STATIC_METADATA_IMAGES.apple.extensions,
+        pageExtensions
+      )}${trailingMatcher}`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.openGraph.filename}\\d?${
-        withExtension
-          ? `${getExtensionRegexString(
-              STATIC_METADATA_IMAGES.openGraph.extensions,
-              pageExtensions
-            )}$`
-          : ''
-      }`
+      `[\\\\/]${STATIC_METADATA_IMAGES.openGraph.filename}${suffixMatcher}${getExtensionRegexString(
+        STATIC_METADATA_IMAGES.openGraph.extensions,
+        pageExtensions
+      )}${trailingMatcher}`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.twitter.filename}\\d?${
-        withExtension
-          ? `${getExtensionRegexString(
-              STATIC_METADATA_IMAGES.twitter.extensions,
-              pageExtensions
-            )}$`
-          : ''
-      }`
+      `[\\\\/]${STATIC_METADATA_IMAGES.twitter.filename}${suffixMatcher}${getExtensionRegexString(
+        STATIC_METADATA_IMAGES.twitter.extensions,
+        pageExtensions
+      )}${trailingMatcher}`
     ),
   ]
 
   const normalizedAppDirRelativePath = normalizePathSep(appDirRelativePath)
-  return metadataRouteFilesRegex.some((r) =>
+  const matched = metadataRouteFilesRegex.some((r) =>
     r.test(normalizedAppDirRelativePath)
   )
-}
 
-export function isStaticMetadataRoutePage(appDirRelativePath: string) {
-  return isMetadataRouteFile(appDirRelativePath, [], true)
+  return matched
 }
 
 // Check if the route is a static metadata route, with /route suffix
@@ -137,31 +124,60 @@ export function isStaticMetadataRoutePage(appDirRelativePath: string) {
 // But skip the text routes like robots.txt since they might also be dynamic.
 // Checking route path is not enough to determine if text routes is dynamic.
 export function isStaticMetadataRoute(route: string) {
-  const pathname = route.slice(0, -'/route'.length)
-  return (
+  // extract ext with regex
+  const pathname = route.replace(/\/route$/, '')
+
+  const matched =
     isAppRouteRoute(route) &&
-    isStaticMetadataRoutePage(pathname) &&
+    isMetadataRouteFile(pathname, [], true) &&
     // These routes can either be built by static or dynamic entrypoints,
     // so we assume they're dynamic
     pathname !== '/robots.txt' &&
     pathname !== '/manifest.webmanifest' &&
     !pathname.endsWith('/sitemap.xml')
-  )
+
+  return matched
+}
+
+/**
+ * Determine if a page or pathname is a metadata page.
+ *
+ * The input is a page or pathname, which can be with or without page suffix /foo/page or /foo.
+ * But it will not contain the /route suffix.
+ *
+ * .e.g
+ * /robots -> true
+ * /sitemap -> true
+ * /foo -> false
+ */
+export function isMetadataPage(page: string) {
+  const matched = !isAppRouteRoute(page) && isMetadataRouteFile(page, [], false)
+
+  return matched
 }
 
 /*
- * Remove the 'app' prefix or '/route' suffix, only check the route name since they're only allowed in root app directory
+ * Determine if a Next.js route is a metadata route.
+ * `route` will has a route suffix.
+ *
  * e.g.
- * /app/robots -> /robots
- * app/robots -> /robots
- * /robots -> /robots
+ * /app/robots/route -> true
+ * /robots/route -> true
+ * /sitemap/[__metadata_id__]/route -> true
+ * /app/sitemap/page -> false
+ * /icon-a102f4/route -> true
  */
 export function isMetadataRoute(route: string): boolean {
-  let page = route.replace(/^\/?app\//, '').replace(/\/route$/, '')
+  let page = normalizeAppPath(route)
+    .replace(/^\/?app\//, '')
+    // Remove the dynamic route id
+    .replace('/[__metadata_id__]', '')
+    // Remove the /route suffix
+    .replace(/\/route$/, '')
+
   if (page[0] !== '/') page = '/' + page
 
-  return (
-    !page.endsWith('/page') &&
-    isMetadataRouteFile(page, defaultExtensions, false)
-  )
+  const matched = isAppRouteRoute(route) && isMetadataRouteFile(page, [], false)
+
+  return matched
 }

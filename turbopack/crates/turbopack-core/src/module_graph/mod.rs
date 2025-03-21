@@ -20,13 +20,14 @@ use turbo_tasks::{
 };
 
 use crate::{
-    chunk::{AsyncModuleInfo, ChunkingType},
+    chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType},
     issue::Issue,
     module::Module,
     module_graph::{
         async_module_info::{compute_async_module_info, AsyncModulesInfo},
         chunk_group_info::{compute_chunk_group_info, ChunkGroupEntry, ChunkGroupInfo},
         module_batches::{compute_module_batches, ModuleBatchesGraph},
+        style_groups::{compute_style_groups, StyleGroups, StyleGroupsConfig},
         traced_di_graph::{iter_neighbors_rev, TracedDiGraph},
     },
     reference::primary_chunkable_referenced_modules,
@@ -36,6 +37,7 @@ pub mod async_module_info;
 pub mod chunk_group_info;
 pub mod module_batch;
 pub(crate) mod module_batches;
+pub(crate) mod style_groups;
 mod traced_di_graph;
 
 pub use self::module_batches::BatchingConfig;
@@ -730,8 +732,16 @@ impl ModuleGraph {
         self: Vc<Self>,
         config: Vc<BatchingConfig>,
     ) -> Result<Vc<ModuleBatchesGraph>> {
-        // TODO dev: Return modules only
         compute_module_batches(self, &*config.await?).await
+    }
+
+    #[turbo_tasks::function]
+    pub async fn style_groups(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        config: StyleGroupsConfig,
+    ) -> Result<Vc<StyleGroups>> {
+        compute_style_groups(self, chunking_context, &config).await
     }
 
     #[turbo_tasks::function]

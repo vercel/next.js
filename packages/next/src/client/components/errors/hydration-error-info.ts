@@ -6,7 +6,6 @@ import {
 export type HydrationErrorState = {
   // Hydration warning template format: <message> <serverContent> <clientContent>
   warning?: [string, string, string]
-  componentStack?: string
   serverContent?: string
   clientContent?: string
   // React 19 hydration diff format: <notes> <link> <component diff?>

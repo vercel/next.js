@@ -1,6 +1,16 @@
-use turbo_tasks::{ResolvedVc, Vc};
+use serde::{Deserialize, Serialize};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
 
 use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences};
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs, NonLocalValue)]
+pub enum StyleType {
+    IsolatedStyle,
+    GlobalStyle,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionStyleType(Option<StyleType>);
 
 /// A module. This usually represents parsed source code, which has references
 /// to other modules.
@@ -19,6 +29,11 @@ pub trait Module: Asset {
     /// Signifies the module itself is async, e.g. it uses top-level await, is a wasm module, etc.
     fn is_self_async(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
+    }
+
+    /// The style type of the module.
+    fn style_type(self: Vc<Self>) -> Vc<OptionStyleType> {
+        Vc::cell(None)
     }
 }
 

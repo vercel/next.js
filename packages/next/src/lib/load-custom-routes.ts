@@ -596,19 +596,28 @@ async function loadRewrites(config: NextConfig) {
   // If assetPrefix is set, add a rewrite for `/${assetPrefix}/_next/*`
   // requests so that they are handled in any of dev, start, or deploy
   // automatically without the user having to configure this.
-  // If the assetPrefix is an absolute URL, we can't add an automatic rewrite.
+  // If the assetPrefix is an absolute URL, we still consider the path for automatic rewrite.
+  // but hostname routing must be handled by the user
   let maybeAssetPrefixRewrite: Rewrite[] = []
-  if (config.assetPrefix && !isFullStringUrl(config.assetPrefix)) {
-    const assetPrefix = config.assetPrefix.startsWith('/')
-      ? config.assetPrefix
-      : `/${config.assetPrefix}`
-    const basePath = config.basePath || ''
-    // If these are the same, then this would result in an infinite rewrite.
-    if (assetPrefix !== basePath) {
-      maybeAssetPrefixRewrite.push({
-        source: `${assetPrefix}/_next/:path+`,
-        destination: `${basePath}/_next/:path+`,
-      })
+  if (config.assetPrefix) {
+    let prefix = config.assetPrefix
+    if (
+      isFullStringUrl(config.assetPrefix) &&
+      URL.canParse(config.assetPrefix)
+    ) {
+      prefix = new URL(config.assetPrefix).pathname
+    }
+
+    if (prefix && prefix !== '/') {
+      const assetPrefix = prefix.startsWith('/') ? prefix : `/${prefix}`
+      const basePath = config.basePath || ''
+      // If these are the same, then this would result in an infinite rewrite.
+      if (assetPrefix !== basePath) {
+        maybeAssetPrefixRewrite.push({
+          source: `${assetPrefix}/_next/:path+`,
+          destination: `${basePath}/_next/:path+`,
+        })
+      }
     }
   }
 

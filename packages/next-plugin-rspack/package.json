@@ -1,13 +1,13 @@
 {
   "name": "@next/plugin-rspack",
-  "version": "15.3.0-canary.15",
+  "version": "15.3.0-canary.17",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/next-plugin-rspack"
   },
   "types": "index.d.ts",
   "dependencies": {
-    "@rspack/core": "npm:@rspack-canary/core@1.2.9-canary-c009cfc1-20250313053424",
+    "@rspack/core": "1.3.0-beta.0",
     "@rspack/plugin-react-refresh": "1.0.1",
     "react-refresh": "0.12.0"
   }
