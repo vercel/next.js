@@ -1,4 +1,5 @@
 use anyhow::Result;
+use either::Either;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -7,7 +8,7 @@ use turbo_tasks::{
 use turbopack_core::{
     chunk::{availability_info::AvailabilityInfo, ChunkingContext},
     module::Module,
-    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
+    module_graph::{chunk_group_info::ChunkGroup, module_batch::IdentStrings, ModuleGraph},
     output::OutputAssets,
 };
 
@@ -238,7 +239,7 @@ pub async fn get_app_client_references_chunks(
                     None
                 };
 
-                let client_modules = client_reference_types
+                let client_modules: Vec<ResolvedVc<Box<dyn Module>>> = client_reference_types
                     .iter()
                     .map(|client_reference_ty| async move {
                         Ok(match client_reference_ty {
@@ -255,11 +256,53 @@ pub async fn get_app_client_references_chunks(
                     .try_join()
                     .await?;
                 let client_chunk_group = if !client_modules.is_empty() {
-                    let _span = tracing::info_span!(
-                        "client side rendering",
-                        layout_segment = display(&server_component_path),
-                    )
-                    .entered();
+                    // let _span = tracing::info_span!(
+                    //     "client side rendering",
+                    //     layout_segment = display(&server_component_path),
+                    // )
+                    // .entered();
+
+                    println!(
+                        "client references chunking {} {:?}",
+                        server_component_path,
+                        client_modules
+                            .iter()
+                            .map(|m| m.ident().to_string())
+                            .try_join()
+                            .await?,
+                        // match current_client_availability_info.available_modules() {
+                        //     Some(a) => {
+                        //         let mut all = vec![];
+                        //         let mut x = Some(a.snapshot().await?);
+                        //         while let Some(x2) = x {
+                        //             all.extend(
+                        //                 x2.modules
+                        //                     .iter()
+                        //                     .map(|m| m.ident_strings())
+                        //                     .try_join()
+                        //                     .await?
+                        //                     .into_iter()
+                        //                     .flat_map(|i| match i {
+                        //                         IdentStrings::None => None,
+                        //                         IdentStrings::Single(r) => {
+                        //                             let r: RcStr = (*r).clone();
+                        //                             Some(Either::Left(std::iter::once(r)))
+                        //                         }
+                        //                         IdentStrings::Multiple(r) => {
+                        //
+                        // Some(Either::Right((*r).clone().into_iter()))
+                        //                         }
+                        //                     })
+                        //                     .flatten()
+                        //                     .collect::<Vec<RcStr>>(),
+                        //             );
+                        //             x = x2.parent.clone();
+                        //         }
+                        //         Some(all)
+                        //     }
+                        //     None => None,
+                        // }
+                    );
 
                     Some(client_chunking_context.chunk_group(
                         base_ident.with_modifier(client_modules_modifier()),

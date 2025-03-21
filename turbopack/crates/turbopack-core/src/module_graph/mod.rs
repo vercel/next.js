@@ -160,7 +160,7 @@ impl GraphEntries {
 #[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
 #[derive(Clone, Default)]
 pub struct SingleModuleGraph {
-    graph: TracedDiGraph<SingleModuleGraphNode, ChunkingType>,
+    pub graph: TracedDiGraph<SingleModuleGraphNode, ChunkingType>,
 
     /// The number of modules in the graph (excluding VisitedModule nodes)
     pub number_of_modules: usize,
@@ -487,6 +487,46 @@ impl SingleModuleGraph {
                     else {
                         continue;
                     };
+                    let action = visitor((Some((node_weight, edge_weight)), succ_weight));
+                    if !discovered.is_visited(&succ) && action == GraphTraversalAction::Continue {
+                        stack.push(succ);
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn traverse_edges2<'a>(
+        &'a self,
+        mut visitor: impl FnMut(
+            (
+                Option<(&'a SingleModuleGraphNode, &'a ChunkingType)>,
+                &'a SingleModuleGraphNode,
+            ),
+        ) -> GraphTraversalAction,
+    ) -> Result<()> {
+        let graph = &self.graph;
+        let mut stack: Vec<NodeIndex> = self
+            .entries
+            .iter()
+            .flat_map(|e| e.entries())
+            .map(|e| *self.modules.get(&e).unwrap())
+            .collect();
+        let mut discovered = graph.visit_map();
+        for entry_node in &stack {
+            let entry_node = graph.node_weight(*entry_node).unwrap();
+            visitor((None, entry_node));
+        }
+
+        while let Some(node) = stack.pop() {
+            if discovered.visit(node) {
+                let node_weight = graph.node_weight(node).unwrap();
+                for edge in graph.edges(node).collect::<Vec<_>>() {
+                    let edge_weight = edge.weight();
+                    let succ = edge.target();
+                    let succ_weight = graph.node_weight(succ).unwrap();
                     let action = visitor((Some((node_weight, edge_weight)), succ_weight));
                     if !discovered.is_visited(&succ) && action == GraphTraversalAction::Continue {
                         stack.push(succ);

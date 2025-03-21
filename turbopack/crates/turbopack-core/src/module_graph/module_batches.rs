@@ -6,7 +6,10 @@ use std::{
 
 use anyhow::{bail, Context, Result};
 use either::Either;
-use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
+use petgraph::{
+    graph::{DiGraph, EdgeIndex, NodeIndex},
+    visit::EdgeRef,
+};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
@@ -611,6 +614,41 @@ pub async fn compute_module_batches(
         }
         span.record("extracted_shared_items", extracted_shared_items);
 
+        // {
+        //     let batches = pre_batches
+        //         .batches
+        //         .iter()
+        //         .map(|b| {
+        //             b.items
+        //                 .iter()
+        //                 .map(async |i| {
+        //                     Ok(match i {
+        //                         PreBatchItem::ParallelModule(m) => {
+        //                             format!("Mod {:?}", m.ident().to_string().await?)
+        //                         }
+        //                         PreBatchItem::ParallelReference(i) => format!("Parallel {:?}",
+        // i),                         PreBatchItem::NonParallelEdge(ty, _) => {
+        //                             format!("NonParallel {:?}", ty)
+        //                         }
+        //                     })
+        //                 })
+        //                 .try_join()
+        //         })
+        //         .try_join()
+        //         .await?;
+        //     let single_module_entries = pre_batches
+        //         .single_module_entries
+        //         .iter()
+        //         .map(|m| m.ident().to_string())
+        //         .try_join()
+        //         .await?;
+
+        //     println!(
+        //         "--------- prebatches\n{:#?}\n{:#?}",
+        //         batches, single_module_entries
+        //     );
+        // }
+
         // Now every module is only in one batch
 
         let mut edges_count = 0;
@@ -855,6 +893,24 @@ pub async fn compute_module_batches(
                 entries.insert(module, idx);
             }
         }
+
+        let mut edges = vec![];
+        for e in graph.edge_references() {
+            edges.push((
+                graph
+                    .node_weight(e.source())
+                    .unwrap()
+                    .ident_strings()
+                    .await?,
+                e.weight().ty.clone(),
+                graph
+                    .node_weight(e.target())
+                    .unwrap()
+                    .ident_strings()
+                    .await?,
+            ));
+        }
+        println!("--------- module batches\n{:#?}", edges);
 
         Ok(ModuleBatchesGraph {
             graph: TracedDiGraph(graph),

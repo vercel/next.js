@@ -1,8 +1,7 @@
 use std::collections::HashSet;
 
 use anyhow::{Context, Result};
-use rustc_hash::FxHashMap;
-use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 
 use super::{
     availability_info::AvailabilityInfo, chunking::make_chunks, Chunk, ChunkGroupContent,
@@ -45,6 +44,8 @@ pub async fn make_chunk_group(
     );
     let should_trace = *chunking_context.is_tracing_enabled().await?;
     let batching_config = chunking_context.batching_config();
+
+    let chunk_group_entries: Vec<_> = chunk_group_entries.into_iter().collect();
 
     let ChunkGroupContent {
         chunkable_items,
@@ -101,6 +102,7 @@ pub async fn make_chunk_group(
 
     // Insert async chunk loaders for every referenced async module
     let async_loaders = async_modules
+        .clone()
         .into_iter()
         .map(async |module| {
             chunking_context
@@ -155,6 +157,20 @@ pub async fn make_chunk_group(
     )
     .await?;
 
+    println!(
+        "make_chunk_group {:#?} {:#?}",
+        chunk_group_entries
+            .into_iter()
+            .map(|m| m.ident().to_string())
+            .try_join()
+            .await?,
+        async_modules
+            .iter()
+            .map(|m| m.ident().to_string())
+            .try_join()
+            .await?
+    );
+
     Ok(MakeChunkGroupResult {
         chunks,
         availability_info,
@@ -191,7 +207,7 @@ pub async fn chunk_group_content(
 ) -> Result<ChunkGroupContent> {
     let module_batches_graph = module_graph.module_batches(batching_config).await?;
 
-    type ModuleToChunkableMap = FxHashMap<ModuleOrBatch, ChunkableModuleOrBatch>;
+    type ModuleToChunkableMap = FxIndexMap<ModuleOrBatch, ChunkableModuleOrBatch>;
 
     struct TraverseState {
         unsorted_items: ModuleToChunkableMap,
@@ -201,7 +217,7 @@ pub async fn chunk_group_content(
     }
 
     let mut state = TraverseState {
-        unsorted_items: FxHashMap::default(),
+        unsorted_items: FxIndexMap::default(),
         chunkable_items: FxIndexSet::default(),
         async_modules: FxIndexSet::default(),
         traced_modules: FxIndexSet::default(),
@@ -212,10 +228,241 @@ pub async fn chunk_group_content(
         None => None,
     };
 
-    let chunk_group_entries = chunk_group_entries.into_iter();
-    let mut entries = Vec::with_capacity(chunk_group_entries.size_hint().0);
-    for entry in chunk_group_entries {
-        entries.push(module_batches_graph.get_entry_index(entry).await?);
+    let chunk_group_entries = chunk_group_entries.into_iter().collect::<Vec<_>>();
+    let mut entries = Vec::with_capacity(chunk_group_entries.len());
+    for entry in &chunk_group_entries {
+        entries.push(module_batches_graph.get_entry_index(*entry).await?);
+    }
+
+    {
+        let mut state1 = TraverseState {
+            unsorted_items: FxIndexMap::default(),
+            chunkable_items: FxIndexSet::default(),
+            async_modules: FxIndexSet::default(),
+            traced_modules: FxIndexSet::default(),
+        };
+        {
+            module_batches_graph.traverse_edges_from_entries_topological(
+                entries.clone(),
+                &mut state1,
+                |parent_info, &node, state| {
+                    // Traced modules need to have a special handling
+                    if let Some((
+                        _,
+                        ModuleBatchesGraphEdge {
+                            ty: ChunkingType::Traced,
+                            ..
+                        },
+                    )) = parent_info
+                    {
+                        if should_trace {
+                            let ModuleOrBatch::Module(module) = node else {
+                                unreachable!();
+                            };
+                            state.traced_modules.insert(module);
+                        }
+                        return Ok(GraphTraversalAction::Exclude);
+                    }
+
+                    let Some(chunkable_node) = ChunkableModuleOrBatch::from_module_or_batch(node)
+                    else {
+                        return Ok(GraphTraversalAction::Exclude);
+                    };
+
+                    let is_available = available_modules
+                        .as_ref()
+                        .is_some_and(|available_modules| available_modules.get(chunkable_node));
+
+                    let Some((_, edge)) = parent_info else {
+                        // An entry from the entries list
+                        return Ok(if is_available {
+                            GraphTraversalAction::Exclude
+                        } else if state.unsorted_items.insert(node, chunkable_node).is_none() {
+                            GraphTraversalAction::Continue
+                        } else {
+                            GraphTraversalAction::Exclude
+                        });
+                    };
+
+                    Ok(match edge.ty {
+                        ChunkingType::Parallel
+                        | ChunkingType::ParallelInheritAsync
+                        | ChunkingType::Shared { .. } => {
+                            if is_available {
+                                GraphTraversalAction::Exclude
+                            } else if state.unsorted_items.insert(node, chunkable_node).is_none() {
+                                GraphTraversalAction::Continue
+                            } else {
+                                GraphTraversalAction::Exclude
+                            }
+                        }
+                        ChunkingType::Async => {
+                            if can_split_async {
+                                let chunkable_module = ResolvedVc::try_downcast(
+                                    edge.module.unwrap(),
+                                )
+                                .context("Module in async chunking edge is not chunkable")?;
+                                state.async_modules.insert(chunkable_module);
+                                GraphTraversalAction::Exclude
+                            } else if is_available {
+                                GraphTraversalAction::Exclude
+                            } else if state.unsorted_items.insert(node, chunkable_node).is_none() {
+                                GraphTraversalAction::Continue
+                            } else {
+                                GraphTraversalAction::Exclude
+                            }
+                        }
+                        ChunkingType::Traced => {
+                            // handled above before the sidecast
+                            unreachable!();
+                        }
+                        ChunkingType::Isolated { .. } => {
+                            // TODO currently not implemented
+                            GraphTraversalAction::Exclude
+                        }
+                    })
+                },
+                |_, node, state| {
+                    // Insert modules in topological order
+                    if let Some(chunkable_module) = state.unsorted_items.get(node).copied() {
+                        state.chunkable_items.insert(chunkable_module);
+                    }
+                },
+            )?;
+        }
+        let mut state2 = TraverseState {
+            unsorted_items: FxIndexMap::default(),
+            chunkable_items: FxIndexSet::default(),
+            async_modules: FxIndexSet::default(),
+            traced_modules: FxIndexSet::default(),
+        };
+        {
+            let g = module_graph.await?;
+            g.traverse_edges_from_entries_topological(
+                chunk_group_entries,
+                &mut state2,
+                |parent_info, node, state| {
+                    // Traced modules need to have a special handling
+                    if let Some((_, ChunkingType::Traced)) = parent_info {
+                        if should_trace {
+                            state.traced_modules.insert(node.module);
+                        }
+                        return Ok(GraphTraversalAction::Exclude);
+                    }
+
+                    let Some(chunkable_node) = ResolvedVc::try_downcast(node.module) else {
+                        return Ok(GraphTraversalAction::Exclude);
+                    };
+
+                    let is_available =
+                        available_modules.as_ref().is_some_and(|available_modules| {
+                            available_modules.get(ChunkableModuleOrBatch::Module(chunkable_node))
+                        });
+
+                    let Some((_, edge)) = parent_info else {
+                        // An entry from the entries list
+                        return Ok(if is_available {
+                            GraphTraversalAction::Exclude
+                        } else if state
+                            .unsorted_items
+                            .insert(
+                                ModuleOrBatch::Module(node.module),
+                                ChunkableModuleOrBatch::Module(chunkable_node),
+                            )
+                            .is_none()
+                        {
+                            GraphTraversalAction::Continue
+                        } else {
+                            GraphTraversalAction::Exclude
+                        });
+                    };
+
+                    Ok(match edge {
+                        ChunkingType::Parallel
+                        | ChunkingType::ParallelInheritAsync
+                        | ChunkingType::Shared { .. } => {
+                            if is_available {
+                                GraphTraversalAction::Exclude
+                            } else if state
+                                .unsorted_items
+                                .insert(
+                                    ModuleOrBatch::Module(node.module),
+                                    ChunkableModuleOrBatch::Module(chunkable_node),
+                                )
+                                .is_none()
+                            {
+                                GraphTraversalAction::Continue
+                            } else {
+                                GraphTraversalAction::Exclude
+                            }
+                        }
+                        ChunkingType::Async => {
+                            if can_split_async {
+                                let chunkable_module = ResolvedVc::try_downcast(node.module)
+                                    .context("Module in async chunking edge is not chunkable")?;
+                                state.async_modules.insert(chunkable_module);
+                                GraphTraversalAction::Exclude
+                            } else if is_available {
+                                GraphTraversalAction::Exclude
+                            } else if state
+                                .unsorted_items
+                                .insert(
+                                    ModuleOrBatch::Module(node.module),
+                                    ChunkableModuleOrBatch::Module(chunkable_node),
+                                )
+                                .is_none()
+                            {
+                                GraphTraversalAction::Continue
+                            } else {
+                                GraphTraversalAction::Exclude
+                            }
+                        }
+                        ChunkingType::Traced => {
+                            // handled above before the sidecast
+                            unreachable!();
+                        }
+                        ChunkingType::Isolated { .. } => {
+                            // TODO currently not implemented
+                            GraphTraversalAction::Exclude
+                        }
+                    })
+                },
+                |_, node, state| {
+                    // Insert modules in topological order
+                    if let Some(chunkable_module) = state
+                        .unsorted_items
+                        .get(&ModuleOrBatch::Module(node.module))
+                        .copied()
+                    {
+                        state.chunkable_items.insert(chunkable_module);
+                    }
+                },
+            )
+            .await?;
+        }
+        if state1.chunkable_items != state2.chunkable_items {
+            println!(
+                "chunkable_items {:#?}\n{:#?}",
+                state1
+                    .chunkable_items
+                    .iter()
+                    .map(|b| b.ident_strings())
+                    .try_join()
+                    .await?,
+                state2
+                    .chunkable_items
+                    .iter()
+                    .map(|b| b.ident_strings())
+                    .try_join()
+                    .await?
+            );
+        }
+        if state1.async_modules != state2.async_modules {
+            println!(
+                "async_modules {:#?}\n{:#?}",
+                state1.async_modules, state2.async_modules
+            );
+        }
     }
 
     module_batches_graph.traverse_edges_from_entries_topological(
@@ -252,11 +499,7 @@ pub async fn chunk_group_content(
                 // An entry from the entries list
                 return Ok(if is_available {
                     GraphTraversalAction::Exclude
-                } else if state
-                    .unsorted_items
-                    .try_insert(node, chunkable_node)
-                    .is_ok()
-                {
+                } else if state.unsorted_items.insert(node, chunkable_node).is_none() {
                     GraphTraversalAction::Continue
                 } else {
                     GraphTraversalAction::Exclude
@@ -269,11 +512,7 @@ pub async fn chunk_group_content(
                 | ChunkingType::Shared { .. } => {
                     if is_available {
                         GraphTraversalAction::Exclude
-                    } else if state
-                        .unsorted_items
-                        .try_insert(node, chunkable_node)
-                        .is_ok()
-                    {
+                    } else if state.unsorted_items.insert(node, chunkable_node).is_none() {
                         GraphTraversalAction::Continue
                     } else {
                         GraphTraversalAction::Exclude
@@ -287,11 +526,7 @@ pub async fn chunk_group_content(
                         GraphTraversalAction::Exclude
                     } else if is_available {
                         GraphTraversalAction::Exclude
-                    } else if state
-                        .unsorted_items
-                        .try_insert(node, chunkable_node)
-                        .is_ok()
-                    {
+                    } else if state.unsorted_items.insert(node, chunkable_node).is_none() {
                         GraphTraversalAction::Continue
                     } else {
                         GraphTraversalAction::Exclude

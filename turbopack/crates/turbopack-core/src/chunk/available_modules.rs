@@ -96,8 +96,8 @@ impl AvailableModules {
 #[turbo_tasks::value(serialization = "none")]
 #[derive(Debug, Clone)]
 pub struct AvailableModulesSnapshot {
-    parent: Option<ReadRef<AvailableModulesSnapshot>>,
-    modules: ReadRef<AvailableModulesSet>,
+    pub parent: Option<ReadRef<AvailableModulesSnapshot>>,
+    pub modules: ReadRef<AvailableModulesSet>,
 }
 
 impl AvailableModulesSnapshot {

@@ -54,14 +54,15 @@ use turbopack_core::{
     asset::AssetContent,
     chunk::{
         availability_info::AvailabilityInfo, ChunkGroupResult, ChunkingContext, ChunkingContextExt,
-        EvaluatableAsset, EvaluatableAssets,
+        ChunkingType, EvaluatableAsset, EvaluatableAssets,
     },
     file_source::FileSource,
     ident::AssetIdent,
     module::Module,
     module_graph::{
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
-        GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
+        GraphEntries, GraphTraversalAction, ModuleGraph, SingleModuleGraph, SingleModuleGraphNode,
+        VisitedModules,
     },
     output::{OutputAsset, OutputAssets},
     raw_output::RawOutput,
@@ -858,15 +859,75 @@ impl AppProject {
                     // Skip the last server component, which is the page itself, because that one
                     // won't have it's visited modules added, and will be visited in the next step
                     // as part of rsc_entry
-                    for module in server_component_entries
-                        .iter()
-                        .take(server_component_entries.len().saturating_sub(1))
-                    {
+                    for module in server_component_entries.iter() {
                         let graph = SingleModuleGraph::new_with_entries_visited_intern(
                             // This should really be ChunkGroupEntry::Shared(module.await?.module),
                             // but that breaks everything for some reason.
                             vec![ChunkGroupEntry::Entry(vec![ResolvedVc::upcast(*module)])],
                             visited_modules,
+                        );
+                        let mut edges = vec![];
+                        let var_name = graph.await?;
+                        var_name.traverse_edges2(|(p, n)| {
+                            edges.push((p, n));
+                            GraphTraversalAction::Continue
+                        })?;
+                        println!(
+                            "---------\n{:?}\n{}",
+                            module.server_path().to_string().await?,
+                            edges
+                                .into_iter()
+                                .map(async |(a, b)| {
+                                    Ok(format!(
+                                        "{} -> {}",
+                                        if let Some(a) = a {
+                                            format!(
+                                                "{} :: {}",
+                                                match a.0 {
+                                                    SingleModuleGraphNode::Module(n) => {
+                                                        n.module
+                                                            .ident()
+                                                            .to_string()
+                                                            .await?
+                                                            .to_string()
+                                                    }
+                                                    SingleModuleGraphNode::VisitedModule {
+                                                        module,
+                                                        ..
+                                                    } => format!(
+                                                        "visited {}",
+                                                        module.ident().to_string().await?
+                                                    ),
+                                                },
+                                                match a.1 {
+                                                    ChunkingType::Parallel => "Parallel",
+                                                    ChunkingType::ParallelInheritAsync =>
+                                                        "ParallelInheritAsync",
+                                                    ChunkingType::Async => "Async",
+                                                    ChunkingType::Isolated { .. } => "Isolated",
+                                                    ChunkingType::Shared { .. } => "Shared",
+                                                    ChunkingType::Traced => "Traced",
+                                                }
+                                            )
+                                        } else {
+                                            "None".to_string()
+                                        },
+                                        match b {
+                                            SingleModuleGraphNode::Module(n) => {
+                                                n.module.ident().to_string().await?.to_string()
+                                            }
+                                            SingleModuleGraphNode::VisitedModule {
+                                                module, ..
+                                            } => format!(
+                                                "visited {}",
+                                                module.ident().to_string().await?
+                                            ),
+                                        }
+                                    ))
+                                })
+                                .try_join()
+                                .await?
+                                .join("\n")
                         );
                         graphs.push(graph);
                         let is_layout =
@@ -1233,6 +1294,25 @@ impl AppEndpoint {
         let mut entry_client_chunks = FxIndexSet::default();
         // TODO(alexkirsz) In which manifest does this go?
         let mut entry_ssr_chunks = FxIndexSet::default();
+        println!(
+            "layout_segment_client_chunks {} {:#?}",
+            app_entry.pathname,
+            client_references_chunks_ref
+                .layout_segment_client_chunks
+                .iter()
+                .map(async |(k, v)| {
+                    Ok((
+                        k.ident().to_string().await?,
+                        v.await?
+                            .iter()
+                            .map(|m| m.path().to_string())
+                            .try_join()
+                            .await?,
+                    ))
+                })
+                .try_join()
+                .await?
+        );
         for chunks in client_references_chunks_ref
             .layout_segment_client_chunks
             .values()

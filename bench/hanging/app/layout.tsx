@@ -1,14 +1,18 @@
 'use client'
 
+import dynamic from 'next/dynamic'
+
 import { ChannelSubscription } from '@/app/websockets/channel-subscription'
 import { getWebsocketConfig } from '@/app/websockets/websocket-config'
-import { lazy } from 'react'
 
 void getWebsocketConfig()
 void ChannelSubscription
 
-export const ChatClient = lazy(() =>
-  import('./chat.client').then((mod) => ({ default: mod.ChatClient }))
+export const ChatClient = dynamic(
+  () => import('./chat.client').then((mod) => mod.ChatClient),
+  {
+    ssr: false,
+  }
 )
 
 export default function DesktopLayout(props) {
