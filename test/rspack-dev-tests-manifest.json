@@ -808,6 +808,7 @@
   "packages/next/src/lib/load-custom-routes.test.ts": {
     "passed": [
       "loadCustomRoutes rewrites array rewrites should be added to afterFiles",
+      "loadCustomRoutes rewrites assetPrefix automatically insert assetPrefix rewrite for /_next/ paths when assetPrefix is absolute URL with a path",
       "loadCustomRoutes rewrites assetPrefix automatically inserts assetPrefix rewrite for /_next/ paths",
       "loadCustomRoutes rewrites assetPrefix automatically inserts assetPrefix rewrite for /_next/ paths for basePath",
       "loadCustomRoutes rewrites assetPrefix automatically inserts assetPrefix rewrite for /_next/ paths when rewrites() is not present",
@@ -823,9 +824,19 @@
   },
   "packages/next/src/lib/metadata/is-metadata-route.test.ts": {
     "passed": [
-      "getExtensionRegexString with dynamic extensions should match dynamic multi-routes with dynamic extensions",
+      "getExtensionRegexString with dynamic extensions should not handle js extensions with empty dynamic extensions",
+      "getExtensionRegexString with dynamic extensions should not handle js extensions with passing null for dynamic extensions",
       "getExtensionRegexString with dynamic extensions should return the correct regex",
-      "getExtensionRegexString without dynamic extensions should return the correct regex"
+      "getExtensionRegexString without dynamic extensions should return the correct regex",
+      "isMetadataPage should match metadata page path",
+      "isMetadataPage should not match app router page path or error boundary path",
+      "isMetadataRoute should match grouped metadata routes",
+      "isMetadataRoute should match metadata routes",
+      "isMetadataRoute should require suffix for metadata routes",
+      "isMetadataRoute should support metadata variant numeric suffix",
+      "isMetadataRouteFile match file - with extension should match dynamic metadata routes",
+      "isMetadataRouteFile match file - with extension should match static metadata route files",
+      "isMetadataRouteFile match route - without extension should match metadata route page paths"
     ],
     "failed": [],
     "pending": [],
@@ -2852,6 +2863,7 @@
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from 404 after a page has been added",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from 404 after a page has been added with dynamic segments",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from errors in getInitialProps in client",
+      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from errors in the render function",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should show the error on all pages",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after a bad return from the render function",
@@ -2878,7 +2890,6 @@
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should not continously poll a custom error page",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after loader parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from errors in the render function",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should detect runtime errors on the module scope",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should not continously poll a custom error page",
@@ -3819,7 +3830,6 @@
       "app-dir action handling Edge SSR should handle calls to redirect() with a relative URL in a single pass",
       "app-dir action handling Edge SSR should handle calls to redirect() with external URLs",
       "app-dir action handling Edge SSR should return error response for hoc auth wrappers in edge runtime",
-      "app-dir action handling HMR should support updating the action",
       "app-dir action handling caching disabled by default should not override force-cache in server action",
       "app-dir action handling caching disabled by default should not override revalidate in server action",
       "app-dir action handling caching disabled by default should use no-store as default for server action",
@@ -3838,7 +3848,6 @@
       "app-dir action handling fetch actions should revalidate when cookies.set is called",
       "app-dir action handling fetch actions should revalidate when cookies.set is called in a client action",
       "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
-      "app-dir action handling redirects displays searchParams correctly when redirecting with SearchParams",
       "app-dir action handling redirects merges cookies correctly when redirecting",
       "app-dir action handling redirects redirects properly when server action handler redirects with a 307 status code",
       "app-dir action handling redirects redirects properly when server action handler redirects with a 308 status code",
@@ -3853,7 +3862,6 @@
       "app-dir action handling should be possible to catch regular errors",
       "app-dir action handling should bundle external libraries if they are on the action layer",
       "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
-      "app-dir action handling should forward action request to a worker that contains the action handler (node)",
       "app-dir action handling should handle action correctly with middleware rewrite",
       "app-dir action handling should handle actions executed in quick succession",
       "app-dir action handling should handle basic actions correctly",
@@ -3894,7 +3902,10 @@
       "app-dir action handling should work with interception routes"
     ],
     "failed": [
-      "app-dir action handling Edge SSR should handle unicode search params"
+      "app-dir action handling Edge SSR should handle unicode search params",
+      "app-dir action handling HMR should support updating the action",
+      "app-dir action handling redirects displays searchParams correctly when redirecting with SearchParams",
+      "app-dir action handling should forward action request to a worker that contains the action handler (node)"
     ],
     "pending": [
       "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
@@ -4139,6 +4150,7 @@
       "app dir - external dependency react in external esm packages should support namespace import with ESM packages",
       "app dir - external dependency react in external esm packages should use the same react in client app",
       "app dir - external dependency react in external esm packages should use the same react in edge server app",
+      "app dir - external dependency react in external esm packages should use the same react in pages",
       "app dir - external dependency react in external esm packages should use the same react in server app",
       "app dir - external dependency server actions should compile server actions from node_modules in client components",
       "app dir - external dependency server actions should prefer to resolve esm over cjs for bundling optout packages",
@@ -4154,15 +4166,13 @@
       "app dir - external dependency should not apply swc optimizer transform for external packages in browser layer in web worker",
       "app dir - external dependency should resolve 3rd party package exports based on the react-server condition",
       "app dir - external dependency should resolve the subset react in server components based on the react-server condition",
+      "app dir - external dependency should support client module references with SSR-only ESM externals",
       "app dir - external dependency should support exporting multiple star re-exports",
       "app dir - external dependency should transpile specific external packages with the `transpilePackages` option",
       "app dir - external dependency should use the same async storages if imported directly",
       "app dir - external dependency should use the same export type for packages in both ssr and client"
     ],
-    "failed": [
-      "app dir - external dependency react in external esm packages should use the same react in pages",
-      "app dir - external dependency should support client module references with SSR-only ESM externals"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4869,6 +4879,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/asset-prefix-absolute/asset-prefix-absolute.test.ts": {
+    "passed": [
+      "app-dir absolute assetPrefix bundles should return 200 on served assetPrefix"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/asset-prefix-with-basepath/asset-prefix-with-basepath.test.ts": {
     "passed": [
       "app-dir assetPrefix with basePath handling bundles should return 200 on served assetPrefix",
@@ -5358,10 +5377,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/dynamic-import/dynamic-import.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "dynamic-import should render the dynamically imported component"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6220,6 +6239,7 @@
       "app-dir - logging with fetches verbose logging should log each page request only once",
       "app-dir - logging with fetches verbose logging should log requests for client-side navigations",
       "app-dir - logging with fetches verbose logging should log requests with correct indentation",
+      "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches verbose logging should not contain trailing word page for app router routes",
       "app-dir - logging with fetches verbose logging should not limit the number of requests that are logged",
       "app-dir - logging with fetches verbose logging should not log _rsc query for client navigation RSC request",
@@ -6245,7 +6265,6 @@
     "failed": [
       "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches default logging should not contain metadata internal segments for dynamic metadata routes",
-      "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes"
     ],
     "pending": [],
@@ -6389,6 +6408,16 @@
   "test/e2e/app-dir/metadata-non-standard-custom-routes/metadata-non-standard-custom-routes.test.ts": {
     "passed": [
       "app-dir - metadata-non-standard-custom-routes should work with custom sitemap route"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-route-like-pages/metadata-route-like-pages.test.ts": {
+    "passed": [
+      "metadata-route-like-pages should able to visit icon page",
+      "metadata-route-like-pages should able to visit sitemap page"
     ],
     "failed": [],
     "pending": [],
@@ -6643,7 +6672,6 @@
       "app dir - navigation hash-with-scroll-offset should scroll to the specified hash",
       "app dir - navigation locale warnings should have no warnings in pages router",
       "app dir - navigation locale warnings should warn about using the `locale` prop with `next/link` in app router",
-      "app dir - navigation middleware redirect should change browser location when router.refresh() gets a redirect response",
       "app dir - navigation navigating to a page with async metadata shows a fallback when prefetch completed",
       "app dir - navigation navigating to a page with async metadata shows a fallback when prefetch was pending",
       "app dir - navigation navigating to dynamic params & changing the casing should load the page correctly",
@@ -6681,9 +6709,13 @@
       "app dir - navigation relative hashes and queries should work with a hash-only href",
       "app dir - navigation relative hashes and queries should work with a query-only href",
       "app dir - navigation relative hashes and queries should work with both relative hashes and queries",
-      "app dir - navigation scroll restoration should restore original scroll position when navigating back"
+      "app dir - navigation scroll restoration should restore original scroll position when navigating back",
+      "app dir - navigation useRouter identity between navigations should preserve identity when navigating to the same page"
     ],
-    "failed": [],
+    "failed": [
+      "app dir - navigation middleware redirect should change browser location when router.refresh() gets a redirect response",
+      "app dir - navigation useRouter identity between navigations should preserve identity when navigating between different pages"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7264,7 +7296,6 @@
       "parallel-routes-and-interception parallel routes should support parallel route tab bars",
       "parallel-routes-and-interception parallel routes should support parallel routes with no page component",
       "parallel-routes-and-interception parallel routes should throw a 404 when no matching parallel route is found",
-      "parallel-routes-and-interception route intercepting should intercept on routes that contain hyphenated/special dynamic params",
       "parallel-routes-and-interception route intercepting should re-render the layout on the server when it had a default child route",
       "parallel-routes-and-interception route intercepting should render an intercepted route at the top level from a nested path",
       "parallel-routes-and-interception route intercepting should render an intercepted route from a slot",
@@ -7278,7 +7309,9 @@
       "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route",
       "parallel-routes-and-interception-conflicting-pages should gracefully handle when two page segments match the `children` parallel slot"
     ],
-    "failed": [],
+    "failed": [
+      "parallel-routes-and-interception route intercepting should intercept on routes that contain hyphenated/special dynamic params"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7996,12 +8029,12 @@
       "app dir - rsc basics should support streaming for flight response",
       "app dir - rsc basics should suspense next/image in server components",
       "app dir - rsc basics should suspense next/legacy/image in server components",
+      "app dir - rsc basics should track client components in dynamic imports",
       "app dir - rsc basics should use canary react for app"
     ],
     "failed": [
       "app dir - rsc basics should be able to call legacy react-dom/server APIs in client components",
-      "app dir - rsc basics should be able to navigate between rsc routes",
-      "app dir - rsc basics should track client components in dynamic imports"
+      "app dir - rsc basics should be able to navigate between rsc routes"
     ],
     "pending": [
       "app dir - rsc basics should support partial hydration with inlined server data in browser"
@@ -9448,12 +9481,12 @@
   },
   "test/e2e/esm-externals/esm-externals.test.ts": {
     "passed": [
-      "esm-externals app dir url /client should render the correct page"
-    ],
-    "failed": [
+      "esm-externals app dir url /client should render the correct page",
       "esm-externals app dir url /client should return the correct SSR HTML",
       "esm-externals app dir url /server should render the correct page",
-      "esm-externals app dir url /server should return the correct SSR HTML",
+      "esm-externals app dir url /server should return the correct SSR HTML"
+    ],
+    "failed": [
       "esm-externals pages url /ssg should render the correct page",
       "esm-externals pages url /ssg should return the correct SSR HTML",
       "esm-externals pages url /ssr should render the correct page",
@@ -11059,8 +11092,11 @@
     "runtimeError": false
   },
   "test/e2e/react-dnd-compile/react-dnd-compile.test.ts": {
-    "passed": ["react-dnd-compile should work"],
-    "failed": ["react-dnd-compile should work on react-dnd import page"],
+    "passed": [
+      "react-dnd-compile should work",
+      "react-dnd-compile should work on react-dnd import page"
+    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11565,10 +11601,10 @@
     "runtimeError": false
   },
   "test/integration/amp-export-validation/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "AMP Validation on Export production mode should have shown errors during build"
     ],
-    "failed": [],
     "pending": [
       "AMP Validation on Export production mode shows AMP warning without throwing error",
       "AMP Validation on Export production mode shows warning and error when throwing error",
