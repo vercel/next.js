@@ -81,8 +81,6 @@ const PAGES: Record<
     selector: '#helloib',
     color: 'rgb(255, 0, 255)',
     requests: 1,
-    // TODO: this looks weird
-    requestsTurbo: 2,
   },
   'big-interleaved-a': {
     group: 'big-interleaved',
@@ -173,8 +171,6 @@ const PAGES: Record<
     selector: '#helloib',
     color: 'rgb(255, 0, 255)',
     requests: 1,
-    // TODO: this looks weird
-    requestsTurbo: 2,
   },
   'pages-reversed-a': {
     group: 'pages-reversed',
