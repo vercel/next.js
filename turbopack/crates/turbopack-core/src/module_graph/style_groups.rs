@@ -30,8 +30,14 @@ pub struct StyleGroupsConfig {
     pub max_chunk_size: usize,
 }
 
+/// Styling must not be duplicated in the application. The simplest way to achieve this is to put
+/// every styling chunk item into a separate chunk. That works, but isn't efficient since it would
+/// cause a lot of requests. Instead we multiple chunk items are groups together and placed in a
+/// single shared chunk. `StyleGroups` specifies how chunk items are grouped together.
 #[turbo_tasks::value]
 pub struct StyleGroups {
+    /// The key chunk item is contained in the value chunk item batch. All chunk items that are not
+    /// contained in this map are placed in a separate chunk per chunk item.
     pub shared_chunk_items:
         FxIndexMap<ChunkItemWithAsyncModuleInfo, ResolvedVc<ChunkItemBatchWithAsyncModuleInfo>>,
 }
