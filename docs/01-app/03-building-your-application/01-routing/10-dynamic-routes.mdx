@@ -47,11 +47,13 @@ export default async function Page({ params }) {
 
 See the [generateStaticParams()](#generating-static-params) page to learn how to generate the params for the segment.
 
-## Good to know
+---
 
-- Since the `params` prop is a promise. You must use async/await or React's use function to access the values.
-  - In version 14 and earlier, `params` was a synchronous prop. To help with backwards compatibility, you can still access it synchronously in Next.js 15, but this behavior will be deprecated in the future.
-- Dynamic Segments are equivalent to [Dynamic Routes](/docs/pages/building-your-application/routing/dynamic-routes) in the `pages` directory.
+> **Good to know**:
+
+> - Since the `params` prop is a promise. You must use async/await or React's use function to access the values.
+> - In version 14 and earlier, `params` was a synchronous prop. To help with backwards compatibility, you can still access it synchronously in Next.js 15, but this behavior will be deprecated in the future.
+> - Dynamic Segments are equivalent to [Dynamic Routes](/docs/pages/building-your-application/routing/dynamic-routes) in the `pages` directory.
 
 ## Generating Static Params
 
