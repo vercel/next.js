@@ -332,7 +332,7 @@ jobs:
       - name: Upload swc artifact
         uses: actions/upload-artifact@v4
         with:
-          name: next-swc-binaries
+          name: next-swc-binaries-${{ matrix.settings.target }}
           path: packages/next-swc/native/next-swc.*.node
 
       # - name: Upload turbo summary artifact
@@ -390,7 +390,7 @@ jobs:
       - name: Upload swc artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wasm-binaries
+          name: wasm-binaries-${{ matrix.target }}
           path: packages/next-swc/crates/wasm/pkg-*
 
   publishRelease:
@@ -427,12 +427,12 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: next-swc-binaries
+          name: next-swc-binaries-*
           path: packages/next-swc/native
 
       - uses: actions/download-artifact@v4
         with:
-          name: wasm-binaries
+          name: wasm-binaries-*
           path: packages/next-swc/crates/wasm
 
       - run: npm i -g npm@9.6.7 # need latest version for provenance (pinning to avoid bugs)
