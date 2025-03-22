@@ -13,22 +13,9 @@ import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
-import type {
-  CacheNode,
-  AppRouterInstance,
-} from '../../shared/lib/app-router-context.shared-runtime'
-import {
-  ACTION_HMR_REFRESH,
-  ACTION_NAVIGATE,
-  ACTION_PREFETCH,
-  ACTION_REFRESH,
-  ACTION_RESTORE,
-  PrefetchKind,
-} from './router-reducer/router-reducer-types'
-import type {
-  AppRouterState,
-  NavigateAction,
-} from './router-reducer/router-reducer-types'
+import type { CacheNode } from '../../shared/lib/app-router-context.shared-runtime'
+import { ACTION_RESTORE } from './router-reducer/router-reducer-types'
+import type { AppRouterState } from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
   SearchParamsContext,
@@ -52,18 +39,19 @@ import { hasBasePath } from '../has-base-path'
 import { getSelectedParams } from './router-reducer/compute-changed-path'
 import type { FlightRouterState } from '../../server/app-render/types'
 import { useNavFailureHandler } from './nav-failure-handler'
-import type { AppRouterActionQueue } from './app-router-instance'
-import { prefetch as prefetchWithSegmentCache } from './segment-cache'
+import {
+  publicAppRouterInstance,
+  type AppRouterActionQueue,
+} from './app-router-instance'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { isRedirectError, RedirectType } from './redirect-error'
-import { prefetchReducer } from './router-reducer/reducers/prefetch-reducer'
 import { pingVisibleLinks } from './links'
 
 const globalMutable: {
   pendingMpaPath?: string
 } = {}
 
-function isExternalURL(url: URL) {
+export function isExternalURL(url: URL) {
   return url.origin !== window.location.origin
 }
 
@@ -164,28 +152,6 @@ export function createEmptyCacheNode(): CacheNode {
   }
 }
 
-function dispatchNavigateAction(
-  href: string,
-  navigateType: NavigateAction['navigateType'],
-  shouldScroll: boolean
-): void {
-  // TODO: This stuff could just go into the reducer. Leaving as-is for now
-  // since we're about to rewrite all the router reducer stuff anyway.
-  const url = new URL(addBasePath(href), location.href)
-  if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
-    window.next.__pendingUrl = url
-  }
-  dispatchAppRouterAction({
-    type: ACTION_NAVIGATE,
-    url,
-    isExternalUrl: isExternalURL(url),
-    locationSearch: location.search,
-    shouldScroll,
-    navigateType,
-    allowAliasing: true,
-  })
-}
-
 function copyNextJsInternalHistoryState(data: any) {
   if (data == null) data = {}
   const currentState = window.history.state
@@ -253,85 +219,6 @@ function Router({
     }
   }, [canonicalUrl])
 
-  /**
-   * The app router that is exposed through `useRouter`. It's only concerned with dispatching actions to the reducer, does not hold state.
-   */
-  const appRouter = useMemo<AppRouterInstance>(() => {
-    const routerInstance: AppRouterInstance = {
-      back: () => window.history.back(),
-      forward: () => window.history.forward(),
-      prefetch: process.env.__NEXT_CLIENT_SEGMENT_CACHE
-        ? // Unlike the old implementation, the Segment Cache doesn't store its
-          // data in the router reducer state; it writes into a global mutable
-          // cache. So we don't need to dispatch an action.
-          (href, options) =>
-            prefetchWithSegmentCache(
-              href,
-              actionQueue.state.nextUrl,
-              actionQueue.state.tree,
-              options?.kind === PrefetchKind.FULL
-            )
-        : (href, options) => {
-            // Use the old prefetch implementation.
-            const url = createPrefetchURL(href)
-            if (url !== null) {
-              // The prefetch reducer doesn't actually update any state or
-              // trigger a rerender. It just writes to a mutable cache. So we
-              // shouldn't bother calling setState/dispatch; we can just re-run
-              // the reducer directly using the current state.
-              // TODO: Refactor this away from a "reducer" so it's
-              // less confusing.
-              prefetchReducer(actionQueue.state, {
-                type: ACTION_PREFETCH,
-                url,
-                kind: options?.kind ?? PrefetchKind.FULL,
-              })
-            }
-          },
-      replace: (href, options = {}) => {
-        startTransition(() => {
-          dispatchNavigateAction(href, 'replace', options.scroll ?? true)
-        })
-      },
-      push: (href, options = {}) => {
-        startTransition(() => {
-          dispatchNavigateAction(href, 'push', options.scroll ?? true)
-        })
-      },
-      refresh: () => {
-        startTransition(() => {
-          dispatchAppRouterAction({
-            type: ACTION_REFRESH,
-            origin: window.location.origin,
-          })
-        })
-      },
-      hmrRefresh: () => {
-        if (process.env.NODE_ENV !== 'development') {
-          throw new Error(
-            'hmrRefresh can only be used in development mode. Please use refresh instead.'
-          )
-        } else {
-          startTransition(() => {
-            dispatchAppRouterAction({
-              type: ACTION_HMR_REFRESH,
-              origin: window.location.origin,
-            })
-          })
-        }
-      },
-    }
-
-    return routerInstance
-  }, [actionQueue])
-
-  useEffect(() => {
-    // Exists for debugging purposes. Don't use in application code.
-    if (window.next) {
-      window.next.router = appRouter
-    }
-  }, [appRouter])
-
   if (process.env.NODE_ENV !== 'production') {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const { cache, prefetchCache, tree } = state
@@ -343,12 +230,12 @@ function Router({
       // This is not meant for use in applications as concurrent rendering will affect the cache/tree/router.
       // @ts-ignore this is for debugging
       window.nd = {
-        router: appRouter,
+        router: publicAppRouterInstance,
         cache,
         prefetchCache,
         tree,
       }
-    }, [appRouter, cache, prefetchCache, tree])
+    }, [cache, prefetchCache, tree])
   }
 
   useEffect(() => {
@@ -394,10 +281,12 @@ function Router({
         event.preventDefault()
         const url = getURLFromRedirectError(error)
         const redirectType = getRedirectTypeFromError(error)
+        // TODO: This should access the router methods directly, rather than
+        // go through the public interface.
         if (redirectType === RedirectType.push) {
-          appRouter.push(url, {})
+          publicAppRouterInstance.push(url, {})
         } else {
-          appRouter.replace(url, {})
+          publicAppRouterInstance.replace(url, {})
         }
       }
     }
@@ -408,7 +297,7 @@ function Router({
       window.removeEventListener('error', handleUnhandledRedirect)
       window.removeEventListener('unhandledrejection', handleUnhandledRedirect)
     }
-  }, [appRouter])
+  }, [])
 
   // When mpaNavigation flag is set do a hard navigation to the new url.
   // Infinitely suspend because we don't actually want to rerender any child
@@ -643,7 +532,12 @@ function Router({
             <GlobalLayoutRouterContext.Provider
               value={globalLayoutRouterContext}
             >
-              <AppRouterContext.Provider value={appRouter}>
+              {/* TODO: We should be able to remove this context. useRouter
+                  should import from app-router-instance instead. It's only
+                  necessary because useRouter is shared between Pages and
+                  App Router. We should fork that module, then remove this
+                  context provider. */}
+              <AppRouterContext.Provider value={publicAppRouterInstance}>
                 <LayoutRouterContext.Provider value={layoutRouterContext}>
                   {content}
                 </LayoutRouterContext.Provider>
