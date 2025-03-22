@@ -6,10 +6,10 @@ import {
   ACTION_SERVER_ACTION,
   ACTION_NAVIGATE,
   ACTION_RESTORE,
-} from '../../../client/components/router-reducer/router-reducer-types'
-import { reducer } from '../../../client/components/router-reducer/router-reducer'
+} from './router-reducer/router-reducer-types'
+import { reducer } from './router-reducer/router-reducer'
 import { startTransition } from 'react'
-import { isThenable } from '../is-thenable'
+import { isThenable } from '../../shared/lib/is-thenable'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 
