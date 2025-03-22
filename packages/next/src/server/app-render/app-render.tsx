@@ -468,7 +468,6 @@ async function generateDynamicRSCPayload(
   const {
     componentMod: {
       tree: loaderTree,
-      createServerSearchParamsForMetadata,
       createMetadataComponents,
       MetadataBoundary,
       ViewportBoundary,
@@ -487,7 +486,6 @@ async function generateDynamicRSCPayload(
   if (!options?.skipFlight) {
     const preloadCallbacks: PreloadCallbacks = []
 
-    const searchParams = createServerSearchParamsForMetadata(query, workStore)
     const {
       ViewportTree,
       MetadataTree,
@@ -496,7 +494,7 @@ async function generateDynamicRSCPayload(
       StreamingMetadataOutlet,
     } = createMetadataComponents({
       tree: loaderTree,
-      searchParams,
+      parsedQuery: query,
       metadataContext: createTrackedMetadataContext(
         url.pathname,
         ctx.renderOpts,
@@ -786,7 +784,6 @@ async function getRSCPayload(
     appUsingSizeAdjustment,
     componentMod: {
       GlobalError,
-      createServerSearchParamsForMetadata,
       createMetadataComponents,
       MetadataBoundary,
       ViewportBoundary,
@@ -802,7 +799,6 @@ async function getRSCPayload(
   )
   const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
 
-  const searchParams = createServerSearchParamsForMetadata(query, workStore)
   const {
     ViewportTree,
     MetadataTree,
@@ -812,7 +808,7 @@ async function getRSCPayload(
   } = createMetadataComponents({
     tree,
     errorType: is404 ? 'not-found' : undefined,
-    searchParams,
+    parsedQuery: query,
     metadataContext: createTrackedMetadataContext(
       url.pathname,
       ctx.renderOpts,
@@ -926,7 +922,6 @@ async function getErrorRSCPayload(
     appUsingSizeAdjustment,
     componentMod: {
       GlobalError,
-      createServerSearchParamsForMetadata,
       createMetadataComponents,
       MetadataBoundary,
       ViewportBoundary,
@@ -937,10 +932,9 @@ async function getErrorRSCPayload(
   } = ctx
 
   const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
-  const searchParams = createServerSearchParamsForMetadata(query, workStore)
   const { MetadataTree, ViewportTree } = createMetadataComponents({
     tree,
-    searchParams,
+    parsedQuery: query,
     // We create an untracked metadata context here because we can't postpone
     // again during the error render.
     metadataContext: createMetadataContext(url.pathname, ctx.renderOpts),
