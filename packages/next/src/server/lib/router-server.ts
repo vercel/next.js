@@ -34,6 +34,7 @@ import {
 } from '../../shared/lib/constants'
 import { DevBundlerService } from './dev-bundler-service'
 import type { TLSSocket } from 'tls'
+import { filterInternalHeaders } from './server-ipc/utils'
 
 const debug = setupDebug('next:router-server:main')
 
@@ -133,6 +134,12 @@ export async function initialize(opts: {
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
 
+  const randomBytes = new Uint8Array(8)
+  crypto.getRandomValues(randomBytes)
+  const middlewareSubrequestId = Buffer.from(randomBytes).toString('hex')
+  ;(globalThis as any)[Symbol.for('@next/middleware-subrequest-id')] =
+    middlewareSubrequestId
+
   const renderServerOpts: Parameters<RenderServer['initialize']>[0] = {
     port: opts.port,
     dir: opts.dir,
@@ -170,6 +177,11 @@ export async function initialize(opts: {
   )
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
+    // internal headers should not be honored by the request handler
+    if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
+      filterInternalHeaders(req.headers)
+    }
+
     if (compress) {
       // @ts-expect-error not express req/res
       compress(req, res, () => {})

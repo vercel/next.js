@@ -21,6 +21,7 @@ describe('minimal-mode-response-cache', () => {
   beforeAll(async () => {
     // test build against environment with next support
     process.env.NOW_BUILDER = '1'
+    process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
 
     next = await createNext({
       files: new FileRef(join(__dirname, 'app')),
@@ -82,6 +83,7 @@ describe('minimal-mode-response-cache', () => {
     )
   })
   afterAll(async () => {
+    delete process.env.NEXT_PRIVATE_TEST_HEADERS
     await next.destroy()
     if (server) await killApp(server)
   })

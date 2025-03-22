@@ -38,6 +38,7 @@ describe('required server files i18n', () => {
       wasmPkgIsAvailable = true
       console.warn(`Testing wasm fallback handling`)
     }
+    process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
 
     next = await createNext({
       files: {
@@ -127,6 +128,7 @@ describe('required server files i18n', () => {
     )
   })
   afterAll(async () => {
+    delete process.env.NEXT_PRIVATE_TEST_HEADERS
     await next.destroy()
     if (server) await killApp(server)
   })
