@@ -4,7 +4,6 @@ import React, {
   use,
   useEffect,
   useMemo,
-  useCallback,
   startTransition,
   useInsertionEffect,
   useDeferredValue,
@@ -24,14 +23,11 @@ import {
   ACTION_PREFETCH,
   ACTION_REFRESH,
   ACTION_RESTORE,
-  ACTION_SERVER_PATCH,
   PrefetchKind,
 } from './router-reducer/router-reducer-types'
 import type {
   AppRouterState,
   NavigateAction,
-  ReducerActions,
-  RouterChangeByServerResponse,
 } from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
@@ -169,26 +165,6 @@ export function createEmptyCacheNode(): CacheNode {
   }
 }
 
-/**
- * Server response that only patches the cache and tree.
- */
-function useChangeByServerResponse(
-  dispatch: React.Dispatch<ReducerActions>
-): RouterChangeByServerResponse {
-  return useCallback(
-    ({ previousTree, serverResponse }) => {
-      startTransition(() => {
-        dispatch({
-          type: ACTION_SERVER_PATCH,
-          previousTree,
-          serverResponse,
-        })
-      })
-    },
-    [dispatch]
-  )
-}
-
 function dispatchNavigateAction(
   href: string,
   navigateType: NavigateAction['navigateType'],
@@ -278,9 +254,6 @@ function Router({
     }
   }, [canonicalUrl])
 
-  const changeByServerResponse = useChangeByServerResponse(
-    dispatchAppRouterAction
-  )
   useServerActionDispatcher(dispatchAppRouterAction)
 
   /**
@@ -599,12 +572,11 @@ function Router({
 
   const globalLayoutRouterContext = useMemo(() => {
     return {
-      changeByServerResponse,
       tree,
       focusAndScrollRef,
       nextUrl,
     }
-  }, [changeByServerResponse, tree, focusAndScrollRef, nextUrl])
+  }, [tree, focusAndScrollRef, nextUrl])
 
   let head
   if (matchingHead !== null) {
