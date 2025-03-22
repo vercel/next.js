@@ -322,12 +322,12 @@ jobs:
             echo "turbopack.bytesize.$FILENAME:$BYTESIZE" > ./turbopack-bin-size/${{ matrix.settings.target }}
           done
 
-      - name: Upload turbopack bytesize artifact
-        if: ${{ steps.check-did-build.outputs.DID_BUILD == 'yup' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: turbopack-bytesize
-          path: turbopack-bin-size/*
+      # - name: Upload turbopack bytesize artifact
+      #   if: ${{ steps.check-did-build.outputs.DID_BUILD == 'yup' }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: turbopack-bytesize
+      #     path: turbopack-bin-size/*
 
       - name: Upload swc artifact
         uses: actions/upload-artifact@v4
@@ -381,11 +381,11 @@ jobs:
       - name: Add target to folder name
         run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
 
-      - name: Upload turbo summary artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pnpm dlx turbo@${TURBO_VERSION} run summary
-          path: .turbo/runs
+      # - name: Upload turbo summary artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: pnpm dlx turbo@${TURBO_VERSION} run summary
+      #     path: .turbo/runs
 
       - name: Upload swc artifact
         uses: actions/upload-artifact@v4
@@ -427,12 +427,14 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: next-swc-binaries-*
+          pattern: next-swc-binaries-*
+          merge-multiple: true
           path: packages/next-swc/native
 
       - uses: actions/download-artifact@v4
         with:
-          name: wasm-binaries-*
+          pattern: wasm-binaries-*
+          merge-multiple: true
           path: packages/next-swc/crates/wasm
 
       - run: npm i -g npm@9.6.7 # need latest version for provenance (pinning to avoid bugs)
@@ -479,7 +481,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: next-swc-binaries
+          name: next-swc-binaries-*
           path: packages/next-swc/native
 
       - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native
