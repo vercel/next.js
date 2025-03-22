@@ -2725,6 +2725,18 @@
     "flakey": [],
     "runtimeError": true
   },
+  "test/development/basic/allowed-dev-origins.test.ts": {
+    "passed": [
+      "allowed-dev-origins, basePath: \"\" block mode should not allow dev WebSocket from cross-site",
+      "allowed-dev-origins, basePath: \"\" block mode should not allow loading scripts from cross-site",
+      "allowed-dev-origins, basePath: \"\" warn mode should not allow loading scripts from cross-site",
+      "allowed-dev-origins, basePath: \"\" warn mode should warn about WebSocket from cross-site"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/basic/asset-prefix/asset-prefix.test.ts": {
     "passed": [
       "asset-prefix rewrites rewrites that do not start with assetPrefix should still work",
@@ -2964,14 +2976,10 @@
     "passed": [
       "misc basic dev tests, basePath: \"\" With Security Related Issues should handle encoded / value for trailing slash correctly",
       "misc basic dev tests, basePath: \"\" With Security Related Issues should not allow accessing files outside .next/static and .next/server directory",
-      "misc basic dev tests, basePath: \"\" With Security Related Issues should not allow dev WebSocket from cross-site",
-      "misc basic dev tests, basePath: \"\" With Security Related Issues should not allow loading scripts from cross-site",
       "misc basic dev tests, basePath: \"\" should allow access to public files",
       "misc basic dev tests, basePath: \"\" should set process.env.NODE_ENV in development",
       "misc basic dev tests, basePath: \"/docs\" With Security Related Issues should handle encoded / value for trailing slash correctly",
       "misc basic dev tests, basePath: \"/docs\" With Security Related Issues should not allow accessing files outside .next/static and .next/server directory",
-      "misc basic dev tests, basePath: \"/docs\" With Security Related Issues should not allow dev WebSocket from cross-site",
-      "misc basic dev tests, basePath: \"/docs\" With Security Related Issues should not allow loading scripts from cross-site",
       "misc basic dev tests, basePath: \"/docs\" should allow access to public files",
       "misc basic dev tests, basePath: \"/docs\" should set process.env.NODE_ENV in development"
     ],
@@ -4754,7 +4762,6 @@
       "app dir - basic HMR should HMR correctly for client component",
       "app dir - basic HMR should HMR correctly for server component",
       "app dir - basic bootstrap scripts should only bootstrap with one script, prinitializing the rest",
-      "app dir - basic data fetch with response over 16KB with chunked encoding should load page when fetching a large amount of data",
       "app dir - basic known bugs should handle as on next/link",
       "app dir - basic known bugs should handle next/link back to initially loaded page",
       "app dir - basic known bugs should handle router.refresh without resetting state",
@@ -4843,6 +4850,7 @@
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
       "app dir - basic bootstrap scripts should fail to bootstrap when using CSP in Dev due to eval",
+      "app dir - basic data fetch with response over 16KB with chunked encoding should load page when fetching a large amount of data",
       "app dir - basic should serve polyfills for browsers that do not support modules"
     ],
     "pending": [
@@ -6239,7 +6247,6 @@
       "app-dir - logging with fetches verbose logging should log each page request only once",
       "app-dir - logging with fetches verbose logging should log requests for client-side navigations",
       "app-dir - logging with fetches verbose logging should log requests with correct indentation",
-      "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches verbose logging should not contain trailing word page for app router routes",
       "app-dir - logging with fetches verbose logging should not limit the number of requests that are logged",
       "app-dir - logging with fetches verbose logging should not log _rsc query for client navigation RSC request",
@@ -6265,6 +6272,7 @@
     "failed": [
       "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches default logging should not contain metadata internal segments for dynamic metadata routes",
+      "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes"
     ],
     "pending": [],
@@ -6674,7 +6682,6 @@
       "app dir - navigation locale warnings should warn about using the `locale` prop with `next/link` in app router",
       "app dir - navigation navigating to a page with async metadata shows a fallback when prefetch completed",
       "app dir - navigation navigating to a page with async metadata shows a fallback when prefetch was pending",
-      "app dir - navigation navigating to dynamic params & changing the casing should load the page correctly",
       "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from app to pages",
       "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from pages to app",
       "app dir - navigation navigation between pages and app should not omit the hash while navigating from app to pages",
@@ -6710,11 +6717,12 @@
       "app dir - navigation relative hashes and queries should work with a query-only href",
       "app dir - navigation relative hashes and queries should work with both relative hashes and queries",
       "app dir - navigation scroll restoration should restore original scroll position when navigating back",
+      "app dir - navigation useRouter identity between navigations should preserve identity when navigating between different pages",
       "app dir - navigation useRouter identity between navigations should preserve identity when navigating to the same page"
     ],
     "failed": [
       "app dir - navigation middleware redirect should change browser location when router.refresh() gets a redirect response",
-      "app dir - navigation useRouter identity between navigations should preserve identity when navigating between different pages"
+      "app dir - navigation navigating to dynamic params & changing the casing should load the page correctly"
     ],
     "pending": [],
     "flakey": [],
@@ -11601,10 +11609,10 @@
     "runtimeError": false
   },
   "test/integration/amp-export-validation/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "AMP Validation on Export production mode should have shown errors during build"
     ],
+    "failed": [],
     "pending": [
       "AMP Validation on Export production mode shows AMP warning without throwing error",
       "AMP Validation on Export production mode shows warning and error when throwing error",
@@ -13007,7 +13015,10 @@
     "runtimeError": false
   },
   "test/integration/css/test/css-rendering.test.js": {
-    "passed": [],
+    "passed": [
+      "CSS Support Page reload on CSS missing useLightnincsss(false) production mode should fall back to server-side transition on missing CSS",
+      "CSS Support Page reload on CSS missing useLightnincsss(true) production mode should fall back to server-side transition on missing CSS"
+    ],
     "failed": [],
     "pending": [
       "CSS Support CSS Cleanup on Render Failure useLightnincsss(false) production mode not have intermediary page styles on error rendering",
@@ -13024,8 +13035,6 @@
       "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(true) production mode should hydrate black without dependencies manifest",
       "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(true) production mode should hydrate red without dependencies manifest",
       "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(true) production mode should route from black to red without dependencies",
-      "CSS Support Page reload on CSS missing useLightnincsss(false) production mode should fall back to server-side transition on missing CSS",
-      "CSS Support Page reload on CSS missing useLightnincsss(true) production mode should fall back to server-side transition on missing CSS",
       "CSS Support production mode CSS Import from node_modules useLightnincsss(false) should fail the build",
       "CSS Support production mode CSS Import from node_modules useLightnincsss(true) should fail the build"
     ],
