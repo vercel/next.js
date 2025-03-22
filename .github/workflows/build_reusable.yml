@@ -181,21 +181,21 @@ jobs:
       - run: /bin/bash -c "${{ inputs.afterBuild }}"
         if: ${{(inputs.skipForDocsOnly != 'yes' || steps.docs-change.outputs.DOCS_CHANGE == 'nope') && (inputs.skipForRelease != 'yes' || steps.is-release.outputs.IS_RELEASE == 'nope')}}
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: turbo run summary
-          path: .turbo/runs
+      # - name: Upload artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: turbo run summary
+      #     path: .turbo/runs
 
-      - name: Upload test reports artifact
-        uses: actions/upload-artifact@v4
-        if: ${{ inputs.afterBuild }}
-        with:
-          name: Test trace reports
-          path: |
-            test/test-junit-report
-            test/turbopack-test-junit-report
-          if-no-files-found: ignore
+      # - name: Upload test reports artifact
+      #   uses: actions/upload-artifact@v4
+      #   if: ${{ inputs.afterBuild }}
+      #   with:
+      #     name: Test trace reports
+      #     path: |
+      #       test/test-junit-report
+      #       test/turbopack-test-junit-report
+      #     if-no-files-found: ignore
 
       - name: Download test reports artifact
         id: download-test-reports
