@@ -318,6 +318,37 @@ describe.each([['', '/docs']])(
           server.close()
         }
       })
+
+      it('should load images regardless of allowed origins', async () => {
+        const { server, port } = await createHostServer()
+        try {
+          const browser = await webdriver(`http://127.0.0.1:${port}`, '/about')
+
+          const imageSnippet = `(() => {
+            const statusEl = document.createElement('p')
+            statusEl.id = 'status'
+            document.querySelector('body').appendChild(statusEl)
+
+            const image = document.createElement('img')
+            image.src = "${next.url}/_next/image?url=%2Fimage.png&w=256&q=75"
+            document.querySelector('body').appendChild(image)
+            image.onload = () => {
+              statusEl.innerText = 'OK'
+            }
+            image.onerror = () => {
+              statusEl.innerText = 'Unauthorized'
+            }
+          })()`
+
+          await browser.eval(imageSnippet)
+
+          await retry(async () => {
+            expect(await browser.elementByCss('#status').text()).toBe('OK')
+          })
+        } finally {
+          server.close()
+        }
+      })
     })
   }
 )
