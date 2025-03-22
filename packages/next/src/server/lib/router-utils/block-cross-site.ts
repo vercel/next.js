@@ -50,8 +50,9 @@ export const blockCrossSite = (
     allowedOrigins.push(hostname)
   }
 
-  // only process _next URLs
-  if (!req.url?.includes('/_next')) {
+  // only process internal URLs/middleware
+  // TODO: We should standardize on a single prefix for this
+  if (!req.url?.includes('/_next') && !req.url?.includes('/__nextjs')) {
     return false
   }
   // block non-cors request from cross-site e.g. script tag on
