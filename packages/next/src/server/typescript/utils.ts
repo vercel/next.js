@@ -31,7 +31,7 @@ export function init(opts: {
     '^' + (projectDir + '(/src)?/app').replace(/[\\/]/g, '[\\/]')
   )
 
-  log('[next] Initializing Next.js TypeScript plugin at ' + projectDir)
+  log('[next] Initializing Next.js TypeScript plugin: ' + projectDir)
 
   const compilerOptions = info.project.getCompilerOptions()
   // const fsMap = new Map<string, string>()
@@ -54,7 +54,7 @@ export function init(opts: {
     throw new Error('[next] Failed to create virtual TypeScript environment.')
   }
 
-  log('[next] Successfully initialized Next.js TypeScript plugin!!')
+  log('[next] Successfully initialized Next.js TypeScript plugin!')
 
   return virtualTsEnv
 }
