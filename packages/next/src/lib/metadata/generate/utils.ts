@@ -27,17 +27,25 @@ function getOrigin(url: string | URL): string | undefined {
 
 /**
  * Escapes a string for safe inclusion in XML.
- * - Escapes &, <, >, ", '
+ * Only XML-safe entities (&amp;, &lt;, &gt;, &quot;, &apos;) are allowed.
+ * Others like &copy; or &nbsp; are escaped to prevent invalid XML.
+
  * - Prevents double-escaping of known entities like &amp;
  */
-function escapeXmlValue(input: unknown): string {
-  if (typeof input !== 'string') return ''
-  return input
-    .replace(/&(?!(?:amp|lt|gt|quot|apos);)/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/'/g, '&apos;')
-    .replace(/"/g, '&quot;')
+
+const xmlEscapeMap: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  "'": '&apos;',
+  '"': '&quot;',
+}
+
+function escapeXmlValue(input: string): string {
+  return input.replace(
+    /&(?!(?:amp|lt|gt|quot|apos);)|[<>'"]/g,
+    (char) => xmlEscapeMap[char] || char
+  )
 }
 
 export { resolveAsArrayOrUndefined, resolveArray, getOrigin, escapeXmlValue }
