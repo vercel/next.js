@@ -101,14 +101,13 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
               2
             )
         )
-
-        return prior
       }
 
       // Add auto completions for export configs.
       entryConfig.addCompletionsAtPosition(fileName, position, prior)
 
-      const source = getSourceFromVirtualTsEnv(fileName)
+      const source = getSource(fileName)
+      log('[next] getSource: ' + JSON.stringify(source?.text, null, 2))
       if (!source) return prior
 
       ts.forEachChild(source!, (node) => {
@@ -144,14 +143,9 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       preferences: tsModule.UserPreferences,
       data: tsModule.CompletionEntryData
     ) => {
-      log('getCompletionEntryDetails starting ')
       const entryCompletionEntryDetails = entryConfig.getCompletionEntryDetails(
         entryName,
         data
-      )
-      log(
-        'getCompletionEntryDetails entryCompletionEntryDetails: ' +
-          JSON.stringify(entryCompletionEntryDetails, null, 2)
       )
       if (entryCompletionEntryDetails) return entryCompletionEntryDetails
 
@@ -165,20 +159,6 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         data
       )
 
-      // log(
-      //   'getCompletionEntryDetails metadataCompletionEntryDetails: ' +
-      //     JSON.stringify(
-      //       {
-      //         fileName,
-      //         entryName,
-      //         position,
-      //         metadataCompletionEntryDetails: ,
-      //         formatOptions,
-      //       },
-      //       null,
-      //       2
-      //     )
-      // )
       if (metadataCompletionEntryDetails) return metadataCompletionEntryDetails
 
       log('getCompletionEntryDetails none')
