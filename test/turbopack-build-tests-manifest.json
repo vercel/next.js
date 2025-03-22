@@ -1525,11 +1525,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/css-chunking/css-chunking.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "css-chunking should be possible to disable the chunking plugin"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -1562,6 +1562,8 @@
       "css-order turbo should load correct styles navigating back again first-client -> second -> first-client -> second",
       "css-order turbo should load correct styles navigating back again first-client -> second-client -> first-client -> second-client",
       "css-order turbo should load correct styles navigating back again first-client -> third -> first-client -> third",
+      "css-order turbo should load correct styles navigating back again interleaved-a -> interleaved-b -> interleaved-a -> interleaved-b",
+      "css-order turbo should load correct styles navigating back again interleaved-b -> interleaved-a -> interleaved-b -> interleaved-a",
       "css-order turbo should load correct styles navigating back again pages-first -> pages-second -> pages-first -> pages-second",
       "css-order turbo should load correct styles navigating back again pages-first -> pages-third -> pages-first -> pages-third",
       "css-order turbo should load correct styles navigating back again pages-interleaved-a -> pages-interleaved-b -> pages-interleaved-a -> pages-interleaved-b",
@@ -1590,6 +1592,8 @@
       "css-order turbo should load correct styles navigating first-client -> second",
       "css-order turbo should load correct styles navigating first-client -> second-client",
       "css-order turbo should load correct styles navigating first-client -> third",
+      "css-order turbo should load correct styles navigating interleaved-a -> interleaved-b",
+      "css-order turbo should load correct styles navigating interleaved-b -> interleaved-a",
       "css-order turbo should load correct styles navigating pages-first -> pages-second",
       "css-order turbo should load correct styles navigating pages-first -> pages-third",
       "css-order turbo should load correct styles navigating pages-interleaved-a -> pages-interleaved-b",
@@ -1614,8 +1618,6 @@
       "css-order turbo should load correct styles on big-interleaved-b",
       "css-order turbo should load correct styles on first",
       "css-order turbo should load correct styles on first-client",
-      "css-order turbo should load correct styles on global-first",
-      "css-order turbo should load correct styles on global-second",
       "css-order turbo should load correct styles on interleaved-a",
       "css-order turbo should load correct styles on interleaved-b",
       "css-order turbo should load correct styles on pages-first",
@@ -1645,12 +1647,8 @@
     "pending": [
       "css-order turbo should load correct styles navigating back again big-interleaved-a -> big-interleaved-b -> big-interleaved-a -> big-interleaved-b",
       "css-order turbo should load correct styles navigating back again big-interleaved-b -> big-interleaved-a -> big-interleaved-b -> big-interleaved-a",
-      "css-order turbo should load correct styles navigating back again interleaved-a -> interleaved-b -> interleaved-a -> interleaved-b",
-      "css-order turbo should load correct styles navigating back again interleaved-b -> interleaved-a -> interleaved-b -> interleaved-a",
       "css-order turbo should load correct styles navigating big-interleaved-a -> big-interleaved-b",
-      "css-order turbo should load correct styles navigating big-interleaved-b -> big-interleaved-a",
-      "css-order turbo should load correct styles navigating interleaved-a -> interleaved-b",
-      "css-order turbo should load correct styles navigating interleaved-b -> interleaved-a"
+      "css-order turbo should load correct styles navigating big-interleaved-b -> big-interleaved-a"
     ],
     "flakey": [],
     "runtimeError": false
@@ -3348,11 +3346,10 @@
     "passed": [
       "next-dynamic-css should have correct order of global styles between layout and pages",
       "next-dynamic-css should have correct order of styles between global and css modules",
+      "next-dynamic-css should have correct order of styles on client component that is sharing styles with next/dynamic",
       "next-dynamic-css should have correct order of styles on next/dynamic loaded component"
     ],
-    "failed": [
-      "next-dynamic-css should have correct order of styles on client component that is sharing styles with next/dynamic"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9707,10 +9704,10 @@
     ],
     "failed": [],
     "pending": [
-      "CSS Support Page reload on CSS missing useLightnincsss(false) production mode should fall back to server-side transition on missing CSS",
-      "CSS Support Page reload on CSS missing useLightnincsss(true) production mode should fall back to server-side transition on missing CSS",
       "CSS Support CSS Cleanup on Render Failure useLightnincsss(false) production mode not have intermediary page styles on error rendering",
-      "CSS Support CSS Cleanup on Render Failure useLightnincsss(true) production mode not have intermediary page styles on error rendering"
+      "CSS Support CSS Cleanup on Render Failure useLightnincsss(true) production mode not have intermediary page styles on error rendering",
+      "CSS Support Page reload on CSS missing useLightnincsss(false) production mode should fall back to server-side transition on missing CSS",
+      "CSS Support Page reload on CSS missing useLightnincsss(true) production mode should fall back to server-side transition on missing CSS"
     ],
     "flakey": [],
     "runtimeError": false
