@@ -24,7 +24,6 @@ import {
 } from '../request/search-params'
 import {
   createServerParamsForServerSegment,
-  createServerParamsForMetadata,
   createPrerenderParamsForClientSegment,
 } from '../request/params'
 import * as serverHooks from '../../client/components/hooks-server-context'
@@ -63,7 +62,6 @@ export {
   createServerSearchParamsForMetadata,
   createPrerenderSearchParamsForClientPage,
   createServerParamsForServerSegment,
-  createServerParamsForMetadata,
   createPrerenderParamsForClientSegment,
   serverHooks,
   preloadStyle,

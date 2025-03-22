@@ -2,7 +2,6 @@ import React, { Suspense, cache, cloneElement } from 'react'
 import type { ParsedUrlQuery } from 'querystring'
 import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
-import type { CreateServerParamsForMetadata } from '../../server/request/params'
 import type { StreamingMetadataResolvedState } from '../../client/components/metadata/types'
 import {
   AppleWebAppMeta,
@@ -57,7 +56,6 @@ export function createMetadataComponents({
   getDynamicParamFromSegment,
   appUsingSizeAdjustment,
   errorType,
-  createServerParamsForMetadata,
   workStore,
   MetadataBoundary,
   ViewportBoundary,
@@ -69,7 +67,6 @@ export function createMetadataComponents({
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   appUsingSizeAdjustment: boolean
   errorType?: MetadataErrorType | 'redirect'
-  createServerParamsForMetadata: CreateServerParamsForMetadata
   workStore: WorkStore
   MetadataBoundary: (props: { children: React.ReactNode }) => React.ReactNode
   ViewportBoundary: (props: { children: React.ReactNode }) => React.ReactNode
@@ -108,7 +105,6 @@ export function createMetadataComponents({
       tree,
       searchParams,
       getDynamicParamFromSegment,
-      createServerParamsForMetadata,
       workStore,
       errorType
     )
@@ -124,7 +120,6 @@ export function createMetadataComponents({
             tree,
             searchParams,
             getDynamicParamFromSegment,
-            createServerParamsForMetadata,
             workStore
           )
         } catch {}
@@ -144,7 +139,6 @@ export function createMetadataComponents({
       searchParams,
       getDynamicParamFromSegment,
       metadataContext,
-      createServerParamsForMetadata,
       workStore,
       errorType
     )
@@ -169,7 +163,6 @@ export function createMetadataComponents({
             searchParams,
             getDynamicParamFromSegment,
             metadataContext,
-            createServerParamsForMetadata,
             workStore
           )
           return {
@@ -253,7 +246,6 @@ async function getResolvedMetadataImpl(
   searchParams: Promise<ParsedUrlQuery>,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   metadataContext: MetadataContext,
-  createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore,
   errorType?: MetadataErrorType | 'redirect'
 ): Promise<React.ReactNode> {
@@ -263,7 +255,6 @@ async function getResolvedMetadataImpl(
     searchParams,
     getDynamicParamFromSegment,
     metadataContext,
-    createServerParamsForMetadata,
     workStore,
     errorConvention
   )
@@ -275,7 +266,6 @@ async function getNotFoundMetadataImpl(
   searchParams: Promise<ParsedUrlQuery>,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   metadataContext: MetadataContext,
-  createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore
 ): Promise<React.ReactNode> {
   const notFoundErrorConvention = 'not-found'
@@ -284,7 +274,6 @@ async function getNotFoundMetadataImpl(
     searchParams,
     getDynamicParamFromSegment,
     metadataContext,
-    createServerParamsForMetadata,
     workStore,
     notFoundErrorConvention
   )
@@ -295,7 +284,6 @@ async function getResolvedViewportImpl(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore,
   errorType?: MetadataErrorType | 'redirect'
 ): Promise<React.ReactNode> {
@@ -304,7 +292,6 @@ async function getResolvedViewportImpl(
     tree,
     searchParams,
     getDynamicParamFromSegment,
-    createServerParamsForMetadata,
     workStore,
     errorConvention
   )
@@ -315,7 +302,6 @@ async function getNotFoundViewportImpl(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore
 ): Promise<React.ReactNode> {
   const notFoundErrorConvention = 'not-found'
@@ -323,7 +309,6 @@ async function getNotFoundViewportImpl(
     tree,
     searchParams,
     getDynamicParamFromSegment,
-    createServerParamsForMetadata,
     workStore,
     notFoundErrorConvention
   )
@@ -334,7 +319,6 @@ async function renderMetadata(
   searchParams: Promise<ParsedUrlQuery>,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   metadataContext: MetadataContext,
-  createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore,
   errorConvention?: MetadataErrorType
 ) {
@@ -343,7 +327,6 @@ async function renderMetadata(
     searchParams,
     errorConvention,
     getDynamicParamFromSegment,
-    createServerParamsForMetadata,
     workStore,
     metadataContext
   )
@@ -362,7 +345,6 @@ async function renderViewport(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore,
   errorConvention?: MetadataErrorType
 ) {
@@ -371,7 +353,6 @@ async function renderViewport(
     searchParams,
     errorConvention,
     getDynamicParamFromSegment,
-    createServerParamsForMetadata,
     workStore
   )
 
