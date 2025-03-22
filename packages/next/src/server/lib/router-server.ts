@@ -138,7 +138,8 @@ export async function initialize(opts: {
   // handle node v16 not having global webcrypto
   const crypto = require('crypto')
   const webcrypto = crypto.webcrypto || crypto
-  webcrypto.getRandomValues.getRandomValues(randomBytes)
+  webcrypto.getRandomValues(randomBytes)
+
   const middlewareSubrequestId = Buffer.from(randomBytes).toString('hex')
   ;(globalThis as any)[Symbol.for('@next/middleware-subrequest-id')] =
     middlewareSubrequestId
