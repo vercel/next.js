@@ -52,7 +52,6 @@ import { hasBasePath } from '../has-base-path'
 import { getSelectedParams } from './router-reducer/compute-changed-path'
 import type { FlightRouterState } from '../../server/app-render/types'
 import { useNavFailureHandler } from './nav-failure-handler'
-import { useServerActionDispatcher } from '../app-call-server'
 import type { AppRouterActionQueue } from '../../shared/lib/router/action-queue'
 import { prefetch as prefetchWithSegmentCache } from './segment-cache'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
@@ -253,8 +252,6 @@ function Router({
         : url.pathname,
     }
   }, [canonicalUrl])
-
-  useServerActionDispatcher(dispatchAppRouterAction)
 
   /**
    * The app router that is exposed through `useRouter`. It's only concerned with dispatching actions to the reducer, does not hold state.
