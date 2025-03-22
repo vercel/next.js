@@ -16,8 +16,6 @@ import {
   isPositionInsideNode,
   getSource,
   isInsideApp,
-  log,
-  getSourceFromVirtualTsEnv,
 } from './utils'
 import { NEXT_TS_ERRORS } from './constant'
 
@@ -95,7 +93,6 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       entryConfig.addCompletionsAtPosition(fileName, position, prior)
 
       const source = getSource(fileName)
-      log('[next] getSource: ' + JSON.stringify(source?.text, null, 2))
       if (!source) return prior
 
       ts.forEachChild(source!, (node) => {
@@ -114,10 +111,6 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         }
       })
 
-      log(
-        'getCompletionsAtPosition final result: ' +
-          JSON.stringify({ fileName, position, prior }, null, 2)
-      )
       return prior
     }
 
@@ -135,7 +128,9 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         entryName,
         data
       )
-      if (entryCompletionEntryDetails) return entryCompletionEntryDetails
+      if (entryCompletionEntryDetails) {
+        return entryCompletionEntryDetails
+      }
 
       const metadataCompletionEntryDetails = metadata.getCompletionEntryDetails(
         fileName,
@@ -146,10 +141,9 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         preferences,
         data
       )
-
-      if (metadataCompletionEntryDetails) return metadataCompletionEntryDetails
-
-      log('getCompletionEntryDetails none')
+      if (metadataCompletionEntryDetails) {
+        return metadataCompletionEntryDetails
+      }
 
       return info.languageService.getCompletionEntryDetails(
         fileName,
@@ -168,17 +162,14 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         fileName,
         position
       )
-      log(
-        'proxy.getQuickInfoAtPosition prior: ' + JSON.stringify(prior, null, 2)
-      )
-      if (!isAppEntryFile(fileName)) return prior
+
+      if (!isAppEntryFile(fileName)) {
+        return prior
+      }
 
       // Remove type suggestions for disallowed APIs in server components.
       const entryInfo = getEntryInfo(fileName)
-      log(
-        'proxy.getQuickInfoAtPosition entryInfo: ' +
-          JSON.stringify(entryInfo, null, 2)
-      )
+
       if (!entryInfo.client) {
         const definitions = info.languageService.getDefinitionAtPosition(
           fileName,
@@ -192,20 +183,16 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         }
 
         const metadataInfo = metadata.getQuickInfoAtPosition(fileName, position)
-        log(
-          'proxy.getQuickInfoAtPosition metadataInfo: ' +
-            JSON.stringify(metadataInfo, null, 2)
-        )
-        if (metadataInfo) return metadataInfo
+        if (metadataInfo) {
+          return metadataInfo
+        }
       }
 
       const overridden = entryConfig.getQuickInfoAtPosition(fileName, position)
-      if (overridden) return overridden
+      if (overridden) {
+        return overridden
+      }
 
-      log(
-        'proxy.getQuickInfoAtPosition prior going out: ' +
-          JSON.stringify(prior, null, 2)
-      )
       return prior
     }
 
@@ -260,7 +247,6 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
           ts.isVariableStatement(node) &&
           node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
         ) {
-          log('ts.isVariableStatement: ' + fileName)
           // export const ...
           if (isAppEntry) {
             // Check if it has correct option exports
@@ -279,31 +265,6 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
                   node
                 )
 
-            log(
-              'getSemanticDiagnosticsForExportVariableStatement: ' +
-                JSON.stringify(
-                  {
-                    fileName,
-                    source: getSourceFromVirtualTsEnv(fileName)?.text,
-                    diagnostics: diagnostics.map((d) => ({
-                      code: d.code,
-                      category: d.category,
-                      messageText: d.messageText,
-                      start: d.start,
-                      length: d.length,
-                    })),
-                    metadataDiagnostics: metadataDiagnostics.map((d) => ({
-                      code: d.code,
-                      category: d.category,
-                      messageText: d.messageText,
-                      start: d.start,
-                      length: d.length,
-                    })),
-                  },
-                  null,
-                  2
-                )
-            )
             prior.push(...diagnostics, ...metadataDiagnostics)
           }
 
@@ -413,24 +374,6 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         }
       })
 
-      log('getSemanticDiagnostics: ' + fileName)
-      log(
-        'getSemanticDiagnostics: ' +
-          JSON.stringify(
-            {
-              fileName,
-              prior: prior.map((p) => ({
-                code: p.code,
-                category: p.category,
-                messageText: p.messageText,
-                start: p.start,
-                length: p.length,
-              })),
-            },
-            null,
-            2
-          )
-      )
       return prior
     }
 
