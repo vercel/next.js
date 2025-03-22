@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
-    Vc,
+    trace::TraceRawVcs, FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt,
+    TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -30,7 +30,7 @@ use crate::{
     util::NextRuntime,
 };
 
-#[derive(TaskInput, Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(TaskInput, Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 pub struct ClientReferenceManifestOptions {
     pub node_root: Vc<FileSystemPath>,
     pub client_relative_path: Vc<FileSystemPath>,

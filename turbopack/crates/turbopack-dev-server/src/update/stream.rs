@@ -1,4 +1,4 @@
-use std::{ops::Deref, pin::Pin};
+use std::{any::Any, marker::PhantomData, pin::Pin};
 
 use anyhow::Result;
 use futures::prelude::*;
@@ -7,6 +7,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
+    trace::{TraceRawVcs, TraceRawVcsContext},
     IntoTraitRef, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc,
 };
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
@@ -25,48 +26,78 @@ use turbopack_core::{
 
 use crate::source::{resolve::ResolveSourceRequestResult, ProxyResult};
 
-/// A wrapper type returning
-/// [`OperationVc<ResolveSourceRequestResult>`][ResolveSourceRequestResult] that implements
-/// [`NonLocalValue`].
-pub struct GetContentFn(Box<dyn Fn() -> OperationVc<ResolveSourceRequestResult> + Send + Sync>);
-
-impl GetContentFn {
-    /// Wrap a function in `GetContentFn`.
-    ///
-    /// # Safety
-    ///
-    /// The closure must not include any types that aren't `NonLocalValue`, or that couldn't
-    /// otherwise safely implement `NonLocalValue`.
-    ///
-    /// In the future, `auto_traits` may be be able to implement `NonLocalValue` for us, and avoid
-    /// this wrapper type and unsafe constructor.
-    pub unsafe fn new(
-        func: impl Fn() -> OperationVc<ResolveSourceRequestResult> + Send + Sync + 'static,
-    ) -> Self {
-        Self::new_boxed(Box::new(func))
-    }
-
-    /// Wrap a boxed function in `GetContentFn`. This specialized version of [`GetContentFn::new`]
-    /// avoids double-boxing if you already have a boxed function.
-    ///
-    /// # Safety
-    ///
-    /// Same as [`GetContentFn::new`].
-    pub unsafe fn new_boxed(
-        func: Box<dyn Fn() -> OperationVc<ResolveSourceRequestResult> + Send + Sync>,
-    ) -> Self {
-        Self(func)
+pub trait GetContentFnCapture: Any + Send + Sync + NonLocalValue + TraceRawVcs {
+    fn as_any_ref(&self) -> &(dyn Any + Send + Sync);
+}
+impl<T: Any + Send + Sync + NonLocalValue + TraceRawVcs> GetContentFnCapture for T {
+    fn as_any_ref(&self) -> &(dyn Any + Send + Sync) {
+        self
     }
 }
 
-// Safety: It's up to the caller of `GetContentFn::new` to ensure this.
+/// A wrapper type returning [`OperationVc<ResolveSourceRequestResult>`][ResolveSourceRequestResult]
+/// that implements [`NonLocalValue`] and [`TraceRawVcs`].
+///
+/// The capture (e.g. moved values in a closure) and function pointer are stored separately to allow
+/// safe implementation of these desired traits.
+pub struct GetContentFn {
+    capture: Box<dyn GetContentFnCapture>,
+    orig_func: Box<dyn Any + Send + Sync>,
+    wrapped_func: fn(&dyn GetContentFnCapture, &dyn Any) -> OperationVc<ResolveSourceRequestResult>,
+}
+
+impl GetContentFn {
+    /// Wrap a function and an optional capture variable (used to simulate a closure) in
+    /// `GetContentFn`.
+    pub fn new<C>(
+        capture: C,
+        func: for<'a> fn(&'a C) -> OperationVc<ResolveSourceRequestResult>,
+    ) -> Self
+    where
+        C: GetContentFnCapture,
+    {
+        struct Wrapper<C>(PhantomData<C>);
+
+        impl<C> Wrapper<C>
+        where
+            C: GetContentFnCapture,
+        {
+            fn func(
+                capture: &dyn GetContentFnCapture,
+                orig_func: &dyn Any,
+            ) -> OperationVc<ResolveSourceRequestResult> {
+                let orig_func: &for<'a> fn(&'a C) -> OperationVc<ResolveSourceRequestResult> =
+                    orig_func.downcast_ref().expect("function type matches");
+                orig_func(
+                    capture
+                        .as_any_ref()
+                        .downcast_ref()
+                        .expect("capture type matches"),
+                )
+            }
+        }
+
+        Self {
+            capture: Box::new(capture),
+            orig_func: Box::new(func),
+            wrapped_func: Wrapper::<C>::func,
+        }
+    }
+}
+
+// Safety: `func` is a function pointer and cannot capture anything by itself. `capture` implements
+// `NonLocalValue`.
 unsafe impl NonLocalValue for GetContentFn {}
 
-impl Deref for GetContentFn {
-    type Target = Box<dyn Fn() -> OperationVc<ResolveSourceRequestResult> + Send + Sync>;
+impl TraceRawVcs for GetContentFn {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        self.capture.trace_raw_vcs(trace_context);
+    }
+}
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl GetContentFn {
+    fn call(&self) -> OperationVc<ResolveSourceRequestResult> {
+        (self.wrapped_func)(&self.capture, &self.orig_func)
     }
 }
 
@@ -100,7 +131,7 @@ async fn get_update_stream_item_operation(
     from: ResolvedVc<VersionState>,
     get_content: TransientInstance<GetContentFn>,
 ) -> Result<Vc<UpdateStreamItem>> {
-    let content_op = get_content();
+    let content_op = get_content.call();
     let content_result = content_op.read_strongly_consistent().await;
     let mut plain_issues = peek_issues(content_op).await?;
 
@@ -211,19 +242,32 @@ async fn get_update_stream_item_operation(
     }
 }
 
+#[derive(TraceRawVcs)]
+struct ComputeUpdateStreamSender(
+    // HACK: `trace_ignore`: It's not correct or safe to send `Vc`s across this mpsc channel, but
+    // (without nightly auto traits) there's no easy way for us to statically assert that
+    // `UpdateStreamItem` does not contain a `RawVc`.
+    //
+    // It could be safe (at least for the GC use-case) if we had some way of wrapping arbitrary
+    // objects in a GC root container.
+    #[turbo_tasks(trace_ignore)] Sender<Result<ReadRef<UpdateStreamItem>>>,
+);
+
+/// This function sends an [`UpdateStreamItem`] to `sender` every time it gets recomputed by
+/// turbo-tasks due to invalidation.
 #[turbo_tasks::function]
 async fn compute_update_stream(
     resource: RcStr,
     from: ResolvedVc<VersionState>,
     get_content: TransientInstance<GetContentFn>,
-    sender: TransientInstance<Sender<Result<ReadRef<UpdateStreamItem>>>>,
+    sender: TransientInstance<ComputeUpdateStreamSender>,
 ) -> Vc<()> {
     let item = get_update_stream_item_operation(resource, from, get_content)
         .read_strongly_consistent()
         .await;
 
     // Send update. Ignore channel closed error.
-    let _ = sender.send(item).await;
+    let _ = sender.0.send(item).await;
 
     Default::default()
 }
@@ -240,7 +284,7 @@ impl UpdateStream {
     ) -> Result<UpdateStream> {
         let (sx, rx) = tokio::sync::mpsc::channel(32);
 
-        let content = get_content();
+        let content = get_content.call();
         // We can ignore issues reported in content here since [compute_update_stream]
         // will handle them
         let version = match *content.connect().await? {
@@ -258,7 +302,7 @@ impl UpdateStream {
             resource,
             version_state,
             get_content,
-            TransientInstance::new(sx),
+            TransientInstance::new(ComputeUpdateStreamSender(sx)),
         );
 
         let mut last_had_issues = false;
