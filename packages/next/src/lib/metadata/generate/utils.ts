@@ -25,4 +25,19 @@ function getOrigin(url: string | URL): string | undefined {
   return origin
 }
 
-export { resolveAsArrayOrUndefined, resolveArray, getOrigin }
+/**
+ * Escapes a string for safe inclusion in XML.
+ * - Escapes &, <, >, ", '
+ * - Prevents double-escaping of known entities like &amp;
+ */
+function escapeXmlValue(input: unknown): string {
+  if (typeof input !== 'string') return ''
+  return input
+    .replace(/&(?!(?:amp|lt|gt|quot|apos);)/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/'/g, '&apos;')
+    .replace(/"/g, '&quot;')
+}
+
+export { resolveAsArrayOrUndefined, resolveArray, getOrigin, escapeXmlValue }
