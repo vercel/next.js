@@ -1,4 +1,0 @@
-tests/execution/**/*/output/
-tests/snapshot/**/output/
-!tests/execution/**/*/node_modules
-!tests/snapshot/**/*/node_modules

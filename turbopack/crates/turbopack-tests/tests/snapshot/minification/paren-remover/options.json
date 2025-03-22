@@ -1,7 +1,0 @@
-{
-  "minifyType": {
-    "Minify": {
-      "mangle": true
-    }
-  }
-}

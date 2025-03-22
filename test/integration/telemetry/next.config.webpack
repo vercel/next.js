@@ -1,8 +1,0 @@
-module.exports = {
-  webpack(config) {
-    config.plugins.push(function MyPlugin() {
-      console.log('Custom webpack plugin loaded')
-    })
-    return config
-  },
-}

@@ -1,1 +1,0 @@
-buf = FreeVar(Buffer)["from"]("Hello World")

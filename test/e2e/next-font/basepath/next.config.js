@@ -1,3 +1,0 @@
-module.exports = {
-  basePath: '/dashboard',
-}

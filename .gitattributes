@@ -1,6 +1,0 @@
-.github/actions/*/dist/** -text linguist-vendored
-packages/next/bundles/** -text linguist-vendored
-packages/next/compiled/** -text linguist-vendored
-
-# Make next/src/build folder indexable for github search
-build/** linguist-generated=false
