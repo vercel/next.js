@@ -177,7 +177,7 @@ jobs:
       - run: pnpm playwright install chromium
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
-      - run: turbo run get-test-timings -- --build ${{ github.sha }}
+      - run: pnpm turbo run get-test-timings -- --build ${{ github.sha }}
 
       - run: /bin/bash -c "${{ inputs.afterBuild }}"
         if: ${{(inputs.skipForDocsOnly != 'yes' || steps.docs-change.outputs.DOCS_CHANGE == 'nope') && (inputs.skipForRelease != 'yes' || steps.is-release.outputs.IS_RELEASE == 'nope')}}
