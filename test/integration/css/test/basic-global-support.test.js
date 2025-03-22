@@ -576,9 +576,10 @@ module.exports = {
           if (process.env.TURBOPACK && useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
              [
-               "/_next/static/chunks/test_integration_css-fixtures_url-global_styles_global1_69590c47.css:
-             .red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}",
-               "/_next/static/chunks/test_integration_css-fixtures_url-global_styles_3a258468._.css:
+               "/_next/static/chunks/test_integration_css-fixtures_url-global_styles_46281715._.css:
+             .red-text{color:red;background-image:url(../media/dark.993bedd3.svg),url(../media/dark2.993bedd3.svg)}
+
+
              .blue-text{color:orange;background-image:url(../media/light.180573e4.svg);font-weight:bolder}
 
 
@@ -588,9 +589,10 @@ module.exports = {
           } else if (process.env.TURBOPACK && !useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
              [
-               "/_next/static/chunks/test_integration_css-fixtures_url-global_styles_global1_69590c47.css:
-             .red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}",
-               "/_next/static/chunks/test_integration_css-fixtures_url-global_styles_3a258468._.css:
+               "/_next/static/chunks/test_integration_css-fixtures_url-global_styles_46281715._.css:
+             .red-text{color:red;background-image:url(../media/dark.993bedd3.svg),url(../media/dark2.993bedd3.svg)}
+
+
              .blue-text{color:orange;background-image:url(../media/light.180573e4.svg);font-weight:bolder}
 
 
@@ -600,15 +602,15 @@ module.exports = {
           } else if (useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
              [
-               "/_next/static/css/b52d68d7050c7314.css:
-             .red-text{color:red;background-image:url(/_next/static/media/dark.6b01655b.svg) url(/_next/static/media/dark2.6b01655b.svg)}.blue-text{color:orange;background-image:url(/_next/static/media/light.2da1d3d6.svg);font-weight:bolder;color:#00f}",
+               "/_next/static/css/02830b0dd136adeb.css:
+             .red-text{color:red;background-image:url(/_next/static/media/dark.6b01655b.svg),url(/_next/static/media/dark2.6b01655b.svg)}.blue-text{color:orange;background-image:url(/_next/static/media/light.2da1d3d6.svg);font-weight:bolder;color:#00f}",
              ]
             `)
           } else {
             expect(cssContent).toMatchInlineSnapshot(`
              [
-               "/_next/static/css/766d42b9536ee6bb.css:
-             .red-text{color:red;background-image:url(/_next/static/media/dark.6b01655b.svg) url(/_next/static/media/dark2.6b01655b.svg)}.blue-text{color:orange;font-weight:bolder;background-image:url(/_next/static/media/light.2da1d3d6.svg);color:blue}",
+               "/_next/static/css/bf86b6e30872ca37.css:
+             .red-text{color:red;background-image:url(/_next/static/media/dark.6b01655b.svg),url(/_next/static/media/dark2.6b01655b.svg)}.blue-text{color:orange;font-weight:bolder;background-image:url(/_next/static/media/light.2da1d3d6.svg);color:blue}",
              ]
             `)
           }
@@ -651,9 +653,10 @@ describe('CSS URL via `file-loader` and asset prefix (1)', () => {
         if (process.env.TURBOPACK) {
           expect(cssContent).toMatchInlineSnapshot(`
            [
-             "/_next/static/chunks/test_integration_css-fixtures_url-global-asset-prefix-1_styles_global1_64764808.css:
-           .red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}",
-             "/_next/static/chunks/test_integration_css-fixtures_url-global-asset-prefix-1_styles_0a127993._.css:
+             "/_next/static/chunks/test_integration_css-fixtures_url-global-asset-prefix-1_styles_e99cb7f8._.css:
+           .red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}
+
+
            .blue-text{color:orange;background-image:url(../media/light.180573e4.svg);font-weight:bolder}
 
 
@@ -706,9 +709,10 @@ describe('CSS URL via `file-loader` and asset prefix (2)', () => {
         if (process.env.TURBOPACK) {
           expect(cssContent).toMatchInlineSnapshot(`
            [
-             "/_next/static/chunks/test_integration_css-fixtures_url-global-asset-prefix-2_styles_global1_cfbf8de3.css:
-           .red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}",
-             "/_next/static/chunks/test_integration_css-fixtures_url-global-asset-prefix-2_styles_764eafae._.css:
+             "/_next/static/chunks/test_integration_css-fixtures_url-global-asset-prefix-2_styles_7b29c72b._.css:
+           .red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}
+
+
            .blue-text{color:orange;background-image:url(../media/light.180573e4.svg);font-weight:bolder}
 
 
