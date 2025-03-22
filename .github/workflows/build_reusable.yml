@@ -90,7 +90,7 @@ jobs:
       - run: corepack enable
       - run: pwd
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 25
 
@@ -153,7 +153,7 @@ jobs:
 
       - name: Upload next-swc artifact
         if: ${{ inputs.uploadSwcArtifact == 'yes' && steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: next-swc-binary
           path: packages/next-swc/native/next-swc.linux-x64-gnu.node
@@ -182,13 +182,13 @@ jobs:
         if: ${{(inputs.skipForDocsOnly != 'yes' || steps.docs-change.outputs.DOCS_CHANGE == 'nope') && (inputs.skipForRelease != 'yes' || steps.is-release.outputs.IS_RELEASE == 'nope')}}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: turbo run summary
           path: .turbo/runs
 
       - name: Upload test reports artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ inputs.afterBuild }}
         with:
           name: Test trace reports
@@ -199,7 +199,7 @@ jobs:
 
       - name: Download test reports artifact
         id: download-test-reports
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         continue-on-error: true
         if: ${{ inputs.uploadTestTrace == 'yes' && (inputs.skipForDocsOnly != 'yes' || steps.docs-change.outputs.DOCS_CHANGE == 'nope') }}
         with:
