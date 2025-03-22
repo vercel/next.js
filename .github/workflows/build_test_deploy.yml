@@ -17,7 +17,7 @@ jobs:
     name: Check examples
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install moreutils
         run: sudo apt install moreutils
       - name: Check examples
@@ -36,13 +36,13 @@ jobs:
       weekNum: ${{ steps.get-week.outputs.WEEK }}
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{ steps.docs-change.outputs.docsChange == 'nope' }}
         with:
           node-version: 16
           check-latest: true
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 25
 
@@ -61,7 +61,7 @@ jobs:
       - id: get-store-path
         run: echo ::set-output name=STORE_PATH::$(pnpm store path)
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         id: cache-pnpm-store
         with:
           path: ${{ steps.get-store-path.outputs.STORE_PATH }}
@@ -87,7 +87,7 @@ jobs:
       - id: get-week
         run: echo ::set-output name=WEEK::$(date +%U)
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         id: cache-build
         with:
           path: ./*
@@ -98,14 +98,14 @@ jobs:
     needs: build
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 16
           check-latest: true
 
       - run: npm i -g pnpm@${PNPM_VERSION}
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         id: restore-build
         with:
           path: ./*
@@ -117,7 +117,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         id: restore-build
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
@@ -138,14 +138,14 @@ jobs:
           components: rustfmt, clippy
 
       - name: Cache cargo registry
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         if: ${{ steps.swc-change.outputs.SWC_CHANGE == 'yup' }}
         with:
           path: ~/.cargo/registry
           key: stable-ubuntu-clippy-cargo-registry
 
       - name: Cache cargo index
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         if: ${{ steps.swc-change.outputs.SWC_CHANGE == 'yup' }}
         with:
           path: ~/.cargo/git
@@ -166,7 +166,7 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           node-version: 16
@@ -177,13 +177,13 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: mv .git .git-bak
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
@@ -213,20 +213,20 @@ jobs:
       NEXT_TEST_JOB: 1
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           node-version: 16
           check-latest: true
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-swc-test-binary
@@ -252,7 +252,7 @@ jobs:
         group: [1, 2]
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           node-version: ${{ matrix.node }}
@@ -264,14 +264,14 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-swc-test-binary
@@ -287,15 +287,15 @@ jobs:
         name: Run test/development
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - name: Upload test trace
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: test-trace
-          if-no-files-found: ignore
-          retention-days: 2
-          path: |
-            test/traces
+      # - name: Upload test trace
+      #   if: always()
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: test-trace
+      #     if-no-files-found: ignore
+      #     retention-days: 2
+      #     path: |
+      #       test/traces
 
   testDevReact17:
     name: Test Development (react v17)
@@ -311,7 +311,7 @@ jobs:
         group: [1, 2]
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           node-version: 16
@@ -323,14 +323,14 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-swc-test-binary
@@ -346,15 +346,15 @@ jobs:
         name: Run test/development
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - name: Upload test trace
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: test-trace
-          if-no-files-found: ignore
-          retention-days: 2
-          path: |
-            test/traces
+      # - name: Upload test trace
+      #   if: always()
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: test-trace
+      #     if-no-files-found: ignore
+      #     retention-days: 2
+      #     path: |
+      #       test/traces
 
   testDevE2E:
     name: Test Development (E2E)
@@ -371,7 +371,7 @@ jobs:
         group: [1, 2, 3]
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           node-version: ${{ matrix.node }}
@@ -383,14 +383,14 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-swc-test-binary
@@ -406,15 +406,15 @@ jobs:
         name: Run test/e2e (dev)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - name: Upload test trace
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: test-trace
-          if-no-files-found: ignore
-          retention-days: 2
-          path: |
-            test/traces
+      # - name: Upload test trace
+      #   if: always()
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: test-trace
+      #     if-no-files-found: ignore
+      #     retention-days: 2
+      #     path: |
+      #       test/traces
 
   testDevE2EReact17:
     name: Test Development (E2E) (react v17)
@@ -431,7 +431,7 @@ jobs:
         group: [1, 2, 3]
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           node-version: 16
@@ -443,14 +443,14 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-swc-test-binary
@@ -466,15 +466,15 @@ jobs:
         name: Run test/e2e (dev)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - name: Upload test trace
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: test-trace
-          if-no-files-found: ignore
-          retention-days: 2
-          path: |
-            test/traces
+      # - name: Upload test trace
+      #   if: always()
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: test-trace
+      #     if-no-files-found: ignore
+      #     retention-days: 2
+      #     path: |
+      #       test/traces
 
   testProd:
     name: Test Production
@@ -490,7 +490,7 @@ jobs:
         group: [1, 2]
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           node-version: ${{ matrix.node }}
@@ -502,14 +502,14 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-swc-test-binary
@@ -539,7 +539,7 @@ jobs:
         group: [1, 2]
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           node-version: 16
@@ -551,14 +551,14 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-swc-test-binary
@@ -589,7 +589,7 @@ jobs:
         group: [1, 2, 3]
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           node-version: ${{ matrix.node }}
@@ -601,14 +601,14 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-swc-test-binary
@@ -639,7 +639,7 @@ jobs:
         group: [1, 2, 3]
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           node-version: ${{ matrix.node }}
@@ -651,14 +651,14 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-swc-test-binary
@@ -710,7 +710,7 @@ jobs:
           ]
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           node-version: 16
@@ -722,14 +722,14 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-swc-test-binary
@@ -744,15 +744,15 @@ jobs:
       - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/20
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - name: Upload test trace
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: test-trace
-          if-no-files-found: ignore
-          retention-days: 2
-          path: |
-            test/traces
+      # - name: Upload test trace
+      #   if: always()
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: test-trace
+      #     if-no-files-found: ignore
+      #     retention-days: 2
+      #     path: |
+      #       test/traces
 
   testElectron:
     name: Test Electron
@@ -764,20 +764,20 @@ jobs:
       TEST_ELECTRON: 1
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           node-version: 16
           check-latest: true
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-swc-test-binary
@@ -818,19 +818,19 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           node-version: 16
           check-latest: true
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-swc-test-binary
@@ -853,7 +853,7 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           node-version: 16
@@ -863,14 +863,14 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-swc-test-binary
@@ -902,7 +902,7 @@ jobs:
       BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           node-version: 16
@@ -912,14 +912,14 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-swc-test-binary
@@ -943,18 +943,18 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           node-version: 18
           check-latest: true
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-swc-test-binary
@@ -979,7 +979,7 @@ jobs:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           node-version: 16
@@ -989,20 +989,22 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
-          name: next-swc-binaries
+          pattern: next-swc-binaries-*
+          merge-multiple: true
           path: packages/next-swc/native
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
-          name: wasm-binaries
+          pattern: wasm-binaries-*
+          merge-multiple: true
           path: packages/next-swc/crates/wasm
 
       - run: npm i -g pnpm@${PNPM_VERSION}
@@ -1022,18 +1024,18 @@ jobs:
       NEXT_TEST_MODE: deploy
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 16
           check-latest: true
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-swc-test-binary
@@ -1051,15 +1053,15 @@ jobs:
       - run: node run-tests.js --type e2e
         name: Run test/e2e (deploy)
 
-      - name: Upload test trace
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: test-trace
-          if-no-files-found: ignore
-          retention-days: 2
-          path: |
-            test/traces
+      # - name: Upload test trace
+      #   if: always()
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: test-trace
+      #     if-no-files-found: ignore
+      #     retention-days: 2
+      #     path: |
+      #       test/traces
 
   releaseStats:
     name: Release Stats
@@ -1067,18 +1069,18 @@ jobs:
     needs: [publishRelease, build-native-test]
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 16
           check-latest: true
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: next-swc-test-binary
           path: packages/next-swc/native
@@ -1098,7 +1100,7 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 25
 
@@ -1106,7 +1108,7 @@ jobs:
         id: docs-change
 
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           node-version: 16
@@ -1120,14 +1122,14 @@ jobs:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
 
       - name: Cache cargo registry
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: ~/.cargo/registry
           key: stable-ubuntu-latest-cargo-registry
 
       - name: Cache cargo index
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: ~/.cargo/git
@@ -1139,7 +1141,7 @@ jobs:
 
       - name: Turbo Cache
         id: turbo-cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: .turbo
@@ -1154,7 +1156,7 @@ jobs:
       # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
       # So we get latest cache
       - name: Cache built files
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ./packages/next-swc/target
           key: next-swc-cargo-cache-dev-ubuntu-latest-${{ hashFiles('**/Cargo.lock') }}
@@ -1166,12 +1168,12 @@ jobs:
       - run: npm i -g @napi-rs/cli@${{ env.NAPI_CLI_VERSION }} turbo@${{ env.TURBO_VERSION }} pnpm@${PNPM_VERSION}
       - name: Build
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        run: turbo run build-native --cache-dir=".turbo" -- --release
+        run: pnpm dlx turbo@${TURBO_VERSION} run build-native --cache-dir=".turbo" -- --release
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: next-swc-test-binary
           path: packages/next-swc/native/next-swc.linux-x64-gnu.node
@@ -1187,7 +1189,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 25
 
@@ -1212,23 +1214,23 @@ jobs:
     needs: [build, build-native-test, build-wasm-dev]
 
     steps:
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
-          name: wasm-dev-binary
+          name: wasm-dev-binary-nodejs
           path: packages/next-swc/crates/wasm/pkg-nodejs
 
       - run: ls packages/next-swc/crates/wasm
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-swc-test-binary
@@ -1237,7 +1239,7 @@ jobs:
       # node version needs to be 16+ to use --no-addons option
       - name: Setup node
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 16
           check-latest: true
@@ -1269,18 +1271,18 @@ jobs:
           - host: macos-latest
             target: 'x86_64-apple-darwin'
             build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-              turbo run build-native --cache-dir=".turbo" -- --release
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
+              pnpm dlx turbo@${TURBO_VERSION} run build-native --cache-dir=".turbo" -- --release
               strip -x packages/next-swc/native/next-swc.*.node
           - host: windows-latest
             build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
-              turbo run build-native --cache-dir=".turbo" -- --release
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "pnpm@${PNPM_VERSION}"
+              pnpm dlx turbo@${TURBO_VERSION} run build-native --cache-dir=".turbo" -- --release
             target: 'x86_64-pc-windows-msvc'
           - host: windows-latest
             build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
-              turbo run build-native-no-plugin --cache-dir=".turbo" -- --release --target i686-pc-windows-msvc
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "pnpm@${PNPM_VERSION}"
+              pnpm dlx turbo@${TURBO_VERSION} run build-native-no-plugin --cache-dir=".turbo" -- --release --target i686-pc-windows-msvc
             target: 'i686-pc-windows-msvc'
           - host: ubuntu-latest
             target: 'x86_64-unknown-linux-gnu'
@@ -1290,9 +1292,9 @@ jobs:
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add x86_64-unknown-linux-gnu &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
               unset CC_x86_64_unknown_linux_gnu && unset CC &&
-              turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-gnu &&
+              pnpm dlx turbo@${TURBO_VERSION} run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-gnu &&
               strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'x86_64-unknown-linux-musl'
@@ -1302,8 +1304,8 @@ jobs:
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add x86_64-unknown-linux-musl &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
-              turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-musl &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
+              pnpm dlx turbo@${TURBO_VERSION} run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-musl &&
               strip packages/next-swc/native/next-swc.*.node
           - host: macos-latest
             target: 'aarch64-apple-darwin'
@@ -1313,8 +1315,8 @@ jobs:
               export CXX=$(xcrun -f clang++);
               SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
               export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-              turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-apple-darwin
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
+              pnpm dlx turbo@${TURBO_VERSION} run build-native --cache-dir=".turbo" -- --release --target aarch64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'aarch64-unknown-linux-gnu'
@@ -1324,9 +1326,9 @@ jobs:
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add aarch64-unknown-linux-gnu &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
               export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
-              turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-gnu &&
+              pnpm dlx turbo@${TURBO_VERSION} run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-gnu &&
               llvm-strip -x packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'armv7-unknown-linux-gnueabihf'
@@ -1334,8 +1336,8 @@ jobs:
               sudo apt-get update
               sudo apt-get install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf -y
             build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-              turbo run build-native-no-plugin --cache-dir=".turbo" -- --release --target armv7-unknown-linux-gnueabihf
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
+              pnpm dlx turbo@${TURBO_VERSION} run build-native-no-plugin --cache-dir=".turbo" -- --release --target armv7-unknown-linux-gnueabihf
               arm-linux-gnueabihf-strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: aarch64-linux-android
@@ -1349,8 +1351,8 @@ jobs:
               touch "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/aarch64/libgcc.a"
               chmod 777 "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/aarch64/libgcc.a"
               echo "INPUT(-lunwind)" > "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/aarch64/libgcc.a"
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-              turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-linux-android
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
+              pnpm dlx turbo@${TURBO_VERSION} run build-native --cache-dir=".turbo" -- --release --target aarch64-linux-android
               ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: armv7-linux-androideabi
@@ -1364,25 +1366,25 @@ jobs:
               touch "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/arm/libgcc.a"
               chmod 777 "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/arm/libgcc.a"
               echo "INPUT(-lunwind)" > "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/arm/libgcc.a"
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
-              turbo run build-native-no-plugin --cache-dir=".turbo" -- --release --target armv7-linux-androideabi
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "pnpm@${PNPM_VERSION}"
+              pnpm dlx turbo@${TURBO_VERSION} run build-native-no-plugin --cache-dir=".turbo" -- --release --target armv7-linux-androideabi
               ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'aarch64-unknown-linux-musl'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
             build: >-
               set -e &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add aarch64-unknown-linux-musl &&
-              turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-musl &&
+              pnpm dlx turbo@${TURBO_VERSION} run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-musl &&
               llvm-strip -x packages/next-swc/native/next-swc.*.node
           - host: windows-latest
             target: 'aarch64-pc-windows-msvc'
             build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
-              turbo run build-native-no-plugin --cache-dir=".turbo" -- --release --target aarch64-pc-windows-msvc --cargo-flags=--no-default-features
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "pnpm@${PNPM_VERSION}"
+              pnpm dlx turbo@${TURBO_VERSION} run build-native-no-plugin --cache-dir=".turbo" -- --release --target aarch64-pc-windows-msvc --cargo-flags=--no-default-features
     if: ${{ needs.build.outputs.isRelease == 'true' }}
     needs: build
     name: stable - ${{ matrix.settings.target }} - node@16
@@ -1403,13 +1405,13 @@ jobs:
         if: ${{ matrix.settings.host == 'macos-latest' }}
       # we use checkout here instead of the build cache since
       # it can fail to restore in different OS'
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       # We use restore-key to pick latest cache.
       # We will not get exact match, but doc says
       # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
       # So we get latest cache
       - name: Cache built files
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ./packages/next-swc/target
           key: next-swc-cargo-cache-${{ matrix.settings.target }}--${{ hashFiles('**/Cargo.lock') }}
@@ -1417,7 +1419,7 @@ jobs:
             next-swc-cargo-cache-${{ matrix.settings.target }}
       - name: Turbo Cache
         id: turbo-cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .turbo
           key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ matrix.settings.target }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
@@ -1427,7 +1429,7 @@ jobs:
             turbo-${{ github.job }}-canary-${{ matrix.settings.target }}-${{ needs.build.outputs.weekNum }}-
 
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{ !matrix.settings.docker }}
         with:
           node-version: 16
@@ -1443,13 +1445,13 @@ jobs:
           target: ${{ matrix.settings.target }}
 
       - name: Cache cargo registry
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cargo/registry
           key: ${{ matrix.settings.target }}-cargo-registry
 
       - name: Cache cargo index
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cargo/git
           key: ${{ matrix.settings.target }}-cargo-index
@@ -1460,7 +1462,7 @@ jobs:
         shell: bash
 
       - name: Build in docker
-        uses: addnab/docker-run-action@v3
+        uses: addnab/docker-run-action@v4
         if: ${{ matrix.settings.docker }}
         with:
           image: ${{ matrix.settings.docker }}
@@ -1473,9 +1475,9 @@ jobs:
         shell: bash
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: next-swc-binaries
+          name: next-swc-binaries-${{ matrix.settings.target }}
           path: packages/next-swc/native/next-swc.*.node
 
   build-native-freebsd:
@@ -1486,7 +1488,7 @@ jobs:
     steps:
       - name: tune mac network
         run: sudo sysctl -w net.link.generic.system.hwcksum_tx=0 && sudo sysctl -w net.link.generic.system.hwcksum_rx=0
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Delete useless files
         run: |
           rm -rf bench
@@ -1531,9 +1533,9 @@ jobs:
             rm -rf node_modules
             rm -rf packages/next-swc/target
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: next-swc-binaries
+          name: next-swc-binaries-x86_64-unknown-freebsd
           path: packages/next-swc/native/next-swc.*.node
           if-no-files-found: error
 
@@ -1545,14 +1547,14 @@ jobs:
         target: [web, nodejs]
     runs-on: macos-latest
     steps:
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 16
           check-latest: true
@@ -1569,7 +1571,7 @@ jobs:
 
       - name: Turbo cache
         id: turbo-cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .turbo
           key: turbo-${{ github.job }}-${{ matrix.target }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
@@ -1582,22 +1584,22 @@ jobs:
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Build
-        run: turbo run build-wasm --cache-dir=".turbo" -- --target ${{ matrix.target }}
+        run: pnpm dlx turbo@${TURBO_VERSION} run build-wasm --cache-dir=".turbo" -- --target ${{ matrix.target }}
 
       - name: Add target to folder name
         run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wasm-binaries
+          name: wasm-binaries-${{ matrix.target }}
           path: packages/next-swc/crates/wasm/pkg-*
 
   build-wasm-dev:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
@@ -1606,7 +1608,7 @@ jobs:
 
       - name: Setup node
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 16
           check-latest: true
@@ -1624,7 +1626,7 @@ jobs:
 
       - name: Turbo Cache
         id: turbo-cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
         with:
@@ -1641,7 +1643,7 @@ jobs:
 
       - name: Build
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        run: turbo run build-wasm --cache-dir=".turbo" -- --target nodejs --dev
+        run: pnpm dlx turbo@${TURBO_VERSION} run build-wasm --cache-dir=".turbo" -- --target nodejs --dev
 
       - name: Add target to folder name
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -1649,9 +1651,9 @@ jobs:
 
       - name: Upload artifact
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wasm-dev-binary
+          name: wasm-dev-binary-nodejs
           path: packages/next-swc/crates/wasm/pkg-nodejs
 
   check-trace-secrests:
@@ -1674,13 +1676,13 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           node-version: 16
           check-latest: true
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         id: restore-build
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
@@ -1695,7 +1697,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         run: echo ${GIT_SHORT_SHA}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-swc-test-binary
