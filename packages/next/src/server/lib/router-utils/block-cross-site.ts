@@ -1,7 +1,6 @@
 import type { Duplex } from 'stream'
 import type { IncomingMessage, ServerResponse } from 'webpack-dev-server'
 import { parseUrl } from '../../../lib/url'
-import net from 'net'
 import { warnOnce } from '../../../build/output/log'
 import { isCsrfOriginAllowed } from '../../app-render/csrf-protection'
 
@@ -36,8 +35,7 @@ export const blockCrossSite = (
   req: IncomingMessage,
   res: ServerResponse | Duplex,
   allowedDevOrigins: string[] | undefined,
-  hostname: string | undefined,
-  activePort: string
+  hostname: string | undefined
 ): boolean => {
   // in the future, these will be blocked by default when allowed origins aren't configured.
   // for now, we warn when allowed origins aren't configured
@@ -52,7 +50,7 @@ export const blockCrossSite = (
     allowedOrigins.push(hostname)
   }
 
-  // only process _next URLs when
+  // only process _next URLs
   if (!req.url?.includes('/_next')) {
     return false
   }
@@ -73,16 +71,8 @@ export const blockCrossSite = (
 
     if (parsedOrigin) {
       const originLowerCase = parsedOrigin.hostname.toLowerCase()
-      const isMatchingPort = parsedOrigin.port === activePort
-      const isIpRequest =
-        net.isIPv4(originLowerCase) || net.isIPv6(originLowerCase)
 
-      if (
-        // allow requests if direct IP and matching port and
-        // allow if any of the allowed origins match
-        !(isIpRequest && isMatchingPort) &&
-        !isCsrfOriginAllowed(originLowerCase, allowedOrigins)
-      ) {
+      if (!isCsrfOriginAllowed(originLowerCase, allowedOrigins)) {
         return warnOrBlockRequest(res, originLowerCase, mode)
       }
     }

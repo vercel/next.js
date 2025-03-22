@@ -323,15 +323,7 @@ export async function initialize(opts: {
 
       // handle hot-reloader first
       if (developmentBundler) {
-        if (
-          blockCrossSite(
-            req,
-            res,
-            config.allowedDevOrigins,
-            opts.hostname,
-            `${opts.port}`
-          )
-        ) {
+        if (blockCrossSite(req, res, config.allowedDevOrigins, opts.hostname)) {
           return
         }
         const origUrl = req.url || '/'
@@ -698,13 +690,7 @@ export async function initialize(opts: {
 
       if (opts.dev && developmentBundler && req.url) {
         if (
-          blockCrossSite(
-            req,
-            socket,
-            config.allowedDevOrigins,
-            opts.hostname,
-            `${opts.port}`
-          )
+          blockCrossSite(req, socket, config.allowedDevOrigins, opts.hostname)
         ) {
           return
         }
