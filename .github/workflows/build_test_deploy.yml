@@ -39,7 +39,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - uses: actions/checkout@v4
@@ -100,7 +100,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - run: npm i -g pnpm@${PNPM_VERSION}
@@ -169,7 +169,7 @@ jobs:
         uses: actions/setup-node@v4
 
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       # https://github.com/actions/virtual-environments/issues/1187
@@ -212,7 +212,7 @@ jobs:
         uses: actions/setup-node@v4
 
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - uses: actions/cache@v4
@@ -305,7 +305,7 @@ jobs:
         uses: actions/setup-node@v4
 
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - run: echo ${{needs.build.outputs.docsChange}}
@@ -419,7 +419,7 @@ jobs:
         uses: actions/setup-node@v4
 
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - run: echo ${{needs.build.outputs.docsChange}}
@@ -521,7 +521,7 @@ jobs:
         uses: actions/setup-node@v4
 
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - run: echo ${{needs.build.outputs.docsChange}}
@@ -683,7 +683,7 @@ jobs:
         uses: actions/setup-node@v4
 
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - run: echo ${{needs.build.outputs.docsChange}}
@@ -734,7 +734,7 @@ jobs:
         uses: actions/setup-node@v4
 
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - uses: actions/cache@v4
@@ -785,7 +785,7 @@ jobs:
         uses: actions/setup-node@v4
 
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - uses: actions/cache@v4
@@ -819,7 +819,7 @@ jobs:
         uses: actions/setup-node@v4
 
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       # https://github.com/actions/virtual-environments/issues/1187
@@ -864,7 +864,7 @@ jobs:
         uses: actions/setup-node@v4
 
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       # https://github.com/actions/virtual-environments/issues/1187
@@ -937,7 +937,7 @@ jobs:
         uses: actions/setup-node@v4
 
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       # https://github.com/actions/virtual-environments/issues/1187
@@ -981,7 +981,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - uses: actions/cache@v4
@@ -1026,7 +1026,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - uses: actions/cache@v4
@@ -1065,7 +1065,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - name: Install
@@ -1194,7 +1194,7 @@ jobs:
 
         uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - run: npm i -g playwright-chromium@1.51.1 && npx playwright install-deps
@@ -1380,7 +1380,7 @@ jobs:
         uses: actions/setup-node@v4
         if: ${{ !matrix.settings.docker }}
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - name: Install
@@ -1504,7 +1504,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - name: Install Rust
@@ -1558,7 +1558,7 @@ jobs:
 
         uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - run: npm i -g turbo@${{ env.TURBO_VERSION }} pnpm@${PNPM_VERSION}
@@ -1626,7 +1626,7 @@ jobs:
         uses: actions/setup-node@v4
 
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - uses: actions/cache@v4
