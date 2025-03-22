@@ -26,6 +26,7 @@ env:
   DD_ENV: 'ci'
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
+  COREPACK_ENABLE_STRICT: 0
 
 jobs:
   build-native:
