@@ -1,10 +1,11 @@
 import type { VirtualTypeScriptEnvironment } from 'next/dist/compiled/@typescript/vfs'
 import {
-  createSystem,
+  createFSBackedSystem,
+  createDefaultMapFromNodeModules,
   createVirtualTypeScriptEnvironment,
 } from 'next/dist/compiled/@typescript/vfs'
 
-import path from 'path'
+import path, { join } from 'path'
 
 import type tsModule from 'typescript/lib/tsserverlibrary'
 type TypeScript = typeof import('typescript/lib/tsserverlibrary')
@@ -32,9 +33,16 @@ export function init(opts: {
 
   log('[next] Initializing Next.js TypeScript plugin at ' + projectDir)
 
-  const fsMap = new Map<string, string>()
-  const system = createSystem(fsMap)
   const compilerOptions = info.project.getCompilerOptions()
+  // const fsMap = new Map<string, string>()
+  const fsMap = createDefaultMapFromNodeModules(
+    compilerOptions,
+    ts,
+    join(projectDir, 'node_modules/typescript/lib')
+  )
+
+  const system = createFSBackedSystem(fsMap, projectDir, ts)
+
   virtualTsEnv = createVirtualTypeScriptEnvironment(
     system,
     [],
@@ -46,7 +54,7 @@ export function init(opts: {
     throw new Error('[next] Failed to create virtual TypeScript environment.')
   }
 
-  log('[next] Successfully initialized Next.js TypeScript plugin!!')
+  log('[next] Successfully initialized Next.js TypeScript plugin!')
 
   return virtualTsEnv
 }
