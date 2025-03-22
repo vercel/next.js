@@ -778,7 +778,9 @@ describe('cssmodules-pure-no-check usage', () => {
         const cssCode = cssContent.replace(/\/\*.*?\*\//g, '').trim()
 
         expect(cssCode).toInclude(`.global{font-weight:700}`)
-        expect(cssCode).toInclude(`::view-transition-old`)
+        expect(cssCode).toInclude(
+          `::view-transition-old(root){animation-duration:.3s}`
+        )
       })
     }
   )

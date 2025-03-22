@@ -1,13 +1,11 @@
-/* View Transitions API - requires global scope to work properly */
 /* cssmodules-pure-no-check */
-::view-transition-old(root) {
-  animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both var(--fade-in);
+
+/* View Transitions API - requires global scope to work properly */
+:global(::view-transition-old(root)) {
+  animation-duration: 0.3s;
 }
 
-::view-transition-new(root) {
-  animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both var(--fade-out);
-}
-
+/* a local class */
 .home {
   background-color: #f0f0f0;
   color: #333;
@@ -15,6 +13,7 @@
   padding: 20px;
 }
 
+/* a global class */
 :global(.global) {
   font-weight: 700;
 }
