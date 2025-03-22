@@ -149,14 +149,22 @@ const metadata = {
     _options: any,
     prior: tsModule.WithMetadata<tsModule.CompletionInfo>
   ) {
+    log('[next] filterCompletionsAtPosition starting')
     const node = getMetadataExport(fileName, position)
     if (!node) return prior
     if (isTyped(node)) return prior
+    log(
+      '[next] filterCompletionsAtPosition node: ' +
+        JSON.stringify(node?.getText(), null, 2)
+    )
 
     const ts = getTs()
 
     // We annotate with the type in a virtual language service
     const pos = updateVirtualFileWithType(fileName, node)
+    log(
+      '[next] filterCompletionsAtPosition pos: ' + JSON.stringify(pos, null, 2)
+    )
     if (pos === undefined) return prior
 
     // Get completions
@@ -165,6 +173,11 @@ const metadata = {
       fileName,
       newPos,
       undefined
+    )
+
+    log(
+      '[next] filterCompletionsAtPosition completions: ' +
+        JSON.stringify(completions, null, 2)
     )
 
     if (completions) {
@@ -198,8 +211,18 @@ const metadata = {
           }
         })
 
+      log(
+        '[next] filterCompletionsAtPosition completions result: ' +
+          JSON.stringify({ fileName, completions }, null, 2)
+      )
+
       return completions
     }
+
+    log(
+      '[next] filterCompletionsAtPosition no completions: ' +
+        JSON.stringify({ fileName, prior }, null, 2)
+    )
 
     return prior
   },
@@ -378,8 +401,15 @@ const metadata = {
     data: tsModule.CompletionEntryData
   ) {
     const node = getMetadataExport(fileName, position)
+    log(
+      'getCompletionEntryDetails node: ' +
+        JSON.stringify({ node: node?.getText() }, null, 2)
+    )
     if (!node) return
-    if (isTyped(node)) return
+    if (isTyped(node)) {
+      log('getCompletionEntryDetails node is typed')
+      return
+    }
 
     // We annotate with the type in a virtual language service
     const pos = updateVirtualFileWithType(fileName, node)
@@ -395,6 +425,10 @@ const metadata = {
       source,
       preferences,
       data
+    )
+    log(
+      'getCompletionEntryDetails details: ' +
+        JSON.stringify({ details }, null, 2)
     )
     return details
   },
