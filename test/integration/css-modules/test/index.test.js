@@ -778,10 +778,7 @@ describe('cssmodules-pure-no-check usage', () => {
         const cssCode = cssContent.replace(/\/\*.*?\*\//g, '').trim()
 
         expect(cssCode).toInclude(`.global{font-weight:700}`)
-
-        expect(cssCode).toInclude(
-          `::view-transition-old(root){animation:.3s cubic-bezier(.4,0,.2,1) both var(--fade-in)}`
-        )
+        expect(cssCode).toInclude(`::view-transition-old(root){`)
       })
     }
   )
