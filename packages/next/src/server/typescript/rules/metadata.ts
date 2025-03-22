@@ -231,7 +231,7 @@ const metadata = {
     fileName: string,
     node: tsModule.VariableStatement | tsModule.FunctionDeclaration
   ) {
-    const source = getSourceFromVirtualTsEnv(fileName)
+    const source = getSource(fileName)
     const ts = getTs()
 
     // It is not allowed to export `metadata` or `generateMetadata` in client entry
@@ -305,7 +305,7 @@ const metadata = {
     node: tsModule.ExportDeclaration
   ) {
     const ts = getTs()
-    const source = getSourceFromVirtualTsEnv(fileName)
+    const source = getSource(fileName)
     const diagnostics: tsModule.Diagnostic[] = []
 
     const exportClause = node.exportClause
@@ -370,7 +370,7 @@ const metadata = {
                     } else {
                       return [
                         {
-                          file: getSourceFromVirtualTsEnv(fileName),
+                          file: getSource(fileName),
                           category: ts.DiagnosticCategory.Error,
                           code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
                           messageText: `The 'metadata' export value is not typed correctly, please make sure it is typed as 'Metadata':\nhttps://nextjs.org/docs/app/building-your-application/optimizing/metadata#static-metadata`,
