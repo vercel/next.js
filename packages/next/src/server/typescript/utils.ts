@@ -34,13 +34,11 @@ export function init(opts: {
   log('[next] Initializing Next.js TypeScript plugin: ' + projectDir)
 
   const compilerOptions = info.project.getCompilerOptions()
-  // const fsMap = new Map<string, string>()
   const fsMap = createDefaultMapFromNodeModules(
     compilerOptions,
     ts,
     join(projectDir, 'node_modules/typescript/lib')
   )
-
   const system = createFSBackedSystem(fsMap, projectDir, ts)
 
   virtualTsEnv = createVirtualTypeScriptEnvironment(
@@ -55,8 +53,6 @@ export function init(opts: {
   }
 
   log('[next] Successfully initialized Next.js TypeScript plugin!')
-
-  return virtualTsEnv
 }
 
 export function getTs() {

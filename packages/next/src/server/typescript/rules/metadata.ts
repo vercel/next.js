@@ -97,9 +97,6 @@ function updateVirtualFileWithType(
     virtualTsEnv.createFile(fileName, newSource)
   }
 
-  // // @ts-expect-error internal API since TS 5.5
-  // getInfo().project.markAsDirty?.()
-
   return [nodeEnd, annotation.length]
 }
 
@@ -120,7 +117,7 @@ function proxyDiagnostics(
   const source = getSourceFromVirtualTsEnv(fileName)
 
   // Filter and map the results
-  const result = diagnostics
+  return diagnostics
     .filter((d) => {
       if (d.start === undefined || d.length === undefined) return false
       if (d.start < n.getFullStart()) return false
@@ -138,8 +135,6 @@ function proxyDiagnostics(
         length: d.length,
       }
     })
-
-  return result
 }
 
 const metadata = {
@@ -150,18 +145,12 @@ const metadata = {
     prior: tsModule.WithMetadata<tsModule.CompletionInfo>
   ) {
     const node = getMetadataExport(fileName, position)
-    if (!node) {
-      return prior
-    }
-    if (isTyped(node)) {
-      return prior
-    }
+    if (!node) return prior
+    if (isTyped(node)) return prior
 
     // We annotate with the type in a virtual language service
     const pos = updateVirtualFileWithType(fileName, node)
-    if (pos === undefined) {
-      return prior
-    }
+    if (pos === undefined) return prior
 
     // Get completions
     const newPos = position <= pos[0] ? position : position + pos[1]
@@ -382,18 +371,12 @@ const metadata = {
     data: tsModule.CompletionEntryData
   ) {
     const node = getMetadataExport(fileName, position)
-    if (!node) {
-      return
-    }
-    if (isTyped(node)) {
-      return
-    }
+    if (!node) return
+    if (isTyped(node)) return
 
     // We annotate with the type in a virtual language service
     const pos = updateVirtualFileWithType(fileName, node)
-    if (pos === undefined) {
-      return
-    }
+    if (pos === undefined) return
 
     const newPos = position <= pos[0] ? position : position + pos[1]
 
@@ -406,7 +389,6 @@ const metadata = {
       preferences,
       data
     )
-
     return details
   },
 

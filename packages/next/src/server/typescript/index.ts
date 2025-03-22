@@ -128,9 +128,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         entryName,
         data
       )
-      if (entryCompletionEntryDetails) {
-        return entryCompletionEntryDetails
-      }
+      if (entryCompletionEntryDetails) return entryCompletionEntryDetails
 
       const metadataCompletionEntryDetails = metadata.getCompletionEntryDetails(
         fileName,
@@ -141,9 +139,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         preferences,
         data
       )
-      if (metadataCompletionEntryDetails) {
-        return metadataCompletionEntryDetails
-      }
+      if (metadataCompletionEntryDetails) return metadataCompletionEntryDetails
 
       return info.languageService.getCompletionEntryDetails(
         fileName,
@@ -162,14 +158,10 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         fileName,
         position
       )
-
-      if (!isAppEntryFile(fileName)) {
-        return prior
-      }
+      if (!isAppEntryFile(fileName)) return prior
 
       // Remove type suggestions for disallowed APIs in server components.
       const entryInfo = getEntryInfo(fileName)
-
       if (!entryInfo.client) {
         const definitions = info.languageService.getDefinitionAtPosition(
           fileName,
@@ -183,15 +175,11 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         }
 
         const metadataInfo = metadata.getQuickInfoAtPosition(fileName, position)
-        if (metadataInfo) {
-          return metadataInfo
-        }
+        if (metadataInfo) return metadataInfo
       }
 
       const overridden = entryConfig.getQuickInfoAtPosition(fileName, position)
-      if (overridden) {
-        return overridden
-      }
+      if (overridden) return overridden
 
       return prior
     }
@@ -264,7 +252,6 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
                   fileName,
                   node
                 )
-
             prior.push(...diagnostics, ...metadataDiagnostics)
           }
 
