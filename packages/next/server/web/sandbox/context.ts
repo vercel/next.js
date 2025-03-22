@@ -225,7 +225,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
         init.headers.set('x-middleware-subrequest', value)
         init.headers.set(
           'x-middleware-subrequest-id',
-          (globalThis as any)[Symbol.for('@next/middleware-subrequest-id')]
+          (global as any)[Symbol.for('@next/middleware-subrequest-id')]
         )
 
         if (!init.headers.has('user-agent')) {

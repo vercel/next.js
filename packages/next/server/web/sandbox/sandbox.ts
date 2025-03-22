@@ -75,7 +75,7 @@ export const run = withTaggedErrors(async (params) => {
   if (
     // require the subrequest-id be valid to skip
     params.request.headers['x-middleware-subrequest-id'] ===
-      (globalThis as any)[Symbol.for('@next/middleware-subrequest-id')] &&
+      (global as any)[Symbol.for('@next/middleware-subrequest-id')] &&
     subrequests.includes(params.name)
   ) {
     return {

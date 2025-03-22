@@ -250,7 +250,7 @@ export default class NextNodeServer extends BaseServer {
 
     const randomBytes = crypto.randomBytes(8)
     const middlewareSubrequestId = randomBytes.toString('hex')
-    ;(globalThis as any)[Symbol.for('@next/middleware-subrequest-id')] =
+    ;(global as any)[Symbol.for('@next/middleware-subrequest-id')] =
       middlewareSubrequestId
 
     if (!options.dev) {
