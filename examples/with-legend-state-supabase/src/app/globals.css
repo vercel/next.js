@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+:root {
+  --background: #171717;
+  --foreground: #ffffff;
+}
+
+@theme inline {
+  --color-mobai-background: var(--background);
+  --color-mobai-foreground: var(--foreground);
+  --ease-mobai-bounce: cubic-bezier(0.84, 0, 0.165, 1);
+}
