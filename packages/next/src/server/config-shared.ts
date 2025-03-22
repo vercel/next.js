@@ -1136,7 +1136,7 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
-  allowedDevOrigins: [],
+  allowedDevOrigins: undefined,
   experimental: {
     allowedDevOrigins: [],
     nodeMiddleware: false,
