@@ -72,7 +72,12 @@ export const run = withTaggedErrors(async (params) => {
   const runtime = await getRuntimeContext(params)
   const subreq = params.request.headers[`x-middleware-subrequest`]
   const subrequests = typeof subreq === 'string' ? subreq.split(':') : []
-  if (subrequests.includes(params.name)) {
+  if (
+    // require the subrequest-id be valid to skip
+    params.request.headers['x-middleware-subrequest-id'] ===
+      (global as any)[Symbol.for('@next/middleware-subrequest-id')] &&
+    subrequests.includes(params.name)
+  ) {
     return {
       waitUntil: Promise.resolve(),
       response: new runtime.context.Response(null, {

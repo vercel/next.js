@@ -126,7 +126,7 @@ importers:
       npm-run-all: 4.1.5
       nprogress: 0.2.0
       pixrem: 5.0.0
-      playwright-chromium: 1.22.2
+      playwright-chromium: 1.51.1
       plop: 3.0.5
       postcss-nested: 4.2.1
       postcss-pseudoelements: 5.0.0
@@ -281,7 +281,7 @@ importers:
       npm-run-all: 4.1.5
       nprogress: 0.2.0
       pixrem: 5.0.0
-      playwright-chromium: 1.22.2
+      playwright-chromium: 1.51.1
       plop: 3.0.5
       postcss-nested: 4.2.1
       postcss-pseudoelements: 5.0.0
@@ -14922,7 +14922,7 @@ packages:
       }
     engines: { node: '>=4.0' }
     os: [darwin]
-    deprecated: fsevents 1 will break on node v14+ and could be using insecure binaries. Upgrade to fsevents 2.
+    deprecated: Upgrade to fsevents v2 to mitigate potential security issues
     requiresBuild: true
     dependencies:
       bindings: 1.5.0
@@ -22612,24 +22612,24 @@ packages:
       }
     dev: false
 
-  /playwright-chromium/1.22.2:
+  /playwright-chromium/1.51.1:
     resolution:
       {
-        integrity: sha512-msRcdCIJkdM2R6S+NMJZ02uyZHzJ7TIzkjzs3usDJ1Pwacp9HMhv9T/S4AxtpFXFmvMZq7UJYb0x+tCdHx9+0w==,
+        integrity: sha512-IQpN8lgv/fx++WRxT8ITZylDwYAamd3Fv5H9g2AWsicp0N829L1oXHziK/6l9h/TMxioSTqc4ifPiZLS8nITxw==,
       }
-    engines: { node: '>=14' }
+    engines: { node: '>=18' }
     hasBin: true
     requiresBuild: true
     dependencies:
-      playwright-core: 1.22.2
+      playwright-core: 1.51.1
     dev: true
 
-  /playwright-core/1.22.2:
+  /playwright-core/1.51.1:
     resolution:
       {
-        integrity: sha512-w/hc/Ld0RM4pmsNeE6aL/fPNWw8BWit2tg+TfqJ3+p59c6s3B6C8mXvXrIPmfQEobkcFDc+4KirNzOQ+uBSP1Q==,
+        integrity: sha512-/crRMj8+j/Nq5s8QcvegseuyeZPxpQCZb6HNk3Sos3BlZyAknRjoyJPFWkpNn8v0+P3WiwqFF8P+zQo4eqiNuw==,
       }
-    engines: { node: '>=14' }
+    engines: { node: '>=18' }
     hasBin: true
     dev: true
 
