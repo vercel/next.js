@@ -87,12 +87,18 @@ function updateVirtualFileWithType(
     TYPE_IMPORT
 
   if (virtualTsEnv.sys.fileExists(fileName)) {
-    log('Updating file: ' + fileName)
-    virtualTsEnv.updateFile(fileName, newSource)
+    log('[next] Updating file: ' + fileName)
+    // FIXME: updateFile() breaks as the file doesn't exists, which is weird.
+    // virtualTsEnv.updateFile(fileName, newSource)
+    virtualTsEnv.deleteFile(fileName)
+    virtualTsEnv.createFile(fileName, newSource)
   } else {
-    log('Creating file: ' + fileName)
+    log('[next] Creating file: ' + fileName)
     virtualTsEnv.createFile(fileName, newSource)
   }
+
+  // // @ts-expect-error internal API since TS 5.5
+  // getInfo().project.markAsDirty?.()
 
   return [nodeEnd, annotation.length]
 }
@@ -114,7 +120,7 @@ function proxyDiagnostics(
   const source = getSourceFromVirtualTsEnv(fileName)
 
   // Filter and map the results
-  return diagnostics
+  const result = diagnostics
     .filter((d) => {
       if (d.start === undefined || d.length === undefined) return false
       if (d.start < n.getFullStart()) return false
@@ -132,6 +138,8 @@ function proxyDiagnostics(
         length: d.length,
       }
     })
+
+  return result
 }
 
 const metadata = {
@@ -153,13 +161,6 @@ const metadata = {
 
     // Get completions
     const newPos = position <= pos[0] ? position : position + pos[1]
-    log('Getting completions at position: ' + newPos)
-    log(
-      JSON.stringify({
-        fileExists: virtualTsEnv.sys.fileExists(fileName),
-        getSource: virtualTsEnv.getSourceFile(fileName)?.text,
-      })
-    )
     const completions = virtualTsEnv.languageService.getCompletionsAtPosition(
       fileName,
       newPos,
