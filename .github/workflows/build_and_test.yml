@@ -26,6 +26,7 @@ env:
   DD_ENV: 'ci'
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
+  COREPACK_ENABLE_STRICT: 0
 
 jobs:
   build-native:
@@ -54,8 +55,8 @@ jobs:
   validate-docs-links:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 18
       - run: corepack enable
@@ -84,7 +85,7 @@ jobs:
       needsRust: 'yes'
       skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
-      afterBuild: turbo run test-cargo-unit
+      afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit
       mold: 'yes'
     secrets: inherit
 
@@ -98,7 +99,7 @@ jobs:
       needsNextest: 'yes'
       needsRust: 'yes'
       skipNativeBuild: 'yes'
-      afterBuild: xvfb-run turbo run test-cargo-integration
+      afterBuild: xvfb-run pnpm dlx turbo@${TURBO_VERSION} run test-cargo-integration
 
   test-cargo-bench:
     name: test cargo benchmarks
@@ -110,7 +111,7 @@ jobs:
       skipForRelease: 'yes'
       needsRust: 'yes'
       skipNativeBuild: 'yes'
-      afterBuild: xvfb-run turbo run test-cargo-bench
+      afterBuild: xvfb-run pnpm dlx turbo@${TURBO_VERSION} run test-cargo-bench
 
   rust-check:
     name: rust check
@@ -122,7 +123,7 @@ jobs:
       needsRust: 'yes'
       skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
-      afterBuild: turbo run rust-check
+      afterBuild: pnpm dlx turbo@${TURBO_VERSION} run rust-check
     secrets: inherit
 
   test-turbopack-dev:

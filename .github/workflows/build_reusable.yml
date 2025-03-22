@@ -74,6 +74,7 @@ env:
   DD_ENV: 'ci'
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
+  COREPACK_ENABLE_STRICT: 0
 
 jobs:
   build:
@@ -90,7 +91,7 @@ jobs:
       - run: corepack enable
       - run: pwd
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 25
 
@@ -115,7 +116,7 @@ jobs:
       - run: rustc --version
         if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
 
-      - run: corepack prepare --activate yarn@1.22.19 && npm i -g "turbo@${TURBO_VERSION}" "@napi-rs/cli@${NAPI_CLI_VERSION}"
+      - run: corepack prepare --activate yarn@1.22.19 && npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
 
       - name: Cache on ${{ github.ref_name }}
         uses: ijjk/rust-cache@turbo-cache-v1.0.7
@@ -148,12 +149,12 @@ jobs:
       - run: node scripts/normalize-version-bump.js
         name: normalize versions
 
-      - run: turbo run build-native-release -vvv --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-gnu
+      - run: pnpm dlx turbo@${TURBO_VERSION} run build-native-release -vvv --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-gnu
         if: ${{ inputs.skipNativeBuild != 'yes' && steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
 
       - name: Upload next-swc artifact
         if: ${{ inputs.uploadSwcArtifact == 'yes' && steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: next-swc-binary
           path: packages/next-swc/native/next-swc.linux-x64-gnu.node
@@ -176,30 +177,30 @@ jobs:
       - run: pnpm playwright install chromium
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
-      - run: turbo run get-test-timings -- --build ${{ github.sha }}
+      - run: pnpm turbo run get-test-timings -- --build ${{ github.sha }}
 
       - run: /bin/bash -c "${{ inputs.afterBuild }}"
         if: ${{(inputs.skipForDocsOnly != 'yes' || steps.docs-change.outputs.DOCS_CHANGE == 'nope') && (inputs.skipForRelease != 'yes' || steps.is-release.outputs.IS_RELEASE == 'nope')}}
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: turbo run summary
-          path: .turbo/runs
+      # - name: Upload artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: turbo run summary
+      #     path: .turbo/runs
 
-      - name: Upload test reports artifact
-        uses: actions/upload-artifact@v3
-        if: ${{ inputs.afterBuild }}
-        with:
-          name: Test trace reports
-          path: |
-            test/test-junit-report
-            test/turbopack-test-junit-report
-          if-no-files-found: ignore
+      # - name: Upload test reports artifact
+      #   uses: actions/upload-artifact@v4
+      #   if: ${{ inputs.afterBuild }}
+      #   with:
+      #     name: Test trace reports
+      #     path: |
+      #       test/test-junit-report
+      #       test/turbopack-test-junit-report
+      #     if-no-files-found: ignore
 
       - name: Download test reports artifact
         id: download-test-reports
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         continue-on-error: true
         if: ${{ inputs.uploadTestTrace == 'yes' && (inputs.skipForDocsOnly != 'yes' || steps.docs-change.outputs.DOCS_CHANGE == 'nope') }}
         with:
