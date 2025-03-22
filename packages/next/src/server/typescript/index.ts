@@ -79,14 +79,13 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       if (!entryInfo.client) {
         // Remove specified entries from completion list
         prior.entries = serverLayer.filterCompletionsAtPosition(prior.entries)
-
         // Provide autocompletion for metadata fields
-        prior.entries = metadata.filterCompletionsAtPosition(
+        prior = metadata.filterCompletionsAtPosition(
           fileName,
           position,
           options,
           prior
-        ).entries
+        )
       }
 
       // Add auto completions for export configs.

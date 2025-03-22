@@ -163,6 +163,11 @@ const metadata = {
     if (completions) {
       const ts = getTs()
       completions.isIncomplete = true
+      // https://github.com/microsoft/TypeScript/blob/4dc677b292354f4b9162452b2e00f4d7dd118221/src/services/types.ts#L1428-L1433
+      if (completions.optionalReplacementSpan) {
+        // Adjust the start position of the text span to original source.
+        completions.optionalReplacementSpan.start -= newPos - position
+      }
       completions.entries = completions.entries
         .filter((e) => {
           return [
