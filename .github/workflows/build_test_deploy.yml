@@ -272,7 +272,7 @@ jobs:
 
       - run: npm i -g pnpm@${PNPM_VERSION}
 
-      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.51.1 && npx playwright install-deps
 
       - run: node run-tests.js --type development --timings -g ${{ matrix.group }}/2
         name: Run test/development
@@ -328,7 +328,7 @@ jobs:
 
       - run: npm i -g pnpm@${PNPM_VERSION}
 
-      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.51.1 && npx playwright install-deps
 
       - run: node run-tests.js --type development --timings -g ${{ matrix.group }}/2
         name: Run test/development
@@ -385,7 +385,7 @@ jobs:
 
       - run: npm i -g pnpm@${PNPM_VERSION}
 
-      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.51.1 && npx playwright install-deps
 
       - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
         name: Run test/e2e (dev)
@@ -442,7 +442,7 @@ jobs:
 
       - run: npm i -g pnpm@${PNPM_VERSION}
 
-      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.51.1 && npx playwright install-deps
 
       - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
         name: Run test/e2e (dev)
@@ -498,7 +498,7 @@ jobs:
 
       - run: npm i -g pnpm@${PNPM_VERSION}
 
-      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.51.1 && npx playwright install-deps
 
       - run: node run-tests.js --type production --timings -g ${{ matrix.group }}/2
         name: Run test/production
@@ -544,7 +544,7 @@ jobs:
 
       - run: npm i -g pnpm@${PNPM_VERSION}
 
-      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.51.1 && npx playwright install-deps
 
       - run: node run-tests.js --type production --timings -g ${{ matrix.group }}/2
         name: Run test/production
@@ -591,7 +591,7 @@ jobs:
 
       - run: npm i -g pnpm@${PNPM_VERSION}
 
-      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.51.1 && npx playwright install-deps
 
       - run: NEXT_TEST_MODE=start node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
         name: Run test/e2e (production)
@@ -638,7 +638,7 @@ jobs:
 
       - run: npm i -g pnpm@${PNPM_VERSION}
 
-      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.51.1 && npx playwright install-deps
 
       - run: NEXT_TEST_MODE=start node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
         name: Run test/e2e (production)
@@ -706,7 +706,7 @@ jobs:
 
       - run: npm i -g pnpm@${PNPM_VERSION}
 
-      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.51.1 && npx playwright install-deps
 
       - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/20
 
@@ -998,7 +998,7 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
         name: Install pnpm
 
-      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.51.1 && npx playwright install-deps
         name: Install playwright dependencies
 
       - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
@@ -1196,7 +1196,7 @@ jobs:
           node-version: 16
           check-latest: true
 
-      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.51.1 && npx playwright install-deps
 
       - run: node ./scripts/setup-wasm.mjs
 
