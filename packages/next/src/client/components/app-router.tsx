@@ -29,9 +29,9 @@ import {
 } from './router-reducer/router-reducer-types'
 import type {
   AppRouterState,
+  NavigateAction,
   ReducerActions,
   RouterChangeByServerResponse,
-  RouterNavigate,
 } from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
@@ -189,27 +189,26 @@ function useChangeByServerResponse(
   )
 }
 
-function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
-  return useCallback(
-    (href, navigateType, shouldScroll) => {
-      const url = new URL(addBasePath(href), location.href)
-
-      if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
-        window.next.__pendingUrl = url
-      }
-
-      return dispatch({
-        type: ACTION_NAVIGATE,
-        url,
-        isExternalUrl: isExternalURL(url),
-        locationSearch: location.search,
-        shouldScroll: shouldScroll ?? true,
-        navigateType,
-        allowAliasing: true,
-      })
-    },
-    [dispatch]
-  )
+function dispatchNavigateAction(
+  href: string,
+  navigateType: NavigateAction['navigateType'],
+  shouldScroll: boolean
+): void {
+  // TODO: This stuff could just go into the reducer. Leaving as-is for now
+  // since we're about to rewrite all the router reducer stuff anyway.
+  const url = new URL(addBasePath(href), location.href)
+  if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
+    window.next.__pendingUrl = url
+  }
+  dispatchAppRouterAction({
+    type: ACTION_NAVIGATE,
+    url,
+    isExternalUrl: isExternalURL(url),
+    locationSearch: location.search,
+    shouldScroll,
+    navigateType,
+    allowAliasing: true,
+  })
 }
 
 function copyNextJsInternalHistoryState(data: any) {
@@ -282,7 +281,6 @@ function Router({
   const changeByServerResponse = useChangeByServerResponse(
     dispatchAppRouterAction
   )
-  const navigate = useNavigate(dispatchAppRouterAction)
   useServerActionDispatcher(dispatchAppRouterAction)
 
   /**
@@ -322,12 +320,12 @@ function Router({
           },
       replace: (href, options = {}) => {
         startTransition(() => {
-          navigate(href, 'replace', options.scroll ?? true)
+          dispatchNavigateAction(href, 'replace', options.scroll ?? true)
         })
       },
       push: (href, options = {}) => {
         startTransition(() => {
-          navigate(href, 'push', options.scroll ?? true)
+          dispatchNavigateAction(href, 'push', options.scroll ?? true)
         })
       },
       refresh: () => {
@@ -355,7 +353,7 @@ function Router({
     }
 
     return routerInstance
-  }, [actionQueue, navigate])
+  }, [actionQueue])
 
   useEffect(() => {
     // Exists for debugging purposes. Don't use in application code.
