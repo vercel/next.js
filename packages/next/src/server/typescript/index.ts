@@ -34,13 +34,6 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
   typescript: ts,
 }) => {
   function create(info: tsModule.server.PluginCreateInfo) {
-    // Set up decorator object
-    const proxy = Object.create(null)
-    for (let k of Object.keys(info.languageService)) {
-      const x = (info.languageService as any)[k]
-      proxy[k] = (...args: Array<{}>) => x.apply(info.languageService, args)
-    }
-
     // Get plugin options
     // config is the plugin options from the user's tsconfig.json
     // e.g. { "plugins": [{ "name": "next", "enabled": true }] }
@@ -49,7 +42,15 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
     const isPluginEnabled = info.config.enabled ?? true
 
     if (!isPluginEnabled) {
-      return proxy
+      return info.languageService
+    }
+
+    // Set up decorator object
+    const proxy: tsModule.LanguageService = Object.create(null)
+    for (let k of Object.keys(info.languageService)) {
+      const x = info.languageService[k as keyof tsModule.LanguageService]
+      // @ts-expect-error - JS runtime trickery which is tricky to type tersely
+      proxy[k] = (...args: Array<{}>) => x.apply(info.languageService, args)
     }
 
     init({
@@ -82,25 +83,12 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         prior.entries = serverLayer.filterCompletionsAtPosition(prior.entries)
 
         // Provide autocompletion for metadata fields
-        prior = metadata.filterCompletionsAtPosition(
+        prior.entries = metadata.filterCompletionsAtPosition(
           fileName,
           position,
           options,
           prior
-        )
-
-        log(
-          'filterCompletionsAtPosition result: ' +
-            JSON.stringify(
-              {
-                fileName,
-                position,
-                prior,
-              },
-              null,
-              2
-            )
-        )
+        ).entries
       }
 
       // Add auto completions for export configs.

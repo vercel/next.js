@@ -54,7 +54,7 @@ export function init(opts: {
     throw new Error('[next] Failed to create virtual TypeScript environment.')
   }
 
-  log('[next] Successfully initialized Next.js TypeScript plugin!')
+  log('[next] Successfully initialized Next.js TypeScript plugin!!')
 
   return virtualTsEnv
 }
