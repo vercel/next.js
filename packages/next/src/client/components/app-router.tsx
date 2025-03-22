@@ -39,7 +39,7 @@ import {
   PathnameContext,
   PathParamsContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
-import { useReducer, useUnwrapState } from './use-reducer'
+import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
 import {
   default as DefaultGlobalError,
   ErrorBoundary,
@@ -261,8 +261,8 @@ function Router({
   assetPrefix: string
   globalError: [GlobalErrorComponent, React.ReactNode]
 }) {
-  const [state, dispatch] = useReducer(actionQueue)
-  const { canonicalUrl } = useUnwrapState(state)
+  const state = useActionQueue(actionQueue)
+  const { canonicalUrl } = state
   // Add memoized pathname/query for useSearchParams and usePathname.
   const { searchParams, pathname } = useMemo(() => {
     const url = new URL(
@@ -279,9 +279,11 @@ function Router({
     }
   }, [canonicalUrl])
 
-  const changeByServerResponse = useChangeByServerResponse(dispatch)
-  const navigate = useNavigate(dispatch)
-  useServerActionDispatcher(dispatch)
+  const changeByServerResponse = useChangeByServerResponse(
+    dispatchAppRouterAction
+  )
+  const navigate = useNavigate(dispatchAppRouterAction)
+  useServerActionDispatcher(dispatchAppRouterAction)
 
   /**
    * The app router that is exposed through `useRouter`. It's only concerned with dispatching actions to the reducer, does not hold state.
@@ -330,7 +332,7 @@ function Router({
       },
       refresh: () => {
         startTransition(() => {
-          dispatch({
+          dispatchAppRouterAction({
             type: ACTION_REFRESH,
             origin: window.location.origin,
           })
@@ -343,7 +345,7 @@ function Router({
           )
         } else {
           startTransition(() => {
-            dispatch({
+            dispatchAppRouterAction({
               type: ACTION_HMR_REFRESH,
               origin: window.location.origin,
             })
@@ -353,7 +355,7 @@ function Router({
     }
 
     return routerInstance
-  }, [actionQueue, dispatch, navigate])
+  }, [actionQueue, navigate])
 
   useEffect(() => {
     // Exists for debugging purposes. Don't use in application code.
@@ -364,7 +366,7 @@ function Router({
 
   if (process.env.NODE_ENV !== 'production') {
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { cache, prefetchCache, tree } = useUnwrapState(state)
+    const { cache, prefetchCache, tree } = state
 
     // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -399,7 +401,7 @@ function Router({
       // of the last MPA navigation.
       globalMutable.pendingMpaPath = undefined
 
-      dispatch({
+      dispatchAppRouterAction({
         type: ACTION_RESTORE,
         url: new URL(window.location.href),
         tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
@@ -411,7 +413,7 @@ function Router({
     return () => {
       window.removeEventListener('pageshow', handlePageShow)
     }
-  }, [dispatch])
+  }, [])
 
   useEffect(() => {
     // Ensure that any redirect errors that bubble up outside of the RedirectBoundary
@@ -450,7 +452,7 @@ function Router({
   // probably safe because we know this is a singleton component and it's never
   // in <Offscreen>. At least I hope so. (It will run twice in dev strict mode,
   // but that's... fine?)
-  const { pushRef } = useUnwrapState(state)
+  const { pushRef } = state
   if (pushRef.mpaNavigation) {
     // if there's a re-render, we don't want to trigger another redirect if one is already in flight to the same URL
     if (globalMutable.pendingMpaPath !== canonicalUrl) {
@@ -484,7 +486,7 @@ function Router({
         window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE
 
       startTransition(() => {
-        dispatch({
+        dispatchAppRouterAction({
           type: ACTION_RESTORE,
           url: new URL(url ?? href, href),
           tree,
@@ -558,7 +560,7 @@ function Router({
       // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
       // Without startTransition works if the cache is there for this path
       startTransition(() => {
-        dispatch({
+        dispatchAppRouterAction({
           type: ACTION_RESTORE,
           url: new URL(window.location.href),
           tree: event.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
@@ -573,9 +575,9 @@ function Router({
       window.history.replaceState = originalReplaceState
       window.removeEventListener('popstate', onPopState)
     }
-  }, [dispatch])
+  }, [])
 
-  const { cache, tree, nextUrl, focusAndScrollRef } = useUnwrapState(state)
+  const { cache, tree, nextUrl, focusAndScrollRef } = state
 
   const matchingHead = useMemo(() => {
     return findHeadInCache(cache, tree[1])
@@ -666,7 +668,7 @@ function Router({
 
   return (
     <>
-      <HistoryUpdater appRouterState={useUnwrapState(state)} />
+      <HistoryUpdater appRouterState={state} />
       <RuntimeStyles />
       <PathParamsContext.Provider value={pathParams}>
         <PathnameContext.Provider value={pathname}>
