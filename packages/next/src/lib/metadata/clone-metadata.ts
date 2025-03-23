@@ -1,4 +1,7 @@
-import type { ResolvedMetadata } from './types/metadata-interface'
+import type {
+  ResolvedMetadata,
+  ResolvedViewport,
+} from './types/metadata-interface'
 
 const TYPE_URL = '__METADATA_URL'
 
@@ -17,7 +20,9 @@ function reviver(_key: string, val: any) {
   return val
 }
 
-export function cloneMetadata(metadata: ResolvedMetadata): ResolvedMetadata {
+export function cloneMetadata<T extends ResolvedMetadata | ResolvedViewport>(
+  metadata: T
+): T {
   const jsonString = JSON.stringify(metadata, replacer)
   return JSON.parse(jsonString, reviver)
 }
