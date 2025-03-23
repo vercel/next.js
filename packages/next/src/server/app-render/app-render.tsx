@@ -978,6 +978,7 @@ async function getErrorRSCPayload(
       {process.env.NODE_ENV === 'development' && (
         <meta name="next-error" content="not-found" />
       )}
+      {StreamingMetadata ? <StreamingMetadata /> : null}
       <StaticMetadata />
     </React.Fragment>
   )
@@ -998,7 +999,10 @@ async function getErrorRSCPayload(
   const seedData: CacheNodeSeedData = [
     initialTree[0],
     <html id="__next_error__">
-      <head>{StreamingMetadata ? <StreamingMetadata /> : null}</head>
+      <head>
+        {StreamingMetadata ? <StreamingMetadata /> : null}
+        <StaticMetadata />
+      </head>
       <body>
         {process.env.NODE_ENV !== 'production' && err ? (
           <template
@@ -2112,12 +2116,14 @@ async function renderToStream(
         {
           ReactDOMServer: require('react-dom/server.edge'),
           element: (
-            <AppWithoutContext
-              reactServerStream={errorServerStream}
-              preinitScripts={errorPreinitScripts}
-              clientReferenceManifest={clientReferenceManifest}
-              nonce={ctx.nonce}
-            />
+            <ServerInsertedHTMLProvider>
+              <AppWithoutContext
+                reactServerStream={errorServerStream}
+                preinitScripts={errorPreinitScripts}
+                clientReferenceManifest={clientReferenceManifest}
+                nonce={ctx.nonce}
+              />
+            </ServerInsertedHTMLProvider>
           ),
           streamOptions: {
             nonce: ctx.nonce,
@@ -4025,12 +4031,14 @@ async function prerenderToStream(
       const fizzStream = await renderToInitialFizzStream({
         ReactDOMServer: require('react-dom/server.edge'),
         element: (
-          <AppWithoutContext
-            reactServerStream={errorServerStream}
-            preinitScripts={errorPreinitScripts}
-            clientReferenceManifest={clientReferenceManifest}
-            nonce={ctx.nonce}
-          />
+          <ServerInsertedMetadataProvider>
+            <AppWithoutContext
+              reactServerStream={errorServerStream}
+              preinitScripts={errorPreinitScripts}
+              clientReferenceManifest={clientReferenceManifest}
+              nonce={ctx.nonce}
+            />
+          </ServerInsertedMetadataProvider>
         ),
         streamOptions: {
           nonce: ctx.nonce,
