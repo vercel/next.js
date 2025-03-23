@@ -70,8 +70,31 @@ export function redirect(
       `Invalid redirect arguments. Please use a single argument URL, e.g. res.redirect('/destination') or use a status code and URL, e.g. res.redirect(307, '/destination').`
     )
   }
-  res.writeHead(statusOrUrl, { Location: url })
-  res.write(url)
+  
+  // Validate URL to prevent open redirects
+  // Only allow relative URLs or URLs matching the same origin
+  let redirectUrl = url
+  try {
+    // If the URL starts with / it's a relative URL and is safe
+    if (!url.startsWith('/')) {
+      // For absolute URLs, validate they are for the same origin
+      // to prevent open redirects to external sites
+      const parsedUrl = new URL(url, 'http://n')
+      // If the URL has a protocol + host, it's an external URL
+      if (parsedUrl.protocol.includes(':') && parsedUrl.host !== 'n') {
+        throw new Error('URL is external')
+      }
+      // Only use the pathname + search + hash for security
+      redirectUrl = `${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`
+    }
+  } catch (error) {
+    throw new Error(
+      `Invalid redirect URL: "${url}". URLs must be relative or same-origin to prevent open redirect vulnerabilities.`
+    )
+  }
+
+  res.writeHead(statusOrUrl, { Location: redirectUrl })
+  res.write(redirectUrl)
   res.end()
   return res
 }
