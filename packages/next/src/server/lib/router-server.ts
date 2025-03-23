@@ -41,7 +41,7 @@ import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-path
 import { getHostname } from '../../shared/lib/get-hostname'
 import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
-import { filterInternalHeaders } from './server-ipc/utils'
+import { filterInternalHeaders } from './server-ipc/filter-internal-headers'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -149,7 +149,7 @@ export async function initialize(opts: {
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
 
-  const randomBytes = new Uint8Array(8)
+  const randomBytes = new Uint8Array(16)
   crypto.getRandomValues(randomBytes)
   const middlewareSubrequestId = Buffer.from(randomBytes).toString('hex')
   ;(globalThis as any)[Symbol.for('@next/middleware-subrequest-id')] =
