@@ -103,10 +103,6 @@ export default class NextWebServer extends BaseServer<
     return this.serverOptions.buildId
   }
 
-  protected isTurbopackBuild(): boolean {
-    return !!process.env.TURBOPACK
-  }
-
   protected getEnabledDirectories() {
     return {
       app: this.serverOptions.webServerConfig.pagesType === 'app',
