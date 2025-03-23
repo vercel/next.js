@@ -2335,7 +2335,7 @@ export default async function build(
                   ]
                 : []),
               BUILD_ID_FILE,
-              isTurbopackBuild ? IS_TURBOPACK_BUILD : null,
+              IS_TURBOPACK_BUILD,
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
               ...instrumentationHookEntryFiles,
