@@ -167,60 +167,53 @@ async function lint(
 
     let useFlatConfig = false
 
-    if (semver.lt(eslintVersion, '8.21.0')) {
-      // Flat config not supported
-      if (hasFlatConfigFile) {
-        Log.warn(
-          'ESLint flat config is not supported in ESLint < 8.21.0. Ignoring eslint.config.js.'
-        )
-      }
+    if (semver.lt(eslintVersion, '8.21.0') && hasFlatConfigFile) {
+      // Flat config not supported in ESLint < 8.21.0
+      Log.warn(
+        `ESLint flat config is not supported in ESLint < 8.21.0. ${red('Ignoring eslint.config.xxx')}`
+      )
       useFlatConfig = false
     } else if (
       semver.gte(eslintVersion, '8.21.0') &&
-      semver.lt(eslintVersion, '8.23.0')
+      semver.lt(eslintVersion, '8.23.0') &&
+      hasFlatConfigFile
     ) {
-      // Technically available but ESLint won't load it in CLI, only warn because user might be using it in other ways
-      if (hasFlatConfigFile) {
-        Log.warn(
-          `Flat config detected but not supported by ESLint ${eslintVersion}. Please upgrade to >=8.23.0.`
-        )
-      }
-      useFlatConfig = false
+      // Technically available but ESLint won't load it in CLI, only warn because advanced users might be using it in other ways
+      Log.warn(
+        `Flat config not fully supported in ESLint ${eslintVersion}. Please upgrade to >=8.23.0.\n` +
+          `Note: In ESLint 8.21-8.22, flat config in TypeScript or ES modules may require Node flags like ` +
+          `'--loader ts-node/esm' or "type": "module" in package.json. You may also need to run ESLint programmatically.'`
+      )
+      useFlatConfig = true
     } else if (
       semver.gte(eslintVersion, '8.23.0') &&
-      semver.lt(eslintVersion, '8.56.0')
+      semver.lt(eslintVersion, '8.56.0') &&
+      hasFlatConfigFile
     ) {
       // Flat config is experimental
-      if (hasFlatConfigFile) {
-        useFlatConfig = true
-        // This guarantees ESLint runs in flat config mode even if there's any ambiguity
+      useFlatConfig = true
+      // ESLINT_USE_FLAT_CONFIG guarantees ESLint runs in flat config mode even if there's any ambiguity
+      if (!('ESLINT_USE_FLAT_CONFIG' in process.env)) {
         process.env.ESLINT_USE_FLAT_CONFIG = 'true'
-        Log.info(`Using experimental flat config (ESLint ${eslintVersion}).`)
       }
-      // Flat config no longer experimental
+      Log.info(
+        `Using experimental flat config (ESLint ${eslintVersion}).\n` +
+          `flat config became stable in ESLint ^8.56.0, and the default in ESLint ^9.0.0`
+      )
     } else if (
+      // Flat config no longer experimental
       semver.gte(eslintVersion, '8.56.0') &&
-      semver.lt(eslintVersion, '9.0.0')
+      semver.lt(eslintVersion, '9.0.0') &&
+      hasFlatConfigFile
     ) {
       // ESLint 8.56.x - 8.99.x => stable flat config, but NOT the default
-      if (hasFlatConfigFile) {
-        useFlatConfig = true
+      useFlatConfig = true
+      if (!('ESLINT_USE_FLAT_CONFIG' in process.env)) {
         process.env.ESLINT_USE_FLAT_CONFIG = 'true'
-      } else {
-        // No flat config file => keep using .eslintrc
-        // ESLint 8.56+ can still do legacy if no eslint.config.js is found
-        useFlatConfig = false
       }
-    } else if (semver.gte(eslintVersion, '9.0.0')) {
-      // ESLint 9 => flat config is the actual default
-      if (hasFlatConfigFile) {
-        useFlatConfig = true
-        // No need to set ESLINT_USE_FLAT_CONFIG=true because 9.x does it anyway
-      } else {
-        // No eslint.config.js => force legacy mode so .eslintrc still works
-        process.env.ESLINT_USE_FLAT_CONFIG = 'false'
-        useFlatConfig = false
-      }
+    } else if (semver.gte(eslintVersion, '9.0.0') && hasFlatConfigFile) {
+      // ESLint 9 => flat config is the default
+      useFlatConfig = true
     }
 
     let options: any = {
@@ -232,7 +225,7 @@ async function lint(
       ...eslintOptions,
     }
 
-    if (semver.gte(eslintVersion, '8.23.0') && useFlatConfig) {
+    if (useFlatConfig) {
       for (const option of [
         'useEslintrc',
         'extensions',
