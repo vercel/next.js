@@ -19,6 +19,9 @@ const cwd = process.cwd()
     let platforms = (await readdir(nativePackagesDir)).filter(
       (name) => !name.startsWith('.')
     )
+    let nextPkg = JSON.parse(
+      await readFile(path.join(cwd, 'packages/next/package.json'))
+    )
 
     for (let platform of platforms) {
       try {
@@ -45,6 +48,10 @@ const cwd = process.cwd()
               : '--tag next-12-3-2'
           }`
         )
+
+        let optionalDependencies = nextPkg.optionalDependencies || {}
+        optionalDependencies['@next/swc-' + platform] = version
+        nextPkg.optionalDependencies = optionalDependencies
       } catch (err) {
         // don't block publishing other versions on single platform error
         console.error(`Failed to publish`, platform)
@@ -91,14 +98,6 @@ const cwd = process.cwd()
     }
 
     // Update optional dependencies versions
-    let nextPkg = JSON.parse(
-      await readFile(path.join(cwd, 'packages/next/package.json'))
-    )
-    for (let platform of platforms) {
-      let optionalDependencies = nextPkg.optionalDependencies || {}
-      optionalDependencies['@next/swc-' + platform] = version
-      nextPkg.optionalDependencies = optionalDependencies
-    }
     await writeFile(
       path.join(path.join(cwd, 'packages/next/package.json')),
       JSON.stringify(nextPkg, null, 2)
