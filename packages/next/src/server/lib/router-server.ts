@@ -48,8 +48,8 @@ import {
 import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 import { NEXT_PATCH_SYMBOL } from './patch-fetch'
 import type { ServerInitResult } from './render-server'
-import { filterInternalHeaders } from './server-ipc/utils'
 import { blockCrossSite } from './router-utils/block-cross-site'
+import { filterInternalHeaders } from './server-ipc/filter-internal-headers'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -166,7 +166,7 @@ export async function initialize(opts: {
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
 
-  const randomBytes = new Uint8Array(8)
+  const randomBytes = new Uint8Array(16)
   crypto.getRandomValues(randomBytes)
   const middlewareSubrequestId = Buffer.from(randomBytes).toString('hex')
   ;(globalThis as any)[Symbol.for('@next/middleware-subrequest-id')] =
