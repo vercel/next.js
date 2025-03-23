@@ -38,7 +38,6 @@ import type {
   TurbopackMsgToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
-import type { HydrationErrorState } from '../../errors/hydration-error-info'
 import type { DebugInfo } from '../types'
 import { useUntrackedPathname } from '../../navigation-untracked'
 import { getReactStitchedError } from '../../errors/stitched-error'
@@ -511,12 +510,8 @@ export default function HotReload({
 
   const handleOnUnhandledError = useCallback(
     (error: Error): void => {
-      const errorDetails = (error as any).details as
-        | HydrationErrorState
-        | undefined
       // Component stack is added to the error in use-error-handler in case there was a hydration error
       const componentStackTrace = (error as any)._componentStack
-      const warning = errorDetails?.warning
 
       dispatch({
         type: ACTION_UNHANDLED_ERROR,
@@ -526,7 +521,6 @@ export default function HotReload({
           typeof componentStackTrace === 'string'
             ? parseComponentStack(componentStackTrace)
             : undefined,
-        warning,
       })
     },
     [dispatch]
