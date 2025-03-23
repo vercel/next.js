@@ -168,14 +168,12 @@ export async function initialize(opts: {
 
   const randomBytes = new Uint8Array(16)
   crypto.getRandomValues(randomBytes)
-  const middlewareSubrequestId = Buffer.from(randomBytes).toString('hex')
-  ;(globalThis as any)[Symbol.for('@next/middleware-subrequest-id')] =
-    middlewareSubrequestId
+  const middlewareSubrequestId = Buffer.from(randomBytes)
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
     // internal headers should not be honored by the request handler
     if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
-      filterInternalHeaders(req.headers)
+      filterInternalHeaders(req.headers, middlewareSubrequestId)
     }
 
     if (
@@ -636,6 +634,7 @@ export async function initialize(opts: {
     serverFields: {
       ...(developmentBundler?.serverFields || {}),
       setIsrStatus: devBundlerService?.setIsrStatus.bind(devBundlerService),
+      middlewareSubrequestId: middlewareSubrequestId.toString('hex'),
     } satisfies ServerFields,
     experimentalTestProxy: !!config.experimental.testProxy,
     experimentalHttpsServer: !!opts.experimentalHttpsServer,

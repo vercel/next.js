@@ -14,9 +14,13 @@ const INTERNAL_HEADERS = [
 ]
 
 export const filterInternalHeaders = (
-  headers: Record<string, undefined | string | string[]>
+  headers: Record<string, undefined | string | string[]>,
+  expectedSubrequestHeaderIdBuffer: Buffer
 ) => {
   const subrequestIdHeader = headers['x-middleware-subrequest-id']
+  const subrequestIdBuffer = Buffer.from(
+    typeof subrequestIdHeader === 'string' ? subrequestIdHeader : 'user'
+  )
 
   for (const header in headers) {
     if (INTERNAL_HEADERS.includes(header)) {
@@ -28,15 +32,13 @@ export const filterInternalHeaders = (
     // middleware incorrectly
     if (
       header === 'x-middleware-subrequest' &&
-      !crypto.timingSafeEqual(
-        Buffer.from(
-          typeof subrequestIdHeader === 'string' ? subrequestIdHeader : ''
-        ),
-        Buffer.from(
-          (globalThis as any)[Symbol.for('@next/middleware-subrequest-id')] ||
-            ''
-        )
-      )
+      // timingSafeEqual requires buffers be same length
+      (subrequestIdBuffer.byteLength !==
+        expectedSubrequestHeaderIdBuffer.byteLength ||
+        !crypto.timingSafeEqual(
+          subrequestIdBuffer,
+          expectedSubrequestHeaderIdBuffer
+        ))
     ) {
       delete headers['x-middleware-subrequest']
     }

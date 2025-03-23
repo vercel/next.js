@@ -32,6 +32,7 @@ interface RunnerFnParams {
   edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm' | 'env'>
   distDir: string
   incrementalCache?: any
+  middlewareSubrequestId: string
   serverComponentsHmrCache?: ServerComponentsHmrCache
 }
 
@@ -74,6 +75,7 @@ export async function getRuntimeContext(
     useCache: params.useCache !== false,
     edgeFunctionEntry: params.edgeFunctionEntry,
     distDir: params.distDir,
+    middlewareSubrequestId: params.middlewareSubrequestId,
   })
 
   if (params.incrementalCache) {

@@ -99,6 +99,7 @@ export type SetupOpts = {
 }
 
 export type ServerFields = {
+  middlewareSubrequestId?: string
   actualMiddlewareFile?: string | undefined
   actualInstrumentationHookFile?: string | undefined
   appPathRoutes?: Record<string, string | string[]>

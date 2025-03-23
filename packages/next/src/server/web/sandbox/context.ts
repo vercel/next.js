@@ -375,7 +375,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
         }
         init.headers.set(
           'x-middleware-subrequest-id',
-          (globalThis as any)[Symbol.for('@next/middleware-subrequest-id')]
+          options.middlewareSubrequestId
         )
 
         const prevs =
@@ -505,6 +505,7 @@ interface ModuleContextOptions {
   useCache: boolean
   distDir: string
   edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm' | 'env'>
+  middlewareSubrequestId: string
 }
 
 function getModuleContextShared(options: ModuleContextOptions) {

@@ -1106,6 +1106,9 @@ export async function isPageStatic({
           name: edgeInfo.name,
           useCache: true,
           distDir,
+          // This is only used during build time so does not need
+          // to handle incoming requests
+          middlewareSubrequestId: 'fallback',
         })
         const mod = (
           await runtime.context._ENTRIES[`middleware_${edgeInfo.name}`]

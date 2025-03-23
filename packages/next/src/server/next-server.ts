@@ -178,6 +178,7 @@ export default class NextNodeServer extends BaseServer<
     req: IncomingMessage,
     res: ServerResponse
   ) => void
+  private middlewareSubrequestId?: string
 
   protected cleanupListeners = new AsyncCallbackSet()
   protected internalWaitUntil: WaitUntil | undefined
@@ -1611,6 +1612,12 @@ export default class NextNodeServer extends BaseServer<
     } else {
       const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
 
+      const middlewareSubrequestId = this.middlewareSubrequestId
+
+      if (!middlewareSubrequestId) {
+        throw new Error(`Invariant: middleware subrequest id not initialized`)
+      }
+
       result = await run({
         distDir: this.distDir,
         name: middlewareInfo.name,
@@ -1618,6 +1625,7 @@ export default class NextNodeServer extends BaseServer<
         edgeFunctionEntry: middlewareInfo,
         request: requestData,
         useCache: true,
+        middlewareSubrequestId,
         onWarning: params.onWarning,
       })
     }
@@ -1899,11 +1907,18 @@ export default class NextNodeServer extends BaseServer<
       )
     }
 
+    const middlewareSubrequestId = this.middlewareSubrequestId
+
+    if (!middlewareSubrequestId) {
+      throw new Error(`Invariant: middleware subrequest id not initialized`)
+    }
+
     const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
     const result = await run({
       distDir: this.distDir,
       name: edgeInfo.name,
       paths: edgeInfo.paths,
+      middlewareSubrequestId,
       edgeFunctionEntry: edgeInfo,
       request: {
         headers: params.req.headers,
