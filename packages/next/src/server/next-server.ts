@@ -42,6 +42,7 @@ import {
   PHASE_PRODUCTION_BUILD,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   FUNCTIONS_CONFIG_MANIFEST,
+  IS_TURBOPACK_BUILD,
 } from '../shared/lib/constants'
 import { findDir } from '../lib/find-pages-dir'
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
@@ -508,6 +509,11 @@ export default class NextNodeServer extends BaseServer<
 
       throw err
     }
+  }
+
+  protected isTurbopackBuild(): boolean {
+    const isTurbopackBuildFile = join(this.distDir, IS_TURBOPACK_BUILD)
+    return fs.existsSync(isTurbopackBuildFile)
   }
 
   protected getEnabledDirectories(dev: boolean): NextEnabledDirectories {

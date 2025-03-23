@@ -665,5 +665,12 @@
   "664": "Missing 'next-action' header.",
   "665": "Failed to find Server Action \"%s\". This request might be from an older or newer deployment.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
   "666": "Turbopack builds are only available in canary builds of Next.js.",
-  "667": "receiveExpiredTags is deprecated, and not expected to be called."
+  "667": "receiveExpiredTags is deprecated, and not expected to be called.",
+  "668": "Server is running Webpack build with --turbopack. Make sure to run `next start --turbopack` or provide `turbo: true` for custom server.",
+  "669": "Server is running Turbopack build without --turbopack. Make sure to run `next start --turbopack` or provide `turbo: true` for custom server.",
+  "670": "Server is running a Turbopack build without `--turbopack`. Run `next start --turbopack` or provide `turbo: true` for custom server.",
+  "671": "Server is running a Turbopack build without --turbopack. Run `next start --turbopack` or provide `turbo: true` for custom server.",
+  "672": "Server is running a Turbopack build without --turbopack. Make sure to run `next start --turbopack` or provide `turbo: true` for custom server.",
+  "673": "Server is running `--turbopack` with a Webpack build. Make sure to run `next start` without `--turbopack`.",
+  "674": "process.turbopack read at runtime. This is a bug."
 }

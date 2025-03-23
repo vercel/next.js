@@ -13,6 +13,8 @@ export type NextStartOptions = {
   port: number
   hostname?: string
   keepAliveTimeout?: number
+  turbo?: boolean
+  turbopack?: boolean
 }
 
 /**
@@ -26,9 +28,14 @@ const nextStart = async (options: NextStartOptions, directory?: string) => {
   const hostname = options.hostname
   const port = options.port
   const keepAliveTimeout = options.keepAliveTimeout
+  const useTurbopack = options.turbo || options.turbopack || false
 
   if (isPortIsReserved(port)) {
     printAndExit(getReservedPortExplanation(port), 1)
+  }
+
+  if (useTurbopack) {
+    process.env.TURBOPACK = '1'
   }
 
   await startServer({

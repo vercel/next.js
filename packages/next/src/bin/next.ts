@@ -129,9 +129,8 @@ program
   .option('--no-mangling', 'Disables mangling.')
   .option('--profile', 'Enables production profiling for React.')
   .option('--experimental-app-only', 'Builds only App Router routes.')
-  .addOption(new Option('--experimental-turbo').hideHelp())
   .addOption(new Option('--turbo').hideHelp())
-  .addOption(new Option('--turbopack').hideHelp())
+  .option('--turbopack', 'Starts development mode using Turbopack.')
   .addOption(
     new Option(
       '--experimental-build-mode [mode]',
@@ -168,7 +167,7 @@ program
       'If no directory is provided, the current directory will be used.'
     )}`
   )
-  .option('--turbo', 'Starts development mode using Turbopack.')
+  .addOption(new Option('--turbo').hideHelp())
   .option('--turbopack', 'Starts development mode using Turbopack.')
   .addOption(
     new Option(
@@ -346,6 +345,8 @@ program
     '-H, --hostname <hostname>',
     'Specify a hostname on which to start the application (default: 0.0.0.0).'
   )
+  .addOption(new Option('--turbo').hideHelp())
+  .option('--turbopack', 'Starts development mode using Turbopack.')
   .addOption(
     new Option(
       '--keepAliveTimeout <keepAliveTimeout>',
