@@ -31,6 +31,25 @@ function warnOrBlockRequest(
   return true
 }
 
+function isInternalDevEndpoint(req: IncomingMessage): boolean {
+  if (!req.url) return false
+
+  try {
+    // TODO: We should standardize on a single prefix for this
+    const isMiddlewareRequest = req.url.includes('/__nextjs')
+    const isInternalAsset = req.url.includes('/_next')
+    // Static media requests are excluded, as they might be loaded via CSS and would fail
+    // CORS checks.
+    const isIgnoredRequest =
+      req.url.includes('/_next/image') ||
+      req.url.includes('/_next/static/media')
+
+    return !isIgnoredRequest && (isInternalAsset || isMiddlewareRequest)
+  } catch (err) {
+    return false
+  }
+}
+
 export const blockCrossSite = (
   req: IncomingMessage,
   res: ServerResponse | Duplex,
@@ -51,8 +70,7 @@ export const blockCrossSite = (
   }
 
   // only process internal URLs/middleware
-  // TODO: We should standardize on a single prefix for this
-  if (!req.url?.includes('/_next') && !req.url?.includes('/__nextjs')) {
+  if (!isInternalDevEndpoint(req)) {
     return false
   }
   // block non-cors request from cross-site e.g. script tag on
