@@ -20,6 +20,7 @@ export type NextBuildOptions = {
   turbopack?: boolean
   experimentalDebugMemoryUsage: boolean
   experimentalAppOnly?: boolean
+  experimentalTurbo?: boolean
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env'
   experimentalUploadTrace?: string
 }
@@ -39,7 +40,8 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     experimentalUploadTrace,
   } = options
 
-  const useTurbopack = options.turbo || options.turbopack || false
+  const useTurbopack =
+    options.experimentalTurbo || options.turbo || options.turbopack
 
   let traceUploadUrl: string | undefined
   if (experimentalUploadTrace && !process.env.NEXT_TRACE_UPLOAD_DISABLED) {
@@ -84,7 +86,7 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     lint,
     !mangling,
     experimentalAppOnly,
-    useTurbopack,
+    !!process.env.TURBOPACK,
     experimentalBuildMode,
     traceUploadUrl
   )

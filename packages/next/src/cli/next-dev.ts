@@ -236,13 +236,11 @@ const nextDev = async (
     hostname: host,
   }
 
-  const isTurbopack = options.turbo || options.turbopack || false
-
-  if (isTurbopack) {
+  if (options.turbo || options.turbopack) {
     process.env.TURBOPACK = '1'
   }
 
-  isTurboSession = isTurbopack
+  isTurboSession = !!process.env.TURBOPACK
 
   const distDir = path.join(dir, config.distDir ?? '.next')
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
@@ -286,7 +284,7 @@ const nextDev = async (
         stdio: 'inherit',
         env: {
           ...defaultEnv,
-          TURBOPACK: isTurbopack ? '1' : undefined,
+          TURBOPACK: process.env.TURBOPACK,
           NEXT_PRIVATE_WORKER: '1',
           NEXT_PRIVATE_TRACE_ID: traceId,
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate

@@ -364,7 +364,6 @@ export default abstract class Server<
   protected abstract getPagesManifest(): PagesManifest | undefined
   protected abstract getAppPathsManifest(): PagesManifest | undefined
   protected abstract getBuildId(): string
-  protected abstract isTurbopackBuild(): boolean
   protected abstract getinterceptionRoutePatterns(): RegExp[]
 
   protected readonly enabledDirectories: NextEnabledDirectories
@@ -521,16 +520,6 @@ export default abstract class Server<
     } = this.nextConfig
 
     this.buildId = this.getBuildId()
-    const isTurbopackBuild = this.isTurbopackBuild()
-    if (isTurbopackBuild && !process.env.TURBOPACK) {
-      throw new Error(
-        'Server is running a Turbopack build without `--turbopack`. Run `next start --turbopack` or provide `turbo: true` for custom server.'
-      )
-    } else if (!isTurbopackBuild && process.env.TURBOPACK) {
-      throw new Error(
-        'Server is running `--turbopack` with a Webpack build. Make sure to run `next start` without `--turbopack`.'
-      )
-    }
     // this is a hack to avoid Webpack knowing this is equal to this.minimalMode
     // because we replace this.minimalMode to true in production bundles.
     const minimalModeKey = 'minimalMode'

@@ -1,14 +1,12 @@
 import type { AppRenderContext } from './app-render'
 
 const isDev = process.env.NODE_ENV === 'development'
+const isTurbopack = !!process.env.TURBOPACK
 
 export function getAssetQueryString(
   ctx: AppRenderContext,
   addTimestamp: boolean
 ) {
-  // Ensures the env var is not checked too early, otherwise it causes an incorrect result.
-  const isTurbopack = !!process.env.TURBOPACK
-
   let qs = ''
 
   // In development we add the request timestamp to allow react to
