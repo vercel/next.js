@@ -48,7 +48,7 @@ const cwd = process.cwd()
       } catch (err) {
         // don't block publishing other versions on single platform error
         console.error(`Failed to publish`, platform)
-        throw err
+        // throw err
       }
       // lerna publish in next step will fail if git status is not clean
       execSync(
@@ -63,24 +63,31 @@ const cwd = process.cwd()
     // Update name/version of wasm packages and publish
     let wasmDir = path.join(cwd, 'packages/next-swc/crates/wasm')
     for (let wasmTarget of ['web', 'nodejs']) {
-      let wasmPkg = JSON.parse(
-        await readFile(path.join(wasmDir, `pkg-${wasmTarget}/package.json`))
-      )
-      wasmPkg.name = `@next/swc-wasm-${wasmTarget}`
-      wasmPkg.version = version
+      try {
+        let wasmPkg = JSON.parse(
+          await readFile(path.join(wasmDir, `pkg-${wasmTarget}/package.json`))
+        )
+        wasmPkg.name = `@next/swc-wasm-${wasmTarget}`
+        wasmPkg.version = version
 
-      await writeFile(
-        path.join(wasmDir, `pkg-${wasmTarget}/package.json`),
-        JSON.stringify(wasmPkg, null, 2)
-      )
-      execSync(
-        `npm publish ${path.join(
-          wasmDir,
-          `pkg-${wasmTarget}`
-        )} --access public ${
-          gitref.includes('canary') ? ' --tag next-12-3-2' : '--tag next-12-3-2'
-        }`
-      )
+        await writeFile(
+          path.join(wasmDir, `pkg-${wasmTarget}/package.json`),
+          JSON.stringify(wasmPkg, null, 2)
+        )
+        execSync(
+          `npm publish ${path.join(
+            wasmDir,
+            `pkg-${wasmTarget}`
+          )} --access public ${
+            gitref.includes('canary')
+              ? ' --tag next-12-3-2'
+              : '--tag next-12-3-2'
+          }`
+        )
+      } catch (err) {
+        console.error(`Failed to publish`, { wasmTarget })
+        // throw err
+      }
     }
 
     // Update optional dependencies versions

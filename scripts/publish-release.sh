@@ -15,7 +15,7 @@ fi
 if [[ $(git describe --exact-match 2> /dev/null || :) =~ -canary ]];
 then
   echo "Publishing canary"
-  yarn run lerna publish from-git --npm-tag next-12-3-2 --no-git-reset --no-verify-access --yes
+  ./node_modules/.bin/lerna publish from-git --npm-tag next-12-3-2 --no-git-reset --no-verify-access --yes
 
   # Make sure to exit script with code 1 if publish failed
   if [[ ! $? -eq 0 ]];then
@@ -27,7 +27,7 @@ fi
 
 if [[ ! $(git describe --exact-match 2> /dev/null || :) =~ -canary ]];then
   echo "Publishing stable"
-  yarn run lerna publish from-git --no-git-reset --npm-tag next-12-3-2 --no-verify-access --yes
+  ./node_modules/.bin/lerna publish from-git --no-git-reset --npm-tag next-12-3-2 --no-verify-access --yes
 
   # Make sure to exit script with code 1 if publish failed
   if [[ ! $? -eq 0 ]];then

@@ -56,7 +56,6 @@
     "dev": "taskr",
     "release": "taskr release",
     "build": "pnpm release && pnpm types",
-    "prepublishOnly": "cd ../../ && turbo run build",
     "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
     "typescript": "tsec --noEmit",
     "ncc-compiled": "ncc cache clean && taskr ncc"

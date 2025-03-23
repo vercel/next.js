@@ -929,7 +929,7 @@ jobs:
       - build
       - build-wasm
       - build-native
-      - build-native-freebsd
+      # - build-native-freebsd
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
     steps:
@@ -1219,18 +1219,18 @@ jobs:
           - host: macos-latest
             target: 'x86_64-apple-darwin'
             build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-              pnpm dlx turbo@${TURBO_VERSION} run build-native --cache-dir=".turbo" -- --release
-              strip -x packages/next-swc/native/next-swc.*.node
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
+              cd packages/next-swc; npm run build-native -- --release
+              strip -x native/next-swc.*.node
           - host: windows-latest
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "pnpm@${PNPM_VERSION}"
-              pnpm dlx turbo@${TURBO_VERSION} run build-native --cache-dir=".turbo" -- --release
+              cd packages/next-swc; npm run build-native -- --release
             target: 'x86_64-pc-windows-msvc'
           - host: windows-latest
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "pnpm@${PNPM_VERSION}"
-              pnpm dlx turbo@${TURBO_VERSION} run build-native-no-plugin --cache-dir=".turbo" -- --release --target i686-pc-windows-msvc
+              cd packages/next-swc; npm run build-native-no-plugin -- --release --target i686-pc-windows-msvc
             target: 'i686-pc-windows-msvc'
           - host: ubuntu-latest
             target: 'x86_64-unknown-linux-gnu'
@@ -1263,76 +1263,76 @@ jobs:
               export CXX=$(xcrun -f clang++);
               SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
               export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-              pnpm dlx turbo@${TURBO_VERSION} run build-native --cache-dir=".turbo" -- --release --target aarch64-apple-darwin
-              strip -x packages/next-swc/native/next-swc.*.node
-          - host: ubuntu-latest
-            target: 'aarch64-unknown-linux-gnu'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-aarch64
-            build: >-
-              set -e &&
-              rustup toolchain install "${RUST_TOOLCHAIN}" &&
-              rustup default "${RUST_TOOLCHAIN}" &&
-              rustup target add aarch64-unknown-linux-gnu &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
-              export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
-              pnpm dlx turbo@${TURBO_VERSION} run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-gnu &&
-              llvm-strip -x packages/next-swc/native/next-swc.*.node
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
+              cd packages/next-swc; npm run build-native -- --release --target aarch64-apple-darwin
+              strip -x native/next-swc.*.node
+          # - host: ubuntu-latest
+          #   target: 'aarch64-unknown-linux-gnu'
+          #   docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-aarch64
+          #   build: >-
+          #     set -e &&
+          #     rustup toolchain install "${RUST_TOOLCHAIN}" &&
+          #     rustup default "${RUST_TOOLCHAIN}" &&
+          #     rustup target add aarch64-unknown-linux-gnu &&
+          #     npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
+          #     export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
+          #     cd packages/next-swc; npm run build-native -- --release --target aarch64-unknown-linux-gnu &&
+          #     llvm-strip -x native/next-swc.*.node
           - host: ubuntu-latest
             target: 'armv7-unknown-linux-gnueabihf'
             setup: |
               sudo apt-get update
               sudo apt-get install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf -y
             build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-              pnpm dlx turbo@${TURBO_VERSION} run build-native-no-plugin --cache-dir=".turbo" -- --release --target armv7-unknown-linux-gnueabihf
-              arm-linux-gnueabihf-strip packages/next-swc/native/next-swc.*.node
-          - host: ubuntu-latest
-            target: aarch64-linux-android
-            build: |
-              export CLANG_VERSION=`ls ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang | sed 's/ *$//g'`
-              export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
-              export CC="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
-              export CXX="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang++"
-              export AR="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
-              export PATH="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
-              touch "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/aarch64/libgcc.a"
-              chmod 777 "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/aarch64/libgcc.a"
-              echo "INPUT(-lunwind)" > "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/aarch64/libgcc.a"
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-              pnpm dlx turbo@${TURBO_VERSION} run build-native --cache-dir=".turbo" -- --release --target aarch64-linux-android
-              ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip packages/next-swc/native/next-swc.*.node
-          - host: ubuntu-latest
-            target: armv7-linux-androideabi
-            build: |
-              export CLANG_VERSION=`ls ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang | sed 's/ *$//g'`
-              export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang"
-              export CC="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang"
-              export CXX="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang++"
-              export AR="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
-              export PATH="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
-              touch "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/arm/libgcc.a"
-              chmod 777 "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/arm/libgcc.a"
-              echo "INPUT(-lunwind)" > "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/arm/libgcc.a"
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "pnpm@${PNPM_VERSION}"
-              pnpm dlx turbo@${TURBO_VERSION} run build-native-no-plugin --cache-dir=".turbo" -- --release --target armv7-linux-androideabi
-              ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip packages/next-swc/native/next-swc.*.node
-          - host: ubuntu-latest
-            target: 'aarch64-unknown-linux-musl'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
-            build: >-
-              set -e &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
-              rustup toolchain install "${RUST_TOOLCHAIN}" &&
-              rustup default "${RUST_TOOLCHAIN}" &&
-              rustup target add aarch64-unknown-linux-musl &&
-              pnpm dlx turbo@${TURBO_VERSION} run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-musl &&
-              llvm-strip -x packages/next-swc/native/next-swc.*.node
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
+              cd packages/next-swc; npm run build-native-no-plugin -- --release --target armv7-unknown-linux-gnueabihf
+              arm-linux-gnueabihf-strip native/next-swc.*.node
+          # - host: ubuntu-latest
+          #   target: aarch64-linux-android
+          #   build: |
+          #     export CLANG_VERSION=`ls ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang | sed 's/ *$//g'`
+          #     export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
+          #     export CC="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
+          #     export CXX="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang++"
+          #     export AR="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
+          #     export PATH="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
+          #     touch "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/aarch64/libgcc.a"
+          #     chmod 777 "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/aarch64/libgcc.a"
+          #     echo "INPUT(-lunwind)" > "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/aarch64/libgcc.a"
+          #     npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
+          #     cd packages/next-swc; npm run build-native -- --release --target aarch64-linux-android
+          #     ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip packages/next-swc/native/next-swc.*.node
+          # - host: ubuntu-latest
+          #   target: armv7-linux-androideabi
+          #   build: |
+          #     export CLANG_VERSION=`ls ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang | sed 's/ *$//g'`
+          #     export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang"
+          #     export CC="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang"
+          #     export CXX="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang++"
+          #     export AR="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
+          #     export PATH="${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
+          #     touch "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/arm/libgcc.a"
+          #     chmod 777 "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/arm/libgcc.a"
+          #     echo "INPUT(-lunwind)" > "${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/${CLANG_VERSION}/lib/linux/arm/libgcc.a"
+          #     npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "pnpm@${PNPM_VERSION}"
+          #     pnpm dlx turbo@${TURBO_VERSION} run build-native-no-plugin --cache-dir=".turbo" -- --release --target armv7-linux-androideabi
+          #     ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip packages/next-swc/native/next-swc.*.node
+          # - host: ubuntu-latest
+          #   target: 'aarch64-unknown-linux-musl'
+          #   docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
+          #   build: >-
+          #     set -e &&
+          #     npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
+          #     rustup toolchain install "${RUST_TOOLCHAIN}" &&
+          #     rustup default "${RUST_TOOLCHAIN}" &&
+          #     rustup target add aarch64-unknown-linux-musl &&
+          #     cd packages/next-swc; npm run build-native -- --release --target aarch64-unknown-linux-musl &&
+          #     llvm-strip -x native/next-swc.*.node
           - host: windows-latest
             target: 'aarch64-pc-windows-msvc'
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "pnpm@${PNPM_VERSION}"
-              pnpm dlx turbo@${TURBO_VERSION} run build-native-no-plugin --cache-dir=".turbo" -- --release --target aarch64-pc-windows-msvc --cargo-flags=--no-default-features
+              cd packages/next-swc; npm run build-native-no-plugin -- --release --target aarch64-pc-windows-msvc --cargo-flags=--no-default-features
     if: ${{ needs.build.outputs.isRelease == 'true' }}
     needs: build
     name: stable - ${{ matrix.settings.target }} - node@16
@@ -1380,7 +1380,7 @@ jobs:
         uses: actions/setup-node@v4
         if: ${{ !matrix.settings.docker }}
         with:
-          node-version: 18
+          node-version: 16
           check-latest: true
 
       - name: Install
@@ -1410,7 +1410,7 @@ jobs:
         shell: bash
 
       - name: Build in docker
-        uses: addnab/docker-run-action@v4
+        uses: addnab/docker-run-action@v3
         if: ${{ matrix.settings.docker }}
         with:
           image: ${{ matrix.settings.docker }}
@@ -1428,64 +1428,64 @@ jobs:
           name: next-swc-binaries-${{ matrix.settings.target }}
           path: packages/next-swc/native/next-swc.*.node
 
-  build-native-freebsd:
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
-    needs: build
-    name: stable - x86_64-unknown-freebsd - node@16
-    runs-on: macos-12
-    steps:
-      - name: tune mac network
-        run: sudo sysctl -w net.link.generic.system.hwcksum_tx=0 && sudo sysctl -w net.link.generic.system.hwcksum_rx=0
-      - uses: actions/checkout@v4
-      - name: Delete useless files
-        run: |
-          rm -rf bench
-          rm -rf docs
-          rm -rf errors
-          rm -rf examples
-          rm -rf scripts
-          rm -rf test
-      - name: Build
-        id: build
-        uses: vmactions/freebsd-vm@v0.3.0
-        env:
-          DEBUG: napi:*
-          RUSTUP_HOME: /usr/local/rustup
-          CARGO_HOME: /usr/local/cargo
-          RUSTUP_IO_THREADS: 1
-          # Disable LTO, or the lld may crash with OOM
-          CARGO_PROFILE_RELEASE_LTO: false
-        with:
-          envs: DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS CARGO_PROFILE_RELEASE_LTO NAPI_CLI_VERSION TURBO_VERSION RUST_TOOLCHAIN PNPM_VERSION
-          usesh: true
-          mem: 6000
-          prepare: |
-            pkg install -y curl node16
-            curl -qL https://www.npmjs.com/install.sh | sh
-            npm i -g pnpm@${PNPM_VERSION} "@napi-rs/cli@${NAPI_CLI_VERSION}"
-            curl https://sh.rustup.rs -sSf --output rustup.sh
-            sh rustup.sh -y --profile minimal --default-toolchain stable
-            export PATH="/usr/local/cargo/bin:$PATH"
-            echo "~~~~ rustc --version ~~~~"
-            rustc --version
-            echo "~~~~ node -v ~~~~"
-            node -v
-          run: |
-            export PATH="/usr/local/cargo/bin:$PATH"
-            pwd
-            ls -lah
-            whoami
-            env
-            freebsd-version
-            pnpm --filter=@next/swc run build-native-no-plugin --platform --release --target x86_64-unknown-freebsd
-            rm -rf node_modules
-            rm -rf packages/next-swc/target
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: next-swc-binaries-x86_64-unknown-freebsd
-          path: packages/next-swc/native/next-swc.*.node
-          if-no-files-found: error
+  # build-native-freebsd:
+  #   if: ${{ needs.build.outputs.isRelease == 'true' }}
+  #   needs: build
+  #   name: stable - x86_64-unknown-freebsd - node@16
+  #   runs-on: macos-12
+  #   steps:
+  #     - name: tune mac network
+  #       run: sudo sysctl -w net.link.generic.system.hwcksum_tx=0 && sudo sysctl -w net.link.generic.system.hwcksum_rx=0
+  #     - uses: actions/checkout@v4
+  #     - name: Delete useless files
+  #       run: |
+  #         rm -rf bench
+  #         rm -rf docs
+  #         rm -rf errors
+  #         rm -rf examples
+  #         rm -rf scripts
+  #         rm -rf test
+  #     - name: Build
+  #       id: build
+  #       uses: vmactions/freebsd-vm@v0.3.0
+  #       env:
+  #         DEBUG: napi:*
+  #         RUSTUP_HOME: /usr/local/rustup
+  #         CARGO_HOME: /usr/local/cargo
+  #         RUSTUP_IO_THREADS: 1
+  #         # Disable LTO, or the lld may crash with OOM
+  #         CARGO_PROFILE_RELEASE_LTO: false
+  #       with:
+  #         envs: DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS CARGO_PROFILE_RELEASE_LTO NAPI_CLI_VERSION TURBO_VERSION RUST_TOOLCHAIN PNPM_VERSION
+  #         usesh: true
+  #         mem: 6000
+  #         prepare: |
+  #           pkg install -y curl node16
+  #           curl -qL https://www.npmjs.com/install.sh | sh
+  #           npm i -g pnpm@${PNPM_VERSION} "@napi-rs/cli@${NAPI_CLI_VERSION}"
+  #           curl https://sh.rustup.rs -sSf --output rustup.sh
+  #           sh rustup.sh -y --profile minimal --default-toolchain stable
+  #           export PATH="/usr/local/cargo/bin:$PATH"
+  #           echo "~~~~ rustc --version ~~~~"
+  #           rustc --version
+  #           echo "~~~~ node -v ~~~~"
+  #           node -v
+  #         run: |
+  #           export PATH="/usr/local/cargo/bin:$PATH"
+  #           pwd
+  #           ls -lah
+  #           whoami
+  #           env
+  #           freebsd-version
+  #           pnpm --filter=@next/swc run build-native-no-plugin --platform --release --target x86_64-unknown-freebsd
+  #           rm -rf node_modules
+  #           rm -rf packages/next-swc/target
+  #     - name: Upload artifact
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: next-swc-binaries-x86_64-unknown-freebsd
+  #         path: packages/next-swc/native/next-swc.*.node
+  #         if-no-files-found: error
 
   build-wasm:
     needs: build
