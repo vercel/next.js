@@ -5,6 +5,29 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import { fetchViaHTTP, findPort, retry } from 'next-test-utils'
 
+async function createHostServer() {
+  const server = http.createServer((req, res) => {
+    res.end(`
+      <html>
+        <head>
+          <title>testing cross-site</title> 
+        </head>
+        <body></body>
+      </html>
+    `)
+  })
+
+  const port = await findPort()
+  await new Promise<void>((res) => {
+    server.listen(port, () => res())
+  })
+
+  return {
+    server,
+    port,
+  }
+}
+
 describe.each([['', '/docs']])(
   'allowed-dev-origins, basePath: %p',
   (basePath: string) => {
@@ -34,21 +57,8 @@ describe.each([['', '/docs']])(
       afterAll(() => next.destroy())
 
       it('should warn about WebSocket from cross-site', async () => {
-        let server = http.createServer((req, res) => {
-          res.end(`
-              <html>
-                <head>
-                  <title>testing cross-site</title>
-                </head>
-                <body></body>
-              </html>
-            `)
-        })
+        const { server, port } = await createHostServer()
         try {
-          const port = await findPort()
-          await new Promise<void>((res) => {
-            server.listen(port, () => res())
-          })
           const websocketSnippet = `(() => {
               const statusEl = document.createElement('p')
               statusEl.id = 'status'
@@ -88,22 +98,10 @@ describe.each([['', '/docs']])(
         }
       })
 
-      it('should not allow loading scripts from cross-site', async () => {
-        let server = http.createServer((req, res) => {
-          res.end(`
-              <html>
-                <head>
-                  <title>testing cross-site</title>
-                </head>
-                <body></body>
-              </html>
-            `)
-        })
+      it('should warn about loading scripts from cross-site', async () => {
+        const { server, port } = await createHostServer()
+
         try {
-          const port = await findPort()
-          await new Promise<void>((res) => {
-            server.listen(port, () => res())
-          })
           const scriptSnippet = `(() => {
               const statusEl = document.createElement('p')
               statusEl.id = 'status'
@@ -142,6 +140,46 @@ describe.each([['', '/docs']])(
           })
 
           expect(next.cliOutput).toContain('Cross origin request detected from')
+        } finally {
+          server.close()
+        }
+      })
+
+      it('should warn about loading internal middleware from cross-site', async () => {
+        const { server, port } = await createHostServer()
+        try {
+          const browser = await webdriver(`http://127.0.0.1:${port}`, '/about')
+
+          const middlewareSnippet = `(() => {
+            const statusEl = document.createElement('p')
+            statusEl.id = 'status'
+            document.querySelector('body').appendChild(statusEl)
+
+            const xhr = new XMLHttpRequest()
+            xhr.open('GET', '${next.url}/__nextjs_error_feedback?errorCode=0&wasHelpful=true', true)
+            xhr.send()
+
+            xhr.onload = () => {
+              statusEl.innerText = "OK"
+            }
+            xhr.onerror = () => {
+              statusEl.innerText = "Unauthorized"
+            }
+          })()`
+
+          await browser.eval(middlewareSnippet)
+
+          await retry(async () => {
+            // TODO: These requests seem to be blocked regardless of our handling only when running with Turbopack
+            // Investigate why this is the case
+            if (!process.env.TURBOPACK) {
+              expect(await browser.elementByCss('#status').text()).toBe('OK')
+            }
+
+            expect(next.cliOutput).toContain(
+              'Cross origin request detected from'
+            )
+          })
         } finally {
           server.close()
         }
@@ -173,21 +211,8 @@ describe.each([['', '/docs']])(
       afterAll(() => next.destroy())
 
       it('should not allow dev WebSocket from cross-site', async () => {
-        let server = http.createServer((req, res) => {
-          res.end(`
-              <html>
-                <head>
-                  <title>testing cross-site</title>
-                </head>
-                <body></body>
-              </html>
-            `)
-        })
+        const { server, port } = await createHostServer()
         try {
-          const port = await findPort()
-          await new Promise<void>((res) => {
-            server.listen(port, () => res())
-          })
           const websocketSnippet = `(() => {
               const statusEl = document.createElement('p')
               statusEl.id = 'status'
@@ -222,21 +247,8 @@ describe.each([['', '/docs']])(
       })
 
       it('should not allow loading scripts from cross-site', async () => {
-        let server = http.createServer((req, res) => {
-          res.end(`
-              <html>
-                <head>
-                  <title>testing cross-site</title>
-                </head>
-                <body></body>
-              </html>
-            `)
-        })
+        const { server, port } = await createHostServer()
         try {
-          const port = await findPort()
-          await new Promise<void>((res) => {
-            server.listen(port, () => res())
-          })
           const scriptSnippet = `(() => {
               const statusEl = document.createElement('p')
               statusEl.id = 'status'
@@ -267,6 +279,40 @@ describe.each([['', '/docs']])(
 
           await retry(async () => {
             expect(await browser.elementByCss('#status').text()).toBe('error')
+          })
+        } finally {
+          server.close()
+        }
+      })
+
+      it('should not allow loading internal middleware from cross-site', async () => {
+        const { server, port } = await createHostServer()
+        try {
+          const browser = await webdriver(`http://127.0.0.1:${port}`, '/about')
+
+          const middlewareSnippet = `(() => {
+            const statusEl = document.createElement('p')
+            statusEl.id = 'status'
+            document.querySelector('body').appendChild(statusEl)
+
+            const xhr = new XMLHttpRequest()
+            xhr.open('GET', '${next.url}/__nextjs_error_feedback?errorCode=0&wasHelpful=true', true)
+            xhr.send()
+
+            xhr.onload = () => {
+              statusEl.innerText = "OK"
+            }
+            xhr.onerror = () => {
+              statusEl.innerText = "Unauthorized"
+            }
+          })()`
+
+          await browser.eval(middlewareSnippet)
+
+          await retry(async () => {
+            expect(await browser.elementByCss('#status').text()).toBe(
+              'Unauthorized'
+            )
           })
         } finally {
           server.close()
