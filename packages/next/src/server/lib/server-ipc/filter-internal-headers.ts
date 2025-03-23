@@ -19,7 +19,8 @@ export const filterInternalHeaders = (
 ) => {
   const subrequestIdHeader = headers['x-middleware-subrequest-id']
   const subrequestIdBuffer = Buffer.from(
-    typeof subrequestIdHeader === 'string' ? subrequestIdHeader : 'user'
+    typeof subrequestIdHeader === 'string' ? subrequestIdHeader : '',
+    'hex'
   )
 
   for (const header in headers) {
