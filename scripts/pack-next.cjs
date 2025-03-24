@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+// This script must be run with tsx
 
 const {
   NEXT_DIR,
@@ -7,9 +7,12 @@ const {
   glob,
   packageFiles,
 } = require('./pack-util.cjs')
-const fs = require('fs')
-const fsPromises = require('fs/promises')
-const { program } = require('commander')
+const fs = require('node:fs')
+const fsPromises = require('node:fs/promises')
+const { Command } = require('commander')
+const patchPackageJson = require('./pack-utils/patch-package-json.ts').default
+
+const program = new Command()
 
 const TARBALLS = `${NEXT_DIR}/tarballs`
 const NEXT_PACKAGES = `${NEXT_DIR}/packages`
@@ -145,17 +148,14 @@ async function main() {
   ])
 
   if (projectPath != null) {
-    await execAsyncWithOutput(`Update package.json for ${projectPath}`, [
-      'cargo',
-      'xtask',
-      'patch-package-json',
-      projectPath,
-      `--next-tarball=${NEXT_TARBALL}`,
-      `--next-mdx-tarball=${NEXT_MDX_TARBALL}`,
-      `--next-env-tarball=${NEXT_ENV_TARBALL}`,
-      `--next-bundle-analyzer-tarball=${NEXT_BA_TARBALL}`,
-      `--next-swc-tarball=${NEXT_SWC_TARBALL}`,
-    ])
+    const patchedPath = await patchPackageJson(projectPath, {
+      nextTarball: NEXT_TARBALL,
+      nextMdxTarball: NEXT_MDX_TARBALL,
+      nextEnvTarball: NEXT_ENV_TARBALL,
+      nextBundleAnalyzerTarball: NEXT_BA_TARBALL,
+      nextSwcTarball: NEXT_SWC_TARBALL,
+    })
+    console.log(`Patched ${patchedPath}`)
   } else {
     console.log('Add the following overrides to your workspace package.json:')
     console.log(`  "pnpm": {`)
