@@ -170,7 +170,7 @@ async function lint(
     if (semver.lt(eslintVersion, '8.21.0') && hasFlatConfigFile) {
       // Flat config not supported in ESLint < 8.21.0
       Log.warn(
-        `ESLint flat config is not supported in ESLint < 8.21.0. ${red('Ignoring eslint.config.xxx')}`
+        `ESLint flat config is not supported in ESLint < 8.21.0 ${red('Ignoring eslint.config.*')}`
       )
       useFlatConfig = false
     } else if (
@@ -181,8 +181,7 @@ async function lint(
       // Technically available but ESLint won't load it in CLI, only warn because advanced users might be using it in other ways
       Log.warn(
         `Flat config not fully supported in ESLint ${eslintVersion}. Please upgrade to >=8.23.0.\n` +
-          `Note: In ESLint 8.21-8.22, flat config in TypeScript or ES modules may require Node flags like ` +
-          `'--loader ts-node/esm' or "type": "module" in package.json. You may also need to run ESLint programmatically.'`
+          `Note: In ESLint 8.21-8.22, flat config may only work via programmatic usage or with custom Node flags.`
       )
       useFlatConfig = true
     } else if (
@@ -197,8 +196,7 @@ async function lint(
         process.env.ESLINT_USE_FLAT_CONFIG = 'true'
       }
       Log.info(
-        `Using experimental flat config (ESLint ${eslintVersion}).\n` +
-          `flat config became stable in ESLint ^8.56.0, and the default in ESLint ^9.0.0`
+        `Using experimental flat config (ESLint ${eslintVersion}).\n Flat config became stable in ESLint ^8.56.0, and the default in ESLint ^9.0.0`
       )
     } else if (
       // Flat config no longer experimental
