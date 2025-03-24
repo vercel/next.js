@@ -87,6 +87,13 @@ fn split_off_query_fragment(raw: RcStr) -> (Pattern, Vc<RcStr>, Vc<RcStr>) {
     )
 }
 
+lazy_static! {
+    static ref WINDOWS_PATH: Regex = Regex::new(r"^[A-Za-z]:\\|\\\\").unwrap();
+    static ref URI_PATH: Regex = Regex::new(r"^([^/\\:]+:)(.+)$").unwrap();
+    static ref DATA_URI_REMAINDER: Regex = Regex::new(r"^([^;,]*)(?:;([^,]+))?,(.*)$").unwrap();
+    static ref MODULE_PATH: Regex = Regex::new(r"^((?:@[^/]+/)?[^/]+)(.*)$").unwrap();
+}
+
 impl Request {
     /// Turns the request into a string.
     ///
@@ -136,147 +143,163 @@ impl Request {
         request.normalize();
         Ok(match request {
             Pattern::Dynamic => Request::Dynamic,
-            Pattern::Constant(r) => {
-                if r.is_empty() {
-                    Request::Empty
-                } else if r.starts_with('/') {
-                    let (path, query, fragment) = split_off_query_fragment(r);
+            Pattern::Constant(r) => Request::parse_constant_pattern(r)?,
+            Pattern::Concatenation(list) => Request::parse_concatenation_pattern(list),
+            Pattern::Alternatives(list) => Request::parse_alternatives_pattern(list),
+        })
+    }
 
-                    Request::ServerRelative {
-                        path,
-                        query: query.to_resolved().await?,
-                        fragment: fragment.to_resolved().await?,
-                    }
-                } else if r.starts_with('#') {
-                    Request::PackageInternal {
-                        path: Pattern::Constant(r),
-                    }
-                } else if r.starts_with("./") || r.starts_with("../") || &*r == "." || &*r == ".." {
-                    let (path, query, fragment) = split_off_query_fragment(r);
+    async fn parse_constant_pattern(r: RcStr) -> Result<Self> {
+        if r.is_empty() {
+            return Ok(Request::Empty);
+        }
 
-                    Request::Relative {
-                        path,
-                        force_in_lookup_dir: false,
-                        query: query.to_resolved().await?,
-                        fragment: fragment.to_resolved().await?,
-                    }
-                } else {
-                    lazy_static! {
-                        static ref WINDOWS_PATH: Regex = Regex::new(r"^[A-Za-z]:\\|\\\\").unwrap();
-                        static ref URI_PATH: Regex = Regex::new(r"^([^/\\:]+:)(.+)$").unwrap();
-                        static ref DATA_URI_REMAINDER: Regex =
-                            Regex::new(r"^([^;,]*)(?:;([^,]+))?,(.*)$").unwrap();
-                        static ref MODULE_PATH: Regex =
-                            Regex::new(r"^((?:@[^/]+/)?[^/]+)(.*)$").unwrap();
-                    }
+        if r.starts_with("//") {
+            let remainder = r[2..];
 
-                    if WINDOWS_PATH.is_match(&r) {
-                        let (path, query, fragment) = split_off_query_fragment(r);
+            return Ok(Request::Uri {
+                protocol: "//".into(),
+                remainder: remainder.into(),
+                query: ResolvedVc::cell(RcStr::default()),
+                fragment: ResolvedVc::cell(RcStr::default()),
+            });
+        }
 
-                        return Ok(Request::Windows {
-                            path,
-                            query: query.to_resolved().await?,
-                            fragment: fragment.to_resolved().await?,
-                        });
-                    }
+        if r.starts_with('/') {
+            let (path, query, fragment) = split_off_query_fragment(r);
 
-                    if let Some(caps) = URI_PATH.captures(&r) {
-                        if let (Some(protocol), Some(remainder)) = (caps.get(1), caps.get(2)) {
-                            if let Some(caps) = DATA_URI_REMAINDER.captures(remainder.as_str()) {
-                                let media_type = caps.get(1).map_or("", |m| m.as_str()).into();
-                                let encoding = caps.get(2).map_or("", |e| e.as_str()).into();
-                                let data = caps.get(3).map_or("", |d| d.as_str()).into();
+            return Ok(Request::ServerRelative {
+                path,
+                query: query.to_resolved().await?,
+                fragment: fragment.to_resolved().await?,
+            });
+        }
 
-                                return Ok(Request::DataUri {
-                                    media_type,
-                                    encoding,
-                                    data: ResolvedVc::cell(data),
-                                });
-                            }
+        if r.starts_with('#') {
+            return Ok(Request::PackageInternal {
+                path: Pattern::Constant(r),
+            });
+        }
 
-                            return Ok(Request::Uri {
-                                protocol: protocol.as_str().into(),
-                                remainder: remainder.as_str().into(),
-                                query: ResolvedVc::cell(RcStr::default()),
-                                fragment: ResolvedVc::cell(RcStr::default()),
-                            });
-                        }
-                    }
+        if r.starts_with("./") || r.starts_with("../") || r == "." || r == ".." {
+            let (path, query, fragment) = split_off_query_fragment(r);
 
-                    if let Some((module, path)) = MODULE_PATH
-                        .captures(&r)
-                        .and_then(|caps| caps.get(1).zip(caps.get(2)))
-                    {
-                        let (path, query, fragment) =
-                            split_off_query_fragment(path.as_str().into());
+            return Ok(Request::Relative {
+                path,
+                force_in_lookup_dir: false,
+                query: query.to_resolved().await?,
+                fragment: fragment.to_resolved().await?,
+            });
+        }
 
-                        return Ok(Request::Module {
-                            module: module.as_str().into(),
-                            path,
-                            query: query.to_resolved().await?,
-                            fragment: fragment.to_resolved().await?,
-                        });
-                    }
+        if WINDOWS_PATH.is_match(&r) {
+            let (path, query, fragment) = split_off_query_fragment(r);
 
-                    Request::Unknown {
-                        path: Pattern::Constant(r),
-                    }
+            return Ok(Request::Windows {
+                path,
+                query: query.to_resolved().await?,
+                fragment: fragment.to_resolved().await?,
+            });
+        }
+
+        if let Some(caps) = URI_PATH.captures(&r) {
+            if let (Some(protocol), Some(remainder)) = (caps.get(1), caps.get(2)) {
+                if let Some(caps) = DATA_URI_REMAINDER.captures(remainder.as_str()) {
+                    let media_type = caps.get(1).map_or("", |m| m.as_str()).into();
+                    let encoding = caps.get(2).map_or("", |e| e.as_str()).into();
+                    let data = caps.get(3).map_or("", |d| d.as_str()).into();
+
+                    return Ok(Request::DataUri {
+                        media_type,
+                        encoding,
+                        data: ResolvedVc::cell(data),
+                    });
                 }
+
+                return Ok(Request::Uri {
+                    protocol: protocol.as_str().into(),
+                    remainder: remainder.as_str().into(),
+                    query: ResolvedVc::cell(RcStr::default()),
+                    fragment: ResolvedVc::cell(RcStr::default()),
+                });
             }
-            Pattern::Concatenation(list) => {
-                let mut iter = list.into_iter();
-                if let Some(first) = iter.next() {
-                    let mut result = Box::pin(Self::parse_ref(first)).await?;
-                    match &mut result {
-                        Request::Raw { path, .. } => {
-                            path.extend(iter);
-                        }
-                        Request::Relative { path, .. } => {
-                            path.extend(iter);
-                        }
-                        Request::Module { path, .. } => {
-                            path.extend(iter);
-                        }
-                        Request::ServerRelative { path, .. } => {
-                            path.extend(iter);
-                        }
-                        Request::Windows { path, .. } => {
-                            path.extend(iter);
-                        }
-                        Request::Empty => {
-                            result =
-                                Box::pin(Self::parse_ref(Pattern::Concatenation(iter.collect())))
-                                    .await?;
-                        }
-                        Request::PackageInternal { path } => {
-                            path.extend(iter);
-                        }
-                        Request::DataUri { .. } => {
-                            result = Request::Dynamic;
-                        }
-                        Request::Uri { .. } => {
-                            result = Request::Dynamic;
-                        }
-                        Request::Unknown { path } => {
-                            path.extend(iter);
-                        }
-                        Request::Dynamic => {}
-                        Request::Alternatives { .. } => unreachable!(),
-                    };
-                    result
-                } else {
-                    Request::Empty
+        }
+
+        if let Some((module, path)) = MODULE_PATH
+            .captures(&r)
+            .and_then(|caps| caps.get(1).zip(caps.get(2)))
+        {
+            let (path, query, fragment) = split_off_query_fragment(path.as_str().into());
+
+            return Ok(Request::Module {
+                module: module.as_str().into(),
+                path,
+                query: query.to_resolved().await?,
+                fragment: fragment.to_resolved().await?,
+            });
+        }
+
+        Ok(Request::Unknown {
+            path: Pattern::Constant(r),
+        })
+    }
+
+    async fn parse_concatenation_pattern(list: Vec<Pattern>) -> Result<Self> {
+        if list.is_empty() {
+            return Ok(Request::Empty);
+        }
+
+        let mut result = Box::pin(Self::parse_ref(list[0].clone())).await?;
+
+        for item in list.into_iter().skip(1) {
+            match &mut result {
+                Request::Raw { path, .. } => {
+                    path.push(item);
                 }
-            }
-            Pattern::Alternatives(list) => Request::Alternatives {
-                requests: list
-                    .into_iter()
-                    .map(Value::new)
-                    .map(Request::parse)
-                    .map(|v| async move { v.to_resolved().await })
-                    .try_join()
-                    .await?,
-            },
+                Request::Relative { path, .. } => {
+                    path.push(item);
+                }
+                Request::Module { path, .. } => {
+                    path.push(item);
+                }
+                Request::ServerRelative { path, .. } => {
+                    path.push(item);
+                }
+                Request::Windows { path, .. } => {
+                    path.push(item);
+                }
+                Request::Empty => {
+                    result = Box::pin(Self::parse_ref(item)).await?;
+                }
+                Request::PackageInternal { path } => {
+                    path.push(item);
+                }
+                Request::DataUri { .. } => {
+                    result = Request::Dynamic;
+                }
+                Request::Uri { .. } => {
+                    result = Request::Dynamic;
+                }
+                Request::Unknown { path } => {
+                    path.push(item);
+                }
+                Request::Dynamic => {}
+                Request::Alternatives { .. } => unreachable!(),
+            };
+        }
+
+        Ok(result)
+    }
+
+    async fn parse_alternatives_pattern(list: Vec<Pattern>) -> Result<Self> {
+        Ok(Request::Alternatives {
+            requests: list
+                .into_iter()
+                .map(Value::new)
+                .map(Request::parse)
+                .map(|v| async move { v.to_resolved().await })
+                .try_join()
+                .await?,
         })
     }
 }
