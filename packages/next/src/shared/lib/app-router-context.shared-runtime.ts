@@ -148,6 +148,10 @@ export interface AppRouterInstance {
    * Prefetch the provided href.
    */
   prefetch(href: string, options?: PrefetchOptions): void
+  /**
+   * The configured app's basePath.
+   */
+  basePath: string
 }
 
 export const AppRouterContext = React.createContext<AppRouterInstance | null>(
