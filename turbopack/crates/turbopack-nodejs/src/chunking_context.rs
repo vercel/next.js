@@ -1,17 +1,16 @@
 use anyhow::{bail, Context, Result};
-use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Upcast, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{
         availability_info::AvailabilityInfo,
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
-        Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingConfig, ChunkingConfigs,
-        ChunkingContext, EntryChunkGroupResult, EvaluatableAssets, MinifyType, ModuleId,
-        SourceMapsType,
+        Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule, ChunkingConfig,
+        ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAssets, MinifyType,
+        ModuleId, SourceMapsType,
     },
     environment::Environment,
     ident::AssetIdent,
@@ -21,7 +20,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
-    chunk::{EcmascriptChunk, EcmascriptChunkType},
+    chunk::EcmascriptChunk,
     manifest::{chunk_asset::ManifestAsyncModule, loader_item::ManifestLoaderChunkItem},
 };
 use turbopack_ecmascript_runtime::RuntimeType;
@@ -79,11 +78,13 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
-    pub fn ecmascript_chunking_config(
-        mut self,
-        ecmascript_chunking_config: ChunkingConfig,
-    ) -> Self {
-        self.chunking_context.ecmascript_chunking_config = Some(ecmascript_chunking_config);
+    pub fn chunking_config<T>(mut self, ty: ResolvedVc<T>, chunking_config: ChunkingConfig) -> Self
+    where
+        T: Upcast<Box<dyn ChunkType>>,
+    {
+        self.chunking_context
+            .chunking_configs
+            .push((ResolvedVc::upcast(ty), chunking_config));
         self
     }
 
@@ -127,8 +128,8 @@ pub struct NodeJsChunkingContext {
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     /// Whether to use file:// uris for source map sources
     should_use_file_source_map_uris: bool,
-    /// The chunking config for ecmascript
-    ecmascript_chunking_config: Option<ChunkingConfig>,
+    /// The chunking configs
+    chunking_configs: Vec<(ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig)>,
 }
 
 impl NodeJsChunkingContext {
@@ -160,7 +161,7 @@ impl NodeJsChunkingContext {
                 manifest_chunks: false,
                 should_use_file_source_map_uris: false,
                 module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
-                ecmascript_chunking_config: None,
+                chunking_configs: Default::default(),
             },
         }
     }
@@ -304,14 +305,7 @@ impl ChunkingContext for NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     async fn chunking_configs(&self) -> Result<Vc<ChunkingConfigs>> {
-        let mut map = FxHashMap::default();
-        if let Some(ecmascript) = &self.ecmascript_chunking_config {
-            map.insert(
-                ResolvedVc::upcast(Vc::<EcmascriptChunkType>::default().to_resolved().await?),
-                ecmascript.clone(),
-            );
-        }
-        Ok(Vc::cell(map))
+        Ok(Vc::cell(self.chunking_configs.iter().cloned().collect()))
     }
 
     #[turbo_tasks::function]
@@ -442,7 +436,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     fn evaluated_chunk_group(
         self: Vc<Self>,
         _ident: Vc<AssetIdent>,
-        _evaluatable_assets: Vc<EvaluatableAssets>,
+        _chunk_group: ChunkGroup,
         _module_graph: Vc<ModuleGraph>,
         _availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<ChunkGroupResult>> {

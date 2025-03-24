@@ -18,11 +18,9 @@ use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     changed::content_changed,
-    chunk::{
-        ChunkGroupType, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
-    },
+    chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets},
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::ChunkGroupEntry, ModuleGraph},
     output::{OutputAsset, OutputAssets, OutputAssetsSet},
     source_map::GenerateSourceMap,
     virtual_output::VirtualOutputAsset,
@@ -260,7 +258,7 @@ pub async fn get_intermediate_asset(
     Ok(Vc::upcast(chunking_context.root_entry_chunk_group_asset(
         chunking_context.chunk_path(main_entry.ident(), ".js".into()),
         other_entries.with_entry(*main_entry),
-        ModuleGraph::from_modules(Vc::cell(vec![(
+        ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(
                 other_entries
                     .await?
                     .into_iter()
@@ -268,7 +266,6 @@ pub async fn get_intermediate_asset(
                     .chain(std::iter::once(main_entry))
                     .map(ResolvedVc::upcast)
                     .collect(),
-                ChunkGroupType::Entry,
             )])),
         OutputAssets::empty(),
     )))

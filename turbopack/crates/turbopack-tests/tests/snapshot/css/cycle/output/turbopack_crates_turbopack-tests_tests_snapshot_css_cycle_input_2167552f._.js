@@ -17,18 +17,18 @@ __turbopack_context__.v((parentImport) => {
       "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/1.css [test] (css)"
     ],
     "moduleChunks": [
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_e_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_d_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_c_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_b_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_a_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_1_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_a_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_e_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_d_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_c_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_b_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_a_7d7e1c0b.css"
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_e_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_d_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_c_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_b_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_a_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_1_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_a_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_e_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_d_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_c_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_b_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_a_css_b7298ed4._.single.css"
     ]
   }
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {});
@@ -51,18 +51,18 @@ __turbopack_context__.v((parentImport) => {
       "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/2.css [test] (css)"
     ],
     "moduleChunks": [
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_b_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_a_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_e_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_d_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_c_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_2_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_c_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_b_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_a_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_e_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_d_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_c_7d7e1c0b.css"
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_b_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_a_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_e_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_d_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_c_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_2_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_c_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_b_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_a_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_e_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_d_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_c_css_b7298ed4._.single.css"
     ]
   }
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {});
@@ -81,10 +81,10 @@ __turbopack_context__.v((parentImport) => {
       "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/x.css [test] (css)"
     ],
     "moduleChunks": [
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_y_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_x_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_x_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_y_7d7e1c0b.css"
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_y_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_x_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_x_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_y_css_b7298ed4._.single.css"
     ]
   }
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {});
@@ -103,10 +103,10 @@ __turbopack_context__.v((parentImport) => {
       "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/y.css [test] (css)"
     ],
     "moduleChunks": [
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_x_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_y_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_y_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_x_7d7e1c0b.css"
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_x_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_y_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_y_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_x_css_b7298ed4._.single.css"
     ]
   }
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {});
@@ -126,12 +126,12 @@ __turbopack_context__.v((parentImport) => {
       "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/i.css [test] (css)"
     ],
     "moduleChunks": [
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_k_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_j_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_i_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_i_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_k_7d7e1c0b.css",
-      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_j_7d7e1c0b.css"
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_k_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_j_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_i_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_i_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_k_css_b7298ed4._.single.css",
+      "output/turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_j_css_b7298ed4._.single.css"
     ]
   }
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {});

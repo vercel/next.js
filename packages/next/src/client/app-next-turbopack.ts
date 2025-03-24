@@ -1,5 +1,6 @@
 // TODO-APP: hydration warning
 
+import '../lib/require-instrumentation-client'
 import { appBootstrap } from './app-bootstrap'
 
 window.next.version += '-turbo'

@@ -272,6 +272,15 @@ export function nextTestSetup(
       const prop = next[property]
       return typeof prop === 'function' ? prop.bind(next) : prop
     },
+    set: function (_target, key, value) {
+      if (!next) {
+        throw new Error(
+          'next instance is not initialized yet, make sure you call methods on next instance in test body.'
+        )
+      }
+      next[key] = value
+      return true
+    },
   })
 
   return {

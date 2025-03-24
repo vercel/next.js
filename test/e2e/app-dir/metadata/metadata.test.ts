@@ -162,13 +162,14 @@ describe('app dir - metadata', () => {
       )
     })
 
-    it('should support facebook related tags', async () => {
-      const browser = await next.browser('/facebook')
+    it('should support socials related tags like facebook and pinterest', async () => {
+      const browser = await next.browser('/socials')
       const matchMultiDom = createMultiDomMatcher(browser)
 
       await matchMultiDom('meta', 'property', 'content', {
         'fb:app_id': '12345678',
         'fb:admins': ['120', '122', '124'],
+        'pinterest-rich-pin': 'true',
       })
     })
 

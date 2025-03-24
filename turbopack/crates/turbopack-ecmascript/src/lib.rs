@@ -67,7 +67,7 @@ use turbo_tasks::{
     trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt,
     Value, ValueToString, Vc,
 };
-use turbo_tasks_fs::{rope::Rope, FileJsonContent, FileSystemPath};
+use turbo_tasks_fs::{glob::Glob, rope::Rope, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -92,7 +92,7 @@ pub use turbopack_resolve::ecmascript as resolve;
 
 use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports};
 use crate::{
-    chunk::EcmascriptChunkPlaceable,
+    chunk::{placeable::is_marked_as_side_effect_free, EcmascriptChunkPlaceable},
     code_gen::CodeGens,
     parse::generate_js_source_map,
     references::{
@@ -646,6 +646,21 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     async fn get_async_module(self: Vc<Self>) -> Result<Vc<OptionAsyncModule>> {
         Ok(*self.analyze().await?.async_module)
     }
+
+    #[turbo_tasks::function]
+    async fn is_marked_as_side_effect_free(
+        self: Vc<Self>,
+        side_effect_free_packages: Vc<Glob>,
+    ) -> Result<Vc<bool>> {
+        // Check package.json first, so that we can skip parsing the module if it's marked that way.
+        let pkg_side_effect_free =
+            is_marked_as_side_effect_free(self.ident().path(), side_effect_free_packages);
+        Ok(if *pkg_side_effect_free.await? {
+            pkg_side_effect_free
+        } else {
+            Vc::cell(self.analyze().await?.has_side_effect_free_directive)
+        })
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -996,7 +1011,7 @@ async fn gen_content_with_code_gens(
             is_esm: false,
         }
         .cell()),
-        _ => Ok(EcmascriptModuleContent {
+        ParseResult::NotFound => Ok(EcmascriptModuleContent {
             inner_code: format!(
                 "const e = new Error(\"Could not parse module '{path}'\");\ne.code = \
                  'MODULE_UNPARSEABLE';\nthrow e;",

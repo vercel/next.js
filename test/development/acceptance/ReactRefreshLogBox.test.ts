@@ -2,7 +2,9 @@
 import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
+  getRedboxTotalErrorCount,
   getStackFramesContent,
+  retry,
   toggleCollapseCallStackFrames,
 } from 'next-test-utils'
 import path from 'path'
@@ -1103,8 +1105,11 @@ describe('ReactRefreshLogBox', () => {
     const { browser } = sandbox
 
     if (isReact18) {
-      // TODO(veil): Why different error count between Turbopack and Webpack?
       if (isTurbopack) {
+        // Wait for the error to reach the correct count
+        await retry(async () => {
+          expect(await getRedboxTotalErrorCount(browser)).toBe(3)
+        })
         await expect(browser).toDisplayRedbox(`
          {
            "count": 3,
@@ -1120,9 +1125,13 @@ describe('ReactRefreshLogBox', () => {
          }
         `)
       } else {
+        // Wait for the error to reach the correct count
+        await retry(async () => {
+          expect(await getRedboxTotalErrorCount(browser)).toBe(3)
+        })
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 2,
+           "count": 3,
            "description": "Error: Client error",
            "environmentLabel": null,
            "label": "Unhandled Runtime Error",

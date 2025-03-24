@@ -66,9 +66,9 @@ The loading strategy of the script. There are four different strategies that can
 
 ### `beforeInteractive`
 
-Scripts that load with the `beforeInteractive` strategy are injected into the initial HTML from the server, downloaded before any Next.js module, and executed in the order they are placed before _any_ hydration occurs on the page.
+Scripts that load with the `beforeInteractive` strategy are injected into the initial HTML from the server, downloaded before any Next.js module, and executed in the order they are placed.
 
-Scripts denoted with this strategy are preloaded and fetched before any first-party code, but their execution does not block page hydration from occurring.
+Scripts denoted with this strategy are preloaded and fetched before any first-party code, but their execution **does not block page hydration from occurring**.
 
 <AppOnly>
 
@@ -82,7 +82,7 @@ Scripts denoted with this strategy are preloaded and fetched before any first-pa
 
 </PagesOnly>
 
-**This strategy should only be used for critical scripts that need to be fetched before any part of the page becomes interactive.**
+**This strategy should only be used for critical scripts that need to be fetched as soon as possible.**
 
 <AppOnly>
 
@@ -155,7 +155,7 @@ export default function Document() {
 
 > **Good to know**: Scripts with `beforeInteractive` will always be injected inside the `head` of the HTML document regardless of where it's placed in the component.
 
-Some examples of scripts that should be loaded as soon as possible with `beforeInteractive` include:
+Some examples of scripts that should be fetched as soon as possible with `beforeInteractive` include:
 
 - Bot detectors
 - Cookie consent managers

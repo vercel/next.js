@@ -13,6 +13,16 @@
   (function () {
     function voidHandler() {}
     function _defineProperty(obj, key, value) {
+      a: if ("object" == typeof key && key) {
+        var e = key[Symbol.toPrimitive];
+        if (void 0 !== e) {
+          key = e.call(key, "string");
+          if ("object" != typeof key) break a;
+          throw new TypeError("@@toPrimitive must return a primitive value.");
+        }
+        key = String(key);
+      }
+      key = "symbol" == typeof key ? key : key + "";
       key in obj
         ? Object.defineProperty(obj, key, {
             value: value,
@@ -3977,12 +3987,12 @@
             "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
           );
         pendingFiles++;
-        var JSCompiler_object_inline_chunks_150 = [];
+        var JSCompiler_object_inline_chunks_153 = [];
         value.on("data", function (chunk) {
-          JSCompiler_object_inline_chunks_150.push(chunk);
+          JSCompiler_object_inline_chunks_153.push(chunk);
         });
         value.on("end", function () {
-          var blob = new Blob(JSCompiler_object_inline_chunks_150, {
+          var blob = new Blob(JSCompiler_object_inline_chunks_153, {
             type: mimeType
           });
           response._formData.append(name, blob, filename);

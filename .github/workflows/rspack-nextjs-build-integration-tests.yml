@@ -22,7 +22,4 @@ jobs:
       integration_groups: 12
       e2e_timeout_minutes: 90
       integration_timeout_minutes: 90
-      # Don't retry, instead of the default of twice, many of these tests are
-      # currently failing, and it's wasteful to keep retrying them.
-      num_retries: 0
     secrets: inherit

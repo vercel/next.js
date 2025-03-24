@@ -1,6 +1,6 @@
 # Items
 
-Count: 10
+Count: 9
 
 ## Item 1: Stmt 0, `ImportOfModule`
 
@@ -92,11 +92,9 @@ graph TD
     Item6;
     Item7;
     Item8;
-    Item8["ModuleEvaluation"];
+    Item8["export getEnv"];
     Item9;
-    Item9["export getEnv"];
-    Item10;
-    Item10["export getEnvWithoutDefaults"];
+    Item9["export getEnvWithoutDefaults"];
     Item2 --> Item1;
 ```
 # Phase 2
@@ -110,14 +108,12 @@ graph TD
     Item6;
     Item7;
     Item8;
-    Item8["ModuleEvaluation"];
+    Item8["export getEnv"];
     Item9;
-    Item9["export getEnv"];
-    Item10;
-    Item10["export getEnvWithoutDefaults"];
+    Item9["export getEnvWithoutDefaults"];
     Item2 --> Item1;
-    Item9 --> Item6;
-    Item10 --> Item7;
+    Item8 --> Item6;
+    Item9 --> Item7;
 ```
 # Phase 3
 ```mermaid
@@ -130,14 +126,12 @@ graph TD
     Item6;
     Item7;
     Item8;
-    Item8["ModuleEvaluation"];
+    Item8["export getEnv"];
     Item9;
-    Item9["export getEnv"];
-    Item10;
-    Item10["export getEnvWithoutDefaults"];
+    Item9["export getEnvWithoutDefaults"];
     Item2 --> Item1;
-    Item9 --> Item6;
-    Item10 --> Item7;
+    Item8 --> Item6;
+    Item9 --> Item7;
     Item6 --> Item4;
     Item6 --> Item5;
     Item6 --> Item3;
@@ -155,20 +149,17 @@ graph TD
     Item6;
     Item7;
     Item8;
-    Item8["ModuleEvaluation"];
+    Item8["export getEnv"];
     Item9;
-    Item9["export getEnv"];
-    Item10;
-    Item10["export getEnvWithoutDefaults"];
+    Item9["export getEnvWithoutDefaults"];
     Item2 --> Item1;
-    Item9 --> Item6;
-    Item10 --> Item7;
+    Item8 --> Item6;
+    Item9 --> Item7;
     Item6 --> Item4;
     Item6 --> Item5;
     Item6 --> Item3;
     Item7 --> Item4;
     Item7 --> Item5;
-    Item8 --> Item2;
 ```
 # Final
 ```mermaid
@@ -180,7 +171,6 @@ graph TD
     N4["Items: [ItemId(1, ImportBinding(0))]"];
     N5["Items: [ItemId(2, Normal), ItemId(Export((&quot;getEnv&quot;, #2), &quot;getEnv&quot;))]"];
     N6["Items: [ItemId(3, Normal), ItemId(Export((&quot;getEnvWithoutDefaults&quot;, #2), &quot;getEnvWithoutDefaults&quot;))]"];
-    N7["Items: [ItemId(ModuleEvaluation)]"];
     N3 --> N0;
     N6 --> N2;
     N2 --> N0;
@@ -189,21 +179,20 @@ graph TD
     N5 --> N2;
     N4 --> N3;
     N6 --> N4;
-    N7 --> N3;
     N1 --> N0;
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 7,
+    ModuleEvaluation: 3,
     Export(
         "getEnv",
     ): 5,
     Export(
         "getEnvWithoutDefaults",
     ): 6,
-    Exports: 8,
+    Exports: 7,
 }
 ```
 
@@ -242,6 +231,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 import './globalThis';
+export { };
 
 ```
 ## Part 4
@@ -300,14 +290,6 @@ export { getEnvWithoutDefaults as e } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 7
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-"module evaluation";
-
-```
-## Part 8
-```js
 export { getEnv } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export getEnv"
 };
@@ -319,23 +301,24 @@ export { getEnvWithoutDefaults } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
+    __turbopack_part__: 0
 };
-"module evaluation";
+import './globalThis';
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 7,
+    ModuleEvaluation: 3,
     Export(
         "getEnv",
     ): 5,
     Export(
         "getEnvWithoutDefaults",
     ): 6,
-    Exports: 8,
+    Exports: 7,
 }
 ```
 
@@ -374,6 +357,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 import './globalThis';
+export { };
 
 ```
 ## Part 4
@@ -432,14 +416,6 @@ export { getEnvWithoutDefaults as e } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 7
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-"module evaluation";
-
-```
-## Part 8
-```js
 export { getEnv } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export getEnv"
 };
@@ -451,8 +427,9 @@ export { getEnvWithoutDefaults } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
+    __turbopack_part__: 0
 };
-"module evaluation";
+import './globalThis';
+export { };
 
 ```

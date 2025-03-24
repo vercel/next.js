@@ -107,6 +107,7 @@ export async function webpackBuildImpl(
 
   const commonWebpackOptions = {
     isServer: false,
+    isCompileMode: NextBuildContext.isCompileMode,
     buildId: NextBuildContext.buildId!,
     encryptionKey: NextBuildContext.encryptionKey!,
     config: config,

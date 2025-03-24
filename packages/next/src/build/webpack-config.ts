@@ -93,7 +93,7 @@ import {
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
 } from './next-dir-paths'
-import { getRspackReactRefresh } from '../shared/lib/get-rspack'
+import { getRspackCore, getRspackReactRefresh } from '../shared/lib/get-rspack'
 import { RspackProfilingPlugin } from './webpack/plugins/rspack-profiling-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -306,7 +306,9 @@ export default async function getBaseWebpackConfig(
     clientRouterFilters,
     fetchCacheKeyPrefix,
     edgePreviewProps,
+    isCompileMode,
   }: {
+    isCompileMode?: boolean
     buildId: string
     encryptionKey: string
     config: NextConfigComplete
@@ -891,7 +893,6 @@ export default async function getBaseWebpackConfig(
   }
 
   const telemetryPlugin =
-    !isRspack &&
     !dev &&
     isClient &&
     new (
@@ -1096,8 +1097,7 @@ export default async function getBaseWebpackConfig(
           }): boolean {
             return (
               !module.type?.startsWith('css') &&
-              // rspack doesn't support module.size
-              (isRspack || module.size() > 160000) &&
+              module.size() > 160000 &&
               /node_modules[/\\]/.test(module.nameForCondition() || '')
             )
           },
@@ -1111,15 +1111,12 @@ export default async function getBaseWebpackConfig(
             if (isModuleCSS(module)) {
               module.updateHash(hash)
             } else {
-              // rspack doesn't support this
-              if (!isRspack) {
-                if (!module.libIdent) {
-                  throw new Error(
-                    `Encountered unknown module type: ${module.type}. Please open an issue.`
-                  )
-                }
-                hash.update(module.libIdent({ context: dir }))
+              if (!module.libIdent) {
+                throw new Error(
+                  `Encountered unknown module type: ${module.type}. Please open an issue.`
+                )
               }
+              hash.update(module.libIdent({ context: dir }))
             }
 
             // Ensures the name of the chunk is not the same between two modules in different layers
@@ -1171,13 +1168,24 @@ export default async function getBaseWebpackConfig(
           (isNodeServer && config.experimental.serverMinification)),
       minimizer: isRspack
         ? [
-            // @ts-expect-error
-            new webpack.SwcJsMinimizerRspackPlugin({
+            new (getRspackCore().SwcJsMinimizerRspackPlugin)({
               // JS minimizer configuration
+              // options should align with crates/napi/src/minify.rs#patch_opts
+              minimizerOptions: {
+                compress: {
+                  inline: 2,
+                  global_defs: {
+                    'process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE': false,
+                  },
+                },
+                mangle: !noMangling && { reserved: ['AbortSignal'] },
+              },
             }),
-            // @ts-expect-error
-            new webpack.LightningCssMinimizerRspackPlugin({
+            new (getRspackCore().LightningCssMinimizerRspackPlugin)({
               // CSS minimizer configuration
+              minimizerOptions: {
+                targets: supportedBrowsers,
+              },
             }),
           ]
         : [
@@ -1909,6 +1917,7 @@ export default async function getBaseWebpackConfig(
         isNodeOrEdgeCompilation,
         isNodeServer,
         middlewareMatchers,
+        omitNonDeterministic: isCompileMode,
       }),
       isClient &&
         new ReactLoadablePlugin({
@@ -2055,8 +2064,7 @@ export default async function getBaseWebpackConfig(
         config.experimental.cssChunking &&
         new CssChunkingPlugin(config.experimental.cssChunking === 'strict'),
       telemetryPlugin,
-      !isRspack &&
-        !dev &&
+      !dev &&
         isNodeServer &&
         new (
           require('./webpack/plugins/telemetry-plugin/telemetry-plugin') as typeof import('./webpack/plugins/telemetry-plugin/telemetry-plugin')

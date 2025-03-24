@@ -101,7 +101,6 @@ impl EcmascriptModulePartAsset {
                 | ModulePart::InternalEvaluation(..)
                 | ModulePart::Facade
                 | ModulePart::Exports
-                | ModulePart::Evaluation
         ) {
             return Ok(EcmascriptModulePartAsset {
                 full_module: module,

@@ -15,10 +15,11 @@ const appDir = join(__dirname, '../')
 let appPort
 let app
 
-describe('AMP Fragment Styles', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
+  // Turbopack does not support AMP rendering.
+;(process.env.TURBOPACK ? describe.skip : describe)(
+  'AMP Fragment Styles',
+  () => {
+    describe('production mode', () => {
       beforeAll(async () => {
         await nextBuild(appDir, [])
         appPort = await findPort()
@@ -34,6 +35,6 @@ describe('AMP Fragment Styles', () => {
         expect(styles).toMatch(/background:(.*|)hotpink/)
         expect(styles).toMatch(/font-size:(.*|)16\.4px/)
       })
-    }
-  )
-})
+    })
+  }
+)

@@ -294,7 +294,6 @@ function instantiateRuntimeModule(
 ): Module {
   return instantiateModule(moduleId, { type: SourceType.Runtime, chunkPath });
 }
-
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */

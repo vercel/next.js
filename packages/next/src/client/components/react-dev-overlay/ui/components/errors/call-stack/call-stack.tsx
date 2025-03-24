@@ -62,7 +62,7 @@ export function CallStack({ frames, dialogResizerRef }: CallStackProps) {
       </div>
       {frames.map((frame, frameIndex) => {
         return !frame.ignored || isIgnoreListOpen ? (
-          <CallStackFrame key={frameIndex} frame={frame} index={frameIndex} />
+          <CallStackFrame key={frameIndex} frame={frame} />
         ) : null
       })}
     </div>

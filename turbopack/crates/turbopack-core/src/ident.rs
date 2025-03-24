@@ -27,6 +27,8 @@ pub struct AssetIdent {
     pub parts: Vec<ModulePart>,
     /// The asset layer the asset was created from.
     pub layer: Option<ResolvedVc<RcStr>>,
+    /// The MIME content type, if this asset was created from a data URL.
+    pub content_type: Option<RcStr>,
 }
 
 impl AssetIdent {
@@ -98,6 +100,10 @@ impl ValueToString for AssetIdent {
             s.push(')');
         }
 
+        if let Some(content_type) = &self.content_type {
+            write!(s, " <{}>", content_type)?;
+        }
+
         if !self.parts.is_empty() {
             for part in self.parts.iter() {
                 if !matches!(part, ModulePart::Facade) {
@@ -130,6 +136,7 @@ impl AssetIdent {
             modifiers: Vec::new(),
             parts: Vec::new(),
             layer: None,
+            content_type: None,
         }))
     }
 
@@ -165,6 +172,13 @@ impl AssetIdent {
     pub fn with_layer(&self, layer: ResolvedVc<RcStr>) -> Vc<Self> {
         let mut this = self.clone();
         this.layer = Some(layer);
+        Self::new(Value::new(this))
+    }
+
+    #[turbo_tasks::function]
+    pub fn with_content_type(&self, content_type: RcStr) -> Vc<Self> {
+        let mut this = self.clone();
+        this.content_type = Some(content_type);
         Self::new(Value::new(this))
     }
 
@@ -230,6 +244,7 @@ impl AssetIdent {
             modifiers,
             parts,
             layer,
+            content_type,
         } = self;
         let query = query.await?;
         if !query.is_empty() {
@@ -303,8 +318,13 @@ impl AssetIdent {
             has_hash = true;
         }
         if let Some(layer) = layer {
-            1_u8.deterministic_hash(&mut hasher);
+            5_u8.deterministic_hash(&mut hasher);
             layer.await?.deterministic_hash(&mut hasher);
+            has_hash = true;
+        }
+        if let Some(content_type) = content_type {
+            6_u8.deterministic_hash(&mut hasher);
+            content_type.deterministic_hash(&mut hasher);
             has_hash = true;
         }
 

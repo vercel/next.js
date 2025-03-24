@@ -244,6 +244,7 @@ pub async fn get_next_client_import_map(
     }
 
     insert_turbopack_dev_alias(&mut import_map).await?;
+    insert_instrumentation_client_alias(&mut import_map, project_path).await?;
 
     Ok(import_map.cell())
 }
@@ -1140,6 +1141,26 @@ async fn insert_turbopack_dev_alias(import_map: &mut ImportMap) -> Result<()> {
             .to_resolved()
             .await?,
     );
+    Ok(())
+}
+
+/// Handles instrumentation-client.ts bundling logic
+async fn insert_instrumentation_client_alias(
+    import_map: &mut ImportMap,
+    project_path: ResolvedVc<FileSystemPath>,
+) -> Result<()> {
+    insert_alias_to_alternatives(
+        import_map,
+        "private-next-instrumentation-client",
+        vec![
+            request_to_import_mapping(project_path, "./src/instrumentation-client"),
+            request_to_import_mapping(project_path, "./src/instrumentation-client.ts"),
+            request_to_import_mapping(project_path, "./instrumentation-client"),
+            request_to_import_mapping(project_path, "./instrumentation-client.ts"),
+            ImportMapping::Ignore.resolved_cell(),
+        ],
+    );
+
     Ok(())
 }
 

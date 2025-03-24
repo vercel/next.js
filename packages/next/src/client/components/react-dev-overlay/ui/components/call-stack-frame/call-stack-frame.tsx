@@ -8,8 +8,7 @@ import { useOpenInEditor } from '../../utils/use-open-in-editor'
 
 export const CallStackFrame: React.FC<{
   frame: OriginalStackFrame
-  index: number
-}> = function CallStackFrame({ frame, index }) {
+}> = function CallStackFrame({ frame }) {
   // TODO: ability to expand resolved frames
 
   const f: StackFrame = frame.originalStackFrame ?? frame.sourceStackFrame
@@ -39,17 +38,10 @@ export const CallStackFrame: React.FC<{
   return (
     <div
       data-nextjs-call-stack-frame
-      data-nextjs-call-stack-frame-ignored={!hasSource}
-      style={
-        {
-          '--index': index,
-        } as React.CSSProperties
-      }
+      data-nextjs-call-stack-frame-no-source={!hasSource}
+      data-nextjs-call-stack-frame-ignored={frame.ignored}
     >
-      <div
-        data-nextjs-frame-expanded={!frame.ignored}
-        className="call-stack-frame-method-name"
-      >
+      <div className="call-stack-frame-method-name">
         <HotlinkedText text={formattedMethod} />
         {hasSource && (
           <button onClick={open} className="open-in-editor-button">
@@ -77,15 +69,19 @@ export const CallStackFrame: React.FC<{
 }
 
 export const CALL_STACK_FRAME_STYLES = `
-  [data-nextjs-call-stack-frame-ignored] {
+  [data-nextjs-call-stack-frame-no-source] {
     padding: 6px 8px;
     margin-bottom: 4px;
 
     border-radius: var(--rounded-lg);
   }
 
-  [data-nextjs-call-stack-frame-ignored]:last-child {
+  [data-nextjs-call-stack-frame-no-source]:last-child {
     margin-bottom: 0;
+  }
+
+  [data-nextjs-call-stack-frame-ignored="true"] {
+    opacity: 0.6;
   }
 
   [data-nextjs-call-stack-frame] {

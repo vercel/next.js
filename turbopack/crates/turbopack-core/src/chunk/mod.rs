@@ -205,25 +205,34 @@ pub enum ChunkingType {
 
 impl ChunkingType {
     pub fn is_inherit_async(&self) -> bool {
-        match self {
-            ChunkingType::Parallel => false,
-            ChunkingType::ParallelInheritAsync => true,
-            ChunkingType::Async => false,
-            ChunkingType::Isolated { .. } => false,
-            ChunkingType::Shared { inherit_async, .. } => *inherit_async,
-            ChunkingType::Traced => false,
-        }
+        matches!(
+            self,
+            ChunkingType::ParallelInheritAsync
+                | ChunkingType::Shared {
+                    inherit_async: true,
+                    ..
+                }
+        )
     }
 
     pub fn is_parallel(&self) -> bool {
-        match self {
-            ChunkingType::Parallel => true,
-            ChunkingType::ParallelInheritAsync => true,
-            ChunkingType::Async => false,
-            ChunkingType::Isolated { .. } => false,
-            ChunkingType::Shared { .. } => false,
-            ChunkingType::Traced => false,
-        }
+        matches!(
+            self,
+            ChunkingType::Parallel | ChunkingType::ParallelInheritAsync
+        )
+    }
+
+    pub fn is_merged(&self) -> bool {
+        matches!(
+            self,
+            ChunkingType::Isolated {
+                merge_tag: Some(_),
+                ..
+            } | ChunkingType::Shared {
+                merge_tag: Some(_),
+                ..
+            }
+        )
     }
 
     pub fn without_inherit_async(&self) -> Self {
@@ -301,7 +310,7 @@ pub trait ChunkItem {
 #[turbo_tasks::value_trait]
 pub trait ChunkType: ValueToString {
     /// Whether the source (reference) order of items needs to be retained during chunking.
-    fn must_keep_item_order(self: Vc<Self>) -> Vc<bool>;
+    fn is_style(self: Vc<Self>) -> Vc<bool>;
 
     /// Create a new chunk for the given chunk items
     fn chunk(
@@ -408,6 +417,8 @@ mod tests {
         assert_eq!(round_chunk_item_size(6), 6);
         assert_eq!(round_chunk_item_size(7), 6);
         assert_eq!(round_chunk_item_size(8), 8);
+        assert_eq!(round_chunk_item_size(49000), 32_768);
+        assert_eq!(round_chunk_item_size(50000), 49_152);
 
         assert_eq!(changes_in_range(0..1000), 19);
         assert_eq!(changes_in_range(1000..2000), 2);

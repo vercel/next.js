@@ -32,7 +32,7 @@ export type DecryptedBoundArgsCacheStore = CacheStore<string>
 /**
  * Serialized format for "use cache" entries
  */
-interface UseCacheCacheStoreSerialized {
+export interface UseCacheCacheStoreSerialized {
   value: string
   tags: string[]
   stale: number
@@ -93,35 +93,41 @@ export function parseUseCacheCacheStore(
  */
 export async function serializeUseCacheCacheStore(
   entries: IterableIterator<[string, Promise<CacheEntry>]>
-): Promise<[string, UseCacheCacheStoreSerialized][]> {
+): Promise<Array<[string, UseCacheCacheStoreSerialized] | null>> {
   return Promise.all(
     Array.from(entries).map(([key, value]) => {
-      return value.then(async (entry) => {
-        const [left, right] = entry.value.tee()
-        entry.value = right
+      return value
+        .then(async (entry) => {
+          const [left, right] = entry.value.tee()
+          entry.value = right
 
-        let binaryString: string = ''
+          let binaryString: string = ''
 
-        // We want to encode the value as a string, but we aren't sure if the
-        // value is a a stream of UTF-8 bytes or not, so let's just encode it
-        // as a string using base64.
-        for await (const chunk of left) {
-          binaryString += arrayBufferToString(chunk)
-        }
+          // We want to encode the value as a string, but we aren't sure if the
+          // value is a a stream of UTF-8 bytes or not, so let's just encode it
+          // as a string using base64.
+          for await (const chunk of left) {
+            binaryString += arrayBufferToString(chunk)
+          }
 
-        return [
-          key,
-          {
-            // Encode the value as a base64 string.
-            value: btoa(binaryString),
-            tags: entry.tags,
-            stale: entry.stale,
-            timestamp: entry.timestamp,
-            expire: entry.expire,
-            revalidate: entry.revalidate,
-          },
-        ] satisfies [string, UseCacheCacheStoreSerialized]
-      })
+          return [
+            key,
+            {
+              // Encode the value as a base64 string.
+              value: btoa(binaryString),
+              tags: entry.tags,
+              stale: entry.stale,
+              timestamp: entry.timestamp,
+              expire: entry.expire,
+              revalidate: entry.revalidate,
+            },
+          ] satisfies [string, UseCacheCacheStoreSerialized]
+        })
+        .catch(() => {
+          // Any failed cache writes should be ignored as to not discard the
+          // entire cache.
+          return null
+        })
     })
   )
 }

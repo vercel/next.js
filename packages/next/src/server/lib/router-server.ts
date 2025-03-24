@@ -166,13 +166,11 @@ export async function initialize(opts: {
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
 
-  const allowedOrigins = [
-    'localhost',
-    ...(config.experimental.allowedDevOrigins || []),
-  ]
-  if (opts.hostname) {
-    allowedOrigins.push(opts.hostname)
-  }
+  const randomBytes = new Uint8Array(8)
+  crypto.getRandomValues(randomBytes)
+  const middlewareSubrequestId = Buffer.from(randomBytes).toString('hex')
+  ;(globalThis as any)[Symbol.for('@next/middleware-subrequest-id')] =
+    middlewareSubrequestId
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
     // internal headers should not be honored by the request handler
@@ -325,7 +323,7 @@ export async function initialize(opts: {
 
       // handle hot-reloader first
       if (developmentBundler) {
-        if (blockCrossSite(req, res, allowedOrigins, `${opts.port}`)) {
+        if (blockCrossSite(req, res, config.allowedDevOrigins, opts.hostname)) {
           return
         }
         const origUrl = req.url || '/'
@@ -691,7 +689,9 @@ export async function initialize(opts: {
       })
 
       if (opts.dev && developmentBundler && req.url) {
-        if (blockCrossSite(req, socket, allowedOrigins, `${opts.port}`)) {
+        if (
+          blockCrossSite(req, socket, config.allowedDevOrigins, opts.hostname)
+        ) {
           return
         }
         const { basePath, assetPrefix } = config

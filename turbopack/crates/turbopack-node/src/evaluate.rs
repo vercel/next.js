@@ -22,16 +22,14 @@ use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
     changed::content_changed,
-    chunk::{
-        ChunkGroupType, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
-    },
+    chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets},
     context::AssetContext,
     error::PrettyPrintError,
     file_source::FileSource,
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::ChunkGroupEntry, ModuleGraph},
     output::{OutputAsset, OutputAssets},
     reference_type::{InnerAssets, ReferenceType},
     virtual_source::VirtualSource,
@@ -158,11 +156,10 @@ async fn emit_evaluate_pool_assets_operation(
         entries
     };
 
-    let module_graph = ModuleGraph::from_modules(Vc::cell(vec![(
+    let module_graph = ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(
         iter::once(entry_module)
             .chain(runtime_entries.iter().copied().map(ResolvedVc::upcast))
             .collect(),
-        ChunkGroupType::Entry,
     )]));
 
     let bootstrap = chunking_context.root_entry_chunk_group_asset(

@@ -103,6 +103,7 @@ type EventBuildOptimized = {
   rewritesWithHasCount: number
   redirectsWithHasCount: number
   middlewareCount: number
+  isRspack: boolean
   totalAppPagesCount?: number
   staticAppPagesCount?: number
   serverAppPagesCount?: number
@@ -114,7 +115,7 @@ export function eventBuildOptimize(
   pagePaths: string[],
   event: Omit<
     EventBuildOptimized,
-    'totalPageCount' | 'hasDunderPages' | 'hasTestPages'
+    'totalPageCount' | 'hasDunderPages' | 'hasTestPages' | 'isRspack'
   >
 ): { eventName: string; payload: EventBuildOptimized } {
   return {
@@ -134,6 +135,7 @@ export function eventBuildOptimize(
       serverAppPagesCount: event.serverAppPagesCount,
       edgeRuntimeAppCount: event.edgeRuntimeAppCount,
       edgeRuntimePagesCount: event.edgeRuntimePagesCount,
+      isRspack: process.env.NEXT_RSPACK !== undefined,
     },
   }
 }
@@ -176,6 +178,7 @@ export type EventBuildFeatureUsage = {
     | 'esmExternals'
     | 'webpackPlugins'
     | UseCacheTrackerKey
+    | 'turbopackPersistentCaching'
   invocationCount: number
 }
 export function eventBuildFeatureUsage(

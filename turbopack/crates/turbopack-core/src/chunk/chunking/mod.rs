@@ -22,6 +22,7 @@ use crate::{
         chunking::{
             dev::{app_vendors_split, expand_batches},
             production::make_production_chunks,
+            style_production::make_style_production_chunks,
         },
     },
     module_graph::ModuleGraph,
@@ -30,6 +31,7 @@ use crate::{
 
 mod dev;
 mod production;
+mod style_production;
 
 #[turbo_tasks::value]
 struct ChunkItemsWithInfo {
@@ -334,30 +336,42 @@ pub async fn make_chunks(
 
             if let Some(chunking_config) = chunking_configs.get(&ty) {
                 // Production chunking
-                make_production_chunks(
-                    chunk_items,
-                    batch_groups.into_iter().collect(),
-                    module_graph,
-                    chunking_config,
-                    split_context,
-                )
-                .await?;
+                if *ty.is_style().await? {
+                    make_style_production_chunks(
+                        chunk_items,
+                        batch_groups.into_iter().collect(),
+                        module_graph,
+                        chunking_context,
+                        chunking_config,
+                        split_context,
+                    )
+                    .await?;
+                } else {
+                    make_production_chunks(
+                        chunk_items,
+                        batch_groups.into_iter().collect(),
+                        module_graph,
+                        chunking_config,
+                        split_context,
+                    )
+                    .await?;
+                }
             } else {
                 // Development chunking
-                if !*ty.must_keep_item_order().await? {
+                if *ty.is_style().await? {
+                    make_chunk(
+                        chunk_items,
+                        Vec::new(),
+                        &mut format!("{key_prefix}{ty_name}"),
+                        &mut split_context,
+                    )
+                    .await?;
+                } else {
                     let chunk_items = expand_batches(chunk_items, ty, chunking_context).await?;
                     let chunk_items = chunk_items.iter().collect();
                     app_vendors_split(
                         chunk_items,
                         format!("{key_prefix}{ty_name}"),
-                        &mut split_context,
-                    )
-                    .await?;
-                } else {
-                    make_chunk(
-                        chunk_items,
-                        Vec::new(),
-                        &mut format!("{key_prefix}{ty_name}"),
                         &mut split_context,
                     )
                     .await?;

@@ -1,5 +1,5 @@
 import type { CSSProperties, Dispatch, SetStateAction } from 'react'
-import { STORAGE_KEY_POSITION, type OverlayState } from '../../../../shared'
+import type { OverlayState } from '../../../../shared'
 
 import { useState, useEffect, useRef, createContext, useContext } from 'react'
 import { Toast } from '../../toast'
@@ -17,21 +17,19 @@ import {
   useClickOutside,
   useFocusTrap,
 } from './utils'
+import {
+  getInitialPosition,
+  type DevToolsScale,
+} from './dev-tools-info/preferences'
 
 // TODO: add E2E tests to cover different scenarios
-
-const INDICATOR_POSITION =
-  (process.env
-    .__NEXT_DEV_INDICATOR_POSITION as typeof window.__NEXT_DEV_INDICATOR_POSITION) ||
-  'bottom-left'
-
-export type DevToolsIndicatorPosition = typeof INDICATOR_POSITION
 
 export function DevToolsIndicator({
   state,
   errorCount,
   isBuildError,
   setIsErrorOverlayOpen,
+  ...props
 }: {
   state: OverlayState
   errorCount: number
@@ -39,6 +37,8 @@ export function DevToolsIndicator({
   setIsErrorOverlayOpen: (
     isErrorOverlayOpen: boolean | ((prev: boolean) => boolean)
   ) => void
+  scale: DevToolsScale
+  setScale: (value: DevToolsScale) => void
 }) {
   const [isDevToolsIndicatorVisible, setIsDevToolsIndicatorVisible] =
     useState(true)
@@ -59,6 +59,7 @@ export function DevToolsIndicator({
       isTurbopack={!!process.env.TURBOPACK}
       disabled={state.disableDevIndicator || !isDevToolsIndicatorVisible}
       isBuildError={isBuildError}
+      {...props}
     />
   )
 }
@@ -72,19 +73,6 @@ interface C {
 }
 
 const Context = createContext({} as C)
-
-function getInitialPosition() {
-  if (
-    typeof localStorage !== 'undefined' &&
-    localStorage.getItem(STORAGE_KEY_POSITION)
-  ) {
-    return localStorage.getItem(
-      STORAGE_KEY_POSITION
-    ) as DevToolsIndicatorPosition
-  }
-
-  return INDICATOR_POSITION
-}
 
 const OVERLAYS = {
   Root: 'root',
@@ -104,6 +92,8 @@ function DevToolsPopover({
   isBuildError,
   hide,
   setIsErrorOverlayOpen,
+  scale,
+  setScale,
 }: {
   routerType: 'pages' | 'app'
   disabled: boolean
@@ -116,6 +106,8 @@ function DevToolsPopover({
   setIsErrorOverlayOpen: (
     isOverlayOpen: boolean | ((prev: boolean) => boolean)
   ) => void
+  scale: DevToolsScale
+  setScale: (value: DevToolsScale) => void
 }) {
   const menuRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
@@ -289,6 +281,7 @@ function DevToolsPopover({
         isDevBuilding={useIsDevBuilding()}
         isDevRendering={useIsDevRendering()}
         isBuildError={isBuildError}
+        scale={scale}
       />
 
       {/* Route Info */}
@@ -318,6 +311,8 @@ function DevToolsPopover({
         hide={handleHideDevtools}
         setPosition={setPosition}
         position={position}
+        scale={scale}
+        setScale={setScale}
       />
 
       {/* Dropdown Menu */}

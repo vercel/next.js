@@ -991,6 +991,22 @@ export const metadata = {
 <meta property="fb:admins" content="87654321" />
 ```
 
+### `pinterest`
+
+You can enable or disable [Pinterest Rich Pins](https://developers.pinterest.com/docs/web-features/rich-pins-overview/) on your webpage.
+
+```jsx filename="layout.js | page.js"
+export const metadata = {
+  pinterest: {
+    richPin: true,
+  },
+}
+```
+
+```html filename="<head> output" hideLineNumbers
+<meta name="pinterest-rich-pin" content="true" />
+```
+
 ### `other`
 
 All metadata options should be covered using the built-in support. However, there may be custom metadata tags specific to your site, or brand new metadata tags just released. You can use the `other` option to render any custom metadata tag.

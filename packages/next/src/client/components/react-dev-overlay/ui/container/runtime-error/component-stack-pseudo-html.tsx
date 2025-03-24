@@ -20,6 +20,7 @@ export const PSEUDO_HTML_DIFF_STYLES = `
   }
   [data-nextjs-container-errors-pseudo-html--diff='error'] {
     background: var(--color-amber-100);
+    box-shadow: 2px 0 0 0 var(--color-amber-900) inset;
     font-weight: bold;
   }
   [data-nextjs-container-errors-pseudo-html-collapse-button] {
