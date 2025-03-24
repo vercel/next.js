@@ -17,7 +17,10 @@ import {
   type PrerenderStoreModern,
 } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { describeStringPropertyAccess, wellKnownProperties } from './utils'
+import {
+  describeStringPropertyAccess,
+  wellKnownProperties,
+} from '../../shared/lib/utils/reflect-utils'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { scheduleImmediate } from '../../lib/scheduler'

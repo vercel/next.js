@@ -136,6 +136,9 @@ export function getRequiredConfiguration(
   return res
 }
 
+const localDevTestFilesExcludeAction =
+  'NEXT_PRIVATE_LOCAL_DEV_TEST_FILES_EXCLUDE'
+
 export async function writeConfigurationDefaults(
   ts: typeof import('typescript'),
   tsConfigPath: string,
@@ -328,25 +331,12 @@ export async function writeConfigurationDefaults(
     }
 
     if (hasUpdates) {
-      requiredActions.push(
-        'Local development only: Excluded test files from coverage'
-      )
+      requiredActions.push(localDevTestFilesExcludeAction)
     }
   }
 
   if (suggestedActions.length < 1 && requiredActions.length < 1) {
     return
-  }
-
-  if (process.env.NEXT_PRIVATE_LOCAL_DEV) {
-    // remove it from the required actions if it exists
-    if (
-      requiredActions[requiredActions.length - 1].includes(
-        'Local development only'
-      )
-    ) {
-      requiredActions.pop()
-    }
   }
 
   await fs.writeFile(
@@ -386,14 +376,20 @@ export async function writeConfigurationDefaults(
     Log.info('')
   }
 
-  if (requiredActions.length) {
+  const requiredActionsToBeLogged = process.env.NEXT_PRIVATE_LOCAL_DEV
+    ? requiredActions.filter(
+        (action) => action !== localDevTestFilesExcludeAction
+      )
+    : requiredActions
+
+  if (requiredActionsToBeLogged.length) {
     Log.info(
       `The following ${white('mandatory changes')} were made to your ${cyan(
         'tsconfig.json'
       )}:\n`
     )
 
-    requiredActions.forEach((action) => Log.info(`\t- ${action}`))
+    requiredActionsToBeLogged.forEach((action) => Log.info(`\t- ${action}`))
 
     Log.info('')
   }

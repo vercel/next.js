@@ -7,11 +7,12 @@ const { spawn } = require('child_process')
   const target = process.argv[process.argv.length - 1]
 
   let turboResult = ''
+  const turboCommand = `pnpm dlx turbo@${process.env.TURBO_VERSION || 'latest'}`
 
   await new Promise((resolve, reject) => {
     const child = spawn(
       '/bin/bash',
-      ['-c', `pnpm turbo run cache-build-native --dry=json -- ${target}`],
+      ['-c', `${turboCommand} run cache-build-native --dry=json -- ${target}`],
       {
         stdio: 'pipe',
       }
@@ -51,7 +52,7 @@ const { spawn } = require('child_process')
     await new Promise((resolve, reject) => {
       const child = spawn(
         '/bin/bash',
-        ['-c', `pnpm turbo run cache-build-native -- ${target}`],
+        ['-c', `${turboCommand} run cache-build-native -- ${target}`],
         {
           stdio: 'inherit',
         }

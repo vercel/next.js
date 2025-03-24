@@ -198,6 +198,12 @@ describe('app-dir with middleware', () => {
     const response = await next.fetch('/rsc-cookies/cookie-options')
     expect(response.status).toBe(200)
     expect(response.headers.get('x-middleware-set-cookie')).toBeNull()
+
+    const response2 = await next.fetch('/cookies/api')
+    expect(response2.status).toBe(200)
+    expect(response2.headers.get('x-middleware-set-cookie')).toBeNull()
+    expect(response2.headers.get('set-cookie')).toBeDefined()
+    expect(response2.headers.get('set-cookie')).toContain('example')
   })
 
   it('should ignore x-middleware-set-cookie as a request header', async () => {

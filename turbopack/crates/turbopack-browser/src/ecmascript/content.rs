@@ -10,57 +10,54 @@ use turbopack_core::{
     chunk::{ChunkingContext, MinifyType, ModuleId},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
-    source_map::{GenerateSourceMap, OptionSourceMap},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
     version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkContent, minify::minify, utils::StringifyJs};
 
 use super::{
-    chunk::EcmascriptDevChunk, content_entry::EcmascriptDevChunkContentEntries,
-    merged::merger::EcmascriptDevChunkContentMerger, version::EcmascriptDevChunkVersion,
+    chunk::EcmascriptBrowserChunk, content_entry::EcmascriptBrowserChunkContentEntries,
+    merged::merger::EcmascriptBrowserChunkContentMerger, version::EcmascriptBrowserChunkVersion,
 };
 use crate::BrowserChunkingContext;
 
 #[turbo_tasks::value(serialization = "none")]
-pub struct EcmascriptDevChunkContent {
-    pub(super) entries: ResolvedVc<EcmascriptDevChunkContentEntries>,
+pub struct EcmascriptBrowserChunkContent {
     pub(super) chunking_context: ResolvedVc<BrowserChunkingContext>,
-    pub(super) chunk: ResolvedVc<EcmascriptDevChunk>,
+    pub(super) chunk: ResolvedVc<EcmascriptBrowserChunk>,
+    pub(super) content: ResolvedVc<EcmascriptChunkContent>,
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptDevChunkContent {
+impl EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
     pub(crate) async fn new(
         chunking_context: ResolvedVc<BrowserChunkingContext>,
-        chunk: ResolvedVc<EcmascriptDevChunk>,
-        content: Vc<EcmascriptChunkContent>,
+        chunk: ResolvedVc<EcmascriptBrowserChunk>,
+        content: ResolvedVc<EcmascriptChunkContent>,
     ) -> Result<Vc<Self>> {
-        let entries = EcmascriptDevChunkContentEntries::new(content)
-            .to_resolved()
-            .await?;
-        Ok(EcmascriptDevChunkContent {
-            entries,
+        Ok(EcmascriptBrowserChunkContent {
             chunking_context,
             chunk,
+            content,
         }
         .cell())
     }
 
     #[turbo_tasks::function]
-    pub fn entries(&self) -> Vc<EcmascriptDevChunkContentEntries> {
-        *self.entries
+    pub fn entries(&self) -> Vc<EcmascriptBrowserChunkContentEntries> {
+        EcmascriptBrowserChunkContentEntries::new(*self.content)
     }
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptDevChunkContent {
+impl EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
-    pub(crate) fn own_version(&self) -> Vc<EcmascriptDevChunkVersion> {
-        EcmascriptDevChunkVersion::new(
+    pub(crate) fn own_version(&self) -> Vc<EcmascriptBrowserChunkVersion> {
+        EcmascriptBrowserChunkVersion::new(
             self.chunking_context.output_root(),
-            self.chunk.ident().path(),
-            *self.entries,
+            self.chunk.path(),
+            *self.content,
         )
     }
 
@@ -68,10 +65,11 @@ impl EcmascriptDevChunkContent {
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
         let output_root = this.chunking_context.output_root().await?;
-        let source_maps = this
+        let source_maps = *this
             .chunking_context
-            .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk));
-        let chunk_path_vc = this.chunk.ident().path();
+            .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk))
+            .await?;
+        let chunk_path_vc = this.chunk.path();
         let chunk_path = chunk_path_vc.await?;
         let chunk_server_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
             path
@@ -99,15 +97,19 @@ impl EcmascriptDevChunkContent {
             chunk_path = StringifyJs(chunk_server_path)
         )?;
 
-        for (id, entry) in this.entries.await?.iter() {
-            write!(code, "\n{}: ", StringifyJs(&id))?;
-            code.push_code(&*entry.code.await?);
-            write!(code, ",")?;
+        let content = this.content.await?;
+        let chunk_items = content.chunk_item_code_and_ids().await?;
+        for item in chunk_items {
+            for (id, item_code) in item {
+                write!(code, "\n{}: ", StringifyJs(&id))?;
+                code.push_code(item_code);
+                write!(code, ",")?;
+            }
         }
 
         write!(code, "\n}}]);")?;
 
-        if *source_maps.await? && code.has_source_map() {
+        if source_maps && code.has_source_map() {
             let filename = chunk_path.file_name();
             write!(
                 code,
@@ -118,20 +120,18 @@ impl EcmascriptDevChunkContent {
             )?;
         }
 
-        let code = code.build().cell();
-        if matches!(
-            this.chunking_context.await?.minify_type(),
-            MinifyType::Minify
-        ) {
-            return Ok(minify(chunk_path_vc, code, source_maps));
+        let mut code = code.build();
+
+        if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
+            code = minify(&*chunk_path_vc.await?, &code, source_maps, mangle)?;
         }
 
-        Ok(code)
+        Ok(code.cell())
     }
 }
 
 #[turbo_tasks::value_impl]
-impl VersionedContent for EcmascriptDevChunkContent {
+impl VersionedContent for EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let code = self.code().await?;
@@ -147,26 +147,27 @@ impl VersionedContent for EcmascriptDevChunkContent {
 }
 
 #[turbo_tasks::value_impl]
-impl MergeableVersionedContent for EcmascriptDevChunkContent {
+impl MergeableVersionedContent for EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
     fn get_merger(&self) -> Vc<Box<dyn VersionedContentMerger>> {
-        Vc::upcast(EcmascriptDevChunkContentMerger::new())
+        Vc::upcast(EcmascriptBrowserChunkContentMerger::new())
     }
 }
 
 #[turbo_tasks::value_impl]
-impl GenerateSourceMap for EcmascriptDevChunkContent {
+impl GenerateSourceMap for EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap> {
+    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
         self.code().generate_source_map()
     }
 
     #[turbo_tasks::function]
-    async fn by_section(&self, section: RcStr) -> Result<Vc<OptionSourceMap>> {
+    async fn by_section(self: Vc<Self>, section: RcStr) -> Result<Vc<OptionStringifiedSourceMap>> {
         // Weirdly, the ContentSource will have already URL decoded the ModuleId, and we
         // can't reparse that via serde.
         if let Ok(id) = ModuleId::parse(&section) {
-            for (entry_id, entry) in self.entries.await?.iter() {
+            let entries = self.entries().await?;
+            for (entry_id, entry) in entries.iter() {
                 if id == **entry_id {
                     let sm = entry.code.generate_source_map();
                     return Ok(sm);

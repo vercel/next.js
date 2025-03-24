@@ -33,6 +33,7 @@ import { setReferenceManifestsSingleton } from './app-render/encryption-utils'
 import { createServerModuleMap } from './app-render/action-utils'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { isStaticMetadataRoute } from '../lib/metadata/is-metadata-route'
 
 export type ManifestItem = {
   id: number | string
@@ -195,6 +196,9 @@ async function loadComponentsImpl<N = any>({
     )
   }
 
+  // Make sure to avoid loading the manifest for static metadata routes for better performance.
+  const hasClientManifest = !isStaticMetadataRoute(page)
+
   // Load the manifest files first
   //
   // Loading page-specific manifests shouldn't throw an error if the manifest couldn't be found, so
@@ -223,7 +227,7 @@ async function loadComponentsImpl<N = any>({
           join(distDir, `${DYNAMIC_CSS_MANIFEST}.json`),
           manifestLoadAttempts
         ).catch(() => undefined),
-    isAppPath
+    isAppPath && hasClientManifest
       ? tryLoadClientReferenceManifest(
           join(
             distDir,

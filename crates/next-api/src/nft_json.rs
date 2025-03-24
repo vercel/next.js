@@ -7,7 +7,6 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileSystem, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    ident::AssetIdent,
     output::OutputAsset,
     reference::all_assets_from_entries,
 };
@@ -60,13 +59,12 @@ impl NftJsonAsset {
 #[turbo_tasks::value_impl]
 impl OutputAsset for NftJsonAsset {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let path = self.chunk.ident().path().await?;
-        Ok(AssetIdent::from_path(
-            path.fs
-                .root()
-                .join(format!("{}.nft.json", path.path).into()),
-        ))
+    async fn path(&self) -> Result<Vc<FileSystemPath>> {
+        let path = self.chunk.path().await?;
+        Ok(path
+            .fs
+            .root()
+            .join(format!("{}.nft.json", path.path).into()))
     }
 }
 
@@ -121,7 +119,7 @@ impl Asset for NftJsonAsset {
         let client_root_ref = client_root.await?;
         let dist_dir = self.dist_dir().await?;
 
-        let ident_folder = self.ident().path().parent().await?;
+        let ident_folder = self.path().parent().await?;
         let ident_folder_in_project_fs = this
             .project
             .project_path()
@@ -141,7 +139,7 @@ impl Asset for NftJsonAsset {
                 continue;
             }
 
-            let referenced_chunk_path = referenced_chunk.ident().path().await?;
+            let referenced_chunk_path = referenced_chunk.path().await?;
             if referenced_chunk_path.extension_ref() == Some("map") {
                 continue;
             }

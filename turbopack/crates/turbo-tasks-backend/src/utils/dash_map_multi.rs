@@ -202,6 +202,7 @@ mod tests {
     use std::thread::scope;
 
     use rand::prelude::SliceRandom;
+    use turbo_tasks::FxDashMap;
 
     use super::*;
 
@@ -210,7 +211,7 @@ mod tests {
         const N: usize = 100000;
         const THREADS: usize = 20;
 
-        let map = DashMap::with_shard_amount(4);
+        let map = FxDashMap::with_hasher_and_shard_amount(Default::default(), 4);
         let indicies = (0..THREADS)
             .map(|_| {
                 let mut vec = (0..N).collect::<Vec<_>>();

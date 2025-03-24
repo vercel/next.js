@@ -1,3 +1,4 @@
+import { Button } from 'components'
 import deleteFromDb from 'db'
 
 export function Item({ id1, id2 }) {
@@ -26,6 +27,8 @@ export function Item2({ id1, id2 }) {
 
   return temp
 
+  // FIXME: invalid transformation of hoisted functions (https://github.com/vercel/next.js/issues/57392)
+  // (remove output.js from `tsconfig.json#exclude` to see the error)
   async function deleteItem() {
     'use server'
     await deleteFromDb(id1)

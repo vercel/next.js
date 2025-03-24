@@ -6,6 +6,7 @@ use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
+    css::chunk::CssChunkType,
     module_options::{
         module_options_context::ModuleOptionsContext, CssOptionsContext, EcmascriptOptionsContext,
         JsxTransformOptions, ModuleRule, TypeofWindow, TypescriptTransformOptions,
@@ -26,6 +27,7 @@ use turbopack_core::{
     free_var_references,
     resolve::{parse::Request, pattern::Pattern},
 };
+use turbopack_ecmascript::chunk::EcmascriptChunkType;
 use turbopack_node::{
     execution_context::ExecutionContext,
     transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
@@ -203,7 +205,7 @@ pub async fn get_client_resolve_options_context(
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
-        custom_extensions: next_config.resolve_extension().await?.clone_value(),
+        custom_extensions: next_config.resolve_extension().owned().await?,
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             module_options_context.clone().resolved_cell(),
@@ -222,6 +224,7 @@ pub async fn get_client_module_options_context(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     encryption_key: ResolvedVc<RcStr>,
+    no_mangling: Vc<bool>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let resolve_options_context = get_client_resolve_options_context(
@@ -337,7 +340,8 @@ pub async fn get_client_module_options_context(
         execution_context: Some(execution_context),
         tree_shaking_mode: tree_shaking_mode_for_user_code,
         enable_postcss_transform,
-        side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
+        side_effect_free_packages: next_config.optimize_package_imports().owned().await?,
+        keep_last_successful_parse: next_mode.is_development(),
         ..Default::default()
     };
 
@@ -381,7 +385,9 @@ pub async fn get_client_module_options_context(
         enable_mdx_rs,
         css: CssOptionsContext {
             minify_type: if *next_config.turbo_minify(mode).await? {
-                MinifyType::Minify
+                MinifyType::Minify {
+                    mangle: !*no_mangling.await?,
+                }
             } else {
                 MinifyType::NoMinify
             },
@@ -411,11 +417,13 @@ pub async fn get_client_chunking_context(
     client_root: ResolvedVc<FileSystemPath>,
     client_root_to_root_path: ResolvedVc<RcStr>,
     asset_prefix: ResolvedVc<Option<RcStr>>,
+    chunk_suffix_path: ResolvedVc<Option<RcStr>>,
     environment: ResolvedVc<Environment>,
     mode: Vc<NextMode>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     minify: Vc<bool>,
     source_maps: Vc<bool>,
+    no_mangling: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
@@ -432,8 +440,11 @@ pub async fn get_client_chunking_context(
         next_mode.runtime_type(),
     )
     .chunk_base_path(asset_prefix)
+    .chunk_suffix_path(chunk_suffix_path)
     .minify_type(if *minify.await? {
-        MinifyType::Minify
+        MinifyType::Minify {
+            mangle: !*no_mangling.await?,
+        }
     } else {
         MinifyType::NoMinify
     })
@@ -448,10 +459,22 @@ pub async fn get_client_chunking_context(
     if next_mode.is_development() {
         builder = builder.hot_module_replacement().use_file_source_map_uris();
     } else {
-        builder = builder.ecmascript_chunking_config(ChunkingConfig {
-            min_chunk_size: 20000,
-            ..Default::default()
-        })
+        builder = builder.chunking_config(
+            Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+            ChunkingConfig {
+                min_chunk_size: 50_000,
+                max_chunk_count_per_group: 40,
+                max_merge_chunk_size: 200_000,
+                ..Default::default()
+            },
+        );
+        builder = builder.chunking_config(
+            Vc::<CssChunkType>::default().to_resolved().await?,
+            ChunkingConfig {
+                max_merge_chunk_size: 100_000,
+                ..Default::default()
+            },
+        );
     }
 
     Ok(Vc::upcast(builder.build()))

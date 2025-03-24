@@ -129,7 +129,7 @@ impl<T: ?Sized> OperationVc<T> {
     where
         T: VcValueType,
     {
-        self.connect().node.into_strongly_consistent_read().into()
+        self.connect().node.into_read().strongly_consistent().into()
     }
 }
 

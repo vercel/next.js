@@ -17,9 +17,7 @@ describe('app dir - global error - layout error', () => {
     if (isNextDev) {
       await assertHasRedbox(browser)
       const description = await getRedboxDescription(browser)
-      expect(description).toMatchInlineSnapshot(
-        `"[ Server ] Error: layout error"`
-      )
+      expect(description).toMatchInlineSnapshot(`"Error: layout error"`)
     }
 
     expect(await browser.elementByCss('h1').text()).toBe('Global Error')

@@ -125,7 +125,7 @@ module.exports = {
                           "mappings": "AAAA,4BACE,2BAKF,0DAIA,kDAIA,uCAIA",
                           "names": [],
                           "sources": [
-                            "turbopack://[project]/test/integration/css-fixtures/compilation-and-prefixing/styles/global.css",
+                            "turbopack:///[project]/test/integration/css-fixtures/compilation-and-prefixing/styles/global.css",
                           ],
                           "sourcesContent": [
                             "@media (480px <= width < 768px) {
@@ -183,7 +183,7 @@ module.exports = {
                           "mappings": "AAAA,4BACE,2BAKF,0DAIA,kDAIA,uCAIA",
                           "names": [],
                           "sources": [
-                            "turbopack://[project]/test/integration/css-fixtures/compilation-and-prefixing/styles/global.css",
+                            "turbopack:///[project]/test/integration/css-fixtures/compilation-and-prefixing/styles/global.css",
                           ],
                           "sourcesContent": [
                             "@media (480px <= width < 768px) {

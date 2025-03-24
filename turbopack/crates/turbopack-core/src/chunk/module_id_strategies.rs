@@ -31,7 +31,7 @@ impl DevModuleIdStrategy {
 impl ModuleIdStrategy for DevModuleIdStrategy {
     #[turbo_tasks::function]
     async fn get_module_id(self: Vc<Self>, ident: Vc<AssetIdent>) -> Result<Vc<ModuleId>> {
-        Ok(ModuleId::String(ident.to_string().await?.clone_value()).cell())
+        Ok(ModuleId::String(ident.to_string().owned().await?).cell())
     }
 }
 

@@ -10,6 +10,8 @@ import {
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
+const isExperimentalReact = process.env.__NEXT_EXPERIMENTAL_PPR
+
 const expectedErrorMessage =
   'Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".'
 
@@ -39,7 +41,7 @@ describe('use-cache-hanging-inputs', () => {
         const errorDescription = await getRedboxDescription(browser)
         const errorSource = await getRedboxSource(browser)
 
-        expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
+        expect(errorDescription).toBe(expectedErrorMessage)
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
@@ -98,7 +100,7 @@ describe('use-cache-hanging-inputs', () => {
         const errorDescription = await getRedboxDescription(browser)
         const errorSource = await getRedboxSource(browser)
 
-        expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
+        expect(errorDescription).toBe(expectedErrorMessage)
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
@@ -144,7 +146,7 @@ describe('use-cache-hanging-inputs', () => {
         const errorDescription = await getRedboxDescription(browser)
         const errorSource = await getRedboxSource(browser)
 
-        expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
+        expect(errorDescription).toBe(expectedErrorMessage)
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
@@ -192,8 +194,8 @@ describe('use-cache-hanging-inputs', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        if (process.env.__NEXT_EXPERIMENTAL_PPR) {
-          // TODO(react-time-info): Remove this branch for PPR when the issue is
+        if (isExperimentalReact) {
+          // TODO(react-time-info): Remove this branch for experimental React when the issue is
           // resolved where the inclusion of server timings in the RSC payload
           // makes the serialized bound args not suitable to be used as a cache
           // key.
@@ -201,14 +203,14 @@ describe('use-cache-hanging-inputs', () => {
           const expectedErrorMessagePpr =
             'Error: Route "/bound-args": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don\'t have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense'
 
-          expect(errorDescription).toBe(`[ Server ] ${expectedErrorMessagePpr}`)
+          expect(errorDescription).toBe(expectedErrorMessagePpr)
 
           expect(cliOutput).toContain(
             `${expectedErrorMessagePpr}
     at Page [Server] (<anonymous>)`
           )
         } else {
-          expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
+          expect(errorDescription).toBe(expectedErrorMessage)
 
           if (isTurbopack) {
             // TODO(veil): For Turbopack, a fix in the React Flight Client, where
@@ -251,8 +253,8 @@ describe('use-cache-hanging-inputs', () => {
 
         expect({ count, title, description }).toEqual({
           count: 1,
-          title: 'Unhandled Runtime Error',
-          description: '[ Cache ] Error: kaputt!',
+          title: 'Unhandled Runtime Error\nCache',
+          description: 'Error: kaputt!',
         })
       })
     })

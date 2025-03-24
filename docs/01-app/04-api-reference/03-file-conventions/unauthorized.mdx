@@ -51,7 +51,7 @@ You can use [`unauthorized`](/docs/app/api-reference/functions/unauthorized) fun
 
 ```tsx filename="app/dashboard/page.tsx" switcher
 import { verifySession } from '@/app/lib/dal'
-import { unauthorized } from 'next/server'
+import { unauthorized } from 'next/navigation'
 
 export default async function DashboardPage() {
   const session = await verifySession()

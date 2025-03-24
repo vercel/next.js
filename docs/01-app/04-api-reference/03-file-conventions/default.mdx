@@ -39,13 +39,13 @@ export default async function Default({
 }: {
   params: Promise<{ artist: string }>
 }) {
-  const artist = (await params).artist
+  const { artist } = await params
 }
 ```
 
 ```jsx filename="app/[artist]/@sidebar/default.js" switcher
 export default async function Default({ params }) {
-  const artist = (await params).artist
+  const { artist } = await params
 }
 ```
 

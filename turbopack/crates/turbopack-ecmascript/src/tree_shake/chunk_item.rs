@@ -2,9 +2,7 @@ use anyhow::Result;
 use turbo_tasks::{ResolvedVc, ValueDefault, Vc};
 use turbo_tasks_fs::rope::RopeBuilder;
 use turbopack_core::{
-    chunk::{
-        AsyncModuleInfo, ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext,
-    },
+    chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
@@ -17,9 +15,10 @@ use crate::{
         EcmascriptChunkPlaceable, EcmascriptChunkType,
     },
     references::async_module::AsyncModuleOptions,
+    runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
     tree_shake::side_effect_module::SideEffectsModule,
     utils::StringifyModuleId,
-    EcmascriptModuleContent,
+    EcmascriptModuleContent, EcmascriptModuleContentOptions,
 };
 
 /// This is an implementation of [ChunkItem] for
@@ -48,30 +47,35 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
         let module = self.module.await?;
 
         let split_data = split_module(*module.full_module);
-        let parsed = part_of_module(split_data, *module.part);
+        let parsed = part_of_module(split_data, module.part.clone())
+            .to_resolved()
+            .await?;
 
-        let analyze = self.module.analyze().await?;
-        let async_module_options = analyze.async_module.module_options(async_module_info);
+        let analyze = self.module.analyze();
+        let analyze_ref = analyze.await?;
+        let async_module_options = analyze_ref.async_module.module_options(async_module_info);
 
         let module_type_result = *module.full_module.determine_module_type().await?;
-        let generate_source_map = self
+        let generate_source_map = *self
             .chunking_context
-            .reference_module_source_maps(*ResolvedVc::upcast(self.module));
+            .reference_module_source_maps(*ResolvedVc::upcast(self.module))
+            .await?;
 
-        let content = EcmascriptModuleContent::new(
+        let content = EcmascriptModuleContent::new(EcmascriptModuleContentOptions {
             parsed,
-            module.full_module.ident(),
-            module_type_result.module_type,
-            *self.module_graph,
-            *self.chunking_context,
-            *analyze.references,
-            *analyze.code_generation,
-            *analyze.async_module,
+            ident: self.module.ident(),
+            specified_module_type: module_type_result.module_type,
+            module_graph: *self.module_graph,
+            chunking_context: *self.chunking_context,
+            references: analyze.references(),
+            esm_references: *analyze_ref.esm_references,
+            code_generation: *analyze_ref.code_generation,
+            async_module: *analyze_ref.async_module,
             generate_source_map,
-            *analyze.source_map,
-            *analyze.exports,
+            original_source_map: analyze_ref.source_map,
+            exports: *analyze_ref.exports,
             async_module_info,
-        );
+        });
 
         Ok(EcmascriptChunkItemContent::new(
             content,
@@ -79,11 +83,6 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
             *module.full_module.await?.options,
             async_module_options,
         ))
-    }
-
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
     }
 }
 
@@ -168,14 +167,9 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
 
             code.push_bytes(
                 format!(
-                    "{}__turbopack_import__({});\n",
+                    "{}{TURBOPACK_IMPORT}({});\n",
                     if need_await { "await " } else { "" },
-                    StringifyModuleId(
-                        &*side_effect
-                            .as_chunk_item(*self.module_graph, *self.chunking_context)
-                            .id()
-                            .await?
-                    )
+                    StringifyModuleId(&*side_effect.chunk_item_id(*self.chunking_context).await?)
                 )
                 .as_bytes(),
             );
@@ -183,12 +177,11 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
 
         code.push_bytes(
             format!(
-                "__turbopack_export_namespace__(__turbopack_import__({}));\n",
+                "{TURBOPACK_EXPORT_NAMESPACE}({TURBOPACK_IMPORT}({}));\n",
                 StringifyModuleId(
                     &*module
                         .resolved_as
-                        .as_chunk_item(*self.module_graph, *self.chunking_context)
-                        .id()
+                        .chunk_item_id(*self.chunking_context)
                         .await?
                 )
             )
@@ -216,10 +209,5 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
             placeholder_for_future_extensions: (),
         }
         .cell())
-    }
-
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
     }
 }

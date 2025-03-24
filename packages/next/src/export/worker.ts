@@ -253,6 +253,11 @@ async function exportPageImpl(
     )
   }
 
+  // During the export phase in next build, if it's using PPR we can serve streaming metadata
+  // when it's available. When we're building the PPR rendering result, we don't need to rely
+  // on the user agent. The result can be determined to serve streaming on infrastructure level.
+  const serveStreamingMetadata = !!isRoutePPREnabled
+
   const renderOpts: WorkerRenderOpts = {
     ...components,
     ...input.renderOpts,
@@ -262,6 +267,7 @@ async function exportPageImpl(
     disableOptimizedLoading,
     locale,
     supportsDynamicResponse: false,
+    serveStreamingMetadata,
     experimental: {
       ...input.renderOpts.experimental,
       isRoutePPREnabled,
@@ -582,7 +588,7 @@ async function exportPage(
   return {
     duration: Date.now() - start,
     ampValidations: result.ampValidations,
-    revalidate: result.revalidate,
+    cacheControl: result.cacheControl,
     metadata: result.metadata,
     ssgNotFound: result.ssgNotFound,
     hasEmptyPrelude: result.hasEmptyPrelude,

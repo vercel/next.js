@@ -81,7 +81,7 @@ impl EvaluatableAssets {
         self: Vc<Self>,
         entry: ResolvedVc<Box<dyn EvaluatableAsset>>,
     ) -> Result<Vc<EvaluatableAssets>> {
-        let mut entries = self.await?.clone_value();
+        let mut entries = self.owned().await?;
         entries.push(entry);
         Ok(EvaluatableAssets(entries).cell())
     }

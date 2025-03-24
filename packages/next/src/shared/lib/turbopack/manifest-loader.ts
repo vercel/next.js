@@ -2,15 +2,20 @@ import type {
   EdgeFunctionDefinition,
   MiddlewareManifest,
 } from '../../../build/webpack/plugins/middleware-plugin'
-import type { StatsAsset, StatsChunk, StatsChunkGroup, StatsModule, StatsCompilation as WebpackStats } from 'webpack'
+import type {
+  StatsAsset,
+  StatsChunk,
+  StatsChunkGroup,
+  StatsModule,
+  StatsCompilation as WebpackStats,
+} from 'webpack'
 import type { BuildManifest } from '../../../server/get-page-files'
 import type { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
 import type { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
 import type { NextFontManifest } from '../../../build/webpack/plugins/next-font-manifest-plugin'
-import type {
-  REACT_LOADABLE_MANIFEST} from '../constants';
+import type { REACT_LOADABLE_MANIFEST } from '../constants'
 import {
   APP_BUILD_MANIFEST,
   APP_PATHS_MANIFEST,
@@ -41,7 +46,11 @@ import { getEntryKey, type EntryKey } from './entry-key'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
 import { getSortedRoutes } from '../router/utils'
 import { existsSync } from 'fs'
-import { addMetadataIdToRoute, addRouteSuffix, removeRouteSuffix } from '../../../server/dev/turbopack-utils'
+import {
+  addMetadataIdToRoute,
+  addRouteSuffix,
+  removeRouteSuffix,
+} from '../../../server/dev/turbopack-utils'
 import { tryToParsePath } from '../../../lib/try-to-parse-path'
 import type { Entrypoints } from '../../../build/swc/types'
 
@@ -54,7 +63,24 @@ type TurbopackMiddlewareManifest = MiddlewareManifest & {
   instrumentation?: InstrumentationDefinition
 }
 
-const getManifestPath = (page: string, distDir: string, name: string, type: string) => {
+type ManifestName =
+  | typeof MIDDLEWARE_MANIFEST
+  | typeof BUILD_MANIFEST
+  | typeof APP_BUILD_MANIFEST
+  | typeof PAGES_MANIFEST
+  | typeof WEBPACK_STATS
+  | typeof APP_PATHS_MANIFEST
+  | `${typeof SERVER_REFERENCE_MANIFEST}.json`
+  | `${typeof NEXT_FONT_MANIFEST}.json`
+  | typeof REACT_LOADABLE_MANIFEST
+
+const getManifestPath = (
+  page: string,
+  distDir: string,
+  name: ManifestName,
+  type: string,
+  firstCall: boolean
+) => {
   let manifestPath = posix.join(
     distDir,
     `server`,
@@ -66,38 +92,40 @@ const getManifestPath = (page: string, distDir: string, name: string, type: stri
         : getAssetPathFromRoute(page),
     name
   )
+
+  if (firstCall) {
+    const isSitemapRoute = /[\\/]sitemap(.xml)?\/route$/.test(page)
+    // Check the ambiguity of /sitemap and /sitemap.xml
+    if (isSitemapRoute && !existsSync(manifestPath)) {
+      manifestPath = getManifestPath(
+        page.replace(/\/sitemap\/route$/, '/sitemap.xml/route'),
+        distDir,
+        name,
+        type,
+        false
+      )
+    }
+    // existsSync is faster than using the async version
+    if (!existsSync(manifestPath) && page.endsWith('/route')) {
+      // TODO: Improve implementation of metadata routes, currently it requires this extra check for the variants of the files that can be written.
+      let metadataPage = addRouteSuffix(
+        addMetadataIdToRoute(removeRouteSuffix(page))
+      )
+      manifestPath = getManifestPath(metadataPage, distDir, name, type, false)
+    }
+  }
+
   return manifestPath
 }
 
 async function readPartialManifest<T>(
   distDir: string,
-  name:
-    | typeof MIDDLEWARE_MANIFEST
-    | typeof BUILD_MANIFEST
-    | typeof APP_BUILD_MANIFEST
-    | typeof PAGES_MANIFEST
-    | typeof WEBPACK_STATS
-    | typeof APP_PATHS_MANIFEST
-    | `${typeof SERVER_REFERENCE_MANIFEST}.json`
-    | `${typeof NEXT_FONT_MANIFEST}.json`
-    | typeof REACT_LOADABLE_MANIFEST,
+  name: ManifestName,
   pageName: string,
   type: 'pages' | 'app' | 'middleware' | 'instrumentation' = 'pages'
 ): Promise<T> {
   const page = pageName
-  const isSitemapRoute = /[\\/]sitemap(.xml)?\/route$/.test(page)
-  let manifestPath = getManifestPath(page, distDir, name, type)
-
-  // Check the ambiguity of /sitemap and /sitemap.xml
-  if (isSitemapRoute && !existsSync(manifestPath)) {
-    manifestPath = getManifestPath(pageName.replace(/\/sitemap\/route$/, '/sitemap.xml/route'), distDir, name, type)
-  }
-  // existsSync is faster than using the async version
-  if(!existsSync(manifestPath) && page.endsWith('/route')) {
-    // TODO: Improve implementation of metadata routes, currently it requires this extra check for the variants of the files that can be written.
-    let metadataPage = addRouteSuffix(addMetadataIdToRoute(removeRouteSuffix(page)))
-    manifestPath = getManifestPath(metadataPage, distDir, name, type)
-  }
+  const manifestPath = getManifestPath(page, distDir, name, type, true)
   return JSON.parse(await readFile(posix.join(manifestPath), 'utf-8')) as T
 }
 
@@ -179,6 +207,16 @@ export class TurbopackManifestLoader {
       mergeActionIds(manifest.node, m.node)
       mergeActionIds(manifest.edge, m.edge)
     }
+    for (const key in manifest.node) {
+      const entry = manifest.node[key]
+      entry.workers = sortObjectByKey(entry.workers)
+      entry.layer = sortObjectByKey(entry.layer)
+    }
+    for (const key in manifest.edge) {
+      const entry = manifest.edge[key]
+      entry.workers = sortObjectByKey(entry.workers)
+      entry.layer = sortObjectByKey(entry.layer)
+    }
 
     return manifest
   }
@@ -226,6 +264,7 @@ export class TurbopackManifestLoader {
     for (const m of manifests) {
       Object.assign(manifest.pages, m.pages)
     }
+    manifest.pages = sortObjectByKey(manifest.pages)
     return manifest
   }
 
@@ -270,19 +309,10 @@ export class TurbopackManifestLoader {
   }
 
   private async writeWebpackStats(): Promise<void> {
-    const webpackStats = this.mergeWebpackStats(
-      this.webpackStats.values()
-    )
-    const path = join(
-      this.distDir,
-      'server',
-      WEBPACK_STATS
-    )
+    const webpackStats = this.mergeWebpackStats(this.webpackStats.values())
+    const path = join(this.distDir, 'server', WEBPACK_STATS)
     deleteCache(path)
-    await writeFileAtomic(
-      path,
-      JSON.stringify(webpackStats, null, 2)
-    )
+    await writeFileAtomic(path, JSON.stringify(webpackStats, null, 2))
   }
 
   async loadBuildManifest(
@@ -306,16 +336,14 @@ export class TurbopackManifestLoader {
   }
 
   private mergeWebpackStats(statsFiles: Iterable<WebpackStats>): WebpackStats {
-    const entrypoints: Record<string, StatsChunkGroup> = {};
+    const entrypoints: Record<string, StatsChunkGroup> = {}
     const assets: Map<string, StatsAsset> = new Map()
     const chunks: Map<string, StatsChunk> = new Map()
     const modules: Map<string | number, StatsModule> = new Map()
 
     for (const statsFile of statsFiles) {
       if (statsFile.entrypoints) {
-        for (const [k, v] of Object.entries(
-          statsFile.entrypoints
-        )) {
+        for (const [k, v] of Object.entries(statsFile.entrypoints)) {
           if (!entrypoints[k]) {
             entrypoints[k] = v
           }
@@ -340,10 +368,10 @@ export class TurbopackManifestLoader {
 
       if (statsFile.modules) {
         for (const module of statsFile.modules) {
-          const id = module.id;
+          const id = module.id
           if (id != null) {
             // Merge the chunk list for the module. This can vary across endpoints.
-            const existing = modules.get(id);
+            const existing = modules.get(id)
             if (existing == null) {
               modules.set(id, module)
             } else if (module.chunks != null && existing.chunks != null) {
@@ -388,6 +416,7 @@ export class TurbopackManifestLoader {
       // polyfillFiles should always be the same, so we can overwrite instead of actually merging
       if (m.polyfillFiles.length) manifest.polyfillFiles = m.polyfillFiles
     }
+    manifest.pages = sortObjectByKey(manifest.pages) as BuildManifest['pages']
     return manifest
   }
 
@@ -423,7 +452,9 @@ export class TurbopackManifestLoader {
     )
     await writeFileAtomic(
       middlewareBuildManifestPath,
-      `self.__BUILD_MANIFEST=${JSON.stringify(buildManifest)};`
+      // we use globalThis here because middleware can be node
+      // which doesn't have "self"
+      `globalThis.__BUILD_MANIFEST=${JSON.stringify(buildManifest)};`
     )
 
     const interceptionRewrites = JSON.stringify(
@@ -538,6 +569,8 @@ export class TurbopackManifestLoader {
       manifest.pagesUsingSizeAdjust =
         manifest.pagesUsingSizeAdjust || m.pagesUsingSizeAdjust
     }
+    manifest.app = sortObjectByKey(manifest.app)
+    manifest.pages = sortObjectByKey(manifest.pages)
     return manifest
   }
 
@@ -564,10 +597,26 @@ export class TurbopackManifestLoader {
     )
   }
 
+  /**
+   * @returns If the manifest was written or not
+   */
   async loadMiddlewareManifest(
     pageName: string,
     type: 'pages' | 'app' | 'middleware' | 'instrumentation'
-  ): Promise<void> {
+  ): Promise<boolean> {
+    const middlewareManifestPath = getManifestPath(
+      pageName,
+      this.distDir,
+      MIDDLEWARE_MANIFEST,
+      type,
+      true
+    )
+
+    // middlewareManifest is actually "edge manifest" and not all routes are edge runtime. If it is not written we skip it.
+    if (!existsSync(middlewareManifestPath)) {
+      return false
+    }
+
     this.middlewareManifests.set(
       getEntryKey(
         type === 'middleware' || type === 'instrumentation' ? 'root' : type,
@@ -581,6 +630,8 @@ export class TurbopackManifestLoader {
         type
       )
     )
+
+    return true
   }
 
   getMiddlewareManifest(key: EntryKey) {
@@ -608,6 +659,8 @@ export class TurbopackManifestLoader {
         instrumentation = m.instrumentation
       }
     }
+    manifest.functions = sortObjectByKey(manifest.functions)
+    manifest.middleware = sortObjectByKey(manifest.middleware)
     const updateFunctionDefinition = (
       fun: EdgeFunctionDefinition
     ): EdgeFunctionDefinition => {
@@ -684,7 +737,7 @@ export class TurbopackManifestLoader {
     for (const m of manifests) {
       Object.assign(manifest, m)
     }
-    return manifest
+    return sortObjectByKey(manifest)
   }
 
   private async writePagesManifest(): Promise<void> {
@@ -720,4 +773,16 @@ export class TurbopackManifestLoader {
       await this.writeWebpackStats()
     }
   }
+}
+
+function sortObjectByKey(obj: Record<string, any>) {
+  return Object.keys(obj)
+    .sort()
+    .reduce(
+      (acc, key) => {
+        acc[key] = obj[key]
+        return acc
+      },
+      {} as Record<string, any>
+    )
 }

@@ -512,17 +512,21 @@ module.exports = {
 }
 ```
 
-You can enable AVIF support and still fallback to WebP with the following configuration.
+You can enable AVIF support, which will fallback to the original format of the src image if the browser [does not support AVIF](https://caniuse.com/avif):
 
 ```js filename="next.config.js"
 module.exports = {
   images: {
-    formats: ['image/avif', 'image/webp'],
+    formats: ['image/avif'],
   },
 }
 ```
 
-> **Good to know**: AVIF generally takes 50% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
+> **Good to know**:
+>
+> - We still recommend using WebP for most use cases.
+> - AVIF generally takes 50% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
+> - If you self-host with a Proxy/CDN in front of Next.js, you must configure the Proxy to forward the `Accept` header.
 
 ## Caching Behavior
 
@@ -546,10 +550,22 @@ The expiration (or rather Max Age) is defined by either the [`minimumCacheTTL`](
 
 You can configure the Time to Live (TTL) in seconds for cached optimized images. In many cases, it's better to use a [Static Image Import](/docs/pages/building-your-application/optimizing/images#local-images) which will automatically hash the file contents and cache the image forever with a `Cache-Control` header of `immutable`.
 
+If no configuration is provided, the default below is used.
+
 ```js filename="next.config.js"
 module.exports = {
   images: {
-    minimumCacheTTL: 60,
+    minimumCacheTTL: 60, // 1 minute
+  },
+}
+```
+
+You can increase the TTL to reduce the number of revalidations and potentionally lower cost:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    minimumCacheTTL: 2678400, // 31 days
   },
 }
 ```

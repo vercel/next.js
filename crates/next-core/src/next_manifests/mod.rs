@@ -1,8 +1,7 @@
 //! Type definitions for the Next.js manifest formats.
 
 pub mod client_reference_manifest;
-
-use std::collections::HashMap;
+mod encode_uri_component;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -23,7 +22,7 @@ use crate::next_config::{CrossOriginConfig, Rewrites, RouteHas};
 #[derive(Serialize, Default, Debug)]
 pub struct PagesManifest {
     #[serde(flatten)]
-    pub pages: HashMap<RcStr, RcStr>,
+    pub pages: FxIndexMap<RcStr, RcStr>,
 }
 
 #[derive(Debug, Default)]
@@ -64,7 +63,7 @@ impl BuildManifest {
                         .iter()
                         .copied()
                         .map(|chunk| async move {
-                            let chunk_path = chunk.ident().path().await?;
+                            let chunk_path = chunk.path().await?;
                             Ok(client_relative_path_ref
                                 .get_path_to(&chunk_path)
                                 .context("client chunk entry path must be inside the client root")?
@@ -82,7 +81,7 @@ impl BuildManifest {
             .iter()
             .copied()
             .map(|chunk| async move {
-                let chunk_path = chunk.ident().path().await?;
+                let chunk_path = chunk.path().await?;
                 Ok(client_relative_path_ref
                     .get_path_to(&chunk_path)
                     .context("failed to resolve client-relative path to polyfill")?
@@ -96,7 +95,7 @@ impl BuildManifest {
             .iter()
             .copied()
             .map(|chunk| async move {
-                let chunk_path = chunk.ident().path().await?;
+                let chunk_path = chunk.path().await?;
                 Ok(client_relative_path_ref
                     .get_path_to(&chunk_path)
                     .context("failed to resolve client-relative path to root_main_file")?
@@ -234,16 +233,16 @@ pub enum Regions {
 #[derive(Serialize, Default, Debug)]
 pub struct MiddlewaresManifestV2 {
     pub sorted_middleware: Vec<RcStr>,
-    pub middleware: HashMap<RcStr, EdgeFunctionDefinition>,
+    pub middleware: FxIndexMap<RcStr, EdgeFunctionDefinition>,
     pub instrumentation: Option<InstrumentationDefinition>,
-    pub functions: HashMap<RcStr, EdgeFunctionDefinition>,
+    pub functions: FxIndexMap<RcStr, EdgeFunctionDefinition>,
 }
 
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ReactLoadableManifest {
     #[serde(flatten)]
-    pub manifest: HashMap<RcStr, ReactLoadableManifestEntry>,
+    pub manifest: FxIndexMap<RcStr, ReactLoadableManifestEntry>,
 }
 
 #[derive(Serialize, Default, Debug)]
@@ -256,8 +255,8 @@ pub struct ReactLoadableManifestEntry {
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct NextFontManifest {
-    pub pages: HashMap<RcStr, Vec<RcStr>>,
-    pub app: HashMap<RcStr, Vec<RcStr>>,
+    pub pages: FxIndexMap<RcStr, Vec<RcStr>>,
+    pub app: FxIndexMap<RcStr, Vec<RcStr>>,
     pub app_using_size_adjust: bool,
     pub pages_using_size_adjust: bool,
 }
@@ -286,9 +285,9 @@ pub struct LoadableManifest {
 #[serde(rename_all = "camelCase")]
 pub struct ServerReferenceManifest<'a> {
     /// A map from hashed action name to the runtime module we that exports it.
-    pub node: HashMap<&'a str, ActionManifestEntry<'a>>,
+    pub node: FxIndexMap<&'a str, ActionManifestEntry<'a>>,
     /// A map from hashed action name to the runtime module we that exports it.
-    pub edge: HashMap<&'a str, ActionManifestEntry<'a>>,
+    pub edge: FxIndexMap<&'a str, ActionManifestEntry<'a>>,
 }
 
 #[derive(Serialize, Default, Debug)]
@@ -296,9 +295,9 @@ pub struct ServerReferenceManifest<'a> {
 pub struct ActionManifestEntry<'a> {
     /// A mapping from the page that uses the server action to the runtime
     /// module that exports it.
-    pub workers: HashMap<&'a str, ActionManifestWorkerEntry<'a>>,
+    pub workers: FxIndexMap<&'a str, ActionManifestWorkerEntry<'a>>,
 
-    pub layer: HashMap<&'a str, ActionLayer>,
+    pub layer: FxIndexMap<&'a str, ActionLayer>,
 }
 
 #[derive(Serialize, Debug)]
@@ -346,22 +345,22 @@ pub struct ClientReferenceManifest {
     pub client_modules: ManifestNode,
     /// Mapping of client module ID to corresponding SSR module ID and required
     /// SSR chunks.
-    pub ssr_module_mapping: HashMap<ModuleId, ManifestNode>,
+    pub ssr_module_mapping: FxIndexMap<ModuleId, ManifestNode>,
     /// Same as `ssr_module_mapping`, but for Edge SSR.
     #[serde(rename = "edgeSSRModuleMapping")]
-    pub edge_ssr_module_mapping: HashMap<ModuleId, ManifestNode>,
+    pub edge_ssr_module_mapping: FxIndexMap<ModuleId, ManifestNode>,
     /// Mapping of client module ID to corresponding RSC module ID and required
     /// RSC chunks.
-    pub rsc_module_mapping: HashMap<ModuleId, ManifestNode>,
+    pub rsc_module_mapping: FxIndexMap<ModuleId, ManifestNode>,
     /// Same as `rsc_module_mapping`, but for Edge RSC.
     #[serde(rename = "edgeRscModuleMapping")]
-    pub edge_rsc_module_mapping: HashMap<ModuleId, ManifestNode>,
+    pub edge_rsc_module_mapping: FxIndexMap<ModuleId, ManifestNode>,
     /// Mapping of server component path to required CSS client chunks.
     #[serde(rename = "entryCSSFiles")]
-    pub entry_css_files: HashMap<RcStr, FxIndexSet<CssResource>>,
+    pub entry_css_files: FxIndexMap<RcStr, FxIndexSet<CssResource>>,
     /// Mapping of server component path to required JS client chunks.
     #[serde(rename = "entryJSFiles")]
-    pub entry_js_files: HashMap<RcStr, FxIndexSet<RcStr>>,
+    pub entry_js_files: FxIndexMap<RcStr, FxIndexSet<RcStr>>,
 }
 
 #[derive(Serialize, Debug, Clone, Eq, Hash, PartialEq)]
@@ -384,7 +383,7 @@ pub struct ModuleLoading {
 pub struct ManifestNode {
     /// Mapping of export name to manifest node entry.
     #[serde(flatten)]
-    pub module_exports: HashMap<RcStr, ManifestNodeEntry>,
+    pub module_exports: FxIndexMap<RcStr, ManifestNodeEntry>,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -449,7 +448,7 @@ impl AppBuildManifest {
                         .iter()
                         .copied()
                         .map(|chunk| async move {
-                            let chunk_path = chunk.ident().path().await?;
+                            let chunk_path = chunk.path().await?;
                             Ok(client_relative_path_ref
                                 .get_path_to(&chunk_path)
                                 .context("client chunk entry path must be inside the client root")?
@@ -491,7 +490,7 @@ pub struct ClientBuildManifest<'a> {
     pub sorted_pages: &'a [RcStr],
 
     #[serde(flatten)]
-    pub pages: HashMap<RcStr, Vec<&'a str>>,
+    pub pages: FxIndexMap<RcStr, Vec<&'a str>>,
 }
 
 #[cfg(test)]

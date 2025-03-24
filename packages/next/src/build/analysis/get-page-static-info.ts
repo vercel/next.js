@@ -120,16 +120,12 @@ export function getRSCModuleInformation(
   const parsedActionsMeta = actionsJson
     ? (JSON.parse(actionsJson[1]) as Record<string, string>)
     : undefined
-  const actions = parsedActionsMeta
-    ? (Object.values(parsedActionsMeta) as string[])
-    : undefined
   const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
   const isClientRef = !!clientInfoMatch
 
   if (!isReactServerLayer) {
     return {
       type: RSC_MODULE_TYPES.client,
-      actions,
       actionIds: parsedActionsMeta,
       isClientRef,
     }
@@ -145,7 +141,6 @@ export function getRSCModuleInformation(
 
   return {
     type,
-    actions,
     actionIds: parsedActionsMeta,
     clientRefs,
     clientEntryType,
@@ -614,12 +609,7 @@ export async function getPagesPageStaticInfo({
   const config = parsePagesSegmentConfig(exportedConfig, route)
   const isAnAPIRoute = isAPIRoute(route)
 
-  const resolvedRuntime =
-    isEdgeRuntime(config.runtime ?? config.config?.runtime) ||
-    getServerSideProps ||
-    getStaticProps
-      ? config.runtime ?? config.config?.runtime
-      : undefined
+  const resolvedRuntime = config.runtime ?? config.config?.runtime
 
   if (resolvedRuntime === SERVER_RUNTIME.experimentalEdge) {
     warnAboutExperimentalEdge(isAnAPIRoute ? page! : null)

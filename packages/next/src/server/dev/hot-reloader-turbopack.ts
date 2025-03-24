@@ -94,6 +94,9 @@ import {
   type EntryIssuesMap,
   type TopLevelIssuesMap,
 } from '../../shared/lib/turbopack/utils'
+import { getDevOverlayFontMiddleware } from '../../client/components/react-dev-overlay/font/get-dev-overlay-font-middleware'
+import { devIndicatorServerState } from './dev-indicator-server-state'
+import { getDisableDevIndicatorMiddleware } from './dev-indicator-middleware'
 // import { getSupportedBrowsers } from '../../build/utils'
 
 const wsServer = new ws.Server({ noServer: true })
@@ -106,7 +109,7 @@ const isTestMode = !!(
 const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 
 /**
- * Replaces turbopack://[project] with the specified project in the `source` field.
+ * Replaces turbopack:///[project] with the specified project in the `source` field.
  */
 function rewriteTurbopackSources(
   projectRoot: string,
@@ -121,7 +124,7 @@ function rewriteTurbopackSources(
       sourceMap.sources[i] = pathToFileURL(
         join(
           projectRoot,
-          sourceMap.sources[i].replace(/turbopack:\/\/\[project\]/, '')
+          sourceMap.sources[i].replace(/turbopack:\/\/\/\[project\]/, '')
         )
       ).toString()
     }
@@ -158,7 +161,7 @@ export async function createHotReloaderTurbopack(
 ): Promise<NextJsHotReloaderInterface> {
   const dev = true
   const buildId = 'development'
-  const { nextConfig, dir } = opts
+  const { nextConfig, dir: projectPath } = opts
 
   const { loadBindings } =
     require('../../build/swc') as typeof import('../../build/swc')
@@ -169,7 +172,7 @@ export async function createHotReloaderTurbopack(
   // works correctly. Normally `run-test` hides output so only will be visible when `--debug` flag is used.
   if (process.env.TURBOPACK && isTestMode) {
     require('console').log('Creating turbopack project', {
-      dir,
+      dir: projectPath,
       testMode: isTestMode,
     })
   }
@@ -204,14 +207,14 @@ export async function createHotReloaderTurbopack(
 
   const project = await bindings.turbo.createProject(
     {
-      projectPath: dir,
+      projectPath: projectPath,
       rootPath:
         opts.nextConfig.experimental.turbo?.root ||
         opts.nextConfig.outputFileTracingRoot ||
-        dir,
+        projectPath,
       distDir,
       nextConfig: opts.nextConfig,
-      jsConfig: await getTurbopackJsConfig(dir, nextConfig),
+      jsConfig: await getTurbopackJsConfig(projectPath, nextConfig),
       watch: {
         enable: dev,
         pollIntervalMs: nextConfig.watchOptions?.pollIntervalMs,
@@ -233,6 +236,7 @@ export async function createHotReloaderTurbopack(
       encryptionKey,
       previewProps: opts.fsChecker.prerenderManifest.preview,
       browserslistQuery: supportedBrowsers.join(', '),
+      noMangling: false,
     },
     {
       persistentCaching: isPersistentCachingEnabled(opts.nextConfig),
@@ -240,7 +244,7 @@ export async function createHotReloaderTurbopack(
     }
   )
   setBundlerFindSourceMapImplementation(
-    getSourceMapFromTurbopack.bind(null, project, dir)
+    getSourceMapFromTurbopack.bind(null, project, projectPath)
   )
   opts.onDevServerCleanup?.(async () => {
     setBundlerFindSourceMapImplementation(() => undefined)
@@ -467,7 +471,8 @@ export async function createHotReloaderTurbopack(
     includeIssues: boolean,
     endpoint: Endpoint,
     makePayload: (
-      change: TurbopackResult
+      change: TurbopackResult,
+      hash: string
     ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void,
     onError?: (
       error: Error
@@ -486,7 +491,8 @@ export async function createHotReloaderTurbopack(
 
       for await (const change of changed) {
         processIssues(currentEntryIssues, key, change, false, true)
-        const payload = await makePayload(change)
+        // TODO: Get an actual content hash from Turbopack.
+        const payload = await makePayload(change, String(++hmrHash))
         if (payload) {
           sendHmr(key, payload)
         }
@@ -628,9 +634,11 @@ export async function createHotReloaderTurbopack(
   )
 
   const middlewares = [
-    getOverlayMiddleware(project),
+    getOverlayMiddleware(project, projectPath),
     getSourceMapMiddleware(project),
     getNextErrorFeedbackMiddleware(opts.telemetry),
+    getDevOverlayFontMiddleware(),
+    getDisableDevIndicatorMiddleware(),
   ]
 
   const versionInfoPromise = getVersionInfo()
@@ -819,6 +827,10 @@ export async function createHotReloaderTurbopack(
           }
         }
 
+        if (devIndicatorServerState.disabledUntil < Date.now()) {
+          devIndicatorServerState.disabledUntil = 0
+        }
+
         ;(async function () {
           const versionInfo = await versionInfoPromise
 
@@ -831,6 +843,7 @@ export async function createHotReloaderTurbopack(
             debug: {
               devtoolsFrontendUrl,
             },
+            devIndicator: devIndicatorServerState,
           }
 
           sendToClient(client, sync)
@@ -910,6 +923,7 @@ export async function createHotReloaderTurbopack(
         await clearAllModuleContexts()
         this.send({
           action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+          hash: String(++hmrHash),
         })
       }
     },
@@ -943,7 +957,7 @@ export async function createHotReloaderTurbopack(
           > =
             definition ??
             (await findPagePathData(
-              dir,
+              projectPath,
               inputPage,
               nextConfig.pageExtensions,
               opts.pagesDir,
@@ -1058,6 +1072,13 @@ export async function createHotReloaderTurbopack(
             finishBuilding()
           }
         })
+    },
+    close() {
+      for (const wsClient of clients) {
+        // it's okay to not cleanly close these websocket connections, this is dev
+        wsClient.terminate()
+      }
+      clients.clear()
     },
   }
 

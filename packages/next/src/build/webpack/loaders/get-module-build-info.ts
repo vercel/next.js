@@ -28,7 +28,6 @@ export function getModuleBuildInfo(webpackModule: webpack.Module) {
 
 export interface RSCMeta {
   type: RSCModuleType
-  actions?: string[]
   actionIds?: Record<string, string>
   clientRefs?: string[]
   clientEntryType?: 'cjs' | 'auto'

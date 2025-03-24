@@ -6,10 +6,10 @@ use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext},
+    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     context::{AssetContext, ProcessResult},
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
@@ -19,15 +19,15 @@ use turbopack_core::{
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request},
     source::Source,
-    source_map::OptionSourceMap,
 };
 use turbopack_ecmascript::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
     },
+    parse::generate_js_source_map,
+    runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_IMPORT},
     utils::StringifyJs,
-    ParseResultSourceMap,
 };
 
 use crate::{
@@ -320,15 +320,10 @@ impl ChunkItem for ModuleChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         let classes = self.module.classes().await?;
 
-        let mut code = "__turbopack_export_value__({\n".to_string();
+        let mut code = format!("{TURBOPACK_EXPORT_VALUE}({{\n");
         for (export_name, class_names) in &*classes {
             let mut exported_class_names = Vec::with_capacity(class_names.len());
 
@@ -356,7 +351,6 @@ impl EcmascriptChunkItem for ModuleChunkItem {
 
                         let Some(css_module) =
                             ResolvedVc::try_downcast_type::<ModuleCssAsset>(*resolved_module)
-                                .await?
                         else {
                             CssModuleComposesIssue {
                                 severity: IssueSeverity::Error.resolved_cell(),
@@ -378,14 +372,12 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                             ResolvedVc::upcast(css_module);
 
                         let module_id = placeable
-                            .as_chunk_item(*self.module_graph, Vc::upcast(*self.chunking_context))
-                            .id()
+                            .chunk_item_id(Vc::upcast(*self.chunking_context))
                             .await?;
                         let module_id = StringifyJs(&*module_id);
                         let original_name = StringifyJs(&original_name);
-                        exported_class_names.push(format! {
-                            "__turbopack_import__({module_id})[{original_name}]"
-                        });
+                        exported_class_names
+                            .push(format!("{TURBOPACK_IMPORT}({module_id})[{original_name}]"));
                     }
                     ModuleCssClass::Local { name: class_name }
                     | ModuleCssClass::Global { name: class_name } => {
@@ -411,13 +403,10 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             // We generate a minimal map for runtime code so that the filename is
             // displayed in dev tools.
             source_map: if source_map {
-                Some(ResolvedVc::upcast(
-                    generate_minimal_source_map(
-                        self.module.ident().to_string().await?.to_string(),
-                        code,
-                    )
-                    .await?,
-                ))
+                Some(generate_minimal_source_map(
+                    self.module.ident().to_string().await?.to_string(),
+                    code,
+                )?)
             } else {
                 None
             },
@@ -427,10 +416,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     }
 }
 
-async fn generate_minimal_source_map(
-    filename: String,
-    source: String,
-) -> Result<ResolvedVc<ParseResultSourceMap>> {
+fn generate_minimal_source_map(filename: String, source: String) -> Result<Rope> {
     let mut mappings = vec![];
     // Start from 1 because 0 is reserved for dummy spans in SWC.
     let mut pos = 1;
@@ -446,8 +432,8 @@ async fn generate_minimal_source_map(
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename).into(), source);
-    let map = ParseResultSourceMap::new(sm, mappings, OptionSourceMap::none().to_resolved().await?);
-    Ok(map.resolved_cell())
+    let map = generate_js_source_map(sm, mappings, None)?;
+    Ok(map)
 }
 
 #[turbo_tasks::value(shared)]

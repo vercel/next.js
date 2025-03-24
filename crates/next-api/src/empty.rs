@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use turbo_tasks::{Completion, Vc};
-use turbopack_core::module::Modules;
+use turbopack_core::module_graph::GraphEntries;
 
 use crate::route::{Endpoint, EndpointOutput};
 
@@ -33,7 +33,7 @@ impl Endpoint for EmptyEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn root_modules(self: Vc<Self>) -> Vc<Modules> {
-        Vc::cell(vec![])
+    fn entries(self: Vc<Self>) -> Vc<GraphEntries> {
+        GraphEntries::empty()
     }
 }

@@ -36,7 +36,7 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
     const cacheHandlers = JSON.parse(cacheHandlersStringified || '{}')
 
     if (!cacheHandlers.default) {
-      cacheHandlers.__nextDefault = require.resolve(
+      cacheHandlers.default = require.resolve(
         '../../../../server/lib/cache-handlers/default'
       )
     }
@@ -77,10 +77,6 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
       },
       {
         nextConfig: stringifiedConfig,
-      },
-      {},
-      {
-        cacheHandlers,
       }
     )
   }

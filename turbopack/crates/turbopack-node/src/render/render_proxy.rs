@@ -15,7 +15,7 @@ use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkingContext, EvaluatableAssets},
+    chunk::{ChunkingContext, EvaluatableAsset, EvaluatableAssets},
     error::PrettyPrintError,
     issue::{IssueExt, StyledString},
     module::Module,
@@ -37,7 +37,7 @@ pub async fn render_proxy_operation(
     cwd: ResolvedVc<FileSystemPath>,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     path: ResolvedVc<FileSystemPath>,
-    module: ResolvedVc<Box<dyn Module>>,
+    module: ResolvedVc<Box<dyn EvaluatableAsset>>,
     runtime_entries: ResolvedVc<EvaluatableAssets>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     intermediate_output_path: ResolvedVc<FileSystemPath>,
@@ -117,8 +117,8 @@ async fn proxy_error(
         "An error occurred while proxying the request to Node.js".into(),
         format!("{message}\n\n{}", details.join("\n")).into(),
     )
-    .await?
-    .clone_value();
+    .owned()
+    .await?;
 
     RenderingIssue {
         file_path: path,
@@ -154,7 +154,7 @@ struct RenderStreamOptions {
     cwd: ResolvedVc<FileSystemPath>,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     path: ResolvedVc<FileSystemPath>,
-    module: ResolvedVc<Box<dyn Module>>,
+    module: ResolvedVc<Box<dyn EvaluatableAsset>>,
     runtime_entries: ResolvedVc<EvaluatableAssets>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     intermediate_output_path: ResolvedVc<FileSystemPath>,

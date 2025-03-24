@@ -51,7 +51,6 @@ impl Introspectable for LazyInstantiatedContentSource {
             [ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(
                 self.get_source.content_source().to_resolved().await?,
             )
-            .await?
             .map(|i| (source_key(), i))]
             .into_iter()
             .flatten()

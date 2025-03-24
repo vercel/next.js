@@ -8,7 +8,6 @@ import {
   getOrCreatePrefetchCacheEntry,
   prunePrefetchCache,
 } from '../prefetch-cache-utils'
-
 export const prefetchQueue = new PromiseQueue(5)
 
 export const prefetchReducer = process.env.__NEXT_CLIENT_SEGMENT_CACHE

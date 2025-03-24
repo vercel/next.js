@@ -44,6 +44,17 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       proxy[k] = (...args: Array<{}>) => x.apply(info.languageService, args)
     }
 
+    // Get plugin options
+    // config is the plugin options from the user's tsconfig.json
+    // e.g. { "plugins": [{ "name": "next", "enabled": true }] }
+    // config will be { "name": "next", "enabled": true }
+    // The default user config is { "name": "next" }
+    const isPluginEnabled = info.config.enabled ?? true
+
+    if (!isPluginEnabled) {
+      return proxy
+    }
+
     // Auto completion
     proxy.getCompletionsAtPosition = (
       fileName: string,

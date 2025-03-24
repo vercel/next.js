@@ -1,10 +1,9 @@
 use anyhow::Result;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, get_effects, trace::TraceRawVcs, CollectiblesSource, NonLocalValue,
-    OperationVc, ResolvedVc, Vc,
+    debug::ValueDebugFormat, get_effects, trace::TraceRawVcs, CollectiblesSource, FxIndexMap,
+    NonLocalValue, OperationVc, ResolvedVc, Vc,
 };
 use turbopack_core::{diagnostics::Diagnostic, issue::IssueDescriptionExt};
 
@@ -23,18 +22,12 @@ use crate::{
 /// This is needed to call `write_to_disk` which expects an `OperationVc<Endpoint>`.
 #[turbo_tasks::value(shared)]
 pub struct EntrypointsOperation {
-    pub routes: IndexMap<RcStr, RouteOperation>,
+    pub routes: FxIndexMap<RcStr, RouteOperation>,
     pub middleware: Option<MiddlewareOperation>,
     pub instrumentation: Option<InstrumentationOperation>,
     pub pages_document_endpoint: OperationVc<Box<dyn Endpoint>>,
     pub pages_app_endpoint: OperationVc<Box<dyn Endpoint>>,
     pub pages_error_endpoint: OperationVc<Box<dyn Endpoint>>,
-}
-
-/// HACK: Wraps an `OperationVc<Entrypoints>` inside of a second `OperationVc`.
-#[turbo_tasks::function(operation)]
-fn entrypoints_wrapper(entrypoints: OperationVc<Entrypoints>) -> Vc<Entrypoints> {
-    entrypoints.connect()
 }
 
 /// Removes diagnostics, issues, and effects from the top-level `entrypoints` operation so that
@@ -43,7 +36,7 @@ fn entrypoints_wrapper(entrypoints: OperationVc<Entrypoints>) -> Vc<Entrypoints>
 async fn entrypoints_without_collectibles_operation(
     entrypoints: OperationVc<Entrypoints>,
 ) -> Result<Vc<Entrypoints>> {
-    let entrypoints = entrypoints_wrapper(entrypoints);
+    let _ = entrypoints.resolve_strongly_consistent().await?;
     let _ = entrypoints.take_collectibles::<Box<dyn Diagnostic>>();
     let _ = entrypoints.take_issues_with_path().await?;
     let _ = get_effects(entrypoints).await?;

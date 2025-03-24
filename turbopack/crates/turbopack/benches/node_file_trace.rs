@@ -121,7 +121,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
 
                 let emit_op =
                     emit_with_completion_operation(ResolvedVc::upcast(rebased), output_dir);
-                emit_op.connect().strongly_consistent().await?;
+                emit_op.read_strongly_consistent().await?;
                 apply_effects(emit_op).await?;
 
                 Ok::<Vc<()>, _>(Default::default())

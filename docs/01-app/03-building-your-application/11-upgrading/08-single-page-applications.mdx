@@ -86,75 +86,73 @@ You can forward a Promise to the React context provider:
 ```ts filename="app/user-provider.ts" switcher
 'use client';
 
-import { use, createContext, ReactNode } from 'react';
+import { createContext, useContext, ReactNode } from 'react';
 
 type User = any;
 type UserContextType = {
-  user: User;
+  userPromise: Promise<User | null>;
 };
 
 const UserContext = createContext<UserContextType | null>(null);
 
-export function UserProvider({
-  children,
-  userPromise,
-}: {
-  children: ReactNode;
-  userPromise: Promise<User | null>;
-}) {
-  let initialUser = use(userPromise);
-
-  return (
-    <UserContext.Provider value={{ user: initialUser }}>
-      {children}
-    </UserContext.Provider>
-  );
-}
-
 export function useUser(): UserContextType {
-  let context = use(UserContext);
+  let context = useContext(UserContext);
   if (context === null) {
     throw new Error('useUser must be used within a UserProvider');
   }
   return context;
+}
+
+export function UserProvider({
+  children,
+  userPromise
+}: {
+  children: ReactNode;
+  userPromise: Promise<User | null>;
+}) {
+  return (
+    <UserContext.Provider value={{ userPromise }}>
+      {children}
+    </UserContext.Provider>
+  );
 }
 ```
 
 ```js filename="app/user-provider.js" switcher
 'use client'
 
-import { use, createContext } from 'react'
+import { createContext, useContext, ReactNode } from 'react'
 
 const UserContext = createContext(null)
 
-export function UserProvider({ children, userPromise }) {
-  let initialUser = use(userPromise)
-
-  return (
-    <UserContext.Provider value={{ user: initialUser }}>
-      {children}
-    </UserContext.Provider>
-  )
-}
-
 export function useUser() {
-  let context = use(UserContext)
+  let context = useContext(UserContext)
   if (context === null) {
     throw new Error('useUser must be used within a UserProvider')
   }
   return context
 }
+
+export function UserProvider({ children, userPromise }) {
+  return (
+    <UserContext.Provider value={{ userPromise }}>
+      {children}
+    </UserContext.Provider>
+  )
+}
 ```
 
-Finally, you can call the `useUser()` custom hook in any client component:
+Finally, you can call the `useUser()` custom hook in any client component and unwrap the Promise:
 
 ```tsx filename="app/profile.tsx" switcher
 'use client'
 
+import { use } from 'react'
 import { useUser } from './user-provider'
 
 export function Profile() {
-  const { user } = useUser()
+  const { userPromise } = useUser()
+  const user = use(userPromise)
 
   return '...'
 }
@@ -163,10 +161,12 @@ export function Profile() {
 ```jsx filename="app/profile.js" switcher
 'use client'
 
+import { use } from 'react'
 import { useUser } from './user-provider'
 
 export function Profile() {
-  const { user } = useUser()
+  const { userPromise } = useUser()
+  const user = use(userPromise)
 
   return '...'
 }

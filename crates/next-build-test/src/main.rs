@@ -8,8 +8,8 @@ use next_core::tracing_presets::{
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
 use turbo_tasks::TurboTasks;
+use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
 use turbo_tasks_malloc::TurboMalloc;
-use turbo_tasks_memory::MemoryBackend;
 use turbopack_trace_utils::{
     exit::ExitGuard, filter_layer::FilterLayer, raw_trace::RawTraceLayer, trace_writer::TraceWriter,
 };
@@ -118,7 +118,14 @@ fn main() {
                         None
                     };
 
-                    let tt = TurboTasks::new(MemoryBackend::new(usize::MAX));
+                    let tt = TurboTasks::new(TurboTasksBackend::new(
+                        BackendOptions {
+                            dependency_tracking: false,
+                            storage_mode: None,
+                            ..Default::default()
+                        },
+                        noop_backing_storage(),
+                    ));
                     let result = main_inner(&tt, strat, factor, limit, files).await;
                     let memory = TurboMalloc::memory_usage();
                     tracing::info!("memory usage: {} MiB", memory / 1024 / 1024);
@@ -158,6 +165,7 @@ fn main() {
                 browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 \
                                      Safari versions, last 1 Edge versions"
                     .into(),
+                no_mangling: false,
             };
 
             let json = serde_json::to_string_pretty(&options).unwrap();

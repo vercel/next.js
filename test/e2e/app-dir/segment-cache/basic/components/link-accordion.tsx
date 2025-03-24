@@ -16,7 +16,7 @@ export function LinkAccordion({ href, children }) {
       {isVisible ? (
         <Link href={href}>{children}</Link>
       ) : (
-        `${children} (link is hidden)`
+        <>{children} (link is hidden)</>
       )}
     </>
   )

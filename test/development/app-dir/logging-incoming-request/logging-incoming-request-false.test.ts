@@ -8,7 +8,7 @@ describe('logging-incoming-request', () => {
       'next.config.js': `
         module.exports = {
           logging: {
-            incomingRequest: false
+            incomingRequests: false
           }
         }
       `,

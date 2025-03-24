@@ -132,7 +132,7 @@ impl GetContentSourceContent for NodeApiContentSource {
             self.cwd,
             self.env,
             self.server_root.join(path.clone()).to_resolved().await?,
-            entry.module,
+            ResolvedVc::upcast(entry.module),
             entry.runtime_entries,
             entry.chunking_context,
             entry.intermediate_output_path,

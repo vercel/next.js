@@ -1,7 +1,9 @@
 mod aggregation_update;
 mod cleanup_old_edges;
 mod connect_child;
+mod connect_children;
 mod invalidate;
+mod prepare_new_children;
 mod update_cell;
 mod update_collectible;
 mod update_output;
@@ -88,6 +90,7 @@ pub trait ExecuteContext<'e>: Sized {
     fn get_task_description(&self, task_id: TaskId) -> String;
     fn should_track_children(&self) -> bool;
     fn should_track_dependencies(&self) -> bool;
+    fn should_track_activeness(&self) -> bool;
 }
 
 pub struct ParentRef<'a> {
@@ -355,10 +358,15 @@ where
     fn should_track_dependencies(&self) -> bool {
         self.backend.should_track_dependencies()
     }
+
+    fn should_track_activeness(&self) -> bool {
+        self.backend.should_track_activeness()
+    }
 }
 
 pub trait TaskGuard: Debug {
     fn id(&self) -> TaskId;
+    #[must_use]
     fn add(&mut self, item: CachedDataItem) -> bool;
     fn add_new(&mut self, item: CachedDataItem);
     fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue>;
@@ -448,7 +456,6 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task_id
     }
 
-    #[must_use]
     fn add(&mut self, item: CachedDataItem) -> bool {
         self.check_access(item.category());
         if !self.backend.should_persist() || self.task_id.is_transient() || !item.is_persistent() {
@@ -746,9 +753,12 @@ impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
 pub use self::invalidate::TaskDirtyCause;
 pub use self::{
     aggregation_update::{
-        get_aggregation_number, is_root_node, AggregatedDataUpdate, AggregationUpdateJob,
+        get_aggregation_number, get_uppers, is_aggregating_node, is_root_node,
+        AggregatedDataUpdate, AggregationUpdateJob,
     },
     cleanup_old_edges::OutdatedEdge,
+    connect_children::connect_children,
+    prepare_new_children::prepare_new_children,
     update_cell::UpdateCellOperation,
     update_collectible::UpdateCollectibleOperation,
 };

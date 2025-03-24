@@ -1,7 +1,7 @@
 {
   "name": "@vercel/experimental-nft-next-plugin",
   "version": "0.0.3-alpha.2",
-  "license": "MPL-2.0",
+  "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [

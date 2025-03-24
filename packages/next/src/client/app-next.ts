@@ -1,6 +1,7 @@
 // This import must go first because it needs to patch webpack chunk loading
 // before React patches chunk loading.
 import './app-webpack'
+import '../lib/require-instrumentation-client'
 import { appBootstrap } from './app-bootstrap'
 
 appBootstrap(() => {

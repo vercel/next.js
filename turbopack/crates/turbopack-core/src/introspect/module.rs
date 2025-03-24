@@ -16,7 +16,6 @@ impl IntrospectableModule {
     #[turbo_tasks::function]
     pub async fn new(asset: ResolvedVc<Box<dyn Module>>) -> Result<Vc<Box<dyn Introspectable>>> {
         Ok(*ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(asset)
-            .await?
             .unwrap_or_else(|| ResolvedVc::upcast(IntrospectableModule(asset).resolved_cell())))
     }
 }

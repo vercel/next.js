@@ -21,10 +21,10 @@ import {
 
       expect(actionsRoutesState).toMatchObject({
         'app/server/one/page': {
-          rsc: 1,
+          rsc: 3,
         },
         'app/server/two/page': {
-          rsc: 1,
+          rsc: 3,
         },
         'app/client/one/page': {
           'action-browser': 1,

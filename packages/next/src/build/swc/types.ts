@@ -1,13 +1,19 @@
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { __ApiPreviewProps } from '../../server/api-utils'
-import type { ExternalObject, RefCell } from './generated-native'
+import type {
+  ExternalObject,
+  RefCell,
+  NapiTurboEngineOptions,
+} from './generated-native'
+
+export type { NapiTurboEngineOptions as TurboEngineOptions }
 
 export interface Binding {
   isWasm: boolean
   turbo: {
     createProject(
       options: ProjectOptions,
-      turboEngineOptions?: TurboEngineOptions
+      turboEngineOptions?: NapiTurboEngineOptions
     ): Promise<Project>
     startTurbopackTraceServer(traceFilePath: string): void
 
@@ -99,18 +105,6 @@ export type TurbopackResult<T = {}> = T & {
   diagnostics: Diagnostics[]
 }
 
-export interface TurboEngineOptions {
-  /**
-   * Use the new backend with persistent caching enabled.
-   */
-  persistentCaching?: boolean
-
-  /**
-   * An upper bound of memory that turbopack will attempt to stay under.
-   */
-  memoryLimit?: number
-}
-
 export interface Middleware {
   endpoint: Endpoint
 }
@@ -191,6 +185,10 @@ export interface UpdateInfo {
 
 export interface Project {
   update(options: Partial<ProjectOptions>): Promise<void>
+
+  writeAllEntrypointsToDisk(
+    appDirOnly: boolean
+  ): Promise<TurbopackResult<RawEntrypoints>>
 
   entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<RawEntrypoints>>
 
@@ -386,6 +384,13 @@ export interface ProjectOptions {
    * The browserslist query to use for targeting browsers.
    */
   browserslistQuery: string
+
+  /**
+   * When the code is minified, this opts out of the default mangling of local
+   * names for variables, functions etc., which can be useful for
+   * debugging/profiling purposes.
+   */
+  noMangling: boolean
 }
 
 export interface DefineEnv {

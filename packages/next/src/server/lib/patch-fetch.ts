@@ -15,10 +15,7 @@ import { markCurrentScopeAsDynamic } from '../app-render/dynamic-rendering'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import type { FetchMetric } from '../base-http'
 import { createDedupeFetch } from './dedupe-fetch'
-import type {
-  WorkUnitAsyncStorage,
-  RequestStore,
-} from '../app-render/work-unit-async-storage.external'
+import type { WorkUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import {
   CachedRouteKind,
   IncrementalCacheKind,
@@ -277,10 +274,7 @@ export function createPatchedFetcher(
           }
         }
 
-        const implicitTags =
-          !workUnitStore || workUnitStore.type === 'unstable-cache'
-            ? []
-            : workUnitStore.implicitTags
+        const implicitTags = workUnitStore?.implicitTags
 
         // Inside unstable-cache we treat it the same as force-no-store on the
         // page.
@@ -537,14 +531,15 @@ export function createPatchedFetcher(
         let cacheKey: string | undefined
         const { incrementalCache } = workStore
 
-        const requestStore: undefined | RequestStore =
-          workUnitStore !== undefined && workUnitStore.type === 'request'
+        const useCacheOrRequestStore =
+          workUnitStore?.type === 'request' || workUnitStore?.type === 'cache'
             ? workUnitStore
             : undefined
 
         if (
           incrementalCache &&
-          (isCacheableRevalidate || requestStore?.serverComponentsHmrCache)
+          (isCacheableRevalidate ||
+            useCacheOrRequestStore?.serverComponentsHmrCache)
         ) {
           try {
             cacheKey = await incrementalCache.generateCacheKey(
@@ -631,14 +626,12 @@ export function createPatchedFetcher(
                 incrementalCache &&
                 cacheKey &&
                 (isCacheableRevalidate ||
-                  requestStore?.serverComponentsHmrCache)
+                  useCacheOrRequestStore?.serverComponentsHmrCache)
               ) {
                 const normalizedRevalidate =
                   finalRevalidate >= INFINITE_CACHE
                     ? CACHE_ONE_YEAR
                     : finalRevalidate
-                const externalRevalidate =
-                  finalRevalidate >= INFINITE_CACHE ? false : finalRevalidate
 
                 if (workUnitStore && workUnitStore.type === 'prerender') {
                   // We are prerendering at build time or revalidate time with dynamicIO so we need to
@@ -662,13 +655,7 @@ export function createPatchedFetcher(
                       data: fetchedData,
                       revalidate: normalizedRevalidate,
                     },
-                    {
-                      fetchCache: true,
-                      revalidate: externalRevalidate,
-                      fetchUrl,
-                      fetchIdx,
-                      tags,
-                    }
+                    { fetchCache: true, fetchUrl, fetchIdx, tags }
                   )
                   await handleUnlock()
 
@@ -701,7 +688,7 @@ export function createPatchedFetcher(
                         url: cloned1.url,
                       }
 
-                      requestStore?.serverComponentsHmrCache?.set(
+                      useCacheOrRequestStore?.serverComponentsHmrCache?.set(
                         cacheKey,
                         fetchedData
                       )
@@ -714,13 +701,7 @@ export function createPatchedFetcher(
                             data: fetchedData,
                             revalidate: normalizedRevalidate,
                           },
-                          {
-                            fetchCache: true,
-                            revalidate: externalRevalidate,
-                            fetchUrl,
-                            fetchIdx,
-                            tags,
-                          }
+                          { fetchCache: true, fetchUrl, fetchIdx, tags }
                         )
                       }
                     })
@@ -753,11 +734,11 @@ export function createPatchedFetcher(
           let cachedFetchData: CachedFetchData | undefined
 
           if (
-            requestStore?.isHmrRefresh &&
-            requestStore.serverComponentsHmrCache
+            useCacheOrRequestStore?.isHmrRefresh &&
+            useCacheOrRequestStore.serverComponentsHmrCache
           ) {
             cachedFetchData =
-              requestStore.serverComponentsHmrCache.get(cacheKey)
+              useCacheOrRequestStore.serverComponentsHmrCache.get(cacheKey)
 
             isHmrRefreshCache = true
           }
@@ -772,8 +753,7 @@ export function createPatchedFetcher(
                   fetchUrl,
                   fetchIdx,
                   tags,
-                  softTags: implicitTags,
-                  isFallback: false,
+                  softTags: implicitTags?.tags,
                 })
 
             if (hasNoExplicitCacheConfig) {

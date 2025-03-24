@@ -1,7 +1,6 @@
 import React from 'react'
 import Head from '../shared/lib/head'
 import type { NextPageContext } from '../shared/lib/utils'
-import { getRequestMeta } from '../server/request-meta'
 
 const statusCodes: { [code: number]: string } = {
   400: 'Bad Request',
@@ -30,6 +29,9 @@ function _getInitialProps({
   if (typeof window !== 'undefined') {
     hostname = window.location.hostname
   } else if (req) {
+    const { getRequestMeta } =
+      require('../server/request-meta') as typeof import('../server/request-meta')
+
     const initUrl = getRequestMeta(req, 'initURL')
     if (initUrl) {
       const url = new URL(initUrl)

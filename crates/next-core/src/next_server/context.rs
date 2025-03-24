@@ -6,6 +6,7 @@ use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
+    css::chunk::CssChunkType,
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
         ModuleRule, TypeofWindow, TypescriptTransformOptions,
@@ -25,7 +26,7 @@ use turbopack_core::{
     free_var_references,
     target::CompileTarget,
 };
-use turbopack_ecmascript::references::esm::UrlRewriteBehavior;
+use turbopack_ecmascript::{chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior};
 use turbopack_ecmascript_plugins::transform::directives::{
     client::ClientDirectiveTransformer, client_disallowed::ClientDisallowedDirectiveTransformer,
 };
@@ -155,8 +156,8 @@ pub async fn get_server_resolve_options_context(
     .await?;
 
     let mut transpiled_packages = get_transpiled_packages(next_config, *project_path)
-        .await?
-        .clone_value();
+        .owned()
+        .await?;
 
     transpiled_packages.extend(
         (*next_config.optimize_package_imports().await?)
@@ -270,10 +271,7 @@ pub async fn get_server_resolve_options_context(
                 ResolvedVc::upcast(next_external_plugin),
             ]
         }
-        ServerContextType::Middleware { .. } => {
-            vec![ResolvedVc::upcast(next_node_shared_runtime_plugin)]
-        }
-        ServerContextType::Instrumentation { .. } => {
+        ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {
             vec![
                 ResolvedVc::upcast(next_node_shared_runtime_plugin),
                 ResolvedVc::upcast(server_external_packages_plugin),
@@ -325,7 +323,7 @@ pub async fn get_server_resolve_options_context(
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
-        custom_extensions: next_config.resolve_extension().await?.clone_value(),
+        custom_extensions: next_config.resolve_extension().owned().await?,
         rules: vec![(
             foreign_code_context_condition,
             resolve_options_context.clone().resolved_cell(),
@@ -550,12 +548,13 @@ pub async fn get_server_module_options_context(
             ..Default::default()
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
-        side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
+        side_effect_free_packages: next_config.optimize_package_imports().owned().await?,
         enable_externals_tracing: if next_mode.is_production() {
             Some(project_path)
         } else {
             None
         },
+        keep_last_successful_parse: next_mode.is_development(),
         ..Default::default()
     };
 
@@ -989,6 +988,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
     turbo_source_maps: Vc<bool>,
+    no_mangling: Vc<bool>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -1012,7 +1012,9 @@ pub async fn get_server_chunking_context_with_client_assets(
     )
     .asset_prefix(asset_prefix)
     .minify_type(if *turbo_minify.await? {
-        MinifyType::Minify
+        MinifyType::Minify {
+            mangle: !*no_mangling.await?,
+        }
     } else {
         MinifyType::NoMinify
     })
@@ -1027,10 +1029,22 @@ pub async fn get_server_chunking_context_with_client_assets(
     if next_mode.is_development() {
         builder = builder.use_file_source_map_uris();
     } else {
-        builder = builder.ecmascript_chunking_config(ChunkingConfig {
-            min_chunk_size: 20000,
-            ..Default::default()
-        })
+        builder = builder.chunking_config(
+            Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+            ChunkingConfig {
+                min_chunk_size: 20_000,
+                max_chunk_count_per_group: 100,
+                max_merge_chunk_size: 100_000,
+                ..Default::default()
+            },
+        );
+        builder = builder.chunking_config(
+            Vc::<CssChunkType>::default().to_resolved().await?,
+            ChunkingConfig {
+                max_merge_chunk_size: 100_000,
+                ..Default::default()
+            },
+        );
     }
 
     Ok(builder.build())
@@ -1046,6 +1060,7 @@ pub async fn get_server_chunking_context(
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
     turbo_source_maps: Vc<bool>,
+    no_mangling: Vc<bool>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -1062,7 +1077,9 @@ pub async fn get_server_chunking_context(
         next_mode.runtime_type(),
     )
     .minify_type(if *turbo_minify.await? {
-        MinifyType::Minify
+        MinifyType::Minify {
+            mangle: !*no_mangling.await?,
+        }
     } else {
         MinifyType::NoMinify
     })
@@ -1077,10 +1094,22 @@ pub async fn get_server_chunking_context(
     if next_mode.is_development() {
         builder = builder.use_file_source_map_uris()
     } else {
-        builder = builder.ecmascript_chunking_config(ChunkingConfig {
-            min_chunk_size: 20000,
-            ..Default::default()
-        })
+        builder = builder.chunking_config(
+            Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+            ChunkingConfig {
+                min_chunk_size: 20_000,
+                max_chunk_count_per_group: 100,
+                max_merge_chunk_size: 100_000,
+                ..Default::default()
+            },
+        );
+        builder = builder.chunking_config(
+            Vc::<CssChunkType>::default().to_resolved().await?,
+            ChunkingConfig {
+                max_merge_chunk_size: 100_000,
+                ..Default::default()
+            },
+        );
     }
 
     Ok(builder.build())

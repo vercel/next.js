@@ -1,7 +1,8 @@
-use std::{collections::HashSet, future::Future};
+use std::future::Future;
 
 use anyhow::Result;
 use futures::{stream::FuturesUnordered, StreamExt};
+use rustc_hash::FxHashSet;
 
 use super::{
     graph_store::{GraphNode, GraphStore},
@@ -11,7 +12,7 @@ use super::{
 
 /// A list of modules that were already visited and should be skipped (including their subgraphs).
 #[derive(Clone, Default, Debug)]
-pub struct VisitedNodes<T>(pub HashSet<T>);
+pub struct VisitedNodes<T>(pub FxHashSet<T>);
 
 /// [`GraphTraversal`] is a utility type that can be used to traverse a graph of
 /// nodes, where each node can have a variable number of outgoing edges.

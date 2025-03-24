@@ -25,7 +25,9 @@ jobs:
           check-latest: true
 
       - name: Setup pnpm
-        run: corepack enable
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
 
       - name: Checkout
         uses: actions/checkout@v4

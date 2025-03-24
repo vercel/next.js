@@ -34,13 +34,13 @@ fn async_reference_ty() -> Vc<RcStr> {
 }
 
 #[turbo_tasks::function]
-fn passthrough_reference_ty() -> Vc<RcStr> {
-    Vc::cell("passthrough reference".into())
+fn isolated_reference_ty() -> Vc<RcStr> {
+    Vc::cell("isolated reference".into())
 }
 
 #[turbo_tasks::function]
-fn isolated_reference_ty() -> Vc<RcStr> {
-    Vc::cell("isolated reference".into())
+fn shared_reference_ty() -> Vc<RcStr> {
+    Vc::cell("shared reference".into())
 }
 
 #[turbo_tasks::function]
@@ -77,7 +77,7 @@ pub async fn children_from_module_references(
     for &reference in &*references {
         let mut key = key;
         if let Some(chunkable) =
-            ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(reference).await?
+            ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(reference)
         {
             match &*chunkable.chunking_type().await? {
                 None => {}
@@ -87,7 +87,7 @@ pub async fn children_from_module_references(
                 }
                 Some(ChunkingType::Async) => key = async_reference_ty(),
                 Some(ChunkingType::Isolated { .. }) => key = isolated_reference_ty(),
-                Some(ChunkingType::Passthrough) => key = passthrough_reference_ty(),
+                Some(ChunkingType::Shared { .. }) => key = shared_reference_ty(),
                 Some(ChunkingType::Traced) => key = traced_reference_ty(),
             }
         }

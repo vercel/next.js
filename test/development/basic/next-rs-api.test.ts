@@ -229,6 +229,7 @@ describe('next.rs api', () => {
         previewModeSigningKey: '12345',
       },
       browserslistQuery: 'last 2 versions',
+      noMangling: false,
     })
     projectUpdateSubscription = filterMapAsyncIterator(
       project.updateInfoSubscribe(1000),

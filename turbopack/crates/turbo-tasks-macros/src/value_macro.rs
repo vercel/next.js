@@ -323,16 +323,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             let content = self;
             turbo_tasks::ResolvedVc::cell_private(#cell_access_content)
         }
-
-        /// Places a value in a task-local cell stored in the current task.
-        ///
-        /// Task-local cells are stored in a task-local arena, and do not persist outside the
-        /// lifetime of the current task (including child tasks). Task-local cells can be resolved
-        /// to be converted into normal cells.
-        #cell_prefix fn local_cell(self) -> turbo_tasks::Vc<Self> {
-            let content = self;
-            turbo_tasks::Vc::local_cell_private(#cell_access_content)
-        }
     };
 
     let into = if let IntoMode::New | IntoMode::Shared = into_mode {
@@ -353,6 +343,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             turbo_tasks::trace::TraceRawVcs,
             turbo_tasks::NonLocalValue,
         )]
+        #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
     }];
     match serialization_mode {
         SerializationMode::Auto | SerializationMode::AutoForInput => {

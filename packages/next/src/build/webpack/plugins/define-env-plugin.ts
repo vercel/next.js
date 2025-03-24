@@ -6,17 +6,10 @@ import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { needsExperimentalReact } from '../../../lib/needs-experimental-react'
 import { checkIsAppPPREnabled } from '../../../server/lib/experimental/ppr'
-
-function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
-  const isPrivateKey = /^(?:NODE_.+)|^(?:__.+)$/i.test(key)
-  const hasNextRuntimeKey = key === 'NEXT_RUNTIME'
-
-  if (isPrivateKey || hasNextRuntimeKey) {
-    throw new Error(
-      `The key "${key}" under "env" in ${config.configFileName} is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
-    )
-  }
-}
+import {
+  getNextConfigEnv,
+  getNextPublicEnvironmentVariables,
+} from '../../../lib/static-env'
 
 type BloomFilter = ReturnType<
   import('../../../shared/lib/bloom-filter').BloomFilter['export']
@@ -38,6 +31,7 @@ export interface DefineEnvPluginOptions {
   isNodeOrEdgeCompilation: boolean
   isNodeServer: boolean
   middlewareMatchers: MiddlewareMatcher[] | undefined
+  omitNonDeterministic?: boolean
 }
 
 interface DefineEnv {
@@ -53,39 +47,6 @@ interface DefineEnv {
 
 interface SerializedDefineEnv {
   [key: string]: string
-}
-
-/**
- * Collects all environment variables that are using the `NEXT_PUBLIC_` prefix.
- */
-export function getNextPublicEnvironmentVariables(): DefineEnv {
-  const defineEnv: DefineEnv = {}
-  for (const key in process.env) {
-    if (key.startsWith('NEXT_PUBLIC_')) {
-      const value = process.env[key]
-      if (value != null) {
-        defineEnv[`process.env.${key}`] = value
-      }
-    }
-  }
-  return defineEnv
-}
-
-/**
- * Collects the `env` config value from the Next.js config.
- */
-export function getNextConfigEnv(config: NextConfigComplete): DefineEnv {
-  // Refactored code below to use for-of
-  const defineEnv: DefineEnv = {}
-  const env = config.env
-  for (const key in env) {
-    const value = env[key]
-    if (value != null) {
-      errorIfEnvConflicted(config, key)
-      defineEnv[`process.env.${key}`] = value
-    }
-  }
-  return defineEnv
 }
 
 /**
@@ -140,6 +101,7 @@ export function getDefineEnv({
   isNodeOrEdgeCompilation,
   isNodeServer,
   middlewareMatchers,
+  omitNonDeterministic,
 }: DefineEnvPluginOptions): SerializedDefineEnv {
   const nextPublicEnv = getNextPublicEnvironmentVariables()
   const nextConfigEnv = getNextConfigEnv(config)
@@ -185,13 +147,14 @@ export function getDefineEnv({
     'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
       config.experimental.appNavFailHandling
     ),
-    'process.env.__NEXT_APP_ISR_INDICATOR': Boolean(
-      config.devIndicators.appIsrStatus
-    ),
     'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_DYNAMIC_IO': isDynamicIOEnabled,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
     'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
+    // Propagates the `__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING` environment
+    // variable to the client.
+    'process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING':
+      process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING || false,
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX': fetchCacheKeyPrefix ?? '',
     ...(isTurbopack
       ? {}
@@ -233,10 +196,11 @@ export function getDefineEnv({
         }
       : {}),
     'process.env.__NEXT_TRAILING_SLASH': config.trailingSlash,
-    'process.env.__NEXT_BUILD_INDICATOR':
-      config.devIndicators.buildActivity ?? true,
-    'process.env.__NEXT_BUILD_INDICATOR_POSITION':
-      config.devIndicators.buildActivityPosition ?? 'bottom-right',
+    'process.env.__NEXT_DEV_INDICATOR': config.devIndicators !== false,
+    'process.env.__NEXT_DEV_INDICATOR_POSITION':
+      config.devIndicators === false
+        ? 'bottom-left' // This will not be used as the indicator is disabled.
+        : config.devIndicators.position ?? 'bottom-left',
     'process.env.__NEXT_STRICT_MODE':
       config.reactStrictMode === null ? false : config.reactStrictMode,
     'process.env.__NEXT_STRICT_MODE_APP':
@@ -273,6 +237,12 @@ export function getDefineEnv({
     'process.env.__NEXT_ASSET_PREFIX': config.assetPrefix,
     'process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS':
       !!config.experimental.authInterrupts,
+    'process.env.__NEXT_TELEMETRY_DISABLED': Boolean(
+      process.env.NEXT_TELEMETRY_DISABLED
+    ),
+    'process.env.__NEXT_EXPERIMENTAL_CLIENT_INSTRUMENTATION_HOOK': Boolean(
+      config.experimental.clientInstrumentationHook
+    ),
     ...(isNodeOrEdgeCompilation
       ? {
           // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -287,14 +257,6 @@ export function getDefineEnv({
             needsExperimentalReact(config),
         }
       : undefined),
-    'process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY':
-      // When `__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY` is set on CI,
-      // we need to pass it here so it can be enabled.
-      process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true' ||
-      config.experimental.newDevOverlay ||
-      false,
-    'process.env.__NEXT_REACT_OWNER_STACK':
-      config.experimental.reactOwnerStack ?? false,
   }
 
   const userDefines = config.compiler?.define ?? {}
@@ -307,7 +269,30 @@ export function getDefineEnv({
     defineEnv[key] = userDefines[key]
   }
 
-  return serializeDefineEnv(defineEnv)
+  const serializedDefineEnv = serializeDefineEnv(defineEnv)
+
+  // we delay inlining these values until after the build
+  // with flying shuttle enabled so we can update them
+  // without invalidating entries
+  if (!dev && omitNonDeterministic) {
+    // client uses window. instead of leaving process.env
+    // in case process isn't polyfilled on client already
+    // since by this point it won't be added by webpack
+    const safeKey = (key: string) =>
+      isClient ? `window.${key.split('.').pop()}` : key
+
+    for (const key in nextPublicEnv) {
+      serializedDefineEnv[key] = safeKey(key)
+    }
+    for (const key in nextConfigEnv) {
+      serializedDefineEnv[key] = safeKey(key)
+    }
+    for (const key of ['process.env.NEXT_DEPLOYMENT_ID']) {
+      serializedDefineEnv[key] = safeKey(key)
+    }
+  }
+
+  return serializedDefineEnv
 }
 
 export function getDefineEnvPlugin(options: DefineEnvPluginOptions) {

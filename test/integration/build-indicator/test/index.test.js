@@ -13,11 +13,11 @@ let app
 
 const installCheckVisible = (browser) => {
   return browser.eval(`(function() {
-    window.checkInterval = setInterval(function() {
-      let watcherDiv = document.querySelector('#__next-build-indicator')
-      watcherDiv = watcherDiv.shadowRoot || watcherDiv
+      window.checkInterval = setInterval(function() {
+      const root = document.querySelector('nextjs-portal').shadowRoot;
+      const indicator = root.querySelector('[data-next-mark]')
       window.showedBuilder = window.showedBuilder || (
-        watcherDiv.querySelector('div').className.indexOf('visible') > -1
+        indicator.getAttribute('data-next-mark-loading') === 'true'
       )
       if (window.showedBuilder) clearInterval(window.checkInterval)
     }, 5)
@@ -50,7 +50,7 @@ describe('Build Activity Indicator', () => {
     await check(
       () => stripAnsi(stderr),
       new RegExp(
-        `Invalid "devIndicator.buildActivityPosition" provided, expected one of top-left, top-right, bottom-left, bottom-right, received ttop-leff`
+        `Invalid "devIndicator.position" provided, expected one of top-left, top-right, bottom-left, bottom-right, received ttop-leff`
       )
     )
 
@@ -66,16 +66,6 @@ describe('Build Activity Indicator', () => {
       app = await launchApp(appDir, appPort)
     })
     afterAll(() => killApp(app))
-
-    it('Adds the build indicator container', async () => {
-      const browser = await webdriver(
-        appPort,
-        pagesOrApp === 'pages' ? '/' : '/app'
-      )
-      const html = await browser.eval('document.body.innerHTML')
-      expect(html).toMatch(/__next-build-indicator/)
-      await browser.close()
-    })
     ;(process.env.TURBOPACK ? describe.skip : describe)('webpack only', () => {
       it('Shows the build indicator when a page is built during navigation', async () => {
         const browser = await webdriver(
@@ -113,34 +103,4 @@ describe('Build Activity Indicator', () => {
       await browser.close()
     })
   })
-
-  describe.each(['pages', 'app'])(
-    'Disabled with next.config.js - (%s)',
-    (pagesOrApp) => {
-      beforeAll(async () => {
-        await fs.writeFile(
-          nextConfig,
-          'module.exports = { devIndicators: { buildActivity: false } }',
-          'utf8'
-        )
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
-      })
-
-      afterAll(async () => {
-        await killApp(app)
-        await fs.remove(nextConfig)
-      })
-
-      it('Does not add the build indicator container', async () => {
-        const browser = await webdriver(
-          appPort,
-          pagesOrApp === 'pages' ? '/' : '/app'
-        )
-        const html = await browser.eval('document.body.innerHTML')
-        expect(html).not.toMatch(/__next-build-indicator/)
-        await browser.close()
-      })
-    }
-  )
 })

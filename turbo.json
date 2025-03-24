@@ -1,6 +1,7 @@
 {
   "$schema": "https://turborepo.org/schema.json",
   "globalEnv": ["NEXT_CI_RUNNER"],
+  "daemon": false,
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -14,6 +15,9 @@
     "build-storybook": {
       "dependsOn": ["^build-storybook"],
       "outputs": ["storybook-static/**"]
+    },
+    "test-storybook": {
+      "dependsOn": ["^test-storybook"]
     },
     "typescript": {},
     "//#typescript": {},

@@ -564,35 +564,33 @@ export function annotateDynamicAccess(
 }
 
 export function useDynamicRouteParams(expression: string) {
-  if (typeof window === 'undefined') {
-    const workStore = workAsyncStorage.getStore()
+  const workStore = workAsyncStorage.getStore()
 
-    if (
-      workStore &&
-      workStore.isStaticGeneration &&
-      workStore.fallbackRouteParams &&
-      workStore.fallbackRouteParams.size > 0
-    ) {
-      // There are fallback route params, we should track these as dynamic
-      // accesses.
-      const workUnitStore = workUnitAsyncStorage.getStore()
-      if (workUnitStore) {
-        // We're prerendering with dynamicIO or PPR or both
-        if (workUnitStore.type === 'prerender') {
-          // We are in a prerender with dynamicIO semantics
-          // We are going to hang here and never resolve. This will cause the currently
-          // rendering component to effectively be a dynamic hole
-          React.use(makeHangingPromise(workUnitStore.renderSignal, expression))
-        } else if (workUnitStore.type === 'prerender-ppr') {
-          // We're prerendering with PPR
-          postponeWithTracking(
-            workStore.route,
-            expression,
-            workUnitStore.dynamicTracking
-          )
-        } else if (workUnitStore.type === 'prerender-legacy') {
-          throwToInterruptStaticGeneration(expression, workStore, workUnitStore)
-        }
+  if (
+    workStore &&
+    workStore.isStaticGeneration &&
+    workStore.fallbackRouteParams &&
+    workStore.fallbackRouteParams.size > 0
+  ) {
+    // There are fallback route params, we should track these as dynamic
+    // accesses.
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    if (workUnitStore) {
+      // We're prerendering with dynamicIO or PPR or both
+      if (workUnitStore.type === 'prerender') {
+        // We are in a prerender with dynamicIO semantics
+        // We are going to hang here and never resolve. This will cause the currently
+        // rendering component to effectively be a dynamic hole
+        React.use(makeHangingPromise(workUnitStore.renderSignal, expression))
+      } else if (workUnitStore.type === 'prerender-ppr') {
+        // We're prerendering with PPR
+        postponeWithTracking(
+          workStore.route,
+          expression,
+          workUnitStore.dynamicTracking
+        )
+      } else if (workUnitStore.type === 'prerender-legacy') {
+        throwToInterruptStaticGeneration(expression, workStore, workUnitStore)
       }
     }
   }

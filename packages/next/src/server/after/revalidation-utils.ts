@@ -26,13 +26,15 @@ export async function withExecuteRevalidates<T>(
 type RevalidationState = Required<
   Pick<
     WorkStore,
-    'revalidatedTags' | 'pendingRevalidates' | 'pendingRevalidateWrites'
+    'pendingRevalidatedTags' | 'pendingRevalidates' | 'pendingRevalidateWrites'
   >
 >
 
 function cloneRevalidationState(store: WorkStore): RevalidationState {
   return {
-    revalidatedTags: store.revalidatedTags ? [...store.revalidatedTags] : [],
+    pendingRevalidatedTags: store.pendingRevalidatedTags
+      ? [...store.pendingRevalidatedTags]
+      : [],
     pendingRevalidates: { ...store.pendingRevalidates },
     pendingRevalidateWrites: store.pendingRevalidateWrites
       ? [...store.pendingRevalidateWrites]
@@ -44,10 +46,12 @@ function diffRevalidationState(
   prev: RevalidationState,
   curr: RevalidationState
 ): RevalidationState {
-  const prevTags = new Set(prev.revalidatedTags)
+  const prevTags = new Set(prev.pendingRevalidatedTags)
   const prevRevalidateWrites = new Set(prev.pendingRevalidateWrites)
   return {
-    revalidatedTags: curr.revalidatedTags.filter((tag) => !prevTags.has(tag)),
+    pendingRevalidatedTags: curr.pendingRevalidatedTags.filter(
+      (tag) => !prevTags.has(tag)
+    ),
     pendingRevalidates: Object.fromEntries(
       Object.entries(curr.pendingRevalidates).filter(
         ([key]) => !(key in prev.pendingRevalidates)
@@ -62,13 +66,13 @@ function diffRevalidationState(
 async function executeRevalidates(
   workStore: WorkStore,
   {
-    revalidatedTags,
+    pendingRevalidatedTags,
     pendingRevalidates,
     pendingRevalidateWrites,
   }: RevalidationState
 ) {
   return Promise.all([
-    workStore.incrementalCache?.revalidateTag(revalidatedTags),
+    workStore.incrementalCache?.revalidateTag(pendingRevalidatedTags),
     ...Object.values(pendingRevalidates),
     ...pendingRevalidateWrites,
   ])

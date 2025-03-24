@@ -280,7 +280,8 @@ describe('ReactRefreshRegression app', () => {
     await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
+    expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, ''))
+      .toMatchInlineSnapshot(`
       "> 1 | export default function () { throw new Error('boom'); }
           |                                    ^"
     `)
@@ -298,7 +299,8 @@ describe('ReactRefreshRegression app', () => {
     await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
+    expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, ''))
+      .toMatchInlineSnapshot(`
       "> 1 | export default function Page() { throw new Error('boom'); }
           |                                        ^"
     `)
@@ -319,7 +321,8 @@ describe('ReactRefreshRegression app', () => {
     await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
+    expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, ''))
+      .toMatchInlineSnapshot(`
         "  1 | 'use client'
         > 2 | export default function Page() { throw new Error('boom'); }
             |                                        ^"

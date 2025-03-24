@@ -92,14 +92,11 @@ describe.each(
       expect(cliOutput).toContain(
         '' +
           "\n ⨯ TypeError: Cannot read properties of undefined (reading 'H')" +
-          '\n    at c (**)' +
           // location not important. Just that this is the only frame.
           // TODO: Stack should start at product code. Possible React limitation.
           '\n    at Container (**)' +
           // Will just point to original file location
-          process.env.__NEXT_EXPERIMENTAL_PPR
-          ? ''
-          : '\n  2 |'
+          '\n  2 |'
       )
 
       await assertHasRedbox(browser)

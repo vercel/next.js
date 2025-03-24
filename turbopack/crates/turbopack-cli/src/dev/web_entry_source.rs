@@ -10,7 +10,7 @@ use turbopack_core::{
     environment::Environment,
     file_source::FileSource,
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::ChunkGroupEntry, ModuleGraph},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
         origin::{PlainResolveOrigin, ResolveOriginExt},
@@ -145,26 +145,27 @@ pub async fn create_web_entry_source(
         .try_flat_join()
         .await?;
 
-    let all_modules = Vc::cell(
-        entries
-            .iter()
-            .copied()
-            .chain(
-                runtime_entries
-                    .await?
-                    .iter()
-                    .map(|&entry| ResolvedVc::upcast(entry)),
-            )
-            .collect::<Vec<ResolvedVc<Box<dyn Module>>>>(),
-    );
-    let module_graph = ModuleGraph::from_modules(all_modules).to_resolved().await?;
+    let all_modules = entries
+        .iter()
+        .copied()
+        .chain(
+            runtime_entries
+                .await?
+                .iter()
+                .map(|&entry| ResolvedVc::upcast(entry)),
+        )
+        .collect::<Vec<ResolvedVc<Box<dyn Module>>>>();
+    let module_graph =
+        ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(all_modules)]))
+            .to_resolved()
+            .await?;
 
     let entries: Vec<_> = entries
         .into_iter()
         .map(|module| async move {
             if let (Some(chunkable_module), Some(entry)) = (
-                ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module).await?,
-                ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(module).await?,
+                ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module),
+                ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(module),
             ) {
                 Ok(DevHtmlEntry {
                     chunkable_module,
@@ -173,7 +174,7 @@ pub async fn create_web_entry_source(
                     runtime_entries: Some(runtime_entries.with_entry(*entry).to_resolved().await?),
                 })
             } else if let Some(chunkable_module) =
-                ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module).await?
+                ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module)
             {
                 // TODO this is missing runtime code, so it's probably broken and we should also
                 // add an ecmascript chunk with the runtime code

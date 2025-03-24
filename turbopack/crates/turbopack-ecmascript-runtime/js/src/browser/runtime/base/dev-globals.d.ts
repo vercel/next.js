@@ -8,12 +8,12 @@
 type UpdateCallback = (update: ServerMessage) => void;
 
 type ChunkUpdateProvider = {
-  push: (registration: [ChunkPath, UpdateCallback]) => void;
+  push: (registration: [ChunkListPath, UpdateCallback]) => void;
 };
 
 declare var TURBOPACK_CHUNK_UPDATE_LISTENERS:
   | ChunkUpdateProvider
-  | [ChunkPath, UpdateCallback][]
+  | [ChunkListPath, UpdateCallback][]
   | undefined;
 // This is used by the Next.js integration test suite to notify it when HMR
 // updates have been completed.

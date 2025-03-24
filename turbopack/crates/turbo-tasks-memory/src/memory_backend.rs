@@ -23,8 +23,9 @@ use turbo_tasks::{
         TransientTaskType, TypedCellContent,
     },
     event::EventListener,
+    task_statistics::TaskStatisticsApi,
     util::{IdFactoryWithReuse, NoMoveVec},
-    CellId, FunctionId, RawVc, ReadConsistency, TaskId, TaskIdSet, TraitTypeId,
+    CellId, FunctionId, RawVc, ReadCellOptions, ReadConsistency, TaskId, TaskIdSet, TraitTypeId,
     TurboTasksBackendApi, Unused, ValueTypeId, TRANSIENT_TASK_BIT,
 };
 
@@ -36,7 +37,6 @@ use crate::{
     },
     output::Output,
     task::{ReadCellError, Task, TaskType},
-    task_statistics::TaskStatisticsApi,
 };
 
 fn prehash_task_type(task_type: CachedTaskType) -> PreHashed<CachedTaskType> {
@@ -333,16 +333,12 @@ impl MemoryBackend {
         }
     }
 
-    pub fn task_statistics(&self) -> &TaskStatisticsApi {
-        &self.task_statistics
-    }
-
-    fn track_cache_hit(&self, task_type: &PreHashed<CachedTaskType>) {
+    fn track_cache_hit(&self, task_type: &CachedTaskType) {
         self.task_statistics()
             .map(|stats| stats.increment_cache_hit(task_type.fn_type));
     }
 
-    fn track_cache_miss(&self, task_type: &PreHashed<CachedTaskType>) {
+    fn track_cache_miss(&self, task_type: &CachedTaskType) {
         self.task_statistics()
             .map(|stats| stats.increment_cache_miss(task_type.fn_type));
     }
@@ -397,6 +393,14 @@ impl Backend for MemoryBackend {
         TaskState {
             dependencies_to_track: TaskEdgesSet::new(),
         }
+    }
+
+    fn task_execution_canceled(
+        &self,
+        _task: TaskId,
+        _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+        todo!()
     }
 
     fn try_start_task_execution<'a>(
@@ -508,6 +512,7 @@ impl Backend for MemoryBackend {
         task_id: TaskId,
         index: CellId,
         reader: TaskId,
+        _options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
         if task_id == reader {
@@ -539,6 +544,7 @@ impl Backend for MemoryBackend {
         &self,
         current_task: TaskId,
         index: CellId,
+        _options: ReadCellOptions,
         _turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Result<TypedCellContent> {
         Ok(self.with_task(current_task, |task| {
@@ -551,6 +557,7 @@ impl Backend for MemoryBackend {
         &self,
         task_id: TaskId,
         index: CellId,
+        _options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
         self.with_task(task_id, |task| {
@@ -776,6 +783,10 @@ impl Backend for MemoryBackend {
 
     fn dispose_root_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
         Task::unset_root(task, self, turbo_tasks);
+    }
+
+    fn task_statistics(&self) -> &TaskStatisticsApi {
+        &self.task_statistics
     }
 }
 

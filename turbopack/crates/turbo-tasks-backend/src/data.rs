@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     event::{Event, EventListener},
@@ -303,18 +304,23 @@ pub enum RootType {
 }
 
 #[derive(Debug)]
+pub struct InProgressStateInner {
+    pub stale: bool,
+    #[allow(dead_code)]
+    pub once_task: bool,
+    pub session_dependent: bool,
+    pub marked_as_completed: bool,
+    pub done_event: Event,
+    /// Children that should be connected to the task and have their active_count decremented
+    /// once the task completes.
+    pub new_children: FxHashSet<TaskId>,
+}
+
+#[derive(Debug)]
 pub enum InProgressState {
-    Scheduled {
-        done_event: Event,
-    },
-    InProgress {
-        stale: bool,
-        #[allow(dead_code)]
-        once_task: bool,
-        session_dependent: bool,
-        marked_as_completed: bool,
-        done_event: Event,
-    },
+    Scheduled { done_event: Event },
+    InProgress(Box<InProgressStateInner>),
+    Canceled,
 }
 
 transient_traits!(InProgressState);
@@ -435,6 +441,11 @@ pub enum CachedDataItem {
         value: DirtyContainerCount,
     },
 
+    // Flags
+    Stateful {
+        value: (),
+    },
+
     // Transient Root Type
     #[serde(skip)]
     Activeness {
@@ -471,11 +482,6 @@ pub enum CachedDataItem {
         target: CollectiblesRef,
         value: (),
     },
-    #[serde(skip)]
-    OutdatedChild {
-        task: TaskId,
-        value: (),
-    },
 
     // Transient Error State
     #[serde(skip)]
@@ -509,6 +515,7 @@ impl CachedDataItem {
                 !collectible.cell.task.is_transient()
             }
             CachedDataItem::AggregatedDirtyContainerCount { .. } => true,
+            CachedDataItem::Stateful { .. } => true,
             CachedDataItem::Activeness { .. } => false,
             CachedDataItem::InProgress { .. } => false,
             CachedDataItem::InProgressCell { .. } => false,
@@ -516,7 +523,6 @@ impl CachedDataItem {
             CachedDataItem::OutdatedOutputDependency { .. } => false,
             CachedDataItem::OutdatedCellDependency { .. } => false,
             CachedDataItem::OutdatedCollectiblesDependency { .. } => false,
-            CachedDataItem::OutdatedChild { .. } => false,
             CachedDataItem::Error { .. } => false,
         }
     }
@@ -563,13 +569,13 @@ impl CachedDataItem {
             | Self::Upper { .. }
             | Self::AggregatedDirtyContainer { .. }
             | Self::AggregatedCollectible { .. }
-            | Self::AggregatedDirtyContainerCount { .. } => TaskDataCategory::Meta,
+            | Self::AggregatedDirtyContainerCount { .. }
+            | Self::Stateful { .. } => TaskDataCategory::Meta,
 
             Self::OutdatedCollectible { .. }
             | Self::OutdatedOutputDependency { .. }
             | Self::OutdatedCellDependency { .. }
             | Self::OutdatedCollectiblesDependency { .. }
-            | Self::OutdatedChild { .. }
             | Self::InProgressCell { .. }
             | Self::InProgress { .. }
             | Self::Error { .. }
@@ -603,6 +609,7 @@ impl CachedDataItemKey {
                 !collectible.cell.task.is_transient()
             }
             CachedDataItemKey::AggregatedDirtyContainerCount { .. } => true,
+            CachedDataItemKey::Stateful { .. } => true,
             CachedDataItemKey::Activeness { .. } => false,
             CachedDataItemKey::InProgress { .. } => false,
             CachedDataItemKey::InProgressCell { .. } => false,
@@ -610,7 +617,6 @@ impl CachedDataItemKey {
             CachedDataItemKey::OutdatedOutputDependency { .. } => false,
             CachedDataItemKey::OutdatedCellDependency { .. } => false,
             CachedDataItemKey::OutdatedCollectiblesDependency { .. } => false,
-            CachedDataItemKey::OutdatedChild { .. } => false,
             CachedDataItemKey::Error { .. } => false,
         }
     }
@@ -645,13 +651,13 @@ impl CachedDataItemType {
             | Self::Upper { .. }
             | Self::AggregatedDirtyContainer { .. }
             | Self::AggregatedCollectible { .. }
-            | Self::AggregatedDirtyContainerCount { .. } => TaskDataCategory::Meta,
+            | Self::AggregatedDirtyContainerCount { .. }
+            | Self::Stateful { .. } => TaskDataCategory::Meta,
 
             Self::OutdatedCollectible { .. }
             | Self::OutdatedOutputDependency { .. }
             | Self::OutdatedCellDependency { .. }
             | Self::OutdatedCollectiblesDependency { .. }
-            | Self::OutdatedChild { .. }
             | Self::InProgressCell { .. }
             | Self::InProgress { .. }
             | Self::Error { .. }

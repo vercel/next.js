@@ -5,7 +5,6 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
-import type { ExpireTime } from '../lib/revalidate'
 import type {
   HeadData,
   LoadingModuleData,
@@ -177,12 +176,13 @@ export interface RenderOptsPartial {
   assetPrefix?: string
   crossOrigin?: '' | 'anonymous' | 'use-credentials' | undefined
   nextFontManifest?: DeepReadonly<NextFontManifest>
+  botType?: 'dom' | 'html' | undefined
   serveStreamingMetadata?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
   cacheLifeProfiles?: {
     [profile: string]: import('../use-cache/cache-life').CacheLife
   }
-  setAppIsrStatus?: (key: string, value: boolean | null) => void
+  setIsrStatus?: (key: string, value: boolean | null) => void
   isRevalidate?: boolean
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
@@ -203,34 +203,33 @@ export interface RenderOptsPartial {
   }
   params?: ParsedUrlQuery
   isPrefetch?: boolean
+  htmlLimitedBots: string | undefined
   experimental: {
     /**
      * When true, it indicates that the current page supports partial
      * prerendering.
      */
     isRoutePPREnabled?: boolean
-    expireTime: ExpireTime | undefined
+    expireTime: number | undefined
     clientTraceMetadata: string[] | undefined
     dynamicIO: boolean
     clientSegmentCache: boolean
     inlineCss: boolean
     authInterrupts: boolean
-    streamingMetadata: boolean
-    htmlLimitedBots: string | undefined
   }
   postponed?: string
+
+  /**
+   * Should wait for react stream allReady to resolve all suspense boundaries,
+   * in order to perform a full page render.
+   */
+  shouldWaitOnAllReady?: boolean
 
   /**
    * The resume data cache that was generated for this partially prerendered
    * page during dev warmup.
    */
   devRenderResumeDataCache?: RenderResumeDataCache
-
-  /**
-   * When true, only the static shell of the page will be rendered. This will
-   * also enable other debugging features such as logging in development.
-   */
-  isDebugStaticShell?: boolean
 
   /**
    * When true, the page will be rendered using the static rendering to detect

@@ -1,6 +1,6 @@
 # With Polyfills
 
-Next.js supports IE11 and all modern browsers (Edge, Firefox, Chrome, Safari, Opera, et al) with no required configuration. It also adds [some polyfills](https://nextjs.org/docs/architecture/supported-browsers#polyfills) by default.
+Next.js supports [modern browsers](https://nextjs.org/docs/architecture/supported-browsers) with no required configuration. It also adds [some polyfills](https://nextjs.org/docs/architecture/supported-browsers#polyfills) by default.
 
 If your own code or any external npm dependencies require features not supported by your target browsers, you need to add polyfills yourself.
 

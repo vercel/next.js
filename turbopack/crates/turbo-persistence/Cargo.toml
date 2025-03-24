@@ -17,7 +17,7 @@ byteorder = "1.5.0"
 lzzzz = "1.1.0"
 memmap2 = "0.9.5"
 parking_lot = { workspace = true }
-qfilter = { version = "0.2.1", features = ["serde"] }
+qfilter = { version = "0.2.3", features = ["serde"] }
 quick_cache = { version = "0.6.9" }
 rayon = { workspace = true }
 rustc-hash = { workspace = true }
