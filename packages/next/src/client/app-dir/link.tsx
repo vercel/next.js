@@ -176,6 +176,7 @@ type InternalLinkProps = {
    * Enable legacy link behavior, requiring an `<a>` tag to wrap the child content
    * if the child is a string or number.
    *
+   * @deprecated This will be removed in v16
    * @defaultValue `false`
    * @see https://github.com/vercel/next.js/commit/489e65ed98544e69b0afd7e0cfc3f9f6c2b803b7
    */
@@ -670,9 +671,19 @@ export default function LinkComponent(
     childProps.href = addBasePath(as)
   }
 
-  return legacyBehavior ? (
-    React.cloneElement(child, childProps)
-  ) : (
+  if (legacyBehavior) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error(
+        '`legacyBehavior` is deprecated and will be removed in a future ' +
+          'release. A codemod is available to upgrade your components:\n\n' +
+          'npx @next/codemod@latest new-link .\n\n' +
+          'Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components'
+      )
+    }
+    return React.cloneElement(child, childProps)
+  }
+
+  return (
     <a {...restProps} {...childProps}>
       {children}
     </a>
