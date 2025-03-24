@@ -1,6 +1,6 @@
 {
   "name": "@next/third-parties",
-  "version": "13.5.9",
+  "version": "13.5.10",
   "private": true,
   "repository": {
     "url": "vercel/next.js",
@@ -23,7 +23,7 @@
     "third-party-capital": "1.0.20"
   },
   "devDependencies": {
-    "next": "13.5.9",
+    "next": "13.5.10",
     "outdent": "0.8.0",
     "prettier": "2.5.1"
   },
