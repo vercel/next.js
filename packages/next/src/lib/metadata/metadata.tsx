@@ -3,6 +3,7 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { StreamingMetadataResolvedState } from '../../client/components/metadata/types'
+import type { SearchParams } from '../../server/request/search-params'
 import {
   AppleWebAppMeta,
   FormatDetectionMeta,
@@ -42,6 +43,7 @@ import {
   AsyncMetadataOutlet,
 } from '../../client/components/metadata/async-metadata'
 import { isPostpone } from '../../server/lib/router-utils/is-postpone'
+import { createServerSearchParamsForMetadata } from '../../server/request/search-params'
 
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
@@ -51,7 +53,7 @@ import { isPostpone } from '../../server/lib/router-utils/is-postpone'
 // and the error will be caught by the error boundary and trigger fallbacks.
 export function createMetadataComponents({
   tree,
-  searchParams,
+  parsedQuery,
   metadataContext,
   getDynamicParamFromSegment,
   appUsingSizeAdjustment,
@@ -62,7 +64,7 @@ export function createMetadataComponents({
   serveStreamingMetadata,
 }: {
   tree: LoaderTree
-  searchParams: Promise<ParsedUrlQuery>
+  parsedQuery: SearchParams
   metadataContext: MetadataContext
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   appUsingSizeAdjustment: boolean
@@ -78,6 +80,11 @@ export function createMetadataComponents({
   getViewportReady: () => Promise<void>
   StreamingMetadataOutlet: React.ComponentType
 } {
+  const searchParams = createServerSearchParamsForMetadata(
+    parsedQuery,
+    workStore
+  )
+
   function ViewportTree() {
     return (
       <>

@@ -20,7 +20,6 @@ import { ClientSegmentRoot } from '../../client/components/client-segment'
 import {
   createServerSearchParamsForServerPage,
   createPrerenderSearchParamsForClientPage,
-  createServerSearchParamsForMetadata,
 } from '../request/search-params'
 import {
   createServerParamsForServerSegment,
@@ -59,7 +58,6 @@ export {
   workUnitAsyncStorage,
   actionAsyncStorage,
   createServerSearchParamsForServerPage,
-  createServerSearchParamsForMetadata,
   createPrerenderSearchParamsForClientPage,
   createServerParamsForServerSegment,
   createPrerenderParamsForClientSegment,
