@@ -83,25 +83,6 @@ export async function getRuntimeContext(params: {
 
 export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
   const runtime = await getRuntimeContext(params)
-  const subreq = params.request.headers[`x-middleware-subrequest`]
-  const subrequests = typeof subreq === 'string' ? subreq.split(':') : []
-
-  const MAX_RECURSION_DEPTH = 5
-  const depth = subrequests.reduce(
-    (acc, curr) => (curr === params.name ? acc + 1 : acc),
-    0
-  )
-
-  if (depth >= MAX_RECURSION_DEPTH) {
-    return {
-      waitUntil: Promise.resolve(),
-      response: new runtime.context.Response(null, {
-        headers: {
-          'x-middleware-next': '1',
-        },
-      }),
-    }
-  }
 
   const edgeFunction: (args: {
     request: RequestData
