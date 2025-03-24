@@ -660,5 +660,10 @@
   "659": "SSG should not return an image cache value",
   "660": "Rspack support is only available in Next.js canary.",
   "661": "Build failed because of %s errors",
-  "662": "Dynamic usage detected"
+  "662": "Dynamic usage detected",
+  "663": "Missing 'next-action' header.",
+  "664": "Turbopack builds are only available in canary builds of Next.js.",
+  "665": "Internal Next.js error: Router action dispatched before initialization.",
+  "666": "Failed to find Server Action \"%s\". This request might be from an older or newer deployment.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
+  "667": "Invariant: client chunk changed but failed to detect hash %s"
 }
