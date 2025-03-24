@@ -1092,7 +1092,6 @@ export default async function loadConfig(
     debugOutput?: boolean
   } = {}
 ): Promise<NextConfigComplete> {
-  console.trace('loadConfig', { debugOutput, phase, silent })
   if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
     try {
       loadWebpackHook()
