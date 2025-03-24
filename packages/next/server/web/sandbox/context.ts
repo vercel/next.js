@@ -218,15 +218,6 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
         }
 
         init.headers = new Headers(init.headers ?? {})
-        const prevs =
-          init.headers.get(`x-middleware-subrequest`)?.split(':') || []
-        const value = prevs.concat(options.moduleName).join(':')
-
-        init.headers.set('x-middleware-subrequest', value)
-        init.headers.set(
-          'x-middleware-subrequest-id',
-          (global as any)[Symbol.for('@next/middleware-subrequest-id')]
-        )
 
         if (!init.headers.has('user-agent')) {
           init.headers.set(`user-agent`, `Next.js Middleware`)

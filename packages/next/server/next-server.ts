@@ -27,7 +27,6 @@ import type { NextConfig } from './config-shared'
 import type { DynamicRoutes, PageChecker } from './router'
 
 import fs from 'fs'
-import crypto from 'crypto'
 import { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
 import { addRequestMeta, getRequestMeta } from './request-meta'
@@ -247,11 +246,6 @@ export default class NextNodeServer extends BaseServer {
         this.minimalMode
       )
     }
-
-    const randomBytes = crypto.randomBytes(8)
-    const middlewareSubrequestId = randomBytes.toString('hex')
-    ;(global as any)[Symbol.for('@next/middleware-subrequest-id')] =
-      middlewareSubrequestId
 
     if (!options.dev) {
       // pre-warm _document and _app as these will be

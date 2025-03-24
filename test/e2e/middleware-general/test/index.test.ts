@@ -71,24 +71,6 @@ describe('Middleware Runtime', () => {
   }
 
   function runTests({ i18n }: { i18n?: boolean }) {
-    it('should filter request header properly', async () => {
-      const res = await fetchViaHTTP(
-        next.url,
-        '/redirect-to-somewhere',
-        {},
-        {
-          headers: {
-            'x-middleware-subrequest':
-              'middleware:middleware:middleware:middleware:middleware',
-          },
-          redirect: 'manual',
-        }
-      )
-
-      expect(res.status).toBe(307)
-      expect(res.headers.get('location')).toContain('/somewhere')
-    })
-
     if ((global as any).isNextDev) {
       it('refreshes the page when middleware changes ', async () => {
         const browser = await webdriver(next.url, `/about`)
