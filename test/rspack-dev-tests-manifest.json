@@ -2385,11 +2385,10 @@
   },
   "test/development/app-dir/edge-errors-hmr/index.test.ts": {
     "passed": [
+      "develop - app-dir - edge errros hmr should recover from build errors when client component error",
       "develop - app-dir - edge errros hmr should recover from build errors when server component error"
     ],
-    "failed": [
-      "develop - app-dir - edge errros hmr should recover from build errors when client component error"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2725,6 +2724,21 @@
     "flakey": [],
     "runtimeError": true
   },
+  "test/development/basic/allowed-dev-origins.test.ts": {
+    "passed": [
+      "allowed-dev-origins, basePath: \"\" block mode should load images regardless of allowed origins",
+      "allowed-dev-origins, basePath: \"\" block mode should not allow dev WebSocket from cross-site",
+      "allowed-dev-origins, basePath: \"\" block mode should not allow loading internal middleware from cross-site",
+      "allowed-dev-origins, basePath: \"\" block mode should not allow loading scripts from cross-site",
+      "allowed-dev-origins, basePath: \"\" warn mode should warn about WebSocket from cross-site",
+      "allowed-dev-origins, basePath: \"\" warn mode should warn about loading internal middleware from cross-site",
+      "allowed-dev-origins, basePath: \"\" warn mode should warn about loading scripts from cross-site"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/basic/asset-prefix/asset-prefix.test.ts": {
     "passed": [
       "asset-prefix rewrites rewrites that do not start with assetPrefix should still work",
@@ -2863,7 +2877,6 @@
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from 404 after a page has been added",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from 404 after a page has been added with dynamic segments",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from errors in getInitialProps in client",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from errors in the render function",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should show the error on all pages",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after a bad return from the render function",
@@ -2890,6 +2903,7 @@
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should not continously poll a custom error page",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after loader parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from errors in the render function",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should detect runtime errors on the module scope",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should not continously poll a custom error page",
@@ -2964,14 +2978,10 @@
     "passed": [
       "misc basic dev tests, basePath: \"\" With Security Related Issues should handle encoded / value for trailing slash correctly",
       "misc basic dev tests, basePath: \"\" With Security Related Issues should not allow accessing files outside .next/static and .next/server directory",
-      "misc basic dev tests, basePath: \"\" With Security Related Issues should not allow dev WebSocket from cross-site",
-      "misc basic dev tests, basePath: \"\" With Security Related Issues should not allow loading scripts from cross-site",
       "misc basic dev tests, basePath: \"\" should allow access to public files",
       "misc basic dev tests, basePath: \"\" should set process.env.NODE_ENV in development",
       "misc basic dev tests, basePath: \"/docs\" With Security Related Issues should handle encoded / value for trailing slash correctly",
       "misc basic dev tests, basePath: \"/docs\" With Security Related Issues should not allow accessing files outside .next/static and .next/server directory",
-      "misc basic dev tests, basePath: \"/docs\" With Security Related Issues should not allow dev WebSocket from cross-site",
-      "misc basic dev tests, basePath: \"/docs\" With Security Related Issues should not allow loading scripts from cross-site",
       "misc basic dev tests, basePath: \"/docs\" should allow access to public files",
       "misc basic dev tests, basePath: \"/docs\" should set process.env.NODE_ENV in development"
     ],
@@ -3848,6 +3858,7 @@
       "app-dir action handling fetch actions should revalidate when cookies.set is called",
       "app-dir action handling fetch actions should revalidate when cookies.set is called in a client action",
       "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
+      "app-dir action handling redirects displays searchParams correctly when redirecting with SearchParams",
       "app-dir action handling redirects merges cookies correctly when redirecting",
       "app-dir action handling redirects redirects properly when server action handler redirects with a 307 status code",
       "app-dir action handling redirects redirects properly when server action handler redirects with a 308 status code",
@@ -3904,7 +3915,6 @@
     "failed": [
       "app-dir action handling Edge SSR should handle unicode search params",
       "app-dir action handling HMR should support updating the action",
-      "app-dir action handling redirects displays searchParams correctly when redirecting with SearchParams",
       "app-dir action handling should forward action request to a worker that contains the action handler (node)"
     ],
     "pending": [
@@ -4773,7 +4783,6 @@
       "app dir - basic next/script should pass nonce when using next/font",
       "app dir - basic next/script should pass on extra props for beforeInteractive scripts with a src prop",
       "app dir - basic next/script should pass on extra props for beforeInteractive scripts without a src prop",
-      "app dir - basic next/script should support next/script and render in correct order",
       "app dir - basic rewrites should support rewrites on client-side navigation",
       "app dir - basic rewrites should support rewrites on client-side navigation from pages to app with existing pages path",
       "app dir - basic rewrites should support rewrites on initial load",
@@ -4843,6 +4852,7 @@
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
       "app dir - basic bootstrap scripts should fail to bootstrap when using CSP in Dev due to eval",
+      "app dir - basic next/script should support next/script and render in correct order",
       "app dir - basic should serve polyfills for browsers that do not support modules"
     ],
     "pending": [
@@ -6239,7 +6249,6 @@
       "app-dir - logging with fetches verbose logging should log each page request only once",
       "app-dir - logging with fetches verbose logging should log requests for client-side navigations",
       "app-dir - logging with fetches verbose logging should log requests with correct indentation",
-      "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches verbose logging should not contain trailing word page for app router routes",
       "app-dir - logging with fetches verbose logging should not limit the number of requests that are logged",
       "app-dir - logging with fetches verbose logging should not log _rsc query for client navigation RSC request",
@@ -6265,6 +6274,7 @@
     "failed": [
       "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches default logging should not contain metadata internal segments for dynamic metadata routes",
+      "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes"
     ],
     "pending": [],
@@ -6674,7 +6684,6 @@
       "app dir - navigation locale warnings should warn about using the `locale` prop with `next/link` in app router",
       "app dir - navigation navigating to a page with async metadata shows a fallback when prefetch completed",
       "app dir - navigation navigating to a page with async metadata shows a fallback when prefetch was pending",
-      "app dir - navigation navigating to dynamic params & changing the casing should load the page correctly",
       "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from app to pages",
       "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from pages to app",
       "app dir - navigation navigation between pages and app should not omit the hash while navigating from app to pages",
@@ -6714,6 +6723,7 @@
     ],
     "failed": [
       "app dir - navigation middleware redirect should change browser location when router.refresh() gets a redirect response",
+      "app dir - navigation navigating to dynamic params & changing the casing should load the page correctly",
       "app dir - navigation useRouter identity between navigations should preserve identity when navigating between different pages"
     ],
     "pending": [],
@@ -11601,10 +11611,10 @@
     "runtimeError": false
   },
   "test/integration/amp-export-validation/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "AMP Validation on Export production mode should have shown errors during build"
     ],
+    "failed": [],
     "pending": [
       "AMP Validation on Export production mode shows AMP warning without throwing error",
       "AMP Validation on Export production mode shows warning and error when throwing error",
@@ -13007,7 +13017,10 @@
     "runtimeError": false
   },
   "test/integration/css/test/css-rendering.test.js": {
-    "passed": [],
+    "passed": [
+      "CSS Support Page reload on CSS missing useLightnincsss(false) production mode should fall back to server-side transition on missing CSS",
+      "CSS Support Page reload on CSS missing useLightnincsss(true) production mode should fall back to server-side transition on missing CSS"
+    ],
     "failed": [],
     "pending": [
       "CSS Support CSS Cleanup on Render Failure useLightnincsss(false) production mode not have intermediary page styles on error rendering",
@@ -13024,8 +13037,6 @@
       "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(true) production mode should hydrate black without dependencies manifest",
       "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(true) production mode should hydrate red without dependencies manifest",
       "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(true) production mode should route from black to red without dependencies",
-      "CSS Support Page reload on CSS missing useLightnincsss(false) production mode should fall back to server-side transition on missing CSS",
-      "CSS Support Page reload on CSS missing useLightnincsss(true) production mode should fall back to server-side transition on missing CSS",
       "CSS Support production mode CSS Import from node_modules useLightnincsss(false) should fail the build",
       "CSS Support production mode CSS Import from node_modules useLightnincsss(true) should fail the build"
     ],
@@ -19979,13 +19990,14 @@
       "server-side dev errors should show server-side error for dynamic api route correctly",
       "server-side dev errors should show server-side error for dynamic gssp page correctly",
       "server-side dev errors should show server-side error for gsp page correctly",
-      "server-side dev errors should show server-side error for gssp page correctly",
       "server-side dev errors should show server-side error for uncaught empty exception correctly",
       "server-side dev errors should show server-side error for uncaught empty rejection correctly",
       "server-side dev errors should show server-side error for uncaught exception correctly",
       "server-side dev errors should show server-side error for uncaught rejection correctly"
     ],
-    "failed": [],
+    "failed": [
+      "server-side dev errors should show server-side error for gssp page correctly"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
