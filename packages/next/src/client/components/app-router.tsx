@@ -22,6 +22,7 @@ import {
   PathnameContext,
   PathParamsContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
+import { DevToolRootNode } from '../../shared/lib/devtool-node'
 import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
 import { ErrorBoundary } from './error-boundary'
 import DefaultGlobalError, {
@@ -531,7 +532,7 @@ function Router({
   }
 
   return (
-    <>
+    <DevToolRootNode pagePath=''>
       <HistoryUpdater appRouterState={state} />
       <RuntimeStyles />
       <PathParamsContext.Provider value={pathParams}>
@@ -554,7 +555,7 @@ function Router({
           </SearchParamsContext.Provider>
         </PathnameContext.Provider>
       </PathParamsContext.Provider>
-    </>
+    </DevToolRootNode>
   )
 }
 
