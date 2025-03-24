@@ -31,6 +31,7 @@ pub enum AppDirModuleType {
     NotFound,
     Forbidden,
     Unauthorized,
+    Offline,
     GlobalError,
 }
 
@@ -46,6 +47,7 @@ impl AppDirModuleType {
             AppDirModuleType::NotFound => "not-found",
             AppDirModuleType::Forbidden => "forbidden",
             AppDirModuleType::Unauthorized => "unauthorized",
+            AppDirModuleType::Offline => "offline",
             AppDirModuleType::GlobalError => "global-error",
         }
     }

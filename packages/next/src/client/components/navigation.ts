@@ -277,6 +277,7 @@ export {
   notFound,
   forbidden,
   unauthorized,
+  offline,
   redirect,
   permanentRedirect,
   RedirectType,

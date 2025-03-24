@@ -2,6 +2,7 @@ export const HTTPAccessErrorStatus = {
   NOT_FOUND: 404,
   FORBIDDEN: 403,
   UNAUTHORIZED: 401,
+  OFFLINE: 999,
 }
 
 const ALLOWED_CODES = new Set(Object.values(HTTPAccessErrorStatus))
@@ -49,11 +50,13 @@ export function getAccessFallbackErrorTypeByStatus(
   status: number
 ): 'not-found' | 'forbidden' | 'unauthorized' | undefined {
   switch (status) {
-    case 401:
+    case HTTPAccessErrorStatus.UNAUTHORIZED:
       return 'unauthorized'
-    case 403:
+    case HTTPAccessErrorStatus.FORBIDDEN:
       return 'forbidden'
-    case 404:
+    case HTTPAccessErrorStatus.NOT_FOUND:
+      return 'not-found'
+    case HTTPAccessErrorStatus.OFFLINE:
       return 'not-found'
     default:
       return
