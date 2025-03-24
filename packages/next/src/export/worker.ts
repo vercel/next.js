@@ -253,11 +253,6 @@ async function exportPageImpl(
     )
   }
 
-  // During the export phase in next build, we always enable the streaming metadata since if there's
-  // any dynamic access in metadata we can determine it in the build phase.
-  // If it's static, then it won't affect anything.
-  // If it's dynamic, then it can be handled when request hits the route.
-  const serveStreamingMetadata = true
   const renderOpts: WorkerRenderOpts = {
     ...components,
     ...input.renderOpts,
@@ -267,7 +262,11 @@ async function exportPageImpl(
     disableOptimizedLoading,
     locale,
     supportsDynamicResponse: false,
-    serveStreamingMetadata,
+    // During the export phase in next build, we always enable the streaming metadata since if there's
+    // any dynamic access in metadata we can determine it in the build phase.
+    // If it's static, then it won't affect anything.
+    // If it's dynamic, then it can be handled when request hits the route.
+    serveStreamingMetadata: true,
     experimental: {
       ...input.renderOpts.experimental,
       isRoutePPREnabled,

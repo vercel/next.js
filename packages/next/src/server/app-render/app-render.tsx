@@ -1109,15 +1109,19 @@ function App<T>({
 // @TODO our error stream should be probably just use the same root component. But it was previously
 // different I don't want to figure out if that is meaningful at this time so just keeping the behavior
 // consistent for now.
-function AppWithoutContext<T>({
+function ErrorApp<T>({
   reactServerStream,
   preinitScripts,
   clientReferenceManifest,
+  ServerInsertedMetadataProvider,
+  ServerInsertedHTMLProvider,
   nonce,
 }: {
   reactServerStream: BinaryStreamOf<T>
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
+  ServerInsertedMetadataProvider: React.ComponentType<{ children: JSX.Element }>
+  ServerInsertedHTMLProvider: React.ComponentType<{ children: JSX.Element }>
   nonce?: string
 }): JSX.Element {
   preinitScripts()
@@ -1144,11 +1148,15 @@ function AppWithoutContext<T>({
   const actionQueue = createMutableActionQueue(initialState)
 
   return (
-    <AppRouter
-      actionQueue={actionQueue}
-      globalErrorComponentAndStyles={response.G}
-      assetPrefix={response.p}
-    />
+    <ServerInsertedMetadataProvider>
+      <ServerInsertedHTMLProvider>
+        <AppRouter
+          actionQueue={actionQueue}
+          globalErrorComponentAndStyles={response.G}
+          assetPrefix={response.p}
+        />
+      </ServerInsertedHTMLProvider>
+    </ServerInsertedMetadataProvider>
   )
 }
 
@@ -2116,14 +2124,14 @@ async function renderToStream(
         {
           ReactDOMServer: require('react-dom/server.edge'),
           element: (
-            <ServerInsertedHTMLProvider>
-              <AppWithoutContext
-                reactServerStream={errorServerStream}
-                preinitScripts={errorPreinitScripts}
-                clientReferenceManifest={clientReferenceManifest}
-                nonce={ctx.nonce}
-              />
-            </ServerInsertedHTMLProvider>
+            <ErrorApp
+              reactServerStream={errorServerStream}
+              ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
+              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+              preinitScripts={errorPreinitScripts}
+              clientReferenceManifest={clientReferenceManifest}
+              nonce={ctx.nonce}
+            />
           ),
           streamOptions: {
             nonce: ctx.nonce,
@@ -4031,14 +4039,14 @@ async function prerenderToStream(
       const fizzStream = await renderToInitialFizzStream({
         ReactDOMServer: require('react-dom/server.edge'),
         element: (
-          <ServerInsertedMetadataProvider>
-            <AppWithoutContext
-              reactServerStream={errorServerStream}
-              preinitScripts={errorPreinitScripts}
-              clientReferenceManifest={clientReferenceManifest}
-              nonce={ctx.nonce}
-            />
-          </ServerInsertedMetadataProvider>
+          <ErrorApp
+            reactServerStream={errorServerStream}
+            ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
+            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+            preinitScripts={errorPreinitScripts}
+            clientReferenceManifest={clientReferenceManifest}
+            nonce={ctx.nonce}
+          />
         ),
         streamOptions: {
           nonce: ctx.nonce,
