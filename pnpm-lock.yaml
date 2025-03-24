@@ -237,6 +237,9 @@ importers:
       cheerio:
         specifier: 0.22.0
         version: 0.22.0
+      commander:
+        specifier: 12.1.0
+        version: 12.1.0
       cookie:
         specifier: 0.4.1
         version: 0.4.1

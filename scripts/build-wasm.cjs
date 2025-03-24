@@ -2,20 +2,12 @@
 
 const {
   NEXT_DIR,
-  booleanArg,
   execAsyncWithOutput,
   execFn,
   exec,
-  namedValueArg,
 } = require('./pack-util.cjs')
 const fs = require('fs')
 const path = require('path')
-
-const args = process.argv.slice(2)
-
-// strip --no-build and --project when called from pack-next.cjs
-booleanArg(args, '--no-build')
-namedValueArg(args, '--project')
 
 const targetDir = path.join(NEXT_DIR, 'target')
 const nextSwcDir = path.join(NEXT_DIR, 'packages/next-swc')
@@ -25,7 +17,7 @@ module.exports = (async () => {
     try {
       await execAsyncWithOutput(
         'Build wasm bindings',
-        ['pnpm', 'run', 'build-wasm', ...args],
+        ['pnpm', 'run', 'build-wasm'],
         {
           cwd: nextSwcDir,
           shell: process.platform === 'win32' ? 'powershell.exe' : false,

@@ -2,23 +2,18 @@
 
 const {
   NEXT_DIR,
-  booleanArg,
   execAsyncWithOutput,
   execFn,
   exec,
-  namedValueArg,
 } = require('./pack-util.cjs')
 const fs = require('fs')
 const path = require('path')
 
-const args = process.argv.slice(2)
-
-// strip --no-build and --project when called from pack-next.cjs
-booleanArg(args, '--no-build')
-namedValueArg(args, '--project')
-
 const targetDir = path.join(NEXT_DIR, 'target')
 const nextSwcDir = path.join(NEXT_DIR, 'packages/next-swc')
+
+// Only pass along args if this file is being directly executed (not as an exported function)
+const args = require.main === module ? process.argv.slice(2) : []
 
 module.exports = (async () => {
   for (let i = 0; i < 2; i++) {

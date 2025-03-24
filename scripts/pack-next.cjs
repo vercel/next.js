@@ -2,22 +2,26 @@
 
 const {
   NEXT_DIR,
-  booleanArg,
   exec,
   execAsyncWithOutput,
   glob,
-  namedValueArg,
   packageFiles,
 } = require('./pack-util.cjs')
 const fs = require('fs')
 const fsPromises = require('fs/promises')
-
-const args = process.argv.slice(2)
+const { program } = require('commander')
 
 const TARBALLS = `${NEXT_DIR}/tarballs`
 const NEXT_PACKAGES = `${NEXT_DIR}/packages`
-const noBuild = booleanArg(args, '--no-build')
-const projectPath = namedValueArg(args, '--project')
+
+program
+  .name('pack-next')
+  .description('Pack Next.js and related packages for local development')
+  .option('--no-build', 'Skip building Next.js')
+  .option('--project <path>', 'Path to the project to update')
+
+program.parse(process.argv)
+const { build, project: projectPath } = program.opts()
 
 async function main() {
   // the debuginfo on macos is much smaller, so we don't typically need to strip
@@ -28,7 +32,7 @@ async function main() {
 
   fs.mkdirSync(TARBALLS, { recursive: true })
 
-  if (!noBuild) {
+  if (build) {
     exec('Install Next.js build dependencies', 'pnpm i')
     exec('Build Next.js', 'pnpm run build')
   }

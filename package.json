@@ -148,6 +148,7 @@
     "browserslist": "4.22.2",
     "buffer": "5.6.0",
     "cheerio": "0.22.0",
+    "commander": "12.1.0",
     "cookie": "0.4.1",
     "cors": "2.8.5",
     "coveralls": "3.0.3",
