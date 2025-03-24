@@ -166,6 +166,7 @@ export function createEmptyCacheNode(): CacheNode {
     prefetchHead: null,
     parallelRoutes: new Map(),
     loading: null,
+    navigatedAt: -1,
   }
 }
 
@@ -176,12 +177,13 @@ function useChangeByServerResponse(
   dispatch: React.Dispatch<ReducerActions>
 ): RouterChangeByServerResponse {
   return useCallback(
-    ({ previousTree, serverResponse }) => {
+    ({ previousTree, serverResponse, navigatedAt }) => {
       startTransition(() => {
         dispatch({
           type: ACTION_SERVER_PATCH,
           previousTree,
           serverResponse,
+          navigatedAt,
         })
       })
     },
