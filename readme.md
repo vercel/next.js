@@ -8,7 +8,7 @@ Minimialist version of Next.js. Not intended for external consumption.
 
 1. Build the package: `yarn build`
 
-2. In the frontend folder: `yarn add ../next.js`
+2. In the frontend folder: `yarn add ../next.js` (assuming the repos are siblings, otherwise use the path to your local `next.js` repo)
 
 3. Repeat the process if you make any changes to next.js
 
