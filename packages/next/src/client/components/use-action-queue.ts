@@ -1,7 +1,7 @@
 import type { Dispatch } from 'react'
 import React, { use } from 'react'
 import { isThenable } from '../../shared/lib/is-thenable'
-import type { AppRouterActionQueue } from '../../shared/lib/router/action-queue'
+import type { AppRouterActionQueue } from './app-router-instance'
 import type {
   AppRouterState,
   ReducerActions,

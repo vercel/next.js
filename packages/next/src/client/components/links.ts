@@ -1,6 +1,6 @@
 import type { FlightRouterState } from '../../server/app-render/types'
 import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
-import { getCurrentAppRouterState } from '../../shared/lib/router/action-queue'
+import { getCurrentAppRouterState } from './app-router-instance'
 import { createPrefetchURL } from './app-router'
 import { PrefetchKind } from './router-reducer/router-reducer-types'
 import { getCurrentCacheVersion } from './segment-cache'

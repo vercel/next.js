@@ -278,6 +278,8 @@ function linkClicked(
     }
 
     // If the router is an NextRouter instance it will have `beforePopState`
+    // TODO: This should access the router methods directly, rather than
+    // go through the public interface.
     const routerScroll = scroll ?? true
     if ('beforePopState' in router) {
       router[replace ? 'replace' : 'push'](href, as, {
