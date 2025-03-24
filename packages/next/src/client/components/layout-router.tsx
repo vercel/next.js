@@ -10,7 +10,10 @@ import type {
   FlightSegmentPath,
 } from '../../server/app-render/types'
 import type { ErrorComponent } from './error-boundary'
-import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
+import {
+  ACTION_SERVER_PATCH,
+  type FocusAndScrollRef,
+} from './router-reducer/router-reducer-types'
 
 import React, {
   useContext,
@@ -35,6 +38,7 @@ import { RedirectBoundary } from './redirect-boundary'
 import { HTTPAccessFallbackBoundary } from './http-access-fallback/error-boundary'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
 import { hasInterceptionRouteInCurrentTree } from './router-reducer/reducers/has-interception-route-in-current-tree'
+import { dispatchAppRouterAction } from './use-action-queue'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -337,7 +341,7 @@ function InnerLayoutRouter({
     throw new Error('invariant global layout router not mounted')
   }
 
-  const { changeByServerResponse, tree: fullTree } = context
+  const { tree: fullTree } = context
 
   // `rsc` represents the renderable node for this segment.
 
@@ -385,7 +389,8 @@ function InnerLayoutRouter({
         }
       ).then((serverResponse) => {
         startTransition(() => {
-          changeByServerResponse({
+          dispatchAppRouterAction({
+            type: ACTION_SERVER_PATCH,
             previousTree: fullTree,
             serverResponse,
           })
