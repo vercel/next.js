@@ -18,7 +18,9 @@ type LinkElement = HTMLAnchorElement | SVGAElement
 
 type Element = LinkElement | HTMLFormElement
 
-type Instance = {
+// Properties that are shared between Link and Form instances. We use the same
+// shape for both to prevent a polymorphic de-opt in the VM.
+type LinkOrFormInstanceShared = {
   router: AppRouterInstance
   kind: PrefetchKind.AUTO | PrefetchKind.FULL
 
@@ -35,13 +37,26 @@ type Instance = {
   cacheVersion: number
 }
 
-export type LinkInstance = Instance & {
+export type FormInstance = LinkOrFormInstanceShared & {
+  prefetchHref: string
+  setOptimisticLinkStatus: null
+}
+
+type PrefetchableLinkInstance = LinkOrFormInstanceShared & {
+  prefetchHref: string
   setOptimisticLinkStatus: (status: { pending: boolean }) => void
 }
 
-interface PrefetchableInstance extends Instance {
-  prefetchHref: string
+type NonPrefetchableLinkInstance = LinkOrFormInstanceShared & {
+  prefetchHref: null
+  setOptimisticLinkStatus: (status: { pending: boolean }) => void
 }
+
+type PrefetchableInstance = PrefetchableLinkInstance | FormInstance
+
+export type LinkInstance =
+  | PrefetchableLinkInstance
+  | NonPrefetchableLinkInstance
 
 // Tracks the most recently navigated link instance. When null, indicates
 // the current navigation was not initiated by a link click.
@@ -93,75 +108,37 @@ const observer: IntersectionObserver | null =
       })
     : null
 
-function mountInstance(
-  element: Element,
-  href: string,
-  router: AppRouterInstance,
-  kind: PrefetchKind.AUTO | PrefetchKind.FULL,
-  prefetchEnabled: boolean
-): Instance {
-  let prefetchHref: string | null = null
-
-  if (prefetchEnabled) {
-    try {
-      const prefetchURL = createPrefetchURL(href)
-      if (prefetchURL !== null) {
-        // We only track the link if it's prefetchable. For example, this excludes
-        // links to external URLs.
-        prefetchHref = prefetchURL.href
-      }
-    } catch {
-      // createPrefetchURL sometimes throws an error if an invalid URL is
-      // provided, though I'm not sure if it's actually necessary.
-      // TODO: Consider removing the throw from the inner function, or change it
-      // to reportError. Or maybe the error isn't even necessary for automatic
-      // prefetches, just navigations.
-      const reportErrorFn =
-        typeof reportError === 'function' ? reportError : console.error
-      reportErrorFn(
-        `Cannot prefetch '${href}' because it cannot be converted to a URL.`
-      )
-    }
+function observeVisibility(element: Element, instance: PrefetchableInstance) {
+  const existingInstance = prefetchable.get(element)
+  if (existingInstance !== undefined) {
+    // This shouldn't happen because each <Link> component should have its own
+    // anchor tag instance, but it's defensive coding to avoid a memory leak in
+    // case there's a logical error somewhere else.
+    unmountPrefetchableInstance(element)
   }
-
-  const instance: Instance = {
-    router,
-    kind,
-    isVisible: false,
-    wasHoveredOrTouched: false,
-    prefetchTask: null,
-    cacheVersion: -1,
+  // Only track prefetchable links that have a valid prefetch URL
+  prefetchable.set(element, instance)
+  if (observer !== null) {
+    observer.observe(element)
   }
-
-  if (prefetchHref !== null) {
-    const existingInstance = prefetchable.get(element)
-    if (existingInstance !== undefined) {
-      // This shouldn't happen because each <Link> component should have its own
-      // anchor tag instance, but it's defensive coding to avoid a memory leak in
-      // case there's a logical error somewhere else.
-      unmountLinkInstance(element)
-    }
-    // Only track prefetchable links that have a valid prefetch URL
-    prefetchable.set(element, {
-      ...instance,
-      prefetchHref,
-    })
-    if (observer !== null) {
-      observer.observe(element)
-    }
-  }
-
-  return instance
 }
 
-export function mountFormInstance(
-  element: HTMLFormElement,
-  href: string,
-  router: AppRouterInstance,
-  kind: PrefetchKind.AUTO | PrefetchKind.FULL,
-  prefetchEnabled: boolean
-): void {
-  mountInstance(element, href, router, kind, prefetchEnabled)
+function coercePrefetchableUrl(href: string): URL | null {
+  try {
+    return createPrefetchURL(href)
+  } catch {
+    // createPrefetchURL sometimes throws an error if an invalid URL is
+    // provided, though I'm not sure if it's actually necessary.
+    // TODO: Consider removing the throw from the inner function, or change it
+    // to reportError. Or maybe the error isn't even necessary for automatic
+    // prefetches, just navigations.
+    const reportErrorFn =
+      typeof reportError === 'function' ? reportError : console.error
+    reportErrorFn(
+      `Cannot prefetch '${href}' because it cannot be converted to a URL.`
+    )
+    return null
+  }
 }
 
 export function mountLinkInstance(
@@ -172,12 +149,68 @@ export function mountLinkInstance(
   prefetchEnabled: boolean,
   setOptimisticLinkStatus: (status: { pending: boolean }) => void
 ): LinkInstance {
-  const instance = mountInstance(element, href, router, kind, prefetchEnabled)
-
-  return { ...instance, setOptimisticLinkStatus }
+  if (prefetchEnabled) {
+    const prefetchURL = coercePrefetchableUrl(href)
+    if (prefetchURL !== null) {
+      const instance: PrefetchableLinkInstance = {
+        router,
+        kind,
+        isVisible: false,
+        wasHoveredOrTouched: false,
+        prefetchTask: null,
+        cacheVersion: -1,
+        prefetchHref: prefetchURL.href,
+        setOptimisticLinkStatus,
+      }
+      // We only observe the link's visibility if it's prefetchable. For
+      // example, this excludes links to external URLs.
+      observeVisibility(element, instance)
+      return instance
+    }
+  }
+  // If the link is not prefetchable, we still create an instance so we can
+  // track its optimistic state (i.e. useLinkStatus).
+  const instance: NonPrefetchableLinkInstance = {
+    router,
+    kind,
+    isVisible: false,
+    wasHoveredOrTouched: false,
+    prefetchTask: null,
+    cacheVersion: -1,
+    prefetchHref: null,
+    setOptimisticLinkStatus,
+  }
+  return instance
 }
 
-export function unmountLinkInstance(element: Element) {
+export function mountFormInstance(
+  element: HTMLFormElement,
+  href: string,
+  router: AppRouterInstance,
+  kind: PrefetchKind.AUTO | PrefetchKind.FULL
+): void {
+  const prefetchURL = coercePrefetchableUrl(href)
+  if (prefetchURL === null) {
+    // This href is not prefetchable, so we don't track it.
+    // TODO: We currently observe/unobserve a form every time its href changes.
+    // For Links, this isn't a big deal because the href doesn't usually change,
+    // but for forms it's extremely common. We should optimize this.
+    return
+  }
+  const instance: FormInstance = {
+    router,
+    kind,
+    isVisible: false,
+    wasHoveredOrTouched: false,
+    prefetchTask: null,
+    cacheVersion: -1,
+    prefetchHref: prefetchURL.href,
+    setOptimisticLinkStatus: null,
+  }
+  observeVisibility(element, instance)
+}
+
+export function unmountPrefetchableInstance(element: Element) {
   const instance = prefetchable.get(element)
   if (instance !== undefined) {
     prefetchable.delete(element)

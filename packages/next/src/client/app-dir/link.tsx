@@ -15,7 +15,7 @@ import {
   mountLinkInstance,
   onNavigationIntent,
   unmountLinkForCurrentNavigation,
-  unmountLinkInstance,
+  unmountPrefetchableInstance,
   type LinkInstance,
 } from '../components/links'
 import { isLocalURL } from '../../shared/lib/router/utils/is-local-url'
@@ -570,7 +570,7 @@ export default function LinkComponent(
           unmountLinkForCurrentNavigation(linkInstanceRef.current)
           linkInstanceRef.current = null
         }
-        unmountLinkInstance(element)
+        unmountPrefetchableInstance(element)
       }
     },
     [prefetchEnabled, href, router, appPrefetchKind, setOptimisticLinkStatus]
@@ -680,13 +680,25 @@ export default function LinkComponent(
     childProps.href = addBasePath(as)
   }
 
-  const link = legacyBehavior ? (
-    React.cloneElement(child, childProps)
-  ) : (
-    <a {...restProps} {...childProps}>
-      {children}
-    </a>
-  )
+  let link: React.ReactNode
+
+  if (legacyBehavior) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error(
+        '`legacyBehavior` is deprecated and will be removed in a future ' +
+          'release. A codemod is available to upgrade your components:\n\n' +
+          'npx @next/codemod@latest new-link .\n\n' +
+          'Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components'
+      )
+    }
+    link = React.cloneElement(child, childProps)
+  } else {
+    link = (
+      <a {...restProps} {...childProps}>
+        {children}
+      </a>
+    )
+  }
 
   return (
     <LinkStatusContext.Provider value={linkStatus}>
