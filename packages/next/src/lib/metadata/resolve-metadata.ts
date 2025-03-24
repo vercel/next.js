@@ -20,6 +20,8 @@ import type {
 } from './types/metadata-types'
 import type { ParsedUrlQuery } from 'querystring'
 import type { StaticMetadata } from './types/icons'
+import type { WorkStore } from '../../server/app-render/work-async-storage.external'
+import type { Params } from '../../server/request/params'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 import 'server-only'
@@ -53,11 +55,7 @@ import { getTracer } from '../../server/lib/trace/tracer'
 import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
-import type { WorkStore } from '../../server/app-render/work-async-storage.external'
-import type {
-  Params,
-  CreateServerParamsForMetadata,
-} from '../../server/request/params'
+import { createServerParamsForMetadata } from '../../server/request/params'
 
 type StaticIcons = Pick<ResolvedIcons, 'icon' | 'apple'>
 
@@ -483,7 +481,6 @@ const resolveMetadataItems = cache(async function (
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore
 ) {
   const parentParams = {}
@@ -499,7 +496,6 @@ const resolveMetadataItems = cache(async function (
     errorConvention,
     errorMetadataItem,
     getDynamicParamFromSegment,
-    createServerParamsForMetadata,
     workStore
   )
 })
@@ -514,7 +510,6 @@ async function resolveMetadataItemsImpl(
   errorConvention: MetadataErrorType | undefined,
   errorMetadataItem: MetadataItems[number],
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore
 ): Promise<MetadataItems> {
   const [segment, parallelRoutes, { page }] = tree
@@ -572,7 +567,6 @@ async function resolveMetadataItemsImpl(
       errorConvention,
       errorMetadataItem,
       getDynamicParamFromSegment,
-      createServerParamsForMetadata,
       workStore
     )
   }
@@ -914,7 +908,6 @@ export async function resolveMetadata(
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore,
   metadataContext: MetadataContext
 ): Promise<ResolvedMetadata> {
@@ -923,7 +916,6 @@ export async function resolveMetadata(
     searchParams,
     errorConvention,
     getDynamicParamFromSegment,
-    createServerParamsForMetadata,
     workStore
   )
   return accumulateMetadata(metadataItems, metadataContext)
@@ -935,7 +927,6 @@ export async function resolveViewport(
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore
 ): Promise<ResolvedViewport> {
   const metadataItems = await resolveMetadataItems(
@@ -943,7 +934,6 @@ export async function resolveViewport(
     searchParams,
     errorConvention,
     getDynamicParamFromSegment,
-    createServerParamsForMetadata,
     workStore
   )
   return accumulateViewport(metadataItems)

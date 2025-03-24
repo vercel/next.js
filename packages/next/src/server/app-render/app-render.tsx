@@ -469,7 +469,6 @@ async function generateDynamicRSCPayload(
     componentMod: {
       tree: loaderTree,
       createServerSearchParamsForMetadata,
-      createServerParamsForMetadata,
       createMetadataComponents,
       MetadataBoundary,
       ViewportBoundary,
@@ -505,7 +504,6 @@ async function generateDynamicRSCPayload(
       ),
       getDynamicParamFromSegment,
       appUsingSizeAdjustment,
-      createServerParamsForMetadata,
       workStore,
       MetadataBoundary,
       ViewportBoundary,
@@ -789,7 +787,6 @@ async function getRSCPayload(
     componentMod: {
       GlobalError,
       createServerSearchParamsForMetadata,
-      createServerParamsForMetadata,
       createMetadataComponents,
       MetadataBoundary,
       ViewportBoundary,
@@ -823,7 +820,6 @@ async function getRSCPayload(
     ),
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
-    createServerParamsForMetadata,
     workStore,
     MetadataBoundary,
     ViewportBoundary,
@@ -931,7 +927,6 @@ async function getErrorRSCPayload(
     componentMod: {
       GlobalError,
       createServerSearchParamsForMetadata,
-      createServerParamsForMetadata,
       createMetadataComponents,
       MetadataBoundary,
       ViewportBoundary,
@@ -952,7 +947,6 @@ async function getErrorRSCPayload(
     errorType,
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
-    createServerParamsForMetadata,
     workStore,
     MetadataBoundary,
     ViewportBoundary,
