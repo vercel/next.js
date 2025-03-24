@@ -5,7 +5,7 @@ import type {
   PrefetchOptions as RouterPrefetchOptions,
 } from '../shared/lib/router/router'
 
-import React from 'react'
+import React, { createContext, useContext } from 'react'
 import type { UrlObject } from 'url'
 import { resolveHref } from './resolve-href'
 import { isLocalURL } from '../shared/lib/router/utils/is-local-url'
@@ -685,5 +685,18 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     )
   }
 )
+
+const LinkStatusContext = createContext<{
+  pending: boolean
+}>({
+  // We do not support link status in the Pages Router, so we always return false
+  pending: false,
+})
+
+export const useLinkStatus = () => {
+  // This behaviour is like React's useFormStatus. When the component is not under
+  // a <form> tag, it will get the default value, instead of throwing an error.
+  return useContext(LinkStatusContext)
+}
 
 export default Link

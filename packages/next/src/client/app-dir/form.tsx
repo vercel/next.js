@@ -16,7 +16,7 @@ import {
   hasUnsupportedSubmitterAttributes,
   type FormProps,
 } from '../form-shared'
-import { mountLinkInstance, unmountLinkInstance } from '../components/links'
+import { mountFormInstance, unmountLinkInstance } from '../components/links'
 
 export type { FormProps }
 
@@ -96,7 +96,7 @@ export default function Form({
   const observeFormVisibilityOnMount = useCallback(
     (element: HTMLFormElement) => {
       if (isPrefetchEnabled && router !== null) {
-        mountLinkInstance(element, actionProp, router, PrefetchKind.AUTO)
+        mountFormInstance(element, actionProp, router, PrefetchKind.AUTO, true)
       }
       return () => {
         unmountLinkInstance(element)

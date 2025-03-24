@@ -24,6 +24,7 @@ import type {
   NavigateOptions,
   PrefetchOptions,
 } from '../../shared/lib/app-router-context.shared-runtime'
+import { setLinkForCurrentNavigation, type LinkInstance } from './links'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 
@@ -235,10 +236,11 @@ function getAppRouterActionQueue(): AppRouterActionQueue {
   return globalActionQueue
 }
 
-function dispatchNavigateAction(
+export function dispatchNavigateAction(
   href: string,
   navigateType: NavigateAction['navigateType'],
-  shouldScroll: boolean
+  shouldScroll: boolean,
+  linkInstanceRef: LinkInstance | null
 ): void {
   // TODO: This stuff could just go into the reducer. Leaving as-is for now
   // since we're about to rewrite all the router reducer stuff anyway.
@@ -246,6 +248,9 @@ function dispatchNavigateAction(
   if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
     window.next.__pendingUrl = url
   }
+
+  setLinkForCurrentNavigation(linkInstanceRef)
+
   dispatchAppRouterAction({
     type: ACTION_NAVIGATE,
     url,
@@ -298,12 +303,12 @@ export const publicAppRouterInstance: AppRouterInstance = {
       },
   replace: (href: string, options?: NavigateOptions) => {
     startTransition(() => {
-      dispatchNavigateAction(href, 'replace', options?.scroll ?? true)
+      dispatchNavigateAction(href, 'replace', options?.scroll ?? true, null)
     })
   },
   push: (href: string, options?: NavigateOptions) => {
     startTransition(() => {
-      dispatchNavigateAction(href, 'push', options?.scroll ?? true)
+      dispatchNavigateAction(href, 'push', options?.scroll ?? true, null)
     })
   },
   refresh: () => {
