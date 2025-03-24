@@ -931,6 +931,17 @@ export async function fetchRouteOnCacheMiss(
       // Server responded with an error, or with a miss. We should still cache
       // the response, but we can try again after 10 seconds.
       rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
+
+      const contentType = response?.headers.get('content-type')
+      const isFlightResponse =
+        contentType && contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
+      if (!isFlightResponse) {
+        // Let's assume this is a Pages route
+        if (task.instance && task.instance.setPagesRouteHref) {
+          task.instance.setPagesRouteHref(url.pathname + url.search)
+        }
+      }
+
       return null
     }
 

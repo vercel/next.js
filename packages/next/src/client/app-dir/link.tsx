@@ -1,6 +1,13 @@
 'use client'
 
-import React, { createContext, useContext, useOptimistic, useRef } from 'react'
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useOptimistic,
+  useRef,
+  useState,
+} from 'react'
 import type { UrlObject } from 'url'
 import { formatUrl } from '../../shared/lib/router/utils/format-url'
 import { AppRouterContext } from '../../shared/lib/app-router-context.shared-runtime'
@@ -20,6 +27,7 @@ import {
 } from '../components/links'
 import { isLocalURL } from '../../shared/lib/router/utils/is-local-url'
 import { dispatchNavigateAction } from '../components/app-router-instance'
+import Script from '../script'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -315,6 +323,7 @@ export default function LinkComponent(
   }
 ) {
   const [linkStatus, setOptimisticLinkStatus] = useOptimistic(IDLE_LINK_STATUS)
+  const [pagesRouteHref, setPagesRouteHref] = useState<string | null>(null)
 
   let children: React.ReactNode
 
@@ -561,7 +570,8 @@ export default function LinkComponent(
           router,
           appPrefetchKind,
           prefetchEnabled,
-          setOptimisticLinkStatus
+          setOptimisticLinkStatus,
+          setPagesRouteHref
         )
       }
 
@@ -700,9 +710,29 @@ export default function LinkComponent(
     )
   }
 
+  let speculationRulesScript: React.ReactNode | null = null
+  if (pagesRouteHref) {
+    speculationRulesScript = (
+      <Script
+        type="speculationrules"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            prefetch: [
+              {
+                source: 'list',
+                urls: [pagesRouteHref],
+              },
+            ],
+          }),
+        }}
+      />
+    )
+  }
+
   return (
     <LinkStatusContext.Provider value={linkStatus}>
       {link}
+      {speculationRulesScript}
     </LinkStatusContext.Provider>
   )
 }

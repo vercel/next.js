@@ -27,6 +27,7 @@ import {
 } from './cache'
 import type { RouteCacheKey } from './cache-key'
 import { PrefetchPriority } from '../segment-cache'
+import type { PrefetchableInstance } from '../links'
 
 const scheduleMicrotask =
   typeof queueMicrotask === 'function'
@@ -105,6 +106,8 @@ export type PrefetchTask = {
    */
   isCanceled: boolean
 
+  instance: PrefetchableInstance
+
   /**
    * The index of the task in the heap's backing array. Used to efficiently
    * change the priority of a task by re-sifting it, which requires knowing
@@ -182,7 +185,8 @@ export function schedulePrefetchTask(
   key: RouteCacheKey,
   treeAtTimeOfPrefetch: FlightRouterState,
   includeDynamicData: boolean,
-  priority: PrefetchPriority
+  priority: PrefetchPriority,
+  instance: PrefetchableInstance
 ): PrefetchTask {
   // Spawn a new prefetch task
   const task: PrefetchTask = {
@@ -195,6 +199,7 @@ export function schedulePrefetchTask(
     sortId: sortIdCounter++,
     isCanceled: false,
     _heapIndex: -1,
+    instance,
   }
   heapPush(taskHeap, task)
 

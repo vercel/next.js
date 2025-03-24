@@ -40,19 +40,22 @@ type LinkOrFormInstanceShared = {
 export type FormInstance = LinkOrFormInstanceShared & {
   prefetchHref: string
   setOptimisticLinkStatus: null
+  setPagesRouteHref: null
 }
 
 type PrefetchableLinkInstance = LinkOrFormInstanceShared & {
   prefetchHref: string
   setOptimisticLinkStatus: (status: { pending: boolean }) => void
+  setPagesRouteHref: (pagesRouteHref: string) => void
 }
 
 type NonPrefetchableLinkInstance = LinkOrFormInstanceShared & {
   prefetchHref: null
   setOptimisticLinkStatus: (status: { pending: boolean }) => void
+  setPagesRouteHref: (pagesRouteHref: string) => void
 }
 
-type PrefetchableInstance = PrefetchableLinkInstance | FormInstance
+export type PrefetchableInstance = PrefetchableLinkInstance | FormInstance
 
 export type LinkInstance =
   | PrefetchableLinkInstance
@@ -147,7 +150,8 @@ export function mountLinkInstance(
   router: AppRouterInstance,
   kind: PrefetchKind.AUTO | PrefetchKind.FULL,
   prefetchEnabled: boolean,
-  setOptimisticLinkStatus: (status: { pending: boolean }) => void
+  setOptimisticLinkStatus: (status: { pending: boolean }) => void,
+  setPagesRouteHref: (pagesRouteHref: string) => void
 ): LinkInstance {
   if (prefetchEnabled) {
     const prefetchURL = coercePrefetchableUrl(href)
@@ -161,6 +165,7 @@ export function mountLinkInstance(
         cacheVersion: -1,
         prefetchHref: prefetchURL.href,
         setOptimisticLinkStatus,
+        setPagesRouteHref,
       }
       // We only observe the link's visibility if it's prefetchable. For
       // example, this excludes links to external URLs.
@@ -179,6 +184,7 @@ export function mountLinkInstance(
     cacheVersion: -1,
     prefetchHref: null,
     setOptimisticLinkStatus,
+    setPagesRouteHref,
   }
   return instance
 }
@@ -206,6 +212,7 @@ export function mountFormInstance(
     cacheVersion: -1,
     prefetchHref: prefetchURL.href,
     setOptimisticLinkStatus: null,
+    setPagesRouteHref: null,
   }
   observeVisibility(element, instance)
 }
@@ -312,7 +319,8 @@ function rescheduleLinkPrefetch(instance: PrefetchableInstance) {
         cacheKey,
         treeAtTimeOfPrefetch,
         instance.kind === PrefetchKind.FULL,
-        priority
+        priority,
+        instance
       )
       instance.cacheVersion = getCurrentCacheVersion()
     }
@@ -360,7 +368,8 @@ export function pingVisibleLinks(
       cacheKey,
       tree,
       instance.kind === PrefetchKind.FULL,
-      priority
+      priority,
+      instance
     )
     instance.cacheVersion = getCurrentCacheVersion()
   }
