@@ -12,15 +12,12 @@ const path = require('path')
 const targetDir = path.join(NEXT_DIR, 'target')
 const nextSwcDir = path.join(NEXT_DIR, 'packages/next-swc')
 
-// Only pass along args if this file is being directly executed (not as an exported function)
-const args = require.main === module ? process.argv.slice(2) : []
-
-module.exports = (async () => {
+module.exports = async function buildNative(buildNativeArgs) {
   for (let i = 0; i < 2; i++) {
     try {
       await execAsyncWithOutput(
         'Build native bindings',
-        ['pnpm', 'run', 'build-native', ...args],
+        ['pnpm', 'run', 'build-native', ...buildNativeArgs],
         {
           cwd: nextSwcDir,
           shell: process.platform === 'win32' ? 'powershell.exe' : false,
@@ -58,7 +55,11 @@ module.exports = (async () => {
     'Copy generated types to `next/src/build/swc/generated-native.d.ts`',
     () => writeTypes()
   )
-})()
+}
+
+if (require.main === module) {
+  module.exports(process.argv.slice(2))
+}
 
 function writeTypes() {
   const generatedTypesPath = path.join(

@@ -9,8 +9,9 @@ const {
 } = require('./pack-util.cjs')
 const fs = require('node:fs')
 const fsPromises = require('node:fs/promises')
-const { Command } = require('commander')
 const patchPackageJson = require('./pack-utils/patch-package-json.ts').default
+const yargs = require('yargs')
+const buildNative = require('./build-native.cjs')
 
 const TARBALLS = `${NEXT_DIR}/tarballs`
 const NEXT_PACKAGES = `${NEXT_DIR}/packages`
@@ -26,23 +27,22 @@ const DEFAULT_PACK_NEXT_COMPRESS =
 const PACK_NEXT_COMPRESS =
   process.env.PACK_NEXT_COMPRESS || DEFAULT_PACK_NEXT_COMPRESS
 
-const program = new Command()
-program
-  .name('pack-next')
-  .description('Pack Next.js and related packages for local development')
-  .option('--no-build', 'Skip building Next.js')
-  .option('--project <path>', 'Path to the project to update')
-  .option('--tar', 'Create tarballs instead of direct reflinks')
-
-program.parse(process.argv)
-const {
-  build,
-  project: projectPath,
-  tar: shouldCreateTarballs,
-} = program.opts()
+const cliOptions = yargs(process.argv.slice(2))
+  .option('no-js-build', {
+    type: 'boolean',
+    describe: 'Skip building JavaScript code',
+  })
+  .option('project', {
+    alias: 'p',
+    type: 'string',
+  })
+  .option('tar', {
+    type: 'boolean',
+    describe: 'Create tarballs instead of direct reflinks',
+  }).argv
 
 async function main() {
-  if (build) {
+  if (!cliOptions.noJsBuild) {
     exec('Install Next.js build dependencies', 'pnpm i')
     exec('Build Next.js', 'pnpm run build')
   }
@@ -53,9 +53,9 @@ async function main() {
     await Promise.all(binaries.map((bin) => fsPromises.rm(bin)))
   }
 
-  await require('./build-native.cjs')
+  await buildNative(cliOptions._)
 
-  if (shouldCreateTarballs) {
+  if (cliOptions.tar) {
     fs.mkdirSync(TARBALLS, { recursive: true })
 
     // build all tarfiles in parallel
@@ -72,10 +72,10 @@ async function main() {
     ])
   }
 
-  const packageFiles = getPackageFiles(shouldCreateTarballs)
+  const packageFiles = getPackageFiles(cliOptions.tar)
 
-  if (projectPath != null) {
-    const patchedPath = await patchPackageJson(projectPath, {
+  if (cliOptions.project != null) {
+    const patchedPath = await patchPackageJson(cliOptions.project, {
       nextTarball: packageFiles.nextFile,
       nextMdxTarball: packageFiles.nextMdxFile,
       nextEnvTarball: packageFiles.nextEnvFile,
