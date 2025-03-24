@@ -1355,8 +1355,8 @@ async function renderToHTMLOrFlightImpl(
       implicitTags
     )
 
-    // If we're debugging partial prerendering, print all the dynamic API accesses
-    // that occurred during the render.
+    // If we're debugging dynamic accesses, print all the dynamic accesses that
+    // occurred during the render.
     // @TODO move into renderToStream function
     if (
       response.dynamicAccess &&
