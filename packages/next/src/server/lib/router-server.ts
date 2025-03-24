@@ -134,16 +134,6 @@ export async function initialize(opts: {
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
 
-  const randomBytes = new Uint8Array(8)
-  // handle node v16 not having global webcrypto
-  const crypto = require('crypto')
-  const webcrypto = crypto.webcrypto || crypto
-  webcrypto.getRandomValues(randomBytes)
-
-  const middlewareSubrequestId = Buffer.from(randomBytes).toString('hex')
-  ;(globalThis as any)[Symbol.for('@next/middleware-subrequest-id')] =
-    middlewareSubrequestId
-
   const renderServerOpts: Parameters<RenderServer['initialize']>[0] = {
     port: opts.port,
     dir: opts.dir,

@@ -74,19 +74,6 @@ export async function getRuntimeContext(params: {
 
 export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
   const runtime = await getRuntimeContext(params)
-  const subreq = params.request.headers[`x-middleware-subrequest`]
-  const subrequests = typeof subreq === 'string' ? subreq.split(':') : []
-  if (subrequests.includes(params.name)) {
-    return {
-      waitUntil: Promise.resolve(),
-      response: new runtime.context.Response(null, {
-        headers: {
-          'x-middleware-next': '1',
-        },
-      }),
-    }
-  }
-
   const edgeFunction: (args: {
     request: RequestData
   }) => Promise<FetchEventResult> =
