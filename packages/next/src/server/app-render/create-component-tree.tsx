@@ -95,6 +95,7 @@ async function createComponentTreeInternal({
     renderOpts: { nextConfigOutput, experimental },
     workStore,
     componentMod: {
+      DevToolNode,
       HTTPAccessFallbackBoundary,
       LayoutRouter,
       RenderFromTemplateContext,
@@ -174,7 +175,7 @@ async function createComponentTreeInternal({
 
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
-  const { mod: layoutOrPageMod, modType } = await getTracer().trace(
+  const { mod: layoutOrPageMod, modType, filePath } = await getTracer().trace(
     NextNodeServerSpan.getLayoutOrPageModule,
     {
       hideSpan: !(isLayout || isPage),
@@ -621,8 +622,23 @@ async function createComponentTreeInternal({
     )
   }
 
+  const nodeName = modType ?? '<name-placeholder>'
+  const devtoolPagePath = pagePath + '@' + segment + '@' + nodeName
+
   if (isPage) {
-    const PageComponent = Component
+    // const PageComponent = Component
+    const PageComponent = (pageProps: any) => {
+      return (
+        <DevToolNode
+          pagePath={devtoolPagePath}
+          name={nodeName}
+          filePath={filePath || '<filepath-placeholder>'}
+        >
+          <Component {...pageProps} />
+        </DevToolNode>
+      )
+    }
+
     // Assign searchParams to props if this is a page
     let pageElement: React.ReactNode
     if (isClientComponent) {
@@ -708,7 +724,19 @@ async function createComponentTreeInternal({
       isPossiblyPartialResponse,
     ]
   } else {
-    const SegmentComponent = Component
+    // const SegmentComponent = Component
+    const SegmentComponent = (segmentProps: any) => {
+      const nodeName = modType ?? '<name-placeholder>'
+      return (
+        <DevToolNode
+          pagePath={devtoolPagePath}
+          name={nodeName}
+          filePath={filePath || '<filepath-placeholder>'}
+        >
+          <Component {...segmentProps} />
+        </DevToolNode>
+      )
+    }
 
     const isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot =
       rootLayoutAtThisLevel &&
