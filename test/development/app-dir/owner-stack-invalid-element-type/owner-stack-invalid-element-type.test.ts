@@ -15,7 +15,7 @@ describe('app-dir - owner-stack-invalid-element-type', () => {
 
      Check the render method of \`BrowserOnly\`.",
        "environmentLabel": null,
-       "label": "Unhandled Runtime Error",
+       "label": "Runtime Error",
        "source": "app/browser/browser-only.js (8:7) @ BrowserOnly
      >  8 |       <Foo />
           |       ^",
@@ -38,7 +38,7 @@ describe('app-dir - owner-stack-invalid-element-type', () => {
 
      Check the render method of \`Inner\`.",
        "environmentLabel": null,
-       "label": "Unhandled Runtime Error",
+       "label": "Runtime Error",
        "source": "app/rsc/page.js (5:10) @ Inner
      > 5 |   return <Foo />
          |          ^",
@@ -60,7 +60,7 @@ describe('app-dir - owner-stack-invalid-element-type', () => {
 
      Check the render method of \`Inner\`.",
        "environmentLabel": null,
-       "label": "Unhandled Runtime Error",
+       "label": "Runtime Error",
        "source": "app/ssr/page.js (7:10) @ Inner
      >  7 |   return <Foo />
           |          ^",

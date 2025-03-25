@@ -29,7 +29,7 @@ describe('app-dir - missing required html tags', () => {
        "description": "Error: Missing <html> and <body> tags in the root layout.
      Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
        "environmentLabel": null,
-       "label": "Unhandled Runtime Error",
+       "label": "Runtime Error",
        "source": null,
        "stack": [],
      }
@@ -51,7 +51,7 @@ describe('app-dir - missing required html tags', () => {
        "description": "Error: Missing <html> tags in the root layout.
      Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
        "environmentLabel": null,
-       "label": "Unhandled Runtime Error",
+       "label": "Runtime Error",
        "source": null,
        "stack": [],
      }
@@ -83,7 +83,7 @@ describe('app-dir - missing required html tags', () => {
          "description": "Error: Missing <html> and <body> tags in the root layout.
        Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": null,
          "stack": [],
        }

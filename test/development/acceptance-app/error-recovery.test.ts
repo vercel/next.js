@@ -272,7 +272,7 @@ describe('Error recovery app', () => {
          "count": 1,
          "description": "Error: oops",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "index.js (7:11) @ Index.useCallback[increment]
        >  7 |     throw new Error('oops')
             |           ^",
@@ -293,7 +293,7 @@ describe('Error recovery app', () => {
          "count": 1,
          "description": "Error: oops",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "index.js (7:11) @ Index.useCallback[increment]
        >  7 |     throw new Error('oops')
             |           ^",
@@ -388,7 +388,7 @@ describe('Error recovery app', () => {
        "count": 1,
        "description": "Error: oops",
        "environmentLabel": "Server",
-       "label": "Unhandled Runtime Error",
+       "label": "Runtime Error",
        "source": "child.js (3:9) @ Child
      > 3 |   throw new Error('oops')
          |         ^",
@@ -464,7 +464,7 @@ describe('Error recovery app', () => {
          "count": 1,
          "description": "Error: oops",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "child.js (3:9) @ Child
        > 3 |   throw new Error('oops')
            |         ^",
@@ -481,7 +481,7 @@ describe('Error recovery app', () => {
          "count": 1,
          "description": "Error: oops",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "child.js (3:9) @ Child
        > 3 |   throw new Error('oops')
            |         ^",
@@ -553,7 +553,7 @@ describe('Error recovery app', () => {
        "count": 1,
        "description": "Error: no 1",
        "environmentLabel": null,
-       "label": "Unhandled Runtime Error",
+       "label": "Runtime Error",
        "source": "index.js (7:11) @ eval
      >  7 |     throw Error('no ' + i)
           |           ^",
@@ -708,7 +708,7 @@ describe('Error recovery app', () => {
          "count": 1,
          "description": "Error: React is not defined",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "Foo.js (3:3) @ Foo
        > 3 |   return React.createElement('h1', null, 'Foo');
            |   ^",
@@ -725,7 +725,7 @@ describe('Error recovery app', () => {
          "count": 1,
          "description": "Error: React is not defined",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "Foo.js (3:3) @ Foo
        > 3 |   return React.createElement('h1', null, 'Foo');
            |   ^",
@@ -915,7 +915,7 @@ describe('Error recovery app', () => {
          "count": 1,
          "description": "Error: nooo",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "index.js (5:11) @ ClassDefault.render
        > 5 |     throw new Error('nooo');
            |           ^",
@@ -931,7 +931,7 @@ describe('Error recovery app', () => {
          "count": 1,
          "description": "Error: nooo",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "index.js (5:11) @ ClassDefault.render
        > 5 |     throw new Error('nooo');
            |           ^",

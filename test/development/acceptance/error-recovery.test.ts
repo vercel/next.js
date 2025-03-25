@@ -165,7 +165,7 @@ describe('pages/ error recovery', () => {
        "count": 1,
        "description": "Error: oops",
        "environmentLabel": null,
-       "label": "Unhandled Runtime Error",
+       "label": "Runtime Error",
        "source": "index.js (7:11) @ Index.useCallback[increment]
      >  7 |     throw new Error('oops')
           |           ^",
@@ -258,7 +258,7 @@ describe('pages/ error recovery', () => {
          "count": 2,
          "description": "Error: oops",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "child.js (3:9) @ Child
        > 3 |   throw new Error('oops')
            |         ^",
@@ -276,7 +276,7 @@ describe('pages/ error recovery', () => {
          "count": 1,
          "description": "Error: oops",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "child.js (3:9) @ Child
        > 3 |   throw new Error('oops')
            |         ^",
@@ -538,7 +538,7 @@ describe('pages/ error recovery', () => {
          "count": 2,
          "description": "Error: nooo",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "index.js (5:11) @ ClassDefault.render
        > 5 |     throw new Error('nooo');
            |           ^",
@@ -572,7 +572,7 @@ describe('pages/ error recovery', () => {
            "count": 1,
            "description": "Error: nooo",
            "environmentLabel": null,
-           "label": "Unhandled Runtime Error",
+           "label": "Runtime Error",
            "source": "index.js (5:11) @ ClassDefault.render
          > 5 |     throw new Error('nooo');
              |           ^",
@@ -641,7 +641,7 @@ describe('pages/ error recovery', () => {
          "count": 2,
          "description": "ReferenceError: React is not defined",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "Foo.js (3:3) @ Foo
        > 3 |   return React.createElement('h1', null, 'Foo');
            |   ^",
@@ -659,7 +659,7 @@ describe('pages/ error recovery', () => {
          "count": 1,
          "description": "ReferenceError: React is not defined",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "Foo.js (3:3) @ Foo
        > 3 |   return React.createElement('h1', null, 'Foo');
            |   ^",
@@ -727,7 +727,7 @@ describe('pages/ error recovery', () => {
               "count": 1,
               "description": "Error: no 1",
               "environmentLabel": null,
-              "label": "Unhandled Runtime Error",
+              "label": "Runtime Error",
               "source": "index.js (5:9) @ <unknown>
             > 5 |   throw Error('no ' + i)
                 |         ^",
@@ -742,7 +742,7 @@ describe('pages/ error recovery', () => {
          "count": 1,
          "description": "Error: no 1",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "index.js (5:9) @ eval
        > 5 |   throw Error('no ' + i)
            |         ^",

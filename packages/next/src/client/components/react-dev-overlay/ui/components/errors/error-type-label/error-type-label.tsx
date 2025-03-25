@@ -2,7 +2,6 @@ export type ErrorType =
   | 'Build Error'
   | 'Runtime Error'
   | 'Console Error'
-  | 'Unhandled Runtime Error'
   | 'Missing Required HTML Tag'
 
 type ErrorTypeLabelProps = {

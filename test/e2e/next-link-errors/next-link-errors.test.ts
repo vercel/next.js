@@ -20,7 +20,7 @@ describe('next-link', () => {
          "description": "Error: Failed prop type: The prop \`href\` expects a \`string\` or \`object\` in \`<Link>\`, but got \`undefined\` instead.
        Open your browser's console to view the Component stack trace.",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "app/invalid-href/page.js (6:10) @ Hello
        > 6 |   return <Link>Hello, Dave!</Link>
            |          ^",
@@ -46,7 +46,7 @@ describe('next-link', () => {
          "count": 1,
          "description": "Error: No children were passed to <Link> with \`href\` of \`/about\` but one child is required https://nextjs.org/docs/messages/link-no-children",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "app/no-children/page.js (7:10) @ Page
        > 7 |   return <Link href="/about" legacyBehavior></Link>
            |          ^",
@@ -72,7 +72,7 @@ describe('next-link', () => {
          "description": "Error: Multiple children were passed to <Link> with \`href\` of \`/\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children 
        Open your browser's console to view the Component stack trace.",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "app/multiple-children/page.js (7:5) @ Index
        >  7 |     <Link href="/" legacyBehavior>
             |     ^",
