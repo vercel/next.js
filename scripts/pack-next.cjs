@@ -41,12 +41,12 @@ const cliOptions = yargs(process.argv.slice(2))
   }).argv
 
 async function main() {
-  if (!cliOptions.noJsBuild) {
+  if (cliOptions.jsBuild) {
     exec('Install Next.js build dependencies', 'pnpm i')
     exec('Build Next.js', 'pnpm run build')
   }
 
-  if (PACK_NEXT_COMPRESS !== 'strip') {
+  if (cliOptions.tar && PACK_NEXT_COMPRESS !== 'strip') {
     // HACK: delete any pre-existing binaries to force napi-rs to rewrite it
     let binaries = await nextSwcBinaries()
     await Promise.all(binaries.map((bin) => fs.rm(bin)))
