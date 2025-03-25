@@ -22,6 +22,7 @@ import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { OUTLET_BOUNDARY_NAME } from '../../lib/metadata/metadata-constants'
 import type { UseCachePageComponentProps } from '../use-cache/use-cache-wrapper'
+import path from 'path'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -622,8 +623,17 @@ async function createComponentTreeInternal({
     )
   }
 
+  const relativeLayoutOrPagePath = (layoutOrPagePath || '').replace(process.cwd(), '')
+  const normalizedFilePath = filePath || '<filepath-placeholder>' //).replace(process.cwd(), '')
   const nodeName = modType ?? '<name-placeholder>'
-  const devtoolPagePath = pagePath + '@' + segment + '@' + nodeName
+
+  // @ts-ignore
+  if (!globalThis.rootAppDir) {
+    // @ts-ignore
+    globalThis.rootAppDir = path.dirname(relativeLayoutOrPagePath)
+  }
+
+  const devtoolPagePath = relativeLayoutOrPagePath.slice((globalThis as any).rootAppDir.length)
 
   if (isPage) {
     // const PageComponent = Component
@@ -632,7 +642,7 @@ async function createComponentTreeInternal({
         <DevToolNode
           pagePath={devtoolPagePath}
           name={nodeName}
-          filePath={filePath || '<filepath-placeholder>'}
+          filePath={normalizedFilePath}
         >
           <Component {...pageProps} />
         </DevToolNode>
@@ -726,12 +736,11 @@ async function createComponentTreeInternal({
   } else {
     // const SegmentComponent = Component
     const SegmentComponent = (segmentProps: any) => {
-      const nodeName = modType ?? '<name-placeholder>'
       return (
         <DevToolNode
           pagePath={devtoolPagePath}
           name={nodeName}
-          filePath={filePath || '<filepath-placeholder>'}
+          filePath={normalizedFilePath}
         >
           <Component {...segmentProps} />
         </DevToolNode>
