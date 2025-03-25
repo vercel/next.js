@@ -4,7 +4,6 @@ import type { DevToolsInfoPropsCore } from './dev-tools-info'
 import { DevToolsInfo } from './dev-tools-info'
 
 import type { TreeNode } from '../../../../../../../../shared/lib/devtool-context.shared-runtime'
-import { useOpenInEditor } from '../../../../utils/use-open-in-editor'
 
 const IconLayout = (props: any) => {
   return (
@@ -52,7 +51,6 @@ const ICONS = {
 function TreePanel({ tree }: { tree: TreeNode }) {
   return (
     <div className="tree-panel">
-      <h2 className="text-lg font-bold mb-2">Component Tree</h2>
       <TreeNodeDisplay node={tree} level={1} />
     </div>
   )
@@ -66,9 +64,6 @@ const TreeNodeDisplay = ({
   level: number
 }) => {
   const [expanded, setExpanded] = useState(true)
-  const openFile = useOpenInEditor({
-    file: node.nodeInfo.filePath,
-  })
 
   return (
     <div
@@ -84,15 +79,18 @@ const TreeNodeDisplay = ({
             ? expanded
               ? '▼'
               : '▶'
-            : '•'}
+            : ''}
         </button>
         <div className="tree-node-line-info">
-          {ICONS[node.name as 'layout' | 'page']}
-          <b>{node.name}</b>
+          <div>
 
-          <span className="tree-node-filename-path">
+            {ICONS[node.name as 'layout' | 'page']}
+            <b>{node.name[0].toLocaleUpperCase() + node.name.slice(1)}</b>
+          </div>
+
+          <div className="tree-node-filename-path">
             <a href={`vscode://file/${node.nodeInfo.filePath}`}>{node.pagePath}</a>
-          </span>
+          </div>
           {/* <div className="text-xs text-gray-400">{node.nodeInfo.filePath}</div> */}
         </div>
       </div>
@@ -113,7 +111,7 @@ export function RenderedFiles(
 ) {
   // derive initial theme from system preference
   return (
-    <DevToolsInfo title="RenderFiles" {...props}>
+    <DevToolsInfo title="Rendered Views" {...props}>
       <TreePanel tree={(window as any).__NEXT_DEVTOOL_TREE} />
     </DevToolsInfo>
   )
