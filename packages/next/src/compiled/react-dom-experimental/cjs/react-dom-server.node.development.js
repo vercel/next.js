@@ -4447,6 +4447,12 @@
       }
       return "";
     }
+    function resetOwnerStackLimit() {
+      var now = getCurrentTime();
+      1e3 < now - lastResetTime &&
+        ((ReactSharedInternals.recentlyCreatedOwnerStacks = 0),
+        (lastResetTime = now));
+    }
     function defaultErrorHandler(error) {
       if (
         "object" === typeof error &&
@@ -4533,6 +4539,7 @@
       onPostpone,
       formState
     ) {
+      resetOwnerStackLimit();
       resumableState = new RequestInstance(
         resumableState,
         renderState,
@@ -4623,6 +4630,7 @@
       onFatalError,
       onPostpone
     ) {
+      resetOwnerStackLimit();
       renderState = new RequestInstance(
         postponedState.resumableState,
         renderState,
@@ -8399,11 +8407,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.1.0-experimental-db7dfe05-20250319" !== isomorphicReactPackageVersion)
+      if ("19.1.0-experimental-740a4f7a-20250325" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.1.0-experimental-db7dfe05-20250319\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.1.0-experimental-740a4f7a-20250325\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     function createDrainHandler(destination, request) {
@@ -9988,7 +9996,22 @@
       },
       callLazyInitInDEV =
         callLazyInit["react-stack-bottom-frame"].bind(callLazyInit),
-      CLIENT_RENDERED = 4,
+      lastResetTime = 0;
+    if (
+      "object" === typeof performance &&
+      "function" === typeof performance.now
+    ) {
+      var localPerformance = performance;
+      var getCurrentTime = function () {
+        return localPerformance.now();
+      };
+    } else {
+      var localDate = Date;
+      getCurrentTime = function () {
+        return localDate.now();
+      };
+    }
+    var CLIENT_RENDERED = 4,
       PENDING = 0,
       COMPLETED = 1,
       FLUSHED = 2,
@@ -10183,5 +10206,5 @@
         }
       };
     };
-    exports.version = "19.1.0-experimental-db7dfe05-20250319";
+    exports.version = "19.1.0-experimental-740a4f7a-20250325";
   })();
