@@ -2,7 +2,7 @@ use std::cmp::{max, Reverse};
 
 use either::Either;
 use itertools::Itertools;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use par_iter::iter::{IntoParallelRefIterator, ParallelIterator};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 

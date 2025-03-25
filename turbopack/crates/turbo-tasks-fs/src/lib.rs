@@ -46,7 +46,7 @@ use invalidation::InvalidateFilesystem;
 use invalidator_map::InvalidatorMap;
 use jsonc_parser::{parse_to_serde_value, ParseOptions};
 use mime::Mime;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use par_iter::iter::{IntoParallelIterator, ParallelIterator};
 use read_glob::read_glob;
 pub use read_glob::ReadGlobResult;
 use serde::{Deserialize, Serialize};

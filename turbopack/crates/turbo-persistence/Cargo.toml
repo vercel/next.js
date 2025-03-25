@@ -25,6 +25,7 @@ serde = { workspace = true }
 thread_local = { workspace = true }
 twox-hash = { version = "2.0.1", features = ["xxhash64"] }
 zstd = { version = "0.13.2", features = ["zdict_builder"] }
+par-iter = "1.0.0"
 
 [dev-dependencies]
 rand = { workspace = true, features = ["small_rng"] }

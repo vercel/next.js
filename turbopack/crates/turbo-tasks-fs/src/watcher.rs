@@ -13,7 +13,7 @@ use notify::{
     event::{MetadataKind, ModifyKind, RenameMode},
     Config, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
 };
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use par_iter::iter::{IntoParallelIterator, ParallelIterator};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;

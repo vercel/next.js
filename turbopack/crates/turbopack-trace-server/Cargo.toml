@@ -17,6 +17,7 @@ either = { workspace = true }
 flate2 = { version = "1.0.28" }
 indexmap = { workspace = true, features = ["serde"] }
 itertools = { workspace = true }
+par-iter = "1.0.0"
 postcard = { workspace = true }
 rayon = { workspace = true }
 rustc-demangle = "0.1"

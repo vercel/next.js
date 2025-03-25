@@ -11,11 +11,9 @@ use std::{
 use anyhow::{Context, Result};
 use byteorder::{WriteBytesExt, BE};
 use lzzzz::lz4::{self, ACC_LEVEL_DEFAULT};
+use par_iter::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use parking_lot::Mutex;
-use rayon::{
-    iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator},
-    scope, Scope,
-};
+use rayon::{scope, Scope};
 use thread_local::ThreadLocal;
 
 use crate::{

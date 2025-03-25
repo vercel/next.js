@@ -4,7 +4,7 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use par_iter::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
     bottom_up::build_bottom_up_graph,

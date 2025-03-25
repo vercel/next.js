@@ -15,8 +15,8 @@ use anyhow::{bail, Context, Result};
 use byteorder::{ReadBytesExt, WriteBytesExt, BE};
 use lzzzz::lz4::decompress;
 use memmap2::Mmap;
+use par_iter::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use parking_lot::{Mutex, RwLock};
-use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 use crate::{
     arc_slice::ArcSlice,

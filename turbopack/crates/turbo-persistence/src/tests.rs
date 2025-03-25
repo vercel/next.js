@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use anyhow::Result;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use par_iter::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::{db::TurboPersistence, write_batch::WriteBatch};
 

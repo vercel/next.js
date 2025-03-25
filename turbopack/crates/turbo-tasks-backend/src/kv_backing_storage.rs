@@ -6,7 +6,7 @@ use std::{
 };
 
 use anyhow::{anyhow, Context, Result};
-use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+use par_iter::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use rustc_hash::FxHashMap;
 use serde::{ser::SerializeSeq, Serialize};
 use tracing::Span;

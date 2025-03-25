@@ -5,7 +5,7 @@ use std::{
     vec,
 };
 
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use par_iter::iter::{IntoParallelRefIterator, ParallelIterator};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
