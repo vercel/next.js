@@ -1,57 +1,25 @@
 #!/usr/bin/env node
 
-const {
-  NEXT_DIR,
-  execAsyncWithOutput,
-  execFn,
-  exec,
-} = require('./pack-util.cjs')
-const fs = require('fs')
+const { NEXT_DIR, logCommand, execFn } = require('./pack-util.cjs')
+const fs = require('node:fs/promises')
 const path = require('path')
+const execa = require('execa')
 
-const targetDir = path.join(NEXT_DIR, 'target')
 const nextSwcDir = path.join(NEXT_DIR, 'packages/next-swc')
 
 module.exports = async function buildNative(buildNativeArgs) {
-  for (let i = 0; i < 2; i++) {
-    try {
-      await execAsyncWithOutput(
-        'Build native bindings',
-        ['pnpm', 'run', 'build-native', ...buildNativeArgs],
-        {
-          cwd: nextSwcDir,
-          shell: process.platform === 'win32' ? 'powershell.exe' : false,
-          env: {
-            CARGO_TERM_COLOR: 'always',
-            TTY: '1',
-            ...process.env,
-          },
-        }
-      )
-    } catch (e) {
-      if (
-        e.stderr
-          .toString()
-          .includes('the compiler unexpectedly panicked. this is a bug.')
-      ) {
-        fs.rmSync(path.join(targetDir, 'release/incremental'), {
-          recursive: true,
-          force: true,
-        })
-        fs.rmSync(path.join(targetDir, 'debug/incremental'), {
-          recursive: true,
-          force: true,
-        })
-        continue
-      }
-      delete e.stdout
-      delete e.stderr
-      throw e
-    }
-    break
-  }
+  const buildCommand = ['pnpm', 'run', 'build-native', ...buildNativeArgs]
+  logCommand('Build native bindings', buildCommand)
+  await execa(buildCommand[0], buildCommand.slice(1), {
+    cwd: nextSwcDir,
+    env: {
+      CARGO_TERM_COLOR: 'always',
+      TTY: '1',
+    },
+    stdio: 'inherit',
+  })
 
-  execFn(
+  await execFn(
     'Copy generated types to `next/src/build/swc/generated-native.d.ts`',
     () => writeTypes()
   )
@@ -61,7 +29,7 @@ if (require.main === module) {
   module.exports(process.argv.slice(2))
 }
 
-function writeTypes() {
+async function writeTypes() {
   const generatedTypesPath = path.join(
     NEXT_DIR,
     'packages/next-swc/native/index.d.ts'
@@ -72,21 +40,23 @@ function writeTypes() {
   )
   const generatedTypesMarker = '// GENERATED-TYPES-BELOW\n'
   const generatedNotice =
-    '// DO NOT MANUALLY EDIT THESE TYPES\n// You can regenerate this file by running `pnpm swc-build-native` in the root of the repo.\n\n'
+    '// DO NOT MANUALLY EDIT THESE TYPES\n' +
+    '// You can regenerate this file by running `pnpm swc-build-native` in the root of the repo.\n\n'
 
-  const generatedTypes = fs.readFileSync(generatedTypesPath, 'utf8')
-  let vendoredTypes = fs.readFileSync(vendoredTypesPath, 'utf8')
+  const generatedTypes = await fs.readFile(generatedTypesPath, 'utf8')
+  let vendoredTypes = await fs.readFile(vendoredTypesPath, 'utf8')
 
   vendoredTypes = vendoredTypes.split(generatedTypesMarker)[0]
   vendoredTypes =
     vendoredTypes + generatedTypesMarker + generatedNotice + generatedTypes
 
-  fs.writeFileSync(vendoredTypesPath, vendoredTypes)
+  await fs.writeFile(vendoredTypesPath, vendoredTypes)
 
-  exec('Prettify generated types', [
-    'pnpm',
-    'prettier',
-    '--write',
-    vendoredTypesPath,
-  ])
+  const prettifyCommand = ['prettier', '--write', vendoredTypesPath]
+  logCommand('Prettify generated types', prettifyCommand)
+  await execa(prettifyCommand[0], prettifyCommand.slice(1), {
+    cwd: NEXT_DIR,
+    stdio: 'inherit',
+    preferLocal: true,
+  })
 }

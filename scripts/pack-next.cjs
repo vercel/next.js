@@ -7,8 +7,7 @@ const {
   glob,
   packageFiles,
 } = require('./pack-util.cjs')
-const fs = require('node:fs')
-const fsPromises = require('node:fs/promises')
+const fs = require('node:fs/promises')
 const patchPackageJson = require('./pack-utils/patch-package-json.ts').default
 const yargs = require('yargs')
 const buildNative = require('./build-native.cjs')
@@ -50,13 +49,13 @@ async function main() {
   if (PACK_NEXT_COMPRESS !== 'strip') {
     // HACK: delete any pre-existing binaries to force napi-rs to rewrite it
     let binaries = await nextSwcBinaries()
-    await Promise.all(binaries.map((bin) => fsPromises.rm(bin)))
+    await Promise.all(binaries.map((bin) => fs.rm(bin)))
   }
 
   await buildNative(cliOptions._)
 
   if (cliOptions.tar) {
-    fs.mkdirSync(TARBALLS, { recursive: true })
+    await fs.mkdir(TARBALLS, { recursive: true })
 
     // build all tarfiles in parallel
     await Promise.all([
