@@ -2956,7 +2956,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.4.9",
+ "socket2 0.5.8",
  "tokio",
  "tower-service",
  "tracing",
@@ -4833,9 +4833,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.19.0"
+version = "1.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
+checksum = "d75b0bedcc4fe52caa0e03d9f1151a323e4aa5e2d78ba3580400cd3c9e2bc4bc"
 
 [[package]]
 name = "oorandom"
@@ -4947,6 +4947,25 @@ dependencies = [
  "bytecount",
  "fnv",
  "unicode-width",
+]
+
+[[package]]
+name = "par-core"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "664ad734db961818c8d817a239053f9e6b9ad4487f6f236181c75d91573d8515"
+dependencies = [
+ "once_cell",
+]
+
+[[package]]
+name = "par-iter"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "475a015a1cd1720f1a371c089c06dd50bbfbedf2e721ca23d180c18794180360"
+dependencies = [
+ "either",
+ "par-core",
 ]
 
 [[package]]
@@ -9124,6 +9143,7 @@ dependencies = [
  "byteorder",
  "lzzzz",
  "memmap2 0.9.5",
+ "par-iter",
  "parking_lot",
  "pot",
  "qfilter",
@@ -9231,6 +9251,7 @@ dependencies = [
  "indexmap 2.7.1",
  "lmdb-rkv",
  "once_cell",
+ "par-iter",
  "parking_lot",
  "pot",
  "rand",
@@ -9333,6 +9354,7 @@ dependencies = [
  "jsonc-parser 0.21.0",
  "mime",
  "notify",
+ "par-iter",
  "parking_lot",
  "rayon",
  "rstest",
@@ -10054,6 +10076,7 @@ dependencies = [
  "flate2",
  "indexmap 2.7.1",
  "itertools 0.10.5",
+ "par-iter",
  "postcard",
  "rayon",
  "rustc-demangle",
