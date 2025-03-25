@@ -40,9 +40,6 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     experimentalUploadTrace,
   } = options
 
-  const useTurbopack =
-    options.experimentalTurbo || options.turbo || options.turbopack
-
   let traceUploadUrl: string | undefined
   if (experimentalUploadTrace && !process.env.NEXT_TRACE_UPLOAD_DISABLED) {
     traceUploadUrl = experimentalUploadTrace
@@ -75,7 +72,7 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  if (useTurbopack) {
+  if (options.turbo || options.turbopack) {
     process.env.TURBOPACK = '1'
   }
 

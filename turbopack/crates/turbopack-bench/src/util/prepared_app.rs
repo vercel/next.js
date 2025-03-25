@@ -2,6 +2,7 @@ use std::{
     future::Future,
     path::{Path, PathBuf},
     process::Child,
+    sync::Arc,
 };
 
 use anyhow::{anyhow, Context, Result};
@@ -13,40 +14,59 @@ use chromiumoxide::{
     Browser, Page,
 };
 use futures::{FutureExt, StreamExt};
-use tokio::task::spawn_blocking;
+use tokio::{sync::Semaphore, task::spawn_blocking};
 use url::Url;
 
 use crate::{bundlers::Bundler, util::PageGuard, BINDING_NAME};
 
-// HACK: Needed so that `copy_dir`'s `Future` can be inferred as `Send`:
-// https://github.com/rust-lang/rust/issues/123072
-fn copy_dir_send(from: PathBuf, to: PathBuf) -> impl Future<Output = anyhow::Result<()>> + Send {
-    copy_dir(from, to)
+async fn copy_dir(from: PathBuf, to: PathBuf) -> anyhow::Result<()> {
+    copy_dir_inner(from, to, Arc::new(Semaphore::new(64))).await
 }
 
-async fn copy_dir(from: PathBuf, to: PathBuf) -> anyhow::Result<()> {
-    let dir = spawn_blocking(|| std::fs::read_dir(from)).await??;
-    let mut jobs = Vec::new();
-    let mut file_futures = Vec::new();
-    for entry in dir {
-        let entry = entry?;
-        let ty = entry.file_type()?;
-        let to = to.join(entry.file_name());
-        if ty.is_dir() {
-            jobs.push(tokio::spawn(async move {
-                tokio::fs::create_dir(&to).await?;
-                copy_dir_send(entry.path(), to).await
-            }));
-        } else if ty.is_file() {
-            file_futures.push(async move {
-                tokio::fs::copy(entry.path(), to).await?;
-                Ok::<_, anyhow::Error>(())
-            });
-        }
-    }
+// HACK: Needed so that `copy_dir`'s `Future` can be inferred as `Send`:
+// https://github.com/rust-lang/rust/issues/123072
+fn copy_dir_inner_send(
+    from: PathBuf,
+    to: PathBuf,
+    semaphore: Arc<Semaphore>,
+) -> impl Future<Output = anyhow::Result<()>> + Send {
+    copy_dir_inner(from, to, semaphore)
+}
 
-    for future in file_futures {
-        jobs.push(tokio::spawn(future));
+async fn copy_dir_inner(
+    from: PathBuf,
+    to: PathBuf,
+    semaphore: Arc<Semaphore>,
+) -> anyhow::Result<()> {
+    let mut jobs = Vec::new();
+    {
+        let _permit = semaphore
+            .acquire()
+            .await
+            .expect("semaphore is never closed");
+        let mut dir = spawn_blocking(|| std::fs::read_dir(from)).await??;
+        for entry in &mut dir {
+            let entry = entry?;
+            let ty = entry.file_type()?;
+            let to = to.join(entry.file_name());
+            if ty.is_dir() {
+                let semaphore = semaphore.clone();
+                jobs.push(tokio::spawn(async move {
+                    tokio::fs::create_dir(&to).await?;
+                    copy_dir_inner_send(entry.path(), to, semaphore).await
+                }));
+            } else if ty.is_file() {
+                let semaphore = semaphore.clone();
+                jobs.push(tokio::spawn(async move {
+                    let _permit = semaphore
+                        .acquire()
+                        .await
+                        .expect("semaphore is never closed");
+                    tokio::fs::copy(entry.path(), to).await?;
+                    Ok::<_, anyhow::Error>(())
+                }));
+            }
+        }
     }
 
     for job in jobs {
