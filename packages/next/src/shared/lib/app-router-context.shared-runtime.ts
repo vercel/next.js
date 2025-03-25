@@ -4,7 +4,6 @@ import type { FetchServerResponseResult } from '../../client/components/router-r
 import type {
   FocusAndScrollRef,
   PrefetchKind,
-  RouterChangeByServerResponse,
 } from '../../client/components/router-reducer/router-reducer-types'
 import type {
   FlightRouterState,
@@ -23,8 +22,8 @@ export type LoadingModuleData =
   | [React.JSX.Element, React.ReactNode, React.ReactNode]
   | null
 
-/** metadata cache nodes: [viewport, metadata] */
-export type HeadData = [React.ReactNode, React.ReactNode]
+/** viewport metadata node */
+export type HeadData = React.ReactNode
 
 export type LazyCacheNode = {
   /**
@@ -162,7 +161,6 @@ export const LayoutRouterContext = React.createContext<{
 
 export const GlobalLayoutRouterContext = React.createContext<{
   tree: FlightRouterState
-  changeByServerResponse: RouterChangeByServerResponse
   focusAndScrollRef: FocusAndScrollRef
   nextUrl: string | null
 }>(null as any)

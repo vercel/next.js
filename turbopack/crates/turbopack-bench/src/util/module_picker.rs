@@ -1,6 +1,7 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
 use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
+use rustc_hash::FxHashMap;
 
 /// Picks modules at random, but with a fixed seed so runs are somewhat
 /// reproducible.
@@ -9,7 +10,7 @@ use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
 /// the same sequence in different samples.
 pub struct ModulePicker {
     depths: Vec<usize>,
-    modules_by_depth: HashMap<usize, Vec<PathBuf>>,
+    modules_by_depth: FxHashMap<usize, Vec<PathBuf>>,
     rng: parking_lot::Mutex<StdRng>,
 }
 
@@ -21,7 +22,7 @@ impl ModulePicker {
         // Ensure the module order is deterministic.
         modules.sort();
 
-        let mut modules_by_depth: HashMap<_, Vec<_>> = HashMap::new();
+        let mut modules_by_depth: FxHashMap<_, Vec<_>> = FxHashMap::default();
         for (module, depth) in modules {
             modules_by_depth.entry(depth).or_default().push(module);
         }

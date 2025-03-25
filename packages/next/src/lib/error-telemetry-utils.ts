@@ -22,6 +22,21 @@ export const createDigestWithErrorCode = (
   return originalDigest
 }
 
+/**
+ * Copies the error code from one error to another by setting the __NEXT_ERROR_CODE property.
+ * This allows error codes to be preserved when wrapping or transforming errors.
+ */
+export const copyNextErrorCode = (source: unknown, target: unknown): void => {
+  const errorCode = extractNextErrorCode(source)
+  if (errorCode && typeof target === 'object' && target !== null) {
+    Object.defineProperty(target, '__NEXT_ERROR_CODE', {
+      value: errorCode,
+      enumerable: false,
+      configurable: true,
+    })
+  }
+}
+
 export const extractNextErrorCode = (error: unknown): string | undefined => {
   if (
     typeof error === 'object' &&

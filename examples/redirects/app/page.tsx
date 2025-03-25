@@ -11,7 +11,7 @@ export default function Home() {
         <p>
           The links below are custom
           <Link
-            href="https://nextjs.org/docs/api-reference/next.config.js/redirects"
+            href="https://nextjs.org/docs/app/api-reference/config/next-config-js/redirects"
             legacyBehavior
           >
             <>

@@ -15,9 +15,10 @@ import type {
   FlightRouterState,
   NavigationFlightResponse,
 } from '../../../server/app-render/types'
+
+import type { NEXT_ROUTER_SEGMENT_PREFETCH_HEADER } from '../app-router-headers'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
-  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_URL,
@@ -30,12 +31,12 @@ import {
 import { callServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
 import { PrefetchKind } from './router-reducer-types'
-import { hexHash } from '../../../shared/lib/hash'
 import {
   normalizeFlightData,
   type NormalizedFlightData,
 } from '../../flight-data-helpers'
 import { getAppBuildId } from '../../app-build-id'
+import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
 
 export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
@@ -159,6 +160,20 @@ export async function fetchServerResponse(
         : 'low'
       : 'auto'
 
+    if (process.env.NODE_ENV === 'production') {
+      if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
+        // In "output: export" mode, we can't rely on headers to distinguish
+        // between HTML and RSC requests. Instead, we append an extra prefix
+        // to the request.
+        url = new URL(url)
+        if (url.pathname.endsWith('/')) {
+          url.pathname += 'index.txt'
+        } else {
+          url.pathname += '.txt'
+        }
+      }
+    }
+
     const res = await createFetch(
       url,
       headers,
@@ -254,31 +269,10 @@ export function createFetch(
 ) {
   const fetchUrl = new URL(url)
 
-  if (process.env.NODE_ENV === 'production') {
-    if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
-      if (fetchUrl.pathname.endsWith('/')) {
-        fetchUrl.pathname += 'index.txt'
-      } else {
-        fetchUrl.pathname += '.txt'
-      }
-    }
-  }
-
-  // This is used to cache bust CDNs that don't support custom headers. The
-  // result is stored in a search param.
-  // TODO: Given that we have to use a search param anyway, we might as well
-  // _only_ use a search param and not bother with the custom headers.
-  // Add unique cache query to avoid caching conflicts on CDN which don't respect the Vary header
-  const uniqueCacheQuery = hexHash(
-    [
-      headers[NEXT_ROUTER_PREFETCH_HEADER] || '0',
-      headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] || '0',
-      headers[NEXT_ROUTER_STATE_TREE_HEADER],
-      headers[NEXT_URL],
-    ].join(',')
-  )
-
-  fetchUrl.searchParams.set(NEXT_RSC_UNION_QUERY, uniqueCacheQuery)
+  // TODO: In output: "export" mode, the headers do nothing. Omit them (and the
+  // cache busting search param) from the request so they're
+  // maximally cacheable.
+  setCacheBustingSearchParam(fetchUrl, headers)
 
   if (process.env.__NEXT_TEST_MODE && fetchPriority !== null) {
     headers['Next-Test-Fetch-Priority'] = fetchPriority

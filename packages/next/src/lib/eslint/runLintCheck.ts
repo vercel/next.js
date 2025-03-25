@@ -360,12 +360,11 @@ export async function runLintCheck(
           'eslint.config.js',
           'eslint.config.mjs',
           'eslint.config.cjs',
-          // TODO(jiwon): Support when it's stable.
-          // TS extensions are experimental and requires to install another package `jiti`.
+          // TS extensions require to install a separate package `jiti`.
           // https://eslint.org/docs/latest/use/configure/configuration-files#typescript-configuration-files
-          // 'eslint.config.ts',
-          // 'eslint.config.mts',
-          // 'eslint.config.cts',
+          'eslint.config.ts',
+          'eslint.config.mts',
+          'eslint.config.cts',
           // eslint <= v8
           '.eslintrc.js',
           '.eslintrc.cjs',

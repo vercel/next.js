@@ -71,8 +71,8 @@ impl ValueToString for Collectible {
     }
 }
 
-#[turbo_tasks::function]
-async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
+#[turbo_tasks::function(operation)]
+async fn inner_compute(input: ResolvedVc<ChangingInput>) -> Result<Vc<u32>> {
     println!("start inner_compute");
     let value = *input.await?.state.get();
     tokio::time::sleep(Duration::from_millis(200)).await;
@@ -90,10 +90,10 @@ async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
 }
 
 #[turbo_tasks::function]
-async fn compute(input: Vc<ChangingInput>) -> Result<Vc<Output>> {
+async fn compute(input: ResolvedVc<ChangingInput>) -> Result<Vc<Output>> {
     println!("start compute");
     let operation = inner_compute(input);
-    let value = *operation.await?;
+    let value = *operation.connect().await?;
     let collectibles = operation.peek_collectibles::<Box<dyn ValueToString>>();
     if collectibles.len() > 1 {
         bail!("expected 0..1 collectible, found {}", collectibles.len());

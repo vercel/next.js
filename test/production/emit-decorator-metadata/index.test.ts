@@ -1,6 +1,6 @@
 import { join } from 'path'
 import webdriver, { BrowserInterface } from 'next-webdriver'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
@@ -9,12 +9,8 @@ describe('emitDecoratorMetadata SWC option', () => {
 
   beforeAll(async () => {
     next = await createNext({
-      files: {
-        'jsconfig.json': new FileRef(join(__dirname, 'app/jsconfig.json')),
-        pages: new FileRef(join(__dirname, 'app/pages')),
-      },
+      files: join(__dirname, 'app'),
       dependencies: {
-        'next-api-decorators': '2.0.0',
         'reflect-metadata': '0.1.13',
         'path-to-regexp': '6.2.0',
         tsyringe: '4.6.0',
@@ -41,6 +37,6 @@ describe('emitDecoratorMetadata SWC option', () => {
   it('should compile with emitDecoratorMetadata enabled for API', async () => {
     const res = await fetchViaHTTP(next.url, '/api/something')
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ myParam: 'something' })
+    expect(await res.json()).toEqual({ message: 'Hello, world!' })
   })
 })

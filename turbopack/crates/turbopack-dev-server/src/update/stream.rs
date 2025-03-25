@@ -1,4 +1,4 @@
-use std::pin::Pin;
+use std::{ops::Deref, pin::Pin};
 
 use anyhow::Result;
 use futures::prelude::*;
@@ -6,7 +6,9 @@ use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{IntoTraitRef, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc};
+use turbo_tasks::{
+    IntoTraitRef, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc,
+};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     error::PrettyPrintError,
@@ -23,7 +25,50 @@ use turbopack_core::{
 
 use crate::source::{resolve::ResolveSourceRequestResult, ProxyResult};
 
-type GetContentFn = Box<dyn Fn() -> OperationVc<ResolveSourceRequestResult> + Send + Sync>;
+/// A wrapper type returning
+/// [`OperationVc<ResolveSourceRequestResult>`][ResolveSourceRequestResult] that implements
+/// [`NonLocalValue`].
+pub struct GetContentFn(Box<dyn Fn() -> OperationVc<ResolveSourceRequestResult> + Send + Sync>);
+
+impl GetContentFn {
+    /// Wrap a function in `GetContentFn`.
+    ///
+    /// # Safety
+    ///
+    /// The closure must not include any types that aren't `NonLocalValue`, or that couldn't
+    /// otherwise safely implement `NonLocalValue`.
+    ///
+    /// In the future, `auto_traits` may be be able to implement `NonLocalValue` for us, and avoid
+    /// this wrapper type and unsafe constructor.
+    pub unsafe fn new(
+        func: impl Fn() -> OperationVc<ResolveSourceRequestResult> + Send + Sync + 'static,
+    ) -> Self {
+        Self::new_boxed(Box::new(func))
+    }
+
+    /// Wrap a boxed function in `GetContentFn`. This specialized version of [`GetContentFn::new`]
+    /// avoids double-boxing if you already have a boxed function.
+    ///
+    /// # Safety
+    ///
+    /// Same as [`GetContentFn::new`].
+    pub unsafe fn new_boxed(
+        func: Box<dyn Fn() -> OperationVc<ResolveSourceRequestResult> + Send + Sync>,
+    ) -> Self {
+        Self(func)
+    }
+}
+
+// Safety: It's up to the caller of `GetContentFn::new` to ensure this.
+unsafe impl NonLocalValue for GetContentFn {}
+
+impl Deref for GetContentFn {
+    type Target = Box<dyn Fn() -> OperationVc<ResolveSourceRequestResult> + Send + Sync>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 async fn peek_issues<T: Send>(source: OperationVc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
     let captured = source.peek_issues_with_path().await?;
@@ -49,15 +94,14 @@ fn versioned_content_update_operation(
     content.update(*from)
 }
 
-#[turbo_tasks::function]
-async fn get_update_stream_item(
+#[turbo_tasks::function(operation)]
+async fn get_update_stream_item_operation(
     resource: RcStr,
-    from: Vc<VersionState>,
+    from: ResolvedVc<VersionState>,
     get_content: TransientInstance<GetContentFn>,
 ) -> Result<Vc<UpdateStreamItem>> {
     let content_op = get_content();
-    let content_vc = content_op.connect();
-    let content_result = content_vc.strongly_consistent().await;
+    let content_result = content_op.read_strongly_consistent().await;
     let mut plain_issues = peek_issues(content_op).await?;
 
     let content_value = match content_result {
@@ -170,12 +214,12 @@ async fn get_update_stream_item(
 #[turbo_tasks::function]
 async fn compute_update_stream(
     resource: RcStr,
-    from: Vc<VersionState>,
+    from: ResolvedVc<VersionState>,
     get_content: TransientInstance<GetContentFn>,
     sender: TransientInstance<Sender<Result<ReadRef<UpdateStreamItem>>>>,
 ) -> Vc<()> {
-    let item = get_update_stream_item(resource, from, get_content)
-        .strongly_consistent()
+    let item = get_update_stream_item_operation(resource, from, get_content)
+        .read_strongly_consistent()
         .await;
 
     // Send update. Ignore channel closed error.

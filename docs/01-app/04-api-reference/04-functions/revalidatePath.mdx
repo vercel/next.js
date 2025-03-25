@@ -7,7 +7,6 @@ description: API Reference for the revalidatePath function.
 
 > **Good to know**:
 >
-> - `revalidatePath` is available in both [Node.js and Edge runtimes](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes).
 > - `revalidatePath` only invalidates the cache when the included path is next visited. This means calling `revalidatePath` with a dynamic route segment will not immediately trigger many revalidations at once. The invalidation only happens when the path is next visited.
 > - Currently, `revalidatePath` invalidates all the routes in the [client-side Router Cache](/docs/app/building-your-application/caching#client-side-router-cache) when used in a server action. This behavior is temporary and will be updated in the future to apply only to the specific path.
 > - Using `revalidatePath` invalidates **only the specific path** in the [server-side Route Cache](/docs/app/building-your-application/caching#full-route-cache).

@@ -171,6 +171,12 @@ const expectedManifestRoutes = () => [
   },
   {
     dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/rewrite-target\\.json$`
+    ),
+    page: '/rewrite-target',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/slow\\.json$`
     ),
     page: '/slow',
@@ -541,6 +547,13 @@ const runTests = (isDev = false, isDeploy = false) => {
     expect(JSON.parse($('#app-query').text())).toEqual({})
     expect($('#resolved-url').text()).toBe('/something')
     expect($('#as-path').text()).toBe('/something')
+  })
+
+  it('should not include rewrite query params in `asPath` and `req.url`', async () => {
+    const $ = await next.render$('/rewrite-source/foo')
+    expect($('h1').text()).toBe('rewrite-target')
+    expect($('#as-path').text()).toBe('/rewrite-source/foo')
+    expect($('#req-url').text()).toBe('/rewrite-source/foo')
   })
 
   it('should return data correctly', async () => {

@@ -2,7 +2,7 @@
 name = "turbo-tasks-backend"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
+license = "MIT"
 edition = "2021"
 autobenches = false
 
@@ -17,6 +17,8 @@ default = []
 verify_serialization = []
 trace_aggregation_update = []
 trace_find_and_schedule = []
+trace_task_completion = []
+trace_task_dirty = []
 lmdb = ["dep:lmdb-rkv"]
 
 [dependencies]
@@ -53,6 +55,8 @@ turbo-tasks-testing = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
+regex = { workspace = true }
+serde_json = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

@@ -5,10 +5,7 @@ import type {
   PreloadCallbacks,
   Segment,
 } from './types'
-import {
-  canSegmentBeOverridden,
-  matchSegment,
-} from '../../client/components/match-segments'
+import { matchSegment } from '../../client/components/match-segments'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import { getPreloadableFonts } from './get-preloadable-fonts'
@@ -21,6 +18,7 @@ import {
 } from '../../shared/lib/segment'
 import { createComponentTree } from './create-component-tree'
 import type { HeadData } from '../../shared/lib/app-router-context.shared-runtime'
+import { getSegmentParam } from './get-segment-param'
 
 /**
  * Use router state to decide at what common layout to render the page.
@@ -40,6 +38,7 @@ export async function walkTreeWithFlightRouterState({
   getMetadataReady,
   ctx,
   preloadCallbacks,
+  StreamingMetadataOutlet,
 }: {
   loaderTreeToFilter: LoaderTree
   parentParams: { [key: string]: string | string[] }
@@ -54,6 +53,7 @@ export async function walkTreeWithFlightRouterState({
   getViewportReady: () => Promise<void>
   ctx: AppRenderContext
   preloadCallbacks: PreloadCallbacks
+  StreamingMetadataOutlet: React.ComponentType
 }): Promise<FlightDataPath[]> {
   const {
     renderOpts: { nextFontManifest, experimental },
@@ -202,6 +202,8 @@ export async function walkTreeWithFlightRouterState({
         getMetadataReady,
         preloadCallbacks,
         authInterrupts: experimental.authInterrupts,
+        StreamingMetadata: null,
+        StreamingMetadataOutlet,
       }
     )
 
@@ -261,6 +263,7 @@ export async function walkTreeWithFlightRouterState({
       getViewportReady,
       getMetadataReady,
       preloadCallbacks,
+      StreamingMetadataOutlet,
     })
 
     for (const subPath of subPaths) {
@@ -280,4 +283,19 @@ export async function walkTreeWithFlightRouterState({
   }
 
   return paths
+}
+
+/*
+ * This function is used to determine if an existing segment can be overridden
+ * by the incoming segment.
+ */
+const canSegmentBeOverridden = (
+  existingSegment: Segment,
+  segment: Segment
+): boolean => {
+  if (Array.isArray(existingSegment) || !Array.isArray(segment)) {
+    return false
+  }
+
+  return getSegmentParam(existingSegment)?.param === segment[0]
 }

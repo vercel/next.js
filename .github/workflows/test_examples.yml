@@ -39,7 +39,10 @@ jobs:
         with:
           node-version: 18
           check-latest: true
-      - run: corepack enable
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
 
       - run: pnpm install
       - run: pnpm build

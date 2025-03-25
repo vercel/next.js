@@ -25,7 +25,7 @@ import type { Mutable, ReadonlyReducerState } from './router-reducer-types'
  */
 export function handleAliasedPrefetchEntry(
   state: ReadonlyReducerState,
-  flightData: NormalizedFlightData[],
+  flightData: string | NormalizedFlightData[],
   url: URL,
   mutable: Mutable
 ) {
@@ -33,6 +33,10 @@ export function handleAliasedPrefetchEntry(
   let currentCache = state.cache
   const href = createHrefFromUrl(url)
   let applied
+
+  if (typeof flightData === 'string') {
+    return false
+  }
 
   for (const normalizedFlightData of flightData) {
     // If the segment doesn't have a loading component, we don't need to do anything.
@@ -172,7 +176,7 @@ function fillNewTreeWithOnlyLoadingSegments(
         // copy the layout but null the page segment as that's not meant to be used
         rsc: segmentForParallelRoute.includes(PAGE_SEGMENT_KEY) ? null : rsc,
         prefetchRsc: null,
-        head: [null, null],
+        head: null,
         prefetchHead: null,
         parallelRoutes: new Map(),
         loading,
@@ -184,7 +188,7 @@ function fillNewTreeWithOnlyLoadingSegments(
         lazyData: null,
         rsc: null,
         prefetchRsc: null,
-        head: [null, null],
+        head: null,
         prefetchHead: null,
         parallelRoutes: new Map(),
         loading: null,

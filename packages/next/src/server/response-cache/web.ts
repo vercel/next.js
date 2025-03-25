@@ -98,7 +98,7 @@ export default class WebResponseCache {
           resolve(resolveValue)
         }
 
-        if (key && cacheEntry && typeof cacheEntry.revalidate !== 'undefined') {
+        if (key && cacheEntry && cacheEntry.cacheControl) {
           this.previousCacheItem = {
             key: pendingResponseKey || key,
             entry: cacheEntry,

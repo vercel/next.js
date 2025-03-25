@@ -34,20 +34,15 @@ DEALINGS IN THE SOFTWARE.
 #[macro_use]
 extern crate napi_derive;
 
-use std::{
-    env,
-    panic::set_hook,
-    sync::{Arc, Once},
-};
+use std::sync::{Arc, Once};
 
-use backtrace::Backtrace;
-use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
+    atoms::Atom,
     base::{Compiler, TransformOutput},
     common::{FilePathMapping, SourceMap},
 };
-
 #[cfg(not(target_arch = "wasm32"))]
 pub mod css;
 pub mod mdx;
@@ -62,9 +57,6 @@ pub mod turbo_trace_server;
 pub mod turbopack;
 pub mod util;
 
-// Declare build-time information variables generated in build.rs
-shadow_rs::shadow!(build);
-
 #[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
 #[global_allocator]
 static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
@@ -77,26 +69,32 @@ static ALLOC: dhat::Alloc = dhat::Alloc;
 #[napi::module_init]
 
 fn init() {
-    set_hook(Box::new(|panic_info| {
-        util::log_internal_error_and_inform(&format!(
-            "Panic: {}\nBacktrace: {:?}",
-            panic_info,
-            Backtrace::new()
-        ));
-    }));
+    use tokio::runtime::Builder;
+    use turbo_tasks_malloc::TurboMalloc;
+
+    let rt = Builder::new_multi_thread()
+        .enable_all()
+        .on_thread_stop(|| {
+            TurboMalloc::thread_stop();
+        })
+        .disable_lifo_slot()
+        .build()
+        .unwrap();
+    create_custom_tokio_runtime(rt);
 }
 
 #[inline]
-fn get_compiler() -> Arc<Compiler> {
+fn get_compiler() -> Compiler {
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
 
-    Arc::new(Compiler::new(cm))
+    Compiler::new(cm)
 }
 
 pub fn complete_output(
     env: &Env,
     output: TransformOutput,
-    eliminated_packages: FxHashSet<String>,
+    eliminated_packages: FxHashSet<Atom>,
+    use_cache_telemetry_tracker: FxHashMap<String, usize>,
 ) -> napi::Result<Object> {
     let mut js_output = env.create_object()?;
     js_output.set_named_property("code", env.create_string_from_std(output.code)?)?;
@@ -109,10 +107,20 @@ pub fn complete_output(
             env.create_string_from_std(serde_json::to_string(&eliminated_packages)?)?,
         )?;
     }
+    if !use_cache_telemetry_tracker.is_empty() {
+        js_output.set_named_property(
+            "useCacheTelemetryTracker",
+            env.create_string_from_std(serde_json::to_string(
+                &use_cache_telemetry_tracker
+                    .iter()
+                    .map(|(k, v)| (k.clone(), *v))
+                    .collect::<Vec<_>>(),
+            )?)?,
+        )?;
+    }
+
     Ok(js_output)
 }
-
-pub type ArcCompiler = Arc<Compiler>;
 
 static REGISTER_ONCE: Once = Once::new();
 

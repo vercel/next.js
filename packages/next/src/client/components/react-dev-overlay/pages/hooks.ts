@@ -1,26 +1,21 @@
-import type { ErrorType } from './OldReactDevOverlay'
 import React from 'react'
 import * as Bus from './bus'
 import { useErrorOverlayReducer } from '../shared'
+import { Router } from '../../../router'
 
-const shouldPreventDisplay = (
-  errorType?: ErrorType | null,
-  preventType?: ErrorType[] | null
-) => {
-  if (!preventType || !errorType) {
-    return false
-  }
-  return preventType.includes(errorType)
-}
-
-export const usePagesReactDevOverlay = (
-  preventDisplay: ErrorType[] | undefined
-) => {
-  const [state, dispatch] = useErrorOverlayReducer()
+export const usePagesDevOverlay = () => {
+  const [state, dispatch] = useErrorOverlayReducer('pages')
 
   React.useEffect(() => {
     Bus.on(dispatch)
+
+    const { handleStaticIndicator } =
+      require('./hot-reloader-client') as typeof import('./hot-reloader-client')
+
+    Router.events.on('routeChangeComplete', handleStaticIndicator)
+
     return function () {
+      Router.events.off('routeChangeComplete', handleStaticIndicator)
       Bus.off(dispatch)
     }
   }, [dispatch])
@@ -32,21 +27,7 @@ export const usePagesReactDevOverlay = (
     []
   )
 
-  const hasBuildError = state.buildError != null
-  const hasRuntimeErrors = Boolean(state.errors.length)
-  const errorType = hasBuildError
-    ? 'build'
-    : hasRuntimeErrors
-      ? 'runtime'
-      : null
-  const isMounted = errorType !== null
-
-  const displayPrevented = shouldPreventDisplay(errorType, preventDisplay)
   return {
-    isMounted,
-    displayPrevented,
-    hasBuildError,
-    hasRuntimeErrors,
     state,
     onComponentError,
   }

@@ -748,7 +748,7 @@ export async function generateStaticParams() {
 }
 
 async function getPost(params) {
-  const res = await fetch(`https://.../posts/${params.id}`)
+  const res = await fetch(`https://.../posts/${(await params).id}`)
   const post = await res.json()
 
   return post
@@ -878,6 +878,10 @@ export async function GET(request) {}
 
 > **Good to know**: If you previously used API routes to call an external API from the client, you can now use [Server Components](/docs/app/building-your-application/rendering/server-components) instead to securely fetch data. Learn more about [data fetching](/docs/app/building-your-application/data-fetching/fetching).
 
+#### Single-Page Applications
+
+If you are also migrating to Next.js from a Single-Page Application (SPA) at the same time, see our [documentation](/docs/app/building-your-application/upgrading/single-page-applications) to learn more.
+
 ### Step 7: Styling
 
 In the `pages` directory, global stylesheets are restricted to only `pages/_app.js`. With the `app` directory, this restriction has been lifted. Global styles can be added to any layout, page, or component.
@@ -918,6 +922,12 @@ export default function RootLayout({ children }) {
 ```
 
 Learn more about [styling with Tailwind CSS](/docs/app/building-your-application/styling/tailwind-css)
+
+## Using App Router together with Pages Router
+
+When navigating between routes served by the different Next.js routers, there will be a hard navigation. Automatic link prefetching with `next/link` will not prefetch across routers.
+
+Instead, you can [optimize navigations](https://vercel.com/guides/optimizing-hard-navigations) between App Router and Pages Router to retain the prefetched and fast page transitions. [Learn more](https://vercel.com/guides/optimizing-hard-navigations).
 
 ## Codemods
 

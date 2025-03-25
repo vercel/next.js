@@ -1,3 +1,4 @@
+import path = require('path')
 import { defineRule } from '../utils/define-rule'
 
 const url = 'https://nextjs.org/docs/messages/no-img-element'
@@ -15,6 +16,14 @@ export = defineRule({
     schema: [],
   },
   create(context) {
+    // Get relative path of the file
+    const relativePath = context.filename
+      .replace(path.sep, '/')
+      .replace(context.cwd, '')
+      .replace(/^\//, '')
+
+    const isAppDir = /^(src\/)?app\//.test(relativePath)
+
     return {
       JSXOpeningElement(node) {
         if (node.name.name !== 'img') {
@@ -28,6 +37,14 @@ export = defineRule({
         if (node.parent?.parent?.openingElement?.name?.name === 'picture') {
           return
         }
+
+        // If is metadata route files, ignore
+        // e.g. opengraph-image.js, twitter-image.js, icon.js
+        if (
+          isAppDir &&
+          /\/opengraph-image|twitter-image|icon\.\w+$/.test(relativePath)
+        )
+          return
 
         context.report({
           node,

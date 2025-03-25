@@ -133,11 +133,18 @@ impl AppPageLoaderTreeBuilder {
             return Ok(());
         };
 
-        let manifest_route = &format!("/{}", get_metadata_route_name(manifest).await?);
+        let metadata_manifest_route = get_metadata_route_name(manifest).await?;
+        // prefix with base_path if it exists
+        let manifest_route = if let Some(base_path) = &self.base_path {
+            format!("{}/{}", base_path, metadata_manifest_route)
+        } else {
+            metadata_manifest_route.to_string()
+        };
+
         writeln!(
             self.loader_tree_code,
             "    manifest: {},",
-            StringifyJs(manifest_route)
+            StringifyJs(&manifest_route)
         )?;
 
         Ok(())
@@ -250,7 +257,7 @@ impl AppPageLoaderTreeBuilder {
         let metadata_route = &*get_metadata_route_name((*item).into()).await?;
         writeln!(
             self.loader_tree_code,
-            "{s}  url: fillMetadataSegment({}, props.params, {}) + \
+            "{s}  url: fillMetadataSegment({}, await props.params, {}) + \
              `?${{{identifier}.src.split(\"/\").splice(-1)[0]}}`,",
             StringifyJs(&pathname_prefix),
             StringifyJs(metadata_route),

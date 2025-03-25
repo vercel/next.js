@@ -49,7 +49,8 @@ async function fetchTeam(id) {
 }
 
 export default async function Profile({ params }) {
-  const team = await fetchTeam(params.id)
+  const { id } = await params
+  const team = await fetchTeam(id)
   if (!team) {
     permanentRedirect('/login')
   }

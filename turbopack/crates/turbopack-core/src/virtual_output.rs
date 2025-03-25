@@ -3,7 +3,6 @@ use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     asset::{Asset, AssetContent},
-    ident::AssetIdent,
     output::{OutputAsset, OutputAssets},
 };
 
@@ -46,8 +45,8 @@ impl VirtualOutputAsset {
 #[turbo_tasks::value_impl]
 impl OutputAsset for VirtualOutputAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(*self.path)
+    fn path(&self) -> Vc<FileSystemPath> {
+        *self.path
     }
 
     #[turbo_tasks::function]

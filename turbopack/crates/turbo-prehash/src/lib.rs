@@ -10,9 +10,10 @@
 //! # Example
 //!
 //! ```
-//! use turbo_prehash::{BuildHasherExt, PreHashed};
-//! use std::collections::HashMap;
 //! use std::hash::{BuildHasherDefault, RandomState, Hash};
+//!
+//! use rustc_hash::FxHashMap;
+//! use turbo_prehash::{BuildHasherExt, PreHashed};
 //!
 //! /// hash a key, returning a prehashed value
 //! fn hash_key<T: Hash>(key: T) -> PreHashed<T> {
@@ -20,7 +21,7 @@
 //! }
 //!
 //! // create hashmap to hold pre-hashed values
-//! let mut map: HashMap<PreHashed<String>, String> = Default::default();
+//! let mut map: FxHashMap<PreHashed<String>, String> = FxHashMap::default();
 //!
 //! // insert a prehashed value
 //! let hashed_key = hash_key("hello".to_string());

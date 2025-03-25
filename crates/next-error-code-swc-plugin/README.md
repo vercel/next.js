@@ -4,7 +4,7 @@
 
 This plugin transforms Next.js source code by:
 
-- Rewriting `new Error` or `Error` to include an additional property: `Object.defineProperty(new Error(...), "__NEXT_ERROR_CODE", { value: $code, enumerable: false })`. The `enumerable: false` ensures the error code won't show up in console logs while still being accessible for telemetry.
+- Rewriting `new Error` or `Error` to include an additional property: `Object.defineProperty(new Error(...), "__NEXT_ERROR_CODE", { value: $code, enumerable: false, configurable: true })`. The `enumerable: false` ensures the error code won't show up in console logs while still being accessible for telemetry. The `configurable: true` ensures the error code can be overwritten, useful for transforming errors.
 - This enables anonymous error code reporting for user feedback while keeping the message private.
 
 ## Error Code Mapping
@@ -36,6 +36,7 @@ This plugin transforms Next.js source code by:
   - **Reason:** Pre-built artefacts simplify the build process (`pnpm build` runs without requiring `cargo`).
 
 - **Rebuild Script Example:**
+
   ```bash
   #!/usr/bin/env bash
   set -e
@@ -46,3 +47,5 @@ This plugin transforms Next.js source code by:
   mv "$NEXT_JS_ROOT/crates/next-error-code-swc-plugin/target/wasm32-wasip1/release/next_error_code_swc_plugin.wasm" "$NEXT_JS_ROOT/packages/next/"
   echo "✨ Successfully built and moved WASM plugin! 🚀"
   ```
+
+- **Testing:** Navigate to `/crates/next-error-code-swc-plugin` and run `cargo test` to test the plugin

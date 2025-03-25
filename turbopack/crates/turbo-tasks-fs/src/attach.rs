@@ -1,12 +1,8 @@
 use anyhow::{bail, Result};
-use auto_hash_map::AutoMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{Completion, ResolvedVc, ValueToString, Vc};
 
-use crate::{
-    DirectoryContent, DirectoryEntry, FileContent, FileMeta, FileSystem, FileSystemPath,
-    LinkContent,
-};
+use crate::{FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent};
 
 /// A wrapper [FileSystem] which attaches a child [FileSystem] as a
 /// "subdirectory" in the given root [FileSystem].
@@ -133,29 +129,8 @@ impl FileSystem for AttachedFileSystem {
     }
 
     #[turbo_tasks::function(fs)]
-    async fn read_dir(self: Vc<Self>, path: Vc<FileSystemPath>) -> Result<Vc<DirectoryContent>> {
-        let dir_content = self.get_inner_fs_path(path).read_dir().await?;
-        let entries = match &*dir_content {
-            DirectoryContent::Entries(e) => e,
-            DirectoryContent::NotFound => return Ok(DirectoryContent::not_found()),
-        };
-
-        let mut converted_entries = AutoMap::with_capacity(entries.len());
-        for (name, entry) in entries {
-            use DirectoryEntry::*;
-
-            let entry = match *entry {
-                File(path) => File(self.convert_path(*path).to_resolved().await?),
-                Directory(path) => Directory(self.convert_path(*path).to_resolved().await?),
-                Symlink(path) => Symlink(self.convert_path(*path).to_resolved().await?),
-                Other(path) => Other(self.convert_path(*path).to_resolved().await?),
-                Error => Error,
-            };
-
-            converted_entries.insert(name.clone(), entry);
-        }
-
-        Ok(DirectoryContent::new(converted_entries))
+    fn raw_read_dir(self: Vc<Self>, path: Vc<FileSystemPath>) -> Vc<RawDirectoryContent> {
+        self.get_inner_fs_path(path).raw_read_dir()
     }
 
     #[turbo_tasks::function(fs)]
