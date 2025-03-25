@@ -2,25 +2,27 @@ use anyhow::{bail, Result};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::version::{VersionedContent, VersionedContentMerger, VersionedContents};
 
-use super::{super::content::EcmascriptDevChunkContent, content::EcmascriptDevMergedChunkContent};
+use super::{
+    super::content::EcmascriptBrowserChunkContent, content::EcmascriptBrowserMergedChunkContent,
+};
 
 /// Merges multiple [`EcmascriptChunkContent`] into a single
 /// [`EcmascriptDevMergedChunkContent`]. This is useful for generating a single
 /// update for multiple ES chunks updating all at the same time.
 #[turbo_tasks::value]
-pub(crate) struct EcmascriptDevChunkContentMerger;
+pub(crate) struct EcmascriptBrowserChunkContentMerger;
 
 #[turbo_tasks::value_impl]
-impl EcmascriptDevChunkContentMerger {
+impl EcmascriptBrowserChunkContentMerger {
     /// Creates a new [`EcmascriptDevChunkContentMerger`].
     #[turbo_tasks::function]
     pub fn new() -> Vc<Self> {
-        Self::cell(EcmascriptDevChunkContentMerger)
+        Self::cell(EcmascriptBrowserChunkContentMerger)
     }
 }
 
 #[turbo_tasks::value_impl]
-impl VersionedContentMerger for EcmascriptDevChunkContentMerger {
+impl VersionedContentMerger for EcmascriptBrowserChunkContentMerger {
     #[turbo_tasks::function]
     async fn merge(
         &self,
@@ -31,18 +33,18 @@ impl VersionedContentMerger for EcmascriptDevChunkContentMerger {
             .iter()
             .map(|content| async move {
                 if let Some(content) =
-                    ResolvedVc::try_downcast_type::<EcmascriptDevChunkContent>(*content).await?
+                    ResolvedVc::try_downcast_type::<EcmascriptBrowserChunkContent>(*content)
                 {
                     Ok(content)
                 } else {
-                    bail!("expected Vc<EcmascriptDevChunkContent>")
+                    bail!("expected Vc<EcmascriptBrowserChunkContent>")
                 }
             })
             .try_join()
             .await?;
 
         Ok(Vc::upcast(
-            EcmascriptDevMergedChunkContent { contents }.cell(),
+            EcmascriptBrowserMergedChunkContent { contents }.cell(),
         ))
     }
 }

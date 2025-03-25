@@ -56,10 +56,12 @@ export type WorkStoreContext = {
     RenderOpts,
     | 'assetPrefix'
     | 'supportsDynamicResponse'
+    | 'shouldWaitOnAllReady'
     | 'isRevalidate'
     | 'nextExport'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
+    | 'dev'
   > &
     RequestLifecycleOpts &
     Partial<Pick<RenderOpts, 'reactLoadableManifest'>>
@@ -68,6 +70,10 @@ export type WorkStoreContext = {
    * The build ID of the current build.
    */
   buildId: string
+
+  // Tags that were previously revalidated (e.g. by a redirecting server action)
+  // and have already been sent to cache handlers.
+  previouslyRevalidatedTags: string[]
 }
 
 export function createWorkStore({
@@ -77,6 +83,7 @@ export function createWorkStore({
   requestEndedState,
   isPrefetchRequest,
   buildId,
+  previouslyRevalidatedTags,
 }: WorkStoreContext): WorkStore {
   /**
    * Rules of Static & Dynamic HTML:
@@ -96,6 +103,7 @@ export function createWorkStore({
    * coalescing, and ISR continue working as intended.
    */
   const isStaticGeneration =
+    !renderOpts.shouldWaitOnAllReady &&
     !renderOpts.supportsDynamicResponse &&
     !renderOpts.isDraftMode &&
     !renderOpts.isServerAction
@@ -117,8 +125,6 @@ export function createWorkStore({
 
     isDraftMode: renderOpts.isDraftMode,
 
-    rootParams: {},
-
     requestEndedState,
     isPrefetchRequest,
     buildId,
@@ -126,6 +132,9 @@ export function createWorkStore({
     assetPrefix: renderOpts?.assetPrefix || '',
 
     afterContext: createAfterContext(renderOpts),
+    dynamicIOEnabled: renderOpts.experimental.dynamicIO,
+    dev: renderOpts.dev ?? false,
+    previouslyRevalidatedTags,
   }
 
   // TODO: remove this when we resolve accessing the store outside the execution context

@@ -82,6 +82,8 @@ describe('app dir - metadata', () => {
         preconnect: '/preconnect-url',
         preload: '/api/preload',
         'dns-prefetch': '/dns-prefetch-url',
+        prev: '/basic?page=1',
+        next: '/basic?page=3',
       })
 
       // Manifest link should have crossOrigin attribute
@@ -117,6 +119,8 @@ describe('app dir - metadata', () => {
         preconnect: '/preconnect-url',
         preload: '/api/preload',
         'dns-prefetch': '/dns-prefetch-url',
+        prev: '/basic?page=1',
+        next: '/basic?page=3',
       })
 
       // Manifest link should have crossOrigin attribute
@@ -158,13 +162,14 @@ describe('app dir - metadata', () => {
       )
     })
 
-    it('should support facebook related tags', async () => {
-      const browser = await next.browser('/facebook')
+    it('should support socials related tags like facebook and pinterest', async () => {
+      const browser = await next.browser('/socials')
       const matchMultiDom = createMultiDomMatcher(browser)
 
       await matchMultiDom('meta', 'property', 'content', {
         'fb:app_id': '12345678',
         'fb:admins': ['120', '122', '124'],
+        'pinterest-rich-pin': 'true',
       })
     })
 
@@ -769,6 +774,14 @@ describe('app dir - metadata', () => {
       const matchMultiDom = createMultiDomMatcher(browser)
       await matchMultiDom('meta', 'name', 'content', {
         'theme-color': '#000',
+      })
+    })
+
+    it('should skip initial-scale from viewport if it is set to undefined', async () => {
+      const browser = await next.browser('/viewport/skip-initial-scale')
+      const matchMultiDom = createMultiDomMatcher(browser)
+      await matchMultiDom('meta', 'name', 'content', {
+        viewport: 'width=device-width',
       })
     })
   })

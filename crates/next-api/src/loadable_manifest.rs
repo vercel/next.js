@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-
 use anyhow::Result;
 use next_core::{next_manifests::LoadableManifest, util::NextRuntime};
+use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
@@ -23,12 +22,12 @@ pub async fn create_react_loadable_manifest(
 ) -> Result<Vc<OutputAssets>> {
     let dynamic_import_entries = &*dynamic_import_entries.await?;
 
-    let mut loadable_manifest: HashMap<RcStr, LoadableManifest> = Default::default();
+    let mut loadable_manifest: FxHashMap<RcStr, LoadableManifest> = FxHashMap::default();
 
     for (_, (module_id, chunk_output)) in dynamic_import_entries.into_iter() {
         let chunk_output = chunk_output.await?;
 
-        let id = module_id.to_string().await?.clone_value();
+        let id = module_id.to_string().owned().await?;
 
         let client_relative_path_value = client_relative_path.await?;
         let files = chunk_output
@@ -37,7 +36,7 @@ pub async fn create_react_loadable_manifest(
                 let client_relative_path_value = client_relative_path_value.clone();
                 async move {
                     Ok(client_relative_path_value
-                        .get_path_to(&*file.ident().path().await?)
+                        .get_path_to(&*file.path().await?)
                         .map(|path| path.into()))
                 }
             })

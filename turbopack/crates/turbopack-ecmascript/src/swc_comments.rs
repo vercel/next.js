@@ -1,5 +1,6 @@
-use std::{cell::RefCell, collections::HashMap, mem::take};
+use std::{borrow::Cow, cell::RefCell, mem::take};
 
+use rustc_hash::FxHashMap;
 use swc_core::{
     base::SwcComments,
     common::{
@@ -11,9 +12,10 @@ use swc_core::{
 /// Immutable version of [SwcComments] which doesn't allow mutation. The `take`
 /// variants are still implemented, but do not mutate the content. They are used
 /// by the SWC Emitter.
+#[derive(Default)]
 pub struct ImmutableComments {
-    pub leading: HashMap<BytePos, Vec<Comment>>,
-    pub trailing: HashMap<BytePos, Vec<Comment>>,
+    pub leading: FxHashMap<BytePos, Vec<Comment>>,
+    pub trailing: FxHashMap<BytePos, Vec<Comment>>,
 }
 
 impl ImmutableComments {
@@ -38,8 +40,12 @@ impl ImmutableComments {
         }
     }
 
+    pub fn into_consumable(self) -> CowComments<'static> {
+        CowComments::owned(self)
+    }
+
     pub fn consumable(&self) -> CowComments<'_> {
-        CowComments::new(self)
+        CowComments::borrowed(self)
     }
 }
 
@@ -185,25 +191,44 @@ impl Comments for ImmutableComments {
 }
 
 pub struct CowComments<'a> {
-    leading: RefCell<HashMap<BytePos, &'a Vec<Comment>>>,
-    trailing: RefCell<HashMap<BytePos, &'a Vec<Comment>>>,
+    leading: RefCell<FxHashMap<BytePos, Cow<'a, Vec<Comment>>>>,
+    trailing: RefCell<FxHashMap<BytePos, Cow<'a, Vec<Comment>>>>,
 }
 
 impl<'a> CowComments<'a> {
-    fn new(comments: &'a ImmutableComments) -> Self {
+    fn borrowed(comments: &'a ImmutableComments) -> Self {
         Self {
             leading: RefCell::new(
                 comments
                     .leading
                     .iter()
-                    .map(|(&key, value)| (key, value))
+                    .map(|(&key, value)| (key, Cow::Borrowed(value)))
                     .collect(),
             ),
             trailing: RefCell::new(
                 comments
                     .trailing
                     .iter()
-                    .map(|(&key, value)| (key, value))
+                    .map(|(&key, value)| (key, Cow::Borrowed(value)))
+                    .collect(),
+            ),
+        }
+    }
+
+    fn owned(comments: ImmutableComments) -> Self {
+        Self {
+            leading: RefCell::new(
+                comments
+                    .leading
+                    .into_iter()
+                    .map(|(key, value)| (key, Cow::Owned(value)))
+                    .collect(),
+            ),
+            trailing: RefCell::new(
+                comments
+                    .trailing
+                    .into_iter()
+                    .map(|(key, value)| (key, Cow::Owned(value)))
                     .collect(),
             ),
         }
@@ -239,14 +264,17 @@ impl Comments for CowComments<'_> {
         &self,
         pos: swc_core::common::BytePos,
     ) -> Option<Vec<swc_core::common::comments::Comment>> {
-        self.leading.borrow_mut().remove(&pos).map(|v| v.to_owned())
+        self.leading
+            .borrow_mut()
+            .remove(&pos)
+            .map(|v| v.into_owned())
     }
 
     fn get_leading(
         &self,
         pos: swc_core::common::BytePos,
     ) -> Option<Vec<swc_core::common::comments::Comment>> {
-        self.leading.borrow().get(&pos).map(|&v| v.to_owned())
+        self.leading.borrow().get(&pos).map(|v| (**v).clone())
     }
 
     fn add_trailing(
@@ -280,14 +308,14 @@ impl Comments for CowComments<'_> {
         self.trailing
             .borrow_mut()
             .remove(&pos)
-            .map(|v| v.to_owned())
+            .map(|v| v.into_owned())
     }
 
     fn get_trailing(
         &self,
         pos: swc_core::common::BytePos,
     ) -> Option<Vec<swc_core::common::comments::Comment>> {
-        self.trailing.borrow().get(&pos).map(|&v| v.to_owned())
+        self.trailing.borrow().get(&pos).map(|v| (**v).clone())
     }
 
     fn add_pure_comment(&self, _pos: swc_core::common::BytePos) {

@@ -69,7 +69,7 @@
         "d",
         Constant(
             Str(
-                Word(
+                Atom(
                     "hello",
                 ),
             ),

@@ -3,7 +3,7 @@ use swc_core::{
     common::Mark,
     ecma::{
         ast::*,
-        atoms::{js_word, JsWord},
+        atoms::{atom, Atom},
         transforms::optimization::simplify::dce::{dce, Config as DCEConfig},
         visit::{fold_pass, Fold, FoldWith, VisitMutWith},
     },
@@ -11,7 +11,7 @@ use swc_core::{
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {
-    pub ignore: Vec<JsWord>,
+    pub ignore: Vec<Atom>,
 }
 
 pub fn shake_exports(config: Config) -> impl Pass {
@@ -23,7 +23,7 @@ pub fn shake_exports(config: Config) -> impl Pass {
 
 #[derive(Debug, Default)]
 struct ExportShaker {
-    ignore: Vec<JsWord>,
+    ignore: Vec<Atom>,
     remove_export: bool,
 }
 
@@ -108,14 +108,14 @@ impl Fold for ExportShaker {
     }
 
     fn fold_export_default_decl(&mut self, decl: ExportDefaultDecl) -> ExportDefaultDecl {
-        if !self.ignore.contains(&js_word!("default")) {
+        if !self.ignore.contains(&atom!("default")) {
             self.remove_export = true
         }
         decl
     }
 
     fn fold_export_default_expr(&mut self, expr: ExportDefaultExpr) -> ExportDefaultExpr {
-        if !self.ignore.contains(&js_word!("default")) {
+        if !self.ignore.contains(&atom!("default")) {
             self.remove_export = true
         }
         expr

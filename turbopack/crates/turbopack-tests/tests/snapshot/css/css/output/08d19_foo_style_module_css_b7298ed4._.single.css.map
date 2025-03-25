@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.module.css"],"sourcesContent":[".foo-module-style { color: blue; }\n"],"names":[],"mappings":"AAAA","ignoreList":[0]}},
+    {"offset": {"line": 1, "column": 51}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

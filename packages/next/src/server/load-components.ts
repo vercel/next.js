@@ -32,8 +32,8 @@ import { wait } from '../lib/wait'
 import { setReferenceManifestsSingleton } from './app-render/encryption-utils'
 import { createServerModuleMap } from './app-render/action-utils'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
-import { isMetadataRoute } from '../lib/metadata/is-metadata-route'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { isStaticMetadataRoute } from '../lib/metadata/is-metadata-route'
 
 export type ManifestItem = {
   id: number | string
@@ -169,9 +169,6 @@ async function loadComponentsImpl<N = any>({
     ])
   }
 
-  // Make sure to avoid loading the manifest for metadata route handlers.
-  const hasClientManifest = isAppPath && !isMetadataRoute(page)
-
   // In dev mode we retry loading a manifest file to handle a race condition
   // that can occur while app and pages are compiling at the same time, and the
   // build-manifest is still being written to disk while an app path is
@@ -198,6 +195,9 @@ async function loadComponentsImpl<N = any>({
       REACT_LOADABLE_MANIFEST
     )
   }
+
+  // Make sure to avoid loading the manifest for static metadata routes for better performance.
+  const hasClientManifest = !isStaticMetadataRoute(page)
 
   // Load the manifest files first
   //
@@ -227,7 +227,7 @@ async function loadComponentsImpl<N = any>({
           join(distDir, `${DYNAMIC_CSS_MANIFEST}.json`),
           manifestLoadAttempts
         ).catch(() => undefined),
-    hasClientManifest
+    isAppPath && hasClientManifest
       ? tryLoadClientReferenceManifest(
           join(
             distDir,

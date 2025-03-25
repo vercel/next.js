@@ -34,6 +34,8 @@ export const base = curry(function base(
   if (ctx.isDevelopment) {
     if (process.env.__NEXT_TEST_MODE && !process.env.__NEXT_TEST_WITH_DEVTOOL) {
       config.devtool = false
+    } else if (process.env.NEXT_RSPACK) {
+      config.devtool = 'source-map'
     } else {
       // `eval-source-map` provides full-fidelity source maps for the
       // original source, including columns and original variable names.
@@ -73,7 +75,7 @@ export const base = curry(function base(
         shouldIgnorePath,
       })
     )
-  } else if (config.devtool === 'eval-source-map') {
+  } else if (config.devtool === 'eval-source-map' && !process.env.NEXT_RSPACK) {
     // We're using a fork of `eval-source-map`
     config.devtool = false
     config.plugins.push(

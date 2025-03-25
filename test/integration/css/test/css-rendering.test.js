@@ -274,7 +274,7 @@ module.exports = {
               await browser.waitForElementByCss('#link-other').click()
               await check(
                 () => browser.eval(`document.body.innerText`),
-                'Application error: a client-side exception has occurred (see the browser console for more information).',
+                'Application error: a client-side exception has occurred while loading localhost (see the browser console for more information).',
                 true
               )
 
@@ -362,7 +362,8 @@ module.exports = {
         })
       }
 
-      ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      // This test case will fail in Turbopack when both pages share some css chunks. Deleting them will cause the / page to fail too.
+      ;(process.env.TURBOPACK ? describe.skip : describe)(
         'production mode',
         () => {
           beforeAll(async () => {

@@ -1,0 +1,71 @@
+0 -> 2 free var = FreeVar(Object)
+
+0 -> 3 member call = Object*0*["keys"](???*1*)
+- *0* Object: The global Object variable
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 7 free var = FreeVar(console)
+
+0 -> 8 conditional = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+0 -> 9 member call = ???*0*["debug"]("####", ???*1*, (???*2* ? true : false))
+- *0* FreeVar(console)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *2* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+0 -> 12 conditional = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+0 -> 14 call = (...) => parent(???*0*, (???*2* ? ???*3* : ???*10*), (???*15* | {}){truthy})
+- *0* ???*1*[key]
+  ⚠️  unknown object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *3* `${???*4*}.${???*5*}`
+  ⚠️  nested operation
+- *4* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *5* ???*6*[i]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *6* ???*7*(???*9*)
+  ⚠️  unknown callee
+  ⚠️  This value might have side effects
+- *7* Object*8*["keys"]
+  ⚠️  unsupported property on global Object
+  ⚠️  This value might have side effects
+- *8* Object: The global Object variable
+- *9* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *10* ???*11*[i]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *11* ???*12*(???*14*)
+  ⚠️  unknown callee
+  ⚠️  This value might have side effects
+- *12* Object*13*["keys"]
+  ⚠️  unsupported property on global Object
+  ⚠️  This value might have side effects
+- *13* Object: The global Object variable
+- *14* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *15* ???*16*[key]
+  ⚠️  unknown object
+- *16* arguments[2]
+  ⚠️  function calls are not analysed yet
+
+0 -> 15 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 16 call = (...) => parent({"wrapper": {"data": {"key": {}}}}, "", {})

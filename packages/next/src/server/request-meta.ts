@@ -75,6 +75,11 @@ export interface RequestMeta {
   serverComponentsHmrCache?: ServerComponentsHmrCache
 
   /**
+   * Equals the segment path that was used for the prefetch RSC request.
+   */
+  segmentPrefetchRSCRequest?: string
+
+  /**
    * True when the request is for the prefetch flight data.
    */
   isPrefetchRSCRequest?: true

@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/withduplicateurl.css"],"sourcesContent":["/* This should not be duplicated */\n@import \"https://example.com/stylesheet1.css\";\n\n.bar {\n  background-color:green;\n}\n"],"names":[],"mappings":"AAGA"}},
+    {"offset": {"line": 1, "column": 28}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

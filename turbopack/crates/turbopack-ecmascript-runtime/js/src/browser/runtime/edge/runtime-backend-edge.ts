@@ -112,14 +112,14 @@ async function loadWebAssemblyModule(
           chunkPath,
           params.otherChunks.filter((chunk) =>
             // The none runtime can only handle JS chunks, so we only wait for these
-            getChunkPath(chunk).endsWith(".js")
+            isJs(getChunkPath(chunk))
           ),
           params.runtimeModuleIds
         );
       }
     },
 
-    loadChunk(_chunkPath, _fromChunkPath) {
+    loadChunk(_chunkUrl, _source) {
       throw new Error("chunk loading is not supported");
     },
   };

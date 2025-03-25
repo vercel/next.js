@@ -17,7 +17,10 @@ import {
   type PrerenderStoreModern,
 } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { describeStringPropertyAccess, wellKnownProperties } from './utils'
+import {
+  describeStringPropertyAccess,
+  wellKnownProperties,
+} from '../../shared/lib/utils/reflect-utils'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { scheduleImmediate } from '../../lib/scheduler'
@@ -447,18 +450,12 @@ function syncIODev(
   }
 }
 
-const noop = () => {}
+const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
+  createParamsAccessError
+)
 
-const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
-  ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(createParamsAccessError)
-
-const warnForIncompleteEnumeration = process.env
-  .__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
-  ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(
-      createIncompleteEnumerationError
-    )
+const warnForIncompleteEnumeration =
+  createDedupedByCallsiteServerErrorLoggerDev(createIncompleteEnumerationError)
 
 function createParamsAccessError(
   route: string | undefined,

@@ -10,7 +10,10 @@ import type {
   FlightSegmentPath,
 } from '../../server/app-render/types'
 import type { ErrorComponent } from './error-boundary'
-import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
+import {
+  ACTION_SERVER_PATCH,
+  type FocusAndScrollRef,
+} from './router-reducer/router-reducer-types'
 
 import React, {
   useContext,
@@ -35,6 +38,7 @@ import { RedirectBoundary } from './redirect-boundary'
 import { HTTPAccessFallbackBoundary } from './http-access-fallback/error-boundary'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
 import { hasInterceptionRouteInCurrentTree } from './router-reducer/reducers/has-interception-route-in-current-tree'
+import { dispatchAppRouterAction } from './use-action-queue'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -215,6 +219,14 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
       // Verify if the element is a HTMLElement and if we want to consider it for scroll behavior.
       // If the element is skipped, try to select the next sibling and try again.
       while (!(domNode instanceof HTMLElement) || shouldSkipElement(domNode)) {
+        if (process.env.NODE_ENV !== 'production') {
+          if (domNode.parentElement?.localName === 'head') {
+            // TODO: We enter this state when metadata was rendered as part of the page or via Next.js.
+            // This is always a bug in Next.js and caused by React hoisting metadata.
+            // We need to replace `findDOMNode` in favor of Fragment Refs (when available) so that we can skip over metadata.
+          }
+        }
+
         // No siblings found that match the criteria are found, so handle scroll higher up in the tree instead.
         if (domNode.nextElementSibling === null) {
           return
@@ -329,7 +341,7 @@ function InnerLayoutRouter({
     throw new Error('invariant global layout router not mounted')
   }
 
-  const { changeByServerResponse, tree: fullTree } = context
+  const { tree: fullTree } = context
 
   // `rsc` represents the renderable node for this segment.
 
@@ -344,10 +356,6 @@ function InnerLayoutRouter({
   // We use `useDeferredValue` to handle switching between the prefetched and
   // final values. The second argument is returned on initial render, then it
   // re-renders with the first argument.
-  //
-  // @ts-expect-error The second argument to `useDeferredValue` is only
-  // available in the experimental builds. When its disabled, it will always
-  // return `rsc`.
   const rsc: any = useDeferredValue(cacheNode.rsc, resolvedPrefetchRsc)
 
   // `rsc` is either a React node or a promise for a React node, except we
@@ -381,7 +389,8 @@ function InnerLayoutRouter({
         }
       ).then((serverResponse) => {
         startTransition(() => {
-          changeByServerResponse({
+          dispatchAppRouterAction({
+            type: ACTION_SERVER_PATCH,
             previousTree: fullTree,
             serverResponse,
           })
@@ -389,6 +398,9 @@ function InnerLayoutRouter({
 
         return serverResponse
       })
+
+      // Suspend while waiting for lazyData to resolve
+      use(lazyData)
     }
     // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
     // A falsey `resolvedRsc` indicates missing data -- we should not commit that branch, and we need to wait for the data to arrive.
@@ -549,7 +561,7 @@ export default function OuterLayoutRouter({
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
-      head: [null, null],
+      head: null,
       prefetchHead: null,
       parallelRoutes: new Map(),
       loading: null,

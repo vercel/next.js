@@ -14,7 +14,5 @@ mod map_guard;
 mod memory_backend;
 mod output;
 mod task;
-mod task_statistics;
 
 pub use memory_backend::MemoryBackend;
-pub use task_statistics::{TaskStatistics, TaskStatisticsApi};

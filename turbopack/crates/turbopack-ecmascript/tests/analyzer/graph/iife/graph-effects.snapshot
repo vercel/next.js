@@ -51,7 +51,7 @@
                             Value(
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "test",
                                         ),
                                     ),

@@ -38,14 +38,10 @@ d#6 = ???*0*
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 
-i = (???*0* | 0 | ((???*1* | 0 | ???*2*) + 16))
+i = (???*0* | 0 | (???*1* + 16))
 - *0* i
   ⚠️  pattern without value
 - *1* i
-  ⚠️  pattern without value
-- *2* (???*3* + 16)
-  ⚠️  nested operation
-- *3* i
   ⚠️  circular variable reference
 
 len = ???*0*

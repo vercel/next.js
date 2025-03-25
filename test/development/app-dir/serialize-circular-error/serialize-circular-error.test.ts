@@ -15,9 +15,8 @@ describe('serialize-circular-error', () => {
     await assertHasRedbox(browser)
 
     const description = await getRedboxDescription(browser)
-    // React cannot serialize thrown objects with circular references
     expect(description).toBe(
-      '[ Server ] Error: An error occurred but serializing the error message failed.'
+      `Error: An error occurred but serializing the error message failed.`
     )
 
     const output = next.cliOutput
@@ -35,7 +34,7 @@ describe('serialize-circular-error', () => {
 
     const bodyText = await browser.elementByCss('body').text()
     expect(bodyText).toContain(
-      'Application error: a client-side exception has occurred (see the browser console for more information).'
+      'Application error: a client-side exception has occurred while loading localhost (see the browser console for more information).'
     )
 
     const output = next.cliOutput

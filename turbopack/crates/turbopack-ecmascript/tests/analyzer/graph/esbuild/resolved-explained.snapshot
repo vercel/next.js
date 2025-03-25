@@ -8,8 +8,8 @@
   | [generateBinPath(), []]
 )
 
-args = ???*0*
-- *0* max number of linking steps reached
+args = (["bin/esbuild"] | ???*0* | [])
+- *0* unknown mutation
   ⚠️  This value might have side effects
 
 binPath = (???*0* | ???*1* | ???*8*)
@@ -59,8 +59,62 @@ binTargetPath = `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*0* | ???*1* | 
 - *7* unknown mutation
   ⚠️  This value might have side effects
 
-command = ???*0*
-- *0* max number of linking steps reached
+command = (
+  | "node"
+  | ???*0*
+  | ???*1*
+  | `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*2* | ???*3* | ???*4* | "esbuild-linux-64")}-${???*5*}`
+  | ???*10*
+  | ???*11*
+  | ???*18*
+)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+- *1* FreeVar(ESBUILD_BINARY_PATH)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *2* pkg
+  ⚠️  pattern without value
+- *3* FreeVar(undefined)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *4* unknown mutation
+  ⚠️  This value might have side effects
+- *5* ???*6*((???*8* | "esbuild.exe" | "bin/esbuild" | ???*9*))
+  ⚠️  unknown callee
+  ⚠️  This value might have side effects
+- *6* path*7*["basename"]
+  ⚠️  unsupported property on Node.js path module
+  ⚠️  This value might have side effects
+- *7* path: The Node.js path module: https://nodejs.org/api/path.html
+- *8* subpath
+  ⚠️  pattern without value
+- *9* unknown mutation
+  ⚠️  This value might have side effects
+- *10* binPath
+  ⚠️  pattern without value
+- *11* require.resolve*12*(
+        `${(???*13* | ???*14* | ???*15* | "esbuild-linux-64")}/${(???*16* | "esbuild.exe" | "bin/esbuild" | ???*17*)}`
+    )
+  ⚠️  require.resolve non constant
+  ⚠️  This value might have side effects
+- *12* require.resolve: The require.resolve method from CommonJS
+- *13* pkg
+  ⚠️  pattern without value
+- *14* FreeVar(undefined)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *15* unknown mutation
+  ⚠️  This value might have side effects
+- *16* subpath
+  ⚠️  pattern without value
+- *17* unknown mutation
+  ⚠️  This value might have side effects
+- *18* ???*19*(pkg, subpath)
+  ⚠️  unknown callee
+  ⚠️  This value might have side effects
+- *19* FreeVar(downloadedBinPath)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 e#10 = ???*0*
@@ -152,6 +206,9 @@ subpath#7 = (???*0* | "esbuild.exe" | "bin/esbuild" | ???*1*)
 - *1* unknown mutation
   ⚠️  This value might have side effects
 
-x = ???*0*
-- *0* max number of linking steps reached
+x = (["bin/esbuild", "--service=0.14.12", "--ping"] | ???*0* | ["--service=0.14.12", "--ping"])
+- *0* ???*1*["concat"]("--service=0.14.12", "--ping")
+  ⚠️  unknown callee object
+  ⚠️  This value might have side effects
+- *1* unknown mutation
   ⚠️  This value might have side effects

@@ -1,3 +1,4 @@
+const os = require('os')
 const path = require('path')
 const fs = require('fs/promises')
 
@@ -56,7 +57,9 @@ async function main() {
   // Write updated errors and cleanup
   await fs.writeFile(
     path.join(__dirname, 'errors.json'),
-    JSON.stringify(existingErrors, null, 2)
+    JSON.stringify(existingErrors, null, 2) +
+      // Formatters would add these anyway
+      os.EOL
   )
 
   await fs.rm(errorsDir, { recursive: true, force: true })

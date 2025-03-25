@@ -1,6 +1,6 @@
 # Items
 
-Count: 45
+Count: 44
 
 ## Item 1: Stmt 0, `ImportOfModule`
 
@@ -435,33 +435,31 @@ graph TD
     Item30;
     Item31;
     Item32;
-    Item32["ModuleEvaluation"];
+    Item32["export gap"];
     Item33;
-    Item33["export gap"];
+    Item33["export columnGap"];
     Item34;
-    Item34["export columnGap"];
+    Item34["export rowGap"];
     Item35;
-    Item35["export rowGap"];
+    Item35["export gridColumn"];
     Item36;
-    Item36["export gridColumn"];
+    Item36["export gridRow"];
     Item37;
-    Item37["export gridRow"];
+    Item37["export gridAutoFlow"];
     Item38;
-    Item38["export gridAutoFlow"];
+    Item38["export gridAutoColumns"];
     Item39;
-    Item39["export gridAutoColumns"];
+    Item39["export gridAutoRows"];
     Item40;
-    Item40["export gridAutoRows"];
+    Item40["export gridTemplateColumns"];
     Item41;
-    Item41["export gridTemplateColumns"];
+    Item41["export gridTemplateRows"];
     Item42;
-    Item42["export gridTemplateRows"];
+    Item42["export gridTemplateAreas"];
     Item43;
-    Item43["export gridTemplateAreas"];
+    Item43["export gridArea"];
     Item44;
-    Item44["export gridArea"];
-    Item45;
-    Item45["export default"];
+    Item44["export default"];
     Item2 --> Item1;
     Item3 --> Item2;
     Item4 --> Item3;
@@ -502,33 +500,31 @@ graph TD
     Item30;
     Item31;
     Item32;
-    Item32["ModuleEvaluation"];
+    Item32["export gap"];
     Item33;
-    Item33["export gap"];
+    Item33["export columnGap"];
     Item34;
-    Item34["export columnGap"];
+    Item34["export rowGap"];
     Item35;
-    Item35["export rowGap"];
+    Item35["export gridColumn"];
     Item36;
-    Item36["export gridColumn"];
+    Item36["export gridRow"];
     Item37;
-    Item37["export gridRow"];
+    Item37["export gridAutoFlow"];
     Item38;
-    Item38["export gridAutoFlow"];
+    Item38["export gridAutoColumns"];
     Item39;
-    Item39["export gridAutoColumns"];
+    Item39["export gridAutoRows"];
     Item40;
-    Item40["export gridAutoRows"];
+    Item40["export gridTemplateColumns"];
     Item41;
-    Item41["export gridTemplateColumns"];
+    Item41["export gridTemplateRows"];
     Item42;
-    Item42["export gridTemplateRows"];
+    Item42["export gridTemplateAreas"];
     Item43;
-    Item43["export gridTemplateAreas"];
+    Item43["export gridArea"];
     Item44;
-    Item44["export gridArea"];
-    Item45;
-    Item45["export default"];
+    Item44["export default"];
     Item2 --> Item1;
     Item3 --> Item2;
     Item4 --> Item3;
@@ -592,22 +588,22 @@ graph TD
     Item30 --> Item28;
     Item30 --> Item29;
     Item31 --> Item30;
-    Item33 --> Item14;
-    Item33 --> Item12;
-    Item34 --> Item17;
-    Item34 --> Item15;
-    Item35 --> Item20;
-    Item35 --> Item18;
-    Item36 --> Item21;
-    Item37 --> Item22;
-    Item38 --> Item23;
-    Item39 --> Item24;
-    Item40 --> Item25;
-    Item41 --> Item26;
-    Item42 --> Item27;
-    Item43 --> Item28;
-    Item44 --> Item29;
-    Item45 --> Item31;
+    Item32 --> Item14;
+    Item32 --> Item12;
+    Item33 --> Item17;
+    Item33 --> Item15;
+    Item34 --> Item20;
+    Item34 --> Item18;
+    Item35 --> Item21;
+    Item36 --> Item22;
+    Item37 --> Item23;
+    Item38 --> Item24;
+    Item39 --> Item25;
+    Item40 --> Item26;
+    Item41 --> Item27;
+    Item42 --> Item28;
+    Item43 --> Item29;
+    Item44 --> Item31;
 ```
 # Phase 3
 ```mermaid
@@ -644,33 +640,31 @@ graph TD
     Item30;
     Item31;
     Item32;
-    Item32["ModuleEvaluation"];
+    Item32["export gap"];
     Item33;
-    Item33["export gap"];
+    Item33["export columnGap"];
     Item34;
-    Item34["export columnGap"];
+    Item34["export rowGap"];
     Item35;
-    Item35["export rowGap"];
+    Item35["export gridColumn"];
     Item36;
-    Item36["export gridColumn"];
+    Item36["export gridRow"];
     Item37;
-    Item37["export gridRow"];
+    Item37["export gridAutoFlow"];
     Item38;
-    Item38["export gridAutoFlow"];
+    Item38["export gridAutoColumns"];
     Item39;
-    Item39["export gridAutoColumns"];
+    Item39["export gridAutoRows"];
     Item40;
-    Item40["export gridAutoRows"];
+    Item40["export gridTemplateColumns"];
     Item41;
-    Item41["export gridTemplateColumns"];
+    Item41["export gridTemplateRows"];
     Item42;
-    Item42["export gridTemplateRows"];
+    Item42["export gridTemplateAreas"];
     Item43;
-    Item43["export gridTemplateAreas"];
+    Item43["export gridArea"];
     Item44;
-    Item44["export gridArea"];
-    Item45;
-    Item45["export default"];
+    Item44["export default"];
     Item2 --> Item1;
     Item3 --> Item2;
     Item4 --> Item3;
@@ -734,22 +728,22 @@ graph TD
     Item30 --> Item28;
     Item30 --> Item29;
     Item31 --> Item30;
-    Item33 --> Item14;
-    Item33 --> Item12;
-    Item34 --> Item17;
-    Item34 --> Item15;
-    Item35 --> Item20;
-    Item35 --> Item18;
-    Item36 --> Item21;
-    Item37 --> Item22;
-    Item38 --> Item23;
-    Item39 --> Item24;
-    Item40 --> Item25;
-    Item41 --> Item26;
-    Item42 --> Item27;
-    Item43 --> Item28;
-    Item44 --> Item29;
-    Item45 --> Item31;
+    Item32 --> Item14;
+    Item32 --> Item12;
+    Item33 --> Item17;
+    Item33 --> Item15;
+    Item34 --> Item20;
+    Item34 --> Item18;
+    Item35 --> Item21;
+    Item36 --> Item22;
+    Item37 --> Item23;
+    Item38 --> Item24;
+    Item39 --> Item25;
+    Item40 --> Item26;
+    Item41 --> Item27;
+    Item42 --> Item28;
+    Item43 --> Item29;
+    Item44 --> Item31;
 ```
 # Phase 4
 ```mermaid
@@ -786,33 +780,31 @@ graph TD
     Item30;
     Item31;
     Item32;
-    Item32["ModuleEvaluation"];
+    Item32["export gap"];
     Item33;
-    Item33["export gap"];
+    Item33["export columnGap"];
     Item34;
-    Item34["export columnGap"];
+    Item34["export rowGap"];
     Item35;
-    Item35["export rowGap"];
+    Item35["export gridColumn"];
     Item36;
-    Item36["export gridColumn"];
+    Item36["export gridRow"];
     Item37;
-    Item37["export gridRow"];
+    Item37["export gridAutoFlow"];
     Item38;
-    Item38["export gridAutoFlow"];
+    Item38["export gridAutoColumns"];
     Item39;
-    Item39["export gridAutoColumns"];
+    Item39["export gridAutoRows"];
     Item40;
-    Item40["export gridAutoRows"];
+    Item40["export gridTemplateColumns"];
     Item41;
-    Item41["export gridTemplateColumns"];
+    Item41["export gridTemplateRows"];
     Item42;
-    Item42["export gridTemplateRows"];
+    Item42["export gridTemplateAreas"];
     Item43;
-    Item43["export gridTemplateAreas"];
+    Item43["export gridArea"];
     Item44;
-    Item44["export gridArea"];
-    Item45;
-    Item45["export default"];
+    Item44["export default"];
     Item2 --> Item1;
     Item3 --> Item2;
     Item4 --> Item3;
@@ -876,23 +868,22 @@ graph TD
     Item30 --> Item28;
     Item30 --> Item29;
     Item31 --> Item30;
-    Item33 --> Item14;
-    Item33 --> Item12;
-    Item34 --> Item17;
-    Item34 --> Item15;
-    Item35 --> Item20;
-    Item35 --> Item18;
-    Item36 --> Item21;
-    Item37 --> Item22;
-    Item38 --> Item23;
-    Item39 --> Item24;
-    Item40 --> Item25;
-    Item41 --> Item26;
-    Item42 --> Item27;
-    Item43 --> Item28;
-    Item44 --> Item29;
-    Item45 --> Item31;
-    Item32 --> Item31;
+    Item32 --> Item14;
+    Item32 --> Item12;
+    Item33 --> Item17;
+    Item33 --> Item15;
+    Item34 --> Item20;
+    Item34 --> Item18;
+    Item35 --> Item21;
+    Item36 --> Item22;
+    Item37 --> Item23;
+    Item38 --> Item24;
+    Item39 --> Item25;
+    Item40 --> Item26;
+    Item41 --> Item27;
+    Item42 --> Item28;
+    Item43 --> Item29;
+    Item44 --> Item31;
 ```
 # Final
 ```mermaid
@@ -910,13 +901,13 @@ graph TD
     N10["Items: [ItemId(4, ImportBinding(0))]"];
     N11["Items: [ItemId(5, VarDeclarator(0))]"];
     N12["Items: [ItemId(6, Normal)]"];
-    N13["Items: [ItemId(7, Normal)]"];
+    N13["Items: [ItemId(7, Normal), ItemId(Export((&quot;gap&quot;, #2), &quot;gap&quot;))]"];
     N14["Items: [ItemId(8, VarDeclarator(0))]"];
     N15["Items: [ItemId(9, Normal)]"];
-    N16["Items: [ItemId(10, Normal)]"];
+    N16["Items: [ItemId(10, Normal), ItemId(Export((&quot;columnGap&quot;, #2), &quot;columnGap&quot;))]"];
     N17["Items: [ItemId(11, VarDeclarator(0))]"];
     N18["Items: [ItemId(12, Normal)]"];
-    N19["Items: [ItemId(13, Normal)]"];
+    N19["Items: [ItemId(13, Normal), ItemId(Export((&quot;rowGap&quot;, #2), &quot;rowGap&quot;))]"];
     N20["Items: [ItemId(14, VarDeclarator(0))]"];
     N21["Items: [ItemId(15, VarDeclarator(0))]"];
     N22["Items: [ItemId(16, VarDeclarator(0))]"];
@@ -925,22 +916,16 @@ graph TD
     N25["Items: [ItemId(19, VarDeclarator(0))]"];
     N26["Items: [ItemId(20, VarDeclarator(0))]"];
     N27["Items: [ItemId(21, VarDeclarator(0))]"];
-    N28["Items: [ItemId(22, VarDeclarator(0))]"];
-    N29["Items: [ItemId(23, VarDeclarator(0)), ItemId(24, Normal)]"];
-    N30["Items: [ItemId(ModuleEvaluation)]"];
-    N31["Items: [ItemId(Export((&quot;__TURBOPACK__default__export__&quot;, #12), &quot;default&quot;))]"];
-    N32["Items: [ItemId(Export((&quot;columnGap&quot;, #2), &quot;columnGap&quot;))]"];
-    N33["Items: [ItemId(Export((&quot;gap&quot;, #2), &quot;gap&quot;))]"];
-    N34["Items: [ItemId(Export((&quot;gridArea&quot;, #2), &quot;gridArea&quot;))]"];
-    N35["Items: [ItemId(Export((&quot;gridAutoColumns&quot;, #2), &quot;gridAutoColumns&quot;))]"];
-    N36["Items: [ItemId(Export((&quot;gridAutoFlow&quot;, #2), &quot;gridAutoFlow&quot;))]"];
-    N37["Items: [ItemId(Export((&quot;gridAutoRows&quot;, #2), &quot;gridAutoRows&quot;))]"];
-    N38["Items: [ItemId(Export((&quot;gridColumn&quot;, #2), &quot;gridColumn&quot;))]"];
-    N39["Items: [ItemId(Export((&quot;gridRow&quot;, #2), &quot;gridRow&quot;))]"];
-    N40["Items: [ItemId(Export((&quot;gridTemplateAreas&quot;, #2), &quot;gridTemplateAreas&quot;))]"];
-    N41["Items: [ItemId(Export((&quot;gridTemplateColumns&quot;, #2), &quot;gridTemplateColumns&quot;))]"];
-    N42["Items: [ItemId(Export((&quot;gridTemplateRows&quot;, #2), &quot;gridTemplateRows&quot;))]"];
-    N43["Items: [ItemId(Export((&quot;rowGap&quot;, #2), &quot;rowGap&quot;))]"];
+    N28["Items: [ItemId(22, VarDeclarator(0)), ItemId(Export((&quot;gridArea&quot;, #2), &quot;gridArea&quot;))]"];
+    N29["Items: [ItemId(23, VarDeclarator(0)), ItemId(24, Normal), ItemId(Export((&quot;__TURBOPACK__default__export__&quot;, #12), &quot;default&quot;))]"];
+    N30["Items: [ItemId(Export((&quot;gridAutoColumns&quot;, #2), &quot;gridAutoColumns&quot;))]"];
+    N31["Items: [ItemId(Export((&quot;gridAutoFlow&quot;, #2), &quot;gridAutoFlow&quot;))]"];
+    N32["Items: [ItemId(Export((&quot;gridAutoRows&quot;, #2), &quot;gridAutoRows&quot;))]"];
+    N33["Items: [ItemId(Export((&quot;gridColumn&quot;, #2), &quot;gridColumn&quot;))]"];
+    N34["Items: [ItemId(Export((&quot;gridRow&quot;, #2), &quot;gridRow&quot;))]"];
+    N35["Items: [ItemId(Export((&quot;gridTemplateAreas&quot;, #2), &quot;gridTemplateAreas&quot;))]"];
+    N36["Items: [ItemId(Export((&quot;gridTemplateColumns&quot;, #2), &quot;gridTemplateColumns&quot;))]"];
+    N37["Items: [ItemId(Export((&quot;gridTemplateRows&quot;, #2), &quot;gridTemplateRows&quot;))]"];
     N2 --> N0;
     N4 --> N2;
     N7 --> N4;
@@ -951,24 +936,24 @@ graph TD
     N11 --> N9;
     N12 --> N11;
     N12 --> N10;
+    N16 --> N15;
     N13 --> N12;
-    N13 --> N11;
     N14 --> N5;
     N14 --> N6;
     N14 --> N8;
     N14 --> N12;
     N15 --> N14;
     N15 --> N10;
-    N16 --> N15;
-    N16 --> N14;
+    N28 --> N27;
+    N28 --> N1;
     N17 --> N5;
     N17 --> N6;
     N17 --> N8;
     N17 --> N15;
     N18 --> N17;
     N18 --> N10;
-    N19 --> N18;
-    N19 --> N17;
+    N13 --> N11;
+    N16 --> N14;
     N20 --> N1;
     N20 --> N18;
     N21 --> N1;
@@ -985,93 +970,68 @@ graph TD
     N26 --> N25;
     N27 --> N1;
     N27 --> N26;
-    N28 --> N1;
-    N28 --> N27;
-    N29 --> N28;
-    N29 --> N27;
-    N29 --> N26;
-    N29 --> N25;
-    N29 --> N24;
-    N29 --> N23;
-    N29 --> N22;
-    N29 --> N21;
-    N29 --> N20;
-    N29 --> N17;
-    N29 --> N19;
-    N29 --> N14;
-    N29 --> N16;
-    N29 --> N11;
-    N29 --> N13;
-    N29 --> N3;
+    N8 --> N7;
+    N19 --> N18;
+    N19 --> N17;
+    N33 --> N20;
+    N34 --> N21;
+    N31 --> N22;
+    N30 --> N23;
+    N32 --> N24;
+    N36 --> N25;
+    N37 --> N26;
+    N35 --> N27;
+    N6 --> N4;
     N10 --> N9;
-    N33 --> N13;
-    N33 --> N11;
-    N32 --> N16;
-    N32 --> N14;
-    N43 --> N19;
-    N43 --> N17;
-    N38 --> N20;
-    N39 --> N21;
-    N36 --> N22;
-    N35 --> N23;
-    N37 --> N24;
-    N41 --> N25;
-    N42 --> N26;
-    N40 --> N27;
-    N34 --> N28;
-    N31 --> N29;
-    N30 --> N29;
     N1 --> N0;
     N3 --> N2;
     N5 --> N4;
-    N6 --> N4;
-    N8 --> N7;
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 30,
-    Export(
-        "gap",
-    ): 33,
-    Export(
-        "gridAutoRows",
-    ): 37,
-    Export(
-        "gridTemplateColumns",
-    ): 41,
+    ModuleEvaluation: 29,
     Export(
         "columnGap",
-    ): 32,
-    Export(
-        "gridArea",
-    ): 34,
-    Exports: 44,
-    Export(
-        "gridAutoFlow",
-    ): 36,
-    Export(
-        "gridColumn",
-    ): 38,
-    Export(
-        "gridAutoColumns",
-    ): 35,
-    Export(
-        "rowGap",
-    ): 43,
-    Export(
-        "gridTemplateRows",
-    ): 42,
-    Export(
-        "gridTemplateAreas",
-    ): 40,
+    ): 16,
     Export(
         "default",
+    ): 29,
+    Export(
+        "gap",
+    ): 13,
+    Export(
+        "gridArea",
+    ): 28,
+    Export(
+        "gridAutoColumns",
+    ): 30,
+    Export(
+        "gridAutoFlow",
     ): 31,
     Export(
+        "gridAutoRows",
+    ): 32,
+    Export(
+        "gridColumn",
+    ): 33,
+    Export(
         "gridRow",
-    ): 39,
+    ): 34,
+    Export(
+        "gridTemplateAreas",
+    ): 35,
+    Export(
+        "gridTemplateColumns",
+    ): 36,
+    Export(
+        "gridTemplateRows",
+    ): 37,
+    Export(
+        "rowGap",
+    ): 19,
+    Exports: 38,
 }
 ```
 
@@ -1237,6 +1197,7 @@ import "__TURBOPACK_PART__" assert {
 gap.filterProps = [
     'gap'
 ];
+export { gap };
 
 ```
 ## Part 14
@@ -1296,6 +1257,7 @@ import "__TURBOPACK_PART__" assert {
 columnGap.filterProps = [
     'columnGap'
 ];
+export { columnGap };
 
 ```
 ## Part 17
@@ -1355,6 +1317,7 @@ import "__TURBOPACK_PART__" assert {
 rowGap.filterProps = [
     'rowGap'
 ];
+export { rowGap };
 
 ```
 ## Part 20
@@ -1505,6 +1468,7 @@ import "__TURBOPACK_PART__" assert {
 const gridArea = style({
     prop: 'gridArea'
 });
+export { gridArea };
 export { gridArea as r } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -1552,72 +1516,19 @@ import { q as gridTemplateAreas } from "__TURBOPACK_PART__" assert {
 import { r as gridArea } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -28
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 19
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 16
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 const grid = compose(gap, columnGap, rowGap, gridColumn, gridRow, gridAutoFlow, gridAutoColumns, gridAutoRows, gridTemplateColumns, gridTemplateRows, gridTemplateAreas, gridArea);
 const __TURBOPACK__default__export__ = grid;
+export { __TURBOPACK__default__export__ as default };
 export { grid as s } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 export { __TURBOPACK__default__export__ as t } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 30
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 29
-};
-"module evaluation";
-
-```
-## Part 31
-```js
-import { t as __TURBOPACK__default__export__ } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -29
-};
-export { __TURBOPACK__default__export__ as default };
-
-```
-## Part 32
-```js
-import { h as columnGap } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -14
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 16
-};
-export { columnGap };
-
-```
-## Part 33
-```js
-import { g as gap } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -11
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
-export { gap };
-
-```
-## Part 34
-```js
-import { r as gridArea } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -28
-};
-export { gridArea };
-
-```
-## Part 35
 ```js
 import { m as gridAutoColumns } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -23
@@ -1625,7 +1536,7 @@ import { m as gridAutoColumns } from "__TURBOPACK_PART__" assert {
 export { gridAutoColumns };
 
 ```
-## Part 36
+## Part 31
 ```js
 import { l as gridAutoFlow } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -22
@@ -1633,7 +1544,7 @@ import { l as gridAutoFlow } from "__TURBOPACK_PART__" assert {
 export { gridAutoFlow };
 
 ```
-## Part 37
+## Part 32
 ```js
 import { n as gridAutoRows } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -24
@@ -1641,7 +1552,7 @@ import { n as gridAutoRows } from "__TURBOPACK_PART__" assert {
 export { gridAutoRows };
 
 ```
-## Part 38
+## Part 33
 ```js
 import { j as gridColumn } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -20
@@ -1649,7 +1560,7 @@ import { j as gridColumn } from "__TURBOPACK_PART__" assert {
 export { gridColumn };
 
 ```
-## Part 39
+## Part 34
 ```js
 import { k as gridRow } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -21
@@ -1657,7 +1568,7 @@ import { k as gridRow } from "__TURBOPACK_PART__" assert {
 export { gridRow };
 
 ```
-## Part 40
+## Part 35
 ```js
 import { q as gridTemplateAreas } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -27
@@ -1665,7 +1576,7 @@ import { q as gridTemplateAreas } from "__TURBOPACK_PART__" assert {
 export { gridTemplateAreas };
 
 ```
-## Part 41
+## Part 36
 ```js
 import { o as gridTemplateColumns } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -25
@@ -1673,7 +1584,7 @@ import { o as gridTemplateColumns } from "__TURBOPACK_PART__" assert {
 export { gridTemplateColumns };
 
 ```
-## Part 42
+## Part 37
 ```js
 import { p as gridTemplateRows } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -26
@@ -1681,30 +1592,22 @@ import { p as gridTemplateRows } from "__TURBOPACK_PART__" assert {
 export { gridTemplateRows };
 
 ```
-## Part 43
+## Part 38
 ```js
-import { i as rowGap } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -17
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 19
-};
-export { rowGap };
-
-```
-## Part 44
-```js
-export { default } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export default"
+export { gap } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export gap"
 };
 export { columnGap } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export columnGap"
 };
-export { gap } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export gap"
+export { rowGap } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export rowGap"
 };
 export { gridArea } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export gridArea"
+};
+export { default } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export default"
 };
 export { gridAutoColumns } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export gridAutoColumns"
@@ -1730,64 +1633,107 @@ export { gridTemplateColumns } from "__TURBOPACK_PART__" assert {
 export { gridTemplateRows } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export gridTemplateRows"
 };
-export { rowGap } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export rowGap"
-};
 
 ```
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 29
+    __turbopack_part__: 2
 };
-"module evaluation";
+import compose from './compose';
+import { g as gap } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -11
+};
+import { h as columnGap } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -14
+};
+import { i as rowGap } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -17
+};
+import { j as gridColumn } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -20
+};
+import { k as gridRow } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -21
+};
+import { l as gridAutoFlow } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -22
+};
+import { m as gridAutoColumns } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -23
+};
+import { n as gridAutoRows } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -24
+};
+import { o as gridTemplateColumns } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -25
+};
+import { p as gridTemplateRows } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -26
+};
+import { q as gridTemplateAreas } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -27
+};
+import { r as gridArea } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -28
+};
+const grid = compose(gap, columnGap, rowGap, gridColumn, gridRow, gridAutoFlow, gridAutoColumns, gridAutoRows, gridTemplateColumns, gridTemplateRows, gridTemplateAreas, gridArea);
+const __TURBOPACK__default__export__ = grid;
+export { __TURBOPACK__default__export__ as default };
+export { grid as s } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { __TURBOPACK__default__export__ as t } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 30,
-    Export(
-        "gap",
-    ): 33,
-    Export(
-        "gridAutoRows",
-    ): 37,
-    Export(
-        "gridTemplateColumns",
-    ): 41,
+    ModuleEvaluation: 29,
     Export(
         "columnGap",
-    ): 32,
-    Export(
-        "gridArea",
-    ): 34,
-    Exports: 44,
-    Export(
-        "gridAutoFlow",
-    ): 36,
-    Export(
-        "gridColumn",
-    ): 38,
-    Export(
-        "gridAutoColumns",
-    ): 35,
-    Export(
-        "rowGap",
-    ): 43,
-    Export(
-        "gridTemplateRows",
-    ): 42,
-    Export(
-        "gridTemplateAreas",
-    ): 40,
+    ): 16,
     Export(
         "default",
+    ): 29,
+    Export(
+        "gap",
+    ): 13,
+    Export(
+        "gridArea",
+    ): 28,
+    Export(
+        "gridAutoColumns",
+    ): 30,
+    Export(
+        "gridAutoFlow",
     ): 31,
     Export(
+        "gridAutoRows",
+    ): 32,
+    Export(
+        "gridColumn",
+    ): 33,
+    Export(
         "gridRow",
-    ): 39,
+    ): 34,
+    Export(
+        "gridTemplateAreas",
+    ): 35,
+    Export(
+        "gridTemplateColumns",
+    ): 36,
+    Export(
+        "gridTemplateRows",
+    ): 37,
+    Export(
+        "rowGap",
+    ): 19,
+    Exports: 38,
 }
 ```
 
@@ -1953,6 +1899,7 @@ import "__TURBOPACK_PART__" assert {
 gap.filterProps = [
     'gap'
 ];
+export { gap };
 
 ```
 ## Part 14
@@ -2012,6 +1959,7 @@ import "__TURBOPACK_PART__" assert {
 columnGap.filterProps = [
     'columnGap'
 ];
+export { columnGap };
 
 ```
 ## Part 17
@@ -2071,6 +2019,7 @@ import "__TURBOPACK_PART__" assert {
 rowGap.filterProps = [
     'rowGap'
 ];
+export { rowGap };
 
 ```
 ## Part 20
@@ -2221,6 +2170,7 @@ import "__TURBOPACK_PART__" assert {
 const gridArea = style({
     prop: 'gridArea'
 });
+export { gridArea };
 export { gridArea as r } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -2268,72 +2218,19 @@ import { q as gridTemplateAreas } from "__TURBOPACK_PART__" assert {
 import { r as gridArea } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -28
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 19
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 16
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 const grid = compose(gap, columnGap, rowGap, gridColumn, gridRow, gridAutoFlow, gridAutoColumns, gridAutoRows, gridTemplateColumns, gridTemplateRows, gridTemplateAreas, gridArea);
 const __TURBOPACK__default__export__ = grid;
+export { __TURBOPACK__default__export__ as default };
 export { grid as s } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 export { __TURBOPACK__default__export__ as t } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 30
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 29
-};
-"module evaluation";
-
-```
-## Part 31
-```js
-import { t as __TURBOPACK__default__export__ } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -29
-};
-export { __TURBOPACK__default__export__ as default };
-
-```
-## Part 32
-```js
-import { h as columnGap } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -14
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 16
-};
-export { columnGap };
-
-```
-## Part 33
-```js
-import { g as gap } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -11
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
-export { gap };
-
-```
-## Part 34
-```js
-import { r as gridArea } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -28
-};
-export { gridArea };
-
-```
-## Part 35
 ```js
 import { m as gridAutoColumns } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -23
@@ -2341,7 +2238,7 @@ import { m as gridAutoColumns } from "__TURBOPACK_PART__" assert {
 export { gridAutoColumns };
 
 ```
-## Part 36
+## Part 31
 ```js
 import { l as gridAutoFlow } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -22
@@ -2349,7 +2246,7 @@ import { l as gridAutoFlow } from "__TURBOPACK_PART__" assert {
 export { gridAutoFlow };
 
 ```
-## Part 37
+## Part 32
 ```js
 import { n as gridAutoRows } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -24
@@ -2357,7 +2254,7 @@ import { n as gridAutoRows } from "__TURBOPACK_PART__" assert {
 export { gridAutoRows };
 
 ```
-## Part 38
+## Part 33
 ```js
 import { j as gridColumn } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -20
@@ -2365,7 +2262,7 @@ import { j as gridColumn } from "__TURBOPACK_PART__" assert {
 export { gridColumn };
 
 ```
-## Part 39
+## Part 34
 ```js
 import { k as gridRow } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -21
@@ -2373,7 +2270,7 @@ import { k as gridRow } from "__TURBOPACK_PART__" assert {
 export { gridRow };
 
 ```
-## Part 40
+## Part 35
 ```js
 import { q as gridTemplateAreas } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -27
@@ -2381,7 +2278,7 @@ import { q as gridTemplateAreas } from "__TURBOPACK_PART__" assert {
 export { gridTemplateAreas };
 
 ```
-## Part 41
+## Part 36
 ```js
 import { o as gridTemplateColumns } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -25
@@ -2389,7 +2286,7 @@ import { o as gridTemplateColumns } from "__TURBOPACK_PART__" assert {
 export { gridTemplateColumns };
 
 ```
-## Part 42
+## Part 37
 ```js
 import { p as gridTemplateRows } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -26
@@ -2397,30 +2294,22 @@ import { p as gridTemplateRows } from "__TURBOPACK_PART__" assert {
 export { gridTemplateRows };
 
 ```
-## Part 43
+## Part 38
 ```js
-import { i as rowGap } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -17
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 19
-};
-export { rowGap };
-
-```
-## Part 44
-```js
-export { default } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export default"
+export { gap } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export gap"
 };
 export { columnGap } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export columnGap"
 };
-export { gap } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export gap"
+export { rowGap } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export rowGap"
 };
 export { gridArea } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export gridArea"
+};
+export { default } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export default"
 };
 export { gridAutoColumns } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export gridAutoColumns"
@@ -2446,16 +2335,59 @@ export { gridTemplateColumns } from "__TURBOPACK_PART__" assert {
 export { gridTemplateRows } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export gridTemplateRows"
 };
-export { rowGap } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export rowGap"
-};
 
 ```
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 29
+    __turbopack_part__: 2
 };
-"module evaluation";
+import compose from './compose';
+import { g as gap } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -11
+};
+import { h as columnGap } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -14
+};
+import { i as rowGap } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -17
+};
+import { j as gridColumn } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -20
+};
+import { k as gridRow } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -21
+};
+import { l as gridAutoFlow } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -22
+};
+import { m as gridAutoColumns } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -23
+};
+import { n as gridAutoRows } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -24
+};
+import { o as gridTemplateColumns } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -25
+};
+import { p as gridTemplateRows } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -26
+};
+import { q as gridTemplateAreas } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -27
+};
+import { r as gridArea } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -28
+};
+const grid = compose(gap, columnGap, rowGap, gridColumn, gridRow, gridAutoFlow, gridAutoColumns, gridAutoRows, gridTemplateColumns, gridTemplateRows, gridTemplateAreas, gridArea);
+const __TURBOPACK__default__export__ = grid;
+export { __TURBOPACK__default__export__ as default };
+export { grid as s } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { __TURBOPACK__default__export__ as t } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```

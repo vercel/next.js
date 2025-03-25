@@ -57,9 +57,9 @@ impl ValueToString for Collectible {
     }
 }
 
-#[turbo_tasks::function]
-fn inner_compute(input: Vc<ChangingInput>) -> Vc<u32> {
-    inner_compute2(input, 1000)
+#[turbo_tasks::function(operation)]
+fn inner_compute(input: ResolvedVc<ChangingInput>) -> Vc<u32> {
+    inner_compute2(*input, 1000)
 }
 
 #[turbo_tasks::function]
@@ -79,12 +79,12 @@ async fn inner_compute2(input: Vc<ChangingInput>, innerness: u32) -> Result<Vc<u
 }
 
 #[turbo_tasks::function]
-async fn compute(input: Vc<ChangingInput>, innerness: u32) -> Result<Vc<Output>> {
+async fn compute(input: ResolvedVc<ChangingInput>, innerness: u32) -> Result<Vc<Output>> {
     if innerness > 0 {
-        return Ok(compute(input, innerness - 1));
+        return Ok(compute(*input, innerness - 1));
     }
     let operation = inner_compute(input);
-    let value = *operation.await?;
+    let value = *operation.connect().await?;
     let collectibles = operation.peek_collectibles::<Box<dyn ValueToString>>();
     if collectibles.len() != 1 {
         bail!("expected 1 collectible, found {}", collectibles.len());

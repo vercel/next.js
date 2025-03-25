@@ -16,6 +16,12 @@ jobs:
   triage:
     name: Nissuer
     runs-on: ubuntu-latest
+    if: >-
+      ${{
+        (github.event_name != 'issue_comment' ||
+        (github.event_name == 'issue_comment' && !contains(github.event.issue.labels.*.name, 'stale'))) &&
+        github.event.issue.type.name != 'Documentation'
+      }}
     steps:
       - uses: balazsorban44/nissuer@1.10.0
         with:

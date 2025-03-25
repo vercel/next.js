@@ -29,7 +29,7 @@ describe('use-cache-close-over-function', () => {
       const errorSource = await getRedboxSource(browser)
 
       expect(errorDescription).toMatchInlineSnapshot(`
-        "[ Prerender ] Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+        "Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
           [function fn]
            ^^^^^^^^^^^"
       `)
@@ -87,7 +87,7 @@ describe('use-cache-close-over-function', () => {
       const errorSource = await getRedboxSource(browser)
 
       expect(errorDescription).toMatchInlineSnapshot(`
-        "[ Prerender ] Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+        "Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
           [function fn]
            ^^^^^^^^^^^"
       `)
@@ -121,7 +121,7 @@ describe('use-cache-close-over-function', () => {
               '\n    at createCachedFn (app/server/page.tsx:6:2)' +
               '\n    at eval (app/server/page.tsx:12:23)' +
               // TODO(veil): Should be source-mapped.
-              '\n    at (rsc)'
+              '\n    at <unknown> (rsc)'
       )
       expect(cliOutput).toContain(
         '' +
