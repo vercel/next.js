@@ -630,7 +630,7 @@ async function createComponentTreeInternal({
   // @ts-ignore
   if (!globalThis.rootAppDir) {
     // @ts-ignore
-    globalThis.rootAppDir = path.dirname(relativeLayoutOrPagePath)
+    globalThis.rootAppDir = path.dirname(path.dirname(relativeLayoutOrPagePath))
   }
 
   const devtoolPagePath = relativeLayoutOrPagePath.slice((globalThis as any).rootAppDir.length)

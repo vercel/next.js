@@ -577,6 +577,8 @@ export function getOverlayMiddleware(options: {
         arguments: searchParams.getAll('arguments').filter(Boolean),
       } satisfies StackFrame
 
+      console.log('Launching editor for frame:', frame)
+
       if (!frame.file) return middlewareResponse.badRequest(res)
 
       // frame files may start with their webpack layer, like (middleware)/middleware.js

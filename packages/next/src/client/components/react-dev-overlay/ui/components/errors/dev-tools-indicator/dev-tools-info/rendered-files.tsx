@@ -6,23 +6,75 @@ import { DevToolsInfo } from './dev-tools-info'
 import type { TreeNode } from '../../../../../../../../shared/lib/devtool-context.shared-runtime'
 import { useOpenInEditor } from '../../../../utils/use-open-in-editor'
 
+const IconLayout = (props: any) => {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect width="7" height="9" x="3" y="3" rx="1"></rect>
+      <rect width="7" height="5" x="14" y="3" rx="1"></rect>
+      <rect width="7" height="9" x="14" y="12" rx="1"></rect>
+      <rect width="7" height="5" x="3" y="16" rx="1"></rect>
+    </svg>
+  )
+}
+
+const IconPage = (props: any) => {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path>
+      <path d="M14 2v4a2 2 0 0 0 2 2h4"></path>
+    </svg>
+  )
+}
+
+const ICONS = {
+  layout: <IconLayout width={16} />,
+  page: <IconPage width={16} />,
+}
+
 function TreePanel({ tree }: { tree: TreeNode }) {
   return (
     <div className="tree-panel">
       <h2 className="text-lg font-bold mb-2">Component Tree</h2>
-      <TreeNodeDisplay node={tree} level={0} />
+      <TreeNodeDisplay node={tree} level={1} />
     </div>
   )
 }
 
-const TreeNodeDisplay = ({ node, level }: { node: TreeNode, level: number }) => {
-  const [expanded, setExpanded] = useState(false)
-  const openFile = useOpenInEditor(
-    node.nodeInfo.filePath,
-  )
+const TreeNodeDisplay = ({
+  node,
+  level,
+}: {
+  node: TreeNode
+  level: number
+}) => {
+  const [expanded, setExpanded] = useState(true)
+  const openFile = useOpenInEditor({
+    file: node.nodeInfo.filePath,
+  })
 
   return (
-    <div className="tree-node-display" style={{ paddingLeft: `${level * 16}px` }}>
+    <div
+      className="tree-node-display"
+      style={{ paddingLeft: `${level * 8}px` }}
+    >
       <div className="tree-node-display-row">
         <button
           onClick={() => setExpanded(!expanded)}
@@ -34,18 +86,13 @@ const TreeNodeDisplay = ({ node, level }: { node: TreeNode, level: number }) => 
               : '▶'
             : '•'}
         </button>
-        <div className="text-sm">
-          <span className="font-semibold text-blue-600">
-            <b>{node.name}</b>
+        <div className="tree-node-line-info">
+          {ICONS[node.name as 'layout' | 'page']}
+          <b>{node.name}</b>
+
+          <span className="tree-node-filename-path">
+            <a href={`vscode://file/${node.nodeInfo.filePath}`}>{node.pagePath}</a>
           </span>
-          <span className="text-gray-500"
-            onClick={() => {
-              // open the link of node.nodeInfo.filePath
-              if (node.nodeInfo.filePath) {
-                openFile()  
-              }
-            }}
-          >({node.pagePath})</span>
           {/* <div className="text-xs text-gray-400">{node.nodeInfo.filePath}</div> */}
         </div>
       </div>
@@ -74,7 +121,6 @@ export function RenderedFiles(
 
 export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
   .tree-panel {
-    
     padding: 6px;
   }
 
@@ -90,7 +136,6 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     padding: 2px 0;
   }
 
-
   .tree-node-select-button {
     background: var(--color-background-100);
     border-radius: var(--rounded-lg);
@@ -105,59 +150,24 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     }
   }
 
-  .preference-section:last-child {
-    border-bottom: none;
-  }
-
-  .preference-header {
-    margin-bottom: 0;
-    flex: 1;
-  }
-
-  .preference-header label {
+  .tree-node-filename-path {
+    color: var(--color-gray-600);
+    cursor: pointer;
+    text-decoration: underline;
     font-size: var(--size-14);
-    font-weight: 500;
-    color: var(--color-gray-1000);
-    margin: 0;
-  }
-
-  .preference-description {
-    color: var(--color-gray-900);
-    font-size: var(--size-14);
-    margin: 0;
-  }
-
-  .select-button,
-  .action-button {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--color-background-100);
-    border: 1px solid var(--color-gray-400);
-    border-radius: var(--rounded-lg);
-    font-weight: 400;
-    font-size: var(--size-14);
-    color: var(--color-gray-1000);
-    padding: 6px 8px;
 
     &:hover {
-      background: var(--color-gray-100);
+      color: var(--color-gray-1000);
+      text-decoration: none;
     }
   }
 
-  .select-button {
-    &:focus-within {
-      outline: var(--focus-ring);
-    }
-
-    select {
-      all: unset;
-    }
+  .tree-node-filename-path a {
+    color: inherit;
+    text-decoration: inherit;
   }
 
-  :global(.icon) {
-    width: 18px;
-    height: 18px;
-    color: #666;
+  .tree-node-line-info {
+    white-space: pre;
   }
 `
