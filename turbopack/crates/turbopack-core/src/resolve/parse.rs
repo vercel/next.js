@@ -143,9 +143,9 @@ impl Request {
         request.normalize();
         Ok(match request {
             Pattern::Dynamic => Request::Dynamic,
-            Pattern::Constant(r) => Request::parse_constant_pattern(r)?,
-            Pattern::Concatenation(list) => Request::parse_concatenation_pattern(list),
-            Pattern::Alternatives(list) => Request::parse_alternatives_pattern(list),
+            Pattern::Constant(r) => Request::parse_constant_pattern(r).await?,
+            Pattern::Concatenation(list) => Request::parse_concatenation_pattern(list).await?,
+            Pattern::Alternatives(list) => Request::parse_alternatives_pattern(list).await?,
         })
     }
 
@@ -155,7 +155,7 @@ impl Request {
         }
 
         if r.starts_with("//") {
-            let remainder = r[2..];
+            let remainder = &r[2..];
 
             return Ok(Request::Uri {
                 protocol: "//".into(),
