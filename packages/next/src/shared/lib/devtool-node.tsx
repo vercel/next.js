@@ -54,7 +54,7 @@ export const DevToolRootNode = ({
   pagePath: string
 }) => {
   const [tree, setTree] = React.useState<TreeNode>({
-    name: 'RootEmptyNode',
+    name: 'root',
     nodeInfo: {
       filePath: '<project>',
     },
@@ -100,7 +100,6 @@ export function DevToolNode({
   const { registerNode, pagePath: parentPagePath } = devToolContext
 
   useEffect(() => {
-    console.log('register node', pagePath, '-> p', parentPagePath)
     registerNode({
       parentPagePath,
       name,

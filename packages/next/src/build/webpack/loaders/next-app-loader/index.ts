@@ -164,7 +164,7 @@ async function createTreeCodeFromPath(
   async function resolveAdjacentParallelSegments(
     segmentPath: string
   ): Promise<string[]> {
-    const absoluteSegmentPath = await resolveDir(
+    const absoluteSegmentPath = resolveDir(
       `${appDirPrefix}${segmentPath}`
     )
 
@@ -354,7 +354,7 @@ async function createTreeCodeFromPath(
           !rootLayout
         ) {
           rootLayout = defaultLayoutPath
-          definedFilePaths.push(['layout', rootLayout])
+          definedFilePaths.push(['layout', rootLayout, ])
         }
       }
 
