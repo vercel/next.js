@@ -1,9 +1,10 @@
-import { useState, type HTMLProps } from 'react'
+import { type HTMLProps } from 'react'
 import { css } from '../../../../../utils/css'
 import type { DevToolsInfoPropsCore } from './dev-tools-info'
 import { DevToolsInfo } from './dev-tools-info'
 
 import type { TreeNode } from '../../../../../../../../shared/lib/devtool-context.shared-runtime'
+import { cx } from '../../../../utils/cx'
 
 const IconLayout = (props: any) => {
   return (
@@ -63,45 +64,42 @@ const TreeNodeDisplay = ({
   node: TreeNode
   level: number
 }) => {
-  const [expanded, setExpanded] = useState(true)
+  // const [expanded, setExpanded] = useState(true)
+  const nodeName = node.name[0] + node.name.slice(1)
+  const pathSeg = node.pagePath.split('/').slice(level - 1, -1).join('/')
+  const fileBaseName = node.nodeInfo.filePath.split('/').pop() || ''
 
   return (
     <div
       className="tree-node-display"
-      style={{ paddingLeft: `${level * 8}px` }}
+      style={{ paddingLeft: `${level * 6}px` }}
     >
       <div className="tree-node-display-row">
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="tree-node-select-button"
-        >
-          {Object.keys(node.children).length > 0
-            ? expanded
-              ? '▼'
-              : '▶'
-            : ''}
-        </button>
         <div className="tree-node-line-info">
-          <div>
+          <div className={cx(`tree-node-line-info-text-${node.name}`)}>
+            <span className={cx('tree-node-line-info-icon', `tree-node-line-info-icon-${node.name}`)}>
+              {ICONS[node.name as 'layout' | 'page']}
+              
+            </span>
+              {pathSeg}{' / '}
+              <b>{nodeName}</b>
 
-            {ICONS[node.name as 'layout' | 'page']}
-            <b>{node.name[0].toLocaleUpperCase() + node.name.slice(1)}</b>
           </div>
 
           <div className="tree-node-filename-path">
-            <a href={`vscode://file/${node.nodeInfo.filePath}`}>{node.pagePath}</a>
+            <a href={`vscode://file/${node.nodeInfo.filePath}`}>
+              {/* {pathSeg} */}
+              <span>{''}{fileBaseName}{''}</span>
+            </a>
           </div>
-          {/* <div className="text-xs text-gray-400">{node.nodeInfo.filePath}</div> */}
         </div>
       </div>
 
-      {expanded && (
-        <div className="tree-node-expanded-rendered-children">
-          {Object.entries(node.children).map(([key, child]) => (
-            <TreeNodeDisplay key={key} node={child} level={level + 1} />
-          ))}
-        </div>
-      )}
+      <div className="tree-node-expanded-rendered-children">
+        {Object.entries(node.children).map(([key, child]) => (
+          <TreeNodeDisplay key={key} node={child} level={level + 1} />
+        ))}
+      </div>
     </div>
   )
 }
@@ -149,7 +147,7 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
   }
 
   .tree-node-filename-path {
-    color: var(--color-gray-600);
+    color: var(--color-gray-800);
     cursor: pointer;
     text-decoration: underline;
     font-size: var(--size-14);
@@ -167,5 +165,19 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
 
   .tree-node-line-info {
     white-space: pre;
+  }
+
+  .tree-node-line-info-text-page {
+    color: black;
+  }
+
+  .tree-node-line-info-icon {
+    margin-right: 4px;
+  }
+  .tree-node-line-info-icon-layout {
+    color: var(--color-blue-600);
+  }
+  .tree-node-line-info-icon-page {
+    color: var(--color-blue-700);
   }
 `
