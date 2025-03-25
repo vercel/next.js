@@ -624,16 +624,16 @@ async function createComponentTreeInternal({
   }
 
   const relativeLayoutOrPagePath = (layoutOrPagePath || '').replace(process.cwd(), '')
-  const normalizedFilePath = filePath || '<filepath-placeholder>' //).replace(process.cwd(), '')
+  const normalizedFilePath = filePath || '<filepath-placeholder>'
   const nodeName = modType ?? '<name-placeholder>'
 
-  // @ts-ignore
-  if (!globalThis.rootAppDir) {
-    // @ts-ignore
-    globalThis.rootAppDir = path.dirname(path.dirname(relativeLayoutOrPagePath))
-  }
+  // // @ts-ignore
+  // if (!globalThis.rootAppDir) {
+  //   // @ts-ignore
+  //   globalThis.rootAppDir = path.dirname(path.dirname(relativeLayoutOrPagePath))
+  // }
 
-  const devtoolPagePath = relativeLayoutOrPagePath.slice((globalThis as any).rootAppDir.length)
+  const devtoolPagePath = relativeLayoutOrPagePath //.slice(process.cwd().length)
 
   if (isPage) {
     // const PageComponent = Component
