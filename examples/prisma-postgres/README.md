@@ -12,7 +12,7 @@ Run [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/c
 
 ```bash
 # Using npm
-npx create-next-app --example prisma nextjs-prisma-crud-demo
+npx create-next-app@latest --example prisma-postgres my-prisma-postgres-app
 ```
 
 <details>
@@ -21,13 +21,13 @@ npx create-next-app --example prisma nextjs-prisma-crud-demo
 
 ```bash
 # Using yarn
-yarn create next-app --example prisma-orm prisma-orm-app
+yarn create next-app --example prisma-postgres my-prisma-postgres-app
 
 # Using pnpm
-pnpm create-next-app --example prisma-orm prisma-orm-app
+pnpm create-next-app --example prisma-postgres my-prisma-postgres-app
 
 # Using bun
-bunx create-next-app --example prisma-orm prisma-orm-app
+bunx create-next-app --example prisma-postgres my-prisma-postgres-app
 ```
 
 </details>
@@ -35,7 +35,7 @@ bunx create-next-app --example prisma-orm prisma-orm-app
 Navigate into the created app:
 
 ```bash
-cd ./prisma-orm-app
+cd ./my-prisma-postgres-app
 ```
 
 Install the dependencies if you haven't already:
