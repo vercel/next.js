@@ -623,7 +623,8 @@ async function createComponentTreeInternal({
     )
   }
 
-  const relativeLayoutOrPagePath = (layoutOrPagePath || '').replace(process.cwd(), '')
+  const dir = ctx.renderOpts.dir || process.cwd()
+  const relativeLayoutOrPagePath = (layoutOrPagePath || '').replace(dir, '')
   const normalizedFilePath = filePath || '<filepath-placeholder>'
   const nodeName = modType ?? '<name-placeholder>'
 
