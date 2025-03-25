@@ -20,11 +20,9 @@ import { ClientSegmentRoot } from '../../client/components/client-segment'
 import {
   createServerSearchParamsForServerPage,
   createPrerenderSearchParamsForClientPage,
-  createServerSearchParamsForMetadata,
 } from '../request/search-params'
 import {
   createServerParamsForServerSegment,
-  createServerParamsForMetadata,
   createPrerenderParamsForClientSegment,
 } from '../request/params'
 import * as serverHooks from '../../client/components/hooks-server-context'
@@ -60,10 +58,8 @@ export {
   workUnitAsyncStorage,
   actionAsyncStorage,
   createServerSearchParamsForServerPage,
-  createServerSearchParamsForMetadata,
   createPrerenderSearchParamsForClientPage,
   createServerParamsForServerSegment,
-  createServerParamsForMetadata,
   createPrerenderParamsForClientSegment,
   serverHooks,
   preloadStyle,

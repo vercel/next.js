@@ -23,7 +23,6 @@ use turbopack_core::{
         Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
         StyledString,
     },
-    module_graph::ModuleGraph,
     reference::ModuleReferences,
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
@@ -220,7 +219,6 @@ pub async fn process_css_with_placeholder(
 #[turbo_tasks::function]
 pub async fn finalize_css(
     result: Vc<CssWithPlaceholderResult>,
-    module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     minify_type: MinifyType,
 ) -> Result<Vc<FinalCssResult>> {
@@ -247,8 +245,7 @@ pub async fn finalize_css(
             let mut url_map = FxHashMap::default();
 
             for (src, reference) in (*url_references.await?).iter() {
-                let resolved =
-                    resolve_url_reference(**reference, module_graph, chunking_context).await?;
+                let resolved = resolve_url_reference(**reference, chunking_context).await?;
                 if let Some(v) = resolved.as_ref().cloned() {
                     url_map.insert(RcStr::from(src.as_str()), v);
                 }
@@ -286,7 +283,6 @@ pub trait ProcessCss: ParseCss {
 
     async fn finalize_css(
         self: Vc<Self>,
-        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         minify_type: MinifyType,
     ) -> Result<Vc<FinalCssResult>>;

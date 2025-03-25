@@ -1,10 +1,7 @@
-/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/image.png (static in css) */
-/* embedded static asset "/static/image.b151aca5.png" */
-
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.module.css [test] (css) */
 .style-module__3oVw9q__module-style{cursor:url(../static/image.b151aca5.png);background-image:url(../static/image.b151aca5.png);list-style-image:url(../static/image.b151aca5.png)}
 
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.css [test] (css) */
 .style{cursor:url(../static/image.b151aca5.png);background-image:url(../static/image.b151aca5.png);list-style-image:url(../static/image.b151aca5.png)}
 
-/*# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_css_embed-url_input_14a7ded7._.css.map*/
+/*# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_css_embed-url_input_00f6db8e._.css.map*/

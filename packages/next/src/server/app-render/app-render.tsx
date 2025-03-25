@@ -148,7 +148,7 @@ import type { ServerComponentsHmrCache } from '../response-cache'
 import type { RequestErrorContext } from '../instrumentation/types'
 import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
 import { createInitialRouterState } from '../../client/components/router-reducer/create-initial-router-state'
-import { createMutableActionQueue } from '../../shared/lib/router/action-queue'
+import { createMutableActionQueue } from '../../client/components/app-router-instance'
 import { getRevalidateReason } from '../instrumentation/utils'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { FallbackRouteParams } from '../request/fallback-params'
@@ -468,8 +468,6 @@ async function generateDynamicRSCPayload(
   const {
     componentMod: {
       tree: loaderTree,
-      createServerSearchParamsForMetadata,
-      createServerParamsForMetadata,
       createMetadataComponents,
       MetadataBoundary,
       ViewportBoundary,
@@ -488,7 +486,6 @@ async function generateDynamicRSCPayload(
   if (!options?.skipFlight) {
     const preloadCallbacks: PreloadCallbacks = []
 
-    const searchParams = createServerSearchParamsForMetadata(query, workStore)
     const {
       ViewportTree,
       MetadataTree,
@@ -497,7 +494,7 @@ async function generateDynamicRSCPayload(
       StreamingMetadataOutlet,
     } = createMetadataComponents({
       tree: loaderTree,
-      searchParams,
+      parsedQuery: query,
       metadataContext: createTrackedMetadataContext(
         url.pathname,
         ctx.renderOpts,
@@ -505,7 +502,6 @@ async function generateDynamicRSCPayload(
       ),
       getDynamicParamFromSegment,
       appUsingSizeAdjustment,
-      createServerParamsForMetadata,
       workStore,
       MetadataBoundary,
       ViewportBoundary,
@@ -788,8 +784,6 @@ async function getRSCPayload(
     appUsingSizeAdjustment,
     componentMod: {
       GlobalError,
-      createServerSearchParamsForMetadata,
-      createServerParamsForMetadata,
       createMetadataComponents,
       MetadataBoundary,
       ViewportBoundary,
@@ -805,7 +799,6 @@ async function getRSCPayload(
   )
   const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
 
-  const searchParams = createServerSearchParamsForMetadata(query, workStore)
   const {
     ViewportTree,
     MetadataTree,
@@ -815,7 +808,7 @@ async function getRSCPayload(
   } = createMetadataComponents({
     tree,
     errorType: is404 ? 'not-found' : undefined,
-    searchParams,
+    parsedQuery: query,
     metadataContext: createTrackedMetadataContext(
       url.pathname,
       ctx.renderOpts,
@@ -823,7 +816,6 @@ async function getRSCPayload(
     ),
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
-    createServerParamsForMetadata,
     workStore,
     MetadataBoundary,
     ViewportBoundary,
@@ -930,8 +922,6 @@ async function getErrorRSCPayload(
     appUsingSizeAdjustment,
     componentMod: {
       GlobalError,
-      createServerSearchParamsForMetadata,
-      createServerParamsForMetadata,
       createMetadataComponents,
       MetadataBoundary,
       ViewportBoundary,
@@ -942,17 +932,15 @@ async function getErrorRSCPayload(
   } = ctx
 
   const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
-  const searchParams = createServerSearchParamsForMetadata(query, workStore)
   const { MetadataTree, ViewportTree } = createMetadataComponents({
     tree,
-    searchParams,
+    parsedQuery: query,
     // We create an untracked metadata context here because we can't postpone
     // again during the error render.
     metadataContext: createMetadataContext(url.pathname, ctx.renderOpts),
     errorType,
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
-    createServerParamsForMetadata,
     workStore,
     MetadataBoundary,
     ViewportBoundary,
@@ -978,6 +966,7 @@ async function getErrorRSCPayload(
       {process.env.NODE_ENV === 'development' && (
         <meta name="next-error" content="not-found" />
       )}
+      {StreamingMetadata ? <StreamingMetadata /> : null}
       <StaticMetadata />
     </React.Fragment>
   )
@@ -998,7 +987,10 @@ async function getErrorRSCPayload(
   const seedData: CacheNodeSeedData = [
     initialTree[0],
     <html id="__next_error__">
-      <head>{StreamingMetadata ? <StreamingMetadata /> : null}</head>
+      <head>
+        {StreamingMetadata ? <StreamingMetadata /> : null}
+        <StaticMetadata />
+      </head>
       <body>
         {process.env.NODE_ENV !== 'production' && err ? (
           <template
@@ -1105,15 +1097,19 @@ function App<T>({
 // @TODO our error stream should be probably just use the same root component. But it was previously
 // different I don't want to figure out if that is meaningful at this time so just keeping the behavior
 // consistent for now.
-function AppWithoutContext<T>({
+function ErrorApp<T>({
   reactServerStream,
   preinitScripts,
   clientReferenceManifest,
+  ServerInsertedMetadataProvider,
+  ServerInsertedHTMLProvider,
   nonce,
 }: {
   reactServerStream: BinaryStreamOf<T>
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
+  ServerInsertedMetadataProvider: React.ComponentType<{ children: JSX.Element }>
+  ServerInsertedHTMLProvider: React.ComponentType<{ children: JSX.Element }>
   nonce?: string
 }): JSX.Element {
   preinitScripts()
@@ -1140,11 +1136,15 @@ function AppWithoutContext<T>({
   const actionQueue = createMutableActionQueue(initialState)
 
   return (
-    <AppRouter
-      actionQueue={actionQueue}
-      globalErrorComponentAndStyles={response.G}
-      assetPrefix={response.p}
-    />
+    <ServerInsertedMetadataProvider>
+      <ServerInsertedHTMLProvider>
+        <AppRouter
+          actionQueue={actionQueue}
+          globalErrorComponentAndStyles={response.G}
+          assetPrefix={response.p}
+        />
+      </ServerInsertedHTMLProvider>
+    </ServerInsertedMetadataProvider>
   )
 }
 
@@ -2112,8 +2112,10 @@ async function renderToStream(
         {
           ReactDOMServer: require('react-dom/server.edge'),
           element: (
-            <AppWithoutContext
+            <ErrorApp
               reactServerStream={errorServerStream}
+              ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
+              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               preinitScripts={errorPreinitScripts}
               clientReferenceManifest={clientReferenceManifest}
               nonce={ctx.nonce}
@@ -4025,8 +4027,10 @@ async function prerenderToStream(
       const fizzStream = await renderToInitialFizzStream({
         ReactDOMServer: require('react-dom/server.edge'),
         element: (
-          <AppWithoutContext
+          <ErrorApp
             reactServerStream={errorServerStream}
+            ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
+            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
             preinitScripts={errorPreinitScripts}
             clientReferenceManifest={clientReferenceManifest}
             nonce={ctx.nonce}

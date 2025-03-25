@@ -3,7 +3,7 @@ import type { DebugInfo } from '../../../../types'
 import type { ErrorMessageType } from '../error-message/error-message'
 import type { ErrorType } from '../error-type-label/error-type-label'
 
-import { DialogContent, DialogFooter } from '../../dialog'
+import { DialogContent } from '../../dialog'
 import {
   ErrorOverlayToolbar,
   styles as toolbarStyles,
@@ -98,11 +98,26 @@ export function ErrorOverlayLayout({
   return (
     <ErrorOverlayOverlay fixed={isBuildError} {...animationProps}>
       <div data-nextjs-dialog-root ref={dialogRef} {...animationProps}>
+        <ErrorOverlayNav
+          runtimeErrors={runtimeErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          versionInfo={versionInfo}
+          isTurbopack={isTurbopack}
+        />
         <ErrorOverlayDialog
           onClose={onClose}
           dialogResizerRef={dialogResizerRef}
           data-has-footer={hasFooter}
           onScroll={onScroll}
+          footer={
+            hasFooter && (
+              <ErrorOverlayFooter
+                footerMessage={footerMessage}
+                errorCode={errorCode}
+              />
+            )
+          }
         >
           <DialogContent>
             <ErrorOverlayDialogHeader>
@@ -126,26 +141,11 @@ export function ErrorOverlayLayout({
 
             <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>
           </DialogContent>
-          {hasFooter && (
-            <DialogFooter>
-              <ErrorOverlayFooter
-                footerMessage={footerMessage}
-                errorCode={errorCode}
-              />
-            </DialogFooter>
-          )}
           <ErrorOverlayBottomStack
             errorCount={runtimeErrors?.length ?? 0}
             activeIdx={activeIdx ?? 0}
           />
         </ErrorOverlayDialog>
-        <ErrorOverlayNav
-          runtimeErrors={runtimeErrors}
-          activeIdx={activeIdx}
-          setActiveIndex={setActiveIndex}
-          versionInfo={versionInfo}
-          isTurbopack={isTurbopack}
-        />
         <Fader ref={faderRef} side="top" stop="50%" blur="4px" height={48} />
       </div>
     </ErrorOverlayOverlay>
