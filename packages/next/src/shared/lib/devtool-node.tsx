@@ -36,10 +36,8 @@ const createRegisterNode =
             pagePath,
             children: {},
             nodeInfo: nodeInfo,
-          }  
+          }
         }
-
-        
       }
 
       return { ...prevTree }
@@ -63,12 +61,9 @@ export const DevToolRootNode = ({
   })
 
   const registerNode = createRegisterNode(setTree)
-
-
   useEffect(() => {
-
     ;(window as any).__NEXT_DEVTOOL_TREE = tree
-  }, [])
+  }, [tree])
 
   return (
     <DevToolContext value={{ tree, registerNode, pagePath }}>
@@ -79,9 +74,6 @@ export const DevToolRootNode = ({
 
 const useDevTool = () => {
   const context = React.useContext(DevToolContext)
-  if (!context) {
-    throw new Error('useDevTool must be used within DevToolProvider')
-  }
   return context
 }
 
@@ -97,16 +89,23 @@ export function DevToolNode({
   name: string
 }) {
   const devToolContext = useDevTool()
-  const { registerNode, pagePath: parentPagePath } = devToolContext
 
   useEffect(() => {
+    if (!devToolContext) {
+      return
+    }
+    const { registerNode, pagePath: parentPagePath } = devToolContext
     registerNode({
       parentPagePath,
       name,
       pagePath,
       nodeInfo: { filePath },
     })
-  }, [])
+  }, [devToolContext, filePath, name, pagePath])
+
+  if (!devToolContext) {
+    return children
+  }
 
   return (
     <DevToolContext

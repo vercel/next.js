@@ -66,7 +66,10 @@ const TreeNodeDisplay = ({
 }) => {
   // const [expanded, setExpanded] = useState(true)
   const nodeName = node.name[0] + node.name.slice(1)
-  const pathSeg = node.pagePath.split('/').slice(level - 1, -1).join('/')
+  const pathSeg = node.pagePath
+    .split('/')
+    .slice(level - 1, -1)
+    .join('/')
   const fileBaseName = node.nodeInfo.filePath.split('/').pop() || ''
 
   return (
@@ -77,19 +80,25 @@ const TreeNodeDisplay = ({
       <div className="tree-node-display-row">
         <div className="tree-node-line-info">
           <div className={cx(`tree-node-line-info-text-${node.name}`)}>
-            <span className={cx('tree-node-line-info-icon', `tree-node-line-info-icon-${node.name}`)}>
+            <span
+              className={cx(
+                'tree-node-line-info-icon',
+                `tree-node-line-info-icon-${node.name}`
+              )}
+            >
               {ICONS[node.name as 'layout' | 'page']}
-              
             </span>
-              {pathSeg}{' / '}
-              <b>{nodeName}</b>
-
+            {pathSeg}
+            {' / '}
+            <b>{nodeName}</b>
           </div>
 
           <div className="tree-node-filename-path">
             <a href={`vscode://file/${node.nodeInfo.filePath}`}>
               {/* {pathSeg} */}
-              <span>{''}{fileBaseName}{''}</span>
+              <span>
+                {fileBaseName}
+              </span>
             </a>
           </div>
         </div>
@@ -151,6 +160,11 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     cursor: pointer;
     text-decoration: underline;
     font-size: var(--size-14);
+    background: #ebebeb;
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    text-decoration-color: #b4b4b4;
 
     &:hover {
       color: var(--color-gray-1000);
