@@ -18,8 +18,6 @@ env:
   CARGO_INCREMENTAL: 0
   # For faster CI
   RUST_LOG: 'off'
-  # https://github.com/actions/setup-node/issues/899#issuecomment-1819151595
-  SKIP_YARN_COREPACK_CHECK: 1
 
 jobs:
   list-crates:
@@ -43,6 +41,9 @@ jobs:
     name: Benchmark ${{ matrix.crate }}
     runs-on: ubuntu-22.04
     needs: list-crates
+    # Limit the number of concurrent jobs to 1
+    concurrency:
+      group: ${{ github.workflow }}
     strategy:
       matrix:
         crate: ${{fromJson(needs.list-crates.outputs.crates)}}
