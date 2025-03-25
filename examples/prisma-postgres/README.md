@@ -1,6 +1,6 @@
 # Prisma ORM + Next.js starter
 
-This repository provides a boilerplate to quickly set up a Next.js application with [Prisma Postgres](https://www.prisma.io/postgres) and [Prisma ORM](https://www.prisma.io/orm) for database operations. It includes an easy setup process and example routes to add, view, and list posts, demonstrating basic CRUD operations with Prisma ORM.
+This repository provides boilerplate to quickly set up a simple Next.js CRUD application with [Prisma Postgres](https://www.prisma.io/postgres) and [Prisma ORM](https://www.prisma.io/orm) for database operations.
 
 ## Getting started
 
@@ -12,7 +12,7 @@ Run [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/c
 
 ```bash
 # Using npm
-npx create-next-app --example prisma-orm prisma-orm-app
+npx create-next-app --example prisma nextjs-prisma-crud-demo
 ```
 
 <details>
@@ -64,15 +64,72 @@ bun install
 
 ### 2. Create a Prisma Postgres instance
 
-Create a Prisma Postgres database instance using [Prisma Data Platform](https://console.prisma.io):
+Run the following command in your terminal:
 
-1. Navigate to [Prisma Data Platform](https://console.prisma.io).
-2. Click **New project** to create a new project.
-3. Enter a name for your project in the **Name** field.
-4. Inside the **Prisma Postgres®** section, click **Get started**.
-5. Choose a region close to your location from the **Region** dropdown.
-6. Click **Create project** to set up your database. This redirects you to the database setup page.
-7. In the **Set up database access** section, copy the `DATABASE_URL`. You will use this in the next steps.
+```
+npx prisma init --db
+```
+
+If you don't have a [Prisma Data Platform](https://console.prisma.io/) account yet, or if you are not logged in, the command will prompt you to log in using one of the available authentication providers. A browser window will open so you can log in or create an account. Return to the CLI after you have completed this step.
+
+Once logged in (or if you were already logged in), the CLI will prompt you to:
+1. Select a **region** (e.g. `us-east-1`)
+1. Enter a **project name**
+
+After successful creation, you will see output similar to the following:
+
+<details>
+
+<summary>CLI output</summary>
+
+```terminal
+Let's set up your Prisma Postgres database!
+? Select your region: ap-northeast-1 - Asia Pacific (Tokyo)
+? Enter a project name: testing-migration
+✔ Success! Your Prisma Postgres database is ready ✅
+
+We found an existing schema.prisma file in your current project directory.
+
+--- Database URL ---
+
+Connect Prisma ORM to your Prisma Postgres database with this URL:
+
+prisma+postgres://accelerate.prisma-data.net/?api_key=ey...
+
+--- Next steps ---
+
+Go to https://pris.ly/ppg-init for detailed instructions.
+
+1. Install and use the Prisma Accelerate extension
+Prisma Postgres requires the Prisma Accelerate extension for querying. If you haven't already installed it, install it in your project:
+npm install @prisma/extension-accelerate
+
+...and add it to your Prisma Client instance:
+import { withAccelerate } from "@prisma/extension-accelerate"
+
+const prisma = new PrismaClient().$extends(withAccelerate())
+
+2. Apply migrations
+Run the following command to create and apply a migration:
+npx prisma migrate dev
+
+3. Manage your data
+View and edit your data locally by running this command:
+npx prisma studio
+
+...or online in Console:
+https://console.prisma.io/{workspaceId}/{projectId}/studio
+
+4. Send queries from your app
+If you already have an existing app with Prisma ORM, you can now run it and it will send queries against your newly created Prisma Postgres instance.
+
+5. Learn more
+For more info, visit the Prisma Postgres docs: https://pris.ly/ppg-docs
+```
+
+</details>
+
+Locate and copy the database URL provided in the CLI output. Then, follow the instructions in the next step to create a `.env` file in the project root.
 
 ### 3. Setup your `.env` file
 
@@ -169,6 +226,16 @@ bun run dev
 </details>
 
 Once the server is running, visit `http://localhost:3000` to start using the app.
+
+## Usage
+
+The app includes the following routes:
+
+- `/`: Display the thee most recent posts
+- `/posts`: Paginated list view of all posts
+- `/posts/new`: Create a new post
+- `/users/new`: Create a new user
+- `/api/posts/`: Pagination logic
 
 ## Deploy your own
 
