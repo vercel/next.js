@@ -7,7 +7,8 @@ const {
   glob,
   packageFiles,
 } = require('./pack-util.cjs')
-const fs = require('node:fs/promises')
+const fs = require('node:fs')
+const fsPromises = require('node:fs/promises')
 const patchPackageJson = require('./pack-utils/patch-package-json.ts').default
 const yargs = require('yargs')
 const buildNative = require('./build-native.cjs')
@@ -38,7 +39,12 @@ const cliOptions = yargs(process.argv.slice(2))
   .option('tar', {
     type: 'boolean',
     describe: 'Create tarballs instead of direct reflinks',
-  }).argv
+  })
+  .example(
+    'pnpm pack-next -- --release',
+    'Pass the --release argument through to napi-rs build'
+  )
+  .strict().argv
 
 async function main() {
   if (cliOptions.jsBuild) {
@@ -49,13 +55,13 @@ async function main() {
   if (cliOptions.tar && PACK_NEXT_COMPRESS !== 'strip') {
     // HACK: delete any pre-existing binaries to force napi-rs to rewrite it
     let binaries = await nextSwcBinaries()
-    await Promise.all(binaries.map((bin) => fs.rm(bin)))
+    await Promise.all(binaries.map((bin) => fsPromises.rm(bin)))
   }
 
   await buildNative(cliOptions._)
 
   if (cliOptions.tar) {
-    await fs.mkdir(TARBALLS, { recursive: true })
+    fs.mkdirSync(TARBALLS, { recursive: true })
 
     // build all tarfiles in parallel
     await Promise.all([
