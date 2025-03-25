@@ -564,6 +564,7 @@ export default abstract class Server<
     }
 
     this.renderOpts = {
+      appDir: '',
       supportsDynamicResponse: true,
       trailingSlash: this.nextConfig.trailingSlash,
       deploymentId: this.nextConfig.deploymentId,
