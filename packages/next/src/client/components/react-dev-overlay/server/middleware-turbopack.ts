@@ -411,6 +411,16 @@ export function getOverlayMiddleware(project: Project, projectPath: string) {
             }
             return { status: 'fulfilled', value: stackFrame }
           } catch (error) {
+            if (process.env.__NEXT_TEST_MODE) {
+              console.error(
+                new Error(
+                  `Failed to create original stack frame for \n${JSON.stringify(frame, null, 2)}`,
+                  {
+                    cause: error,
+                  }
+                )
+              )
+            }
             return {
               status: 'rejected',
               reason: inspect(error, { colors: false }),
