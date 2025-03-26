@@ -1,23 +1,25 @@
 'use client'
 
-import type { NextRouter } from '../../shared/lib/router/router'
-
-import React from 'react'
+import React, { createContext, useContext, useOptimistic, useRef } from 'react'
 import type { UrlObject } from 'url'
 import { formatUrl } from '../../shared/lib/router/utils/format-url'
 import { AppRouterContext } from '../../shared/lib/app-router-context.shared-runtime'
-import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
 import { PrefetchKind } from '../components/router-reducer/router-reducer-types'
 import { useMergedRef } from '../use-merged-ref'
 import { isAbsoluteUrl } from '../../shared/lib/utils'
 import { addBasePath } from '../add-base-path'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
+import type { PENDING_LINK_STATUS } from '../components/links'
 import {
+  IDLE_LINK_STATUS,
   mountLinkInstance,
   onNavigationIntent,
-  unmountLinkInstance,
+  unmountLinkForCurrentNavigation,
+  unmountPrefetchableInstance,
+  type LinkInstance,
 } from '../components/links'
 import { isLocalURL } from '../../shared/lib/router/utils/is-local-url'
+import { dispatchNavigateAction } from '../components/app-router-instance'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -176,6 +178,7 @@ type InternalLinkProps = {
    * Enable legacy link behavior, requiring an `<a>` tag to wrap the child content
    * if the child is a string or number.
    *
+   * @deprecated This will be removed in v16
    * @defaultValue `false`
    * @see https://github.com/vercel/next.js/commit/489e65ed98544e69b0afd7e0cfc3f9f6c2b803b7
    */
@@ -227,11 +230,10 @@ function isModifiedEvent(event: React.MouseEvent): boolean {
 
 function linkClicked(
   e: React.MouseEvent,
-  router: NextRouter | AppRouterInstance,
   href: string,
   as: string,
+  linkInstanceRef: React.RefObject<LinkInstance | null>,
   replace?: boolean,
-  shallow?: boolean,
   scroll?: boolean,
   onNavigate?: OnNavigateEventHandler
 ): void {
@@ -277,20 +279,12 @@ function linkClicked(
       }
     }
 
-    // If the router is an NextRouter instance it will have `beforePopState`
-    // TODO: This should access the router methods directly, rather than
-    // go through the public interface.
-    const routerScroll = scroll ?? true
-    if ('beforePopState' in router) {
-      router[replace ? 'replace' : 'push'](href, as, {
-        shallow,
-        scroll: routerScroll,
-      })
-    } else {
-      router[replace ? 'replace' : 'push'](as || href, {
-        scroll: routerScroll,
-      })
-    }
+    dispatchNavigateAction(
+      as || href,
+      replace ? 'replace' : 'push',
+      scroll ?? true,
+      linkInstanceRef.current
+    )
   }
 
   React.startTransition(navigate)
@@ -320,7 +314,11 @@ export default function LinkComponent(
     ref: React.Ref<HTMLAnchorElement>
   }
 ) {
+  const [linkStatus, setOptimisticLinkStatus] = useOptimistic(IDLE_LINK_STATUS)
+
   let children: React.ReactNode
+
+  const linkInstanceRef = useRef<LinkInstance | null>(null)
 
   const {
     href: hrefProp,
@@ -556,14 +554,26 @@ export default function LinkComponent(
   // a revalidation or refresh.
   const observeLinkVisibilityOnMount = React.useCallback(
     (element: HTMLAnchorElement | SVGAElement) => {
-      if (prefetchEnabled && router !== null) {
-        mountLinkInstance(element, href, router, appPrefetchKind)
+      if (router !== null) {
+        linkInstanceRef.current = mountLinkInstance(
+          element,
+          href,
+          router,
+          appPrefetchKind,
+          prefetchEnabled,
+          setOptimisticLinkStatus
+        )
       }
+
       return () => {
-        unmountLinkInstance(element)
+        if (linkInstanceRef.current) {
+          unmountLinkForCurrentNavigation(linkInstanceRef.current)
+          linkInstanceRef.current = null
+        }
+        unmountPrefetchableInstance(element)
       }
     },
-    [prefetchEnabled, href, router, appPrefetchKind]
+    [prefetchEnabled, href, router, appPrefetchKind, setOptimisticLinkStatus]
   )
 
   const mergedRef = useMergedRef(observeLinkVisibilityOnMount, childRef)
@@ -605,7 +615,7 @@ export default function LinkComponent(
         return
       }
 
-      linkClicked(e, router, href, as, replace, shallow, scroll, onNavigate)
+      linkClicked(e, href, as, linkInstanceRef, replace, scroll, onNavigate)
     },
     onMouseEnter(e) {
       if (!legacyBehavior && typeof onMouseEnterProp === 'function') {
@@ -670,11 +680,37 @@ export default function LinkComponent(
     childProps.href = addBasePath(as)
   }
 
-  return legacyBehavior ? (
-    React.cloneElement(child, childProps)
-  ) : (
-    <a {...restProps} {...childProps}>
-      {children}
-    </a>
+  let link: React.ReactNode
+
+  if (legacyBehavior) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error(
+        '`legacyBehavior` is deprecated and will be removed in a future ' +
+          'release. A codemod is available to upgrade your components:\n\n' +
+          'npx @next/codemod@latest new-link .\n\n' +
+          'Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components'
+      )
+    }
+    link = React.cloneElement(child, childProps)
+  } else {
+    link = (
+      <a {...restProps} {...childProps}>
+        {children}
+      </a>
+    )
+  }
+
+  return (
+    <LinkStatusContext.Provider value={linkStatus}>
+      {link}
+    </LinkStatusContext.Provider>
   )
+}
+
+const LinkStatusContext = createContext<
+  typeof PENDING_LINK_STATUS | typeof IDLE_LINK_STATUS
+>(IDLE_LINK_STATUS)
+
+export const useLinkStatus = () => {
+  return useContext(LinkStatusContext)
 }
