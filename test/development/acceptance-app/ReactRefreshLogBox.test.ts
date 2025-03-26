@@ -298,7 +298,7 @@ describe('ReactRefreshLogBox app', () => {
   })
 
   // Module trace is only available with webpack 5
-  test('conversion to class component (1)', async () => {
+  it('conversion to class component (1)', async () => {
     await using sandbox = await createSandbox(next)
     const { browser, session } = sandbox
 
@@ -343,28 +343,22 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    if (isTurbopack) {
-      // TODO(veil): Turbopack is flaky. Possibly related to https://linear.app/vercel/issue/NDX-920/turbopack-errors-after-hmr-have-no-stacktraces-in-affected-chunks
-      // Should use `await expect(browser).toDisplayRedbox()`
-      await session.assertHasRedbox()
-    } else {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "count": 1,
-         "description": "Error: ",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "Child.js (4:11) @ ClickCount.render
-       > 4 |     throw new Error()
-           |           ^",
-         "stack": [
-           "ClickCount.render Child.js (4:11)",
-           "Home index.js (6:7)",
-           "Page app/page.js (4:10)",
-         ],
-       }
-      `)
-    }
+    await expect(browser).toDisplayRedbox(`
+      {
+        "count": 1,
+        "description": "Error: ",
+        "environmentLabel": null,
+        "label": "Runtime Error",
+        "source": "Child.js (4:11) @ ClickCount.render
+      > 4 |     throw new Error()
+          |           ^",
+        "stack": [
+          "ClickCount.render Child.js (4:11)",
+          "Home index.js (6:7)",
+          "Page app/page.js (4:10)",
+        ],
+      }
+    `)
 
     await session.patch(
       'Child.js',
@@ -1445,16 +1439,30 @@ describe('ReactRefreshLogBox app', () => {
 
   // TODO: The error overlay is not closed when restoring the working code.
   for (const type of ['server' /* , 'client' */]) {
-    test(`${type} component can recover from error thrown in the module`, async () => {
+    it(`${type} component can recover from error thrown in the module`, async () => {
       await using sandbox = await createSandbox(next, undefined, '/' + type)
       const { browser, session } = sandbox
 
       await next.patchFile('index.js', "throw new Error('module error')")
 
       if (isTurbopack) {
-        // TODO(veil): Turbopack is flaky. Possibly related to https://linear.app/vercel/issue/NDX-920/turbopack-errors-after-hmr-have-no-stacktraces-in-affected-chunks
-        // Should use `await expect(browser).toDisplayRedbox()`
-        await session.assertHasRedbox()
+        await expect({ browser, next }).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "Error: module error",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "index.js (1:7) @ [project]/index.js [app-rsc] (ecmascript)
+         > 1 | throw new Error('module error')
+             |       ^",
+           "stack": [
+             "[project]/index.js [app-rsc] (ecmascript) index.js (1:7)",
+             "[project]/app/server/page.js [app-rsc] (ecmascript) app/server/page.js (1:1)",
+             "[project]/app/server/page.js [app-rsc] (ecmascript, Next.js server component) app/server/page.js (4:1)",
+             "<FIXME-next-dist-dir>",
+           ],
+         }
+        `)
       } else {
         await expect({ browser, next }).toDisplayRedbox(`
          {
