@@ -154,9 +154,7 @@ impl Request {
             return Ok(Request::Empty);
         }
 
-        if r.starts_with("//") {
-            let remainder = &r[2..];
-
+        if let Some(remainder) = r.strip_prefix("//") {
             return Ok(Request::Uri {
                 protocol: "//".into(),
                 remainder: remainder.into(),
