@@ -11,7 +11,7 @@ export class SubresourceIntegrityPlugin {
 
   public apply(compiler: webpack.Compiler) {
     compiler.hooks.make.tap(PLUGIN_NAME, (compilation) => {
-      compilation.hooks.afterOptimizeAssets.tap(
+      compilation.hooks.afterProcessAssets.tap(
         {
           name: PLUGIN_NAME,
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,

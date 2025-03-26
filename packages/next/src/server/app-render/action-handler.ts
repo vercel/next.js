@@ -504,7 +504,13 @@ export async function handleAction({
     // We want the render to see any cookie writes that we performed during the action,
     // so we need to update the immutable cookies to reflect the changes.
     synchronizeMutableCookies(requestStore)
+
+    // The server action might have toggled draft mode, so we need to reflect
+    // that in the work store to be up-to-date for subsequent rendering.
+    workStore.isDraftMode = requestStore.draftMode.isEnabled
+
     requestStore.phase = 'render'
+
     return generateFlight(...args)
   }
 

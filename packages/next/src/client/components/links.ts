@@ -1,6 +1,6 @@
 import type { FlightRouterState } from '../../server/app-render/types'
 import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
-import { getCurrentAppRouterState } from '../../shared/lib/router/action-queue'
+import { getCurrentAppRouterState } from './app-router-instance'
 import { createPrefetchURL } from './app-router'
 import { PrefetchKind } from './router-reducer/router-reducer-types'
 import { getCurrentCacheVersion } from './segment-cache'
@@ -12,13 +12,17 @@ import {
   cancelPrefetchTask,
   bumpPrefetchTask,
 } from './segment-cache'
+import { startTransition } from 'react'
 
-type LinkElement = HTMLAnchorElement | SVGAElement | HTMLFormElement
+type LinkElement = HTMLAnchorElement | SVGAElement
 
-type LinkInstance = {
+type Element = LinkElement | HTMLFormElement
+
+// Properties that are shared between Link and Form instances. We use the same
+// shape for both to prevent a polymorphic de-opt in the VM.
+type LinkOrFormInstanceShared = {
   router: AppRouterInstance
   kind: PrefetchKind.AUTO | PrefetchKind.FULL
-  prefetchHref: string
 
   isVisible: boolean
   wasHoveredOrTouched: boolean
@@ -33,16 +37,68 @@ type LinkInstance = {
   cacheVersion: number
 }
 
+export type FormInstance = LinkOrFormInstanceShared & {
+  prefetchHref: string
+  setOptimisticLinkStatus: null
+}
+
+type PrefetchableLinkInstance = LinkOrFormInstanceShared & {
+  prefetchHref: string
+  setOptimisticLinkStatus: (status: { pending: boolean }) => void
+}
+
+type NonPrefetchableLinkInstance = LinkOrFormInstanceShared & {
+  prefetchHref: null
+  setOptimisticLinkStatus: (status: { pending: boolean }) => void
+}
+
+type PrefetchableInstance = PrefetchableLinkInstance | FormInstance
+
+export type LinkInstance =
+  | PrefetchableLinkInstance
+  | NonPrefetchableLinkInstance
+
+// Tracks the most recently navigated link instance. When null, indicates
+// the current navigation was not initiated by a link click.
+let linkForMostRecentNavigation: LinkInstance | null = null
+
+// Status object indicating link is pending
+export const PENDING_LINK_STATUS = { pending: true }
+
+// Status object indicating link is idle
+export const IDLE_LINK_STATUS = { pending: false }
+
+// Updates the loading state when navigating between links
+// - Resets the previous link's loading state
+// - Sets the new link's loading state
+// - Updates tracking of current navigation
+export function setLinkForCurrentNavigation(link: LinkInstance | null) {
+  startTransition(() => {
+    linkForMostRecentNavigation?.setOptimisticLinkStatus(IDLE_LINK_STATUS)
+    link?.setOptimisticLinkStatus(PENDING_LINK_STATUS)
+    linkForMostRecentNavigation = link
+  })
+}
+
+// Unmounts the current link instance from navigation tracking
+export function unmountLinkForCurrentNavigation(link: LinkInstance) {
+  if (linkForMostRecentNavigation === link) {
+    linkForMostRecentNavigation = null
+  }
+}
+
 // Use a WeakMap to associate a Link instance with its DOM element. This is
 // used by the IntersectionObserver to track the link's visibility.
-const links: WeakMap<LinkElement, LinkInstance> | Map<Element, LinkInstance> =
+const prefetchable:
+  | WeakMap<Element, PrefetchableInstance>
+  | Map<Element, PrefetchableInstance> =
   typeof WeakMap === 'function' ? new WeakMap() : new Map()
 
 // A Set of the currently visible links. We re-prefetch visible links after a
 // cache invalidation, or when the current URL changes. It's a separate data
 // structure from the WeakMap above because only the visible links need to
 // be enumerated.
-const visibleLinks: Set<LinkInstance> = new Set()
+const prefetchableAndVisible: Set<PrefetchableInstance> = new Set()
 
 // A single IntersectionObserver instance shared by all <Link> components.
 const observer: IntersectionObserver | null =
@@ -52,20 +108,24 @@ const observer: IntersectionObserver | null =
       })
     : null
 
-export function mountLinkInstance(
-  element: LinkElement,
-  href: string,
-  router: AppRouterInstance,
-  kind: PrefetchKind.AUTO | PrefetchKind.FULL
-) {
-  let prefetchUrl: URL | null = null
+function observeVisibility(element: Element, instance: PrefetchableInstance) {
+  const existingInstance = prefetchable.get(element)
+  if (existingInstance !== undefined) {
+    // This shouldn't happen because each <Link> component should have its own
+    // anchor tag instance, but it's defensive coding to avoid a memory leak in
+    // case there's a logical error somewhere else.
+    unmountPrefetchableInstance(element)
+  }
+  // Only track prefetchable links that have a valid prefetch URL
+  prefetchable.set(element, instance)
+  if (observer !== null) {
+    observer.observe(element)
+  }
+}
+
+function coercePrefetchableUrl(href: string): URL | null {
   try {
-    prefetchUrl = createPrefetchURL(href)
-    if (prefetchUrl === null) {
-      // We only track the link if it's prefetchable. For example, this excludes
-      // links to external URLs.
-      return
-    }
+    return createPrefetchURL(href)
   } catch {
     // createPrefetchURL sometimes throws an error if an invalid URL is
     // provided, though I'm not sure if it's actually necessary.
@@ -77,36 +137,84 @@ export function mountLinkInstance(
     reportErrorFn(
       `Cannot prefetch '${href}' because it cannot be converted to a URL.`
     )
-    return
+    return null
   }
+}
 
-  const instance: LinkInstance = {
-    prefetchHref: prefetchUrl.href,
+export function mountLinkInstance(
+  element: LinkElement,
+  href: string,
+  router: AppRouterInstance,
+  kind: PrefetchKind.AUTO | PrefetchKind.FULL,
+  prefetchEnabled: boolean,
+  setOptimisticLinkStatus: (status: { pending: boolean }) => void
+): LinkInstance {
+  if (prefetchEnabled) {
+    const prefetchURL = coercePrefetchableUrl(href)
+    if (prefetchURL !== null) {
+      const instance: PrefetchableLinkInstance = {
+        router,
+        kind,
+        isVisible: false,
+        wasHoveredOrTouched: false,
+        prefetchTask: null,
+        cacheVersion: -1,
+        prefetchHref: prefetchURL.href,
+        setOptimisticLinkStatus,
+      }
+      // We only observe the link's visibility if it's prefetchable. For
+      // example, this excludes links to external URLs.
+      observeVisibility(element, instance)
+      return instance
+    }
+  }
+  // If the link is not prefetchable, we still create an instance so we can
+  // track its optimistic state (i.e. useLinkStatus).
+  const instance: NonPrefetchableLinkInstance = {
     router,
     kind,
     isVisible: false,
     wasHoveredOrTouched: false,
     prefetchTask: null,
     cacheVersion: -1,
+    prefetchHref: null,
+    setOptimisticLinkStatus,
   }
-  const existingInstance = links.get(element)
-  if (existingInstance !== undefined) {
-    // This shouldn't happen because each <Link> component should have its own
-    // anchor tag instance, but it's defensive coding to avoid a memory leak in
-    // case there's a logical error somewhere else.
-    unmountLinkInstance(element)
-  }
-  links.set(element, instance)
-  if (observer !== null) {
-    observer.observe(element)
-  }
+  return instance
 }
 
-export function unmountLinkInstance(element: LinkElement) {
-  const instance = links.get(element)
+export function mountFormInstance(
+  element: HTMLFormElement,
+  href: string,
+  router: AppRouterInstance,
+  kind: PrefetchKind.AUTO | PrefetchKind.FULL
+): void {
+  const prefetchURL = coercePrefetchableUrl(href)
+  if (prefetchURL === null) {
+    // This href is not prefetchable, so we don't track it.
+    // TODO: We currently observe/unobserve a form every time its href changes.
+    // For Links, this isn't a big deal because the href doesn't usually change,
+    // but for forms it's extremely common. We should optimize this.
+    return
+  }
+  const instance: FormInstance = {
+    router,
+    kind,
+    isVisible: false,
+    wasHoveredOrTouched: false,
+    prefetchTask: null,
+    cacheVersion: -1,
+    prefetchHref: prefetchURL.href,
+    setOptimisticLinkStatus: null,
+  }
+  observeVisibility(element, instance)
+}
+
+export function unmountPrefetchableInstance(element: Element) {
+  const instance = prefetchable.get(element)
   if (instance !== undefined) {
-    links.delete(element)
-    visibleLinks.delete(instance)
+    prefetchable.delete(element)
+    prefetchableAndVisible.delete(instance)
     const prefetchTask = instance.prefetchTask
     if (prefetchTask !== null) {
       cancelPrefetchTask(prefetchTask)
@@ -127,10 +235,7 @@ function handleIntersect(entries: Array<IntersectionObserverEntry>) {
   }
 }
 
-export function onLinkVisibilityChanged(
-  element: LinkElement,
-  isVisible: boolean
-) {
+export function onLinkVisibilityChanged(element: Element, isVisible: boolean) {
   if (process.env.NODE_ENV !== 'production') {
     // Prefetching on viewport is disabled in development for performance
     // reasons, because it requires compiling the target page.
@@ -138,22 +243,22 @@ export function onLinkVisibilityChanged(
     return
   }
 
-  const instance = links.get(element)
+  const instance = prefetchable.get(element)
   if (instance === undefined) {
     return
   }
 
   instance.isVisible = isVisible
   if (isVisible) {
-    visibleLinks.add(instance)
+    prefetchableAndVisible.add(instance)
   } else {
-    visibleLinks.delete(instance)
+    prefetchableAndVisible.delete(instance)
   }
   rescheduleLinkPrefetch(instance)
 }
 
 export function onNavigationIntent(element: HTMLAnchorElement | SVGAElement) {
-  const instance = links.get(element)
+  const instance = prefetchable.get(element)
   if (instance === undefined) {
     return
   }
@@ -164,7 +269,7 @@ export function onNavigationIntent(element: HTMLAnchorElement | SVGAElement) {
   }
 }
 
-function rescheduleLinkPrefetch(instance: LinkInstance) {
+function rescheduleLinkPrefetch(instance: PrefetchableInstance) {
   const existingPrefetchTask = instance.prefetchTask
 
   if (!instance.isVisible) {
@@ -230,7 +335,7 @@ export function pingVisibleLinks(
   // may affect the result of a prefetch task. It's also called after a
   // cache invalidation.
   const currentCacheVersion = getCurrentCacheVersion()
-  for (const instance of visibleLinks) {
+  for (const instance of prefetchableAndVisible) {
     const task = instance.prefetchTask
     if (
       task !== null &&
@@ -261,7 +366,7 @@ export function pingVisibleLinks(
   }
 }
 
-function prefetchWithOldCacheImplementation(instance: LinkInstance) {
+function prefetchWithOldCacheImplementation(instance: PrefetchableInstance) {
   // This is the path used when the Segment Cache is not enabled.
   if (typeof window === 'undefined') {
     return

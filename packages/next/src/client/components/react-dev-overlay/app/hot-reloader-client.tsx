@@ -38,7 +38,6 @@ import type {
   TurbopackMsgToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
-import type { HydrationErrorState } from '../../errors/hydration-error-info'
 import type { DebugInfo } from '../types'
 import { useUntrackedPathname } from '../../navigation-untracked'
 import { getReactStitchedError } from '../../errors/stitched-error'
@@ -79,23 +78,6 @@ function setPendingHotUpdateWebpack() {
 
 export function waitForWebpackRuntimeHotUpdate() {
   return pendingHotUpdateWebpack
-}
-
-function handleSuccessfulHotUpdateWebpack(
-  dispatcher: Dispatcher,
-  sendMessage: (message: string) => void,
-  updatedModules: ReadonlyArray<string>
-) {
-  resolvePendingHotUpdateWebpack()
-  dispatcher.onBuildOk()
-  reportHmrLatency(
-    sendMessage,
-    updatedModules,
-    webpackStartMsSinceEpoch!,
-    Date.now()
-  )
-
-  dispatcher.onRefresh()
 }
 
 // There is a newer version of the code available.
@@ -160,10 +142,8 @@ function performFullReload(err: any, sendMessage: any) {
 }
 
 // Attempt to update code on the fly, fall back to a hard reload.
-function tryApplyUpdates(
-  onBeforeUpdate: (hasUpdates: boolean) => void,
-  onHotUpdateSuccess: (updatedModules: string[]) => void,
-  sendMessage: any,
+function tryApplyUpdatesWebpack(
+  sendMessage: (message: string) => void,
   dispatcher: Dispatcher
 ) {
   if (!isUpdateAvailable() || !canApplyUpdates()) {
@@ -173,8 +153,11 @@ function tryApplyUpdates(
     return
   }
 
-  function handleApplyUpdates(err: any, updatedModules: string[] | null) {
-    if (err || RuntimeErrorHandler.hadRuntimeError || !updatedModules) {
+  function handleApplyUpdates(
+    err: any,
+    updatedModules: (string | number)[] | null
+  ) {
+    if (err || RuntimeErrorHandler.hadRuntimeError || updatedModules == null) {
       if (err) {
         console.warn(REACT_REFRESH_FULL_RELOAD)
       } else if (RuntimeErrorHandler.hadRuntimeError) {
@@ -184,50 +167,50 @@ function tryApplyUpdates(
       return
     }
 
-    const hasUpdates = Boolean(updatedModules.length)
-    if (typeof onHotUpdateSuccess === 'function') {
-      // Maybe we want to do something.
-      onHotUpdateSuccess(updatedModules)
-    }
+    dispatcher.onBuildOk()
 
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
-      tryApplyUpdates(
-        hasUpdates ? () => {} : onBeforeUpdate,
-        hasUpdates ? () => dispatcher.onBuildOk() : onHotUpdateSuccess,
-        sendMessage,
-        dispatcher
-      )
-    } else {
-      dispatcher.onBuildOk()
-      if (process.env.__NEXT_TEST_MODE) {
-        afterApplyUpdates(() => {
-          if (self.__NEXT_HMR_CB) {
-            self.__NEXT_HMR_CB()
-            self.__NEXT_HMR_CB = null
-          }
-        })
-      }
+      tryApplyUpdatesWebpack(sendMessage, dispatcher)
+      return
+    }
+
+    dispatcher.onRefresh()
+    resolvePendingHotUpdateWebpack()
+    reportHmrLatency(
+      sendMessage,
+      updatedModules,
+      webpackStartMsSinceEpoch!,
+      Date.now()
+    )
+
+    if (process.env.__NEXT_TEST_MODE) {
+      afterApplyUpdates(() => {
+        if (self.__NEXT_HMR_CB) {
+          self.__NEXT_HMR_CB()
+          self.__NEXT_HMR_CB = null
+        }
+      })
     }
   }
 
   // https://webpack.js.org/api/hot-module-replacement/#check
   module.hot
     .check(/* autoApply */ false)
-    .then((updatedModules: any[] | null) => {
-      if (!updatedModules) {
+    .then((updatedModules: (string | number)[] | null) => {
+      if (updatedModules == null) {
         return null
       }
 
-      if (typeof onBeforeUpdate === 'function') {
-        const hasUpdates = Boolean(updatedModules.length)
-        onBeforeUpdate(hasUpdates)
-      }
+      // We should always handle an update, even if updatedModules is empty (but
+      // non-null) for any reason. That's what webpack would normally do:
+      // https://github.com/webpack/webpack/blob/3aa6b6bc3a64/lib/hmr/HotModuleReplacement.runtime.js#L296-L298
+      dispatcher.onBeforeRefresh()
       // https://webpack.js.org/api/hot-module-replacement/#apply
       return module.hot.apply()
     })
     .then(
-      (updatedModules: any[] | null) => {
+      (updatedModules: (string | number)[] | null) => {
         handleApplyUpdates(null, updatedModules)
       },
       (err: any) => {
@@ -236,7 +219,7 @@ function tryApplyUpdates(
     )
 }
 
-/** Handles messages from the sevrer for the App Router. */
+/** Handles messages from the server for the App Router. */
 function processMessage(
   obj: HMR_ACTION_TYPES,
   sendMessage: (message: string) => void,
@@ -288,24 +271,7 @@ function processMessage(
       }
       dispatcher.onBuildOk()
     } else {
-      tryApplyUpdates(
-        function onBeforeHotUpdate(hasUpdates: boolean) {
-          if (hasUpdates) {
-            dispatcher.onBeforeRefresh()
-          }
-        },
-        function onSuccessfulHotUpdate(webpackUpdatedModules: string[]) {
-          // Only dismiss it when we're sure it's a hot update.
-          // Otherwise it would flicker right before the reload.
-          handleSuccessfulHotUpdateWebpack(
-            dispatcher,
-            sendMessage,
-            webpackUpdatedModules
-          )
-        },
-        sendMessage,
-        dispatcher
-      )
+      tryApplyUpdatesWebpack(sendMessage, dispatcher)
     }
   }
 
@@ -544,13 +510,8 @@ export default function HotReload({
 
   const handleOnUnhandledError = useCallback(
     (error: Error): void => {
-      const errorDetails = (error as any).details as
-        | HydrationErrorState
-        | undefined
       // Component stack is added to the error in use-error-handler in case there was a hydration error
-      const componentStackTrace =
-        (error as any)._componentStack || errorDetails?.componentStack
-      const warning = errorDetails?.warning
+      const componentStackTrace = (error as any)._componentStack
 
       dispatch({
         type: ACTION_UNHANDLED_ERROR,
@@ -560,7 +521,6 @@ export default function HotReload({
           typeof componentStackTrace === 'string'
             ? parseComponentStack(componentStackTrace)
             : undefined,
-        warning,
       })
     },
     [dispatch]

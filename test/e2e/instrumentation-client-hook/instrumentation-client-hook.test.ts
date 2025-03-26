@@ -7,18 +7,21 @@ describe('Instrumentation Client Hook', () => {
     {
       name: 'With src folder',
       appDir: 'app-with-src',
+      shouldLog: false,
     },
     {
       name: 'App Router',
       appDir: 'app-router',
+      shouldLog: true,
     },
     {
       name: 'Pages Router',
       appDir: 'pages-router',
+      shouldLog: false,
     },
   ]
 
-  testCases.forEach(({ name, appDir }) => {
+  testCases.forEach(({ name, appDir, shouldLog }) => {
     describe(name, () => {
       const { next, isNextDev } = nextTestSetup({
         files: path.join(__dirname, appDir),
@@ -37,9 +40,11 @@ describe('Instrumentation Client Hook', () => {
         expect(instrumentationTime).toBeLessThan(hydrationTime)
         expect(
           (await browser.log()).some((log) =>
-            log.message.startsWith('[Client Instrumentation Hook]')
+            log.message.startsWith(
+              '[Client Instrumentation Hook] Slow execution detected'
+            )
           )
-        ).toBe(isNextDev)
+        ).toBe(isNextDev && shouldLog)
       })
     })
   })

@@ -106,7 +106,7 @@ impl OutputAsset for SingleItemCssChunk {
             self.item
                 .asset_ident()
                 .with_modifier(single_item_modifier()),
-            ".css".into(),
+            ".single.css".into(),
         )
     }
 

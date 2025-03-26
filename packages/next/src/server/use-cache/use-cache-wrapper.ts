@@ -24,6 +24,7 @@ import {
   getRenderResumeDataCache,
   getPrerenderResumeDataCache,
   workUnitAsyncStorage,
+  getDraftModeProviderForCacheScope,
 } from '../app-render/work-unit-async-storage.external'
 import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'
 
@@ -165,6 +166,9 @@ function generateCacheEntryWithCacheContext(
     isHmrRefresh: useCacheOrRequestStore?.isHmrRefresh ?? false,
     serverComponentsHmrCache: useCacheOrRequestStore?.serverComponentsHmrCache,
     forceRevalidate: shouldForceRevalidate(workStore, outerWorkUnitStore),
+    draftMode:
+      outerWorkUnitStore &&
+      getDraftModeProviderForCacheScope(workStore, outerWorkUnitStore),
   }
 
   return workUnitAsyncStorage.run(
@@ -749,25 +753,30 @@ export function cache(
             timeoutError
           )
 
-          let savedCacheEntry
-          if (prerenderResumeDataCache) {
-            // Create a clone that goes into the cache scope memory cache.
-            const split = clonePendingCacheEntry(pendingCacheEntry)
-            savedCacheEntry = getNthCacheEntry(split, 0)
-            prerenderResumeDataCache.cache.set(
+          // When draft mode is enabled, we must not save the cache entry.
+          if (!workStore.isDraftMode) {
+            let savedCacheEntry
+
+            if (prerenderResumeDataCache) {
+              // Create a clone that goes into the cache scope memory cache.
+              const split = clonePendingCacheEntry(pendingCacheEntry)
+              savedCacheEntry = getNthCacheEntry(split, 0)
+              prerenderResumeDataCache.cache.set(
+                serializedCacheKey,
+                getNthCacheEntry(split, 1)
+              )
+            } else {
+              savedCacheEntry = pendingCacheEntry
+            }
+
+            const promise = cacheHandler.set(
               serializedCacheKey,
-              getNthCacheEntry(split, 1)
+              savedCacheEntry
             )
-          } else {
-            savedCacheEntry = pendingCacheEntry
-          }
 
-          const promise = cacheHandler.set(serializedCacheKey, savedCacheEntry)
-
-          if (!workStore.pendingRevalidateWrites) {
-            workStore.pendingRevalidateWrites = []
+            workStore.pendingRevalidateWrites ??= []
+            workStore.pendingRevalidateWrites.push(promise)
           }
-          workStore.pendingRevalidateWrites.push(promise)
 
           stream = newStream
         } else {
@@ -908,7 +917,7 @@ function shouldForceRevalidate(
   workStore: WorkStore,
   workUnitStore: WorkUnitStore | undefined
 ): boolean {
-  if (workStore.isOnDemandRevalidate) {
+  if (workStore.isOnDemandRevalidate || workStore.isDraftMode) {
     return true
   }
 

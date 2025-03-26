@@ -19,7 +19,7 @@ import { findSourceMapURL } from './app-find-source-map-url'
 import {
   type AppRouterActionQueue,
   createMutableActionQueue,
-} from '../shared/lib/router/action-queue'
+} from './components/app-router-instance'
 import AppRouter from './components/app-router'
 import type { InitialRSCPayload } from '../server/app-render/types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
