@@ -1,17 +1,18 @@
 // This script must be run with tsx
 
-const {
+import fs from 'node:fs'
+import fsPromises from 'node:fs/promises'
+import yargs from 'yargs'
+import { default as patchPackageJson } from './pack-utils/patch-package-json.js'
+import buildNative from './build-native.js'
+
+import {
   NEXT_DIR,
   exec,
   execAsyncWithOutput,
   glob,
   packageFiles,
-} = require('./pack-util.cjs')
-const fs = require('node:fs')
-const fsPromises = require('node:fs/promises')
-const patchPackageJson = require('./pack-utils/patch-package-json.ts').default
-const yargs = require('yargs')
-const buildNative = require('./build-native.cjs')
+} from './pack-util.js'
 
 const TARBALLS = `${NEXT_DIR}/tarballs`
 const NEXT_PACKAGES = `${NEXT_DIR}/packages`
@@ -26,6 +27,13 @@ const DEFAULT_PACK_NEXT_COMPRESS =
   process.platform === 'darwin' ? 'none' : 'strip'
 const PACK_NEXT_COMPRESS =
   process.env.PACK_NEXT_COMPRESS || DEFAULT_PACK_NEXT_COMPRESS
+
+interface CliOptions {
+  jsBuild?: boolean
+  project?: string
+  tar?: boolean
+  _: string[]
+}
 
 const cliOptions = yargs(process.argv.slice(2))
   .option('no-js-build', {
@@ -44,9 +52,17 @@ const cliOptions = yargs(process.argv.slice(2))
     'pnpm pack-next -- --release',
     'Pass the --release argument through to napi-rs build'
   )
-  .strict().argv
+  .strict().argv as unknown as CliOptions
 
-async function main() {
+interface PackageFiles {
+  nextFile: string
+  nextMdxFile: string
+  nextEnvFile: string
+  nextBaFile: string
+  nextSwcFile: string
+}
+
+async function main(): Promise<void> {
   if (cliOptions.jsBuild) {
     exec('Install Next.js build dependencies', 'pnpm i')
     exec('Build Next.js', 'pnpm run build')
@@ -125,7 +141,7 @@ main().catch((e) => {
   process.exit(1)
 })
 
-async function nextSwcBinaries() {
+async function nextSwcBinaries(): Promise<string[]> {
   return await glob('next-swc/native/*.node', {
     cwd: NEXT_PACKAGES,
     absolute: true,
@@ -137,7 +153,11 @@ async function nextSwcBinaries() {
 // * pnpm pack, as it tries to include target directories and compress them,
 //   which takes forever.
 // Instead, we generate non-compressed tarballs.
-async function packWithTar(packagePath, tarballPath, extraArgs = []) {
+async function packWithTar(
+  packagePath: string,
+  tarballPath: string,
+  extraArgs: string[] = []
+): Promise<void> {
   const paths = await packageFiles(packagePath)
 
   const command = [
@@ -167,14 +187,14 @@ async function packWithTar(packagePath, tarballPath, extraArgs = []) {
 // We default to stripping (usually faster), but on Linux, we can compress
 // instead with objcopy, keeping debug symbols intact. This is controlled by
 // `PACK_NEXT_COMPRESS`.
-async function packNextSwc() {
+async function packNextSwc(): Promise<void> {
   const packagePath = `${NEXT_PACKAGES}/next-swc`
   switch (PACK_NEXT_COMPRESS) {
     case 'strip':
       await execAsyncWithOutput('Stripping next-swc native binary', [
         'strip',
         ...(process.platform === 'darwin' ? ['-x', '-'] : ['--']),
-        await nextSwcBinaries(),
+        ...(await nextSwcBinaries()),
       ])
       await packWithTar(packagePath, NEXT_SWC_TARBALL)
       break
@@ -205,7 +225,7 @@ async function packNextSwc() {
   }
 }
 
-function getPackageFiles(shouldCreateTarballs) {
+function getPackageFiles(shouldCreateTarballs?: boolean): PackageFiles {
   if (shouldCreateTarballs) {
     return {
       nextFile: NEXT_TARBALL,

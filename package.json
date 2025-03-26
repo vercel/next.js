@@ -12,7 +12,7 @@
     "build": "turbo run build --remote-cache-timeout 60 --summarize true",
     "lerna": "lerna",
     "dev": "turbo run dev --parallel",
-    "pack-next": "tsx scripts/pack-next.cjs",
+    "pack-next": "tsx scripts/pack-next.ts",
     "test-types": "tsc",
     "test-unit": "jest test/unit/ packages/next/ packages/font",
     "test-dev": "cross-env NEXT_TEST_MODE=dev pnpm testheadless",

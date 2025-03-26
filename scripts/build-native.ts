@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 
-const { NEXT_DIR, logCommand, execFn } = require('./pack-util.cjs')
-const fs = require('node:fs/promises')
-const path = require('path')
-const execa = require('execa')
+import { promises as fs } from 'node:fs'
+import path from 'node:path'
+import execa from 'execa'
+import { NEXT_DIR, logCommand, execFn } from './pack-util'
 
 const nextSwcDir = path.join(NEXT_DIR, 'packages/next-swc')
 
-module.exports = async function buildNative(buildNativeArgs) {
+export default async function buildNative(
+  buildNativeArgs: string[]
+): Promise<void> {
   const buildCommand = ['pnpm', 'run', 'build-native', ...buildNativeArgs]
   logCommand('Build native bindings', buildCommand)
   await execa(buildCommand[0], buildCommand.slice(1), {
@@ -25,8 +27,12 @@ module.exports = async function buildNative(buildNativeArgs) {
   )
 }
 
-if (require.main === module) {
-  module.exports(process.argv.slice(2))
+// Check if this file is being run directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  buildNative(process.argv.slice(2)).catch((err) => {
+    console.error(err)
+    process.exit(1)
+  })
 }
 
 async function writeTypes() {

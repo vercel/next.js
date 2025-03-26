@@ -1,15 +1,17 @@
-const { execSync, execFileSync, spawn } = require('child_process')
-const { existsSync } = require('fs')
-const globOrig = require('glob')
-const { join } = require('path')
-const { promisify } = require('util')
+import {
+  execSync,
+  execFileSync,
+  spawn,
+  ExecSyncOptionsWithStringEncoding,
+} from 'child_process'
+import { existsSync } from 'fs'
+import globOrig from 'glob'
+import { join } from 'path'
+import { promisify } from 'util'
 
-const glob = promisify(globOrig)
-exports.glob = glob
+export const glob = promisify(globOrig)
 
-const NEXT_DIR = join(__dirname, '..')
-
-exports.NEXT_DIR = NEXT_DIR
+export const NEXT_DIR = join(__dirname, '..')
 
 /**
  * @param {string} title
@@ -17,7 +19,7 @@ exports.NEXT_DIR = NEXT_DIR
  * @param {ExecSyncOptions} [opts]
  * @returns {string}
  */
-function exec(title, command, opts) {
+export function exec(title, command, opts?: ExecSyncOptionsWithStringEncoding) {
   if (Array.isArray(command)) {
     logCommand(title, command)
     return execFileSync(command[0], command.slice(1), {
@@ -35,14 +37,27 @@ function exec(title, command, opts) {
   }
 }
 
-exports.exec = exec
+class ExecError extends Error {
+  code: number | null
+  stdout: Buffer
+  stderr: Buffer
+}
+
+type ExecOutput = {
+  stdout: Buffer
+  stderr: Buffer
+}
 
 /**
  * @param {string} title
  * @param {string | string[]} command
  * @param {SpawnOptions} [opts]
  */
-function execAsyncWithOutput(title, command, opts) {
+export function execAsyncWithOutput(
+  title,
+  command,
+  opts?: Partial<ExecSyncOptionsWithStringEncoding>
+): Promise<ExecOutput> {
   logCommand(title, command)
   const proc = spawn(command[0], command.slice(1), {
     encoding: 'utf8',
@@ -50,12 +65,17 @@ function execAsyncWithOutput(title, command, opts) {
     cwd: NEXT_DIR,
     ...opts,
   })
-  const stdout = []
+
+  if (!proc || !proc.stdout || !proc.stderr) {
+    throw new Error(`Failed to spawn: ${title}`)
+  }
+
+  const stdout: Buffer[] = []
   proc.stdout.on('data', (data) => {
     process.stdout.write(data)
     stdout.push(data)
   })
-  const stderr = []
+  const stderr: Buffer[] = []
   proc.stderr.on('data', (data) => {
     process.stderr.write(data)
     stderr.push(data)
@@ -68,7 +88,7 @@ function execAsyncWithOutput(title, command, opts) {
           stderr: Buffer.concat(stderr),
         })
       }
-      const err = new Error(
+      const err = new ExecError(
         `Command failed with exit code ${code}: ${prettyCommand(command)}`
       )
       err.code = code
@@ -79,25 +99,21 @@ function execAsyncWithOutput(title, command, opts) {
   })
 }
 
-exports.execAsyncWithOutput = execAsyncWithOutput
-
 /**
  * @template T
  * @param {string} title
  * @param {() => T} fn
  * @returns {T}
  */
-function execFn(title, fn) {
+export function execFn<T>(title: string, fn: () => T): T {
   logCommand(title, fn.toString())
   return fn()
 }
 
-exports.execFn = execFn
-
 /**
  * @param {string | string[]} command
  */
-function prettyCommand(command) {
+function prettyCommand(command: string | string[]): string {
   if (Array.isArray(command)) command = command.join(' ')
   return command.replace(/ -- .*/, ' -- …')
 }
@@ -106,7 +122,7 @@ function prettyCommand(command) {
  * @param {string} title
  * @param {string | string[]} [command]
  */
-function logCommand(title, command) {
+export function logCommand(title: string, command: string | string[]) {
   if (command) {
     const pretty = prettyCommand(command)
     console.log(`\n\x1b[1;4m${title}\x1b[0m\n> \x1b[1m${pretty}\x1b[0m\n`)
@@ -115,8 +131,6 @@ function logCommand(title, command) {
   }
 }
 
-exports.logCommand = logCommand
-
 const DEFAULT_GLOBS = ['**', '!target', '!node_modules', '!crates', '!.turbo']
 const FORCED_GLOBS = ['package.json', 'README*', 'LICENSE*', 'LICENCE*']
 
@@ -124,10 +138,10 @@ const FORCED_GLOBS = ['package.json', 'README*', 'LICENSE*', 'LICENCE*']
  * @param {string} path
  * @returns {Promise<string[]>}
  */
-async function packageFiles(path) {
+export async function packageFiles(path: string): Promise<string[]> {
   const { files = DEFAULT_GLOBS, main, bin } = require(`${path}/package.json`)
 
-  const allFiles = files.concat(
+  const allFiles: string[] = files.concat(
     FORCED_GLOBS,
     main ?? [],
     Object.values(bin ?? {})
@@ -162,5 +176,3 @@ async function packageFiles(path) {
     return true
   })
 }
-
-exports.packageFiles = packageFiles
