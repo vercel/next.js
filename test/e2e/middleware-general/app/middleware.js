@@ -252,6 +252,10 @@ export async function middleware(request) {
     throw new Error('test error')
   }
 
+  if (url.pathname === '/request-body' && request.method === 'POST') {
+    return NextResponse.json(await request.json())
+  }
+
   const original = new URL(request.url)
   return NextResponse.next({
     headers: {

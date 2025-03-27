@@ -1605,7 +1605,7 @@ export default class NextNodeServer extends BaseServer<
 
       result = await adapterFn({
         handler: middlewareModule.middleware || middlewareModule,
-        request: requestData,
+        request: { ...requestData, body: requestData.body?.cloneBodyStream() },
         page: 'middleware',
       })
     } else {
