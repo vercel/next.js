@@ -3,7 +3,7 @@ title: template.js
 description: API Reference for the template.js file.
 ---
 
-A **template** file is similar to a [layout](/docs/app/building-your-application/routing/layouts-and-templates#layouts) in that it wraps a layout or page. Unlike layouts that persist across routes and maintain state, templates are given a unique key, meaning children Client Components reset their state on navigation.
+A **template** file is similar to a [layout](/docs/app/building-your-application/routing/layouts-and-templates#layouts) in that it wraps a layout or page. Unlike layouts that persist across routes and maintain state, templates are given a unique key, meaning children Client Components reset their state on navigation. Additionally, the template is rendered for each parallel route
 
 ```tsx filename="app/template.tsx" switcher
 export default function Template({ children }: { children: React.ReactNode }) {
@@ -39,7 +39,9 @@ Template accepts a `children` prop. For example:
 ```jsx filename="Output"
 <Layout>
   {/* Note that the template is automatically given a unique key. */}
-  <Template key={routeParam}>{children}</Template>
+  {parallelRoutes.map(parallelRoute => (
+    <Template key={parallelRoute.key}>{parallelRoute.children}</Template>
+  ))}
 </Layout>
 ```
 
@@ -47,6 +49,7 @@ Template accepts a `children` prop. For example:
 >
 > - By default, `template` is a [Server Component](/docs/app/building-your-application/rendering/server-components), but can also be used as a [Client Component](/docs/app/building-your-application/rendering/client-components) through the `"use client"` directive.
 > - When a user navigates between routes that share a `template`, a new instance of the component is mounted, DOM elements are recreated, state is **not** preserved in Client Components, and effects are re-synchronized.
+> - The template is rendered for each parallel route.
 
 ## Version History
 
