@@ -100,7 +100,8 @@ const __INTERNAL_CUSTOM_TURBOPACK_BINDINGS =
 function checkVersionMismatch(pkgData: any) {
   const version = pkgData.version
 
-  if (version && version !== nextVersion) {
+  // swc version is locked to 13.5.9 so don't warn for that case
+  if (version && version !== nextVersion && version !== '13.5.9') {
     Log.warn(
       `Mismatching @next/swc version, detected: ${version} while Next.js is on ${nextVersion}. Please ensure these match`
     )
