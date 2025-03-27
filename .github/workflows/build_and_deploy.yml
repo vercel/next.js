@@ -341,57 +341,57 @@ jobs:
   #     #     name: turbo run summary
   #     #     path: .turbo/runs
 
-  # build-wasm:
-  #   strategy:
-  #     matrix:
-  #       target: [web, nodejs]
+  build-wasm:
+    strategy:
+      matrix:
+        target: [web, nodejs]
 
-  #   runs-on:
-  #     - 'self-hosted'
-  #     - 'linux'
-  #     - 'x64'
-  #     - 'metal'
+    runs-on:
+      - 'self-hosted'
+      - 'linux'
+      - 'x64'
+      - 'metal'
 
-  #   steps:
-  #     - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-  #     - name: Setup node
-  #       uses: actions/setup-node@v4
-  #       with:
-  #         node-version: ${{ env.NODE_LTS_VERSION }}
-  #         check-latest: true
-  #     - run: corepack enable
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+      - run: corepack enable
 
-  #     - name: Install Rust
-  #       uses: ./.github/actions/setup-rust
-  #       with:
-  #         targets: wasm32-unknown-unknown
+      - name: Install Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          targets: wasm32-unknown-unknown
 
-  #     - run: npm i -g turbo@${{ env.TURBO_VERSION }}
+      - run: npm i -g turbo@${{ env.TURBO_VERSION }}
 
-  #     - name: Install wasm-pack
-  #       run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-  #     - name: normalize versions
-  #       run: node scripts/normalize-version-bump.js
+      - name: normalize versions
+        run: node scripts/normalize-version-bump.js
 
-  #     - name: Build
-  #       run: pnpm dlx turbo@${TURBO_VERSION} run build-wasm -vvv --remote-cache-timeout 90 --summarize -- --target ${{ matrix.target }} --features tracing/release_max_level_info
+      - name: Build
+        run: pnpm dlx turbo@${TURBO_VERSION} run build-wasm -vvv --remote-cache-timeout 90 --summarize -- --target ${{ matrix.target }} --features tracing/release_max_level_info
 
-  #     - name: Add target to folder name
-  #       run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
+      - name: Add target to folder name
+        run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
 
-  #     # - name: Upload turbo summary artifact
-  #     #   uses: actions/upload-artifact@v4
-  #     #   with:
-  #     #     name: pnpm dlx turbo@${TURBO_VERSION} run summary
-  #     #     path: .turbo/runs
+      # - name: Upload turbo summary artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: pnpm dlx turbo@${TURBO_VERSION} run summary
+      #     path: .turbo/runs
 
-  #     - name: Upload swc artifact
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: wasm-binaries-${{ matrix.target }}
-  #         path: packages/next-swc/crates/wasm/pkg-*
+      - name: Upload swc artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-binaries-${{ matrix.target }}
+          path: packages/next-swc/crates/wasm/pkg-*
 
   publishRelease:
     if: ${{ needs.build.outputs.isRelease == 'true' }}
@@ -399,7 +399,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build
-      # - build-wasm
+      - build-wasm
       # - build-native
     permissions:
       contents: write
@@ -431,11 +431,11 @@ jobs:
       #     merge-multiple: true
       #     path: packages/next-swc/native
 
-      # - uses: actions/download-artifact@v4
-      #   with:
-      #     pattern: wasm-binaries-*
-      #     merge-multiple: true
-      #     path: packages/next-swc/crates/wasm
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wasm-binaries-*
+          merge-multiple: true
+          path: packages/next-swc/crates/wasm
 
       - run: npm i -g npm@9.6.7 # need latest version for provenance (pinning to avoid bugs)
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
