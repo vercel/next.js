@@ -2,7 +2,7 @@
 
 const path = require('path')
 const { readFile, readdir, writeFile } = require('fs/promises')
-const { copy } = require('fs-extra')
+// const { copy } = require('fs-extra')
 const { execSync } = require('child_process')
 
 const cwd = process.cwd()
@@ -12,6 +12,7 @@ const cwd = process.cwd()
     let version = JSON.parse(
       await readFile(path.join(cwd, 'lerna.json'))
     ).version
+    let lockedNativeVersion = '12.3.4'
     let gitref = process.argv.slice(2)[0]
 
     // Copy binaries to package folders, update version, and publish
@@ -25,46 +26,46 @@ const cwd = process.cwd()
 
     for (let platform of platforms) {
       try {
-        let binaryName = `next-swc.${platform}.node`
-        await copy(
-          path.join(cwd, 'packages/next-swc/native', binaryName),
-          path.join(nativePackagesDir, platform, binaryName)
-        )
-        let pkg = JSON.parse(
-          await readFile(path.join(nativePackagesDir, platform, 'package.json'))
-        )
-        pkg.version = version
-        await writeFile(
-          path.join(nativePackagesDir, platform, 'package.json'),
-          JSON.stringify(pkg, null, 2)
-        )
-        execSync(
-          `npm publish ${path.join(
-            nativePackagesDir,
-            platform
-          )} --access public ${
-            gitref.includes('canary')
-              ? ' --tag next-12-3-2'
-              : '--tag next-12-3-2'
-          }`
-        )
+        //     let binaryName = `next-swc.${platform}.node`
+        //     await copy(
+        //       path.join(cwd, 'packages/next-swc/native', binaryName),
+        //       path.join(nativePackagesDir, platform, binaryName)
+        //     )
+        //     let pkg = JSON.parse(
+        //       await readFile(path.join(nativePackagesDir, platform, 'package.json'))
+        //     )
+        //     pkg.version = version
+        //     await writeFile(
+        //       path.join(nativePackagesDir, platform, 'package.json'),
+        //       JSON.stringify(pkg, null, 2)
+        //     )
+        //     execSync(
+        //       `npm publish ${path.join(
+        //         nativePackagesDir,
+        //         platform
+        //       )} --access public ${
+        //         gitref.includes('canary')
+        //           ? ' --tag next-12-3-2'
+        //           : '--tag next-12-3-2'
+        //       }`
+        //     )
 
         let optionalDependencies = nextPkg.optionalDependencies || {}
-        optionalDependencies['@next/swc-' + platform] = version
+        optionalDependencies['@next/swc-' + platform] = lockedNativeVersion
         nextPkg.optionalDependencies = optionalDependencies
       } catch (err) {
-        // don't block publishing other versions on single platform error
-        console.error(`Failed to publish`, platform)
-        // throw err
+        //     // don't block publishing other versions on single platform error
+        //     console.error(`Failed to publish`, platform)
+        //     // throw err
       }
       // lerna publish in next step will fail if git status is not clean
-      execSync(
-        `git update-index --skip-worktree ${path.join(
-          nativePackagesDir,
-          platform,
-          'package.json'
-        )}`
-      )
+      // execSync(
+      //   `git update-index --skip-worktree ${path.join(
+      //     nativePackagesDir,
+      //     platform,
+      //     'package.json'
+      //   )}`
+      // )
     }
 
     // Update name/version of wasm packages and publish
