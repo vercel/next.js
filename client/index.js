@@ -30,7 +30,6 @@ export default () => {
     waitForPage("/_error"),
     waitForPage(pathname).catch(console.error),
   ]).then(([_ErrorComponent, Component]) => {
-    console.log("clinent/index.js error component");
     ErrorComponent = _ErrorComponent;
     Component = Component || ErrorComponent;
 
