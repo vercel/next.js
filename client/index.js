@@ -4,7 +4,7 @@ import mitt from "mitt";
 import { waitForPage } from "../lib/page-loader";
 import router, { createRouter } from "./router";
 import { getURL } from "../lib/url";
-import { createRoot, hydrateRoot } from "react-dom/client";
+import { hydrateRoot } from "react-dom/client";
 
 const { props, err, pathname, query } = __NEXT_DATA__;
 
@@ -56,7 +56,6 @@ export function render({ Component, props, err }) {
   // Next.js rendering logic knows how to handle them.
   // These are specially 404 errors
   if (err && !err.ignore) {
-    console.log("rendering erorr client/index.js", err);
     return renderError(err);
   }
 
@@ -99,7 +98,6 @@ export function render({ Component, props, err }) {
       });
     })
     .catch((err) => {
-      console.log("err in loadProps", err);
       if (err.abort) return;
       return renderError(err);
     });
@@ -109,15 +107,6 @@ export function render({ Component, props, err }) {
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
 export function renderError(error) {
-  // We need to unmount the current app component because it's
-  // in the inconsistant state.
-  // Otherwise, we need to face issues when the issue is fixed and
-  // it's get notified via HMR
-  // reactRoot.unmount();
-  console.log("error in renderError function ", error);
-
-  console.error(error);
-
   return ErrorComponent.getInitialProps({
     err: error,
     pathname,
@@ -125,37 +114,24 @@ export function renderError(error) {
     asPath,
   }).then((props) => {
     const appProps = { Component: ErrorComponent, props, err: error, router };
-    console.log("emiting before-reactdom-render", err, pathname, query, asPath);
     emitter.emit("before-reactdom-render", { ErrorComponent, appProps });
     renderReactElement(createElement(ErrorComponent, props), appContainer);
     emitter.emit("after-reactdom-render", { ErrorComponent, appProps });
   });
 }
 
-// dom ell is the app container
+// This method is responsible for rending react elements in the DOM.
+// If the root has not been defined yet, it will hydrate the element.
+// If the root has already been defined, it will use startTransition to update the tree.
 function renderReactElement(reactEl, domEl) {
   // Wrap page in app-level enhancer, if defined
   reactEl = Enhancer ? createElement(Enhancer, null, reactEl) : reactEl;
 
-  // it looks like root needs to be similar to react root so it's checking it
-  // which is basically what isInitialRender is doing so maybe i can try getting rid of that so we dont have to save the root
-
-  // do we need a root to render ?
-  // how to render an error for the page?
-
-  console.log("reactEl is ", reactEl);
-
   if (!reactRoot) {
-    // todo: do we need to save the root?
     reactRoot = hydrateRoot(domEl, reactEl);
   } else {
-    // start transition schedules an update to react tree
     startTransition(() => {
       reactRoot.render(reactEl);
     });
   }
 }
-
-// If the root has not been defined yet and that means it's initial render then we need to hydrate
-
-// if the root has already been defined that means we should handle updating and use the starttransition function and update hthe tree/ render it

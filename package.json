@@ -29,7 +29,6 @@
     "pretest": "npm run lint",
     "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'server/**/*.js' 'test/**/*.js'",
     "prepublish": "npm run release",
-    "postinstall": "husky install",
     "prepublishOnly": "pinst --disable",
     "postpublish": "pinst --enable"
   },
