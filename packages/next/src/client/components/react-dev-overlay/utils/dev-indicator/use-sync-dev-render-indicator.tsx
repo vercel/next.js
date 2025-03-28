@@ -1,16 +1,22 @@
-import { useEffect, useTransition } from 'react'
+import { startTransition, useCallback, useEffect, useOptimistic } from 'react'
 import { devRenderIndicator } from './dev-render-indicator'
 
 export const useSyncDevRenderIndicator = () => {
-  const [isPending, startTransition] = useTransition()
+  const [isRendering, setIsRendering] = useOptimistic(false)
 
   useEffect(() => {
-    if (isPending) {
+    if (isRendering) {
       devRenderIndicator.show()
     } else {
       devRenderIndicator.hide()
     }
-  }, [isPending])
+  }, [isRendering])
 
-  return startTransition
+  return useCallback(
+    (fn: () => void) => {
+      startTransition(() => setIsRendering(true))
+      fn()
+    },
+    [setIsRendering]
+  )
 }
