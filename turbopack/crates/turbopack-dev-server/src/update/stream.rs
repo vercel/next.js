@@ -1,4 +1,4 @@
-use std::{any::Any, marker::PhantomData, pin::Pin};
+use std::pin::Pin;
 
 use anyhow::Result;
 use futures::prelude::*;
@@ -26,12 +26,32 @@ use turbopack_core::{
 
 use crate::source::{resolve::ResolveSourceRequestResult, ProxyResult};
 
-pub trait GetContentFnCapture: Any + Send + Sync + NonLocalValue + TraceRawVcs {
-    fn as_any_ref(&self) -> &(dyn Any + Send + Sync);
+struct TypedGetContentFn<C> {
+    capture: C,
+    func: for<'a> fn(&'a C) -> OperationVc<ResolveSourceRequestResult>,
 }
-impl<T: Any + Send + Sync + NonLocalValue + TraceRawVcs> GetContentFnCapture for T {
-    fn as_any_ref(&self) -> &(dyn Any + Send + Sync) {
-        self
+
+// Manual (non-derive) impl required due to: https://github.com/rust-lang/rust/issues/70263
+// Safety: `capture` is `NonLocalValue`, `func` stores no data (is a static pointer to code)
+unsafe impl<C: NonLocalValue> NonLocalValue for TypedGetContentFn<C> {}
+
+// Manual (non-derive) impl required due to: https://github.com/rust-lang/rust/issues/70263
+impl<C: TraceRawVcs> TraceRawVcs for TypedGetContentFn<C> {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        self.capture.trace_raw_vcs(trace_context);
+    }
+}
+
+trait TypedGetContentFnTrait: NonLocalValue + TraceRawVcs {
+    fn call(&self) -> OperationVc<ResolveSourceRequestResult>;
+}
+
+impl<C> TypedGetContentFnTrait for TypedGetContentFn<C>
+where
+    C: NonLocalValue + TraceRawVcs,
+{
+    fn call(&self) -> OperationVc<ResolveSourceRequestResult> {
+        (self.func)(&self.capture)
     }
 }
 
@@ -40,10 +60,9 @@ impl<T: Any + Send + Sync + NonLocalValue + TraceRawVcs> GetContentFnCapture for
 ///
 /// The capture (e.g. moved values in a closure) and function pointer are stored separately to allow
 /// safe implementation of these desired traits.
+#[derive(NonLocalValue, TraceRawVcs)]
 pub struct GetContentFn {
-    capture: Box<dyn GetContentFnCapture>,
-    orig_func: Box<dyn Any + Send + Sync>,
-    wrapped_func: fn(&dyn GetContentFnCapture, &dyn Any) -> OperationVc<ResolveSourceRequestResult>,
+    inner: Box<dyn TypedGetContentFnTrait + Send + Sync>,
 }
 
 impl GetContentFn {
@@ -54,50 +73,17 @@ impl GetContentFn {
         func: for<'a> fn(&'a C) -> OperationVc<ResolveSourceRequestResult>,
     ) -> Self
     where
-        C: GetContentFnCapture,
+        C: NonLocalValue + TraceRawVcs + Send + Sync + 'static,
     {
-        struct Wrapper<C>(PhantomData<C>);
-
-        impl<C> Wrapper<C>
-        where
-            C: GetContentFnCapture,
-        {
-            fn func(
-                capture: &dyn GetContentFnCapture,
-                orig_func: &dyn Any,
-            ) -> OperationVc<ResolveSourceRequestResult> {
-                let orig_func: &for<'a> fn(&'a C) -> OperationVc<ResolveSourceRequestResult> =
-                    orig_func.downcast_ref().expect("function type matches");
-                orig_func(
-                    capture
-                        .as_any_ref()
-                        .downcast_ref()
-                        .expect("capture type matches"),
-                )
-            }
-        }
-
         Self {
-            capture: Box::new(capture),
-            orig_func: Box::new(func),
-            wrapped_func: Wrapper::<C>::func,
+            inner: Box::new(TypedGetContentFn { capture, func }),
         }
-    }
-}
-
-// Safety: `func` is a function pointer and cannot capture anything by itself. `capture` implements
-// `NonLocalValue`.
-unsafe impl NonLocalValue for GetContentFn {}
-
-impl TraceRawVcs for GetContentFn {
-    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        self.capture.trace_raw_vcs(trace_context);
     }
 }
 
 impl GetContentFn {
     fn call(&self) -> OperationVc<ResolveSourceRequestResult> {
-        (self.wrapped_func)(&self.capture, &self.orig_func)
+        self.inner.call()
     }
 }
 
@@ -409,5 +395,51 @@ impl Issue for FatalStreamIssue {
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
         Vc::cell(Some(self.description))
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    use std::sync::{
+        atomic::{AtomicI32, Ordering},
+        Arc,
+    };
+
+    use turbo_tasks::TurboTasks;
+    use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
+
+    use super::*;
+
+    #[turbo_tasks::function(operation)]
+    pub fn noop_operation() -> Vc<ResolveSourceRequestResult> {
+        ResolveSourceRequestResult::NotFound.cell()
+    }
+
+    #[tokio::test]
+    async fn test_get_content_fn() {
+        crate::register();
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let number = Arc::new(AtomicI32::new(0));
+            fn func(number: &Arc<AtomicI32>) -> OperationVc<ResolveSourceRequestResult> {
+                number.store(42, Ordering::SeqCst);
+                noop_operation()
+            }
+            let wrapped_func = GetContentFn::new(number.clone(), func);
+            let return_value = wrapped_func
+                .call()
+                .read_strongly_consistent()
+                .await
+                .unwrap();
+            assert_eq!(number.load(Ordering::SeqCst), 42);
+            // ResolveSourceRequestResult doesn't impl Debug
+            assert!(*return_value == ResolveSourceRequestResult::NotFound);
+            Ok(())
+        })
+        .await
+        .unwrap();
     }
 }
