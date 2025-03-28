@@ -2664,7 +2664,15 @@ var hydrationParentFiber = null,
   rootOrSingletonContext = !1,
   HydrationMismatchException = Error(formatProdErrorMessage(519));
 function throwOnHydrationMismatch(fiber) {
-  var error = Error(formatProdErrorMessage(418, ""));
+  var error = Error(
+    formatProdErrorMessage(
+      418,
+      1 < arguments.length && void 0 !== arguments[1] && arguments[1]
+        ? "text"
+        : "HTML",
+      ""
+    )
+  );
   queueHydrationError(createCapturedValueAtFiber(error, fiber));
   throw HydrationMismatchException;
 }
@@ -2739,7 +2747,7 @@ function prepareToHydrateHostInstance(fiber) {
       null != props.onClick && (instance.onclick = noop$1),
       (instance = !0))
     : (instance = !1);
-  instance || throwOnHydrationMismatch(fiber);
+  instance || throwOnHydrationMismatch(fiber, !0);
 }
 function popToNextHostParent(fiber) {
   for (hydrationParentFiber = fiber.return; hydrationParentFiber; )
@@ -7962,7 +7970,7 @@ function completeWork(current, workInProgress, renderLanes) {
             checkForUnmatchedText(current.nodeValue, renderLanes)
               ? !0
               : !1;
-          current || throwOnHydrationMismatch(workInProgress);
+          current || throwOnHydrationMismatch(workInProgress, !0);
         } else
           (current =
             getOwnerDocumentFromRootContainer(current).createTextNode(
@@ -11533,7 +11541,8 @@ function processRootScheduleInMicrotask() {
       mightHavePendingSyncWork = !0;
     root = next;
   }
-  flushSyncWorkAcrossRoots_impl(syncTransitionLanes, !1);
+  (0 !== pendingEffectsStatus && 5 !== pendingEffectsStatus) ||
+    flushSyncWorkAcrossRoots_impl(syncTransitionLanes, !1);
 }
 function scheduleTaskForRootDuringMicrotask(root, currentTime) {
   for (
@@ -15251,14 +15260,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_1779 = React.version;
 if (
-  "19.1.0-canary-313332d1-20250326" !==
+  "19.1.0-canary-ef4bc8b4-20250328" !==
   isomorphicReactPackageVersion$jscomp$inline_1779
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_1779,
-      "19.1.0-canary-313332d1-20250326"
+      "19.1.0-canary-ef4bc8b4-20250328"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -15280,10 +15289,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2250 = {
   bundleType: 0,
-  version: "19.1.0-canary-313332d1-20250326",
+  version: "19.1.0-canary-ef4bc8b4-20250328",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.1.0-canary-313332d1-20250326"
+  reconcilerVersion: "19.1.0-canary-ef4bc8b4-20250328"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2251 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -15387,4 +15396,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.1.0-canary-313332d1-20250326";
+exports.version = "19.1.0-canary-ef4bc8b4-20250328";
