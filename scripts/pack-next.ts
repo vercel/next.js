@@ -50,7 +50,8 @@ const cliOptions = yargs(process.argv.slice(2))
     describe:
       'How compress the binary, useful on platforms where tarballs can ' +
       'exceed 2 GiB, which causes ERR_FS_FILE_TOO_LARGE with pnpm. Defaults ' +
-      'to "strip", otherwise defaults to "none". Requires `--tar` to be set.',
+      'to "strip" on Linux, otherwise defaults to "none". Requires `--tar` ' +
+      'to be set.',
     choices: [
       'none',
       'strip',
