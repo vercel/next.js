@@ -1,7 +1,6 @@
 // This script must be run with tsx
 
-import fs from 'node:fs'
-import fsPromises from 'node:fs/promises'
+import fs from 'node:fs/promises'
 import yargs from 'yargs'
 import { default as patchPackageJson } from './pack-utils/patch-package-json.js'
 import buildNative from './build-native.js'
@@ -22,20 +21,18 @@ const NEXT_MDX_TARBALL = `${TARBALLS}/next-mdx.tar`
 const NEXT_ENV_TARBALL = `${TARBALLS}/next-env.tar`
 const NEXT_BA_TARBALL = `${TARBALLS}/next-bundle-analyzer.tar`
 
-// the debuginfo on macos is much smaller, so we don't typically need to strip
-const DEFAULT_PACK_NEXT_COMPRESS =
-  process.platform === 'darwin' ? 'none' : 'strip'
-const PACK_NEXT_COMPRESS =
-  process.env.PACK_NEXT_COMPRESS || DEFAULT_PACK_NEXT_COMPRESS
+type CompressOpt = 'none' | 'strip' | 'objcopy-zlib' | 'objcopy-zstd'
 
 interface CliOptions {
   jsBuild?: boolean
   project?: string
   tar?: boolean
+  compress?: CompressOpt
   _: string[]
 }
 
 const cliOptions = yargs(process.argv.slice(2))
+  .command('$0')
   .option('no-js-build', {
     type: 'boolean',
     describe: 'Skip building JavaScript code',
@@ -48,10 +45,29 @@ const cliOptions = yargs(process.argv.slice(2))
     type: 'boolean',
     describe: 'Create tarballs instead of direct reflinks',
   })
-  .example(
-    'pnpm pack-next -- --release',
-    'Pass the --release argument through to napi-rs build'
-  )
+  .option('compress', {
+    type: 'string',
+    describe:
+      'How compress the binary, useful on platforms where tarballs can ' +
+      'exceed 2 GiB, which causes ERR_FS_FILE_TOO_LARGE with pnpm. Defaults ' +
+      'to "strip", otherwise defaults to "none". Requires `--tar` to be set.',
+    choices: [
+      'none',
+      'strip',
+      ...(process.platform === 'linux' ? ['objcopy-zlib', 'objcopy-zstd'] : []),
+    ],
+  })
+  .check((opts: CliOptions) => {
+    if (!opts.tar && (opts.compress ?? 'none') !== 'none') {
+      throw new Error('--compress is only valid in combination with --tar')
+    }
+    return true
+  })
+  .middleware((opts: CliOptions) => {
+    if (opts.tar && process.platform === 'linux' && opts.compress == null) {
+      opts.compress = 'strip'
+    }
+  })
   .strict().argv as unknown as CliOptions
 
 interface PackageFiles {
@@ -68,20 +84,21 @@ async function main(): Promise<void> {
     exec('Build Next.js', 'pnpm run build')
   }
 
-  if (cliOptions.tar && PACK_NEXT_COMPRESS !== 'strip') {
+  if (cliOptions.tar && cliOptions.compress !== 'strip') {
     // HACK: delete any pre-existing binaries to force napi-rs to rewrite it
+    // We must do this as pre-existing could've been stripped.
     let binaries = await nextSwcBinaries()
-    await Promise.all(binaries.map((bin) => fsPromises.rm(bin)))
+    await Promise.all(binaries.map((bin) => fs.rm(bin)))
   }
 
   await buildNative(cliOptions._)
 
   if (cliOptions.tar) {
-    fs.mkdirSync(TARBALLS, { recursive: true })
+    await fs.mkdir(TARBALLS, { recursive: true })
 
     // build all tarfiles in parallel
     await Promise.all([
-      packNextSwc(),
+      packNextSwcWithTar(cliOptions.compress ?? 'none'),
       ...[
         [`${NEXT_PACKAGES}/next`, NEXT_TARBALL],
         [`${NEXT_PACKAGES}/next-mdx`, NEXT_MDX_TARBALL],
@@ -187,9 +204,9 @@ async function packWithTar(
 // We default to stripping (usually faster), but on Linux, we can compress
 // instead with objcopy, keeping debug symbols intact. This is controlled by
 // `PACK_NEXT_COMPRESS`.
-async function packNextSwc(): Promise<void> {
+async function packNextSwcWithTar(compress: CompressOpt): Promise<void> {
   const packagePath = `${NEXT_PACKAGES}/next-swc`
-  switch (PACK_NEXT_COMPRESS) {
+  switch (compress) {
     case 'strip':
       await execAsyncWithOutput('Stripping next-swc native binary', [
         'strip',
@@ -200,10 +217,8 @@ async function packNextSwc(): Promise<void> {
       break
     case 'objcopy-zstd':
     case 'objcopy-zlib':
-      if (process.platform !== 'linux') {
-        throw new Error('objcopy-{zstd,zlib} is only supported on Linux')
-      }
-      const format = PACK_NEXT_COMPRESS === 'objcopy-zstd' ? 'zstd' : 'zlib'
+      // Linux-specific, feature is gated by yargs choices array
+      const format = compress === 'objcopy-zstd' ? 'zstd' : 'zlib'
       await Promise.all(
         (await nextSwcBinaries()).map((bin) =>
           execAsyncWithOutput(
@@ -218,10 +233,8 @@ async function packNextSwc(): Promise<void> {
       await packWithTar(packagePath, NEXT_SWC_TARBALL)
       break
     default:
-      throw new Error(
-        "PACK_NEXT_COMPRESS must be one of 'strip', 'objcopy-zstd', " +
-          "'objcopy-zlib', or 'none'"
-      )
+      // should never happen, yargs enforces the `choices` array
+      throw new Error('compress value is invalid')
   }
 }
 

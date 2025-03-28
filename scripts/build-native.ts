@@ -14,6 +14,8 @@ export default async function buildNative(
   logCommand('Build native bindings', buildCommand)
   await execa(buildCommand[0], buildCommand.slice(1), {
     cwd: nextSwcDir,
+    // Without a shell, `pnpm run build-native` returns a 0 exit code on SIGINT?
+    shell: true,
     env: {
       CARGO_TERM_COLOR: 'always',
       TTY: '1',
