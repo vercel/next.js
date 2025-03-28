@@ -1,9 +1,9 @@
 import DefaultCacheHandler from '../lib/cache-handlers/default'
 import type { CacheHandlerCompat } from '../lib/cache-handlers/types'
 
-const debug = process.env.NEXT_PRIVATE_DEBUG_USE_CACHE
+const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
   ? (message: string, ...args: any[]) => {
-      console.log(`use-cache[${process.pid}]: ${message}`, ...args)
+      console.log(`use-cache: ${message}`, ...args)
     }
   : () => {}
 
