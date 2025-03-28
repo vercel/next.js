@@ -201,7 +201,9 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
             compress: {
               dead_code: true,
               // Zero means no limit.
-              passes: 0,
+              // passes: 0,
+              // The advantage of 0 is that it can bring the ultimate code compression effect, but the problem is that excessive optimization may lead to some unsafe issues, such as code structure destruction, regular expressions, etc
+              // Suggest changing to default 1 to balance compression effect and construction speed
             },
             format: {
               preamble: '',
