@@ -146,7 +146,7 @@ importers:
         version: 1.1.0
       '@testing-library/jest-dom':
         specifier: 6.1.2
-        version: 6.1.2(@jest/globals@29.7.0)(@types/jest@29.5.5)(jest@29.7.0(@types/node@20.17.6))(vitest@3.0.4(@types/node@20.17.6)(sass@1.54.0)(tsx@4.19.2))
+        version: 6.1.2(@jest/globals@29.7.0)(@types/jest@29.5.5)(jest@29.7.0(@types/node@20.17.6)(babel-plugin-macros@3.1.0))(vitest@3.0.4(@types/node@20.17.6)(sass@1.54.0)(tsx@4.19.2))
       '@testing-library/react':
         specifier: ^15.0.5
         version: 15.0.7(@types/react@19.0.8)(react-dom@19.1.0-canary-313332d1-20250326(react@19.1.0-canary-313332d1-20250326))(react@19.1.0-canary-313332d1-20250326)
@@ -284,7 +284,7 @@ importers:
         version: 2.31.0(@typescript-eslint/parser@8.0.0(eslint@9.12.0)(typescript@5.8.2))(eslint@9.12.0)
       eslint-plugin-jest:
         specifier: 27.6.3
-        version: 27.6.3(@typescript-eslint/eslint-plugin@8.0.0(@typescript-eslint/parser@8.0.0(eslint@9.12.0)(typescript@5.8.2))(eslint@9.12.0)(typescript@5.8.2))(eslint@9.12.0)(jest@29.7.0(@types/node@20.17.6))(typescript@5.8.2)
+        version: 27.6.3(@typescript-eslint/eslint-plugin@8.0.0(@typescript-eslint/parser@8.0.0(eslint@9.12.0)(typescript@5.8.2))(eslint@9.12.0)(typescript@5.8.2))(eslint@9.12.0)(jest@29.7.0(@types/node@20.17.6)(babel-plugin-macros@3.1.0))(typescript@5.8.2)
       eslint-plugin-jsdoc:
         specifier: 48.0.4
         version: 48.0.4(eslint@9.12.0)
@@ -374,7 +374,7 @@ importers:
         version: 29.7.0
       jest-extended:
         specifier: 4.0.2
-        version: 4.0.2(jest@29.7.0(@types/node@20.17.6))
+        version: 4.0.2(jest@29.7.0(@types/node@20.17.6)(babel-plugin-macros@3.1.0))
       jest-junit:
         specifier: 16.0.0
         version: 16.0.0
@@ -1689,6 +1689,9 @@ importers:
       cross-env:
         specifier: 6.0.3
         version: 6.0.3
+      wasm-pack:
+        specifier: 0.13.1
+        version: 0.13.1
 
   packages/react-refresh-utils:
     devDependencies:
@@ -7095,6 +7098,9 @@ packages:
     peerDependencies:
       playwright: '>1.0.0'
 
+  axios@0.26.1:
+    resolution: {integrity: sha512-fPwcX4EvnSHuInCMItEhAGnaSEXRBjtzh9fOtsE6E1G6p7vl7edEeZe11QHf18+6+9gR5PbKV/sGKNaD8YaMeA==}
+
   axios@1.7.9:
     resolution: {integrity: sha512-LhLcE7Hbiryz8oMDdDptSrWowmB4Bl6RCt6sIJKpRB4XtVf0iEgewX3au/pJqm+Py1kCASkb/FFKjxQaLtxJvw==}
 
@@ -7234,6 +7240,10 @@ packages:
   binary-extensions@2.3.0:
     resolution: {integrity: sha512-Ceh+7ox5qe7LJuLHoY0feh3pHuUDHAcRUeyL2VYghZwfpkNIy/+8Ocg0a3UuSoYzavmylwuLWQOf3hl0jjMMIw==}
     engines: {node: '>=8'}
+
+  binary-install@1.1.0:
+    resolution: {integrity: sha512-rkwNGW+3aQVSZoD0/o3mfPN6Yxh3Id0R/xzTVBVVpGNlVz8EGwusksxRlbk/A5iKTZt9zkMn3qIqmAt3vpfbzg==}
+    engines: {node: '>=10'}
 
   bindings@1.5.0:
     resolution: {integrity: sha512-p2q/t/mhvuOj/UeLlV6566GD/guowlr0hHxClI0W9m7MWYkL1F0hLo+0Aexs9HSPCtR1SXQ0TD3MMKrXZajbiQ==}
@@ -16909,6 +16919,10 @@ packages:
   walker@1.0.8:
     resolution: {integrity: sha512-ts/8E8l5b7kY0vlWLewOkDXMmPdLcVV4GmOQLyxuSswIJsweeFZtAsMF7k1Nszz+TYBQrlYRmzOnr398y1JemQ==}
 
+  wasm-pack@0.13.1:
+    resolution: {integrity: sha512-P9exD4YkjpDbw68xUhF3MDm/CC/3eTmmthyG5bHJ56kalxOTewOunxTke4SyF8MTXV6jUtNjXggPgrGmMtczGg==}
+    hasBin: true
+
   watchpack@2.4.0:
     resolution: {integrity: sha512-Lcvm7MGST/4fup+ifyKi2hjyIAwcdI4HRgtvTpIUxBRhB+RFtUh8XtDOxUfctVCnhVi+QQj49i91OyvzkJl6cg==}
     engines: {node: '>=10.13.0'}
@@ -22387,7 +22401,7 @@ snapshots:
       lz-string: 1.5.0
       pretty-format: 27.5.1
 
-  '@testing-library/jest-dom@6.1.2(@jest/globals@29.7.0)(@types/jest@29.5.5)(jest@29.7.0(@types/node@20.17.6))(vitest@3.0.4(@types/node@20.17.6)(sass@1.54.0)(tsx@4.19.2))':
+  '@testing-library/jest-dom@6.1.2(@jest/globals@29.7.0)(@types/jest@29.5.5)(jest@29.7.0(@types/node@20.17.6)(babel-plugin-macros@3.1.0))(vitest@3.0.4(@types/node@20.17.6)(sass@1.54.0)(tsx@4.19.2))':
     dependencies:
       '@adobe/css-tools': 4.3.1
       '@babel/runtime': 7.22.5
@@ -23858,6 +23872,12 @@ snapshots:
       picocolors: 1.1.1
       playwright: 1.48.0
 
+  axios@0.26.1:
+    dependencies:
+      follow-redirects: 1.15.9(debug@4.1.1)
+    transitivePeerDependencies:
+      - debug
+
   axios@1.7.9(debug@4.1.1):
     dependencies:
       follow-redirects: 1.15.9(debug@4.1.1)
@@ -24044,6 +24064,14 @@ snapshots:
   big.js@6.2.1: {}
 
   binary-extensions@2.3.0: {}
+
+  binary-install@1.1.0:
+    dependencies:
+      axios: 0.26.1
+      rimraf: 3.0.2
+      tar: 6.1.15
+    transitivePeerDependencies:
+      - debug
 
   bindings@1.5.0:
     dependencies:
@@ -26544,7 +26572,7 @@ snapshots:
       - eslint-import-resolver-webpack
       - supports-color
 
-  eslint-plugin-jest@27.6.3(@typescript-eslint/eslint-plugin@8.0.0(@typescript-eslint/parser@8.0.0(eslint@9.12.0)(typescript@5.8.2))(eslint@9.12.0)(typescript@5.8.2))(eslint@9.12.0)(jest@29.7.0(@types/node@20.17.6))(typescript@5.8.2):
+  eslint-plugin-jest@27.6.3(@typescript-eslint/eslint-plugin@8.0.0(@typescript-eslint/parser@8.0.0(eslint@9.12.0)(typescript@5.8.2))(eslint@9.12.0)(typescript@5.8.2))(eslint@9.12.0)(jest@29.7.0(@types/node@20.17.6)(babel-plugin-macros@3.1.0))(typescript@5.8.2):
     dependencies:
       '@typescript-eslint/utils': 5.62.0(eslint@9.12.0)(typescript@5.8.2)
       eslint: 9.12.0
@@ -29155,7 +29183,7 @@ snapshots:
       jest-mock: 29.7.0
       jest-util: 29.7.0
 
-  jest-extended@4.0.2(jest@29.7.0(@types/node@20.17.6)):
+  jest-extended@4.0.2(jest@29.7.0(@types/node@20.17.6)(babel-plugin-macros@3.1.0)):
     dependencies:
       jest-diff: 29.7.0
       jest-get-type: 29.6.3
@@ -36252,6 +36280,12 @@ snapshots:
   walker@1.0.8:
     dependencies:
       makeerror: 1.0.12
+
+  wasm-pack@0.13.1:
+    dependencies:
+      binary-install: 1.1.0
+    transitivePeerDependencies:
+      - debug
 
   watchpack@2.4.0:
     dependencies:
