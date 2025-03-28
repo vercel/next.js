@@ -1,6 +1,4 @@
 import type { WorkStore } from './app-render/work-async-storage.external'
-import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
-import { updateImplicitTagsExpiration } from './lib/implicit-tags'
 import type { IncrementalCache } from './lib/incremental-cache'
 import { getCacheHandlers } from './use-cache/handlers'
 
@@ -89,16 +87,6 @@ async function revalidateTags(
   }
 
   await Promise.all(promises)
-
-  const workUnitStore = workUnitAsyncStorage.getStore()
-
-  if (workUnitStore?.implicitTags) {
-    const tagsSet = new Set(tags)
-
-    if (workUnitStore.implicitTags.tags.some((tag) => tagsSet.has(tag))) {
-      await updateImplicitTagsExpiration(workUnitStore.implicitTags)
-    }
-  }
 }
 
 export async function executeRevalidates(
