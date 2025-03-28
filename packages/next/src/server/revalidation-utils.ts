@@ -1,4 +1,8 @@
-import type { WorkStore } from '../app-render/work-async-storage.external'
+import type { WorkStore } from './app-render/work-async-storage.external'
+import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
+import { updateImplicitTagsExpiration } from './lib/implicit-tags'
+import type { IncrementalCache } from './lib/incremental-cache'
+import { getCacheHandlers } from './use-cache/handlers'
 
 /** Run a callback, and execute any *new* revalidations added during its runtime. */
 export async function withExecuteRevalidates<T>(
@@ -63,16 +67,55 @@ function diffRevalidationState(
   }
 }
 
-async function executeRevalidates(
+async function revalidateTags(
+  tags: string[],
+  incrementalCache: IncrementalCache | undefined
+): Promise<void> {
+  if (tags.length === 0) {
+    return
+  }
+
+  const promises: Promise<void>[] = []
+
+  if (incrementalCache) {
+    promises.push(incrementalCache.revalidateTag(tags))
+  }
+
+  const handlers = getCacheHandlers()
+  if (handlers) {
+    for (const handler of handlers) {
+      promises.push(handler.expireTags(...tags))
+    }
+  }
+
+  await Promise.all(promises)
+
+  const workUnitStore = workUnitAsyncStorage.getStore()
+
+  if (workUnitStore?.implicitTags) {
+    const tagsSet = new Set(tags)
+
+    if (workUnitStore.implicitTags.tags.some((tag) => tagsSet.has(tag))) {
+      await updateImplicitTagsExpiration(workUnitStore.implicitTags)
+    }
+  }
+}
+
+export async function executeRevalidates(
   workStore: WorkStore,
-  {
-    pendingRevalidatedTags,
-    pendingRevalidates,
-    pendingRevalidateWrites,
-  }: RevalidationState
+  state?: RevalidationState
 ) {
+  const pendingRevalidatedTags =
+    state?.pendingRevalidatedTags ?? workStore.pendingRevalidatedTags ?? []
+
+  const pendingRevalidates =
+    state?.pendingRevalidates ?? workStore.pendingRevalidates ?? {}
+
+  const pendingRevalidateWrites =
+    state?.pendingRevalidateWrites ?? workStore.pendingRevalidateWrites ?? []
+
   return Promise.all([
-    workStore.incrementalCache?.revalidateTag(pendingRevalidatedTags),
+    revalidateTags(pendingRevalidatedTags, workStore.incrementalCache),
     ...Object.values(pendingRevalidates),
     ...pendingRevalidateWrites,
   ])

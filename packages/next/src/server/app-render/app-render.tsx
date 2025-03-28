@@ -187,6 +187,7 @@ import isError from '../../lib/is-error'
 import { isUseCacheTimeoutError } from '../use-cache/use-cache-errors'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
 import { getPreviouslyRevalidatedTags } from '../server-utils'
+import { executeRevalidates } from '../revalidation-utils'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -1407,13 +1408,7 @@ async function renderToHTMLOrFlightImpl(
       workStore.pendingRevalidateWrites ||
       workStore.pendingRevalidatedTags
     ) {
-      const pendingPromise = Promise.all([
-        workStore.incrementalCache?.revalidateTag(
-          workStore.pendingRevalidatedTags || []
-        ),
-        ...Object.values(workStore.pendingRevalidates || {}),
-        ...(workStore.pendingRevalidateWrites || []),
-      ]).finally(() => {
+      const pendingPromise = executeRevalidates(workStore).finally(() => {
         if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
           console.log('pending revalidates promise finished for:', url)
         }
@@ -1582,13 +1577,7 @@ async function renderToHTMLOrFlightImpl(
       workStore.pendingRevalidateWrites ||
       workStore.pendingRevalidatedTags
     ) {
-      const pendingPromise = Promise.all([
-        workStore.incrementalCache?.revalidateTag(
-          workStore.pendingRevalidatedTags || []
-        ),
-        ...Object.values(workStore.pendingRevalidates || {}),
-        ...(workStore.pendingRevalidateWrites || []),
-      ]).finally(() => {
+      const pendingPromise = executeRevalidates(workStore).finally(() => {
         if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
           console.log('pending revalidates promise finished for:', url)
         }

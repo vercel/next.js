@@ -30,10 +30,8 @@ import {
   getRenderResumeDataCache,
   workUnitAsyncStorage,
 } from '../../app-render/work-unit-async-storage.external'
-import { getCacheHandlers } from '../../use-cache/handlers'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import type { Revalidate } from '../cache-control'
-import { updateImplicitTagsExpiration } from '../implicit-tags'
 import { getPreviouslyRevalidatedTags } from '../../server-utils'
 import { workAsyncStorage } from '../../app-render/work-async-storage.external'
 
@@ -260,36 +258,7 @@ export class IncrementalCache implements IncrementalCacheType {
   }
 
   async revalidateTag(tags: string | string[]): Promise<void> {
-    tags = Array.isArray(tags) ? tags : [tags]
-
-    if (tags.length === 0) {
-      return
-    }
-
-    const promises: Promise<void>[] = []
-
-    if (this.cacheHandler?.revalidateTag) {
-      promises.push(this.cacheHandler.revalidateTag(tags))
-    }
-
-    const handlers = getCacheHandlers()
-    if (handlers) {
-      for (const handler of handlers) {
-        promises.push(handler.expireTags(...tags))
-      }
-    }
-
-    await Promise.all(promises)
-
-    const workUnitStore = workUnitAsyncStorage.getStore()
-
-    if (workUnitStore?.implicitTags) {
-      const tagsSet = new Set(tags)
-
-      if (workUnitStore.implicitTags.tags.some((tag) => tagsSet.has(tag))) {
-        await updateImplicitTagsExpiration(workUnitStore.implicitTags)
-      }
-    }
+    return this.cacheHandler?.revalidateTag(tags)
   }
 
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
