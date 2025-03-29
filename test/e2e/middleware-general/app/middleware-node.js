@@ -1,11 +1,17 @@
 /* global globalThis */
 import { NextRequest, NextResponse } from 'next/server'
+import { getSomeData } from './lib/some-data'
 import magicValue from 'shared-package'
 
 export const config = {
   regions: 'auto',
   runtime: 'nodejs',
 }
+
+// When there is a top level await, requiring middleware.js will return a Promise
+await new Promise((resolve) => {
+  setTimeout(resolve, 100)
+})
 
 const PATTERNS = []
 
@@ -24,6 +30,8 @@ const params = (url) => {
 }
 
 export async function middleware(request) {
+  getSomeData()
+
   const url = request.nextUrl
 
   if (process.env.NEXT_RUNTIME === 'nodejs') {
@@ -243,6 +251,10 @@ export async function middleware(request) {
 
   if (url.pathname === '/error-throw' && request.__isData) {
     throw new Error('test error')
+  }
+
+  if (url.pathname === '/request-body' && request.method === 'POST') {
+    return NextResponse.json(await request.json())
   }
 
   const original = new URL(request.url)

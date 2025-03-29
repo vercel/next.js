@@ -4,14 +4,19 @@ pub mod source_map;
 use std::fmt::Write;
 
 use anyhow::{bail, Result};
+use swc_core::common::pass::Either;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Value, ValueDefault, ValueToString, Vc};
+use turbo_tasks::{
+    FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueDefault, ValueToString,
+    Vc,
+};
 use turbo_tasks_fs::{rope::Rope, File, FileSystem, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo,
-        ChunkType, ChunkableModule, ChunkingContext, ModuleId, OutputChunk, OutputChunkRuntimeInfo,
+        round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup,
+        ChunkItemOrBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
+        ChunkableModule, ChunkingContext, ModuleId, OutputChunk, OutputChunkRuntimeInfo,
     },
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
@@ -214,19 +219,23 @@ impl OutputChunk for CssChunk {
             .into_iter()
             .flatten()
             .collect();
-        let module_chunks = content
-            .chunk_items
-            .iter()
-            .chain(imports_chunk_items.iter())
-            .map(|item| {
-                Vc::upcast::<Box<dyn OutputAsset>>(SingleItemCssChunk::new(
-                    *self.chunking_context,
-                    **item,
-                ))
-                .to_resolved()
-            })
-            .try_join()
-            .await?;
+        let module_chunks = if entries_chunk_items.len() > 1 {
+            content
+                .chunk_items
+                .iter()
+                .chain(imports_chunk_items.iter())
+                .map(|item| {
+                    Vc::upcast::<Box<dyn OutputAsset>>(SingleItemCssChunk::new(
+                        *self.chunking_context,
+                        **item,
+                    ))
+                    .to_resolved()
+                })
+                .try_join()
+                .await?
+        } else {
+            Vec::new()
+        };
         Ok(OutputChunkRuntimeInfo {
             included_ids: Some(ResolvedVc::cell(included_ids)),
             module_chunks: Some(ResolvedVc::cell(module_chunks)),
@@ -293,6 +302,7 @@ impl OutputAsset for CssChunk {
             modifiers: Vec::new(),
             parts: Vec::new(),
             layer: None,
+            content_type: None,
         };
 
         Ok(self
@@ -305,17 +315,26 @@ impl OutputAsset for CssChunk {
         let this = self.await?;
         let content = this.content.await?;
         let mut references = content.referenced_output_assets.owned().await?;
+        let single_item_chunks = content.chunk_items.len() > 1;
         references.extend(
             content
                 .chunk_items
                 .iter()
                 .map(|item| async {
-                    SingleItemCssChunk::new(*this.chunking_context, **item)
-                        .to_resolved()
-                        .await
-                        .map(ResolvedVc::upcast)
+                    let references = item.references().await?.into_iter().copied();
+                    Ok(if single_item_chunks {
+                        Either::Left(
+                            references.chain(std::iter::once(ResolvedVc::upcast(
+                                SingleItemCssChunk::new(*this.chunking_context, **item)
+                                    .to_resolved()
+                                    .await?,
+                            ))),
+                        )
+                    } else {
+                        Either::Right(references)
+                    })
                 })
-                .try_join()
+                .try_flat_join()
                 .await?,
         );
         if *this
@@ -479,7 +498,7 @@ impl ValueToString for CssChunkType {
 #[turbo_tasks::value_impl]
 impl ChunkType for CssChunkType {
     #[turbo_tasks::function]
-    fn must_keep_item_order(self: Vc<Self>) -> Vc<bool> {
+    fn is_style(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(true)
     }
 
@@ -487,9 +506,23 @@ impl ChunkType for CssChunkType {
     async fn chunk(
         &self,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-        chunk_items: Vec<ChunkItemWithAsyncModuleInfo>,
+        chunk_items_or_batches: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
+        _batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
         referenced_output_assets: ResolvedVc<OutputAssets>,
     ) -> Result<Vc<Box<dyn Chunk>>> {
+        let mut chunk_items = Vec::new();
+        // TODO operate with batches
+        for item in chunk_items_or_batches {
+            match item {
+                ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(chunk_item) => {
+                    chunk_items.push(chunk_item);
+                }
+                ChunkItemOrBatchWithAsyncModuleInfo::Batch(batch) => {
+                    let batch = batch.await?;
+                    chunk_items.extend(batch.chunk_items.iter().cloned());
+                }
+            }
+        }
         let content = CssChunkContent {
             chunk_items: chunk_items
                 .iter()

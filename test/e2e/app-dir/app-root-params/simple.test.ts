@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { assertNoRedbox } from 'next-test-utils'
 import { join } from 'path'
 
 describe('app-root-params - simple', () => {
@@ -15,6 +16,14 @@ describe('app-root-params - simple', () => {
     const $ = await next.render$('/en/us/other/1')
     expect($('#dynamic-params').text()).toBe('1')
     expect($('#root-params').text()).toBe('{"lang":"en","locale":"us"}')
+  })
+
+  it('should render the not found page without errors', async () => {
+    const browser = await next.browser('/')
+    expect(await browser.elementByCss('h2').text()).toBe(
+      'This page could not be found.'
+    )
+    await assertNoRedbox(browser)
   })
 
   // `next-types-plugin` currently only runs in Webpack.

@@ -16,7 +16,7 @@ import { createEmptyCacheNode } from '../../app-router'
 import { handleSegmentMismatch } from '../handle-segment-mismatch'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 import { refreshInactiveParallelSegments } from '../refetch-inactive-parallel-segments'
-import { revalidateEntireCache } from '../../segment-cache/cache'
+import { revalidateEntireCache } from '../../segment-cache'
 
 export function refreshReducer(
   state: ReadonlyReducerState,
@@ -123,7 +123,7 @@ export function refreshReducer(
             undefined
           )
           if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
-            revalidateEntireCache()
+            revalidateEntireCache(state.nextUrl, newTree)
           } else {
             mutable.prefetchCache = new Map()
           }

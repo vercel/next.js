@@ -6,6 +6,7 @@ export async function action0(b, c, ...g) {
   return async function action1(d) {
     'use server'
     let f
+    // @ts-expect-error: window is not iterable
     console.log(...window, { window })
     console.log(a, b, action2)
 

@@ -282,6 +282,7 @@ export async function adapter(
                 NEXT_ROUTER_PREFETCH_HEADER
               ),
               buildId: buildId ?? '',
+              previouslyRevalidatedTags: [],
             })
 
             return await workAsyncStorage.run(workStore, () =>

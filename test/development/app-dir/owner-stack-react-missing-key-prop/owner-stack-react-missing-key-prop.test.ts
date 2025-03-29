@@ -6,7 +6,7 @@ import {
 } from 'next-test-utils'
 
 describe('app-dir - owner-stack-react-missing-key-prop', () => {
-  const { next } = nextTestSetup({
+  const { isTurbopack, next } = nextTestSetup({
     files: __dirname,
   })
 
@@ -17,19 +17,19 @@ describe('app-dir - owner-stack-react-missing-key-prop', () => {
     const stackFramesContent = await getStackFramesContent(browser)
     const source = await getRedboxSource(browser)
 
-    if (process.env.TURBOPACK) {
+    if (isTurbopack) {
       expect(stackFramesContent).toMatchInlineSnapshot(`
          "at span ()
-         at <anonymous> (app/rsc/page.tsx (7:10))
+         at <anonymous> (app/rsc/page.tsx (7:9))
          at Page (app/rsc/page.tsx (6:13))"
         `)
       expect(source).toMatchInlineSnapshot(`
-         "app/rsc/page.tsx (7:10) @ <anonymous>
+         "app/rsc/page.tsx (7:9) @ <anonymous>
 
             5 |     <div>
             6 |       {list.map((item, index) => (
          >  7 |         <span>{item}</span>
-              |          ^
+              |         ^
             8 |       ))}
             9 |     </div>
            10 |   )"
@@ -37,16 +37,16 @@ describe('app-dir - owner-stack-react-missing-key-prop', () => {
     } else {
       expect(stackFramesContent).toMatchInlineSnapshot(`
          "at span ()
-         at eval (app/rsc/page.tsx (7:10))
+         at eval (app/rsc/page.tsx (7:9))
          at Page (app/rsc/page.tsx (6:13))"
         `)
       expect(source).toMatchInlineSnapshot(`
-          "app/rsc/page.tsx (7:10) @ eval
+          "app/rsc/page.tsx (7:9) @ eval
 
              5 |     <div>
              6 |       {list.map((item, index) => (
           >  7 |         <span>{item}</span>
-               |          ^
+               |         ^
              8 |       ))}
              9 |     </div>
             10 |   )"
@@ -60,7 +60,7 @@ describe('app-dir - owner-stack-react-missing-key-prop', () => {
 
     const stackFramesContent = await getStackFramesContent(browser)
     const source = await getRedboxSource(browser)
-    if (process.env.TURBOPACK) {
+    if (isTurbopack) {
       expect(stackFramesContent).toMatchInlineSnapshot(`
          "at p ()
          at <unknown> (app/ssr/page.tsx (9:9))
@@ -81,17 +81,17 @@ describe('app-dir - owner-stack-react-missing-key-prop', () => {
     } else {
       expect(stackFramesContent).toMatchInlineSnapshot(`
          "at p ()
-         at eval (app/ssr/page.tsx (9:10))
+         at eval (app/ssr/page.tsx (9:9))
          at Array.map ()
          at Page (app/ssr/page.tsx (8:13))"
         `)
       expect(source).toMatchInlineSnapshot(`
-          "app/ssr/page.tsx (9:10) @ eval
+          "app/ssr/page.tsx (9:9) @ eval
 
              7 |     <div>
              8 |       {list.map((item, index) => (
           >  9 |         <p>{item}</p>
-               |          ^
+               |         ^
             10 |       ))}
             11 |     </div>
             12 |   )"

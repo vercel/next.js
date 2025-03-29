@@ -22,7 +22,7 @@ use swc_core::{
     common::Mark,
     ecma::{
         ast::{Id, Ident, Lit},
-        atoms::{Atom, JsWord},
+        atoms::Atom,
     },
 };
 use turbo_rcstr::RcStr;
@@ -275,7 +275,7 @@ impl Display for ConstantValue {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct ModuleValue {
-    pub module: JsWord,
+    pub module: Atom,
     pub annotations: ImportAnnotations,
 }
 
@@ -500,9 +500,9 @@ pub enum JsValue {
     /// A reference to an function argument.
     /// (func_ident, arg_index)
     Argument(u32, usize),
-    // TODO no predefined kinds, only JsWord
+    // TODO no predefined kinds, only Atom
     /// A reference to a free variable.
-    FreeVar(JsWord),
+    FreeVar(Atom),
     /// This is a reference to a imported module.
     Module(ModuleValue),
 }
@@ -3799,9 +3799,9 @@ pub enum WellKnownFunctionKind {
     RequireContextRequireKeys(RequireContextValue),
     RequireContextRequireResolve(RequireContextValue),
     Define,
-    FsReadMethod(JsWord),
+    FsReadMethod(Atom),
     PathToFileUrl,
-    ChildProcessSpawnMethod(JsWord),
+    ChildProcessSpawnMethod(Atom),
     ChildProcessFork,
     OsArch,
     OsPlatform,
@@ -4041,8 +4041,14 @@ mod tests {
                 let top_level_mark = Mark::new();
                 m.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
 
-                let eval_context =
-                    EvalContext::new(&m, unresolved_mark, top_level_mark, Some(&comments), None);
+                let eval_context = EvalContext::new(
+                    &m,
+                    unresolved_mark,
+                    top_level_mark,
+                    Default::default(),
+                    Some(&comments),
+                    None,
+                );
 
                 let mut var_graph = create_graph(&m, &eval_context);
                 let var_cache = Default::default();

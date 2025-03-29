@@ -38,9 +38,10 @@ impl EcmascriptBuildNodeRuntimeChunk {
 
         let output_root_to_root_path = this.chunking_context.output_root_to_root_path().await?;
         let output_root = this.chunking_context.output_root().await?;
-        let generate_source_map = this
+        let generate_source_map = *this
             .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self));
+            .reference_chunk_source_maps(Vc::upcast(self))
+            .await?;
         let runtime_path = self.path().await?;
         let runtime_public_path = if let Some(path) = output_root.get_path_to(&runtime_path) {
             path

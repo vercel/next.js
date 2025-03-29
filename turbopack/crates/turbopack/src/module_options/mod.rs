@@ -258,13 +258,18 @@ impl ModuleOptions {
 
         let mut rules = vec![
             ModuleRule::new_all(
-                RuleCondition::ResourcePathEndsWith(".json".to_string()),
+                RuleCondition::any(vec![
+                    RuleCondition::ResourcePathEndsWith(".json".to_string()),
+                    RuleCondition::ContentTypeStartsWith("application/json".to_string()),
+                ]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Json)],
             ),
             ModuleRule::new_all(
                 RuleCondition::any(vec![
                     RuleCondition::ResourcePathEndsWith(".js".to_string()),
                     RuleCondition::ResourcePathEndsWith(".jsx".to_string()),
+                    RuleCondition::ContentTypeStartsWith("application/javascript".to_string()),
+                    RuleCondition::ContentTypeStartsWith("text/javascript".to_string()),
                 ]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
                     transforms: app_transforms.to_resolved().await?,
@@ -373,30 +378,17 @@ impl ModuleOptions {
                 )],
             ),
             ModuleRule::new(
-                RuleCondition::any(vec![
-                    RuleCondition::ResourcePathEndsWith(".apng".to_string()),
-                    RuleCondition::ResourcePathEndsWith(".avif".to_string()),
-                    RuleCondition::ResourcePathEndsWith(".gif".to_string()),
-                    RuleCondition::ResourcePathEndsWith(".ico".to_string()),
-                    RuleCondition::ResourcePathEndsWith(".jpg".to_string()),
-                    RuleCondition::ResourcePathEndsWith(".jpeg".to_string()),
-                    RuleCondition::ResourcePathEndsWith(".png".to_string()),
-                    RuleCondition::ResourcePathEndsWith(".svg".to_string()),
-                    RuleCondition::ResourcePathEndsWith(".webp".to_string()),
-                    RuleCondition::ResourcePathEndsWith(".woff2".to_string()),
-                ]),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Static)],
-            ),
-            ModuleRule::new(
                 RuleCondition::any(vec![RuleCondition::ResourcePathEndsWith(
                     ".node".to_string(),
                 )]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)],
             ),
+            // WebAssembly
             ModuleRule::new(
-                RuleCondition::any(vec![RuleCondition::ResourcePathEndsWith(
-                    ".wasm".to_string(),
-                )]),
+                RuleCondition::any(vec![
+                    RuleCondition::ResourcePathEndsWith(".wasm".to_string()),
+                    RuleCondition::ContentTypeStartsWith("application/wasm".to_string()),
+                ]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::WebAssembly {
                     source_ty: WebAssemblySourceType::Binary,
                 })],
@@ -409,33 +401,56 @@ impl ModuleOptions {
                     source_ty: WebAssemblySourceType::Text,
                 })],
             ),
+            // Fallback to ecmascript without extension (this is node.js behavior)
             ModuleRule::new(
-                RuleCondition::ResourcePathHasNoExtension,
+                RuleCondition::all(vec![
+                    RuleCondition::ResourcePathHasNoExtension,
+                    RuleCondition::ContentTypeEmpty,
+                ]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
                     transforms: vendor_transforms.to_resolved().await?,
                     options: ecmascript_options_vc,
                 })],
             ),
+            // Static assets
+            ModuleRule::new(
+                RuleCondition::any(vec![
+                    RuleCondition::ResourcePathEndsWith(".apng".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".avif".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".gif".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".ico".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".jpg".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".jpeg".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".png".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".svg".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".webp".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".woff2".to_string()),
+                ]),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs)],
+            ),
             ModuleRule::new(
                 RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::Undefined)),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Static)],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs)],
+            ),
+            ModuleRule::new(
+                RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlCss)],
             ),
         ];
 
         if enable_raw_css {
             rules.extend([
                 ModuleRule::new(
-                    RuleCondition::all(vec![RuleCondition::ResourcePathEndsWith(
-                        ".css".to_string(),
-                    )]),
+                    RuleCondition::any(vec![
+                        RuleCondition::ResourcePathEndsWith(".css".to_string()),
+                        RuleCondition::ContentTypeStartsWith("text/css".to_string()),
+                    ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
                     })],
                 ),
                 ModuleRule::new(
-                    RuleCondition::all(vec![RuleCondition::ResourcePathEndsWith(
-                        ".module.css".to_string(),
-                    )]),
+                    RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
                     })],
@@ -457,7 +472,10 @@ impl ModuleOptions {
                 };
 
                 rules.push(ModuleRule::new(
-                    RuleCondition::ResourcePathEndsWith(".css".to_string()),
+                    RuleCondition::Any(vec![
+                        RuleCondition::ResourcePathEndsWith(".css".to_string()),
+                        RuleCondition::ContentTypeStartsWith("text/css".to_string()),
+                    ]),
                     vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                         ResolvedVc::upcast(
                             PostCssTransform::new(
@@ -481,7 +499,10 @@ impl ModuleOptions {
 
             rules.extend([
                 ModuleRule::new_all(
-                    RuleCondition::ResourcePathEndsWith(".css".to_string()),
+                    RuleCondition::Any(vec![
+                        RuleCondition::ResourcePathEndsWith(".css".to_string()),
+                        RuleCondition::ContentTypeStartsWith("text/css".to_string()),
+                    ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
                     })],
@@ -562,6 +583,7 @@ impl ModuleOptions {
                 RuleCondition::any(vec![
                     RuleCondition::ResourcePathEndsWith(".md".to_string()),
                     RuleCondition::ResourcePathEndsWith(".mdx".to_string()),
+                    RuleCondition::ContentTypeStartsWith("text/markdown".to_string()),
                 ]),
                 vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                     ResolvedVc::upcast(

@@ -43,7 +43,10 @@ import { PAGE_TYPES } from '../../../lib/page-types'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getAssumedSourceType } from '../loaders/next-flight-loader'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
-import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import {
+  DEFAULT_METADATA_ROUTE_EXTENSIONS,
+  isMetadataRouteFile,
+} from '../../../lib/metadata/is-metadata-route'
 import type { MetadataRouteLoaderOptions } from '../loaders/next-metadata-route-loader'
 import type { FlightActionEntryLoaderActions } from '../loaders/next-flight-action-entry-loader'
 
@@ -346,13 +349,27 @@ export class FlightClientEntryPlugin {
           : entryRequest
 
         // Replace file suffix as `.js` will be added.
+        // bundlePath will have app/ prefix but not src/.
+        // e.g. src/app/foo/page.js -> app/foo/page
         let bundlePath = normalizePathSep(
           relativeRequest.replace(/\.[^.\\/]+$/, '').replace(/^src[\\/]/, '')
         )
 
         // For metadata routes, the entry name can be used as the bundle path,
         // as it has been normalized already.
-        if (isMetadataRoute(bundlePath)) {
+        // e.g.
+        // When `relativeRequest` is 'src/app/sitemap.js',
+        // `appDirRelativeRequest` will be '/sitemap.js'
+        // then `isMetadataEntryFile` will be `true`
+        const appDirRelativeRequest = relativeRequest
+          .replace(/^src[\\/]/, '')
+          .replace(/^app[\\/]/, '/')
+        const isMetadataEntryFile = isMetadataRouteFile(
+          appDirRelativeRequest,
+          DEFAULT_METADATA_ROUTE_EXTENSIONS,
+          true
+        )
+        if (isMetadataEntryFile) {
           bundlePath = name
         }
 
@@ -941,38 +958,55 @@ export class FlightClientEntryPlugin {
   }
 
   addEntry(
-    compilation: any,
+    compilation: webpack.Compilation,
     context: string,
     dependency: webpack.Dependency,
     options: webpack.EntryOptions
   ): Promise<any> /* Promise<module> */ {
     return new Promise((resolve, reject) => {
-      const entry = compilation.entries.get(options.name)
-      entry.includeDependencies.push(dependency)
-      compilation.hooks.addEntry.call(entry, options)
-      compilation.addModuleTree(
-        {
-          context,
-          dependency,
-          contextInfo: { issuerLayer: options.layer },
-        },
-        (err: Error | undefined, module: any) => {
+      if ('rspack' in compilation.compiler) {
+        compilation.addInclude(context, dependency, options, (err, module) => {
           if (err) {
-            compilation.hooks.failedEntry.call(dependency, options, err)
             return reject(err)
           }
 
-          compilation.hooks.succeedEntry.call(dependency, options, module)
-
           compilation.moduleGraph
-            .getExportsInfo(module)
+            .getExportsInfo(module!)
             .setUsedInUnknownWay(
               this.isEdgeServer ? EDGE_RUNTIME_WEBPACK : DEFAULT_RUNTIME_WEBPACK
             )
-
           return resolve(module)
-        }
-      )
+        })
+      } else {
+        const entry = compilation.entries.get(options.name!)!
+        entry.includeDependencies.push(dependency)
+        compilation.hooks.addEntry.call(entry as any, options)
+        compilation.addModuleTree(
+          {
+            context,
+            dependency,
+            contextInfo: { issuerLayer: options.layer },
+          },
+          (err: any, module: any) => {
+            if (err) {
+              compilation.hooks.failedEntry.call(dependency, options, err)
+              return reject(err)
+            }
+
+            compilation.hooks.succeedEntry.call(dependency, options, module)
+
+            compilation.moduleGraph
+              .getExportsInfo(module)
+              .setUsedInUnknownWay(
+                this.isEdgeServer
+                  ? EDGE_RUNTIME_WEBPACK
+                  : DEFAULT_RUNTIME_WEBPACK
+              )
+
+            return resolve(module)
+          }
+        )
+      }
     })
   }
 

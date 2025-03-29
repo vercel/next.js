@@ -13,7 +13,7 @@ import * as Log from './output/log'
 import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 
-import { posix, join, dirname, extname } from 'path'
+import { posix, join, dirname, extname, normalize } from 'path'
 import { stringify } from 'querystring'
 import fs from 'fs'
 import {
@@ -407,7 +407,10 @@ export function getEdgeServerEntry(opts: {
       ).toString('base64'),
     }
 
-    return `next-middleware-loader?${stringify(loaderParams)}!`
+    return {
+      import: `next-middleware-loader?${stringify(loaderParams)}!`,
+      layer: WEBPACK_LAYERS.middleware,
+    }
   }
 
   if (isAPIRoute(opts.page)) {
@@ -421,7 +424,10 @@ export function getEdgeServerEntry(opts: {
       ).toString('base64'),
     }
 
-    return `next-edge-function-loader?${stringify(loaderParams)}!`
+    return {
+      import: `next-edge-function-loader?${stringify(loaderParams)}!`,
+      layer: WEBPACK_LAYERS.apiEdge,
+    }
   }
 
   const loaderParams: EdgeSSRLoaderQuery = {
@@ -474,9 +480,18 @@ export function getInstrumentationEntry(opts: {
   }
 }
 
+export function getAppLoader() {
+  return process.env.BUILTIN_APP_LOADER
+    ? `builtin:next-app-loader`
+    : 'next-app-loader'
+}
+
 export function getAppEntry(opts: Readonly<AppLoaderOptions>) {
+  if (process.env.NEXT_RSPACK && process.env.BUILTIN_APP_LOADER) {
+    ;(opts as any).projectRoot = normalize(join(__dirname, '../../..'))
+  }
   return {
-    import: `next-app-loader?${stringify(opts)}!`,
+    import: `${getAppLoader()}?${stringify(opts)}!`,
     layer: WEBPACK_LAYERS.reactServerComponents,
   }
 }
@@ -864,7 +879,7 @@ export function finalizeEntrypoint({
   switch (compilerType) {
     case COMPILER_NAMES.server: {
       const layer = isApi
-        ? WEBPACK_LAYERS.api
+        ? WEBPACK_LAYERS.apiNode
         : isInstrumentation
           ? WEBPACK_LAYERS.instrument
           : isServerComponent
@@ -883,7 +898,7 @@ export function finalizeEntrypoint({
     case COMPILER_NAMES.edgeServer: {
       return {
         layer: isApi
-          ? WEBPACK_LAYERS.api
+          ? WEBPACK_LAYERS.apiEdge
           : isMiddlewareFilename(name) || isInstrumentation
             ? WEBPACK_LAYERS.middleware
             : name.startsWith('pages/')

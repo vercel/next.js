@@ -6,18 +6,8 @@ import type { BaseNextRequest } from '../base-http'
 
 export function shouldServeStreamingMetadata(
   userAgent: string,
-  {
-    streamingMetadata,
-    htmlLimitedBots,
-  }: {
-    streamingMetadata: boolean
-    htmlLimitedBots: string | undefined
-  }
+  htmlLimitedBots: string | undefined
 ): boolean {
-  if (!streamingMetadata) {
-    return false
-  }
-
   const blockingMetadataUARegex = new RegExp(
     htmlLimitedBots || HTML_LIMITED_BOT_UA_RE_STRING,
     'i'

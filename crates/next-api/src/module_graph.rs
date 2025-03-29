@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use anyhow::Result;
+use either::Either;
 use next_core::{
     next_client_reference::{
         find_server_entries, ClientReference, ClientReferenceGraphResult, ClientReferenceType,
@@ -101,14 +102,14 @@ impl NextDynamicGraph {
                 InClientReference(ClientReferenceType),
             }
 
-            let entries: &[ResolvedVc<Box<dyn Module>>] = if !self.is_single_page {
-                if !graph.entries.contains(&entry) {
+            let entries = if !self.is_single_page {
+                if !graph.entry_modules().any(|m| m == entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(Vc::cell(vec![]));
                 }
-                &[entry]
+                Either::Left(std::iter::once(entry))
             } else {
-                &graph.entries
+                Either::Right(graph.entry_modules())
             };
 
             let mut result = vec![];
@@ -207,12 +208,12 @@ impl ServerActionsGraph {
                 // The graph contains the whole app, traverse and collect all reachable imports.
                 let graph = &*self.graph.await?;
 
-                if !graph.entries.contains(&entry) {
+                if !graph.entry_modules().any(|m| m == entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(Vc::cell(Default::default()));
                 }
 
-                let mut result = FxHashMap::default();
+                let mut result = FxIndexMap::default();
                 graph.traverse_from_entry(entry, |node| {
                     if let Some(node_data) = data.get(&node.module) {
                         result.insert(node.module, *node_data);
@@ -224,10 +225,11 @@ impl ServerActionsGraph {
             let actions = data
                 .iter()
                 .map(|(module, (layer, actions))| async move {
+                    let actions = actions.await?;
                     actions
-                        .await?
+                        .actions
                         .iter()
-                        .map(|(hash, name)| async move {
+                        .map(async |(hash, name)| {
                             Ok((
                                 hash.to_string(),
                                 (
@@ -236,7 +238,13 @@ impl ServerActionsGraph {
                                     if *layer == ActionLayer::Rsc {
                                         *module
                                     } else {
-                                        to_rsc_context(**module, rsc_asset_context).await?
+                                        to_rsc_context(
+                                            **module,
+                                            &actions.entry_path,
+                                            &actions.entry_query,
+                                            rsc_asset_context,
+                                        )
+                                        .await?
                                     },
                                 ),
                             ))
@@ -292,14 +300,14 @@ impl ClientReferencesGraph {
             let data = &*self.data.await?;
             let graph = &*self.graph.await?;
 
-            let entries: &[ResolvedVc<Box<dyn Module>>] = if !self.is_single_page {
-                if !graph.entries.contains(&entry) {
+            let entries = if !self.is_single_page {
+                if !graph.entry_modules().any(|m| m == entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(ClientReferenceGraphResult::default().cell());
                 }
-                &[entry]
+                Either::Left(std::iter::once(entry))
             } else {
-                &graph.entries
+                Either::Right(graph.entry_modules())
             };
 
             let mut client_references = FxIndexSet::default();
@@ -313,7 +321,7 @@ impl ClientReferencesGraph {
                 // state_map is `module -> Option< the current so parent server component >`
                 &mut FxHashMap::default(),
                 |parent_info, node, state_map| {
-                    let module = node.module;
+                    let module = node.module();
                     let module_type = data.get(&module);
 
                     let current_server_component = if let Some(
@@ -346,7 +354,7 @@ impl ClientReferencesGraph {
 
                     let parent_server_component = *state_map.get(&parent_module).unwrap();
 
-                    match data.get(&node.module) {
+                    match data.get(&node.module()) {
                         Some(ClientReferenceMapType::EcmascriptClientReference {
                             module: module_ref,
                             ssr_module,

@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use lightningcss::{
     css_modules::{CssModuleExport, CssModuleExports, Pattern, Segment},
     stylesheet::{ParserOptions, PrinterOptions, StyleSheet, ToCssResult},
@@ -23,7 +23,6 @@ use turbopack_core::{
         Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
         StyledString,
     },
-    module_graph::ModuleGraph,
     reference::ModuleReferences,
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
@@ -191,6 +190,8 @@ pub async fn process_css_with_placeholder(
                 _ => bail!("this case should be filtered out while parsing"),
             };
 
+            // We use NoMinify because this is not a final css. We need to replace url references,
+            // and we do final codegen with proper minification.
             let (result, _) = stylesheet.to_css(&code, MinifyType::NoMinify, false, false)?;
 
             let exports = result.exports.map(|exports| {
@@ -218,7 +219,6 @@ pub async fn process_css_with_placeholder(
 #[turbo_tasks::function]
 pub async fn finalize_css(
     result: Vc<CssWithPlaceholderResult>,
-    module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     minify_type: MinifyType,
 ) -> Result<Vc<FinalCssResult>> {
@@ -245,8 +245,7 @@ pub async fn finalize_css(
             let mut url_map = FxHashMap::default();
 
             for (src, reference) in (*url_references.await?).iter() {
-                let resolved =
-                    resolve_url_reference(**reference, module_graph, chunking_context).await?;
+                let resolved = resolve_url_reference(**reference, chunking_context).await?;
                 if let Some(v) = resolved.as_ref().cloned() {
                     url_map.insert(RcStr::from(src.as_str()), v);
                 }
@@ -284,7 +283,6 @@ pub trait ProcessCss: ParseCss {
 
     async fn finalize_css(
         self: Vc<Self>,
-        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         minify_type: MinifyType,
     ) -> Result<Vc<FinalCssResult>>;
@@ -294,7 +292,7 @@ pub trait ProcessCss: ParseCss {
 pub async fn parse_css(
     source: ResolvedVc<Box<dyn Source>>,
     origin: Vc<Box<dyn ResolveOrigin>>,
-    import_context: Vc<ImportContext>,
+    import_context: Option<Vc<ImportContext>>,
     ty: CssModuleAssetType,
 ) -> Result<Vc<ParseCssResult>> {
     let span = {
@@ -339,7 +337,7 @@ async fn process_content(
     filename: &str,
     source: ResolvedVc<Box<dyn Source>>,
     origin: Vc<Box<dyn ResolveOrigin>>,
-    import_context: Vc<ImportContext>,
+    import_context: Option<Vc<ImportContext>>,
     ty: CssModuleAssetType,
 ) -> Result<Vc<ParseCssResult>> {
     #[allow(clippy::needless_lifetimes)]
@@ -434,6 +432,14 @@ async fn process_content(
                         }
                     }
                 }
+
+                // minify() is actually transform, and it performs operations like CSS modules
+                // handling.
+                //
+                //
+                // See: https://github.com/parcel-bundler/lightningcss/issues/935#issuecomment-2739325537
+                ss.minify(Default::default())
+                    .context("failed to transform css")?;
 
                 stylesheet_into_static(&ss, without_warnings(config.clone()))
             }
@@ -693,122 +699,127 @@ mod tests {
     fn css_module_pure_lint() {
         assert_lint_success(
             "html {
-            --foo: 1;
-        }",
+                --foo: 1;
+            }",
         );
 
         assert_lint_success(
             "#id {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_success(
             ".class {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_success(
             "html.class {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_success(
             ".class > * {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_success(
             ".class * {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_success(
             ":where(.main > *) {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_success(
             ":where(.main > *, .root > *) {
-            color: red;
-        }",
+                color: red;
+            }",
+        );
+        assert_lint_success(
+            ".style {
+                background-image: var(--foo);
+            }",
         );
 
         assert_lint_failure(
             "div {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_failure(
             "div > span {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_failure(
             "div span {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_failure(
             "div[data-foo] {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_failure(
             "div[data-foo=\"bar\"] {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_failure(
             "div[data-foo=\"bar\"] span {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_failure(
             "* {
-            --foo: 1;
-        }",
+                --foo: 1;
+            }",
         );
 
         assert_lint_failure(
             "[data-foo] {
-            --foo: 1;
-        }",
+                --foo: 1;
+            }",
         );
 
         assert_lint_failure(
             ":not(.class) {
-            --foo: 1;
-        }",
+                --foo: 1;
+            }",
         );
 
         assert_lint_failure(
             ":not(div) {
-            --foo: 1;
-        }",
+                --foo: 1;
+            }",
         );
 
         assert_lint_failure(
             ":where(div > *) {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_failure(
             ":where(div) {
-            color: red;
-        }",
+                color: red;
+            }",
         );
     }
 }

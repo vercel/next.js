@@ -692,12 +692,14 @@ export async function handleEntrypoints({
       dev.hooks.handleWrittenEndpoint(key, writtenEndpoint)
       processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
       await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
-      if (dev) {
+      const middlewareConfig =
+        manifestLoader.getMiddlewareManifest(key)?.middleware['/']
+
+      if (dev && middlewareConfig) {
         dev.serverFields.middleware = {
           match: null as any,
           page: '/',
-          matchers:
-            manifestLoader.getMiddlewareManifest(key)?.middleware['/'].matchers,
+          matchers: middlewareConfig.matchers,
         }
       }
     }

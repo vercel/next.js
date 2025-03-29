@@ -46,7 +46,6 @@ export async function generateMetadata({ params }) {
 >
 > - The `metadata` object and `generateMetadata` function exports are **only supported in Server Components**.
 > - You cannot export both the `metadata` object and `generateMetadata` function from the same route segment.
-> - On the initial load, streaming is blocked until `generateMetadata` has fully resolved, including any content from `loading.js`.
 
 ## The `metadata` object
 
@@ -91,7 +90,7 @@ export async function generateMetadata(
   parent: ResolvingMetadata
 ): Promise<Metadata> {
   // read route params
-  const id = (await params).id
+  const { id } = await params
 
   // fetch data
   const product = await fetch(`https://.../${id}`).then((res) => res.json())
@@ -113,7 +112,7 @@ export default function Page({ params, searchParams }: Props) {}
 ```jsx filename="app/products/[id]/page.js" switcher
 export async function generateMetadata({ params, searchParams }, parent) {
   // read route params
-  const id = (await params).id
+  const { id } = await params
 
   // fetch data
   const product = await fetch(`https://.../${id}`).then((res) => res.json())
@@ -992,6 +991,22 @@ export const metadata = {
 <meta property="fb:admins" content="87654321" />
 ```
 
+### `pinterest`
+
+You can enable or disable [Pinterest Rich Pins](https://developers.pinterest.com/docs/web-features/rich-pins-overview/) on your webpage.
+
+```jsx filename="layout.js | page.js"
+export const metadata = {
+  pinterest: {
+    richPin: true,
+  },
+}
+```
+
+```html filename="<head> output" hideLineNumbers
+<meta name="pinterest-rich-pin" content="true" />
+```
+
 ### `other`
 
 All metadata options should be covered using the built-in support. However, there may be custom metadata tags specific to your site, or brand new metadata tags just released. You can use the `other` option to render any custom metadata tag.
@@ -1198,9 +1213,38 @@ export const metadata = {
 }
 ```
 
+## Streaming metadata
+
+Metadata returned by `generateMetadata` is streamed to the client. This allows Next.js to inject metadata into the HTML as soon as it's resolved.
+
+Since page metadata primarily targets bots and crawlers, Next.js will stream metadata for bots that can execute JavaScript and inspect the full page DOM (e.g. `Googlebot`). However, metadata will continue blocking the render of the page for **HTML-limited** bots (e.g. `Twitterbot`) as these cannot execute JavaScript while crawling.
+
+Next.js automatically detects the user agent of incoming requests to determine whether to serve streaming metadata or fallback to blocking metadata.
+
+If you need to customize this list, you can define them manually using the `htmlLimitedBots` option in `next.config.js`. Next.js will ensure user agents matching this regex receive blocking metadata when requesting your web page.
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const config: NextConfig = {
+  htmlLimitedBots: 'MySpecialBot|MyAnotherSpecialBot|SimpleCrawler',
+}
+
+export default config
+```
+
+```js filename="next.config.js" switcher
+module.exports = {
+  htmlLimitedBots: 'MySpecialBot|MyAnotherSpecialBot|SimpleCrawler',
+}
+```
+
+Specifying a `htmlLimitedBots` config will override the Next.js' default list, allowing you full control over what user agents should opt into this behavior. This is advanced behavior, and the default should be sufficient for most cases.
+
 ## Version History
 
 | Version   | Changes                                                                                                                                                 |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v15.2.0` | Introduced streaming support to `generateMetadata`.                                                                                                     |
 | `v13.2.0` | `viewport`, `themeColor`, and `colorScheme` deprecated in favor of the [`viewport` configuration](/docs/app/api-reference/functions/generate-viewport). |
 | `v13.2.0` | `metadata` and `generateMetadata` introduced.                                                                                                           |

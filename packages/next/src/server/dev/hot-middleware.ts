@@ -27,6 +27,7 @@ import { isMiddlewareFilename } from '../../build/utils'
 import type { VersionInfo } from './parse-version-info'
 import type { HMR_ACTION_TYPES } from './hot-reloader-types'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
+import { devIndicatorServerState } from './dev-indicator-server-state'
 
 function isMiddlewareStats(stats: webpack.Stats) {
   for (const key of stats.compilation.entrypoints.keys()) {
@@ -202,6 +203,10 @@ export class WebpackHotMiddleware {
       const stats = statsToJson(syncStats)
       const middlewareStats = statsToJson(this.middlewareLatestStats?.stats)
 
+      if (devIndicatorServerState.disabledUntil < Date.now()) {
+        devIndicatorServerState.disabledUntil = 0
+      }
+
       this.publish({
         action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
         hash: stats.hash!,
@@ -214,6 +219,7 @@ export class WebpackHotMiddleware {
         debug: {
           devtoolsFrontendUrl: this.devtoolsFrontendUrl,
         },
+        devIndicator: devIndicatorServerState,
       })
     }
   }

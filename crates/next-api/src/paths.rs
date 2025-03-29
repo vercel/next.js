@@ -78,11 +78,11 @@ pub async fn all_paths_in_root(
 
 pub(crate) async fn get_paths_from_root(
     root: &FileSystemPath,
-    output_assets: &[ResolvedVc<Box<dyn OutputAsset>>],
+    output_assets: impl IntoIterator<Item = &ResolvedVc<Box<dyn OutputAsset>>>,
     filter: impl FnOnce(&str) -> bool + Copy,
 ) -> Result<Vec<RcStr>> {
     output_assets
-        .iter()
+        .into_iter()
         .map(move |&file| async move {
             let path = &*file.path().await?;
             let Some(relative) = root.get_path_to(path) else {
@@ -101,21 +101,21 @@ pub(crate) async fn get_paths_from_root(
 
 pub(crate) async fn get_js_paths_from_root(
     root: &FileSystemPath,
-    output_assets: &[ResolvedVc<Box<dyn OutputAsset>>],
+    output_assets: impl IntoIterator<Item = &ResolvedVc<Box<dyn OutputAsset>>>,
 ) -> Result<Vec<RcStr>> {
     get_paths_from_root(root, output_assets, |path| path.ends_with(".js")).await
 }
 
 pub(crate) async fn get_wasm_paths_from_root(
     root: &FileSystemPath,
-    output_assets: &[ResolvedVc<Box<dyn OutputAsset>>],
+    output_assets: impl IntoIterator<Item = &ResolvedVc<Box<dyn OutputAsset>>>,
 ) -> Result<Vec<RcStr>> {
     get_paths_from_root(root, output_assets, |path| path.ends_with(".wasm")).await
 }
 
 pub(crate) async fn get_asset_paths_from_root(
     root: &FileSystemPath,
-    output_assets: &[ResolvedVc<Box<dyn OutputAsset>>],
+    output_assets: impl IntoIterator<Item = &ResolvedVc<Box<dyn OutputAsset>>>,
 ) -> Result<Vec<RcStr>> {
     get_paths_from_root(root, output_assets, |path| {
         !path.ends_with(".js") && !path.ends_with(".map") && !path.ends_with(".wasm")
@@ -125,7 +125,7 @@ pub(crate) async fn get_asset_paths_from_root(
 
 pub(crate) async fn get_font_paths_from_root(
     root: &FileSystemPath,
-    output_assets: &[ResolvedVc<Box<dyn OutputAsset>>],
+    output_assets: impl IntoIterator<Item = &ResolvedVc<Box<dyn OutputAsset>>>,
 ) -> Result<Vec<RcStr>> {
     get_paths_from_root(root, output_assets, |path| {
         path.ends_with(".woff")

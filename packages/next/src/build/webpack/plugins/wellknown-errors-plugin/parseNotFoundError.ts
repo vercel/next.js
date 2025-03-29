@@ -76,7 +76,8 @@ async function getSourceFrame(
           file: fileName,
           methodName: '',
           lineNumber: loc.start.line,
-          column: loc.start.column,
+          // loc is 0-based but columns in stack frames are 1-based.
+          column: (loc.start.column ?? 0) + 1,
         },
       })
 

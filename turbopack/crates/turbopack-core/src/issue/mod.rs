@@ -30,7 +30,7 @@ use crate::{
 };
 
 #[turbo_tasks::value(shared)]
-#[derive(PartialOrd, Ord, Copy, Clone, Hash, Debug, DeterministicHash)]
+#[derive(PartialOrd, Ord, Copy, Clone, Hash, Debug, DeterministicHash, TaskInput)]
 #[serde(rename_all = "camelCase")]
 pub enum IssueSeverity {
     Bug,

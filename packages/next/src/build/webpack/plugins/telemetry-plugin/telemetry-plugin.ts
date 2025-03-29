@@ -1,5 +1,4 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import { NormalModule } from 'next/dist/compiled/webpack/webpack'
 import {
   createUseCacheTracker,
   type UseCacheTrackerKey,
@@ -48,6 +47,7 @@ export type Feature =
   | 'skipTrailingSlashRedirect'
   | 'modularizeImports'
   | 'esmExternals'
+  | 'webpackPlugins'
   | UseCacheTrackerKey
 interface FeatureUsage {
   featureName: Feature
@@ -105,6 +105,7 @@ const BUILD_FEATURES: Array<Feature> = [
   'skipTrailingSlashRedirect',
   'modularizeImports',
   'esmExternals',
+  'webpackPlugins',
 ]
 
 export type TelemetryLoaderContext = {
@@ -125,7 +126,8 @@ function findFeatureInModule(module: webpack.Module): Feature | undefined {
   }
 
   for (const [feature, path] of FEATURE_MODULE_MAP) {
-    if ((module as webpack.NormalModule).resource.endsWith(path)) {
+    // imports like "http" will be undefined resource in rspack
+    if ((module as webpack.NormalModule).resource?.endsWith(path)) {
       return feature
     }
   }
@@ -193,7 +195,17 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
     }
   }
 
-  apply(compiler: webpack.Compiler): void {
+  public addUsage(
+    featureName: Feature,
+    invocationCount: FeatureUsage['invocationCount']
+  ): void {
+    this.usageTracker.set(featureName, {
+      featureName,
+      invocationCount,
+    })
+  }
+
+  public apply(compiler: webpack.Compiler): void {
     compiler.hooks.make.tapAsync(
       TelemetryPlugin.name,
       async (compilation: webpack.Compilation, callback: () => void) => {
@@ -226,7 +238,8 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
       compiler.hooks.thisCompilation.tap(
         TelemetryPlugin.name,
         (compilation) => {
-          const moduleHooks = NormalModule.getCompilationHooks(compilation)
+          const moduleHooks =
+            compiler.webpack.NormalModule.getCompilationHooks(compilation)
           moduleHooks.loader.tap(TelemetryPlugin.name, (loaderContext) => {
             ;(loaderContext as TelemetryLoaderContext).eliminatedPackages =
               eliminatedPackages
@@ -238,15 +251,15 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
     }
   }
 
-  usages(): FeatureUsage[] {
+  public usages(): FeatureUsage[] {
     return [...this.usageTracker.values()]
   }
 
-  packagesUsedInServerSideProps(): string[] {
+  public packagesUsedInServerSideProps(): string[] {
     return Array.from(eliminatedPackages)
   }
 
-  getUseCacheTracker(): Record<UseCacheTrackerKey, number> {
+  public getUseCacheTracker(): Record<UseCacheTrackerKey, number> {
     return Object.fromEntries(useCacheTracker)
   }
 }

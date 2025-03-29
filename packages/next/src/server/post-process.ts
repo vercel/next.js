@@ -21,7 +21,7 @@ async function postProcessHTML(
   { inAmpMode, hybridAmp }: { inAmpMode: boolean; hybridAmp: boolean }
 ) {
   const postProcessors: Array<PostProcessorFunction> = [
-    process.env.NEXT_RUNTIME !== 'edge' && inAmpMode
+    process.env.NEXT_RUNTIME !== 'edge' && inAmpMode && !process.env.TURBOPACK
       ? async (html: string) => {
           const optimizeAmp = require('./optimize-amp')
             .default as typeof import('./optimize-amp').default

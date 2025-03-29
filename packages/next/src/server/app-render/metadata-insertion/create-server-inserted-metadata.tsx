@@ -1,4 +1,4 @@
-import React, { type JSX } from 'react'
+import React from 'react'
 import { renderToReadableStream } from 'react-dom/server.edge'
 import {
   ServerInsertedMetadataContext,
@@ -6,9 +6,17 @@ import {
 } from '../../../shared/lib/server-inserted-metadata.shared-runtime'
 import { renderToString } from '../render-to-string'
 
-export function createServerInsertedMetadata() {
+/**
+ * For chromium based browsers (Chrome, Edge, etc.) and Safari,
+ * icons need to stay under <head> to be picked up by the browser.
+ *
+ */
+const REINSERT_ICON_SCRIPT = `\
+document.querySelectorAll('body link[rel="icon"], body link[rel="apple-touch-icon"]').forEach(el => document.head.appendChild(el))`
+
+export function createServerInsertedMetadata(nonce: string | undefined) {
   let metadataResolver: MetadataResolver | null = null
-  let metadataToFlush: JSX.Element | null = null
+  let metadataToFlush: React.ReactNode = null
   const setMetadataResolver = (resolver: MetadataResolver): void => {
     metadataResolver = resolver
   }
@@ -34,7 +42,12 @@ export function createServerInsertedMetadata() {
       metadataToFlush = metadataResolver()
       const html = await renderToString({
         renderToReadableStream,
-        element: <>{metadataToFlush}</>,
+        element: (
+          <>
+            {metadataToFlush}
+            <script nonce={nonce}>{REINSERT_ICON_SCRIPT}</script>
+          </>
+        ),
       })
 
       return html

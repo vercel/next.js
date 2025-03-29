@@ -104,7 +104,8 @@ pub enum ModuleType {
     Css {
         ty: CssModuleAssetType,
     },
-    Static,
+    StaticUrlJs,
+    StaticUrlCss,
     WebAssembly {
         source_ty: WebAssemblySourceType,
     },

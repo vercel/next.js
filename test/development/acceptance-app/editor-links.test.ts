@@ -65,24 +65,19 @@ describe('Error overlay - editor links', () => {
       `
     )
 
-    const isNewDevOverlay =
-      process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
-
     // Ensure the Next Logo is not loading. This is to assert that the build did stop.
-    if (isNewDevOverlay) {
-      await retry(async () => {
-        const loaded = await browser.eval(() => {
-          return Boolean(
-            [].slice
-              .call(document.querySelectorAll('nextjs-portal'))
-              .find((p) =>
-                p.shadowRoot.querySelector('[data-next-mark-loading="false"]')
-              )
-          )
-        })
-        expect(loaded).toBe(true)
+    await retry(async () => {
+      const loaded = await browser.eval(() => {
+        return Boolean(
+          [].slice
+            .call(document.querySelectorAll('nextjs-portal'))
+            .find((p) =>
+              p.shadowRoot.querySelector('[data-next-mark-loading="false"]')
+            )
+        )
       })
-    }
+      expect(loaded).toBe(true)
+    })
 
     await session.assertHasRedbox()
     await clickSourceFile(browser)

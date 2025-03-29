@@ -21,7 +21,6 @@ import type { LoadingModuleData } from '../../shared/lib/app-router-context.shar
 import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { OUTLET_BOUNDARY_NAME } from '../../lib/metadata/metadata-constants'
-import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { UseCachePageComponentProps } from '../use-cache/use-cache-wrapper'
 
 /**
@@ -40,7 +39,8 @@ export function createComponentTree(props: {
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  StreamingMetadata: React.ComponentType<{}>
+  StreamingMetadata: React.ComponentType | null
+  StreamingMetadataOutlet: React.ComponentType
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -77,6 +77,7 @@ async function createComponentTreeInternal({
   preloadCallbacks,
   authInterrupts,
   StreamingMetadata,
+  StreamingMetadataOutlet,
 }: {
   loaderTree: LoaderTree
   parentParams: Params
@@ -90,7 +91,8 @@ async function createComponentTreeInternal({
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  StreamingMetadata: React.ComponentType<{}>
+  StreamingMetadata: React.ComponentType | null
+  StreamingMetadataOutlet: React.ComponentType | null
 }): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
@@ -175,7 +177,7 @@ async function createComponentTreeInternal({
 
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
-  const { mod: layoutOrPageMod } = await getTracer().trace(
+  const { mod: layoutOrPageMod, modType } = await getTracer().trace(
     NextNodeServerSpan.getLayoutOrPageModule,
     {
       hideSpan: !(isLayout || isPage),
@@ -344,10 +346,10 @@ async function createComponentTreeInternal({
   if (process.env.NODE_ENV === 'development') {
     const { isValidElementType } = require('next/dist/compiled/react-is')
     if (
-      (isPage || typeof MaybeComponent !== 'undefined') &&
+      typeof MaybeComponent !== 'undefined' &&
       !isValidElementType(MaybeComponent)
     ) {
-      errorMissingDefaultExport(pagePath, 'page')
+      errorMissingDefaultExport(pagePath, modType ?? 'page')
     }
 
     if (
@@ -391,16 +393,16 @@ async function createComponentTreeInternal({
 
   // Resolve the segment param
   const actualSegment = segmentParam ? segmentParam.treeSegment : segment
+  const metadata = StreamingMetadata ? <StreamingMetadata /> : undefined
 
-  // Only render metadata on the actual SSR'd segment not the `default` segment,
-  // as it's used as a placeholder for navigation.
-  const metadata =
-    actualSegment !== DEFAULT_SEGMENT_KEY ? <StreamingMetadata /> : undefined
+  // Use the same condition to render metadataOutlet as metadata
+  const metadataOutlet = StreamingMetadataOutlet ? (
+    <StreamingMetadataOutlet />
+  ) : undefined
 
   const notFoundElement = NotFound ? (
     <>
       <NotFound />
-      {metadata}
       {notFoundStyles}
     </>
   ) : undefined
@@ -408,7 +410,6 @@ async function createComponentTreeInternal({
   const forbiddenElement = Forbidden ? (
     <>
       <Forbidden />
-      {metadata}
       {forbiddenStyles}
     </>
   ) : undefined
@@ -416,7 +417,6 @@ async function createComponentTreeInternal({
   const unauthorizedElement = Unauthorized ? (
     <>
       <Unauthorized />
-      {metadata}
       {unauthorizedStyles}
     </>
   ) : undefined
@@ -516,7 +516,12 @@ async function createComponentTreeInternal({
             missingSlots,
             preloadCallbacks,
             authInterrupts,
-            StreamingMetadata,
+            StreamingMetadata: isChildrenRouteKey ? StreamingMetadata : null,
+            // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
+            // but we only want to throw on the first one.
+            StreamingMetadataOutlet: isChildrenRouteKey
+              ? StreamingMetadataOutlet
+              : null,
           })
 
           childCacheNodeSeedData = seedData
@@ -578,7 +583,6 @@ async function createComponentTreeInternal({
   }
 
   const Component = MaybeComponent
-
   // If force-dynamic is used and the current render supports postponing, we
   // replace it with a node that will postpone the render. This ensures that the
   // postpone is invoked during the react render phase and not during the next
@@ -704,7 +708,10 @@ async function createComponentTreeInternal({
         {layerAssets}
         <OutletBoundary>
           <MetadataOutlet ready={getViewportReady} />
+          {/* Blocking metadata outlet */}
           <MetadataOutlet ready={getMetadataReady} />
+          {/* Streaming metadata outlet */}
+          {metadataOutlet}
         </OutletBoundary>
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
@@ -840,7 +847,6 @@ async function createComponentTreeInternal({
                     {notFoundStyles}
                     <NotFound />
                   </SegmentComponent>
-                  {metadata}
                 </>
               ) : undefined
             }

@@ -523,4 +523,8 @@ export class Playwright extends BrowserInterface {
       'nextjs-portal [aria-labelledby="nextjs__container_errors_label"]'
     )
   }
+
+  locateDevToolsIndicator(): Locator {
+    return page.locator('nextjs-portal [data-nextjs-dev-tools-button]')
+  }
 }

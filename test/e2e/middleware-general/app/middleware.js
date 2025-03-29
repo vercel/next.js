@@ -1,5 +1,6 @@
 /* global globalThis */
 import { NextRequest, NextResponse, URLPattern } from 'next/server'
+import { getSomeData } from './lib/some-data'
 import magicValue from 'shared-package'
 
 export const config = {
@@ -38,6 +39,8 @@ const params = (url) => {
 }
 
 export async function middleware(request) {
+  getSomeData()
+
   const url = request.nextUrl
 
   if (request.headers.get('x-prerender-revalidate')) {
@@ -247,6 +250,10 @@ export async function middleware(request) {
 
   if (url.pathname === '/error-throw' && request.__isData) {
     throw new Error('test error')
+  }
+
+  if (url.pathname === '/request-body' && request.method === 'POST') {
+    return NextResponse.json(await request.json())
   }
 
   const original = new URL(request.url)

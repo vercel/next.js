@@ -37,6 +37,7 @@ describe('Middleware Runtime', () => {
               isNodeMiddleware ? 'middleware-node.js' : 'middleware.js'
             )
           ),
+          lib: new FileRef(join(__dirname, '../app/lib')),
           pages: new FileRef(join(__dirname, '../app/pages')),
           'shared-package': new FileRef(
             join(__dirname, '../app/node_modules/shared-package')
@@ -822,6 +823,17 @@ describe('Middleware Runtime', () => {
           i18n ? '/en' : ''
         }/sha.json?hello=goodbye`,
       ])
+    })
+
+    it(`should read request body`, async () => {
+      const body = { hello: 'world' }
+      const res = await fetchViaHTTP(next.url, '/request-body', undefined, {
+        body: JSON.stringify(body),
+        headers: { 'content-type': 'application/json' },
+        method: 'POST',
+      })
+
+      expect(await res.json()).toEqual(body)
     })
   }
   describe('with i18n', () => {

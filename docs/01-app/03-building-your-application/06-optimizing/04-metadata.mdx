@@ -61,7 +61,7 @@ export async function generateMetadata(
   parent: ResolvingMetadata
 ): Promise<Metadata> {
   // read route params
-  const id = (await params).id
+  const { id } = await params
 
   // fetch data
   const product = await fetch(`https://.../${id}`).then((res) => res.json())
@@ -83,7 +83,7 @@ export default function Page({ params, searchParams }: Props) {}
 ```jsx filename="app/products/[id]/page.js" switcher
 export async function generateMetadata({ params, searchParams }, parent) {
   // read route params
-  const id = (await params).id
+  const { id } = await params
 
   // fetch data
   const product = await fetch(`https://.../${id}`).then((res) => res.json())
@@ -298,7 +298,8 @@ Our current recommendation for JSON-LD is to render structured data as a `<scrip
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 export default async function Page({ params }) {
-  const product = await getProduct((await params).id)
+  const { id } = await params
+  const product = await getProduct(id)
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -323,7 +324,8 @@ export default async function Page({ params }) {
 
 ```jsx filename="app/products/[id]/page.js" switcher
 export default async function Page({ params }) {
-  const product = await getProduct((await params).id)
+  const { id } = await params
+  const product = await getProduct(id)
 
   const jsonLd = {
     '@context': 'https://schema.org',

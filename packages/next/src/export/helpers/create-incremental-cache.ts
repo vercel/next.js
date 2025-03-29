@@ -4,8 +4,10 @@ import { hasNextSupport } from '../../server/ci-info'
 import { nodeFs } from '../../server/lib/node-fs-methods'
 import { interopDefault } from '../../lib/interop-default'
 import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
-import { cacheHandlerGlobal } from '../../server/use-cache/constants'
-import DefaultCacheHandler from '../../server/lib/cache-handlers/default'
+import {
+  initializeCacheHandlers,
+  setCacheHandler,
+} from '../../server/use-cache/handlers'
 
 export async function createIncrementalCache({
   cacheHandler,
@@ -36,21 +38,18 @@ export async function createIncrementalCache({
     )
   }
 
-  if (!cacheHandlerGlobal.__nextCacheHandlers && cacheHandlers) {
-    cacheHandlerGlobal.__nextCacheHandlers = {}
+  if (cacheHandlers && initializeCacheHandlers()) {
+    for (const [kind, handler] of Object.entries(cacheHandlers)) {
+      if (!handler) continue
 
-    for (const key of Object.keys(cacheHandlers)) {
-      if (cacheHandlers[key]) {
-        ;(globalThis as any).__nextCacheHandlers[key] = interopDefault(
-          await import(formatDynamicImportPath(dir, cacheHandlers[key])).then(
+      setCacheHandler(
+        kind,
+        interopDefault(
+          await import(formatDynamicImportPath(dir, handler)).then(
             (mod) => mod.default || mod
           )
         )
-      }
-    }
-
-    if (!cacheHandlers.default) {
-      cacheHandlerGlobal.__nextCacheHandlers.default = DefaultCacheHandler
+      )
     }
   }
 

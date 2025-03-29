@@ -1,4 +1,6 @@
+pub(crate) mod batch;
 pub(crate) mod chunk_type;
+pub(crate) mod code_and_ids;
 pub(crate) mod content;
 pub(crate) mod data;
 pub(crate) mod item;
@@ -22,7 +24,12 @@ use turbopack_core::{
 };
 
 pub use self::{
+    batch::{
+        EcmascriptChunkBatchWithAsyncInfo, EcmascriptChunkItemBatchGroup,
+        EcmascriptChunkItemOrBatchWithAsyncInfo,
+    },
     chunk_type::EcmascriptChunkType,
+    code_and_ids::{batch_group_code_and_ids, item_code_and_ids, BatchGroupCodeAndIds, CodeAndIds},
     content::EcmascriptChunkContent,
     data::EcmascriptChunkData,
     item::{
@@ -121,6 +128,7 @@ impl Chunk for EcmascriptChunk {
             modifiers: Vec::new(),
             parts: Vec::new(),
             layer: None,
+            content_type: None,
         };
 
         Ok(AssetIdent::new(Value::new(ident)))
@@ -137,14 +145,7 @@ impl Chunk for EcmascriptChunk {
         let mut referenced_output_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>> = content
             .chunk_items
             .iter()
-            .map(async |with_info| {
-                Ok(with_info
-                    .chunk_item
-                    .references()
-                    .await?
-                    .into_iter()
-                    .copied())
-            })
+            .map(async |with_info| Ok(with_info.references().await?.into_iter().copied()))
             .try_flat_join()
             .await?;
         referenced_output_assets.extend(content.referenced_output_assets.iter().copied());
@@ -172,11 +173,6 @@ impl EcmascriptChunk {
     #[turbo_tasks::function]
     pub fn chunk_content(&self) -> Vc<EcmascriptChunkContent> {
         *self.content
-    }
-
-    #[turbo_tasks::function]
-    pub async fn chunk_items_count(&self) -> Result<Vc<usize>> {
-        Ok(Vc::cell(self.content.await?.chunk_items.len()))
     }
 }
 

@@ -127,7 +127,16 @@ const bundleTypes = {
   },
 }
 
-module.exports = ({ dev, turbo, bundleType, experimental }) => {
+/**
+ * @param {Object} options
+ * @param {boolean} options.dev
+ * @param {boolean} options.turbo
+ * @param {keyof typeof bundleTypes} options.bundleType
+ * @param {boolean} options.experimental
+ * @param {Partial<webpack.Configuration>} options.rest
+ * @returns {webpack.Configuration}
+ */
+module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
   const externalHandler = ({ context, request, getResolve }, callback) => {
     ;(async () => {
       if (
@@ -166,7 +175,6 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
 
   const bundledReactChannel = experimental ? '-experimental' : ''
 
-  /** @type {webpack.Configuration} */
   return {
     entry: bundleTypes[bundleType],
     target: 'node',
@@ -308,6 +316,7 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
     experiments: {
       layers: true,
     },
+    ...rest,
   }
 }
 

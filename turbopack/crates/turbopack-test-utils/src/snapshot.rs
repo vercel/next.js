@@ -11,7 +11,7 @@ use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, DiskFileSystem, File, FileContent, FileSystemEntryType,
     FileSystemPath,
 };
-use turbo_tasks_hash::encode_hex;
+use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_cli_utils::issue::{format_issue, LogOptions};
 use turbopack_core::{
     asset::AssetContent,
@@ -167,7 +167,15 @@ async fn get_contents(file: Vc<AssetContent>, path: Vc<FileSystemPath>) -> Resul
             ))? {
                 FileContent::NotFound => None,
                 FileContent::Content(expected) => {
-                    Some(expected.content().to_str()?.trim().to_string())
+                    let rope = expected.content();
+                    let str = rope.to_str();
+                    match str {
+                        Ok(str) => Some(str.trim().to_string()),
+                        Err(_) => {
+                            let hash = hash_xxh3_hash64(rope);
+                            Some(format!("Binary content {:016x}", hash))
+                        }
+                    }
                 }
             },
             AssetContent::Redirect { target, link_type } => Some(format!(

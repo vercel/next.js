@@ -17,8 +17,8 @@ import type { BuildManifest } from '../../../server/get-page-files'
 import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
-import { spans } from './profiling-plugin'
 import { Span } from '../../../trace'
+import { getCompilationSpan } from '../utils'
 
 type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
 
@@ -106,9 +106,9 @@ export function generateClientManifest(
   compilation?: any
 ): string | undefined {
   const compilationSpan = compilation
-    ? spans.get(compilation)
+    ? getCompilationSpan(compilation)
     : compiler
-      ? spans.get(compiler)
+      ? getCompilationSpan(compiler)
       : new Span({ name: 'client-manifest' })
 
   const genClientManifestSpan = compilationSpan?.traceChild(
@@ -201,11 +201,17 @@ export default class BuildManifestPlugin {
   }
 
   createAssets(compiler: any, compilation: any) {
-    const compilationSpan = spans.get(compilation) || spans.get(compiler)
-    const createAssetsSpan = compilationSpan?.traceChild(
+    const compilationSpan =
+      getCompilationSpan(compilation) ?? getCompilationSpan(compiler)
+    if (!compilationSpan) {
+      throw new Error('No span found for compilation')
+    }
+
+    const createAssetsSpan = compilationSpan.traceChild(
       'NextJsBuildManifest-createassets'
     )
-    return createAssetsSpan?.traceFn(() => {
+
+    return createAssetsSpan.traceFn(() => {
       const entrypoints: Map<string, any> = compilation.entrypoints
       const assetMap: DeepMutable<BuildManifest> = {
         polyfillFiles: [],
@@ -345,7 +351,7 @@ export default class BuildManifestPlugin {
   }
 
   apply(compiler: webpack.Compiler) {
-    compiler.hooks.make.tap('NextJsBuildManifest', (compilation) => {
+    compiler.hooks.make.tap('NextJsBuildManifest', (compilation: any) => {
       compilation.hooks.processAssets.tap(
         {
           name: 'NextJsBuildManifest',

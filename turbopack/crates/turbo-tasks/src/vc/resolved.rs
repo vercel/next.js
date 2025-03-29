@@ -4,6 +4,7 @@ use std::{
     future::IntoFuture,
     hash::{Hash, Hasher},
     marker::PhantomData,
+    mem::transmute,
     ops::Deref,
 };
 
@@ -204,6 +205,20 @@ where
         ResolvedVc {
             node: Vc::upcast(this.node),
         }
+    }
+
+    /// Cheaply converts a Vec of resolved Vcs to a Vec of Vcs.
+    pub fn deref_vec(vec: Vec<ResolvedVc<T>>) -> Vec<Vc<T>> {
+        debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<Vc<T>>());
+        // Safety: The memory layout of `ResolvedVc<T>` and `Vc<T>` is the same.
+        unsafe { transmute::<Vec<ResolvedVc<T>>, Vec<Vc<T>>>(vec) }
+    }
+
+    /// Cheaply converts a slice of resolved Vcs to a slice of Vcs.
+    pub fn deref_slice(slice: &[ResolvedVc<T>]) -> &[Vc<T>] {
+        debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<Vc<T>>());
+        // Safety: The memory layout of `ResolvedVc<T>` and `Vc<T>` is the same.
+        unsafe { transmute::<&[ResolvedVc<T>], &[Vc<T>]>(slice) }
     }
 }
 

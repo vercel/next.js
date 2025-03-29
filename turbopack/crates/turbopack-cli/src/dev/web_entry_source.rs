@@ -10,7 +10,7 @@ use turbopack_core::{
     environment::Environment,
     file_source::FileSource,
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::ChunkGroupEntry, ModuleGraph},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
         origin::{PlainResolveOrigin, ResolveOriginExt},
@@ -145,19 +145,20 @@ pub async fn create_web_entry_source(
         .try_flat_join()
         .await?;
 
-    let all_modules = Vc::cell(
-        entries
-            .iter()
-            .copied()
-            .chain(
-                runtime_entries
-                    .await?
-                    .iter()
-                    .map(|&entry| ResolvedVc::upcast(entry)),
-            )
-            .collect::<Vec<ResolvedVc<Box<dyn Module>>>>(),
-    );
-    let module_graph = ModuleGraph::from_modules(all_modules).to_resolved().await?;
+    let all_modules = entries
+        .iter()
+        .copied()
+        .chain(
+            runtime_entries
+                .await?
+                .iter()
+                .map(|&entry| ResolvedVc::upcast(entry)),
+        )
+        .collect::<Vec<ResolvedVc<Box<dyn Module>>>>();
+    let module_graph =
+        ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(all_modules)]))
+            .to_resolved()
+            .await?;
 
     let entries: Vec<_> = entries
         .into_iter()

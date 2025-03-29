@@ -324,8 +324,7 @@ export class ClientReferenceManifestPlugin {
       const recordModule = (modId: ModuleId, mod: webpack.NormalModule) => {
         let resource =
           mod.type === 'css/mini-extract'
-            ? // @ts-expect-error TODO: use `identifier()` instead.
-              mod._identifier.slice(mod._identifier.lastIndexOf('!') + 1)
+            ? mod.identifier().slice(mod.identifier().lastIndexOf('!') + 1)
             : mod.resource
 
         if (!resource) {

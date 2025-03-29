@@ -14,7 +14,7 @@ use turbopack_core::{
         EvaluatableAssets,
     },
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
     output::{OutputAsset, OutputAssets},
     version::{Version, VersionedContent},
 };
@@ -156,13 +156,20 @@ impl DevHtmlAsset {
                         };
                     chunking_context.evaluated_chunk_group_assets(
                         chunkable_module.ident(),
-                        *runtime_entries,
+                        ChunkGroup::Entry(
+                            runtime_entries
+                                .await?
+                                .iter()
+                                .map(|v| ResolvedVc::upcast(*v))
+                                .collect(),
+                        ),
                         *module_graph,
                         Value::new(AvailabilityInfo::Root),
                     )
                 } else {
                     chunking_context.root_chunk_group_assets(
-                        *ResolvedVc::upcast(chunkable_module),
+                        chunkable_module.ident(),
+                        ChunkGroup::Entry(vec![ResolvedVc::upcast(chunkable_module)]),
                         *module_graph,
                     )
                 };

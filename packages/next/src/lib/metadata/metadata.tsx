@@ -1,9 +1,9 @@
+import React, { Suspense, cache, cloneElement } from 'react'
 import type { ParsedUrlQuery } from 'querystring'
 import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
-import type { CreateServerParamsForMetadata } from '../../server/request/params'
-
-import { Suspense, cache, cloneElement } from 'react'
+import type { StreamingMetadataResolvedState } from '../../client/components/metadata/types'
+import type { SearchParams } from '../../server/request/search-params'
 import {
   AppleWebAppMeta,
   FormatDetectionMeta,
@@ -12,6 +12,7 @@ import {
   ViewportMeta,
   VerificationMeta,
   FacebookMeta,
+  PinterestMeta,
 } from './generate/basic'
 import { AlternatesMetadata } from './generate/alternate'
 import {
@@ -37,8 +38,12 @@ import {
   METADATA_BOUNDARY_NAME,
   VIEWPORT_BOUNDARY_NAME,
 } from './metadata-constants'
-import { AsyncMetadata } from './async-metadata'
+import {
+  AsyncMetadata,
+  AsyncMetadataOutlet,
+} from '../../client/components/metadata/async-metadata'
 import { isPostpone } from '../../server/lib/router-utils/is-postpone'
+import { createServerSearchParamsForMetadata } from '../../server/request/search-params'
 
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
@@ -48,24 +53,22 @@ import { isPostpone } from '../../server/lib/router-utils/is-postpone'
 // and the error will be caught by the error boundary and trigger fallbacks.
 export function createMetadataComponents({
   tree,
-  searchParams,
+  parsedQuery,
   metadataContext,
   getDynamicParamFromSegment,
   appUsingSizeAdjustment,
   errorType,
-  createServerParamsForMetadata,
   workStore,
   MetadataBoundary,
   ViewportBoundary,
   serveStreamingMetadata,
 }: {
   tree: LoaderTree
-  searchParams: Promise<ParsedUrlQuery>
+  parsedQuery: SearchParams
   metadataContext: MetadataContext
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   appUsingSizeAdjustment: boolean
   errorType?: MetadataErrorType | 'redirect'
-  createServerParamsForMetadata: CreateServerParamsForMetadata
   workStore: WorkStore
   MetadataBoundary: (props: { children: React.ReactNode }) => React.ReactNode
   ViewportBoundary: (props: { children: React.ReactNode }) => React.ReactNode
@@ -75,7 +78,13 @@ export function createMetadataComponents({
   ViewportTree: React.ComponentType
   getMetadataReady: () => Promise<void>
   getViewportReady: () => Promise<void>
+  StreamingMetadataOutlet: React.ComponentType
 } {
+  const searchParams = createServerSearchParamsForMetadata(
+    parsedQuery,
+    workStore
+  )
+
   function ViewportTree() {
     return (
       <>
@@ -103,7 +112,6 @@ export function createMetadataComponents({
       tree,
       searchParams,
       getDynamicParamFromSegment,
-      createServerParamsForMetadata,
       workStore,
       errorType
     )
@@ -119,7 +127,6 @@ export function createMetadataComponents({
             tree,
             searchParams,
             getDynamicParamFromSegment,
-            createServerParamsForMetadata,
             workStore
           )
         } catch {}
@@ -139,27 +146,39 @@ export function createMetadataComponents({
       searchParams,
       getDynamicParamFromSegment,
       metadataContext,
-      createServerParamsForMetadata,
       workStore,
       errorType
     )
   }
 
-  async function resolveFinalMetadata() {
+  async function resolveFinalMetadata(): Promise<StreamingMetadataResolvedState> {
+    let result: React.ReactNode
+    let error = null
     try {
-      return await metadata()
+      result = await metadata()
+      return {
+        metadata: result,
+        error: null,
+        digest: undefined,
+      }
     } catch (metadataErr) {
+      error = metadataErr
       if (!errorType && isHTTPAccessFallbackError(metadataErr)) {
         try {
-          return await getNotFoundMetadata(
+          result = await getNotFoundMetadata(
             tree,
             searchParams,
             getDynamicParamFromSegment,
             metadataContext,
-            createServerParamsForMetadata,
             workStore
           )
+          return {
+            metadata: result,
+            error,
+            digest: (error as any)?.digest,
+          }
         } catch (notFoundMetadataErr) {
+          error = notFoundMetadataErr
           // In PPR rendering we still need to throw the postpone error.
           // If metadata is postponed, React needs to be aware of the location of error.
           if (serveStreamingMetadata && isPostpone(notFoundMetadataErr)) {
@@ -176,7 +195,11 @@ export function createMetadataComponents({
       // also error in the MetadataOutlet which causes the error to
       // bubble from the right position in the page to be caught by the
       // appropriate boundaries
-      return null
+      return {
+        metadata: result,
+        error,
+        digest: (error as any)?.digest,
+      }
     }
   }
   async function Metadata() {
@@ -188,7 +211,8 @@ export function createMetadataComponents({
         </Suspense>
       )
     }
-    return await promise
+    const metadataState = await promise
+    return metadataState.metadata
   }
 
   Metadata.displayName = METADATA_BOUNDARY_NAME
@@ -207,11 +231,19 @@ export function createMetadataComponents({
     return undefined
   }
 
+  function StreamingMetadataOutlet() {
+    if (serveStreamingMetadata) {
+      return <AsyncMetadataOutlet promise={resolveFinalMetadata()} />
+    }
+    return null
+  }
+
   return {
     ViewportTree,
     MetadataTree,
     getViewportReady,
     getMetadataReady,
+    StreamingMetadataOutlet,
   }
 }
 
@@ -221,7 +253,6 @@ async function getResolvedMetadataImpl(
   searchParams: Promise<ParsedUrlQuery>,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   metadataContext: MetadataContext,
-  createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore,
   errorType?: MetadataErrorType | 'redirect'
 ): Promise<React.ReactNode> {
@@ -231,7 +262,6 @@ async function getResolvedMetadataImpl(
     searchParams,
     getDynamicParamFromSegment,
     metadataContext,
-    createServerParamsForMetadata,
     workStore,
     errorConvention
   )
@@ -243,7 +273,6 @@ async function getNotFoundMetadataImpl(
   searchParams: Promise<ParsedUrlQuery>,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   metadataContext: MetadataContext,
-  createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore
 ): Promise<React.ReactNode> {
   const notFoundErrorConvention = 'not-found'
@@ -252,7 +281,6 @@ async function getNotFoundMetadataImpl(
     searchParams,
     getDynamicParamFromSegment,
     metadataContext,
-    createServerParamsForMetadata,
     workStore,
     notFoundErrorConvention
   )
@@ -263,7 +291,6 @@ async function getResolvedViewportImpl(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore,
   errorType?: MetadataErrorType | 'redirect'
 ): Promise<React.ReactNode> {
@@ -272,7 +299,6 @@ async function getResolvedViewportImpl(
     tree,
     searchParams,
     getDynamicParamFromSegment,
-    createServerParamsForMetadata,
     workStore,
     errorConvention
   )
@@ -283,7 +309,6 @@ async function getNotFoundViewportImpl(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore
 ): Promise<React.ReactNode> {
   const notFoundErrorConvention = 'not-found'
@@ -291,7 +316,6 @@ async function getNotFoundViewportImpl(
     tree,
     searchParams,
     getDynamicParamFromSegment,
-    createServerParamsForMetadata,
     workStore,
     notFoundErrorConvention
   )
@@ -302,7 +326,6 @@ async function renderMetadata(
   searchParams: Promise<ParsedUrlQuery>,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   metadataContext: MetadataContext,
-  createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore,
   errorConvention?: MetadataErrorType
 ) {
@@ -311,7 +334,6 @@ async function renderMetadata(
     searchParams,
     errorConvention,
     getDynamicParamFromSegment,
-    createServerParamsForMetadata,
     workStore,
     metadataContext
   )
@@ -330,7 +352,6 @@ async function renderViewport(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore,
   errorConvention?: MetadataErrorType
 ) {
@@ -339,7 +360,6 @@ async function renderViewport(
     searchParams,
     errorConvention,
     getDynamicParamFromSegment,
-    createServerParamsForMetadata,
     workStore
   )
 
@@ -361,6 +381,7 @@ function createMetadataElements(metadata: ResolvedMetadata) {
     AlternatesMetadata({ alternates: metadata.alternates }),
     ItunesMeta({ itunes: metadata.itunes }),
     FacebookMeta({ facebook: metadata.facebook }),
+    PinterestMeta({ pinterest: metadata.pinterest }),
     FormatDetectionMeta({ formatDetection: metadata.formatDetection }),
     VerificationMeta({ verification: metadata.verification }),
     AppleWebAppMeta({ appleWebApp: metadata.appleWebApp }),

@@ -6,7 +6,7 @@ use swc_core::{
     common::{comments::SingleThreadedComments, util::take::Take, Mark, SourceMap, SyntaxContext},
     ecma::{
         ast::{EsVersion, Id, Module},
-        atoms::JsWord,
+        atoms::Atom,
         codegen::text_writer::JsWriter,
         parser::{parse_file_as_module, EsSyntax},
         visit::VisitMutWith,
@@ -176,7 +176,7 @@ fn run(input: PathBuf) {
         )
         .unwrap();
 
-        let uri_of_module: JsWord = "entry.js".into();
+        let uri_of_module: Atom = "entry.js".into();
 
         let mut describe =
             |is_debug: bool, title: &str, entries: Vec<ItemIdGroupKind>, skip_parts: bool| {

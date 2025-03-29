@@ -47,6 +47,7 @@ macro_rules! impl_auto_marker_trait {
 
         unsafe impl<T: $trait> $trait for ::std::option::Option<T> {}
         unsafe impl<T: $trait> $trait for ::std::vec::Vec<T> {}
+        unsafe impl<T: $trait, const N: usize> $trait for ::smallvec::SmallVec<[T; N]> {}
         unsafe impl<T: $trait, const N: usize> $trait for [T; N] {}
         unsafe impl<T: $trait> $trait for [T] {}
         unsafe impl<T: $trait, S> $trait for ::std::collections::HashSet<T, S> {}

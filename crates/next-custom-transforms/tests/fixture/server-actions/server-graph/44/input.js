@@ -1,4 +1,4 @@
-import { Form } from './form'
+import { Form } from 'components'
 
 export default function Page() {
   const foo = async () => {

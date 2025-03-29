@@ -1,6 +1,6 @@
 'use server'
 
-import { db } from './database'
+import { db } from 'database'
 
 export const createItem = async (title) => {
   return new Promise((resolve, reject) => {

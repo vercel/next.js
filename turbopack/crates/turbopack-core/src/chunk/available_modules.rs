@@ -1,38 +1,12 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
-use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc,
-    TryJoinIterExt, ValueToString, Vc,
-};
+use turbo_tasks::{FxIndexSet, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
-use super::ChunkableModule;
-use crate::module::Module;
-
-#[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    Copy,
-    Clone,
-    Serialize,
-    Deserialize,
-    ValueDebugFormat,
-    NonLocalValue,
-)]
-pub struct AvailableModulesInfo {
-    pub is_async: bool,
-}
-
-#[turbo_tasks::value(transparent)]
-pub struct OptionAvailableModulesInfo(Option<AvailableModulesInfo>);
+use crate::module_graph::module_batch::{ChunkableModuleOrBatch, IdentStrings};
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-pub struct AvailableModuleInfoMap(
-    FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, AvailableModulesInfo>,
-);
+pub struct AvailableModulesSet(FxIndexSet<ChunkableModuleOrBatch>);
 
 /// Allows to gather information about which assets are already available.
 /// Adding more roots will form a linked list like structure to allow caching
@@ -40,13 +14,13 @@ pub struct AvailableModuleInfoMap(
 #[turbo_tasks::value]
 pub struct AvailableModules {
     parent: Option<ResolvedVc<AvailableModules>>,
-    modules: ResolvedVc<AvailableModuleInfoMap>,
+    modules: ResolvedVc<AvailableModulesSet>,
 }
 
 #[turbo_tasks::value_impl]
 impl AvailableModules {
     #[turbo_tasks::function]
-    pub fn new(modules: ResolvedVc<AvailableModuleInfoMap>) -> Vc<Self> {
+    pub fn new(modules: ResolvedVc<AvailableModulesSet>) -> Vc<Self> {
         AvailableModules {
             parent: None,
             modules,
@@ -57,24 +31,11 @@ impl AvailableModules {
     #[turbo_tasks::function]
     pub async fn with_modules(
         self: ResolvedVc<Self>,
-        modules: ResolvedVc<AvailableModuleInfoMap>,
+        modules: ResolvedVc<AvailableModulesSet>,
     ) -> Result<Vc<Self>> {
-        let self_snapshot = self.snapshot().await?;
-
-        let modules = modules
-            .await?
-            .into_iter()
-            .flat_map(|(&module, &info)| {
-                self_snapshot
-                    .get(module)
-                    .is_none()
-                    .then_some((module, info))
-            })
-            .collect();
-
         Ok(AvailableModules {
             parent: Some(self),
-            modules: ResolvedVc::cell(modules),
+            modules,
         }
         .cell())
     }
@@ -91,27 +52,32 @@ impl AvailableModules {
             .modules
             .await?
             .iter()
-            .map(|(&module, _)| module.ident().to_string())
+            .map(|&module| module.ident_strings())
             .try_join()
             .await?;
-        for ident in item_idents {
-            hasher.write_value(ident);
+        for idents in item_idents {
+            match idents {
+                IdentStrings::Single(ident) => hasher.write_value(ident),
+                IdentStrings::Multiple(idents) => {
+                    for ident in idents {
+                        hasher.write_value(ident);
+                    }
+                }
+                IdentStrings::None => {}
+            }
         }
         Ok(Vc::cell(hasher.finish()))
     }
 
     #[turbo_tasks::function]
-    pub async fn get(
-        &self,
-        module: ResolvedVc<Box<dyn ChunkableModule>>,
-    ) -> Result<Vc<OptionAvailableModulesInfo>> {
-        if let Some(&info) = self.modules.await?.get(&module) {
-            return Ok(Vc::cell(Some(info)));
+    pub async fn get(&self, module_or_batch: ChunkableModuleOrBatch) -> Result<Vc<bool>> {
+        if self.modules.await?.contains(&module_or_batch) {
+            return Ok(Vc::cell(true));
         };
         if let Some(parent) = self.parent {
-            return Ok(parent.get(*module));
+            return Ok(parent.get(module_or_batch));
         }
-        Ok(Vc::cell(None))
+        Ok(Vc::cell(false))
     }
 
     #[turbo_tasks::function]
@@ -131,20 +97,15 @@ impl AvailableModules {
 #[derive(Debug, Clone)]
 pub struct AvailableModulesSnapshot {
     parent: Option<ReadRef<AvailableModulesSnapshot>>,
-    modules: ReadRef<AvailableModuleInfoMap>,
+    modules: ReadRef<AvailableModulesSet>,
 }
 
 impl AvailableModulesSnapshot {
-    pub fn get(
-        &self,
-        module: ResolvedVc<Box<dyn ChunkableModule>>,
-    ) -> Option<AvailableModulesInfo> {
-        if let Some(&info) = self.modules.get(&module) {
-            return Some(info);
-        };
-        if let Some(parent) = &self.parent {
-            return parent.get(module);
-        }
-        None
+    pub fn get(&self, module_or_batch: ChunkableModuleOrBatch) -> bool {
+        self.modules.contains(&module_or_batch)
+            || self
+                .parent
+                .as_ref()
+                .is_some_and(|parent| parent.get(module_or_batch))
     }
 }

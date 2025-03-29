@@ -14,15 +14,18 @@ import type {
   PrerenderResumeDataCache,
 } from '../resume-data-cache/resume-data-cache'
 import type { Params } from '../request/params'
+import type { ImplicitTags } from '../lib/implicit-tags'
+import type { WorkStore } from './work-async-storage.external'
 
-type WorkUnitPhase = 'action' | 'render' | 'after'
+export type WorkUnitPhase = 'action' | 'render' | 'after'
 
-type PhasePartial = {
+export interface CommonWorkUnitStore {
   /** NOTE: Will be mutated as phases change */
   phase: WorkUnitPhase
+  readonly implicitTags: ImplicitTags | undefined
 }
 
-export type RequestStore = {
+export interface RequestStore extends CommonWorkUnitStore {
   type: 'request'
 
   /**
@@ -52,7 +55,6 @@ export type RequestStore = {
   readonly isHmrRefresh?: boolean
   readonly serverComponentsHmrCache?: ServerComponentsHmrCache
 
-  readonly implicitTags: string[]
   readonly rootParams: Params
 
   /**
@@ -63,7 +65,7 @@ export type RequestStore = {
   // DEV-only
   usedDynamic?: boolean
   prerenderPhase?: boolean
-} & PhasePartial
+}
 
 /**
  * The Prerender store is for tracking information related to prerenders.
@@ -75,9 +77,8 @@ export type RequestStore = {
  * only needs to happen during the RSC prerender when we are prospectively prerendering
  * to fill all caches.
  */
-export type PrerenderStoreModern = {
+export interface PrerenderStoreModern extends CommonWorkUnitStore {
   type: 'prerender'
-  readonly implicitTags: string[]
 
   /**
    * This signal is aborted when the React render is complete. (i.e. it is the same signal passed to react)
@@ -120,12 +121,11 @@ export type PrerenderStoreModern = {
   // not part of the primary render path and are just prerendering to produce
   // validation results
   validating?: boolean
-} & PhasePartial
+}
 
-export type PrerenderStorePPR = {
+export interface PrerenderStorePPR extends CommonWorkUnitStore {
   type: 'prerender-ppr'
   readonly rootParams: Params
-  readonly implicitTags: string[]
   readonly dynamicTracking: null | DynamicTrackingState
   // Collected revalidate times and tags for this document during the prerender.
   revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
@@ -137,27 +137,25 @@ export type PrerenderStorePPR = {
    * The resume data cache for this prerender.
    */
   prerenderResumeDataCache: PrerenderResumeDataCache
-} & PhasePartial
+}
 
-export type PrerenderStoreLegacy = {
+export interface PrerenderStoreLegacy extends CommonWorkUnitStore {
   type: 'prerender-legacy'
   readonly rootParams: Params
-  readonly implicitTags: string[]
   // Collected revalidate times and tags for this document during the prerender.
   revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
   expire: number // server expiration time
   stale: number // client expiration time
   tags: null | string[]
-} & PhasePartial
+}
 
 export type PrerenderStore =
   | PrerenderStoreLegacy
   | PrerenderStorePPR
   | PrerenderStoreModern
 
-export type UseCacheStore = {
+export interface UseCacheStore extends CommonWorkUnitStore {
   type: 'cache'
-  readonly implicitTags: string[]
   // Collected revalidate times and tags for this cache entry during the cache render.
   revalidate: number // implicit revalidate time from inner caches / fetches
   expire: number // server expiration time
@@ -170,11 +168,17 @@ export type UseCacheStore = {
   readonly isHmrRefresh: boolean
   readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
   readonly forceRevalidate: boolean
-} & PhasePartial
+  // Draft mode is only available if the outer work unit store is a request
+  // store and draft mode is enabled.
+  readonly draftMode: DraftModeProvider | undefined
+}
 
-export type UnstableCacheStore = {
+export interface UnstableCacheStore extends CommonWorkUnitStore {
   type: 'unstable-cache'
-} & PhasePartial
+  // Draft mode is only available if the outer work unit store is a request
+  // store and draft mode is enabled.
+  readonly draftMode: DraftModeProvider | undefined
+}
 
 /**
  * The Cache store is for tracking information inside a "use cache" or unstable_cache context.
@@ -192,30 +196,40 @@ export function getExpectedRequestStore(
   callingExpression: string
 ): RequestStore {
   const workUnitStore = workUnitAsyncStorageInstance.getStore()
-  if (workUnitStore) {
-    if (workUnitStore.type === 'request') {
+
+  if (!workUnitStore) {
+    throwForMissingRequestStore(callingExpression)
+  }
+
+  switch (workUnitStore.type) {
+    case 'request':
       return workUnitStore
-    }
-    if (
-      workUnitStore.type === 'prerender' ||
-      workUnitStore.type === 'prerender-ppr' ||
-      workUnitStore.type === 'prerender-legacy'
-    ) {
+
+    case 'prerender':
+    case 'prerender-ppr':
+    case 'prerender-legacy':
       // This should not happen because we should have checked it already.
       throw new Error(
         `\`${callingExpression}\` cannot be called inside a prerender. This is a bug in Next.js.`
       )
-    }
-    if (workUnitStore.type === 'cache') {
+
+    case 'cache':
       throw new Error(
         `\`${callingExpression}\` cannot be called inside "use cache". Call it outside and pass an argument instead. Read more: https://nextjs.org/docs/messages/next-request-in-use-cache`
       )
-    } else if (workUnitStore.type === 'unstable-cache') {
+
+    case 'unstable-cache':
       throw new Error(
         `\`${callingExpression}\` cannot be called inside unstable_cache. Call it outside and pass an argument instead. Read more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
       )
-    }
+
+    default:
+      const _exhaustiveCheck: never = workUnitStore
+      return _exhaustiveCheck
   }
+}
+
+export function throwForMissingRequestStore(callingExpression: string): never {
   throw new Error(
     `\`${callingExpression}\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
   )
@@ -262,4 +276,25 @@ export function getHmrRefreshHash(
     : workUnitStore.type === 'request'
       ? workUnitStore.cookies.get('__next_hmr_refresh_hash__')?.value
       : undefined
+}
+
+/**
+ * Returns a draft mode provider only if draft mode is enabled.
+ */
+export function getDraftModeProviderForCacheScope(
+  workStore: WorkStore,
+  workUnitStore: WorkUnitStore
+): DraftModeProvider | undefined {
+  if (workStore.isDraftMode) {
+    switch (workUnitStore.type) {
+      case 'cache':
+      case 'unstable-cache':
+      case 'request':
+        return workUnitStore.draftMode
+      default:
+        return undefined
+    }
+  }
+
+  return undefined
 }

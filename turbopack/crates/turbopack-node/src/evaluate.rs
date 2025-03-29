@@ -29,7 +29,7 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::ChunkGroupEntry, ModuleGraph},
     output::{OutputAsset, OutputAssets},
     reference_type::{InnerAssets, ReferenceType},
     virtual_source::VirtualSource,
@@ -127,7 +127,9 @@ async fn emit_evaluate_pool_assets_operation(
                 "RUNTIME".into() => runtime_asset
             }))),
         )
-        .module();
+        .module()
+        .to_resolved()
+        .await?;
 
     let runtime_entries = {
         let globals_module = asset_context
@@ -154,18 +156,18 @@ async fn emit_evaluate_pool_assets_operation(
         entries
     };
 
-    let module_graph = ModuleGraph::from_modules(Vc::cell(
-        iter::once(entry_module.to_resolved().await?)
+    let module_graph = ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(
+        iter::once(entry_module)
             .chain(runtime_entries.iter().copied().map(ResolvedVc::upcast))
             .collect(),
-    ));
+    )]));
 
     let bootstrap = chunking_context.root_entry_chunk_group_asset(
         entrypoint,
-        entry_module,
+        Vc::<EvaluatableAssets>::cell(runtime_entries)
+            .with_entry(*ResolvedVc::try_downcast(entry_module).unwrap()),
         module_graph,
         OutputAssets::empty(),
-        Vc::<EvaluatableAssets>::cell(runtime_entries),
     );
 
     let output_root = chunking_context.output_root().to_resolved().await?;

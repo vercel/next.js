@@ -51,8 +51,8 @@ type ModuleFactory = (
 ) => undefined
 
 interface DevRuntimeBackend {
-  reloadChunk?: (chunkPath: ChunkPath) => Promise<void>;
-  unloadChunk?: (chunkPath: ChunkPath) => void;
+  reloadChunk?: (chunkUrl: ChunkUrl) => Promise<void>;
+  unloadChunk?: (chunkUrl: ChunkUrl) => void;
   restart: () => void;
 }
 
@@ -219,6 +219,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
           c: devModuleCache,
           M: moduleFactories,
           l: loadChunk.bind(null, sourceInfo),
+          L: loadChunkByUrl.bind(null, sourceInfo),
           w: loadWebAssembly.bind(null, sourceInfo),
           u: loadWebAssemblyModule.bind(null, sourceInfo),
           g: globalThis,
@@ -596,16 +597,18 @@ function applyChunkListUpdate(update: ChunkListUpdate) {
   }
 
   if (update.chunks != null) {
-    for (const [chunkPath, chunkUpdate] of Object.entries(update.chunks)) {
+    for (const [chunkPath, chunkUpdate] of Object.entries(update.chunks) as Array<[ChunkPath, ChunkUpdate]>) {
+      const chunkUrl = getChunkRelativeUrl(chunkPath);
+
       switch (chunkUpdate.type) {
         case "added":
-          BACKEND.loadChunk(chunkPath, { type: SourceType.Update });
+          BACKEND.loadChunk(chunkUrl, { type: SourceType.Update });
           break;
         case "total":
-          DEV_BACKEND.reloadChunk?.(chunkPath);
+          DEV_BACKEND.reloadChunk?.(chunkUrl);
           break;
         case "deleted":
-          DEV_BACKEND.unloadChunk?.(chunkPath);
+          DEV_BACKEND.unloadChunk?.(chunkUrl);
           break;
         case "partial":
           invariant(
@@ -705,7 +708,7 @@ function computeChangedModules(
   const modified = new Map();
   const deleted: Set<ModuleId> = new Set();
 
-  for (const [chunkPath, mergedChunkUpdate] of Object.entries(updates)) {
+  for (const [chunkPath, mergedChunkUpdate] of Object.entries(updates) as Array<[ChunkPath, EcmascriptMergedChunkUpdate]>) {
     switch (mergedChunkUpdate.type) {
       case "added": {
         const updateAdded = new Set(mergedChunkUpdate.modules);
@@ -873,7 +876,7 @@ function getAffectedModuleEffects(moduleId: ModuleId): ModuleEffect {
   };
 }
 
-function handleApply(chunkListPath: ChunkPath, update: ServerMessage) {
+function handleApply(chunkListPath: ChunkListPath, update: ServerMessage) {
   switch (update.type) {
     case "partial": {
       // This indicates that the update is can be applied to the current state of the application.
@@ -1014,7 +1017,7 @@ function removeModuleFromChunk(
 /**
  * Disposes of a chunk list and its corresponding exclusive chunks.
  */
-function disposeChunkList(chunkListPath: ChunkPath): boolean {
+function disposeChunkList(chunkListPath: ChunkListPath): boolean {
   const chunkPaths = chunkListChunksMap.get(chunkListPath);
   if (chunkPaths == null) {
     return false;
@@ -1033,7 +1036,9 @@ function disposeChunkList(chunkListPath: ChunkPath): boolean {
 
   // We must also dispose of the chunk list's chunk itself to ensure it may
   // be reloaded properly in the future.
-  DEV_BACKEND.unloadChunk?.(chunkListPath);
+  const chunkListUrl = getChunkRelativeUrl(chunkListPath)
+
+  DEV_BACKEND.unloadChunk?.(chunkListUrl);
 
   return true;
 }
@@ -1044,9 +1049,10 @@ function disposeChunkList(chunkListPath: ChunkPath): boolean {
  * @returns Whether the chunk was disposed of.
  */
 function disposeChunk(chunkPath: ChunkPath): boolean {
+  const chunkUrl = getChunkRelativeUrl(chunkPath)
   // This should happen whether the chunk has any modules in it or not.
   // For instance, CSS chunks have no modules in them, but they still need to be unloaded.
-  DEV_BACKEND.unloadChunk?.(chunkPath);
+  DEV_BACKEND.unloadChunk?.(chunkUrl);
 
   const chunkModules = chunkModulesMap.get(chunkPath);
   if (chunkModules == null) {
@@ -1077,26 +1083,27 @@ function registerChunkList(
   chunkUpdateProvider: ChunkUpdateProvider,
   chunkList: ChunkList
 ) {
+  const chunkListPath = chunkList.path;
   chunkUpdateProvider.push([
-    chunkList.path,
-    handleApply.bind(null, chunkList.path),
+    chunkListPath,
+    handleApply.bind(null, chunkListPath),
   ]);
 
   // Adding chunks to chunk lists and vice versa.
-  const chunks = new Set(chunkList.chunks.map(getChunkPath));
-  chunkListChunksMap.set(chunkList.path, chunks);
-  for (const chunkPath of chunks) {
+  const chunkPaths = new Set(chunkList.chunks.map(getChunkPath));
+  chunkListChunksMap.set(chunkListPath, chunkPaths);
+  for (const chunkPath of chunkPaths) {
     let chunkChunkLists = chunkChunkListsMap.get(chunkPath);
     if (!chunkChunkLists) {
-      chunkChunkLists = new Set([chunkList.path]);
+      chunkChunkLists = new Set([chunkListPath]);
       chunkChunkListsMap.set(chunkPath, chunkChunkLists);
     } else {
-      chunkChunkLists.add(chunkList.path);
+      chunkChunkLists.add(chunkListPath);
     }
   }
 
   if (chunkList.source === "entry") {
-    markChunkListAsRuntime(chunkList.path);
+    markChunkListAsRuntime(chunkListPath);
   }
 }
 

@@ -395,6 +395,14 @@ impl Backend for MemoryBackend {
         }
     }
 
+    fn task_execution_canceled(
+        &self,
+        _task: TaskId,
+        _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+        todo!()
+    }
+
     fn try_start_task_execution<'a>(
         &'a self,
         task: TaskId,

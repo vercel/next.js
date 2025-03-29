@@ -22,7 +22,7 @@ import {
       expect(actionsRoutesState).toMatchObject({
         // only one server layer action
         'app/server/page': {
-          rsc: 1,
+          rsc: 3,
         },
         // only one browser layer action
         'app/client/page': {

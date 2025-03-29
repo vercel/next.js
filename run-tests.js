@@ -50,12 +50,6 @@ const ENDGROUP = process.env.CI ? '##[endgroup]' : ''
 
 const externalTestsFilter = getTestFilter()
 
-// TODO(new-dev-overlay): Remove this once old dev overlay fork is removed
-if (!process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY) {
-  console.log('Setting __NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY to true')
-  process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY = 'true'
-}
-
 const timings = []
 const DEFAULT_NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2
@@ -387,9 +381,9 @@ async function main() {
         Math.round(groupTimes[curGroupIdx]) + 's'
       )
     } else {
-      const numPerGroup = Math.ceil(tests.length / groupTotal)
-      let offset = (groupPos - 1) * numPerGroup
-      tests = tests.slice(offset, offset + numPerGroup)
+      // assign every nth test "round-robin" to the group, so that similar slow
+      // tests tend not to get clustered together
+      tests = tests.filter((_value, idx) => idx % groupTotal === groupPos - 1)
       console.log('Splitting without timings')
     }
   }

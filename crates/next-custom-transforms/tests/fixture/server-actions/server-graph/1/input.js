@@ -1,3 +1,4 @@
+import { Button } from 'components'
 import deleteFromDb from 'db'
 
 export function Item({ id1, id2 }) {

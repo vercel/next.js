@@ -24,11 +24,13 @@ use turbo_tasks_fs::{
     FileSystem, FileSystemEntryType, FileSystemPath,
 };
 use turbopack::{
-    ecmascript::TreeShakingMode,
+    css::chunk::CssChunkType,
+    ecmascript::{chunk::EcmascriptChunkType, TreeShakingMode},
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
     ModuleAssetContext,
 };
 use turbopack_core::{
+    chunk::ChunkingConfig,
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
     condition::ContextCondition,
@@ -414,6 +416,20 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         static_root_path,
         env,
         RuntimeType::Development,
+    )
+    .chunking_config(
+        Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+        ChunkingConfig {
+            min_chunk_size: 10_000,
+            ..Default::default()
+        },
+    )
+    .chunking_config(
+        Vc::<CssChunkType>::default().to_resolved().await?,
+        ChunkingConfig {
+            max_merge_chunk_size: 100_000,
+            ..Default::default()
+        },
     )
     .build();
 

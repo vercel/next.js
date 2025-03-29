@@ -221,12 +221,6 @@ impl VersionedContentMap {
         {
             if let Some(&asset) = path_to_asset.get(&path) {
                 return Ok(Vc::cell(Some(asset)));
-            } else {
-                let path = path.to_string().await?;
-                bail!(
-                    "could not find asset for path {} (asset has been removed)",
-                    path,
-                );
             }
         }
 

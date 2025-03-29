@@ -86,7 +86,7 @@ async fn resolve_asset(
     reference_type: Value<ReferenceType>,
 ) -> Result<Vc<ModuleResolveResult>> {
     if let Some(asset) = *resolve_origin.get_inner_asset(request).await? {
-        return Ok(ModuleResolveResult::module(asset).cell());
+        return Ok(*ModuleResolveResult::module(asset));
     }
     Ok(resolve_origin
         .asset_context()

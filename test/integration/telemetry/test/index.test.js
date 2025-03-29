@@ -9,6 +9,7 @@ import {
   killApp,
   waitFor,
   nextBuild,
+  findAllTelemetryEvents,
 } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
@@ -355,6 +356,24 @@ describe('Telemetry CLI', () => {
         expect(event).toMatch(/"buildTarget": "default"/)
         expect(event).toMatch(/"hasWebpackConfig": true/)
         expect(event).toMatch(/"hasBabelConfig": false/)
+
+        // This event doesn't get recorded for Turbopack as the webpack config is not executed.
+        if (!process.env.TURBOPACK) {
+          // Check if features are detected correctly when custom webpack config exists
+          const featureUsageEvents = findAllTelemetryEvents(
+            stderr,
+            'NEXT_BUILD_FEATURE_USAGE'
+          )
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'swcStyledComponents',
+            invocationCount: 0,
+          })
+
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'webpackPlugins',
+            invocationCount: 1,
+          })
+        }
       })
       it('detect static 404 correctly for `next build`', async () => {
         const { stderr } = await nextBuild(appDir, [], {

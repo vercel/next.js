@@ -33,6 +33,7 @@ const CHANGE_ITEM_GROUPS = {
     'packages/create-next-app/README.md',
     'packages/font/README.md',
     'packages/next-env/README.md',
+    'packages/next/src/client/components/react-dev-overlay/README.md',
   ],
   'deploy-examples': ['examples/image-component'],
   cna: [

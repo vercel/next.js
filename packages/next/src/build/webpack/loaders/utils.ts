@@ -35,6 +35,8 @@ export function isCSSMod(mod: {
     mod.loaders?.some(
       ({ loader }) =>
         loader.includes('next-style-loader/index.js') ||
+        (process.env.NEXT_RSPACK &&
+          loader.includes('rspack.CssExtractRspackPlugin.loader')) ||
         loader.includes('mini-css-extract-plugin/loader.js') ||
         loader.includes('@vanilla-extract/webpack-plugin/loader/')
     )

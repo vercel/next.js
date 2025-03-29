@@ -208,6 +208,10 @@ pub async fn get_next_client_import_map(
                 "next/link",
                 request_to_import_mapping(project_path, "next/dist/client/app-dir/link"),
             );
+            import_map.insert_exact_alias(
+                "next/form",
+                request_to_import_mapping(project_path, "next/dist/client/app-dir/form"),
+            );
         }
         ClientContextType::Fallback => {}
         ClientContextType::Other => {}
@@ -240,6 +244,7 @@ pub async fn get_next_client_import_map(
     }
 
     insert_turbopack_dev_alias(&mut import_map).await?;
+    insert_instrumentation_client_alias(&mut import_map, project_path).await?;
 
     Ok(import_map.cell())
 }
@@ -374,7 +379,11 @@ pub async fn get_next_server_import_map(
             import_map.insert_exact_alias(
                 "next/link",
                 request_to_import_mapping(project_path, "next/dist/client/app-dir/link"),
-            )
+            );
+            import_map.insert_exact_alias(
+                "next/form",
+                request_to_import_mapping(project_path, "next/dist/client/app-dir/form"),
+            );
         }
         ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {}
     }
@@ -431,6 +440,7 @@ pub async fn get_next_edge_import_map(
             "next/headers" => "next/dist/api/headers".to_string(),
             "next/image" => "next/dist/api/image".to_string(),
             "next/link" => "next/dist/api/link".to_string(),
+            "next/form" => "next/dist/api/form".to_string(),
             "next/navigation" => "next/dist/api/navigation".to_string(),
             "next/router" => "next/dist/api/router".to_string(),
             "next/script" => "next/dist/api/script".to_string(),
@@ -1131,6 +1141,26 @@ async fn insert_turbopack_dev_alias(import_map: &mut ImportMap) -> Result<()> {
             .to_resolved()
             .await?,
     );
+    Ok(())
+}
+
+/// Handles instrumentation-client.ts bundling logic
+async fn insert_instrumentation_client_alias(
+    import_map: &mut ImportMap,
+    project_path: ResolvedVc<FileSystemPath>,
+) -> Result<()> {
+    insert_alias_to_alternatives(
+        import_map,
+        "private-next-instrumentation-client",
+        vec![
+            request_to_import_mapping(project_path, "./src/instrumentation-client"),
+            request_to_import_mapping(project_path, "./src/instrumentation-client.ts"),
+            request_to_import_mapping(project_path, "./instrumentation-client"),
+            request_to_import_mapping(project_path, "./instrumentation-client.ts"),
+            ImportMapping::Ignore.resolved_cell(),
+        ],
+    );
+
     Ok(())
 }
 

@@ -23,8 +23,10 @@ import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-b
 import {
   describeStringPropertyAccess,
   describeHasCheckingStringProperty,
-  throwWithStaticGenerationBailoutErrorWithDynamicError,
   wellKnownProperties,
+} from '../../shared/lib/utils/reflect-utils'
+import {
+  throwWithStaticGenerationBailoutErrorWithDynamicError,
   throwForSearchParamsAccessInUseCache,
 } from './utils'
 import { scheduleImmediate } from '../../lib/scheduler'

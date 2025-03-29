@@ -56,7 +56,7 @@ import {
   extractInfoFromServerReferenceId,
   omitUnusedArgs,
 } from '../../../../shared/lib/server-reference-info'
-import { revalidateEntireCache } from '../../segment-cache/cache'
+import { revalidateEntireCache } from '../../segment-cache'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
@@ -340,7 +340,7 @@ export function serverActionReducer(
 
           mutable.cache = cache
           if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
-            revalidateEntireCache()
+            revalidateEntireCache(state.nextUrl, newTree)
           } else {
             mutable.prefetchCache = new Map()
           }
@@ -360,12 +360,17 @@ export function serverActionReducer(
       }
 
       if (redirectLocation && redirectHref) {
-        // Because the RedirectBoundary will trigger a navigation, we need to seed the prefetch cache
-        // with the FlightData that we got from the server action for the target page, so that it's
-        // available when the page is navigated to and doesn't need to be re-fetched.
-        // We only do this if the server action didn't revalidate any data, as in that case the
-        // client cache will be cleared and the data will be re-fetched anyway.
-        if (!actionRevalidated) {
+        if (!process.env.__NEXT_CLIENT_SEGMENT_CACHE && !actionRevalidated) {
+          // Because the RedirectBoundary will trigger a navigation, we need to seed the prefetch cache
+          // with the FlightData that we got from the server action for the target page, so that it's
+          // available when the page is navigated to and doesn't need to be re-fetched.
+          // We only do this if the server action didn't revalidate any data, as in that case the
+          // client cache will be cleared and the data will be re-fetched anyway.
+          // NOTE: We don't do this in the Segment Cache implementation.
+          // Dynamic data should never be placed into the cache, unless it's
+          // "converted" to static data using <Link prefetch={true}>. What we
+          // do instead is re-prefetch links and forms whenever the cache is
+          // invalidated.
           createSeededPrefetchCacheEntry({
             url: redirectLocation,
             data: {

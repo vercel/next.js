@@ -7,6 +7,7 @@ import {
   createRenderResumeDataCache,
   RenderResumeDataCache,
 } from 'next/dist/server/resume-data-cache/resume-data-cache'
+import { PrerenderManifest } from 'next/dist/build'
 
 const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -157,12 +158,47 @@ describe('use-cache', () => {
     }
   })
 
-  it('should cache results in route handlers', async () => {
-    const response = await next.fetch('/api')
-    const { rand1, rand2 } = await response.json()
+  // TODO: Enable for deploy tests when upstream changes have been rolled out.
+  if (!isNextDeploy) {
+    it('should cache results in route handlers', async () => {
+      const response = await next.fetch('/api')
+      const { rand1, rand2 } = await response.json()
 
-    expect(rand1).toEqual(rand2)
-  })
+      expect(rand1).toEqual(rand2)
+    })
+
+    it('should revalidate before redirecting in a route handlers', async () => {
+      const initialValues = await next.fetch('/api').then((res) => res.json())
+
+      const values = await next
+        .fetch('/api/revalidate-redirect')
+        .then((res) => res.json())
+
+      if (isNextDeploy) {
+        try {
+          expect(values).not.toEqual(initialValues)
+        } catch {
+          // When deployed, we currently don't have a strong guarantee that the
+          // revalidations are propagated fully (as we do for redirecting server
+          // actions). This is because, for route handlers, the redirect occurs
+          // client-side, which prevents us from using the same technique as for
+          // server actions, which involves sending a revalidate token as a
+          // request header. This token must not leak to the client. However,
+          // eventually the revalidation will be propagated, and a refresh should
+          // show fresh data.
+          await retry(async () => {
+            const refreshedValues = await next
+              .fetch('/api')
+              .then((res) => res.json())
+
+            expect(refreshedValues).not.toEqual(initialValues)
+          })
+        }
+      } else {
+        expect(values).not.toEqual(initialValues)
+      }
+    })
+  }
 
   it('should cache results for cached functions imported from client components', async () => {
     const browser = await next.browser('/imported-from-client')
@@ -214,12 +250,14 @@ describe('use-cache', () => {
       const browser = await next.browser('/cache-tag')
       const initial = await browser.elementByCss('#a').text()
 
-      // Bust the ISR cache first, to populate the in-memory cache for the
-      // subsequent unstable_expireTag calls.
-      await browser.elementByCss('#revalidate-path').click()
-      await retry(async () => {
-        expect(await browser.elementByCss('#a').text()).not.toBe(initial)
-      })
+      if (!isNextDev) {
+        // Bust the ISR cache first, to populate the in-memory cache for the
+        // subsequent unstable_expireTag calls.
+        await browser.elementByCss('#revalidate-path').click()
+        await retry(async () => {
+          expect(await browser.elementByCss('#a').text()).not.toBe(initial)
+        })
+      }
 
       let valueA = await browser.elementByCss('#a').text()
       let valueB = await browser.elementByCss('#b').text()
@@ -301,19 +339,80 @@ describe('use-cache', () => {
         expect(await browser.elementByCss('#r2').text()).not.toBe(valueR2)
       })
     })
+
+    it('should revalidate caches after redirect', async () => {
+      const browser = await next.browser('/revalidate-and-redirect')
+      const valueA = await browser.elementById('a').text()
+      const valueB = await browser.elementById('b').text()
+
+      expect(valueA).toBe(valueB)
+
+      await browser
+        .elementByCss('a[href="/revalidate-and-redirect/redirect"]')
+        .click()
+
+      await browser.elementById('revalidate-tag-redirect').click()
+
+      const newValueA = await browser.elementById('a').text()
+      const newValueB = await browser.elementById('b').text()
+
+      expect(newValueA).toBe(newValueB)
+      expect(newValueA).not.toBe(valueA)
+      expect(newValueB).toBe(newValueB)
+
+      await browser
+        .elementByCss('a[href="/revalidate-and-redirect/redirect"]')
+        .click()
+      await browser.elementById('revalidate-path-redirect').click()
+
+      const finalValueA = await browser.elementById('a').text()
+      const finalValueB = await browser.elementById('b').text()
+
+      expect(finalValueA).not.toBe(newValueA)
+      expect(finalValueB).not.toBe(newValueB)
+      expect(finalValueB).toBe(finalValueB)
+    })
+
+    it('should revalidate caches nested in unstable_cache', async () => {
+      const browser = await next.browser('/nested-in-unstable-cache')
+      const initial = await browser.elementByCss('p').text()
+
+      if (!isNextDev) {
+        // Bust the ISR cache first to populate the "use cache" in-memory cache for
+        // the subsequent revalidations.
+        await browser.elementByCss('button').click()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('p').text()).not.toBe(initial)
+        })
+      }
+
+      const value = await browser.elementByCss('p').text()
+
+      await browser.refresh()
+      expect(await browser.elementByCss('p').text()).toBe(value)
+
+      await browser.elementByCss('button').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).not.toBe(value)
+      })
+    })
   }
 
   it('should revalidate caches during on-demand revalidation', async () => {
     const browser = await next.browser('/on-demand-revalidate')
     const initial = await browser.elementById('value').text()
 
-    // Bust the ISR cache first to populate the "use cache" in-memory cache for
-    // the subsequent on-demand revalidation.
-    await browser.elementById('revalidate-path').click()
+    if (!isNextDev) {
+      // Bust the ISR cache first to populate the "use cache" in-memory cache
+      // for the subsequent on-demand revalidation.
+      await browser.elementById('revalidate-path').click()
 
-    await retry(async () => {
-      expect(await browser.elementById('value').text()).not.toBe(initial)
-    })
+      await retry(async () => {
+        expect(await browser.elementById('value').text()).not.toBe(initial)
+      })
+    }
 
     const value = await browser.elementById('value').text()
 
@@ -325,6 +424,56 @@ describe('use-cache', () => {
       expect(await browser.elementById('value').text()).not.toBe(value)
     })
   })
+
+  // TODO: Enable for deploy tests when upstream changes have been rolled out.
+  if (!isNextDeploy) {
+    it('should not use stale caches in server actions that have revalidated', async () => {
+      const browser = await next.browser('/revalidate-and-use')
+      const useCacheValue1 = await browser
+        .elementById('use-cache-value-1')
+        .text()
+      const useCacheValue2 = await browser
+        .elementById('use-cache-value-2')
+        .text()
+      const fetchedValue = await browser.elementById('fetched-value').text()
+
+      expect(useCacheValue1).toEqual(useCacheValue2)
+
+      await browser.elementById('revalidate-tag').click()
+      await browser.waitForElementByCss('#revalidate-tag:enabled')
+
+      const useCacheValueBeforeRevalidation = await browser
+        .elementById('use-cache-value-1')
+        .text()
+      const useCacheValueAfterRevalidation = await browser
+        .elementById('use-cache-value-2')
+        .text()
+      const newFetchedValue = await browser.elementById('fetched-value').text()
+
+      expect(useCacheValueBeforeRevalidation).toBe(useCacheValue1)
+      expect(useCacheValueBeforeRevalidation).toBe(useCacheValue2)
+      expect(useCacheValueBeforeRevalidation).not.toBe(
+        useCacheValueAfterRevalidation
+      )
+      expect(newFetchedValue).not.toBe(fetchedValue)
+
+      await browser.elementById('revalidate-path').click()
+      await browser.waitForElementByCss('#revalidate-path:enabled')
+
+      expect(await browser.elementById('use-cache-value-1').text()).not.toBe(
+        useCacheValueBeforeRevalidation
+      )
+      expect(await browser.elementById('use-cache-value-2').text()).not.toBe(
+        useCacheValueAfterRevalidation
+      )
+      expect(await browser.elementById('use-cache-value-1').text()).not.toBe(
+        await browser.elementById('use-cache-value-2').text()
+      )
+      expect(await browser.elementById('fetched-value').text()).not.toBe(
+        newFetchedValue
+      )
+    })
+  }
 
   if (isNextStart) {
     it('should prerender fully cacheable pages as static HTML', async () => {
@@ -354,15 +503,18 @@ describe('use-cache', () => {
         '/cache-fetch-no-store',
         '/cache-life',
         '/cache-tag',
+        '/draft-mode',
         '/form',
         '/imported-from-client',
         '/logs',
         '/method-props',
+        '/nested-in-unstable-cache',
         '/not-found',
         '/on-demand-revalidate',
         '/passed-to-client',
         '/react-cache',
         '/referential-equality',
+        '/revalidate-and-redirect/redirect',
         '/rsc-payload',
         '/static-class-method',
         '/use-action-state',
@@ -370,21 +522,29 @@ describe('use-cache', () => {
       ])
     })
 
-    it('should match the expected revalidate config on the prerender manifest', async () => {
-      const prerenderManifest = JSON.parse(
+    it('should match the expected revalidate and expire configs on the prerender manifest', async () => {
+      const { version, routes, dynamicRoutes } = JSON.parse(
         await next.readFile('.next/prerender-manifest.json')
-      )
+      ) as PrerenderManifest
 
-      expect(prerenderManifest.version).toBe(4)
-      expect(
-        prerenderManifest.routes['/cache-life'].initialRevalidateSeconds
-      ).toBe(100)
+      expect(version).toBe(4)
+
+      // custom cache life profile "frequent"
+      expect(routes['/cache-life'].initialRevalidateSeconds).toBe(100)
+      expect(routes['/cache-life'].initialExpireSeconds).toBe(250)
+
+      // default expireTime
+      expect(routes['/cache-fetch'].initialExpireSeconds).toBe(31536000)
 
       // The revalidate config from the fetch call should lower the revalidate
       // config for the page.
-      expect(
-        prerenderManifest.routes['/cache-tag'].initialRevalidateSeconds
-      ).toBe(42)
+      expect(routes['/cache-tag'].initialRevalidateSeconds).toBe(42)
+
+      if (process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
+        // cache life profile "weeks"
+        expect(dynamicRoutes['/[id]'].fallbackRevalidate).toBe(604800)
+        expect(dynamicRoutes['/[id]'].fallbackExpire).toBe(2592000)
+      }
     })
 
     it('should match the expected stale config in the page header', async () => {
@@ -392,6 +552,23 @@ describe('use-cache', () => {
         await next.readFile('.next/server/app/cache-life.meta')
       )
       expect(meta.headers['x-nextjs-stale-time']).toBe('19')
+    })
+
+    it('should send an SWR cache-control header based on the revalidate and expire values', async () => {
+      let response = await next.fetch('/cache-life')
+
+      expect(response.headers.get('cache-control')).toBe(
+        // revalidate is set to 100, expire is set to 250 => SWR 150
+        's-maxage=100, stale-while-revalidate=150'
+      )
+
+      response = await next.fetch('/cache-fetch')
+
+      expect(response.headers.get('cache-control')).toBe(
+        // revalidate is set to 900, expire is one year (31536000, default
+        // expireTime) => SWR 31535100
+        's-maxage=900, stale-while-revalidate=31535100'
+      )
     })
 
     it('should propagate unstable_cache tags correctly', async () => {
@@ -559,6 +736,97 @@ describe('use-cache', () => {
     const browser = await next.browser('/not-found')
     const text = await browser.elementByCss('h2').text()
     expect(text).toBe('This page could not be found.')
+  })
+
+  it('should not read nor write cached data when draft mode is enabled', async () => {
+    const browser = await next.browser('/draft-mode')
+
+    expect(await browser.elementByCss('button#toggle').text()).toBe(
+      'Enable Draft Mode'
+    )
+
+    let initialTopLevelValue = await browser.elementById('top-level').text()
+
+    if (isNextDeploy) {
+      await retry(async () => {
+        // Wait for the background revalidation after the deployment to settle.
+        await browser.refresh()
+
+        expect(await browser.elementById('top-level').text()).not.toBe(
+          initialTopLevelValue
+        )
+      })
+
+      initialTopLevelValue = await browser.elementById('top-level').text()
+    }
+
+    // Draft mode is disabled, cached data should be returned on refresh.
+
+    const initialClosureValue = await browser.elementById('closure').text()
+
+    await browser.refresh()
+
+    expect(await browser.elementById('top-level').text()).toBe(
+      initialTopLevelValue
+    )
+    expect(await browser.elementById('closure').text()).toBe(
+      initialClosureValue
+    )
+
+    await browser.elementByCss('button#toggle').click()
+    await browser.waitForElementByCss('button#toggle:enabled')
+
+    expect(await browser.elementByCss('button#toggle').text()).toBe(
+      'Disable Draft Mode'
+    )
+
+    // Draft mode is now enabled, no cached data should be returned on refresh.
+
+    const newTopLevelValue = await browser.elementById('top-level').text()
+    const newClosureValue = await browser.elementById('closure').text()
+    console.log(await browser.elementById('top-level').text())
+
+    expect(newTopLevelValue).not.toBe(initialTopLevelValue)
+    expect(newClosureValue).not.toBe(initialClosureValue)
+
+    await browser.refresh()
+
+    expect(await browser.elementById('top-level').text()).not.toBe(
+      newTopLevelValue
+    )
+    console.log(await browser.elementById('top-level').text())
+
+    expect(await browser.elementById('closure').text()).not.toBe(
+      newClosureValue
+    )
+
+    // Accessing request-scoped data should still not be allowed.
+    expect(
+      await browser
+        .elementById('is-accessing-request-scoped-data-allowed-in-use-cache')
+        .text()
+    ).toBe('false')
+
+    await browser.elementByCss('button#toggle').click()
+    await browser.waitForElementByCss('button#toggle:enabled')
+
+    expect(await browser.elementByCss('button#toggle').text()).toBe(
+      'Enable Draft Mode'
+    )
+
+    // Draft mode is disabled again, the initially cached data should be
+    // returned again.
+
+    console.log(await browser.elementById('top-level').text())
+    await browser.refresh()
+    console.log(await browser.elementById('top-level').text())
+
+    expect(await browser.elementById('top-level').text()).toBe(
+      initialTopLevelValue
+    )
+    expect(await browser.elementById('closure').text()).toBe(
+      initialClosureValue
+    )
   })
 
   if (isNextDev) {

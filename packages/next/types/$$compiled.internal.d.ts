@@ -351,12 +351,6 @@ declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWe
   export = m
 }
 
-declare module 'next/dist/compiled/node-fetch' {
-  import fetch from 'node-fetch'
-  export * from 'node-fetch'
-  export default fetch
-}
-
 declare module 'next/dist/compiled/commander' {
   import commander from 'commander'
   export * from 'commander'
@@ -676,11 +670,6 @@ declare module 'next/dist/compiled/stacktrace-parser' {
 
 declare module 'next/dist/compiled/anser' {
   import * as m from 'anser'
-  export = m
-}
-
-declare module 'next/dist/compiled/platform' {
-  import * as m from 'platform'
   export = m
 }
 

@@ -13,6 +13,7 @@ name = "mod"
 harness = false
 
 [features]
+default = []
 # Enables dynamic linking (and hot reloading) of embedded files/dirs.
 # A binary built with this option **is not portable**, the directory
 # path will be embedded into the binary.
@@ -47,6 +48,8 @@ serde_json = { workspace = true }
 serde_path_to_error = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+unsize = "1.1.0"
+triomphe = { workspace = true, features = ["unsize"] }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-hash = { workspace = true }

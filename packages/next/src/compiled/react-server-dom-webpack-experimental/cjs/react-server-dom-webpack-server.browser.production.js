@@ -508,40 +508,42 @@ function getThenableStateAfterSuspending() {
   return state;
 }
 var HooksDispatcher = {
-  useMemo: function (nextCreate) {
-    return nextCreate();
-  },
+  readContext: unsupportedContext,
+  use: use,
   useCallback: function (callback) {
     return callback;
   },
-  useDebugValue: function () {},
-  useDeferredValue: unsupportedHook,
-  useTransition: unsupportedHook,
-  readContext: unsupportedContext,
   useContext: unsupportedContext,
+  useEffect: unsupportedHook,
+  useImperativeHandle: unsupportedHook,
+  useLayoutEffect: unsupportedHook,
+  useInsertionEffect: unsupportedHook,
+  useMemo: function (nextCreate) {
+    return nextCreate();
+  },
   useReducer: unsupportedHook,
   useRef: unsupportedHook,
   useState: unsupportedHook,
-  useInsertionEffect: unsupportedHook,
-  useLayoutEffect: unsupportedHook,
-  useImperativeHandle: unsupportedHook,
-  useEffect: unsupportedHook,
+  useDebugValue: function () {},
+  useDeferredValue: unsupportedHook,
+  useTransition: unsupportedHook,
+  useSyncExternalStore: unsupportedHook,
   useId: useId,
   useHostTransitionStatus: unsupportedHook,
-  useOptimistic: unsupportedHook,
   useFormState: unsupportedHook,
   useActionState: unsupportedHook,
-  useSyncExternalStore: unsupportedHook,
-  useCacheRefresh: function () {
-    return unsupportedRefresh;
-  },
+  useOptimistic: unsupportedHook,
   useMemoCache: function (size) {
     for (var data = Array(size), i = 0; i < size; i++)
       data[i] = REACT_MEMO_CACHE_SENTINEL;
     return data;
   },
-  use: use
+  useCacheRefresh: function () {
+    return unsupportedRefresh;
+  }
 };
+HooksDispatcher.useEffectEvent = unsupportedHook;
+HooksDispatcher.useSwipeTransition = unsupportedHook;
 function unsupportedHook() {
   throw Error("This Hook is not supported in Server Components.");
 }

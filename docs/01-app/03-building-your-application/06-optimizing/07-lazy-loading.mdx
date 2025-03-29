@@ -55,6 +55,8 @@ export default function ClientComponentExample() {
 }
 ```
 
+> **Note:** When a Server Component dynamically imports a Client Component, automatic [code splitting](https://developer.mozilla.org/docs/Glossary/Code_splitting) is currently **not** supported.
+
 ### Skipping SSR
 
 When using `React.lazy()` and Suspense, Client Components will be [prerendered](https://github.com/reactwg/server-components/discussions/4) (SSR) by default.

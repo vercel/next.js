@@ -10,7 +10,7 @@ import type {
   Options,
   RouteHandler,
 } from './base-server'
-import type { Revalidate, ExpireTime } from './lib/revalidate'
+import type { CacheControl } from './lib/cache-control'
 
 import { byteLength } from './api-utils/web'
 import BaseServer, { NoFallbackError } from './base-server'
@@ -261,8 +261,7 @@ export default class NextWebServer extends BaseServer<
       type: 'html' | 'json'
       generateEtags: boolean
       poweredByHeader: boolean
-      revalidate: Revalidate | undefined
-      expireTime: ExpireTime | undefined
+      cacheControl: CacheControl | undefined
     }
   ): Promise<void> {
     res.setHeader('X-Edge-Runtime', '1')
@@ -378,10 +377,10 @@ export default class NextWebServer extends BaseServer<
     return undefined
   }
 
-  protected getMiddleware(): MiddlewareRoutingItem | undefined {
+  protected getMiddleware(): Promise<MiddlewareRoutingItem | undefined> {
     // The web server does not need to handle middleware. This is done by the
     // upstream proxy (edge runtime or node server).
-    return undefined
+    return Promise.resolve(undefined)
   }
 
   protected getFilesystemPaths() {

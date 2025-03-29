@@ -7,6 +7,7 @@ function countSubstring(str: string, substr: string): number {
 describe('ppr-metadata-blocking-ppr-fallback', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // Need to skip deployment because the test uses the private env cannot be used in deployment
     skipDeployment: true,
     env: {
       __NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING: '1',

@@ -175,12 +175,11 @@ impl ModuleReference for EsmAssetReference {
                         ResolvedVc::try_downcast_type(self.origin)
                             .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
 
-                    return Ok(ModuleResolveResult::module(
+                    return Ok(*ModuleResolveResult::module(
                         EcmascriptModulePartAsset::select_part(*module, part.clone())
                             .to_resolved()
                             .await?,
-                    )
-                    .cell());
+                    ));
                 }
 
                 bail!("export_name is required for part import")

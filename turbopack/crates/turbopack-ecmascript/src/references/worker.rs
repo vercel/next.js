@@ -91,12 +91,11 @@ impl ModuleReference for WorkerAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         if let Some(worker_loader_module) = self.worker_loader_module().await? {
-            Ok(ModuleResolveResult::module(ResolvedVc::upcast(
+            Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
                 worker_loader_module.to_resolved().await?,
-            ))
-            .cell())
+            )))
         } else {
-            Ok(ModuleResolveResult::unresolvable().cell())
+            Ok(*ModuleResolveResult::unresolvable())
         }
     }
 }

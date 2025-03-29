@@ -42,6 +42,7 @@ serde = { workspace = true, features = ["rc", "derive"] }
 serde_json = { workspace = true }
 serde_regex = "1.1.0"
 shrink-to-fit = { workspace=true,features = ["indexmap", "serde_json", "smallvec", "nightly"] }
+smallvec = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true }

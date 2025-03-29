@@ -11,6 +11,7 @@ import type { Page, Request, Response, Route } from 'playwright'
 import fs from 'fs-extra'
 import nodeFs from 'fs'
 import { join } from 'path'
+import { outdent } from 'outdent'
 
 const GENERIC_RSC_ERROR =
   'Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -175,6 +176,27 @@ describe('app-dir action handling', () => {
     })
   })
 
+  it.each([
+    { description: 'with javascript', disableJavaScript: false },
+    { description: 'no javascript', disableJavaScript: true },
+  ])(
+    'should support setting cookies when redirecting ($description)',
+    async ({ disableJavaScript }) => {
+      const browser = await next.browser('/mutate-cookie-with-redirect', {
+        disableJavaScript,
+      })
+      expect(await browser.elementByCss('#value').text()).toBe('')
+
+      await browser.elementByCss('#update-cookie').click()
+      await browser.elementByCss('#redirect-target')
+
+      expect(await browser.elementByCss('#value').text()).toMatch(/\d+/)
+      expect(await browser.eval('document.cookie')).toMatch(
+        /(?:^|(?:; ))testCookie=\d+/
+      )
+    }
+  )
+
   it('should push new route when redirecting', async () => {
     const browser = await next.browser('/header')
 
@@ -338,9 +360,15 @@ describe('app-dir action handling', () => {
 
     await browser.elementByCss('#nowhere').click()
 
+    // Until not-found page is resolved
     await retry(async () => {
       expect(await browser.elementByCss('h1').text()).toBe('my-not-found')
     })
+
+    // Should have default noindex meta tag
+    expect(
+      await browser.elementByCss('meta[name="robots"]').getAttribute('content')
+    ).toBe('noindex')
   })
 
   it('should support uploading files', async () => {
@@ -781,9 +809,10 @@ describe('app-dir action handling', () => {
       })
 
       await retry(async () =>
-        expect(next.cliOutput).toMatch(
-          /Failed to find Server Action "abc123". This request might be from an older or newer deployment./
-        )
+        expect(next.cliOutput).toInclude(outdent`
+          Failed to find Server Action "abc123". This request might be from an older or newer deployment.
+          Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
+        `)
       )
     })
   }

@@ -3,6 +3,7 @@ use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
+use turbopack_core::reference_type::{ReferenceType, UrlReferenceSubType};
 
 use crate::{
     mode::NextMode,
@@ -111,39 +112,51 @@ pub async fn get_next_server_transforms_rules(
         ServerContextType::AppSSR { .. } => {
             // Yah, this is SSR, but this is still treated as a Client transform layer.
             // need to apply to foreign code too
-            rules.push(get_server_actions_transform_rule(
-                ActionsTransform::Client,
-                encryption_key,
-                mdx_rs,
-                use_cache_enabled,
-                cache_kinds,
-            ));
+            rules.push(
+                get_server_actions_transform_rule(
+                    mode,
+                    ActionsTransform::Client,
+                    encryption_key,
+                    mdx_rs,
+                    use_cache_enabled,
+                    cache_kinds,
+                )
+                .await?,
+            );
 
             is_app_dir = true;
 
             false
         }
         ServerContextType::AppRSC { .. } => {
-            rules.push(get_server_actions_transform_rule(
-                ActionsTransform::Server,
-                encryption_key,
-                mdx_rs,
-                use_cache_enabled,
-                cache_kinds,
-            ));
+            rules.push(
+                get_server_actions_transform_rule(
+                    mode,
+                    ActionsTransform::Server,
+                    encryption_key,
+                    mdx_rs,
+                    use_cache_enabled,
+                    cache_kinds,
+                )
+                .await?,
+            );
 
             is_app_dir = true;
 
             true
         }
         ServerContextType::AppRoute { .. } => {
-            rules.push(get_server_actions_transform_rule(
-                ActionsTransform::Server,
-                encryption_key,
-                mdx_rs,
-                use_cache_enabled,
-                cache_kinds,
-            ));
+            rules.push(
+                get_server_actions_transform_rule(
+                    mode,
+                    ActionsTransform::Server,
+                    encryption_key,
+                    mdx_rs,
+                    use_cache_enabled,
+                    cache_kinds,
+                )
+                .await?,
+            );
 
             is_app_dir = true;
 
@@ -179,6 +192,31 @@ pub async fn get_next_server_transforms_rules(
                 matches!(context_ty, ServerContextType::Middleware { .. })
                     && matches!(*mode.await?, NextMode::Build),
                 matches!(*mode.await?, NextMode::Build),
+            ));
+        }
+
+        if matches!(context_ty, ServerContextType::AppRoute { .. }) {
+            // Ignore static asset imports in Edge routes, these are really intended for the client
+            // (i.e. for pages), while still allowing `new URL(..., import.meta.url)`
+            rules.push(ModuleRule::new(
+                RuleCondition::all(vec![
+                    RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Url(
+                        UrlReferenceSubType::Undefined,
+                    ))),
+                    RuleCondition::any(vec![
+                        RuleCondition::ResourcePathEndsWith(".apng".to_string()),
+                        RuleCondition::ResourcePathEndsWith(".avif".to_string()),
+                        RuleCondition::ResourcePathEndsWith(".gif".to_string()),
+                        RuleCondition::ResourcePathEndsWith(".ico".to_string()),
+                        RuleCondition::ResourcePathEndsWith(".jpg".to_string()),
+                        RuleCondition::ResourcePathEndsWith(".jpeg".to_string()),
+                        RuleCondition::ResourcePathEndsWith(".png".to_string()),
+                        RuleCondition::ResourcePathEndsWith(".svg".to_string()),
+                        RuleCondition::ResourcePathEndsWith(".webp".to_string()),
+                        RuleCondition::ResourcePathEndsWith(".woff2".to_string()),
+                    ]),
+                ]),
+                vec![ModuleRuleEffect::Ignore],
             ));
         }
     }

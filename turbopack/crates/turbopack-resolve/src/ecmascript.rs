@@ -71,6 +71,8 @@ async fn apply_esm_specific_options_internal(
         options.extensions.clear();
     }
 
+    options.parse_data_uris = true;
+
     Ok(options.cell())
 }
 

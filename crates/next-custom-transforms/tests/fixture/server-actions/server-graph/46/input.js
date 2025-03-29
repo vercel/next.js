@@ -25,13 +25,13 @@ async function f4(a, b, c, d, e) {
 }
 
 // Should be 0 111111 0, which is "7e" in hex.
-async function f4(a, b, c, d, e, f) {
+async function f5(a, b, c, d, e, f) {
   'use server'
   return [a, b, c, d, e, f]
 }
 
 // Should be 1 111111 1, which is "ff" in hex.
-async function f5(a, b, c, d, e, f, g) {
+async function f6(a, b, c, d, e, f, g) {
   'use cache'
   return [a, b, c, d, e, f, g]
 }
