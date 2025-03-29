@@ -1,11 +1,11 @@
-import { globSync } from 'fast-glob'
+import fastGlob from 'fast-glob'
 import type { Rule } from 'eslint'
 
 /**
  * Process a Next.js root directory glob.
  */
 const processRootDir = (rootDir: string): string[] => {
-  return globSync(rootDir.replace(/\\/g, '/'), {
+  return fastGlob.globSync(rootDir.replace(/\\/g, '/'), {
     onlyDirectories: true,
   })
 }
