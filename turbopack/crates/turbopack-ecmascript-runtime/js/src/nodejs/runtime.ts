@@ -38,7 +38,11 @@ function stringifySourceInfo(source: SourceInfo): string {
   }
 }
 
-type ExternalRequire = (id: ModuleId) => Exports | EsmNamespaceObject;
+type ExternalRequire = (
+  id: ModuleId,
+  thunk: () => any,
+  esm?: boolean
+) => Exports | EsmNamespaceObject;
 type ExternalImport = (id: ModuleId) => Promise<Exports | EsmNamespaceObject>;
 
 interface TurbopackNodeBuildContext extends TurbopackBaseContext<Module> {
@@ -52,9 +56,8 @@ type ModuleFactory = (
   context: TurbopackNodeBuildContext
 ) => undefined;
 
-const url = require("url");
-const fs = require("fs/promises");
-const vm = require("vm");
+const url = require("url") as typeof import('url');
+const fs = require("fs/promises") as typeof import('fs/promises');
 
 const moduleFactories: ModuleFactories = Object.create(null);
 const moduleCache: ModuleCache<ModuleWithDirection> = Object.create(null);
@@ -74,12 +77,11 @@ function createResolvePathFromModule(
 
     const strippedAssetPrefix = exportedPath.slice(ASSET_PREFIX.length);
     const resolved = path.resolve(
-      ABSOLUTE_ROOT,
-      OUTPUT_ROOT,
+      RUNTIME_ROOT,
       strippedAssetPrefix
     );
 
-    return url.pathToFileURL(resolved);
+    return url.pathToFileURL(resolved).href;
   };
 }
 
@@ -92,7 +94,7 @@ function loadChunk(chunkData: ChunkData, source?: SourceInfo): void {
 }
 
 function loadChunkPath(chunkPath: ChunkPath, source?: SourceInfo): void {
-  if (!chunkPath.endsWith(".js")) {
+  if (!isJs(chunkPath)) {
     // We only support loading JS chunks in Node.js.
     // This branch can be hit when trying to load a CSS chunk.
     return;
@@ -125,7 +127,7 @@ async function loadChunkAsync(
   chunkData: ChunkData
 ): Promise<any> {
   const chunkPath = typeof chunkData === "string" ? chunkData : chunkData.path;
-  if (!chunkPath.endsWith(".js")) {
+  if (!isJs(chunkPath)) {
     // We only support loading JS chunks in Node.js.
     // This branch can be hit when trying to load a CSS chunk.
     return;
@@ -143,11 +145,13 @@ async function loadChunkAsync(
     const module = {
       exports: {},
     };
-    vm.runInThisContext(
+    // TODO: Use vm.runInThisContext once our minimal supported Node.js version includes https://github.com/nodejs/node/pull/52153
+    // eslint-disable-next-line no-eval -- Can't use vm.runInThisContext due to https://github.com/nodejs/node/issues/52102
+    (0, eval)(
       "(function(module, exports, require, __dirname, __filename) {" +
         contents +
-        "\n})",
-      resolved
+        "\n})" +
+        "\n//# sourceURL=" + url.pathToFileURL(resolved),
     )(module, module.exports, localRequire, path.dirname(resolved), resolved);
 
     const chunkModules: ModuleFactories = module.exports;
@@ -167,6 +171,11 @@ async function loadChunkAsync(
       cause: e,
     });
   }
+}
+
+async function loadChunkAsyncByUrl(source: SourceInfo, chunkUrl: string) {
+  const path = url.fileURLToPath(new URL(chunkUrl, RUNTIME_ROOT)) as ChunkPath;
+  return loadChunkAsync(source, path);
 }
 
 function loadWebAssembly(chunkPath: ChunkPath, imports: WebAssembly.Imports) {
@@ -252,6 +261,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): ModuleWithDirectio
       c: moduleCache,
       M: moduleFactories,
       l: loadChunkAsync.bind(null, { type: SourceType.Parent, parentId: id }),
+      L: loadChunkAsyncByUrl.bind(null, { type: SourceType.Parent, parentId: id }),
       w: loadWebAssembly,
       u: loadWebAssemblyModule,
       g: globalThis,
@@ -331,6 +341,14 @@ function getOrInstantiateRuntimeModule(
   }
 
   return instantiateRuntimeModule(moduleId, chunkPath);
+}
+
+const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
+/**
+ * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
+ */
+function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
+  return regexJsUrl.test(chunkUrlOrPath);
 }
 
 module.exports = {

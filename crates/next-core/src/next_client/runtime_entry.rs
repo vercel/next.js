@@ -12,7 +12,7 @@ use turbopack_ecmascript::resolve::cjs_resolve;
 
 #[turbo_tasks::value(shared)]
 pub enum RuntimeEntry {
-    Request(ResolvedVc<Request>, Vc<FileSystemPath>),
+    Request(ResolvedVc<Request>, ResolvedVc<FileSystemPath>),
     Evaluatable(ResolvedVc<Box<dyn EvaluatableAsset>>),
     Source(ResolvedVc<Box<dyn Source>>),
 }
@@ -33,7 +33,7 @@ impl RuntimeEntry {
         };
 
         let modules = cjs_resolve(
-            Vc::upcast(PlainResolveOrigin::new(asset_context, path)),
+            Vc::upcast(PlainResolveOrigin::new(asset_context, *path)),
             *request,
             None,
             false,
@@ -45,10 +45,8 @@ impl RuntimeEntry {
 
         let mut runtime_entries = Vec::with_capacity(modules.len());
         for &module in &modules {
-            if let Some(entry) =
-                ResolvedVc::try_downcast::<Box<dyn EvaluatableAsset>>(module).await?
-            {
-                runtime_entries.push(*entry);
+            if let Some(entry) = ResolvedVc::try_downcast::<Box<dyn EvaluatableAsset>>(module) {
+                runtime_entries.push(entry);
             } else {
                 bail!(
                     "runtime reference resolved to an asset ({}) that cannot be evaluated",
@@ -62,7 +60,7 @@ impl RuntimeEntry {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct RuntimeEntries(Vec<Vc<RuntimeEntry>>);
+pub struct RuntimeEntries(Vec<ResolvedVc<RuntimeEntry>>);
 
 #[turbo_tasks::value_impl]
 impl RuntimeEntries {

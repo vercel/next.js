@@ -92,6 +92,17 @@ describe('app dir - css', () => {
         const html = await next.render('/css/css-page')
         expect(html).not.toContain('/pages/_app.css')
       })
+
+      it('should support css modules shared between server pages', async () => {
+        const browser = await next.browser('/css/css-page-shared-loading')
+        await check(
+          async () =>
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#cssm')).color`
+            ),
+          'rgb(0, 0, 255)'
+        )
+      })
     })
 
     describe('client layouts', () => {
@@ -180,7 +191,8 @@ describe('app dir - css', () => {
       it('should include css imported in loading.js', async () => {
         const $ = await next.render$('/loading-bug/hi')
         // The link tag should be hoist into head with precedence properties
-        expect($('head link[data-precedence]').length).toBe(2)
+        const styles = $('head link[data-precedence]').length
+        expect(styles).toBe(2)
 
         expect($('body h2').text()).toBe('Loading...')
       })
@@ -292,13 +304,12 @@ describe('app dir - css', () => {
       it('should bundle css resources into chunks', async () => {
         const html = await next.render('/dashboard')
 
-        expect(
-          [
-            ...html.matchAll(
-              /<link rel="stylesheet" href="[^<]+\.css(\?v=\d+)?"/g
-            ),
-          ].length
-        ).toBe(3)
+        const stylesheets = [
+          ...html.matchAll(
+            /<link rel="stylesheet" href="[^<]+\.css(\?v=\d+)?"/g
+          ),
+        ].length
+        expect(stylesheets).toBe(3)
       })
     })
 

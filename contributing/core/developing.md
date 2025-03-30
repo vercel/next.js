@@ -12,9 +12,9 @@
   ```
   corepack enable pnpm
   ```
-- (Linux) Install LLD, the LLVM linker:
+- (Linux) Install LLD (the LLVM linker) and Clang (used by `rust-rocksdb`):
   ```
-  sudo apt install lld
+  sudo apt install lld clang
   ```
 
 ## Local Development
@@ -97,6 +97,10 @@ Afterwards, you'll need to unpack the tarball into your test project. You can ei
 # Unpack the tarballs generated with pack-next into project's node_modules
 $ pnpm unpack-next path/to/project
 ```
+
+## Developing the Dev Overlay
+
+The dev overlay is a feature of Next.js that allows you to see the internal state of the app including the errors. To learn more about contributing to the dev overlay, see the [Dev Overlay README.md](../../packages/next/src/client/components/react-dev-overlay/README.md).
 
 ## Recover disk space
 

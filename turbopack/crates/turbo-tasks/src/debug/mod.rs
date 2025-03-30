@@ -1,6 +1,8 @@
 use std::fmt::{Debug, Display};
 
 use auto_hash_map::{AutoMap, AutoSet};
+use smallvec::SmallVec;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
 pub use turbo_tasks_macros::ValueDebugFormat;
 
@@ -14,7 +16,7 @@ use internal::PassthroughDebug;
 
 /// The return type of [`ValueDebug::dbg`].
 ///
-/// We don't use [`Vc<RcStr>`][crate::RcStr] or [`String`] directly because we
+/// We don't use [`Vc<RcStr>`][turbo_rcstr::RcStr] or [`String`] directly because we
 /// don't want the [`Debug`]/[`Display`] representations to be escaped.
 #[turbo_tasks::value]
 pub struct ValueDebugString(String);
@@ -71,6 +73,12 @@ pub trait ValueDebugFormat {
 impl ValueDebugFormat for String {
     fn value_debug_format(&self, _depth: usize) -> ValueDebugFormatString {
         ValueDebugFormatString::Sync(format!("{:#?}", self))
+    }
+}
+
+impl ValueDebugFormat for RcStr {
+    fn value_debug_format(&self, _: usize) -> ValueDebugFormatString {
+        ValueDebugFormatString::Sync(self.to_string())
     }
 }
 
@@ -150,6 +158,37 @@ where
     }
 }
 
+impl<T, const N: usize> ValueDebugFormat for SmallVec<[T; N]>
+where
+    T: ValueDebugFormat,
+{
+    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString {
+        if depth == 0 {
+            return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
+        }
+
+        let values = self
+            .iter()
+            .map(|value| value.value_debug_format(depth.saturating_sub(1)))
+            .collect::<Vec<_>>();
+
+        ValueDebugFormatString::Async(Box::pin(async move {
+            let mut values_string = vec![];
+            for value in values {
+                match value {
+                    ValueDebugFormatString::Sync(string) => {
+                        values_string.push(PassthroughDebug::new_string(string));
+                    }
+                    ValueDebugFormatString::Async(future) => {
+                        values_string.push(PassthroughDebug::new_string(future.await?));
+                    }
+                }
+            }
+            Ok(format!("{:#?}", values_string))
+        }))
+    }
+}
+
 impl<K> ValueDebugFormat for AutoSet<K>
 where
     K: ValueDebugFormat,
@@ -181,7 +220,7 @@ where
     }
 }
 
-impl<K, V> ValueDebugFormat for std::collections::HashMap<K, V>
+impl<K, V, S> ValueDebugFormat for std::collections::HashMap<K, V, S>
 where
     K: Debug,
     V: ValueDebugFormat,
@@ -372,7 +411,7 @@ pub enum ValueDebugFormatString<'a> {
     ),
 }
 
-impl<'a> ValueDebugFormatString<'a> {
+impl ValueDebugFormatString<'_> {
     /// Convert the `ValueDebugFormatString` into a `String`.
     ///
     /// This can fail when resolving `Vc` types.

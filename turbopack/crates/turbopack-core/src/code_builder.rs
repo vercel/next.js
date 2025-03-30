@@ -4,39 +4,24 @@ use std::{
     ops,
 };
 
-use anyhow::{Context, Result};
-use indexmap::{IndexMap, IndexSet};
+use anyhow::Result;
 use turbo_tasks::Vc;
-use turbo_tasks_fs::{
-    rope::{Rope, RopeBuilder},
-    util::uri_from_file,
-    DiskFileSystem, FileSystemPath,
-};
+use turbo_tasks_fs::rope::{Rope, RopeBuilder};
 use turbo_tasks_hash::hash_xxh3_hash64;
 
 use crate::{
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMap, SourceMapSection},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMap},
     source_pos::SourcePos,
-    SOURCE_MAP_PREFIX,
 };
 
 /// A mapping of byte-offset in the code string to an associated source map.
-pub type Mapping = (usize, Option<Vc<Box<dyn GenerateSourceMap>>>);
+pub type Mapping = (usize, Option<Rope>);
 
 /// Code stores combined output code and the source map of that output code.
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone)]
 pub struct Code {
     code: Rope,
-
-    mappings: Vec<Mapping>,
-}
-
-/// CodeBuilder provides a mutable container to append source code.
-#[derive(Default)]
-pub struct CodeBuilder {
-    code: RopeBuilder,
-
     mappings: Vec<Mapping>,
 }
 
@@ -51,6 +36,13 @@ impl Code {
     }
 }
 
+/// CodeBuilder provides a mutable container to append source code.
+#[derive(Default)]
+pub struct CodeBuilder {
+    code: RopeBuilder,
+    mappings: Vec<Mapping>,
+}
+
 impl CodeBuilder {
     /// Pushes synthetic runtime code without an associated source map. This is
     /// the default concatenation operation, but it's designed to be used
@@ -63,7 +55,7 @@ impl CodeBuilder {
     /// Pushes original user code with an optional source map if one is
     /// available. If it's not, this is no different than pushing Synthetic
     /// code.
-    pub fn push_source(&mut self, code: &Rope, map: Option<Vc<Box<dyn GenerateSourceMap>>>) {
+    pub fn push_source(&mut self, code: &Rope, map: Option<Rope>) {
         self.push_map(map);
         self.code += code;
     }
@@ -84,7 +76,7 @@ impl CodeBuilder {
                 prebuilt
                     .mappings
                     .iter()
-                    .map(|(index, map)| (index + len, *map)),
+                    .map(|(index, map)| (index + len, map.clone())),
             );
         } else {
             self.push_map(None);
@@ -98,7 +90,7 @@ impl CodeBuilder {
     /// original code section. By inserting an empty source map when reaching a
     /// synthetic section directly after an original section, we tell Chrome
     /// that the previous map ended at this point.
-    fn push_map(&mut self, map: Option<Vc<Box<dyn GenerateSourceMap>>>) {
+    fn push_map(&mut self, map: Option<Rope>) {
         if map.is_none() && matches!(self.mappings.last(), None | Some((_, None))) {
             // No reason to push an empty map directly after an empty map
             return;
@@ -158,7 +150,24 @@ impl GenerateSourceMap for Code {
     /// far the simplest way to concatenate the source maps of the multiple
     /// chunk items into a single map file.
     #[turbo_tasks::function]
-    pub async fn generate_source_map(&self) -> Result<Vc<OptionSourceMap>> {
+    pub async fn generate_source_map(&self) -> Result<Vc<OptionStringifiedSourceMap>> {
+        Ok(Vc::cell(Some(self.generate_source_map_ref()?)))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Code {
+    /// Returns the hash of the source code of this Code.
+    #[turbo_tasks::function]
+    pub fn source_code_hash(&self) -> Vc<u64> {
+        let code = self;
+        let hash = hash_xxh3_hash64(code.source_code());
+        Vc::cell(hash)
+    }
+}
+
+impl Code {
+    pub fn generate_source_map_ref(&self) -> Result<Rope> {
         let mut pos = SourcePos::new();
         let mut last_byte_pos = 0;
 
@@ -178,98 +187,15 @@ impl GenerateSourceMap for Code {
             }
             last_byte_pos = *byte_pos;
 
-            let encoded = match map {
-                None => SourceMap::empty(),
-                Some(map) => match *map.generate_source_map().await? {
-                    None => SourceMap::empty(),
-                    Some(map) => {
-                        let map = &*map.await?;
-                        let map = map.to_source_map().await?;
-                        match map.as_regular_source_map() {
-                            None => SourceMap::empty(),
-                            Some(map) => {
-                                let mut map = map.into_owned();
-                                let mut ignored_ids = IndexSet::new();
-                                for (src_id, src) in map.sources().enumerate() {
-                                    if src.starts_with("turbopack://[next]")
-                                        || src.starts_with("turbopack://[turbopack]")
-                                        || src.contains("/node_modules/")
-                                    {
-                                        ignored_ids.insert(src_id);
-                                    }
-                                }
-
-                                for ignored_id in ignored_ids {
-                                    map.add_to_ignore_list(ignored_id as _);
-                                }
-
-                                SourceMap::new_decoded(sourcemap::DecodedMap::Regular(map)).cell()
-                            }
-                        }
-                    }
-                },
-            };
-
-            sections.push(SourceMapSection::new(pos, encoded))
+            if pos.column != 0 || map.is_some() {
+                sections.push((pos, map.clone().unwrap_or_else(SourceMap::empty_rope)))
+            }
         }
 
-        Ok(Vc::cell(Some(SourceMap::new_sectioned(sections).cell())))
+        if sections.len() == 1 && sections[0].0.line == 0 && sections[0].0.column == 0 {
+            Ok(sections.into_iter().next().unwrap().1)
+        } else {
+            SourceMap::sections_to_rope(sections)
+        }
     }
-}
-
-#[turbo_tasks::value_impl]
-impl Code {
-    /// Returns the hash of the source code of this Code.
-    #[turbo_tasks::function]
-    pub fn source_code_hash(&self) -> Vc<u64> {
-        let code = self;
-        let hash = hash_xxh3_hash64(code.source_code());
-        Vc::cell(hash)
-    }
-}
-
-/// Turns `turbopack://[project]`` references in sourcemap sources into absolute
-/// `file://` uris. This is useful for debugging environments.
-#[turbo_tasks::function]
-pub async fn fileify_source_map(
-    map: Vc<OptionSourceMap>,
-    context_path: Vc<FileSystemPath>,
-) -> Result<Vc<OptionSourceMap>> {
-    let Some(map) = &*map.await? else {
-        return Ok(OptionSourceMap::none());
-    };
-
-    let flattened = map.await?.to_source_map().await?;
-    let flattened = flattened.as_regular_source_map();
-
-    let Some(flattened) = flattened else {
-        return Ok(OptionSourceMap::none());
-    };
-
-    let context_fs = context_path.fs();
-    let context_fs = &*Vc::try_resolve_downcast_type::<DiskFileSystem>(context_fs)
-        .await?
-        .context("Expected the chunking context to have a DiskFileSystem")?
-        .await?;
-    let prefix = format!("{}[{}]/", SOURCE_MAP_PREFIX, context_fs.name);
-
-    let mut transformed = flattened.into_owned();
-    let mut updates = IndexMap::new();
-    for (src_id, src) in transformed.sources().enumerate() {
-        let src = {
-            match src.strip_prefix(&prefix) {
-                Some(src) => uri_from_file(context_path, Some(src)).await?,
-                None => src.to_string(),
-            }
-        };
-        updates.insert(src_id, src);
-    }
-
-    for (src_id, src) in updates {
-        transformed.set_source(src_id as _, &src);
-    }
-
-    Ok(Vc::cell(Some(
-        SourceMap::new_decoded(sourcemap::DecodedMap::Regular(transformed)).cell(),
-    )))
 }

@@ -77,6 +77,47 @@ describe('app dir - prefetching', () => {
     expect(next.cliOutput).not.toContain('is not defined')
   })
 
+  it('should not have prefetch error when reloading before prefetch request is finished', async () => {
+    const browser = await next.browser('/')
+    await browser.eval('window.next.router.prefetch("/dashboard/123")')
+    await browser.refresh()
+    const logs = await browser.log()
+
+    expect(logs).not.toMatchObject(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: expect.stringContaining('Failed to fetch RSC payload'),
+        }),
+      ])
+    )
+  })
+
+  it('should not suppress prefetches after navigating back', async () => {
+    if (!process.env.CI && process.env.HEADLESS) {
+      console.warn('This test can only run in headed mode. Skipping...')
+      return
+    }
+
+    // Force headed mode, as bfcache is not available in headless mode.
+    const browser = await next.browser('/', { headless: false })
+
+    // Trigger a hard navigation.
+    await browser.elementById('to-static-page-hard').click()
+
+    // Go back, utilizing the bfcache.
+    await browser.elementById('go-back').click()
+
+    let requests: string[] = []
+    browser.on('request', (req) => {
+      requests.push(new URL(req.url()).pathname)
+    })
+
+    await browser.evalAsync('window.next.router.prefetch("/dashboard/123")')
+    await browser.waitForIdleNetwork()
+
+    expect(requests).toInclude('/dashboard/123')
+  })
+
   it('should not fetch again when a static page was prefetched', async () => {
     const browser = await next.browser('/404', browserConfigWithFixedTime)
     let requests: string[] = []
@@ -299,6 +340,47 @@ describe('app dir - prefetching', () => {
     expect(loadingText).toBe('Loading Prefetch Auto')
 
     await browser.waitForElementByCss('#prefetch-auto-page-data')
+  })
+
+  it('should not unintentionally modify the requested prefetch by escaping the uri encoded query params', async () => {
+    const rscRequests = []
+    const browser = await next.browser('/uri-encoded-prefetch', {
+      beforePageLoad(page: Page) {
+        page.on('request', async (req: Request) => {
+          const url = new URL(req.url())
+          if (url.searchParams.has('_rsc')) {
+            rscRequests.push(url.pathname + url.search)
+          }
+        })
+      },
+    })
+
+    // sanity check: the link should be present
+    expect(await browser.elementById('prefetch-via-link')).toBeDefined()
+
+    await browser.waitForIdleNetwork()
+
+    // The space encoding of the prefetch request should be the same as the href, and should not be replaced with a +
+    await retry(async () => {
+      expect(
+        rscRequests.filter((req) => req.includes('/?param=with%20space'))
+      ).toHaveLength(1)
+    })
+
+    // Click the link
+    await browser.elementById('prefetch-via-link').click()
+
+    // Assert that we're on the homepage
+    expect(await browser.hasElementByCssSelector('#to-dashboard')).toBe(true)
+
+    await browser.waitForIdleNetwork()
+
+    // No new requests should be made since it is correctly prefetched
+    await retry(async () => {
+      expect(
+        rscRequests.filter((req) => req.includes('/?param=with%20space'))
+      ).toHaveLength(1)
+    })
   })
 
   describe('prefetch cache seeding', () => {

@@ -11,7 +11,7 @@ export default function Index() {
         <p>
           The links below are examples of{" "}
           <Link
-            href="https://nextjs.org/docs/app/api-reference/next-config-js/headers"
+            href="https://nextjs.org/docs/app/api-reference/config/next-config-js/headers"
             legacyBehavior
           >
             <span>

@@ -1,11 +1,14 @@
-use std::pin::Pin;
+use std::{ops::Deref, pin::Pin};
 
 use anyhow::Result;
 use futures::prelude::*;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
-use turbo_tasks::{IntoTraitRef, RcStr, ReadRef, TransientInstance, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{
+    IntoTraitRef, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc,
+};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     error::PrettyPrintError,
@@ -22,9 +25,52 @@ use turbopack_core::{
 
 use crate::source::{resolve::ResolveSourceRequestResult, ProxyResult};
 
-type GetContentFn = Box<dyn Fn() -> Vc<ResolveSourceRequestResult> + Send + Sync>;
+/// A wrapper type returning
+/// [`OperationVc<ResolveSourceRequestResult>`][ResolveSourceRequestResult] that implements
+/// [`NonLocalValue`].
+pub struct GetContentFn(Box<dyn Fn() -> OperationVc<ResolveSourceRequestResult> + Send + Sync>);
 
-async fn peek_issues<T: Send>(source: Vc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
+impl GetContentFn {
+    /// Wrap a function in `GetContentFn`.
+    ///
+    /// # Safety
+    ///
+    /// The closure must not include any types that aren't `NonLocalValue`, or that couldn't
+    /// otherwise safely implement `NonLocalValue`.
+    ///
+    /// In the future, `auto_traits` may be be able to implement `NonLocalValue` for us, and avoid
+    /// this wrapper type and unsafe constructor.
+    pub unsafe fn new(
+        func: impl Fn() -> OperationVc<ResolveSourceRequestResult> + Send + Sync + 'static,
+    ) -> Self {
+        Self::new_boxed(Box::new(func))
+    }
+
+    /// Wrap a boxed function in `GetContentFn`. This specialized version of [`GetContentFn::new`]
+    /// avoids double-boxing if you already have a boxed function.
+    ///
+    /// # Safety
+    ///
+    /// Same as [`GetContentFn::new`].
+    pub unsafe fn new_boxed(
+        func: Box<dyn Fn() -> OperationVc<ResolveSourceRequestResult> + Send + Sync>,
+    ) -> Self {
+        Self(func)
+    }
+}
+
+// Safety: It's up to the caller of `GetContentFn::new` to ensure this.
+unsafe impl NonLocalValue for GetContentFn {}
+
+impl Deref for GetContentFn {
+    type Target = Box<dyn Fn() -> OperationVc<ResolveSourceRequestResult> + Send + Sync>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+async fn peek_issues<T: Send>(source: OperationVc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
     let captured = source.peek_issues_with_path().await?;
 
     captured.get_plain_issues().await
@@ -40,24 +86,32 @@ fn extend_issues(issues: &mut Vec<ReadRef<PlainIssue>>, new_issues: Vec<ReadRef<
     }
 }
 
-#[turbo_tasks::function]
-async fn get_update_stream_item(
+#[turbo_tasks::function(operation)]
+fn versioned_content_update_operation(
+    content: ResolvedVc<Box<dyn VersionedContent>>,
+    from: ResolvedVc<Box<dyn Version>>,
+) -> Vc<Update> {
+    content.update(*from)
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_update_stream_item_operation(
     resource: RcStr,
-    from: Vc<VersionState>,
+    from: ResolvedVc<VersionState>,
     get_content: TransientInstance<GetContentFn>,
 ) -> Result<Vc<UpdateStreamItem>> {
-    let content = get_content();
-    let _ = content.resolve_strongly_consistent().await?;
-    let mut plain_issues = peek_issues(content).await?;
+    let content_op = get_content();
+    let content_result = content_op.read_strongly_consistent().await;
+    let mut plain_issues = peek_issues(content_op).await?;
 
-    let content_value = match content.await {
+    let content_value = match content_result {
         Ok(content) => content,
         Err(e) => {
             plain_issues.push(
                 FatalStreamIssue {
                     resource,
                     description: StyledString::Text(format!("{}", PrettyPrintError(&e)).into())
-                        .cell(),
+                        .resolved_cell(),
                 }
                 .cell()
                 .into_plain(OptionIssueProcessingPathItems::none())
@@ -88,27 +142,26 @@ async fn get_update_stream_item(
             }
 
             let resolved_content = static_content.content;
-            let from = from.get();
-            let update = resolved_content.update(from);
+            let from = from.get().to_resolved().await?;
+            let update_op = versioned_content_update_operation(resolved_content, from);
 
-            extend_issues(&mut plain_issues, peek_issues(update).await?);
-
-            let update = update.await?;
+            extend_issues(&mut plain_issues, peek_issues(update_op).await?);
 
             Ok(UpdateStreamItem::Found {
-                update,
+                update: update_op.connect().await?,
                 issues: plain_issues,
             }
             .cell())
         }
-        ResolveSourceRequestResult::HttpProxy(proxy_result) => {
-            let proxy_result_value = proxy_result.await?;
+        ResolveSourceRequestResult::HttpProxy(proxy_result_op) => {
+            let proxy_result_vc = proxy_result_op.connect();
+            let proxy_result_value = proxy_result_vc.await?;
 
             if proxy_result_value.status == 404 {
                 return Ok(UpdateStreamItem::NotFound.cell());
             }
 
-            extend_issues(&mut plain_issues, peek_issues(proxy_result).await?);
+            extend_issues(&mut plain_issues, peek_issues(proxy_result_op).await?);
 
             let from = from.get();
             if let Some(from) = Vc::try_resolve_downcast_type::<ProxyResult>(from).await? {
@@ -123,7 +176,7 @@ async fn get_update_stream_item(
 
             Ok(UpdateStreamItem::Found {
                 update: Update::Total(TotalUpdate {
-                    to: Vc::upcast::<Box<dyn Version>>(proxy_result)
+                    to: Vc::upcast::<Box<dyn Version>>(proxy_result_vc)
                         .into_trait_ref()
                         .await?,
                 })
@@ -161,12 +214,12 @@ async fn get_update_stream_item(
 #[turbo_tasks::function]
 async fn compute_update_stream(
     resource: RcStr,
-    from: Vc<VersionState>,
+    from: ResolvedVc<VersionState>,
     get_content: TransientInstance<GetContentFn>,
     sender: TransientInstance<Sender<Result<ReadRef<UpdateStreamItem>>>>,
 ) -> Vc<()> {
-    let item = get_update_stream_item(resource, from, get_content)
-        .strongly_consistent()
+    let item = get_update_stream_item_operation(resource, from, get_content)
+        .read_strongly_consistent()
         .await;
 
     // Send update. Ignore channel closed error.
@@ -190,11 +243,13 @@ impl UpdateStream {
         let content = get_content();
         // We can ignore issues reported in content here since [compute_update_stream]
         // will handle them
-        let version = match *content.await? {
+        let version = match *content.connect().await? {
             ResolveSourceRequestResult::Static(static_content, _) => {
                 static_content.await?.content.version()
             }
-            ResolveSourceRequestResult::HttpProxy(proxy_result) => Vc::upcast(proxy_result),
+            ResolveSourceRequestResult::HttpProxy(proxy_result) => {
+                Vc::upcast(proxy_result.connect())
+            }
             _ => Vc::upcast(NotFoundVersion::new()),
         };
         let version_state = VersionState::new(version.into_trait_ref().await?).await?;
@@ -281,7 +336,7 @@ pub enum UpdateStreamItem {
 
 #[turbo_tasks::value(serialization = "none")]
 struct FatalStreamIssue {
-    description: Vc<StyledString>,
+    description: ResolvedVc<StyledString>,
     resource: RcStr,
 }
 

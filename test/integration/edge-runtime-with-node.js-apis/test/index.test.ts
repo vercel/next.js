@@ -44,6 +44,8 @@ const unsupportedClasses = [
   'WritableStreamDefaultController',
 ]
 
+const isTurbopack = process.env.TURBOPACK
+
 describe.each([
   {
     title: 'Middleware',
@@ -67,8 +69,10 @@ describe.each([
       let appPort: number
       let app = null
 
-      beforeAll(async () => {
+      beforeEach(() => {
         output = ''
+      })
+      beforeAll(async () => {
         appPort = await findPort()
         app = await launchApp(appDir, appPort, {
           env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
@@ -109,7 +113,12 @@ describe.each([
         expect(output)
           .toInclude(`A Node.js API is used (${api}) which is not supported in the Edge Runtime.
 Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
-        expect(stripAnsi(output)).toInclude(errorHighlight)
+        if (isTurbopack) {
+          expect(stripAnsi(output)).toInclude(errorHighlight)
+        } else {
+          // TODO(veil): Use codeframe froma stackframe that's not ignore-listed
+          expect(stripAnsi(output)).not.toInclude(errorHighlight)
+        }
       })
     }
   )

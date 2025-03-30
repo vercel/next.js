@@ -1,0 +1,21 @@
+name: 'Close issues using the wrong issue template'
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  close:
+    if: github.event.label.name == 'please use the correct issue template'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+      - name: 'Close issues using the wrong issue template'
+        run: node ./.github/actions/next-repo-actions/dist/wrong-issue-template/index.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

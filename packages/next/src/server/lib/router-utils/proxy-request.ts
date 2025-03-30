@@ -77,11 +77,6 @@ export async function proxyRequest(
 
   const detached = new DetachedPromise<boolean>()
 
-  // When the proxy finishes proxying the request, shut down the proxy.
-  detached.promise.finally(() => {
-    proxy.close()
-  })
-
   proxy.on('error', (err) => {
     console.error(`Failed to proxy ${target}`, err)
     if (!finished) {
@@ -125,5 +120,8 @@ export async function proxyRequest(
     })
   }
 
-  return detached.promise
+  // When the proxy finishes proxying the request, shut down the proxy.
+  return detached.promise.finally(() => {
+    proxy.close()
+  })
 }

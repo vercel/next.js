@@ -57,6 +57,7 @@ export async function runScenarios(
       );
     } catch (e) {
       await fullIface.error(variant.scenario.name, variant.props, e);
+      process.exitCode = 1
     }
   }
 

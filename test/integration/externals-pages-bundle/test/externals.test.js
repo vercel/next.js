@@ -31,9 +31,10 @@ describe('default', () => {
           const output = await fs.readFile(join(ssrPath, basename), 'utf8')
           allBundles += output
         }
-        expect(allBundles).toContain(
-          '__turbopack_external_require__("external-package")'
-        )
+
+        // we don't know the name of the minified `__turbopack_external_require__`, so we just check the content.
+        expect(allBundles).toContain('"external-package"')
+        expect(allBundles).not.toContain('"external-package content"')
       } else {
         const output = await fs.readFile(
           join(appDir, '.next/server/pages/index.js'),

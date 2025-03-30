@@ -70,7 +70,7 @@ pub async fn bootstrap(
 
     let pathname = normalize_app_page_to_pathname(path);
 
-    let mut config = config.await?.clone_value();
+    let mut config = config.owned().await?;
     config.insert("PAGE".to_string(), path.to_string());
     config.insert("PATHNAME".to_string(), pathname);
 
@@ -89,27 +89,28 @@ pub async fn bootstrap(
                     .into(),
                 ),
             )),
-            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+            Value::new(ReferenceType::Internal(
+                InnerAssets::empty().to_resolved().await?,
+            )),
         )
         .module()
         .to_resolved()
         .await?;
 
-    let mut inner_assets = inner_assets.await?.clone_value();
+    let mut inner_assets = inner_assets.owned().await?;
     inner_assets.insert("ENTRY".into(), asset);
     inner_assets.insert("BOOTSTRAP_CONFIG".into(), config_asset);
 
     let asset = asset_context
         .process(
             bootstrap_asset,
-            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
         )
         .module()
         .to_resolved()
         .await?;
 
     let asset = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(asset)
-        .await?
         .context("internal module must be evaluatable")?;
 
     Ok(*asset)

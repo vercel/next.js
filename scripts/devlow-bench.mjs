@@ -8,6 +8,8 @@ import { command } from '@vercel/devlow-bench/shell'
 import { waitForFile } from '@vercel/devlow-bench/file'
 
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url))
+const START_SERVER_REGEXP = /Ready in \d+/
+const URL_REGEXP = /Local:\s+(?<url>.+)\n/
 
 const GIT_SHA =
   process.env.GITHUB_SHA ??
@@ -26,27 +28,30 @@ const GIT_BRANCH =
   })())
 
 const nextBuildWorkflow =
-  (benchmarkName, pages) =>
+  (benchmarkName, benchDir, pages, enableTurbopackCache) =>
   async ({ turbopack, page }) => {
     const pageConfig =
       typeof pages[page] === 'string' ? { url: pages[page] } : pages[page]
     const cleanupTasks = []
     try {
       const env = {
+        TURBO_CACHE: enableTurbopackCache ? '1' : '0',
         PATH: process.env.PATH,
         NODE: process.env.NODE,
         HOSTNAME: process.env.HOSTNAME,
         PWD: process.env.PWD,
-        // Disable otel initialization to prevent pending / hanging request to otel collector
-        OTEL_SDK_DISABLED: 'true',
-        NEXT_PUBLIC_OTEL_SENTRY: 'true',
-        NEXT_PUBLIC_OTEL_DEV_DISABLED: 'true',
         NEXT_TRACE_UPLOAD_DISABLED: 'true',
-        // Enable next.js test mode to get HMR events
+        NEXT_PRIVATE_SKIP_CANARY_CHECK: 'true',
+        // Enable next.js test mode to get HMR events and silence canary only
         __NEXT_TEST_MODE: '1',
       }
 
-      const benchmarkDir = resolve(REPO_ROOT, 'bench', benchmarkName)
+      const serverEnv = {
+        ...env,
+        PORT: '0',
+      }
+
+      const benchmarkDir = resolve(REPO_ROOT, 'bench', benchDir)
 
       // cleanup .next directory to remove persistent cache
       await retry(() =>
@@ -87,7 +92,7 @@ const nextBuildWorkflow =
       const startArgs = [turbopack ? 'start-turbopack' : 'start-webpack']
       let shell = command('pnpm', startArgs, {
         cwd: benchmarkDir,
-        env,
+        env: serverEnv,
       })
       const killShell = async () => {
         if (shell) {
@@ -98,10 +103,12 @@ const nextBuildWorkflow =
       cleanupTasks.push(killShell)
 
       // wait for server to be ready
-      const START_SERVER_REGEXP = /Local:\s+(?<url>.+)\n/
       const {
         groups: { url },
-      } = await shell.waitForOutput(START_SERVER_REGEXP)
+      } = await shell.waitForOutput(URL_REGEXP)
+
+      // wait for server to be ready
+      await shell.waitForOutput(START_SERVER_REGEXP)
       await measureTime('server startup', { props: { turbopack, page } })
       await shell.reportMemUsage('mem usage after startup', {
         props: { turbopack, page },
@@ -150,34 +157,14 @@ const nextBuildWorkflow =
         'lines'
       )
 
-      if (turbopack) {
-        // close dev server and browser
-        await killShell()
-        await closeSession()
-      } else {
-        // wait for persistent cache to be written
-        const waitPromise = new Promise((resolve) => {
-          setTimeout(resolve, 5000)
-        })
-        const cacheLocation = join(
-          benchmarkDir,
-          '.next',
-          'cache',
-          'webpack',
-          'client-production'
-        )
-        await Promise.race([
-          waitForFile(join(cacheLocation, 'index.pack')),
-          waitForFile(join(cacheLocation, 'index.pack.gz')),
-        ])
-        await measureTime('cache created')
-        await waitPromise
-        await measureTime('waiting')
+      // close browser
+      await killShell()
+      await closeSession()
 
-        // close dev server and browser
-        await killShell()
-        await closeSession()
-      }
+      await measureTime('before build with cache', {
+        scenario: benchmarkName,
+        props: { turbopack, page },
+      })
 
       buildShell = command('pnpm', buildArgs, {
         cwd: benchmarkDir,
@@ -199,13 +186,13 @@ const nextBuildWorkflow =
       // run command to start dev server
       shell = command('pnpm', startArgs, {
         cwd: benchmarkDir,
-        env,
+        env: serverEnv,
       })
 
       // wait for server to be ready
       const {
         groups: { url: url2 },
-      } = await shell.waitForOutput(START_SERVER_REGEXP)
+      } = await shell.waitForOutput(URL_REGEXP)
       await shell.reportMemUsage('mem usage after startup with cache')
 
       // open page
@@ -221,7 +208,6 @@ const nextBuildWorkflow =
       )
       await shell.reportMemUsage('mem usage after open page with cache')
     } catch (e) {
-      console.log('CAUGHT', e)
       throw e
     } finally {
       // This must run in order
@@ -232,13 +218,13 @@ const nextBuildWorkflow =
   }
 
 const nextDevWorkflow =
-  (benchmarkName, pages) =>
+  (benchmarkName, benchDir, pages) =>
   async ({ turbopack, page }) => {
     const pageConfig =
       typeof pages[page] === 'string' ? { url: pages[page] } : pages[page]
     const cleanupTasks = []
     try {
-      const benchmarkDir = resolve(REPO_ROOT, 'bench', benchmarkName)
+      const benchmarkDir = resolve(REPO_ROOT, 'bench', benchDir)
 
       // cleanup .next directory to remove persistent cache
       await retry(() =>
@@ -273,15 +259,20 @@ const nextDevWorkflow =
         NEXT_PUBLIC_OTEL_SENTRY: 'true',
         NEXT_PUBLIC_OTEL_DEV_DISABLED: 'true',
         NEXT_TRACE_UPLOAD_DISABLED: 'true',
-        // Enable next.js test mode to get HMR events
+        // Enable next.js test mode to get HMR events and silence canary only
         __NEXT_TEST_MODE: '1',
+      }
+
+      const serverEnv = {
+        ...env,
+        PORT: '0',
       }
 
       // run command to start dev server
       const args = [turbopack ? 'dev-turbopack' : 'dev-webpack']
       let shell = command('pnpm', args, {
         cwd: benchmarkDir,
-        env,
+        env: serverEnv,
       })
       const killShell = async () => {
         if (shell) {
@@ -292,10 +283,12 @@ const nextDevWorkflow =
       cleanupTasks.push(killShell)
 
       // wait for server to be ready
-      const START_SERVER_REGEXP = /Local:\s+(?<url>.+)\n/
       const {
         groups: { url },
-      } = await shell.waitForOutput(START_SERVER_REGEXP)
+      } = await shell.waitForOutput(URL_REGEXP)
+
+      // wait for server to be ready
+      await shell.waitForOutput(START_SERVER_REGEXP)
       await measureTime('server startup', { props: { turbopack, page } })
       await shell.reportMemUsage('mem usage after startup', {
         props: { turbopack, page },
@@ -515,13 +508,13 @@ const nextDevWorkflow =
       // run command to start dev server
       shell = command('pnpm', args, {
         cwd: benchmarkDir,
-        env,
+        env: serverEnv,
       })
 
       // wait for server to be ready
       const {
         groups: { url: url2 },
-      } = await shell.waitForOutput(START_SERVER_REGEXP)
+      } = await shell.waitForOutput(URL_REGEXP)
       await shell.reportMemUsage('mem usage after startup with cache')
 
       // open page
@@ -536,9 +529,6 @@ const nextDevWorkflow =
         'lines'
       )
       await shell.reportMemUsage('mem usage after open page with cache')
-    } catch (e) {
-      console.log('CAUGHT', e)
-      throw e
     } finally {
       // This must run in order
       // eslint-disable-next-line no-await-in-loop
@@ -564,7 +554,7 @@ describe(
     mode: 'dev',
     page: Object.keys(pages),
   },
-  nextDevWorkflow('heavy-npm-deps', pages)
+  nextDevWorkflow('heavy-npm-deps', 'heavy-npm-deps', pages)
 )
 
 describe(
@@ -574,7 +564,22 @@ describe(
     mode: 'build',
     page: Object.keys(pages),
   },
-  nextBuildWorkflow('heavy-npm-deps', pages)
+  nextBuildWorkflow('heavy-npm-deps', 'heavy-npm-deps', pages, false)
+)
+
+describe(
+  'heavy-npm-deps-build-turbo-cache-enabled',
+  {
+    turbopack: true,
+    mode: 'build',
+    page: Object.keys(pages),
+  },
+  nextBuildWorkflow(
+    'heavy-npm-deps-build-turbo-cache-enabled',
+    'heavy-npm-deps',
+    pages,
+    true
+  )
 )
 
 async function retry(fn) {

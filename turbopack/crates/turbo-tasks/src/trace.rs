@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     cell::RefCell,
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     marker::PhantomData,
@@ -8,9 +9,12 @@ use std::{
 };
 
 use auto_hash_map::{AutoMap, AutoSet};
+use either::Either;
 use indexmap::{IndexMap, IndexSet};
+use smallvec::SmallVec;
+use turbo_rcstr::RcStr;
 
-use crate::{RawVc, RcStr};
+use crate::RawVc;
 
 pub struct TraceRawVcsContext {
     list: Vec<RawVc>,
@@ -73,7 +77,7 @@ ignore!(
 );
 ignore!((), str, String, Duration, anyhow::Error, RcStr);
 ignore!(Path, PathBuf);
-ignore!(serde_json::Value);
+ignore!(serde_json::Value, serde_json::Map<String, serde_json::Value>);
 
 impl<T: ?Sized> TraceRawVcs for PhantomData<T> {
     fn trace_raw_vcs(&self, _trace_context: &mut TraceRawVcsContext) {}
@@ -112,6 +116,22 @@ impl<T: TraceRawVcs> TraceRawVcs for Option<T> {
 }
 
 impl<T: TraceRawVcs> TraceRawVcs for Vec<T> {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        for item in self.iter() {
+            TraceRawVcs::trace_raw_vcs(item, trace_context);
+        }
+    }
+}
+
+impl<T: TraceRawVcs> TraceRawVcs for Box<[T]> {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        for item in self.iter() {
+            TraceRawVcs::trace_raw_vcs(item, trace_context);
+        }
+    }
+}
+
+impl<T: TraceRawVcs, const N: usize> TraceRawVcs for SmallVec<[T; N]> {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         for item in self.iter() {
             TraceRawVcs::trace_raw_vcs(item, trace_context);
@@ -207,6 +227,12 @@ impl<T: TraceRawVcs + ?Sized> TraceRawVcs for Arc<T> {
     }
 }
 
+impl<B: TraceRawVcs + ToOwned + ?Sized> TraceRawVcs for Cow<'_, B> {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        TraceRawVcs::trace_raw_vcs(&**self, trace_context);
+    }
+}
+
 impl TraceRawVcs for RawVc {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         trace_context.list.push(*self);
@@ -242,6 +268,15 @@ impl<T: TraceRawVcs + ?Sized> TraceRawVcs for &T {
 impl<T: TraceRawVcs + ?Sized> TraceRawVcs for &mut T {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         (**self).trace_raw_vcs(trace_context);
+    }
+}
+
+impl<L: TraceRawVcs, R: TraceRawVcs> TraceRawVcs for Either<L, R> {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        match self {
+            Either::Left(l) => l.trace_raw_vcs(trace_context),
+            Either::Right(r) => r.trace_raw_vcs(trace_context),
+        }
     }
 }
 

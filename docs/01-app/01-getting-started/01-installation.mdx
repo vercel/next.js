@@ -1,7 +1,7 @@
 ---
-title: How to set up a Next.js project
+title: How to set up a new Next.js project
 nav_title: Installation
-description: Learn how to create a new Next.js application with `create-next-app`, and set up TypeScript, ESLint, and Module Path Aliases.
+description: Create a new Next.js application with the `create-next-app` CLI, and set up TypeScript, ESLint, and Module Path Aliases.
 ---
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
@@ -214,10 +214,6 @@ You can optionally create a [`public` folder](/docs/app/building-your-applicatio
 
 Next.js comes with built-in TypeScript support. To add TypeScript to your project, rename a file to `.ts` / `.tsx`. Run `next dev`, Next.js will automatically install the necessary dependencies and add a `tsconfig.json` file with the recommended config options.
 
-> **Good to know**:
->
-> - If you already have a `jsconfig.json` file, copy the `paths` compiler option from the old `jsconfig.json` into the new `tsconfig.json` file, and delete the old `jsconfig.json` file.
-
 <AppOnly>
 
 ### IDE Plugin
@@ -261,7 +257,7 @@ To add ESLint to an existing project, add `next lint` as a script to `package.js
 Then, run `npm run lint` and you will be guided through the installation and configuration process.
 
 ```bash filename="Terminal"
-pnpm lint
+npm run lint
 ```
 
 You'll see a prompt like this:

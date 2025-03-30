@@ -29,7 +29,7 @@ impl Issue for RenderingIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(*self.message))
+        Vc::cell(Some(self.message))
     }
 
     #[turbo_tasks::function]
@@ -44,7 +44,7 @@ impl Issue for RenderingIssue {
             }
         }
 
-        Vc::cell(Some(StyledString::Stack(details).cell()))
+        Vc::cell(Some(StyledString::Stack(details).resolved_cell()))
     }
 
     // TODO parse stack trace into source location

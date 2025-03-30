@@ -5,11 +5,12 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
 use turbo_tasks_malloc::TurboMalloc;
 use turbopack_cli::{arguments::Arguments, register};
 use turbopack_trace_utils::{
     exit::ExitHandler,
+    filter_layer::FilterLayer,
     raw_trace::RawTraceLayer,
     trace_writer::TraceWriter,
     tracing_presets::{
@@ -28,6 +29,7 @@ fn main() {
         .on_thread_stop(|| {
             TurboMalloc::thread_stop();
         })
+        .disable_lifo_slot()
         .build()
         .unwrap()
         .block_on(main_inner(args))
@@ -38,7 +40,7 @@ async fn main_inner(args: Arguments) -> Result<()> {
     let exit_handler = ExitHandler::listen();
 
     let trace = std::env::var("TURBOPACK_TRACING").ok();
-    if let Some(mut trace) = trace {
+    if let Some(mut trace) = trace.filter(|v| !v.is_empty()) {
         // Trace presets
         match trace.as_str() {
             "overview" => {
@@ -55,7 +57,7 @@ async fn main_inner(args: Arguments) -> Result<()> {
 
         let subscriber = Registry::default();
 
-        let subscriber = subscriber.with(EnvFilter::builder().parse(trace).unwrap());
+        let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
 
         let internal_dir = args
             .dir()

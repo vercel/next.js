@@ -1,5 +1,6 @@
 // TODO-APP: hydration warning
 
+import '../lib/require-instrumentation-client'
 import { appBootstrap } from './app-bootstrap'
 
 window.next.version += '-turbo'
@@ -8,6 +9,10 @@ window.next.version += '-turbo'
 appBootstrap(() => {
   const { hydrate } = require('./app-index')
   hydrate()
-})
 
-// TODO-APP: build indicator
+  if (process.env.NODE_ENV !== 'production') {
+    const { initializeDevBuildIndicatorForAppRouter } =
+      require('./dev/dev-build-indicator/initialize-for-app-router') as typeof import('./dev/dev-build-indicator/initialize-for-app-router')
+    initializeDevBuildIndicatorForAppRouter()
+  }
+})

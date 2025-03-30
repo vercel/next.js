@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers'
-import { unstable_after as after, type NextRequest } from 'next/server'
+import { after, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
   const url = new URL(request.url)

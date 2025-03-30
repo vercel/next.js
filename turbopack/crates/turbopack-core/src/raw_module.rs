@@ -1,4 +1,4 @@
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{
     asset::{Asset, AssetContent},
@@ -11,7 +11,7 @@ use crate::{
 /// This module has no references to other modules.
 #[turbo_tasks::value]
 pub struct RawModule {
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -33,7 +33,7 @@ impl Asset for RawModule {
 #[turbo_tasks::value_impl]
 impl RawModule {
     #[turbo_tasks::function]
-    pub fn new(source: Vc<Box<dyn Source>>) -> Vc<RawModule> {
+    pub fn new(source: ResolvedVc<Box<dyn Source>>) -> Vc<RawModule> {
         RawModule { source }.cell()
     }
 }

@@ -1,29 +1,50 @@
 module.exports =
   (pluginOptions = {}) =>
-  (nextConfig = {}) => {
+  (inputConfig = {}) => {
     const extension = pluginOptions.extension || /\.mdx$/
+    const userProvidedMdxOptions = pluginOptions.options
 
-    const mdxRsOptions = nextConfig?.experimental?.mdxRs
+    const mdxRsOptions = inputConfig?.experimental?.mdxRs
     const loader = mdxRsOptions
       ? {
           loader: require.resolve('./mdx-rs-loader'),
           options: {
             providerImportSource: 'next-mdx-import-source-file',
-            ...pluginOptions.options,
+            ...userProvidedMdxOptions,
             // mdxRsOptions is a union of boolean and object type of MdxTransformOptions
             ...(mdxRsOptions === true ? {} : mdxRsOptions),
           },
         }
       : {
-          loader: require.resolve('@mdx-js/loader'),
+          loader: require.resolve('./mdx-js-loader'),
           options: {
             providerImportSource: 'next-mdx-import-source-file',
-            ...pluginOptions.options,
+            ...userProvidedMdxOptions,
           },
         }
 
-    return Object.assign({}, nextConfig, {
-      experimental: Object.assign({}, nextConfig?.experimental, {
+    let nextConfig = Object.assign({}, inputConfig, {
+      webpack(config, options) {
+        config.resolve.alias['next-mdx-import-source-file'] = [
+          'private-next-root-dir/src/mdx-components',
+          'private-next-root-dir/mdx-components',
+          '@mdx-js/react',
+        ]
+        config.module.rules.push({
+          test: extension,
+          use: [options.defaultLoaders.babel, loader],
+        })
+
+        if (typeof inputConfig.webpack === 'function') {
+          return inputConfig.webpack(config, options)
+        }
+
+        return config
+      },
+    })
+
+    if (process.env.TURBOPACK) {
+      nextConfig.experimental = Object.assign({}, nextConfig?.experimental, {
         turbo: Object.assign({}, nextConfig?.experimental?.turbo, {
           rules: Object.assign({}, nextConfig?.experimental?.turbo?.rules, {
             '*.mdx': {
@@ -40,23 +61,8 @@ module.exports =
             }
           ),
         }),
-      }),
-      webpack(config, options) {
-        config.resolve.alias['next-mdx-import-source-file'] = [
-          'private-next-root-dir/src/mdx-components',
-          'private-next-root-dir/mdx-components',
-          '@mdx-js/react',
-        ]
-        config.module.rules.push({
-          test: extension,
-          use: [options.defaultLoaders.babel, loader],
-        })
+      })
+    }
 
-        if (typeof nextConfig.webpack === 'function') {
-          return nextConfig.webpack(config, options)
-        }
-
-        return config
-      },
-    })
+    return nextConfig
   }

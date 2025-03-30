@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::Vc;
 use turbo_tasks_fs::embed_file;
 
 #[turbo_tasks::function]

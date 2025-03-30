@@ -1,10 +1,11 @@
 use std::{ops::Deref, time::Duration};
 
+use turbo_rcstr::RcStr;
 // This specific macro identifier is detected by turbo-tasks-build.
 use turbo_tasks_macros::primitive as __turbo_tasks_internal_primitive;
 
 use crate::{
-    RcStr, Vc, {self as turbo_tasks},
+    Vc, {self as turbo_tasks},
 };
 
 __turbo_tasks_internal_primitive!(());

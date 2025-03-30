@@ -10,16 +10,17 @@ import {
   workUnitAsyncStorage,
   type WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
+import { afterTaskAsyncStorage } from '../app-render/after-task-async-storage.external'
 
 export type AfterContextOpts = {
   waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
-  onClose: RequestLifecycleOpts['onClose'] | undefined
+  onClose: RequestLifecycleOpts['onClose']
   onTaskError: RequestLifecycleOpts['onAfterTaskError'] | undefined
 }
 
 export class AfterContext {
   private waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
-  private onClose: RequestLifecycleOpts['onClose'] | undefined
+  private onClose: RequestLifecycleOpts['onClose']
   private onTaskError: RequestLifecycleOpts['onAfterTaskError'] | undefined
 
   private runCallbacksOnClosePromise: Promise<void> | undefined
@@ -40,35 +41,37 @@ export class AfterContext {
       if (!this.waitUntil) {
         errorWaitUntilNotAvailable()
       }
-      this.waitUntil(task.catch((error) => this.reportTaskError(error)))
+      this.waitUntil(
+        task.catch((error) => this.reportTaskError('promise', error))
+      )
     } else if (typeof task === 'function') {
       // TODO(after): implement tracing
       this.addCallback(task)
     } else {
-      throw new Error(
-        '`unstable_after()`: Argument must be a promise or a function'
-      )
+      throw new Error('`after()`: Argument must be a promise or a function')
     }
   }
 
   private addCallback(callback: AfterCallback) {
-    // if something is wrong, throw synchronously, bubbling up to the `unstable_after` callsite.
+    // if something is wrong, throw synchronously, bubbling up to the `after` callsite.
     if (!this.waitUntil) {
       errorWaitUntilNotAvailable()
     }
-    if (!this.onClose) {
-      throw new InvariantError(
-        'unstable_after: Missing `onClose` implementation'
-      )
-    }
 
     const workUnitStore = workUnitAsyncStorage.getStore()
-    if (!workUnitStore) {
-      throw new InvariantError(
-        'Missing workUnitStore in AfterContext.addCallback'
-      )
+    if (workUnitStore) {
+      this.workUnitStores.add(workUnitStore)
     }
-    this.workUnitStores.add(workUnitStore)
+
+    const afterTaskStore = afterTaskAsyncStorage.getStore()
+
+    // This is used for checking if request APIs can be called inside `after`.
+    // Note that we need to check the phase in which the *topmost* `after` was called (which should be "action"),
+    // not the current phase (which might be "after" if we're in a nested after).
+    // Otherwise, we might allow `after(() => headers())`, but not `after(() => after(() => headers()))`.
+    const rootTaskSpawnPhase = afterTaskStore
+      ? afterTaskStore.rootTaskSpawnPhase // nested after
+      : workUnitStore?.phase // topmost after
 
     // this should only happen once.
     if (!this.runCallbacksOnClosePromise) {
@@ -83,9 +86,11 @@ export class AfterContext {
     //   await x()
     const wrappedCallback = bindSnapshot(async () => {
       try {
-        await callback()
+        await afterTaskAsyncStorage.run({ rootTaskSpawnPhase }, () =>
+          callback()
+        )
       } catch (error) {
-        this.reportTaskError(error)
+        this.reportTaskError('function', error)
       }
     })
 
@@ -115,11 +120,13 @@ export class AfterContext {
     })
   }
 
-  private reportTaskError(error: unknown) {
+  private reportTaskError(taskKind: 'promise' | 'function', error: unknown) {
     // TODO(after): this is fine for now, but will need better intergration with our error reporting.
     // TODO(after): should we log this if we have a onTaskError callback?
     console.error(
-      'An error occurred in a function passed to `unstable_after()`:',
+      taskKind === 'promise'
+        ? `A promise passed to \`after()\` rejected:`
+        : `An error occurred in a function passed to \`after()\`:`,
       error
     )
     if (this.onTaskError) {
@@ -129,7 +136,7 @@ export class AfterContext {
       } catch (handlerError) {
         console.error(
           new InvariantError(
-            '`onTaskError` threw while handling an error thrown from an `unstable_after` task',
+            '`onTaskError` threw while handling an error thrown from an `after` task',
             {
               cause: handlerError,
             }
@@ -142,6 +149,6 @@ export class AfterContext {
 
 function errorWaitUntilNotAvailable(): never {
   throw new Error(
-    '`unstable_after()` will not work correctly, because `waitUntil` is not available in the current environment.'
+    '`after()` will not work correctly, because `waitUntil` is not available in the current environment.'
   )
 }

@@ -4,7 +4,8 @@
 
 use anyhow::Result;
 use mdxjs::{compile, MdxParseOptions, Options};
-use turbo_tasks::{RcStr, ValueDefault, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, ValueDefault, Vc};
 use turbo_tasks_fs::{rope::Rope, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -23,7 +24,7 @@ fn modifier() -> Vc<RcStr> {
     Vc::cell("mdx".into())
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, operation)]
 #[derive(Hash, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum MdxParseConstructs {
@@ -34,7 +35,7 @@ pub enum MdxParseConstructs {
 /// Subset of mdxjs::Options to allow to inherit turbopack's jsx-related configs
 /// into mdxjs. This is thin, near straightforward subset of mdxjs::Options to
 /// enable turbo tasks.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, operation)]
 #[derive(Hash, Debug, Clone)]
 #[serde(rename_all = "camelCase", default)]
 pub struct MdxTransformOptions {
@@ -79,13 +80,13 @@ impl ValueDefault for MdxTransformOptions {
 
 #[turbo_tasks::value]
 pub struct MdxTransform {
-    options: Vc<MdxTransformOptions>,
+    options: ResolvedVc<MdxTransformOptions>,
 }
 
 #[turbo_tasks::value_impl]
 impl MdxTransform {
     #[turbo_tasks::function]
-    pub fn new(options: Vc<MdxTransformOptions>) -> Vc<Self> {
+    pub fn new(options: ResolvedVc<MdxTransformOptions>) -> Vc<Self> {
         MdxTransform { options }.cell()
     }
 }
@@ -93,7 +94,7 @@ impl MdxTransform {
 #[turbo_tasks::value_impl]
 impl SourceTransform for MdxTransform {
     #[turbo_tasks::function]
-    fn transform(&self, source: Vc<Box<dyn Source>>) -> Vc<Box<dyn Source>> {
+    fn transform(&self, source: ResolvedVc<Box<dyn Source>>) -> Vc<Box<dyn Source>> {
         Vc::upcast(
             MdxTransformedAsset {
                 options: self.options,
@@ -106,8 +107,8 @@ impl SourceTransform for MdxTransform {
 
 #[turbo_tasks::value]
 struct MdxTransformedAsset {
-    options: Vc<MdxTransformOptions>,
-    source: Vc<Box<dyn Source>>,
+    options: ResolvedVc<MdxTransformOptions>,
+    source: ResolvedVc<Box<dyn Source>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -121,15 +122,20 @@ impl Source for MdxTransformedAsset {
 #[turbo_tasks::value_impl]
 impl Asset for MdxTransformedAsset {
     #[turbo_tasks::function]
-    async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
+    async fn content(self: ResolvedVc<Self>) -> Result<Vc<AssetContent>> {
         let this = self.await?;
-        Ok(self
-            .process()
+        Ok(*transform_process_operation(self)
             .issue_file_path(this.source.ident().path(), "MDX processing")
             .await?
+            .connect()
             .await?
             .content)
     }
+}
+
+#[turbo_tasks::function(operation)]
+fn transform_process_operation(asset: ResolvedVc<MdxTransformedAsset>) -> Vc<MdxTransformResult> {
+    asset.process()
 }
 
 #[turbo_tasks::value_impl]
@@ -183,48 +189,54 @@ impl MdxTransformedAsset {
 
         match result {
             Ok(mdx_jsx_component) => Ok(MdxTransformResult {
-                content: AssetContent::file(File::from(Rope::from(mdx_jsx_component)).into()),
+                content: AssetContent::file(File::from(Rope::from(mdx_jsx_component)).into())
+                    .to_resolved()
+                    .await?,
             }
             .cell()),
             Err(err) => {
-                let loc = err.place.map(|p| {
-                    let (start, end) = match *p {
-                        // markdown's positions are 1-indexed, SourcePos is 0-indexed.
-                        // Both end positions point to the first character after the range
-                        markdown::message::Place::Position(p) => (
-                            SourcePos {
-                                line: p.start.line - 1,
-                                column: p.start.column - 1,
-                            },
-                            SourcePos {
-                                line: p.end.line - 1,
-                                column: p.end.column - 1,
-                            },
-                        ),
-                        markdown::message::Place::Point(p) => {
-                            let p = SourcePos {
-                                line: p.line - 1,
-                                column: p.column - 1,
-                            };
-                            (p, p)
-                        }
-                    };
+                let loc = match err.place {
+                    Some(p) => {
+                        let (start, end) = match *p {
+                            // markdown's positions are 1-indexed, SourcePos is 0-indexed.
+                            // Both end positions point to the first character after the range
+                            markdown::message::Place::Position(p) => (
+                                SourcePos {
+                                    line: (p.start.line - 1) as u32,
+                                    column: (p.start.column - 1) as u32,
+                                },
+                                SourcePos {
+                                    line: (p.end.line - 1) as u32,
+                                    column: (p.end.column - 1) as u32,
+                                },
+                            ),
+                            markdown::message::Place::Point(p) => {
+                                let p = SourcePos {
+                                    line: (p.line - 1) as u32,
+                                    column: (p.column - 1) as u32,
+                                };
+                                (p, p)
+                            }
+                        };
 
-                    IssueSource::from_line_col(self.source, start, end)
-                });
+                        Some(IssueSource::from_line_col(self.source, start, end))
+                    }
+                    None => None,
+                };
 
                 MdxIssue {
-                    path: self.source.ident().path(),
+                    path: self.source.ident().path().to_resolved().await?,
                     loc,
                     reason: err.reason,
                     mdx_rule_id: *err.rule_id,
                     mdx_source: *err.source,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
 
                 Ok(MdxTransformResult {
-                    content: AssetContent::File(FileContent::NotFound.resolved_cell()).cell(),
+                    content: AssetContent::File(FileContent::NotFound.resolved_cell())
+                        .resolved_cell(),
                 }
                 .cell())
             }
@@ -234,14 +246,14 @@ impl MdxTransformedAsset {
 
 #[turbo_tasks::value]
 struct MdxTransformResult {
-    content: Vc<AssetContent>,
+    content: ResolvedVc<AssetContent>,
 }
 
 #[turbo_tasks::value]
 struct MdxIssue {
     /// Place of message.
-    path: Vc<FileSystemPath>,
-    loc: Option<Vc<IssueSource>>,
+    path: ResolvedVc<FileSystemPath>,
+    loc: Option<IssueSource>,
     /// Reason for message (should use markdown).
     reason: String,
     /// Category of message.
@@ -254,12 +266,15 @@ struct MdxIssue {
 impl Issue for MdxIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path
+        *self.path
     }
 
     #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(self.loc.map(|s| s.resolve_source_map(self.path)))
+    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
+        Ok(Vc::cell(match &self.loc {
+            Some(loc) => Some(loc.resolve_source_map().await?.into_owned()),
+            None => None,
+        }))
     }
 
     #[turbo_tasks::function]
@@ -274,7 +289,9 @@ impl Issue for MdxIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(StyledString::Text(self.reason.clone().into()).cell()))
+        Vc::cell(Some(
+            StyledString::Text(self.reason.clone().into()).resolved_cell(),
+        ))
     }
 }
 

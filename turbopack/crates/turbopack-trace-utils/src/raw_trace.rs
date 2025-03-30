@@ -1,4 +1,6 @@
-use std::{borrow::Cow, fmt::Write, marker::PhantomData, thread, time::Instant};
+use std::{
+    borrow::Cow, fmt::Write, marker::PhantomData, sync::atomic::AtomicU64, thread, time::Instant,
+};
 
 use tracing::{
     field::{display, Visit},
@@ -8,16 +10,35 @@ use tracing_subscriber::{registry::LookupSpan, Layer};
 use turbo_tasks_malloc::TurboMalloc;
 
 use crate::{
-    flavor::BufFlavor,
+    flavor::WriteGuardFlavor,
     trace_writer::TraceWriter,
     tracing::{TraceRow, TraceValue},
 };
+
+pub struct RawTraceLayerOptions {}
+
+struct RawTraceLayerExtension {
+    id: u64,
+}
+
+fn get_id<S: Subscriber + for<'a> LookupSpan<'a>>(
+    ctx: tracing_subscriber::layer::Context<'_, S>,
+    id: &span::Id,
+) -> u64 {
+    ctx.span(id)
+        .unwrap()
+        .extensions()
+        .get::<RawTraceLayerExtension>()
+        .unwrap()
+        .id
+}
 
 /// A tracing layer that writes raw trace data to a writer. The data format is
 /// defined by [FullTraceRow].
 pub struct RawTraceLayer<S: Subscriber + for<'a> LookupSpan<'a>> {
     trace_writer: TraceWriter,
     start: Instant,
+    next_id: AtomicU64,
     _phantom: PhantomData<fn(S)>,
 }
 
@@ -26,16 +47,15 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
         Self {
             trace_writer,
             start: Instant::now(),
+            next_id: AtomicU64::new(1),
             _phantom: PhantomData,
         }
     }
 
     fn write(&self, data: TraceRow<'_>) {
         let start = TurboMalloc::allocation_counters();
-        // Buffer is recycled
-        let buf = self.trace_writer.try_get_buffer().unwrap_or_default();
-        let buf = postcard::serialize_with_flavor(&data, BufFlavor { buf }).unwrap();
-        self.trace_writer.write(buf);
+        let guard = self.trace_writer.start_write();
+        postcard::serialize_with_flavor(&data, WriteGuardFlavor { guard }).unwrap();
         TurboMalloc::reset_allocation_counters(start);
     }
 
@@ -62,13 +82,20 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
         let ts = self.start.elapsed().as_micros() as u64;
         let mut values = ValuesVisitor::new();
         attrs.values().record(&mut values);
+        let external_id = self
+            .next_id
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        ctx.span(id)
+            .unwrap()
+            .extensions_mut()
+            .insert(RawTraceLayerExtension { id: external_id });
         self.write(TraceRow::Start {
             ts,
-            id: id.into_u64(),
+            id: external_id,
             parent: if attrs.is_contextual() {
-                ctx.current_span().id().map(|p| p.into_u64())
+                ctx.current_span().id().map(|p| get_id(ctx, p))
             } else {
-                attrs.parent().map(|p| p.into_u64())
+                attrs.parent().map(|p| get_id(ctx, p))
             },
             name: attrs.metadata().name().into(),
             target: attrs.metadata().target().into(),
@@ -76,32 +103,32 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
         });
     }
 
-    fn on_close(&self, id: span::Id, _ctx: tracing_subscriber::layer::Context<'_, S>) {
+    fn on_close(&self, id: span::Id, ctx: tracing_subscriber::layer::Context<'_, S>) {
         let ts = self.start.elapsed().as_micros() as u64;
         self.write(TraceRow::End {
             ts,
-            id: id.into_u64(),
+            id: get_id(ctx, &id),
         });
     }
 
-    fn on_enter(&self, id: &span::Id, _ctx: tracing_subscriber::layer::Context<'_, S>) {
+    fn on_enter(&self, id: &span::Id, ctx: tracing_subscriber::layer::Context<'_, S>) {
         let ts = self.start.elapsed().as_micros() as u64;
         let thread_id = thread::current().id().as_u64().into();
         self.report_allocations(ts, thread_id);
         self.write(TraceRow::Enter {
             ts,
-            id: id.into_u64(),
+            id: get_id(ctx, id),
             thread_id,
         });
     }
 
-    fn on_exit(&self, id: &span::Id, _ctx: tracing_subscriber::layer::Context<'_, S>) {
+    fn on_exit(&self, id: &span::Id, ctx: tracing_subscriber::layer::Context<'_, S>) {
         let ts = self.start.elapsed().as_micros() as u64;
         let thread_id = thread::current().id().as_u64().into();
         self.report_allocations(ts, thread_id);
         self.write(TraceRow::Exit {
             ts,
-            id: id.into_u64(),
+            id: get_id(ctx, id),
             thread_id,
         });
     }
@@ -113,9 +140,9 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
         self.write(TraceRow::Event {
             ts,
             parent: if event.is_contextual() {
-                ctx.current_span().id().map(|p| p.into_u64())
+                ctx.current_span().id().map(|p| get_id(ctx, p))
             } else {
-                event.parent().map(|p| p.into_u64())
+                event.parent().map(|p| get_id(ctx, p))
             },
             values: values.values,
         });
@@ -125,12 +152,12 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
         &self,
         id: &span::Id,
         record: &span::Record<'_>,
-        _ctx: tracing_subscriber::layer::Context<'_, S>,
+        ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
         let mut values = ValuesVisitor::new();
         record.record(&mut values);
         self.write(TraceRow::Record {
-            id: id.into_u64(),
+            id: get_id(ctx, id),
             values: values.values,
         });
     }

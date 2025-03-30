@@ -9,10 +9,12 @@ use turbo_tasks_macros_shared::{
     get_trait_type_id_ident, get_trait_type_ident, ValueTraitArguments,
 };
 
-use crate::func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn};
+use crate::func::{
+    filter_inline_attributes, DefinitionContext, FunctionArguments, NativeFn, TurboFn,
+};
 
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
-    let ValueTraitArguments { debug, resolved } = parse_macro_input!(args as ValueTraitArguments);
+    let ValueTraitArguments { debug, operation } = parse_macro_input!(args as ValueTraitArguments);
 
     let item = parse_macro_input!(input as ItemTrait);
 
@@ -99,7 +101,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         };
 
         let turbo_signature = turbo_fn.signature();
-        let arg_types = turbo_fn.input_types();
+        let arg_types = turbo_fn.exposed_input_types();
         let dynamic_block = turbo_fn.dynamic_block(&trait_type_id_ident);
         dynamic_trait_fns.push(quote! {
             #turbo_signature #dynamic_block
@@ -110,29 +112,31 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             let inline_extension_trait_ident =
                 Ident::new(&format!("{}_{}_inline", trait_ident, ident), ident.span());
             let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(default);
+            let inline_attrs = filter_inline_attributes(&attrs[..]);
 
-            let native_function = NativeFn::new(
-                &format!("{trait_ident}::{ident}"),
-                &parse_quote! {
+            let native_function = NativeFn {
+                function_path_string: format!("{trait_ident}::{ident}"),
+                function_path: parse_quote! {
                     <Box<dyn #trait_ident> as #inline_extension_trait_ident>::#inline_function_ident
                 },
-                turbo_fn.is_method(),
-                // `inline_cells` is currently unsupported here because:
+                is_method: turbo_fn.is_method(),
+                filter_trait_call_args: turbo_fn.filter_trait_call_args(),
+                // `local` is currently unsupported here because:
                 // - The `#[turbo_tasks::function]` macro needs to be present for us to read this
-                //   argument.
+                //   argument. (This could be fixed)
                 // - This only makes sense when a default implementation is present.
-                false,
-            );
+                local: false,
+            };
 
             let native_function_ident = get_trait_default_impl_function_ident(trait_ident, ident);
             let native_function_ty = native_function.ty();
             let native_function_def = native_function.definition();
+
             let native_function_id_ident =
                 get_trait_default_impl_function_id_ident(trait_ident, ident);
             let native_function_id_ty = native_function.id_ty();
-            let native_function_id_def = native_function.id_definition(&parse_quote! {
-                #native_function_ident
-            });
+            let native_function_id_def =
+                native_function.id_definition(&native_function_ident.clone().into());
 
             trait_methods.push(quote! {
                 trait_type.register_default_trait_method::<(#(#arg_types,)*)>(stringify!(#ident).into(), *#native_function_id_ident);
@@ -142,12 +146,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 #[doc(hidden)]
                 #[allow(non_camel_case_types)]
                 trait #inline_extension_trait_ident: std::marker::Send {
-                    #[allow(declare_interior_mutable_const)]
-                    const #native_function_ident: #native_function_ty;
-                    #[allow(declare_interior_mutable_const)]
-                    const #native_function_id_ident: #native_function_id_ty;
-
-                    #(#attrs)*
+                    #(#inline_attrs)*
                     #inline_signature;
                 }
 
@@ -155,19 +154,19 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 // Needs to be explicit 'static here, otherwise we can get a lifetime error
                 // in the inline signature.
                 impl #inline_extension_trait_ident for Box<dyn #trait_ident> {
-                    #[allow(declare_interior_mutable_const)]
-                    const #native_function_ident: #native_function_ty = #native_function_def;
-                    #[allow(declare_interior_mutable_const)]
-                    const #native_function_id_ident: #native_function_id_ty = #native_function_id_def;
-
-                    #(#attrs)*
+                    // put the function body here so that `Self` points to `Box<dyn ...>`
+                    #(#inline_attrs)*
                     #inline_signature #inline_block
                 }
 
                 #[doc(hidden)]
-                pub(crate) static #native_function_ident: #native_function_ty = <Box<dyn #trait_ident> as #inline_extension_trait_ident>::#native_function_ident;
+                pub(crate) static #native_function_ident:
+                    turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
+                        turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
                 #[doc(hidden)]
-                pub(crate) static #native_function_id_ident: #native_function_id_ty = <Box<dyn #trait_ident> as #inline_extension_trait_ident>::#native_function_id_ident;
+                pub(crate) static #native_function_id_ident:
+                    turbo_tasks::macro_helpers::Lazy<#native_function_id_ty> =
+                        turbo_tasks::macro_helpers::Lazy::new(|| #native_function_id_def);
             });
 
             Some(turbo_fn.static_block(&native_function_id_ident))
@@ -195,14 +194,16 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         quote! {}
     };
 
-    let mut extended_supertraits = Vec::new();
-    if let Some(span) = resolved {
+    let mut extended_supertraits = vec![
+        quote!(::std::marker::Send),
+        quote!(::std::marker::Sync),
+        quote!(turbo_tasks::NonLocalValue),
+    ];
+    if let Some(span) = operation {
         extended_supertraits.push(quote_spanned! {
-            span => turbo_tasks::ResolvedValue
+            span => turbo_tasks::OperationValue
         });
     }
-    extended_supertraits.push(quote!(::std::marker::Send));
-    extended_supertraits.push(quote!(::std::marker::Sync));
     if debug {
         extended_supertraits.push(quote!(turbo_tasks::debug::ValueDebug));
     }

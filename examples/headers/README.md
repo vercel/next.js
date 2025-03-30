@@ -1,6 +1,6 @@
 # Headers Example
 
-This example shows how to use [headers in Next.js](https://nextjs.org/docs/app/api-reference/next-config-js/headers) to add custom HTTP headers into your Next.js app.
+This example shows how to use [headers in Next.js](https://nextjs.org/docs/app/api-reference/config/next-config-js/headers) to add custom HTTP headers into your Next.js app.
 
 The index page ([`app/page.tsx`](app/page.tsx)) has a list of links to pages with custom headers set up in [`next.config.js`](next.config.js). Run or deploy the app to see how it works!
 

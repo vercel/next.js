@@ -1,0 +1,12 @@
+{
+  "name": "@monorepo/adapter-next",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "default": "./dist/client/index.js"
+    }
+  }
+}

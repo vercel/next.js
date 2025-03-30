@@ -2,7 +2,7 @@
 name = "turbopack-node"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
+license = "MIT"
 edition = "2021"
 autobenches = false
 
@@ -20,7 +20,7 @@ workspace = true
 anyhow = { workspace = true }
 async-stream = "0.3.4"
 async-trait = { workspace = true }
-const_format = "0.2.30"
+const_format = { workspace = true }
 either = { workspace = true, features = ["serde"] }
 futures = { workspace = true }
 futures-retry = { workspace = true }
@@ -31,12 +31,13 @@ once_cell = { workspace = true }
 owo-colors = { workspace = true }
 parking_lot = { workspace = true }
 regex = { workspace = true }
+rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-#serde_qs = { workspace = true }
 serde_with = { workspace = true, features = ["base64"] }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
+turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-bytes = { workspace = true }
 turbo-tasks-env = { workspace = true }
@@ -46,8 +47,6 @@ turbopack-core = { workspace = true }
 turbopack-dev-server = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 turbopack-resolve = { workspace = true }
-#url = { workspace = true }
-#urlencoding = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

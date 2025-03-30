@@ -2,7 +2,8 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use serde::Serialize;
-use turbo_tasks::{fxindexmap, FxIndexMap, RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{fxindexmap, FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{rope::RopeBuilder, File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -115,11 +116,13 @@ pub async fn create_page_ssr_entry_module(
         INNER.into() => ssr_module,
     };
 
+    let pages_structure_ref = pages_structure.await?;
+
     if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
         inner_assets.insert(
             INNER_DOCUMENT.into(),
             process_global_item(
-                pages_structure.document(),
+                *pages_structure_ref.document,
                 Value::new(reference_type.clone()),
                 ssr_module_context,
             )
@@ -129,7 +132,7 @@ pub async fn create_page_ssr_entry_module(
         inner_assets.insert(
             INNER_APP.into(),
             process_global_item(
-                pages_structure.app(),
+                *pages_structure_ref.app,
                 Value::new(reference_type.clone()),
                 ssr_module_context,
             )
@@ -141,7 +144,7 @@ pub async fn create_page_ssr_entry_module(
     let mut ssr_module = ssr_module_context
         .process(
             source,
-            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
         )
         .module();
 
@@ -176,7 +179,7 @@ fn process_global_item(
     reference_type: Value<ReferenceType>,
     module_context: Vc<Box<dyn AssetContext>>,
 ) -> Vc<Box<dyn Module>> {
-    let source = Vc::upcast(FileSource::new(item.project_path()));
+    let source = Vc::upcast(FileSource::new(item.file_path()));
     module_context.process(source, reference_type).module()
 }
 
@@ -196,16 +199,17 @@ async fn wrap_edge_page(
     const INNER_DOCUMENT: &str = "INNER_DOCUMENT";
     const INNER_APP: &str = "INNER_APP";
     const INNER_ERROR: &str = "INNER_ERROR";
+    const INNER_ERROR_500: &str = "INNER_500";
 
-    let next_config = &*next_config.await?;
+    let next_config_val = &*next_config.await?;
 
     // TODO(WEB-1824): add build support
     let dev = true;
 
     let sri_enabled = !dev
         && next_config
-            .experimental
-            .sri
+            .experimental_sri()
+            .await?
             .as_ref()
             .map(|sri| sri.algorithm.as_ref())
             .is_some();
@@ -223,7 +227,9 @@ async fn wrap_edge_page(
         fxindexmap! {
             "pagesType" => StringifyJs("pages").to_string().into(),
             "sriEnabled" => serde_json::Value::Bool(sri_enabled).to_string().into(),
-            "nextConfig" => serde_json::to_string(next_config)?.into(),
+            // TODO do we really need to pass the entire next config here?
+            // This is bad for invalidation as any config change will invalidate this
+            "nextConfig" => serde_json::to_string(next_config_val)?.into(),
             "dev" => serde_json::Value::Bool(dev).to_string().into(),
             "pageRouteModuleOptions" => serde_json::to_string(&get_route_module_options(page.clone(), pathname.clone()))?.into(),
             "errorRouteModuleOptions" => serde_json::to_string(&get_route_module_options("/_error".into(), "/_error".into()))?.into(),
@@ -232,34 +238,45 @@ async fn wrap_edge_page(
         fxindexmap! {
             // TODO
             "incrementalCacheHandler" => None,
-            "userland500Page" => None,
+            "userland500Page" => pages_structure.await?.error_500.map(|_| INNER_ERROR_500.into()),
         },
     )
     .await?;
 
-    let inner_assets = fxindexmap! {
+    let pages_structure_ref = pages_structure.await?;
+
+    let mut inner_assets = fxindexmap! {
         INNER.into() => entry,
         INNER_DOCUMENT.into() => process_global_item(
-            pages_structure.document(),
+            *pages_structure_ref.document,
             reference_type.clone(),
             asset_context,
         ).to_resolved().await?,
         INNER_APP.into() => process_global_item(
-            pages_structure.app(),
+            *pages_structure_ref.app,
             reference_type.clone(),
             asset_context,
         ).to_resolved().await?,
         INNER_ERROR.into() => process_global_item(
-            pages_structure.error(),
+            *pages_structure_ref.error,
             reference_type.clone(),
             asset_context,
         ).to_resolved().await?,
     };
 
+    if let Some(error_500) = pages_structure_ref.error_500 {
+        inner_assets.insert(
+            INNER_ERROR_500.into(),
+            process_global_item(*error_500, reference_type.clone(), asset_context)
+                .to_resolved()
+                .await?,
+        );
+    }
+
     let wrapped = asset_context
         .process(
             Vc::upcast(source),
-            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
         )
         .module();
 

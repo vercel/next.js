@@ -14,6 +14,9 @@ export default function HomePage() {
       <Link href="/prefetch-auto/foobar" id="to-dynamic-page">
         To Dynamic Slug Page
       </Link>
+      <a href="/static-page" id="to-static-page-hard">
+        Hard Nav to Static Page
+      </a>
     </>
   )
 }

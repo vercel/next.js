@@ -1,7 +1,8 @@
 use std::{env, sync::MutexGuard};
 
 use anyhow::{anyhow, Context, Result};
-use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 
 use crate::{sorted_env_vars, EnvMap, ProcessEnv, GLOBAL_ENV_LOCK};
@@ -12,7 +13,7 @@ use crate::{sorted_env_vars, EnvMap, ProcessEnv, GLOBAL_ENV_LOCK};
 #[turbo_tasks::value]
 pub struct DotenvProcessEnv {
     prior: Option<ResolvedVc<Box<dyn ProcessEnv>>>,
-    path: Vc<FileSystemPath>,
+    path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -20,7 +21,7 @@ impl DotenvProcessEnv {
     #[turbo_tasks::function]
     pub fn new(
         prior: Option<ResolvedVc<Box<dyn ProcessEnv>>>,
-        path: Vc<FileSystemPath>,
+        path: ResolvedVc<FileSystemPath>,
     ) -> Vc<Self> {
         DotenvProcessEnv { prior, path }.cell()
     }
@@ -70,7 +71,9 @@ impl DotenvProcessEnv {
 
             Ok(Vc::cell(vars))
         } else {
-            Ok(Vc::cell(prior.clone_value()))
+            // We want to cell the value here and not just return the Vc.
+            // This is important to avoid Vc changes when adding/removing the env file.
+            Ok(ReadRef::cell(prior))
         }
     }
 }

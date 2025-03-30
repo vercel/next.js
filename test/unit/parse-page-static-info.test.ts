@@ -30,7 +30,7 @@ describe('parse page static info', () => {
         nextConfig: createNextConfig(),
         pageType: PAGE_TYPES.PAGES,
       })
-    expect(runtime).toBe(undefined)
+    expect(runtime).toBe('nodejs')
     expect(getServerSideProps).toBe(false)
     expect(getStaticProps).toBe(false)
   })

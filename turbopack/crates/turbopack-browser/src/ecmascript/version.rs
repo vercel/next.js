@@ -1,24 +1,26 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{FxIndexMap, RcStr, ReadRef, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ReadRef, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::{chunk::ModuleId, version::Version};
+use turbopack_ecmascript::chunk::EcmascriptChunkContent;
 
-use super::content_entry::EcmascriptDevChunkContentEntries;
+use super::content_entry::EcmascriptBrowserChunkContentEntries;
 
 #[turbo_tasks::value(serialization = "none")]
-pub(super) struct EcmascriptDevChunkVersion {
+pub(super) struct EcmascriptBrowserChunkVersion {
     pub(super) chunk_path: String,
     pub(super) entries_hashes: FxIndexMap<ReadRef<ModuleId>, u64>,
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptDevChunkVersion {
+impl EcmascriptBrowserChunkVersion {
     #[turbo_tasks::function]
     pub async fn new(
         output_root: Vc<FileSystemPath>,
         chunk_path: Vc<FileSystemPath>,
-        entries: Vc<EcmascriptDevChunkContentEntries>,
+        content: Vc<EcmascriptChunkContent>,
     ) -> Result<Vc<Self>> {
         let output_root = output_root.await?;
         let chunk_path = chunk_path.await?;
@@ -31,13 +33,13 @@ impl EcmascriptDevChunkVersion {
                 output_root.to_string()
             );
         };
-        let entries = entries.await?;
+        let entries = EcmascriptBrowserChunkContentEntries::new(content).await?;
         let mut entries_hashes =
             FxIndexMap::with_capacity_and_hasher(entries.len(), Default::default());
         for (id, entry) in entries.iter() {
             entries_hashes.insert(id.clone(), *entry.hash.await?);
         }
-        Ok(EcmascriptDevChunkVersion {
+        Ok(EcmascriptBrowserChunkVersion {
             chunk_path: chunk_path.to_string(),
             entries_hashes,
         }
@@ -46,7 +48,7 @@ impl EcmascriptDevChunkVersion {
 }
 
 #[turbo_tasks::value_impl]
-impl Version for EcmascriptDevChunkVersion {
+impl Version for EcmascriptBrowserChunkVersion {
     #[turbo_tasks::function]
     fn id(&self) -> Vc<RcStr> {
         let mut hasher = Xxh3Hash64Hasher::new();

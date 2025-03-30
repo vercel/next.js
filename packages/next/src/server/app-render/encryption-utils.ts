@@ -5,11 +5,14 @@ import type {
 } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { workAsyncStorage } from './work-async-storage.external'
 
 let __next_loaded_action_key: CryptoKey
 
-export function arrayBufferToString(buffer: ArrayBuffer) {
+export function arrayBufferToString(
+  buffer: ArrayBuffer | Uint8Array<ArrayBufferLike>
+) {
   const bytes = new Uint8Array(buffer)
   const len = bytes.byteLength
 
@@ -96,7 +99,7 @@ export function setReferenceManifestsSingleton({
   globalThis[SERVER_ACTION_MANIFESTS_SINGLETON] = {
     clientReferenceManifestsPerPage: {
       ...clientReferenceManifestsPerPage,
-      [normalizePage(page)]: clientReferenceManifest,
+      [normalizeAppPath(page)]: clientReferenceManifest,
     },
     serverActionsManifest,
     serverModuleMap,
@@ -151,12 +154,13 @@ export function getClientReferenceManifestForRsc(): DeepReadonly<ClientReference
     return mergeClientReferenceManifests(clientReferenceManifestsPerPage)
   }
 
-  const page = normalizePage(workStore.page)
-
-  const clientReferenceManifest = clientReferenceManifestsPerPage[page]
+  const clientReferenceManifest =
+    clientReferenceManifestsPerPage[workStore.route]
 
   if (!clientReferenceManifest) {
-    throw new InvariantError(`Missing Client Reference Manifest for ${page}.`)
+    throw new InvariantError(
+      `Missing Client Reference Manifest for ${workStore.route}.`
+    )
   }
 
   return clientReferenceManifest
@@ -194,10 +198,6 @@ export async function getActionEncryptionKey() {
   )
 
   return __next_loaded_action_key
-}
-
-function normalizePage(page: string): string {
-  return page.replace(/\/(page|route)$/, '')
 }
 
 function mergeClientReferenceManifests(

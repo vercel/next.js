@@ -8,7 +8,7 @@ export {
 } from 'react-server-dom-webpack/server.edge'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
-export { prerender } from 'react-server-dom-webpack/static.edge'
+export { unstable_prerender as prerender } from 'react-server-dom-webpack/static.edge'
 
 import LayoutRouter from '../../client/components/layout-router'
 import RenderFromTemplateContext from '../../client/components/render-from-template-context'
@@ -20,15 +20,13 @@ import { ClientSegmentRoot } from '../../client/components/client-segment'
 import {
   createServerSearchParamsForServerPage,
   createPrerenderSearchParamsForClientPage,
-  createServerSearchParamsForMetadata,
 } from '../request/search-params'
 import {
   createServerParamsForServerSegment,
-  createServerParamsForMetadata,
   createPrerenderParamsForClientSegment,
 } from '../request/params'
 import * as serverHooks from '../../client/components/hooks-server-context'
-import { HTTPAccessFallbackBoundary } from '../../client/components/http-access-fallback-boundary'
+import { HTTPAccessFallbackBoundary } from '../../client/components/http-access-fallback/error-boundary'
 import { createMetadataComponents } from '../../lib/metadata/metadata'
 import { patchFetch as _patchFetch } from '../lib/patch-fetch'
 // not being used but needs to be included in the client manifest for /_not-found
@@ -37,7 +35,7 @@ import {
   MetadataBoundary,
   ViewportBoundary,
   OutletBoundary,
-} from '../../lib/metadata/metadata-boundary'
+} from '../../client/components/metadata/metadata-boundary'
 
 import { preloadStyle, preloadFont, preconnect } from './rsc/preloads'
 import { Postpone } from './rsc/postpone'
@@ -60,10 +58,8 @@ export {
   workUnitAsyncStorage,
   actionAsyncStorage,
   createServerSearchParamsForServerPage,
-  createServerSearchParamsForMetadata,
   createPrerenderSearchParamsForClientPage,
   createServerParamsForServerSegment,
-  createServerParamsForMetadata,
   createPrerenderParamsForClientSegment,
   serverHooks,
   preloadStyle,

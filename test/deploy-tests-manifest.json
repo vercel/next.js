@@ -4,13 +4,13 @@
     "test/e2e/app-dir/actions/app-action.test.ts": {
       "failed": [
         "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
-        "app-dir action handling fetch actions should handle expireTag"
+        "app-dir action handling fetch actions should handle unstable_expireTag"
       ]
     },
     "test/e2e/app-dir/app-static/app-static.test.ts": {
       "failed": [
         "app-dir static/dynamic handling new tags have been specified on subsequent fetch should not fetch from memory cache",
-        "app-dir static/dynamic handling new tags have been specified on subsequent fetch should not fetch from memory cache after expireTag is used"
+        "app-dir static/dynamic handling new tags have been specified on subsequent fetch should not fetch from memory cache after unstable_expireTag is used"
       ]
     },
     "test/e2e/app-dir/metadata/metadata.test.ts": {

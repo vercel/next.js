@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 
 use super::{
     utils::{children_from_module_references, content_to_details},
@@ -8,15 +9,14 @@ use super::{
 use crate::{asset::Asset, module::Module};
 
 #[turbo_tasks::value]
-pub struct IntrospectableModule(Vc<Box<dyn Module>>);
+pub struct IntrospectableModule(ResolvedVc<Box<dyn Module>>);
 
 #[turbo_tasks::value_impl]
 impl IntrospectableModule {
     #[turbo_tasks::function]
-    pub async fn new(asset: Vc<Box<dyn Module>>) -> Result<Vc<Box<dyn Introspectable>>> {
-        Ok(Vc::try_resolve_sidecast::<Box<dyn Introspectable>>(asset)
-            .await?
-            .unwrap_or_else(|| Vc::upcast(IntrospectableModule(asset).cell())))
+    pub async fn new(asset: ResolvedVc<Box<dyn Module>>) -> Result<Vc<Box<dyn Introspectable>>> {
+        Ok(*ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(asset)
+            .unwrap_or_else(|| ResolvedVc::upcast(IntrospectableModule(asset).resolved_cell())))
     }
 }
 

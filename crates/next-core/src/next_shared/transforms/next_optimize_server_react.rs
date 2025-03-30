@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::optimize_server_react::{optimize_server_react, Config};
 use swc_core::ecma::ast::*;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::ResolvedVc;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
@@ -14,7 +14,7 @@ pub fn get_next_optimize_server_react_rule(
     optimize_use_state: bool,
 ) -> ModuleRule {
     let transformer =
-        EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextOptimizeServerReact {
+        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextOptimizeServerReact {
             optimize_use_state,
         }) as _));
     ModuleRule::new(

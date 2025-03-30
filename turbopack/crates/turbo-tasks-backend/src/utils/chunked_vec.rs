@@ -49,7 +49,7 @@ impl<T> ChunkedVec<T> {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.chunks.first().map_or(true, |chunk| chunk.is_empty())
+        self.chunks.first().is_none_or(|chunk| chunk.is_empty())
     }
 }
 

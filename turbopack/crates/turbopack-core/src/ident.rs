@@ -1,7 +1,10 @@
 use std::fmt::Write;
 
 use anyhow::Result;
-use turbo_tasks::{RcStr, ResolvedVc, Value, ValueToString, Vc};
+use once_cell::sync::Lazy;
+use regex::Regex;
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64, DeterministicHash, Xxh3Hash64Hasher};
 
@@ -11,23 +14,25 @@ use crate::resolve::ModulePart;
 #[derive(Clone, Debug, Hash)]
 pub struct AssetIdent {
     /// The primary path of the asset
-    pub path: Vc<FileSystemPath>,
+    pub path: ResolvedVc<FileSystemPath>,
     /// The query string of the asset (e.g. `?foo=bar`)
-    pub query: Vc<RcStr>,
+    pub query: ResolvedVc<RcStr>,
     /// The fragment of the asset (e.g. `#foo`)
     pub fragment: Option<ResolvedVc<RcStr>>,
     /// The assets that are nested in this asset
     pub assets: Vec<(ResolvedVc<RcStr>, ResolvedVc<AssetIdent>)>,
     /// The modifiers of this asset (e.g. `client chunks`)
-    pub modifiers: Vec<Vc<RcStr>>,
+    pub modifiers: Vec<ResolvedVc<RcStr>>,
     /// The parts of the asset that are (ECMAScript) modules
-    pub parts: Vec<ResolvedVc<ModulePart>>,
+    pub parts: Vec<ModulePart>,
     /// The asset layer the asset was created from.
     pub layer: Option<ResolvedVc<RcStr>>,
+    /// The MIME content type, if this asset was created from a data URL.
+    pub content_type: Option<RcStr>,
 }
 
 impl AssetIdent {
-    pub fn add_modifier(&mut self, modifier: Vc<RcStr>) {
+    pub fn add_modifier(&mut self, modifier: ResolvedVc<RcStr>) {
         self.modifiers.push(modifier);
     }
 
@@ -40,7 +45,7 @@ impl AssetIdent {
         let path = self.path.await?;
         self.path = root
             .join(pattern.replace('*', &path.path).into())
-            .resolve()
+            .to_resolved()
             .await?;
         Ok(())
     }
@@ -50,7 +55,7 @@ impl AssetIdent {
 impl ValueToString for AssetIdent {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
-        let mut s = self.path.to_string().await?.clone_value().into_owned();
+        let mut s = self.path.to_string().owned().await?.into_owned();
 
         let query = self.query.await?;
         if !query.is_empty() {
@@ -95,12 +100,15 @@ impl ValueToString for AssetIdent {
             s.push(')');
         }
 
+        if let Some(content_type) = &self.content_type {
+            write!(s, " <{}>", content_type)?;
+        }
+
         if !self.parts.is_empty() {
             for part in self.parts.iter() {
-                let part = part.to_string().await?;
-                // facade is not included in ident as switching between facade and non-facade
-                // shouldn't change the ident
-                if part.as_str() != "facade" {
+                if !matches!(part, ModulePart::Facade) {
+                    // facade is not included in ident as switching between facade and non-facade
+                    // shouldn't change the ident
                     write!(s, " <{}>", part)?;
                 }
             }
@@ -119,41 +127,42 @@ impl AssetIdent {
 
     /// Creates an [AssetIdent] from a [Vc<FileSystemPath>]
     #[turbo_tasks::function]
-    pub fn from_path(path: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn from_path(path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         Self::new(Value::new(AssetIdent {
             path,
-            query: Vc::<RcStr>::default(),
+            query: ResolvedVc::cell(RcStr::default()),
             fragment: None,
             assets: Vec::new(),
             modifiers: Vec::new(),
             parts: Vec::new(),
             layer: None,
+            content_type: None,
         }))
     }
 
     #[turbo_tasks::function]
-    pub fn with_query(&self, query: Vc<RcStr>) -> Vc<Self> {
+    pub fn with_query(&self, query: ResolvedVc<RcStr>) -> Vc<Self> {
         let mut this = self.clone();
         this.query = query;
         Self::new(Value::new(this))
     }
 
     #[turbo_tasks::function]
-    pub fn with_modifier(&self, modifier: Vc<RcStr>) -> Vc<Self> {
+    pub fn with_modifier(&self, modifier: ResolvedVc<RcStr>) -> Vc<Self> {
         let mut this = self.clone();
         this.add_modifier(modifier);
         Self::new(Value::new(this))
     }
 
     #[turbo_tasks::function]
-    pub fn with_part(&self, part: ResolvedVc<ModulePart>) -> Vc<Self> {
+    pub fn with_part(&self, part: ModulePart) -> Vc<Self> {
         let mut this = self.clone();
         this.parts.push(part);
         Self::new(Value::new(this))
     }
 
     #[turbo_tasks::function]
-    pub fn with_path(&self, path: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn with_path(&self, path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         let mut this = self.clone();
         this.path = path;
         Self::new(Value::new(this))
@@ -167,6 +176,13 @@ impl AssetIdent {
     }
 
     #[turbo_tasks::function]
+    pub fn with_content_type(&self, content_type: RcStr) -> Vc<Self> {
+        let mut this = self.clone();
+        this.content_type = Some(content_type);
+        Self::new(Value::new(this))
+    }
+
+    #[turbo_tasks::function]
     pub async fn rename_as(&self, pattern: RcStr) -> Result<Vc<Self>> {
         let mut this = self.clone();
         this.rename_as_ref(&pattern).await?;
@@ -175,12 +191,12 @@ impl AssetIdent {
 
     #[turbo_tasks::function]
     pub fn path(&self) -> Vc<FileSystemPath> {
-        self.path
+        *self.path
     }
 
     #[turbo_tasks::function]
     pub fn query(&self) -> Vc<RcStr> {
-        self.query
+        *self.query
     }
 
     /// Computes a unique output asset name for the given asset identifier.
@@ -228,6 +244,7 @@ impl AssetIdent {
             modifiers,
             parts,
             layer,
+            content_type,
         } = self;
         let query = query.await?;
         if !query.is_empty() {
@@ -259,25 +276,25 @@ impl AssetIdent {
         }
         for part in parts.iter() {
             4_u8.deterministic_hash(&mut hasher);
-            match &*part.await? {
+            match part {
                 ModulePart::Evaluation => {
                     1_u8.deterministic_hash(&mut hasher);
                 }
                 ModulePart::Export(export) => {
                     2_u8.deterministic_hash(&mut hasher);
-                    export.await?.deterministic_hash(&mut hasher);
+                    export.deterministic_hash(&mut hasher);
                 }
                 ModulePart::RenamedExport {
                     original_export,
                     export,
                 } => {
                     3_u8.deterministic_hash(&mut hasher);
-                    original_export.await?.deterministic_hash(&mut hasher);
-                    export.await?.deterministic_hash(&mut hasher);
+                    original_export.deterministic_hash(&mut hasher);
+                    export.deterministic_hash(&mut hasher);
                 }
                 ModulePart::RenamedNamespace { export } => {
                     4_u8.deterministic_hash(&mut hasher);
-                    export.await?.deterministic_hash(&mut hasher);
+                    export.deterministic_hash(&mut hasher);
                 }
                 ModulePart::Internal(id) => {
                     5_u8.deterministic_hash(&mut hasher);
@@ -301,14 +318,19 @@ impl AssetIdent {
             has_hash = true;
         }
         if let Some(layer) = layer {
-            1_u8.deterministic_hash(&mut hasher);
+            5_u8.deterministic_hash(&mut hasher);
             layer.await?.deterministic_hash(&mut hasher);
+            has_hash = true;
+        }
+        if let Some(content_type) = content_type {
+            6_u8.deterministic_hash(&mut hasher);
+            content_type.deterministic_hash(&mut hasher);
             has_hash = true;
         }
 
         if has_hash {
             let hash = encode_hex(hasher.finish());
-            let truncated_hash = &hash[..6];
+            let truncated_hash = &hash[..8];
             write!(name, "_{}", truncated_hash)?;
         }
 
@@ -329,7 +351,7 @@ impl AssetIdent {
             }
         }
         if i > 0 {
-            let hash = encode_hex(hash_xxh3_hash64(name[..i].as_bytes()));
+            let hash = encode_hex(hash_xxh3_hash64(&name.as_bytes()[..i]));
             let truncated_hash = &hash[..5];
             name = format!("{}_{}", truncated_hash, &name[i..]);
         }
@@ -345,7 +367,8 @@ impl AssetIdent {
 }
 
 fn clean_separators(s: &str) -> String {
-    s.replace('/', "_")
+    static SEPARATOR_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"[/#?]").unwrap());
+    SEPARATOR_REGEX.replace_all(s, "_").to_string()
 }
 
 fn clean_additional_extensions(s: &str) -> String {

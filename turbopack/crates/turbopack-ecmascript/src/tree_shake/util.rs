@@ -490,16 +490,6 @@ impl Visit for ShouldSkip {
         n.visit_children_with(self);
     }
 
-    fn visit_callee(&mut self, n: &Callee) {
-        // TOOD(PACK-3231): Tree shaking work with dynamic imports
-        if matches!(n, Callee::Import(..)) {
-            self.skip = true;
-            return;
-        }
-
-        n.visit_children_with(self);
-    }
-
     fn visit_expr(&mut self, n: &Expr) {
         if self.skip {
             return;

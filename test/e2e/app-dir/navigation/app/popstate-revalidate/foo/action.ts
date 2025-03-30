@@ -1,8 +1,8 @@
 'use server'
 
-import { expirePath } from 'next/cache'
+import { unstable_expirePath } from 'next/cache'
 
 export async function action() {
-  expirePath('/', 'layout')
+  unstable_expirePath('/', 'layout')
   return true
 }

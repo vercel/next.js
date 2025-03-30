@@ -2,7 +2,7 @@ name: retry-tests
 
 on:
   workflow_run:
-    workflows: ['build-and-test']
+    workflows: ['build-and-test', 'build-and-deploy']
     branches: [canary]
     types:
       - completed
@@ -21,6 +21,7 @@ jobs:
       ${{ 
         github.event.workflow_run.conclusion == 'failure' &&
         github.repository == 'vercel/next.js' &&
+        github.event.workflow.name != 'build-and-deploy' &&
         github.event.workflow_run.run_attempt < 3
       }}
     runs-on: ubuntu-latest
@@ -38,10 +39,11 @@ jobs:
   report-failure:
     name: report failure to slack
     # Report the failure to Slack if the build-and-test workflow has failed 3 times
+    # build-and-deploy is not retried so we always report it
     if: >-
       ${{ 
         github.event.workflow_run.conclusion == 'failure' &&
-        github.event.workflow_run.run_attempt >= 3 &&
+        (github.event.workflow_run.run_attempt >= 3 || github.event.workflow.name == 'build-and-deploy') &&
         !github.event.workflow_run.head_repository.fork
       }}
     runs-on: ubuntu-latest

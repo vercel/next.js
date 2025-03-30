@@ -9,14 +9,15 @@ use anyhow::{Context, Result};
 use futures_util::{StreamExt, TryStreamExt};
 use next_api::{
     project::{ProjectContainer, ProjectOptions},
-    route::{Endpoint, Route},
+    route::{endpoint_write_to_disk, Endpoint, EndpointOutputPaths, Route},
 };
-use turbo_tasks::{RcStr, ReadConsistency, TransientInstance, TurboTasks, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{get_effects, ReadConsistency, ResolvedVc, TransientInstance, TurboTasks, Vc};
+use turbo_tasks_backend::{NoopBackingStorage, TurboTasksBackend};
 use turbo_tasks_malloc::TurboMalloc;
-use turbo_tasks_memory::MemoryBackend;
 
 pub async fn main_inner(
-    tt: &TurboTasks<MemoryBackend>,
+    tt: &TurboTasks<TurboTasksBackend<NoopBackingStorage>>,
     strat: Strategy,
     factor: usize,
     limit: usize,
@@ -41,7 +42,7 @@ pub async fn main_inner(
     let project = tt
         .run_once(async {
             let project = ProjectContainer::new("next-build-test".into(), options.dev);
-            let project = project.resolve().await?;
+            let project = project.to_resolved().await?;
             project.initialize(options).await?;
             Ok(project)
         })
@@ -87,7 +88,7 @@ pub async fn main_inner(
     }
 
     if matches!(strat, Strategy::Development { .. }) {
-        hmr(tt, project).await?;
+        hmr(tt, *project).await?;
     }
 
     Ok(())
@@ -157,7 +158,7 @@ pub fn shuffle<'a, T: 'a>(items: impl Iterator<Item = T>) -> impl Iterator<Item 
 }
 
 pub async fn render_routes(
-    tt: &TurboTasks<MemoryBackend>,
+    tt: &TurboTasks<TurboTasksBackend<NoopBackingStorage>>,
     routes: impl Iterator<Item = (RcStr, Route)>,
     strategy: Strategy,
     factor: usize,
@@ -184,21 +185,21 @@ pub async fn render_routes(
                             html_endpoint,
                             data_endpoint: _,
                         } => {
-                            html_endpoint.write_to_disk().await?;
+                            endpoint_write_to_disk_with_effects(*html_endpoint).await?;
                         }
                         Route::PageApi { endpoint } => {
-                            endpoint.write_to_disk().await?;
+                            endpoint_write_to_disk_with_effects(*endpoint).await?;
                         }
                         Route::AppPage(routes) => {
                             for route in routes {
-                                route.html_endpoint.write_to_disk().await?;
+                                endpoint_write_to_disk_with_effects(*route.html_endpoint).await?;
                             }
                         }
                         Route::AppRoute {
                             original_name: _,
                             endpoint,
                         } => {
-                            endpoint.write_to_disk().await?;
+                            endpoint_write_to_disk_with_effects(*endpoint).await?;
                         }
                         Route::Conflict => {
                             tracing::info!("WARN: conflict {}", name);
@@ -241,7 +242,27 @@ pub async fn render_routes(
     Ok(stream.len())
 }
 
-async fn hmr(tt: &TurboTasks<MemoryBackend>, project: Vc<ProjectContainer>) -> Result<()> {
+#[turbo_tasks::function]
+async fn endpoint_write_to_disk_with_effects(
+    endpoint: ResolvedVc<Box<dyn Endpoint>>,
+) -> Result<Vc<EndpointOutputPaths>> {
+    let op = endpoint_write_to_disk_operation(endpoint);
+    let result = op.resolve_strongly_consistent().await?;
+    get_effects(op).await?.apply().await?;
+    Ok(*result)
+}
+
+#[turbo_tasks::function(operation)]
+pub fn endpoint_write_to_disk_operation(
+    endpoint: ResolvedVc<Box<dyn Endpoint>>,
+) -> Vc<EndpointOutputPaths> {
+    endpoint_write_to_disk(*endpoint)
+}
+
+async fn hmr(
+    tt: &TurboTasks<TurboTasksBackend<NoopBackingStorage>>,
+    project: Vc<ProjectContainer>,
+) -> Result<()> {
     tracing::info!("HMR...");
     let session = TransientInstance::new(());
     let idents = tt

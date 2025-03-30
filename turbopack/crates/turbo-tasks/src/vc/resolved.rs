@@ -1,41 +1,94 @@
 use std::{
     any::Any,
-    cell::RefCell,
-    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fmt::Debug,
     future::IntoFuture,
     hash::{Hash, Hasher},
     marker::PhantomData,
+    mem::transmute,
     ops::Deref,
-    path::{Path, PathBuf},
-    sync::{
-        atomic::{
-            AtomicBool, AtomicI16, AtomicI32, AtomicI64, AtomicI8, AtomicU16, AtomicU32, AtomicU64,
-            AtomicU8, AtomicUsize,
-        },
-        Arc, Mutex,
-    },
-    time::Duration,
 };
 
-use auto_hash_map::{AutoMap, AutoSet};
-use indexmap::{IndexMap, IndexSet};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
     vc::Vc,
-    RcStr, ResolveTypeError, Upcast, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
+    Upcast, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
 };
 
+/// A "subtype" (via [`Deref`]) of [`Vc`] that represents a specific [`Vc::cell`]/`.cell()` or
+/// [`ResolvedVc::cell`]/`.resolved_cell()` constructor call within [a task][macro@crate::function].
+///
+/// Unlike [`Vc`], `ResolvedVc`:
+///
+/// - Does not potentially refer to task-local information, meaning that it implements
+///   [`NonLocalValue`], and can be used in any [`#[turbo_tasks::value]`][macro@crate::value].
+///
+/// - Has only one potential internal representation, meaning that it has a saner equality
+///   definition.
+///
+/// - Points to a concrete value with a type, and is therefore [cheap to
+///   downcast][ResolvedVc::try_downcast].
+///
+///
+/// ## Construction
+///
+/// There are a few ways to construct a `ResolvedVc`, in order of preference:
+///
+/// 1. Given a [value][VcValueType], construct a `ResolvedVc` using [`ResolvedVc::cell`] (for
+///    "transparent" values) or by calling the generated `.resolved_cell()` constructor on the value
+///    type.
+///
+/// 2. Given an argument to a function using the [`#[turbo_tasks::function]`][macro@crate::function]
+///    macro, change the argument's type to a `ResolvedVc`. The [rewritten external signature] will
+///    still use [`Vc`], but when the function is called, the [`Vc`] will be resolved.
+///
+/// 3. Given a [`Vc`], use [`.to_resolved().await?`][Vc::to_resolved].
+///
+///
+/// ## Equality & Hashing
+///
+/// Equality between two `ResolvedVc`s means that both have an identical in-memory representation
+/// and point to the same cell. The implementation of [`Hash`] has similar behavior.
+///
+/// If `.await`ed at the same time, both would likely resolve to the same [`ReadRef`], though it is
+/// possible that they may not if the cell is invalidated between `.await`s.
+///
+/// Because equality is a synchronous operation that cannot read the cell contents, even if the
+/// `ResolvedVc`s are not equal, it is possible that if `.await`ed, both `ResolvedVc`s could point
+/// to the same or equal values.
+///
+///
+/// [`NonLocalValue`]: crate::NonLocalValue
+/// [rewritten external signature]: https://turbopack-rust-docs.vercel.sh/turbo-engine/tasks.html#external-signature-rewriting
+/// [`ReadRef`]: crate::ReadRef
 #[derive(Serialize, Deserialize)]
 #[serde(transparent, bound = "")]
 pub struct ResolvedVc<T>
 where
     T: ?Sized,
 {
+    // no-resolved-vc(kdy1): This is a resolved Vc, so we don't need to resolve it again
     pub(crate) node: Vc<T>,
+}
+
+impl<T> ResolvedVc<T>
+where
+    T: ?Sized,
+{
+    /// This function exists to intercept calls to Vc::to_resolved through dereferencing
+    /// a ResolvedVc. Converting to Vc and re-resolving it puts unnecessary stress on
+    /// the turbo tasks engine.
+    #[deprecated(note = "No point in resolving a vc that is already resolved")]
+    pub async fn to_resolved(self) -> Result<Self> {
+        Ok(self)
+    }
+    #[deprecated(note = "No point in resolving a vc that is already resolved")]
+    pub async fn resolve(self) -> Result<Vc<T>> {
+        Ok(self.node)
+    }
 }
 
 impl<T> Copy for ResolvedVc<T> where T: ?Sized {}
@@ -77,6 +130,17 @@ where
 {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.node.hash(state);
+    }
+}
+
+impl<T, Inner, Repr> Default for ResolvedVc<T>
+where
+    T: VcValueType<Read = VcTransparentRead<T, Inner, Repr>>,
+    Inner: Any + Send + Sync + Default,
+    Repr: VcValueType,
+{
+    fn default() -> Self {
+        Self::cell(Default::default())
     }
 }
 
@@ -142,28 +206,47 @@ where
             node: Vc::upcast(this.node),
         }
     }
+
+    /// Cheaply converts a Vec of resolved Vcs to a Vec of Vcs.
+    pub fn deref_vec(vec: Vec<ResolvedVc<T>>) -> Vec<Vc<T>> {
+        debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<Vc<T>>());
+        // Safety: The memory layout of `ResolvedVc<T>` and `Vc<T>` is the same.
+        unsafe { transmute::<Vec<ResolvedVc<T>>, Vec<Vc<T>>>(vec) }
+    }
+
+    /// Cheaply converts a slice of resolved Vcs to a slice of Vcs.
+    pub fn deref_slice(slice: &[ResolvedVc<T>]) -> &[Vc<T>] {
+        debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<Vc<T>>());
+        // Safety: The memory layout of `ResolvedVc<T>` and `Vc<T>` is the same.
+        unsafe { transmute::<&[ResolvedVc<T>], &[Vc<T>]>(slice) }
+    }
 }
 
 impl<T> ResolvedVc<T>
 where
     T: VcValueTrait + ?Sized,
 {
-    /// Attempts to sidecast the given `Vc<Box<dyn T>>` to a `Vc<Box<dyn K>>`.
-    ///
     /// Returns `None` if the underlying value type does not implement `K`.
     ///
     /// **Note:** if the trait `T` is required to implement `K`, use [`ResolvedVc::upcast`] instead.
     /// This provides stronger guarantees, removing the need for a [`Result`] return type.
     ///
     /// See also: [`Vc::try_resolve_sidecast`].
-    pub async fn try_sidecast<K>(this: Self) -> Result<Option<ResolvedVc<K>>, ResolveTypeError>
+    pub fn try_sidecast<K>(this: Self) -> Option<ResolvedVc<K>>
     where
         K: VcValueTrait + ?Sized,
     {
-        // must be async, as we must read the cell to determine the type
-        Ok(Vc::try_resolve_sidecast(this.node)
-            .await?
-            .map(|node| ResolvedVc { node }))
+        // `RawVc::TaskCell` already contains all the type information needed to check this
+        // sidecast, so we don't need to read the underlying cell!
+        let raw_vc = this.node.node;
+        raw_vc
+            .resolved_has_trait(<K as VcValueTrait>::get_trait_type_id())
+            .then_some(ResolvedVc {
+                node: Vc {
+                    node: raw_vc,
+                    _t: PhantomData,
+                },
+            })
     }
 
     /// Attempts to downcast the given `ResolvedVc<Box<dyn T>>` to a `ResolvedVc<K>`, where `K`
@@ -172,13 +255,12 @@ where
     /// Returns `None` if the underlying value type is not a `K`.
     ///
     /// See also: [`Vc::try_resolve_downcast`].
-    pub async fn try_downcast<K>(this: Self) -> Result<Option<ResolvedVc<K>>, ResolveTypeError>
+    pub fn try_downcast<K>(this: Self) -> Option<ResolvedVc<K>>
     where
         K: Upcast<T> + VcValueTrait + ?Sized,
     {
-        Ok(Vc::try_resolve_downcast(this.node)
-            .await?
-            .map(|node| ResolvedVc { node }))
+        // this is just a more type-safe version of a sidecast
+        Self::try_sidecast(this)
     }
 
     /// Attempts to downcast the given `Vc<Box<dyn T>>` to a `Vc<K>`, where `K` is a value type.
@@ -186,13 +268,19 @@ where
     /// Returns `None` if the underlying value type is not a `K`.
     ///
     /// See also: [`Vc::try_resolve_downcast_type`].
-    pub async fn try_downcast_type<K>(this: Self) -> Result<Option<ResolvedVc<K>>, ResolveTypeError>
+    pub fn try_downcast_type<K>(this: Self) -> Option<ResolvedVc<K>>
     where
         K: Upcast<T> + VcValueType,
     {
-        Ok(Vc::try_resolve_downcast_type(this.node)
-            .await?
-            .map(|node| ResolvedVc { node }))
+        let raw_vc = this.node.node;
+        raw_vc
+            .resolved_is_type(<K as VcValueType>::get_value_type_id())
+            .then_some(ResolvedVc {
+                node: Vc {
+                    node: raw_vc,
+                    _t: PhantomData,
+                },
+            })
     }
 }
 
@@ -230,86 +318,3 @@ where
         self.node.value_debug_format(depth)
     }
 }
-
-/// Indicates that a type does not contain any instances of [`Vc`]. It may
-/// contain [`ResolvedVc`].
-///
-/// # Safety
-///
-/// This trait is marked as unsafe. You should not derive it yourself, but
-/// instead you should rely on [`#[turbo_tasks::value(resolved)]`][macro@
-/// crate::value] to do it for you.
-pub unsafe trait ResolvedValue {}
-
-unsafe impl<T: ?Sized + ResolvedValue> ResolvedValue for ResolvedVc<T> {}
-
-macro_rules! impl_resolved {
-    ($ty:ty) => {
-        unsafe impl ResolvedValue for $ty {}
-    };
-
-    ($ty:ty, $($tys:ty),+) => {
-        impl_resolved!($ty);
-        impl_resolved!($($tys),+);
-    }
-}
-
-impl_resolved!(i8, u8, i16, u16, i32, u32, i64, u64, f32, f64, char, bool, usize);
-impl_resolved!(
-    AtomicI8,
-    AtomicU8,
-    AtomicI16,
-    AtomicU16,
-    AtomicI32,
-    AtomicU32,
-    AtomicI64,
-    AtomicU64,
-    AtomicBool,
-    AtomicUsize
-);
-impl_resolved!((), str, String, Duration, anyhow::Error, RcStr);
-impl_resolved!(Path, PathBuf);
-impl_resolved!(serde_json::Value);
-
-// based on stdlib's internal `tuple_impls!` macro
-macro_rules! impl_resolved_tuple {
-    ($T:ident) => {
-        impl_resolved_tuple!(@impl $T);
-    };
-    ($T:ident $( $U:ident )+) => {
-        impl_resolved_tuple!($( $U )+);
-        impl_resolved_tuple!(@impl $T $( $U )+);
-    };
-    (@impl $( $T:ident )+) => {
-        unsafe impl<$($T: ResolvedValue),+> ResolvedValue for ($($T,)+) {}
-    };
-}
-
-impl_resolved_tuple!(E D C B A Z Y X W V U T);
-
-unsafe impl<T: ResolvedValue> ResolvedValue for Option<T> {}
-unsafe impl<T: ResolvedValue> ResolvedValue for Vec<T> {}
-unsafe impl<T: ResolvedValue, const N: usize> ResolvedValue for [T; N] {}
-unsafe impl<T: ResolvedValue> ResolvedValue for [T] {}
-unsafe impl<T: ResolvedValue, S> ResolvedValue for HashSet<T, S> {}
-unsafe impl<T: ResolvedValue, S, const I: usize> ResolvedValue for AutoSet<T, S, I> {}
-unsafe impl<T: ResolvedValue> ResolvedValue for BTreeSet<T> {}
-unsafe impl<T: ResolvedValue, S> ResolvedValue for IndexSet<T, S> {}
-unsafe impl<K: ResolvedValue, V: ResolvedValue, S> ResolvedValue for HashMap<K, V, S> {}
-unsafe impl<K: ResolvedValue, V: ResolvedValue, S, const I: usize> ResolvedValue
-    for AutoMap<K, V, S, I>
-{
-}
-unsafe impl<K: ResolvedValue, V: ResolvedValue> ResolvedValue for BTreeMap<K, V> {}
-unsafe impl<K: ResolvedValue, V: ResolvedValue, S> ResolvedValue for IndexMap<K, V, S> {}
-unsafe impl<T: ResolvedValue + ?Sized> ResolvedValue for Box<T> {}
-unsafe impl<T: ResolvedValue + ?Sized> ResolvedValue for Arc<T> {}
-unsafe impl<T: ResolvedValue, E: ResolvedValue> ResolvedValue for Result<T, E> {}
-unsafe impl<T: ResolvedValue + ?Sized> ResolvedValue for Mutex<T> {}
-unsafe impl<T: ResolvedValue + ?Sized> ResolvedValue for RefCell<T> {}
-unsafe impl<T: ?Sized> ResolvedValue for PhantomData<T> {}
-
-unsafe impl<T: ResolvedValue + ?Sized> ResolvedValue for &T {}
-unsafe impl<T: ResolvedValue + ?Sized> ResolvedValue for &mut T {}
-
-pub use turbo_tasks_macros::ResolvedValue;

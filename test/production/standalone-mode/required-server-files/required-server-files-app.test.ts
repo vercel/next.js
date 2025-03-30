@@ -5,6 +5,7 @@ import cheerio from 'cheerio'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
+  createNowRouteMatches,
   fetchViaHTTP,
   findPort,
   initNextServerScript,
@@ -26,6 +27,7 @@ describe('required server files app router', () => {
   }) => {
     // test build against environment with next support
     process.env.NOW_BUILDER = nextEnv ? '1' : ''
+    process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
 
     next = await createNext({
       files: {
@@ -97,6 +99,7 @@ describe('required server files app router', () => {
     await setupNext({ nextEnv: true, minimalMode: true })
   })
   afterAll(async () => {
+    delete process.env.NEXT_PRIVATE_TEST_HEADERS
     await next.destroy()
     if (server) await killApp(server)
   })
@@ -105,25 +108,73 @@ describe('required server files app router', () => {
     const res = await fetchViaHTTP(appPort, '/api/test/123', undefined, {
       headers: {
         'x-matched-path': '/api/test/[slug]',
-        'x-now-route-matches': '1=123&nxtPslug=123',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: '123',
+        }).toString(),
       },
     })
     expect(res.status).toBe(200)
-    expect(res.headers.get('cache-control')).toBe(
-      's-maxage=31536000, stale-while-revalidate'
+    expect(res.headers.get('cache-control')).toBe('s-maxage=31536000')
+  })
+
+  it('should handle optional catchall', async () => {
+    let res = await fetchViaHTTP(
+      appPort,
+      '/optional-catchall/[lang]/[flags]/[[...slug]]',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/optional-catchall/[lang]/[flags]/[[...slug]]',
+          'x-now-route-matches': createNowRouteMatches({
+            lang: 'en',
+            flags: 'flags',
+            slug: 'slug',
+          }).toString(),
+        },
+      }
     )
+    expect(res.status).toBe(200)
+
+    let html = await res.text()
+    let $ = cheerio.load(html)
+    expect($('body [data-lang]').text()).toBe('en')
+    expect($('body [data-slug]').text()).toBe('slug')
+
+    res = await fetchViaHTTP(
+      appPort,
+      '/optional-catchall/[lang]/[flags]/[[...slug]]',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/optional-catchall/[lang]/[flags]/[[...slug]]',
+          'x-now-route-matches': createNowRouteMatches({
+            lang: 'en',
+            flags: 'flags',
+          }).toString(),
+        },
+      }
+    )
+    expect(res.status).toBe(200)
+
+    html = await res.text()
+    $ = cheerio.load(html)
+    expect($('body [data-lang]').text()).toBe('en')
+    expect($('body [data-flags]').text()).toBe('flags')
+    expect($('body [data-slug]').text()).toBe('')
   })
 
   it('should send the right cache headers for an app page', async () => {
     const res = await fetchViaHTTP(appPort, '/test/123', undefined, {
       headers: {
         'x-matched-path': '/test/[slug]',
-        'x-now-route-matches': '1=123&nxtPslug=123',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: '123',
+        }).toString(),
       },
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=3600, stale-while-revalidate'
+      's-maxage=3600, stale-while-revalidate=31532400'
     )
   })
 
@@ -162,7 +213,9 @@ describe('required server files app router', () => {
       headers: {
         'user-agent':
           'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-        'x-now-route-matches': '1=second&nxtPslug=new',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'new',
+        }).toString(),
         'x-matched-path': '/isr/[slug]',
       },
     })
@@ -177,7 +230,9 @@ describe('required server files app router', () => {
       headers: {
         'user-agent':
           'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-        'x-now-route-matches': '1=second&nxtPslug=new',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'new',
+        }).toString(),
         'x-matched-path': '/isr/[slug]',
       },
     })
@@ -246,5 +301,23 @@ describe('required server files app router', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
     }
+  })
+
+  it('should not override params with query params', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/search/[key]',
+      { key: 'searchParams', nxtPkey: 'params' },
+      {
+        headers: {
+          'x-matched-path': '/search/[key]',
+        },
+      }
+    )
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('dd[data-params]').text()).toBe('params')
+    expect($('dd[data-searchParams]').text()).toBe('searchParams')
   })
 })

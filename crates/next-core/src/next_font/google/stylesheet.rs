@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 
 use super::FontCssProperties;
 use crate::next_font::{
@@ -11,7 +12,7 @@ use crate::next_font::{
 pub(super) async fn build_stylesheet(
     base_stylesheet: Vc<Option<RcStr>>,
     font_css_properties: Vc<FontCssProperties>,
-    font_fallback: Vc<FontFallback>,
+    font_fallback: ResolvedVc<FontFallback>,
 ) -> Result<Vc<RcStr>> {
     let base_stylesheet = &*base_stylesheet.await?;
     let mut stylesheet = base_stylesheet

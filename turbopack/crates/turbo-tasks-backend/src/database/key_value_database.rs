@@ -1,6 +1,8 @@
-use std::borrow::Cow;
-
 use anyhow::Result;
+
+use crate::database::write_batch::{
+    ConcurrentWriteBatch, SerialWriteBatch, UnimplementedWriteBatch, WriteBatch,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub enum KeySpace {
@@ -9,20 +11,6 @@ pub enum KeySpace {
     TaskData,
     ForwardTaskCache,
     ReverseTaskCache,
-}
-
-pub trait WriteBatch<'a> {
-    type ValueBuffer<'l>: std::borrow::Borrow<[u8]>
-    where
-        Self: 'l,
-        'a: 'l;
-
-    fn get<'l>(&'l self, key_space: KeySpace, key: &[u8]) -> Result<Option<Self::ValueBuffer<'l>>>
-    where
-        'a: 'l;
-    fn put(&mut self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()>;
-    fn delete(&mut self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()>;
-    fn commit(self) -> Result<()>;
 }
 
 pub trait KeyValueDatabase {
@@ -36,6 +24,10 @@ pub trait KeyValueDatabase {
 
     fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>>;
 
+    fn is_empty(&self) -> bool {
+        false
+    }
+
     type ValueBuffer<'l>: std::borrow::Borrow<[u8]>
     where
         Self: 'l;
@@ -47,8 +39,20 @@ pub trait KeyValueDatabase {
         key: &[u8],
     ) -> Result<Option<Self::ValueBuffer<'l>>>;
 
-    type WriteBatch<'l>: WriteBatch<'l>
+    type SerialWriteBatch<'l>: SerialWriteBatch<'l>
+        = UnimplementedWriteBatch
     where
         Self: 'l;
-    fn write_batch(&self) -> Result<Self::WriteBatch<'_>>;
+    type ConcurrentWriteBatch<'l>: ConcurrentWriteBatch<'l>
+        = UnimplementedWriteBatch
+    where
+        Self: 'l;
+
+    fn write_batch(
+        &self,
+    ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>>;
+
+    fn shutdown(&self) -> Result<()> {
+        Ok(())
+    }
 }

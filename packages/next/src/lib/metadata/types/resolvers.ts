@@ -16,5 +16,5 @@ export type FieldResolverExtraArgs<
 export type MetadataContext = {
   pathname: string
   trailingSlash: boolean
-  isStandaloneMode: boolean
+  isStaticMetadataRouteFile: boolean
 }

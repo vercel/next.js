@@ -326,31 +326,19 @@ descriptions = new ???*0*(???*1*)
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-details = (
-  | {"line": 1, "column": 1}
-  | ???*0*
-  | {"line": (1 | ???*2* | ???*3*), "column": (1 | ???*6* | ???*7*)}
-)
+details = ({"line": 1, "column": 1} | ???*0* | {"line": ???*2*, "column": ???*4*})
 - *0* [][???*1*]
   ⚠️  unknown array prototype methods or values
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
-- *2* unknown mutation
-  ⚠️  This value might have side effects
-- *3* ???*4*["line"]
+- *2* ???*3*["line"]
   ⚠️  unknown object
-- *4* [][???*5*]
-  ⚠️  unknown array prototype methods or values
-- *5* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *6* unknown mutation
-  ⚠️  This value might have side effects
-- *7* ???*8*["column"]
+- *3* details
+  ⚠️  circular variable reference
+- *4* ???*5*["column"]
   ⚠️  unknown object
-- *8* [][???*9*]
-  ⚠️  unknown array prototype methods or values
-- *9* arguments[0]
-  ⚠️  function calls are not analysed yet
+- *5* details
+  ⚠️  circular variable reference
 
 digits = ???*0*
 - *0* arguments[0]
@@ -384,56 +372,34 @@ endPosDetails = (undefined | {"line": 1, "column": 1} | ???*0* | {"line": ???*2*
 
 error = (...) => undefined
 
-escapedParts = ("" | (("" | ???*0*) + ???*12*))
-- *0* (???*1* + ???*2*)
-  ⚠️  nested operation
-- *1* escapedParts
+escapedParts = ("" | (???*0* + ???*1*))
+- *0* escapedParts
   ⚠️  circular variable reference
-- *2* (???*3* ? ???*4* : ???*9*)
+- *1* (???*2* ? ???*3* : ???*10*)
   ⚠️  nested operation
-- *3* unsupported expression
+- *2* unsupported expression
   ⚠️  This value might have side effects
-- *4* `${???*5*}-${???*7*}`
+- *3* `${???*4*}-${???*7*}`
   ⚠️  nested operation
-- *5* ???*6*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
+- *4* ???*5*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
   ⚠️  unknown callee object
-- *6* ???["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
+- *5* ???*6*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
+  ⚠️  unknown callee object
+- *6* ???["replace"](/\r/g, "\\r")
   ⚠️  unknown callee object
 - *7* ???*8*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
   ⚠️  unknown callee object
-- *8* ???["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
+- *8* ???*9*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
   ⚠️  unknown callee object
-- *9* ???*10*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
+- *9* ???["replace"](/\r/g, "\\r")
   ⚠️  unknown callee object
-- *10* ???*11*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
+- *10* ???*11*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
   ⚠️  unknown callee object
-- *11* ???["replace"](/\r/g, "\\r")
+- *11* ???*12*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
   ⚠️  unknown callee object
-- *12* (???*13* ? ???*14* : ???*21*)
-  ⚠️  nested operation
-- *13* unsupported expression
-  ⚠️  This value might have side effects
-- *14* `${???*15*}-${???*18*}`
-  ⚠️  nested operation
-- *15* ???*16*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
+- *12* ???*13*["replace"](/\r/g, "\\r")
   ⚠️  unknown callee object
-- *16* ???*17*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
-  ⚠️  unknown callee object
-- *17* ???["replace"](/\r/g, "\\r")
-  ⚠️  unknown callee object
-- *18* ???*19*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
-  ⚠️  unknown callee object
-- *19* ???*20*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
-  ⚠️  unknown callee object
-- *20* ???["replace"](/\r/g, "\\r")
-  ⚠️  unknown callee object
-- *21* ???*22*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
-  ⚠️  unknown callee object
-- *22* ???*23*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
-  ⚠️  unknown callee object
-- *23* ???*24*["replace"](/\r/g, "\\r")
-  ⚠️  unknown callee object
-- *24* ???["replace"](/\n/g, "\\n")
+- *13* ???["replace"](/\n/g, "\\n")
   ⚠️  unknown callee object
 
 expectation#11 = ???*0*
@@ -728,36 +694,16 @@ operator#87 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-options = (???*0* | (???*1* ? (???*9* | ???*10*) : {}))
+options = (???*0* | (???*1* ? ???*4* : {}))
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
-- *1* ((???*2* | ???*3*) !== ???*8*)
+- *1* (???*2* !== ???*3*)
   ⚠️  nested operation
-- *2* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *3* (???*4* ? ???*7* : {})
-  ⚠️  nested operation
-- *4* (???*5* !== ???*6*)
-  ⚠️  nested operation
-- *5* options
+- *2* options
   ⚠️  circular variable reference
-- *6* unsupported expression
+- *3* unsupported expression
   ⚠️  This value might have side effects
-- *7* options
-  ⚠️  circular variable reference
-- *8* unsupported expression
-  ⚠️  This value might have side effects
-- *9* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *10* (???*11* ? ???*14* : {})
-  ⚠️  nested operation
-- *11* (???*12* !== ???*13*)
-  ⚠️  nested operation
-- *12* options
-  ⚠️  circular variable reference
-- *13* unsupported expression
-  ⚠️  This value might have side effects
-- *14* options
+- *4* options
   ⚠️  circular variable reference
 
 order = ???*0*
@@ -2177,21 +2123,12 @@ s1#609 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#617 = (
-  | ???*0*
-  | "--"
-  | {}
-  | [(???*1* | "--" | {} | [???*2*, (???*3* | [])]), (???*4* | [])]
-)
+s1#617 = (???*0* | "--" | {} | [???*1*, (???*2* | [])])
 - *0* s1
   ⚠️  pattern without value
 - *1* s1
-  ⚠️  pattern without value
-- *2* s1
   ⚠️  circular variable reference
-- *3* s2
-  ⚠️  pattern without value
-- *4* s2
+- *2* s2
   ⚠️  pattern without value
 
 s1#644 = ???*0*
@@ -2306,12 +2243,7 @@ s1#886 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#897 = (
-  | ???*0*
-  | ???*1*
-  | {}
-  | ((???*3* | ???*4* | {} | ???*6*) + (???*12* | ???*14*))
-)
+s1#897 = (???*0* | ???*1* | {} | (???*3* + (???*4* | ???*6*)))
 - *0* s1
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2319,30 +2251,14 @@ s1#897 = (
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 - *3* s1
-  ⚠️  pattern without value
-- *4* ???*5*["charAt"](peg$currPos)
-  ⚠️  unknown callee object
-- *5* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *6* (???*7* + (???*8* | ???*10*))
-  ⚠️  nested operation
-- *7* s1
   ⚠️  circular variable reference
-- *8* ???*9*["join"]("")
+- *4* ???*5*["join"]("")
   ⚠️  unknown callee object
-- *9* s2
+- *5* s2
   ⚠️  pattern without value
-- *10* ???*11*("")
+- *6* ???*7*("")
   ⚠️  unknown callee
-- *11* []["join"]
-  ⚠️  non-num constant property on array
-- *12* ???*13*["join"]("")
-  ⚠️  unknown callee object
-- *13* s2
-  ⚠️  pattern without value
-- *14* ???*15*("")
-  ⚠️  unknown callee
-- *15* []["join"]
+- *7* []["join"]
   ⚠️  non-num constant property on array
 
 s1#909 = (???*0* | "@" | {} | {"type": "parameter_name", "name": ???*1*})
@@ -3037,17 +2953,7 @@ s4#1031 = (
   | ???*0*
   | ???*1*
   | {}
-  | [
-        (
-          | ???*3*
-          | ???*4*
-          | {}
-          | [???*6*, (???*7* | ???*8* | {}), (???*10* | ???*11* | {}), (???*13* | ???*14* | {})]
-        ),
-        (???*16* | ???*17* | {}),
-        (???*19* | ???*20* | {}),
-        (???*22* | ???*23* | {})
-    ]
+  | [???*3*, (???*4* | ???*5* | {}), (???*7* | ???*8* | {}), (???*10* | ???*11* | {})]
 )
 - *0* s4
   ⚠️  pattern without value
@@ -3056,48 +2962,24 @@ s4#1031 = (
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 - *3* s4
-  ⚠️  pattern without value
-- *4* ???*5*["charAt"](peg$currPos)
-  ⚠️  unknown callee object
-- *5* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *6* s4
   ⚠️  circular variable reference
-- *7* s5
+- *4* s5
+  ⚠️  pattern without value
+- *5* ???*6*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *6* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *7* s6
   ⚠️  pattern without value
 - *8* ???*9*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *9* arguments[0]
   ⚠️  function calls are not analysed yet
-- *10* s6
+- *10* s7
   ⚠️  pattern without value
 - *11* ???*12*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *12* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *13* s7
-  ⚠️  pattern without value
-- *14* ???*15*["charAt"](peg$currPos)
-  ⚠️  unknown callee object
-- *15* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *16* s5
-  ⚠️  pattern without value
-- *17* ???*18*["charAt"](peg$currPos)
-  ⚠️  unknown callee object
-- *18* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *19* s6
-  ⚠️  pattern without value
-- *20* ???*21*["charAt"](peg$currPos)
-  ⚠️  unknown callee object
-- *21* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *22* s7
-  ⚠️  pattern without value
-- *23* ???*24*["charAt"](peg$currPos)
-  ⚠️  unknown callee object
-- *24* arguments[0]
   ⚠️  function calls are not analysed yet
 
 s4#1053 = ???*0*
@@ -3360,21 +3242,12 @@ s5#419 = (???*0* | "]" | {})
 - *0* s5
   ⚠️  pattern without value
 
-s5#454 = (
-  | ???*0*
-  | "."
-  | {}
-  | [(???*1* | "." | {} | [???*2*, (???*3* | [] | {})]), (???*4* | [] | {})]
-)
+s5#454 = (???*0* | "." | {} | [???*1*, (???*2* | [] | {})])
 - *0* s5
   ⚠️  pattern without value
 - *1* s5
-  ⚠️  pattern without value
-- *2* s5
   ⚠️  circular variable reference
-- *3* s6
-  ⚠️  pattern without value
-- *4* s6
+- *2* s6
   ⚠️  pattern without value
 
 s5#525 = ???*0*

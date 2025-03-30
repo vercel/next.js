@@ -176,7 +176,7 @@ export default class EvalSourceMapDevToolPlugin {
                 {
                   requestShortener: runtimeTemplate.requestShortener,
                   chunkGraph,
-                  hashFunction: compilation.outputOptions.hashFunction,
+                  hashFunction: compilation.outputOptions.hashFunction!,
                 }
               )
             )

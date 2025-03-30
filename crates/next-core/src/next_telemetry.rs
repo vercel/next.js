@@ -1,4 +1,5 @@
-use turbo_tasks::{fxindexmap, RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{fxindexmap, Vc};
 use turbopack_core::diagnostics::{Diagnostic, DiagnosticPayload};
 
 /// A structure that keeps track of whether a particular Next.js feature is

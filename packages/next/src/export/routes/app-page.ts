@@ -1,5 +1,5 @@
 import type { OutgoingHttpHeaders } from 'node:http'
-import type { ExportRouteResult, FileWriter } from '../types'
+import type { ExportRouteResult } from '../types'
 import type { RenderOpts } from '../../server/app-render/types'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
 import type { RouteMetadata } from './types'
@@ -27,15 +27,8 @@ import type { WorkStore } from '../../server/app-render/work-async-storage.exter
 import type { FallbackRouteParams } from '../../server/request/fallback-params'
 import { AfterRunner } from '../../server/after/run-with-after'
 import type { RequestLifecycleOpts } from '../../server/base-server'
-
-export const enum ExportedAppPageFiles {
-  HTML = 'HTML',
-  FLIGHT = 'FLIGHT',
-  PREFETCH_FLIGHT = 'PREFETCH_FLIGHT',
-  PREFETCH_FLIGHT_SEGMENT = 'PREFETCH_FLIGHT_SEGMENT',
-  META = 'META',
-  POSTPONED = 'POSTPONED',
-}
+import type { AppSharedContext } from '../../server/app-render/app-render'
+import type { MultiFileWriter } from '../../lib/multi-file-writer'
 
 export async function prospectiveRenderAppPage(
   req: MockedRequest,
@@ -44,7 +37,8 @@ export async function prospectiveRenderAppPage(
   pathname: string,
   query: NextParsedUrlQuery,
   fallbackRouteParams: FallbackRouteParams | null,
-  partialRenderOpts: Omit<RenderOpts, keyof RequestLifecycleOpts>
+  partialRenderOpts: Omit<RenderOpts, keyof RequestLifecycleOpts>,
+  sharedContext: AppSharedContext
 ): Promise<undefined> {
   const afterRunner = new AfterRunner()
 
@@ -68,7 +62,8 @@ export async function prospectiveRenderAppPage(
         onAfterTaskError: afterRunner.context.onTaskError,
       },
       undefined,
-      false
+      false,
+      sharedContext
     )
 
     // TODO(after): if we abort a prerender because of an error in an after-callback
@@ -102,7 +97,8 @@ export async function exportAppPage(
   htmlFilepath: string,
   debugOutput: boolean,
   isDynamicError: boolean,
-  fileWriter: FileWriter
+  fileWriter: MultiFileWriter,
+  sharedContext: AppSharedContext
 ): Promise<ExportRouteResult> {
   const afterRunner = new AfterRunner()
 
@@ -130,7 +126,8 @@ export async function exportAppPage(
       fallbackRouteParams,
       renderOpts,
       undefined,
-      false
+      false,
+      sharedContext
     )
 
     const html = result.toUnchunkedString()
@@ -142,11 +139,11 @@ export async function exportAppPage(
     const { metadata } = result
     const {
       flightData,
-      revalidate = false,
+      cacheControl = { revalidate: false, expire: undefined },
       postponed,
       fetchTags,
       fetchMetrics,
-      segmentFlightData,
+      segmentData,
     } = metadata
 
     // Ensure we don't postpone without having PPR enabled.
@@ -154,7 +151,7 @@ export async function exportAppPage(
       throw new Error('Invariant: page postponed without PPR being enabled')
     }
 
-    if (revalidate === 0) {
+    if (cacheControl.revalidate === 0) {
       if (isDynamicError) {
         throw new Error(
           `Page with dynamic = "error" encountered dynamic data method on ${path}.`
@@ -162,7 +159,7 @@ export async function exportAppPage(
       }
       const { staticBailoutInfo = {} } = metadata
 
-      if (revalidate === 0 && debugOutput && staticBailoutInfo?.description) {
+      if (debugOutput && staticBailoutInfo?.description) {
         logDynamicUsageWarning({
           path,
           description: staticBailoutInfo.description,
@@ -170,7 +167,7 @@ export async function exportAppPage(
         })
       }
 
-      return { revalidate: 0, fetchMetrics }
+      return { cacheControl, fetchMetrics }
     }
 
     // If page data isn't available, it means that the page couldn't be rendered
@@ -183,7 +180,6 @@ export async function exportAppPage(
       throw new Error(`Invariant: failed to get page data for ${path}`)
     }
 
-    let segmentPaths
     if (flightData) {
       // If PPR is enabled, we want to emit a prefetch rsc file for the page
       // instead of the standard rsc. This is because the standard rsc will
@@ -194,45 +190,35 @@ export async function exportAppPage(
         // payload.
         // TODO: This will eventually be replaced by the per-segment prefetch
         // output below.
-        await fileWriter(
-          ExportedAppPageFiles.PREFETCH_FLIGHT,
+        fileWriter.append(
           htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
           flightData
         )
-
-        if (segmentFlightData) {
-          // Emit the per-segment prefetch data. We emit them as separate files
-          // so that the cache handler has the option to treat each as a
-          // separate entry.
-          segmentPaths = []
-          const segmentsDir = htmlFilepath.replace(
-            /\.html$/,
-            RSC_SEGMENTS_DIR_SUFFIX
-          )
-          const tasks = []
-          for (const [segmentPath, buffer] of segmentFlightData.entries()) {
-            segmentPaths.push(segmentPath)
-            const segmentDataFilePath =
-              segmentPath === '/'
-                ? segmentsDir + '/_index' + RSC_SEGMENT_SUFFIX
-                : segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX
-            tasks.push(
-              fileWriter(
-                ExportedAppPageFiles.PREFETCH_FLIGHT_SEGMENT,
-                segmentDataFilePath,
-                buffer
-              )
-            )
-          }
-          await Promise.all(tasks)
-        }
       } else {
         // Writing the RSC payload to a file if we don't have PPR enabled.
-        await fileWriter(
-          ExportedAppPageFiles.FLIGHT,
+        fileWriter.append(
           htmlFilepath.replace(/\.html$/, RSC_SUFFIX),
           flightData
         )
+      }
+    }
+
+    let segmentPaths
+    if (segmentData) {
+      // Emit the per-segment prefetch data. We emit them as separate files
+      // so that the cache handler has the option to treat each as a
+      // separate entry.
+      segmentPaths = []
+      const segmentsDir = htmlFilepath.replace(
+        /\.html$/,
+        RSC_SEGMENTS_DIR_SUFFIX
+      )
+
+      for (const [segmentPath, buffer] of segmentData) {
+        segmentPaths.push(segmentPath)
+        const segmentDataFilePath =
+          segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX
+        fileWriter.append(segmentDataFilePath, buffer)
       }
     }
 
@@ -246,12 +232,7 @@ export async function exportAppPage(
     }
 
     // Writing static HTML to a file.
-    await fileWriter(
-      ExportedAppPageFiles.HTML,
-      htmlFilepath,
-      html ?? '',
-      'utf8'
-    )
+    fileWriter.append(htmlFilepath, html ?? '')
 
     const isParallelRoute = /\/@\w+/.test(page)
     const isNonSuccessfulStatusCode = res.statusCode > 300
@@ -279,8 +260,7 @@ export async function exportAppPage(
       segmentPaths,
     }
 
-    await fileWriter(
-      ExportedAppPageFiles.META,
+    fileWriter.append(
       htmlFilepath.replace(/\.html$/, NEXT_META_SUFFIX),
       JSON.stringify(meta, null, 2)
     )
@@ -290,7 +270,7 @@ export async function exportAppPage(
       metadata: hasNextSupport ? meta : undefined,
       hasEmptyPrelude: Boolean(postponed) && html === '',
       hasPostponed: Boolean(postponed),
-      revalidate,
+      cacheControl,
       fetchMetrics,
     }
   } catch (err) {
@@ -318,7 +298,7 @@ export async function exportAppPage(
       })
     }
 
-    return { revalidate: 0, fetchMetrics }
+    return { cacheControl: { revalidate: 0, expire: undefined }, fetchMetrics }
   }
 }
 

@@ -12,6 +12,7 @@ use turbopack_core::{
     },
     virtual_source::VirtualSource,
 };
+use turbopack_ecmascript::runtime_functions::TURBOPACK_EXPORT_NAMESPACE;
 use turbopack_node::execution_context::ExecutionContext;
 
 /// Intercepts requests for the given request to `unsupported` error messages
@@ -21,16 +22,16 @@ use turbopack_node::execution_context::ExecutionContext;
 /// This can be used by import map alias, refer `next_import_map` for the setup.
 #[turbo_tasks::value(shared)]
 pub struct NextEdgeUnsupportedModuleReplacer {
-    project_path: Vc<FileSystemPath>,
-    execution_context: Vc<ExecutionContext>,
+    project_path: ResolvedVc<FileSystemPath>,
+    execution_context: ResolvedVc<ExecutionContext>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextEdgeUnsupportedModuleReplacer {
     #[turbo_tasks::function]
     pub fn new(
-        project_path: Vc<FileSystemPath>,
-        execution_context: Vc<ExecutionContext>,
+        project_path: ResolvedVc<FileSystemPath>,
+        execution_context: ResolvedVc<ExecutionContext>,
     ) -> Vc<Self> {
         Self::cell(NextEdgeUnsupportedModuleReplacer {
             project_path,
@@ -58,15 +59,14 @@ impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
             // `__import_unsupported` and necessary functions.
             let code = formatdoc! {
               r#"
-              __turbopack_export_namespace__(__import_unsupported(`{module}`));
+              {TURBOPACK_EXPORT_NAMESPACE}(__import_unsupported(`{module}`));
               "#
             };
             let content = AssetContent::file(File::from(code).into());
             let source = VirtualSource::new(root_path, content).to_resolved().await?;
-            return Ok(ImportMapResult::Result(
-                ResolveResult::source(ResolvedVc::upcast(source)).resolved_cell(),
-            )
-            .cell());
+            return Ok(
+                ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(source))).cell(),
+            );
         };
 
         Ok(ImportMapResult::NoEntry.cell())

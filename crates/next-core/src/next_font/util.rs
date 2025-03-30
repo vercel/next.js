@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPath};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::issue::{IssueExt, IssueSeverity, StyledString};
@@ -12,10 +13,10 @@ use super::issue::NextFontIssue;
 /// module.
 #[turbo_tasks::value(shared)]
 pub(crate) struct FontCssProperties {
-    pub font_family: Vc<RcStr>,
-    pub weight: Vc<Option<RcStr>>,
-    pub style: Vc<Option<RcStr>>,
-    pub variable: Vc<Option<RcStr>>,
+    pub font_family: ResolvedVc<RcStr>,
+    pub weight: ResolvedVc<Option<RcStr>>,
+    pub style: ResolvedVc<Option<RcStr>>,
+    pub variable: ResolvedVc<Option<RcStr>>,
 }
 
 /// A hash of the requested querymap derived from how the user invoked
@@ -97,20 +98,20 @@ pub(crate) async fn can_use_next_font(
     let can_use = !document_re.is_match(&request.path);
     if !can_use {
         NextFontIssue {
-            path,
+            path: path.to_resolved().await?,
             title: StyledString::Line(vec![
                 StyledString::Code("next/font:".into()),
                 StyledString::Text(" error:".into()),
             ])
-            .cell(),
+            .resolved_cell(),
             description: StyledString::Line(vec![
                 StyledString::Text("Cannot be used within ".into()),
                 StyledString::Code(request.path),
             ])
-            .cell(),
-            severity: IssueSeverity::Error.into(),
+            .resolved_cell(),
+            severity: IssueSeverity::Error.resolved_cell(),
         }
-        .cell()
+        .resolved_cell()
         .emit();
     }
     Ok(can_use)

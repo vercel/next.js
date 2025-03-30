@@ -34,6 +34,10 @@ describe('detectContentType', () => {
     const buffer = await getImage('./images/test.ico')
     expect(detectContentType(buffer)).toBe('image/x-icon')
   })
+  it('should return icns', async () => {
+    const buffer = await getImage('./images/test.icns')
+    expect(detectContentType(buffer)).toBe('image/x-icns')
+  })
   it('should return tiff', async () => {
     const buffer = await getImage('./images/test.tiff')
     expect(detectContentType(buffer)).toBe('image/tiff')

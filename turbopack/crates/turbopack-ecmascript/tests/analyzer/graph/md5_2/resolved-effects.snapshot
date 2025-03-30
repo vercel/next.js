@@ -3095,8 +3095,14 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 178 member call = module<crypt, {}>["endian"](???*0*)
+0 -> 178 member call = module<crypt, {}>["endian"]([???*0*, ???*1*, ???*2*, ???*3*])
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *1* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *2* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *3* max number of linking steps reached
   ⚠️  This value might have side effects
 
 0 -> 179 unreachable = ???*0*

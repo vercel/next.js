@@ -1,0 +1,107 @@
+[
+    (
+        "_",
+        Function(
+            2,
+            17,
+            Variable(
+                (
+                    "parent",
+                    #4,
+                ),
+            ),
+        ),
+    ),
+    (
+        "i",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            0.0,
+                        ),
+                    ),
+                ),
+                Unknown {
+                    original_value: None,
+                    reason: "updated with update expression",
+                    has_side_effects: true,
+                },
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "key",
+        Member(
+            3,
+            Variable(
+                (
+                    "keys",
+                    #4,
+                ),
+            ),
+            Variable(
+                (
+                    "i",
+                    #4,
+                ),
+            ),
+        ),
+    ),
+    (
+        "keys",
+        MemberCall(
+            4,
+            FreeVar(
+                "Object",
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "keys",
+                    ),
+                ),
+            ),
+            [
+                Variable(
+                    (
+                        "namespace",
+                        #4,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "namespace",
+        Argument(
+            17,
+            0,
+        ),
+    ),
+    (
+        "parent",
+        Argument(
+            17,
+            2,
+        ),
+    ),
+    (
+        "path",
+        Argument(
+            17,
+            1,
+        ),
+    ),
+    (
+        "root",
+        Object {
+            total_nodes: 1,
+            parts: [],
+            mutable: true,
+        },
+    ),
+]

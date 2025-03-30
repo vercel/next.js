@@ -8,7 +8,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Deploy your own
 
-Once you have access to [the environment variables you'll need](#step-3-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Once you have access to [the environment variables you'll need](#step-3-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/cms-enterspeed)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fcms-enterspeed&env=ENTERSPEED_PRODUCTION_ENVIRONMENT_API_KEY&envDescription=Required%20to%20connect%20the%20app%20with%20Enterspeed&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fcms-enterspeed%23step-5-set-up-environment-variables&demo-title=Next.js%20with%20Enterspeed&demo-description=A%20statically%20generated%20blog%20example%20using%20Next.js%20and%20Enterspeed.)
 
@@ -25,17 +25,23 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 - [Enterspeed](/examples/cms-enterspeed)
 - [Ghost](/examples/cms-ghost)
 - [GraphCMS](/examples/cms-graphcms)
-- [Kontent](/examples/cms-kontent-ai)
+- [Kontent.ai](/examples/cms-kontent-ai)
+- [MakeSwift](/examples/cms-makeswift)
+- [Payload](/examples/cms-payload)
+- [Plasmic](/examples/cms-plasmic)
 - [Prepr](/examples/cms-prepr)
 - [Prismic](/examples/cms-prismic)
 - [Sanity](/examples/cms-sanity)
+- [Sitecore XM Cloud](/examples/cms-sitecore-xmcloud)
 - [Sitefinity](/examples/cms-sitefinity)
 - [Storyblok](/examples/cms-storyblok)
 - [TakeShape](/examples/cms-takeshape)
+- [Tina](/examples/cms-tina)
+- [Umbraco](/examples/cms-umbraco)
 - [Umbraco heartcore](/examples/cms-umbraco-heartcore)
 - [Webiny](/examples/cms-webiny)
-- [Blog Starter](/examples/blog-starter)
 - [WordPress](/examples/cms-wordpress)
+- [Blog Starter](/examples/blog-starter)
 
 ## How to use
 
@@ -43,9 +49,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example cms-enterspeed enterspeed-app
-# or
+```
+
+```bash
 yarn create next-app --example cms-enterspeed enterspeed-app
-# or
+```
+
+```bash
 pnpm create next-app -- --example cms-enterspeed enterspeed-app
 ```
 

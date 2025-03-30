@@ -1,7 +1,8 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{Completion, RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Completion, ValueToString, Vc};
 use turbo_tasks_fs::{
-    DirectoryContent, FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent,
+    FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent,
 };
 
 #[turbo_tasks::value]
@@ -28,7 +29,7 @@ impl FileSystem for ServerFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn read_dir(&self, _fs_path: Vc<FileSystemPath>) -> Result<Vc<DirectoryContent>> {
+    fn raw_read_dir(&self, _fs_path: Vc<FileSystemPath>) -> Result<Vc<RawDirectoryContent>> {
         bail!("Reading is not possible from the marker filesystem for the server")
     }
 
@@ -38,20 +39,12 @@ impl FileSystem for ServerFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn write(
-        &self,
-        _fs_path: Vc<FileSystemPath>,
-        _content: Vc<FileContent>,
-    ) -> Result<Vc<Completion>> {
+    fn write(&self, _fs_path: Vc<FileSystemPath>, _content: Vc<FileContent>) -> Result<Vc<()>> {
         bail!("Writing is not possible to the marker filesystem for the server")
     }
 
     #[turbo_tasks::function]
-    fn write_link(
-        &self,
-        _fs_path: Vc<FileSystemPath>,
-        _target: Vc<LinkContent>,
-    ) -> Result<Vc<Completion>> {
+    fn write_link(&self, _fs_path: Vc<FileSystemPath>, _target: Vc<LinkContent>) -> Result<Vc<()>> {
         bail!("Writing is not possible to the marker filesystem for the server")
     }
 

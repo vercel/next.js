@@ -1,4 +1,3 @@
-import React from 'react'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
@@ -10,8 +9,9 @@ const getFlightData = (): NormalizedFlightData[] => {
       segmentPath: ['children', 'linking', 'children', 'about'],
       segment: 'about',
       tree: ['about', { children: ['', {}] }],
-      seedData: ['about', <h1>SubTreeData Injected!</h1>, {}, null],
-      head: '<title>Head Injected!</title>',
+      seedData: ['about', <h1>SubTreeData Injected!</h1>, {}, null, false],
+      head: null,
+      isHeadPartial: false,
       isRootRender: false,
     },
   ]
@@ -142,11 +142,7 @@ describe('fillCacheWithNewSubtreeData', () => {
                                     parallelRoutes: new Map(),
                                     prefetchHead: null,
                                     loading: null,
-                                    head: (
-                                      <>
-                                        <title>Head Injected!</title>
-                                      </>
-                                    ),
+                                    head: null,
                                   },
                                 ],
                               ]),

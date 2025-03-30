@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, Vc};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     reference_type::ReferenceType, source::Source, source_transform::SourceTransforms,
@@ -11,7 +11,7 @@ use turbopack_wasm::source::WebAssemblySourceType;
 
 use super::{match_mode::MatchMode, CustomModuleType, RuleCondition};
 
-#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
 pub struct ModuleRule {
     condition: RuleCondition,
     effects: Vec<ModuleRuleEffect>,
@@ -52,7 +52,7 @@ impl ModuleRule {
 
     pub async fn matches(
         &self,
-        source: Vc<Box<dyn Source>>,
+        source: ResolvedVc<Box<dyn Source>>,
         path: &FileSystemPath,
         reference_type: &ReferenceType,
     ) -> Result<bool> {
@@ -73,18 +73,19 @@ pub enum ModuleRuleEffect {
         append: ResolvedVc<EcmascriptInputTransforms>,
     },
     SourceTransforms(ResolvedVc<SourceTransforms>),
+    Ignore,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input", shared)]
 #[derive(Hash, Debug, Copy, Clone)]
 pub enum ModuleType {
     Ecmascript {
-        transforms: Vc<EcmascriptInputTransforms>,
+        transforms: ResolvedVc<EcmascriptInputTransforms>,
         #[turbo_tasks(trace_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
     Typescript {
-        transforms: Vc<EcmascriptInputTransforms>,
+        transforms: ResolvedVc<EcmascriptInputTransforms>,
         // parse JSX syntax.
         tsx: bool,
         // follow references to imported types.
@@ -93,18 +94,18 @@ pub enum ModuleType {
         options: ResolvedVc<EcmascriptOptions>,
     },
     TypescriptDeclaration {
-        transforms: Vc<EcmascriptInputTransforms>,
+        transforms: ResolvedVc<EcmascriptInputTransforms>,
         #[turbo_tasks(trace_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
     Json,
     Raw,
-    CssGlobal,
     CssModule,
     Css {
         ty: CssModuleAssetType,
     },
-    Static,
+    StaticUrlJs,
+    StaticUrlCss,
     WebAssembly {
         source_ty: WebAssemblySourceType,
     },

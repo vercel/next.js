@@ -1,0 +1,24 @@
+  x "use cache" functions cannot use `super`.
+  | 
+    ,-[input.js:15:1]
+ 14 |       // super is not allowed here
+ 15 |       return [super.bar()]
+    :               ^^^^^
+ 16 |     }
+    `----
+  x "use cache" functions cannot use `arguments`.
+  | 
+    ,-[input.js:19:1]
+ 18 |     // arguments is not allowed here
+ 19 |     console.log(arguments)
+    :                 ^^^^^^^^^
+ 20 |     // this is not allowed here
+    `----
+  x "use cache" functions cannot use `this`.
+  | 
+    ,-[input.js:21:1]
+ 20 |     // this is not allowed here
+ 21 |     return this.foo()
+    :            ^^^^
+ 22 |   }
+    `----

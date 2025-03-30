@@ -1,8 +1,9 @@
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
-    ident::AssetIdent,
     output::OutputAsset,
     source::Source,
 };
@@ -18,16 +19,16 @@ fn modifier() -> Vc<RcStr> {
 /// [ChunkingContext].
 #[turbo_tasks::value]
 pub(crate) struct WebAssemblyAsset {
-    source: Vc<WebAssemblySource>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    source: ResolvedVc<WebAssemblySource>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
 impl WebAssemblyAsset {
     #[turbo_tasks::function]
     pub(crate) fn new(
-        source: Vc<WebAssemblySource>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        source: ResolvedVc<WebAssemblySource>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Self> {
         Self::cell(WebAssemblyAsset {
             source,
@@ -39,12 +40,9 @@ impl WebAssemblyAsset {
 #[turbo_tasks::value_impl]
 impl OutputAsset for WebAssemblyAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
+    fn path(&self) -> Vc<FileSystemPath> {
         let ident = self.source.ident().with_modifier(modifier());
-
-        let asset_path = self.chunking_context.chunk_path(ident, ".wasm".into());
-
-        AssetIdent::from_path(asset_path)
+        self.chunking_context.chunk_path(ident, ".wasm".into())
     }
 }
 

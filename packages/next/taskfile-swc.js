@@ -19,7 +19,18 @@ module.exports = function (task) {
       { stripExtension, interopClientDefaultExport = false, esm = false } = {}
     ) {
       // Don't compile .d.ts
-      if (file.base.endsWith('.d.ts') || file.base.endsWith('.json')) return
+      if (
+        file.base.endsWith('.d.ts') ||
+        file.base.endsWith('.json') ||
+        file.base.endsWith('.woff2')
+      )
+        return
+
+      const plugins = [
+        ...(file.base.includes('.test.') || file.base.includes('.stories.')
+          ? []
+          : [[path.join(__dirname, 'next_error_code_swc_plugin.wasm'), {}]]),
+      ]
 
       const isClient = serverOrClient === 'client'
       /** @type {import('@swc/core').Options} */
@@ -47,6 +58,7 @@ module.exports = function (task) {
           },
           experimental: {
             keepImportAttributes: esm,
+            plugins,
           },
           transform: {
             react: {
@@ -92,6 +104,7 @@ module.exports = function (task) {
           },
           experimental: {
             keepImportAttributes: esm,
+            plugins,
           },
           transform: {
             react: {
@@ -127,17 +140,6 @@ module.exports = function (task) {
       const source = file.data.toString('utf-8')
       const output = yield transform(source, options)
       const ext = path.extname(file.base)
-
-      // Make sure the output content keeps the `"use client"` directive.
-      // TODO: Remove this once SWC fixes the issue.
-      if (/^['"]use client['"]/.test(source)) {
-        output.code =
-          '"use client";\n' +
-          output.code
-            .split('\n')
-            .map((l) => (/^['"]use client['"]/.test(l) ? '' : l))
-            .join('\n')
-      }
 
       // Replace `.ts|.tsx` with `.js` in files with an extension
       if (ext) {

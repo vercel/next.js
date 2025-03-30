@@ -6,7 +6,7 @@ describe('app-dir revalidate-dynamic', () => {
   })
 
   if (isNextStart) {
-    it('should correctly mark a route handler that uses expireTag as dynamic', async () => {
+    it('should correctly mark a route handler that uses unstable_expireTag as dynamic', async () => {
       expect(next.cliOutput).toContain('ƒ /api/revalidate-path')
       expect(next.cliOutput).toContain('ƒ /api/revalidate-tag')
     })

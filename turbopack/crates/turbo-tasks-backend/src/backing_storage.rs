@@ -51,4 +51,8 @@ pub trait BackingStorage: 'static + Send + Sync {
         task_id: TaskId,
         category: TaskDataCategory,
     ) -> Vec<CachedDataItem>;
+
+    fn shutdown(&self) -> Result<()> {
+        Ok(())
+    }
 }

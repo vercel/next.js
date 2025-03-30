@@ -15,22 +15,21 @@
     "autoprefixer": "10.4.20",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
-    "geist": "^1.2.1",
-    "lucide-react": "^0.456.0",
+    "lucide-react": "^0.468.0",
     "next": "latest",
     "next-themes": "^0.4.3",
     "prettier": "^3.3.3",
-    "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
   },
   "devDependencies": {
-    "@types/node": "22.9.0",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "18.3.1",
+    "@types/node": "22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "19.0.2",
     "postcss": "8.4.49",
     "tailwind-merge": "^2.5.2",
-    "tailwindcss": "3.4.14",
+    "tailwindcss": "3.4.17",
     "tailwindcss-animate": "^1.0.7",
-    "typescript": "5.6.3"
+    "typescript": "5.7.2"
   }
 }

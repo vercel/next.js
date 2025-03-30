@@ -1,4 +1,4 @@
-use turbo_tasks::Vc;
+use turbo_tasks::{Result, Vc};
 use turbopack::{
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
     ModuleAssetContext,
@@ -9,7 +9,9 @@ use turbopack_core::{
 use turbopack_ecmascript::TreeShakingMode;
 
 /// Returns the runtime asset context to use to process runtime code assets.
-pub fn get_runtime_asset_context(environment: Vc<Environment>) -> Vc<Box<dyn AssetContext>> {
+pub async fn get_runtime_asset_context(
+    environment: Vc<Environment>,
+) -> Result<Vc<Box<dyn AssetContext>>> {
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typescript_transform: Some(
@@ -23,7 +25,9 @@ pub fn get_runtime_asset_context(environment: Vc<Environment>) -> Vc<Box<dyn Ass
         ..Default::default()
     }
     .cell();
-    let compile_time_info = CompileTimeInfo::builder(environment).cell();
+    let compile_time_info = CompileTimeInfo::builder(environment.to_resolved().await?)
+        .cell()
+        .await?;
 
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
         Default::default(),
@@ -33,5 +37,5 @@ pub fn get_runtime_asset_context(environment: Vc<Environment>) -> Vc<Box<dyn Ass
         Vc::cell("runtime".into()),
     ));
 
-    asset_context
+    Ok(asset_context)
 }

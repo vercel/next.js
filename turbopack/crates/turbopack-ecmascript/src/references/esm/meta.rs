@@ -1,19 +1,21 @@
 use std::borrow::Cow;
 
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{Expr, Ident},
     quote,
 };
-use turbo_tasks::Vc;
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::chunk::ChunkingContext;
+use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGeneration},
     create_visitor, magic_identifier,
-    references::{as_abs_path, AstPath},
+    references::AstPath,
+    runtime_functions::TURBOPACK_RESOLVE_ABSOLUTE_PATH,
 };
 
 /// Responsible for initializing the `import.meta` object binding, so that it
@@ -21,28 +23,28 @@ use crate::{
 ///
 /// There can be many references to import.meta, and they appear at any nesting
 /// in the file. But we must only initialize the binding a single time.
-#[turbo_tasks::value(shared)]
-#[derive(Hash, Debug)]
+///
+/// This singleton behavior must be enforced by the caller!
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct ImportMetaBinding {
-    path: Vc<FileSystemPath>,
+    path: ResolvedVc<FileSystemPath>,
 }
 
-#[turbo_tasks::value_impl]
 impl ImportMetaBinding {
-    #[turbo_tasks::function]
-    pub fn new(path: Vc<FileSystemPath>) -> Vc<Self> {
-        ImportMetaBinding { path }.cell()
+    pub fn new(path: ResolvedVc<FileSystemPath>) -> Self {
+        ImportMetaBinding { path }
     }
-}
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for ImportMetaBinding {
-    #[turbo_tasks::function]
-    async fn code_generation(
+    pub async fn code_generation(
         &self,
-        _context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
-        let path = as_abs_path(self.path).await?.as_str().map_or_else(
+        _module_graph: Vc<ModuleGraph>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<CodeGeneration> {
+        let rel_path = chunking_context
+            .root_path()
+            .await?
+            .get_relative_path_to(&*self.path.await?);
+        let path = rel_path.map_or_else(
             || {
                 quote!(
                     "(() => { throw new Error('could not convert import.meta.url to filepath') })()"
@@ -50,9 +52,10 @@ impl CodeGenerateable for ImportMetaBinding {
                 )
             },
             |path| {
-                let formatted = encode_path(path).trim_start_matches("/ROOT/").to_string();
+                let formatted = encode_path(path.trim_start_matches("./")).to_string();
                 quote!(
-                    "`file://${__turbopack_resolve_absolute_path__($formatted)}`" as Expr,
+                    "`file://${$turbopack_resolve_absolute_path($formatted)}`" as Expr,
+                    turbopack_resolve_absolute_path: Expr = TURBOPACK_RESOLVE_ABSOLUTE_PATH.into(),
                     formatted: Expr = formatted.into()
                 )
             },
@@ -71,38 +74,43 @@ impl CodeGenerateable for ImportMetaBinding {
     }
 }
 
-/// Handles rewriting `import.meta` references into the injected binding created
-/// by ImportMetaBindi ImportMetaBinding.
-///
-/// There can be many references to import.meta, and they appear at any nesting
-/// in the file. But all references refer to the same mutable object.
-#[turbo_tasks::value(shared)]
-#[derive(Hash, Debug)]
-pub struct ImportMetaRef {
-    ast_path: Vc<AstPath>,
-}
-
-#[turbo_tasks::value_impl]
-impl ImportMetaRef {
-    #[turbo_tasks::function]
-    pub fn new(ast_path: Vc<AstPath>) -> Vc<Self> {
-        ImportMetaRef { ast_path }.cell()
+impl From<ImportMetaBinding> for CodeGen {
+    fn from(val: ImportMetaBinding) -> Self {
+        CodeGen::ImportMetaBinding(val)
     }
 }
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for ImportMetaRef {
-    #[turbo_tasks::function]
-    async fn code_generation(
+/// Handles rewriting `import.meta` references into the injected binding created
+/// by ImportMetaBinding.
+///
+/// There can be many references to import.meta, and they appear at any nesting
+/// in the file. But all references refer to the same mutable object.
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+pub struct ImportMetaRef {
+    ast_path: AstPath,
+}
+
+impl ImportMetaRef {
+    pub fn new(ast_path: AstPath) -> Self {
+        ImportMetaRef { ast_path }
+    }
+
+    pub async fn code_generation(
         &self,
-        _context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
-        let ast_path = &self.ast_path.await?;
-        let visitor = create_visitor!(ast_path, visit_mut_expr(expr: &mut Expr) {
+        _module_graph: Vc<ModuleGraph>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<CodeGeneration> {
+        let visitor = create_visitor!(self.ast_path, visit_mut_expr(expr: &mut Expr) {
             *expr = Expr::Ident(meta_ident());
         });
 
         Ok(CodeGeneration::visitors(vec![visitor]))
+    }
+}
+
+impl From<ImportMetaRef> for CodeGen {
+    fn from(val: ImportMetaRef) -> Self {
+        CodeGen::ImportMetaRef(val)
     }
 }
 

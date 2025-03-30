@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     get_invalidator, mark_session_dependent, mark_stateful, trace::TraceRawVcs, Invalidator,
-    SerializationInvalidator,
+    OperationValue, SerializationInvalidator,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -96,6 +96,25 @@ impl<T> Drop for StateRef<'_, T> {
     }
 }
 
+/// An [internally-mutable] type, similar to [`RefCell`][std::cell::RefCell] or [`Mutex`] that can
+/// be stored inside a [`VcValueType`].
+///
+/// **[`State`] should only be used with [`OperationVc`] and types that implement
+/// [`OperationValue`]**.
+///
+/// Setting values inside a [`State`] bypasses the normal argument and return value tracking
+/// that's tracks child function calls and re-runs tasks until their values settled. That system is
+/// needed for [strong consistency]. [`OperationVc`] ensures that function calls are reconnected
+/// with the parent/child call graph.
+///
+/// When reading a `State` with [`State::get`], the state itself (though not any values inside of
+/// it) is marked as a dependency of the current task.
+///
+/// [internally-mutable]: https://doc.rust-lang.org/book/ch15-05-interior-mutability.html
+/// [`VcValueType`]: crate::VcValueType
+/// [strong consistency]: crate::Vc::strongly_consistent
+/// [`OperationVc`]: crate::OperationVc
+/// [`OperationValue`]: crate::OperationValue
 #[derive(Serialize, Deserialize)]
 pub struct State<T> {
     serialization_invalidator: SerializationInvalidator,
@@ -116,7 +135,7 @@ impl<T: TraceRawVcs> TraceRawVcs for State<T> {
     }
 }
 
-impl<T: Default> Default for State<T> {
+impl<T: Default + OperationValue> Default for State<T> {
     fn default() -> Self {
         // Need to be explicit to ensure marking as stateful.
         Self::new(Default::default())
@@ -131,7 +150,10 @@ impl<T> PartialEq for State<T> {
 impl<T> Eq for State<T> {}
 
 impl<T> State<T> {
-    pub fn new(value: T) -> Self {
+    pub fn new(value: T) -> Self
+    where
+        T: OperationValue,
+    {
         Self {
             serialization_invalidator: mark_stateful(),
             inner: Mutex::new(StateInner::new(value)),

@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getRedboxSource } from 'next-test-utils'
+import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
 
 describe('app dir - css', () => {
   const { next, skipped } = nextTestSetup({
@@ -21,21 +21,22 @@ describe('app dir - css', () => {
         it('should use original source points for sass errors', async () => {
           const browser = await next.browser('/sass-error')
 
+          await assertHasRedbox(browser)
           const source = await getRedboxSource(browser)
 
           // css-loader does not report an error for this case
           expect(source).toMatchInlineSnapshot(`
-            "./app/global.scss.css:45:1
-            Parsing css source code failed
-              43 | }
-              44 |
-            > 45 | input.defaultCheckbox::before path {
-                 | ^
-              46 |   fill: currentColor;
-              47 | }
-              48 |
+           "./app/global.scss.css (45:1)
+           Parsing css source code failed
+             43 | }
+             44 |
+           > 45 | input.defaultCheckbox::before path {
+                | ^
+             46 |   fill: currentColor;
+             47 | }
+             48 |
 
-            Pseudo-elements like '::before' or '::after' can't be followed by selectors like 'Ident("path")' at [project]/app/global.scss.css:0:884"
+           Pseudo-elements like '::before' or '::after' can't be followed by selectors like 'Ident("path")' at [project]/app/global.scss.css:0:884"
           `)
         })
       }

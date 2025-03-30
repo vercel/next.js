@@ -3,7 +3,8 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use anyhow::Result;
-use turbo_tasks::{mark_session_dependent, RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{mark_session_dependent, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
 
@@ -15,13 +16,13 @@ pub fn register() {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct FetchResult(Result<Vc<HttpResponse>, Vc<FetchError>>);
+pub struct FetchResult(Result<ResolvedVc<HttpResponse>, ResolvedVc<FetchError>>);
 
 #[turbo_tasks::value(shared)]
 #[derive(Debug)]
 pub struct HttpResponse {
     pub status: u16,
-    pub body: Vc<HttpResponseBody>,
+    pub body: ResolvedVc<HttpResponseBody>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -79,14 +80,14 @@ pub async fn fetch(
 
             Ok(Vc::cell(Ok(HttpResponse {
                 status,
-                body: HttpResponseBody::cell(HttpResponseBody(body)),
+                body: HttpResponseBody::resolved_cell(HttpResponseBody(body)),
             }
-            .cell())))
+            .resolved_cell())))
         }
         Err(err) => {
             mark_session_dependent();
             Ok(Vc::cell(Err(
-                FetchError::from_reqwest_error(&err, url).cell()
+                FetchError::from_reqwest_error(&err, url).resolved_cell()
             )))
         }
     }
@@ -103,9 +104,9 @@ pub enum FetchErrorKind {
 
 #[turbo_tasks::value(shared)]
 pub struct FetchError {
-    pub url: Vc<RcStr>,
-    pub kind: Vc<FetchErrorKind>,
-    pub detail: Vc<StyledString>,
+    pub url: ResolvedVc<RcStr>,
+    pub kind: ResolvedVc<FetchErrorKind>,
+    pub detail: ResolvedVc<StyledString>,
 }
 
 impl FetchError {
@@ -121,9 +122,9 @@ impl FetchError {
         };
 
         FetchError {
-            detail: StyledString::Text(error.to_string().into()).cell(),
-            url: Vc::cell(url.into()),
-            kind: kind.into(),
+            detail: StyledString::Text(error.to_string().into()).resolved_cell(),
+            url: ResolvedVc::cell(url.into()),
+            kind: kind.resolved_cell(),
         }
     }
 }
@@ -133,8 +134,8 @@ impl FetchError {
     #[turbo_tasks::function]
     pub async fn to_issue(
         self: Vc<Self>,
-        severity: Vc<IssueSeverity>,
-        issue_context: Vc<FileSystemPath>,
+        severity: ResolvedVc<IssueSeverity>,
+        issue_context: ResolvedVc<FileSystemPath>,
     ) -> Result<Vc<FetchIssue>> {
         let this = &*self.await?;
         Ok(FetchIssue {
@@ -150,23 +151,23 @@ impl FetchError {
 
 #[turbo_tasks::value(shared)]
 pub struct FetchIssue {
-    pub issue_context: Vc<FileSystemPath>,
-    pub severity: Vc<IssueSeverity>,
-    pub url: Vc<RcStr>,
-    pub kind: Vc<FetchErrorKind>,
-    pub detail: Vc<StyledString>,
+    pub issue_context: ResolvedVc<FileSystemPath>,
+    pub severity: ResolvedVc<IssueSeverity>,
+    pub url: ResolvedVc<RcStr>,
+    pub kind: ResolvedVc<FetchErrorKind>,
+    pub detail: ResolvedVc<StyledString>,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for FetchIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.issue_context
+        *self.issue_context
     }
 
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
-        self.severity
+        *self.severity
     }
 
     #[turbo_tasks::function]
@@ -201,7 +202,7 @@ impl Issue for FetchIssue {
                 }
                 FetchErrorKind::Other => format!("There was an issue requesting {}", url).into(),
             })
-            .cell(),
+            .resolved_cell(),
         )))
     }
 

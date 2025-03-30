@@ -2,7 +2,7 @@
 name = "turbo-tasks-backend"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
+license = "MIT"
 edition = "2021"
 autobenches = false
 
@@ -16,6 +16,10 @@ workspace = true
 default = []
 verify_serialization = []
 trace_aggregation_update = []
+trace_find_and_schedule = []
+trace_task_completion = []
+trace_task_dirty = []
+lmdb = ["dep:lmdb-rkv"]
 
 [dependencies]
 anyhow = { workspace = true }
@@ -27,7 +31,7 @@ dashmap = { workspace = true, features = ["raw-api"]}
 either = { workspace = true }
 hashbrown = { workspace = true, features = ["raw"] }
 indexmap = { workspace = true }
-lmdb-rkv = "0.14.0"
+lmdb-rkv = { version = "0.14.0", optional = true }
 once_cell = { workspace = true }
 parking_lot = { workspace = true }
 pot = "3.0.0"
@@ -41,7 +45,9 @@ tokio = { workspace = true }
 tokio-scoped = "0.2.0"
 tracing = { workspace = true }
 thread_local = { workspace = true }
+turbo-persistence = { workspace = true }
 turbo-prehash = { workspace = true }
+turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-tasks-malloc = { workspace = true, default-features = false }
@@ -49,11 +55,11 @@ turbo-tasks-testing = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
+regex = { workspace = true }
+serde_json = { workspace = true }
 
 [build-dependencies]
-anyhow = { workspace = true }
 turbo-tasks-build = { workspace = true }
-vergen-gitcl = { version = "1.0.1" }
 
 [[bench]]
 name = "mod"

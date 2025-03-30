@@ -4,7 +4,8 @@ use lightningcss::{
     rules::{import::ImportRule, layer::LayerName, supports::SupportsCondition},
     traits::ToCss,
 };
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
@@ -82,22 +83,22 @@ impl ImportAttributes {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct ImportAssetReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
-    pub attributes: Vc<ImportAttributes>,
-    pub import_context: Vc<ImportContext>,
-    pub issue_source: Vc<IssueSource>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub request: ResolvedVc<Request>,
+    pub attributes: ResolvedVc<ImportAttributes>,
+    pub import_context: Option<ResolvedVc<ImportContext>>,
+    pub issue_source: IssueSource,
 }
 
 #[turbo_tasks::value_impl]
 impl ImportAssetReference {
     #[turbo_tasks::function]
     pub fn new(
-        origin: Vc<Box<dyn ResolveOrigin>>,
-        request: Vc<Request>,
-        attributes: Vc<ImportAttributes>,
-        import_context: Vc<ImportContext>,
-        issue_source: Vc<IssueSource>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+        attributes: ResolvedVc<ImportAttributes>,
+        import_context: Option<ResolvedVc<ImportContext>>,
+        issue_source: IssueSource,
     ) -> Vc<Self> {
         Self::cell(ImportAssetReference {
             origin,
@@ -113,17 +114,32 @@ impl ImportAssetReference {
 impl ModuleReference for ImportAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let import_context = {
-            let own_attrs = (*self.attributes.await?).as_reference_import_attributes();
-            self.import_context
-                .add_attributes(own_attrs.layer, own_attrs.media, own_attrs.supports)
+        let own_attrs = self.attributes.await?.as_reference_import_attributes();
+        let import_context = match (&self.import_context, own_attrs.is_empty()) {
+            (Some(import_context), true) => Some(*import_context),
+            (None, false) => Some(
+                ImportContext::new(
+                    own_attrs.layer.iter().cloned().collect(),
+                    own_attrs.media.iter().cloned().collect(),
+                    own_attrs.supports.iter().cloned().collect(),
+                )
+                .to_resolved()
+                .await?,
+            ),
+            (Some(import_context), false) => Some(
+                import_context
+                    .add_attributes(own_attrs.layer, own_attrs.media, own_attrs.supports)
+                    .to_resolved()
+                    .await?,
+            ),
+            (None, true) => None,
         };
 
         Ok(css_resolve(
-            self.origin,
-            self.request,
-            Value::new(CssReferenceSubType::AtImport(Some(import_context))),
-            Some(self.issue_source),
+            *self.origin,
+            *self.request,
+            Value::new(CssReferenceSubType::AtImport(import_context)),
+            Some(self.issue_source.clone()),
         ))
     }
 }
@@ -153,7 +169,7 @@ impl CodeGenerateable for ImportAssetReference {
             ..
         } = &*this.request.await?
         {
-            imports.push(CssImport::External(Vc::cell(
+            imports.push(CssImport::External(ResolvedVc::cell(
                 format!("{}{}", protocol, remainder).into(),
             )))
         }

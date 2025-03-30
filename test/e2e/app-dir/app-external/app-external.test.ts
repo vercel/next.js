@@ -24,8 +24,8 @@ describe('app dir - external dependency', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      swr: 'latest',
-      undici: 'latest',
+      swr: '2.2.5',
+      undici: '6.21.0',
     },
     packageJson: {
       scripts: {

@@ -4,7 +4,8 @@ use swc_core::{
     ecma::ast::{ModuleItem, Program},
     quote,
 };
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::Vc;
 use turbopack_core::issue::IssueExt;
 use turbopack_ecmascript::{CustomTransformer, TransformContext, UnsupportedServerActionIssue};
 
@@ -42,7 +43,7 @@ impl CustomTransformer for ServerDirectiveTransformer {
             UnsupportedServerActionIssue {
                 file_path: ctx.file_path,
             }
-            .cell()
+            .resolved_cell()
             .emit();
         }
 

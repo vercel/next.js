@@ -420,7 +420,7 @@ function processReply(
       ) {
         if (void 0 === temporaryReferences)
           throw Error(
-            "Only plain objects, and a few built-ins, can be passed to Server Actions. Classes or null prototypes are not supported."
+            "Only plain objects, and a few built-ins, can be passed to Server Functions. Classes or null prototypes are not supported."
           );
         return "$T";
       }
@@ -439,7 +439,10 @@ function processReply(
       parentReference = knownServerReferences.get(value);
       if (void 0 !== parentReference)
         return (
-          (key = JSON.stringify(parentReference, resolveToJSON)),
+          (key = JSON.stringify(
+            { id: parentReference.id, bound: parentReference.bound },
+            resolveToJSON
+          )),
           null === formData && (formData = new FormData()),
           (parentReference = nextPartId++),
           formData.set(formFieldPrefix + parentReference, key),
@@ -504,8 +507,13 @@ function processReply(
       null === formData ? resolve(json) : resolve(formData));
   };
 }
-function registerServerReference(proxy, reference) {
-  knownServerReferences.set(proxy, reference);
+function registerBoundServerReference(reference, id, bound) {
+  knownServerReferences.has(reference) ||
+    knownServerReferences.set(reference, {
+      id: id,
+      originalBind: reference.bind,
+      bound: bound
+    });
 }
 function createBoundServerReference(metaData, callServer) {
   function action() {
@@ -520,7 +528,7 @@ function createBoundServerReference(metaData, callServer) {
   }
   var id = metaData.id,
     bound = metaData.bound;
-  registerServerReference(action, { id: id, bound: bound });
+  registerBoundServerReference(action, id, bound);
   return action;
 }
 function ReactPromise(status, value, reason, response) {
@@ -573,6 +581,9 @@ function readChunk(chunk) {
 }
 function createPendingChunk(response) {
   return new ReactPromise("pending", null, null, response);
+}
+function createErrorChunk(response, error) {
+  return new ReactPromise("rejected", null, error, response);
 }
 function wakeChunk(listeners, value) {
   for (var i = 0; i < listeners.length; i++) (0, listeners[i])(value);
@@ -690,6 +701,8 @@ function initializeModuleChunk(chunk) {
   }
 }
 function reportGlobalError(response, error) {
+  response._closed = !0;
+  response._closedReason = error;
   response._chunks.forEach(function (chunk) {
     "pending" === chunk.status && triggerErrorOnChunk(chunk, error);
   });
@@ -700,7 +713,11 @@ function createLazyChunkWrapper(chunk) {
 function getChunk(response, id) {
   var chunks = response._chunks,
     chunk = chunks.get(id);
-  chunk || ((chunk = createPendingChunk(response)), chunks.set(id, chunk));
+  chunk ||
+    ((chunk = response._closed
+      ? createErrorChunk(response, response._closedReason)
+      : createPendingChunk(response)),
+    chunks.set(id, chunk));
   return chunk;
 }
 function waitForReference(
@@ -781,7 +798,12 @@ function loadServerReference(response, metaData, parentObject, key) {
   if ((response = preloadModule(serverReference)))
     metaData.bound && (response = Promise.all([response, metaData.bound]));
   else if (metaData.bound) response = Promise.resolve(metaData.bound);
-  else return requireModule(serverReference);
+  else
+    return (
+      (response = requireModule(serverReference)),
+      registerBoundServerReference(response, metaData.id, metaData.bound),
+      response
+    );
   if (initializingHandler) {
     var handler = initializingHandler;
     handler.deps++;
@@ -801,6 +823,7 @@ function loadServerReference(response, metaData, parentObject, key) {
         boundArgs.unshift(null);
         resolvedValue = resolvedValue.bind.apply(resolvedValue, boundArgs);
       }
+      registerBoundServerReference(resolvedValue, metaData.id, metaData.bound);
       parentObject[key] = resolvedValue;
       "" === key && null === handler.value && (handler.value = resolvedValue);
       if (
@@ -1029,6 +1052,8 @@ function ResponseInstance(
   this._fromJSON = null;
   this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
   this._buffer = [];
+  this._closed = !1;
+  this._closedReason = null;
   this._tempRefs = temporaryReferences;
   this._fromJSON = createFromJSONCallback(this);
 }
@@ -1400,7 +1425,7 @@ function processFullBinaryRow(response, id, tag, buffer, chunk) {
       tag = response._chunks;
       (chunk = tag.get(id))
         ? triggerErrorOnChunk(chunk, buffer)
-        : tag.set(id, new ReactPromise("rejected", null, buffer, response));
+        : tag.set(id, createErrorChunk(response, buffer));
       break;
     case 84:
       tag = response._chunks;
@@ -1408,6 +1433,7 @@ function processFullBinaryRow(response, id, tag, buffer, chunk) {
         ? chunk.reason.enqueueValue(buffer)
         : tag.set(id, new ReactPromise("fulfilled", buffer, null, response));
       break;
+    case 78:
     case 68:
     case 87:
       throw Error(
@@ -1439,7 +1465,7 @@ function processFullBinaryRow(response, id, tag, buffer, chunk) {
       tag = response._chunks;
       (chunk = tag.get(id))
         ? triggerErrorOnChunk(chunk, buffer)
-        : tag.set(id, new ReactPromise("rejected", null, buffer, response));
+        : tag.set(id, createErrorChunk(response, buffer));
       break;
     default:
       (tag = response._chunks),
@@ -1472,7 +1498,7 @@ function createFromJSONCallback(response) {
             (initializingHandler = value.parent),
             value.errored)
           )
-            (key = new ReactPromise("rejected", null, value.value, response)),
+            (key = createErrorChunk(response, value.value)),
               (key = createLazyChunkWrapper(key));
           else if (0 < value.deps) {
             var blockedChunk = new ReactPromise(
@@ -1617,7 +1643,7 @@ exports.createServerReference = function (id, callServer) {
     var args = Array.prototype.slice.call(arguments);
     return callServer(id, args);
   }
-  registerServerReference(action, { id: id, bound: null });
+  registerBoundServerReference(action, id, null);
   return action;
 };
 exports.createTemporaryReferenceSet = function () {
@@ -1646,4 +1672,8 @@ exports.encodeReply = function (value, options) {
       }
     }
   });
+};
+exports.registerServerReference = function (reference, id) {
+  registerBoundServerReference(reference, id, null);
+  return reference;
 };

@@ -1,6 +1,6 @@
 # Items
 
-Count: 5
+Count: 4
 
 ## Item 1: Stmt 0, `VarDeclarator(0)`
 
@@ -28,11 +28,9 @@ graph TD
     Item1;
     Item2;
     Item3;
-    Item3["ModuleEvaluation"];
+    Item3["export DOG"];
     Item4;
-    Item4["export DOG"];
-    Item5;
-    Item5["export cat"];
+    Item4["export cat"];
 ```
 # Phase 2
 ```mermaid
@@ -40,13 +38,11 @@ graph TD
     Item1;
     Item2;
     Item3;
-    Item3["ModuleEvaluation"];
+    Item3["export DOG"];
     Item4;
-    Item4["export DOG"];
-    Item5;
-    Item5["export cat"];
-    Item4 --> Item1;
-    Item5 --> Item2;
+    Item4["export cat"];
+    Item3 --> Item1;
+    Item4 --> Item2;
 ```
 # Phase 3
 ```mermaid
@@ -54,13 +50,11 @@ graph TD
     Item1;
     Item2;
     Item3;
-    Item3["ModuleEvaluation"];
+    Item3["export DOG"];
     Item4;
-    Item4["export DOG"];
-    Item5;
-    Item5["export cat"];
-    Item4 --> Item1;
-    Item5 --> Item2;
+    Item4["export cat"];
+    Item3 --> Item1;
+    Item4 --> Item2;
 ```
 # Phase 4
 ```mermaid
@@ -68,37 +62,30 @@ graph TD
     Item1;
     Item2;
     Item3;
-    Item3["ModuleEvaluation"];
+    Item3["export DOG"];
     Item4;
-    Item4["export DOG"];
-    Item5;
-    Item5["export cat"];
-    Item4 --> Item1;
-    Item5 --> Item2;
+    Item4["export cat"];
+    Item3 --> Item1;
+    Item4 --> Item2;
 ```
 # Final
 ```mermaid
 graph TD
-    N0["Items: [ItemId(Export((&quot;cat&quot;, #2), &quot;cat&quot;))]"];
-    N1["Items: [ItemId(Export((&quot;dog&quot;, #2), &quot;DOG&quot;))]"];
-    N2["Items: [ItemId(0, VarDeclarator(0))]"];
-    N3["Items: [ItemId(1, VarDeclarator(0))]"];
-    N4["Items: [ItemId(ModuleEvaluation)]"];
-    N1 --> N2;
-    N0 --> N3;
+    N0["Items: [ItemId(0, VarDeclarator(0)), ItemId(Export((&quot;dog&quot;, #2), &quot;DOG&quot;))]"];
+    N1["Items: [ItemId(1, VarDeclarator(0)), ItemId(Export((&quot;cat&quot;, #2), &quot;cat&quot;))]"];
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 4,
-    Exports: 5,
-    Export(
-        "cat",
-    ): 0,
+    ModuleEvaluation: 3,
     Export(
         "DOG",
+    ): 0,
+    Export(
+        "cat",
     ): 1,
+    Exports: 2,
 }
 ```
 
@@ -106,68 +93,54 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
-import { a as cat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
+const dog = "dog";
+export { dog as DOG };
+export { dog as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
 };
-export { cat };
 
 ```
 ## Part 1
 ```js
-import { b as dog } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
+const cat = "cat";
+export { cat };
+export { cat as b } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
 };
-export { dog as DOG };
 
 ```
 ## Part 2
 ```js
-const dog = "dog";
-export { dog as b } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
+export { DOG } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export DOG"
+};
+export { cat } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export cat"
 };
 
 ```
 ## Part 3
 ```js
-const cat = "cat";
-export { cat as a } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 4
-```js
-"module evaluation";
-
-```
-## Part 5
-```js
-export { cat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export cat"
-};
-export { DOG } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export DOG"
-};
+export { };
 
 ```
 ## Merged (module eval)
 ```js
-"module evaluation";
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 4,
-    Exports: 5,
-    Export(
-        "cat",
-    ): 0,
+    ModuleEvaluation: 3,
     Export(
         "DOG",
+    ): 0,
+    Export(
+        "cat",
     ): 1,
+    Exports: 2,
 }
 ```
 
@@ -175,53 +148,39 @@ export { DOG } from "__TURBOPACK_PART__" assert {
 # Modules (prod)
 ## Part 0
 ```js
-import { a as cat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
+const dog = "dog";
+export { dog as DOG };
+export { dog as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
 };
-export { cat };
 
 ```
 ## Part 1
 ```js
-import { b as dog } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
+const cat = "cat";
+export { cat };
+export { cat as b } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
 };
-export { dog as DOG };
 
 ```
 ## Part 2
 ```js
-const dog = "dog";
-export { dog as b } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
+export { DOG } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export DOG"
+};
+export { cat } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export cat"
 };
 
 ```
 ## Part 3
 ```js
-const cat = "cat";
-export { cat as a } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 4
-```js
-"module evaluation";
-
-```
-## Part 5
-```js
-export { cat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export cat"
-};
-export { DOG } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export DOG"
-};
+export { };
 
 ```
 ## Merged (module eval)
 ```js
-"module evaluation";
+export { };
 
 ```

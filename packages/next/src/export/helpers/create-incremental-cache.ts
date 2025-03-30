@@ -4,24 +4,28 @@ import { hasNextSupport } from '../../server/ci-info'
 import { nodeFs } from '../../server/lib/node-fs-methods'
 import { interopDefault } from '../../lib/interop-default'
 import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
+import {
+  initializeCacheHandlers,
+  setCacheHandler,
+} from '../../server/use-cache/handlers'
 
 export async function createIncrementalCache({
   cacheHandler,
-  dynamicIO,
   cacheMaxMemorySize,
   fetchCacheKeyPrefix,
   distDir,
   dir,
   flushToDisk,
   cacheHandlers,
+  requestHeaders,
 }: {
-  dynamicIO: boolean
   cacheHandler?: string
   cacheMaxMemorySize?: number
   fetchCacheKeyPrefix?: string
   distDir: string
   dir: string
   flushToDisk?: boolean
+  requestHeaders?: Record<string, string | string[] | undefined>
   cacheHandlers?: Record<string, string | undefined>
 }) {
   // Custom cache handler overrides.
@@ -34,26 +38,25 @@ export async function createIncrementalCache({
     )
   }
 
-  if (!(globalThis as any).__nextCacheHandlers && cacheHandlers) {
-    ;(globalThis as any).__nextCacheHandlers = {}
+  if (cacheHandlers && initializeCacheHandlers()) {
+    for (const [kind, handler] of Object.entries(cacheHandlers)) {
+      if (!handler) continue
 
-    for (const key of Object.keys(cacheHandlers)) {
-      if (cacheHandlers[key]) {
-        ;(globalThis as any).__nextCacheHandlers[key] = interopDefault(
-          await import(formatDynamicImportPath(dir, cacheHandlers[key])).then(
+      setCacheHandler(
+        kind,
+        interopDefault(
+          await import(formatDynamicImportPath(dir, handler)).then(
             (mod) => mod.default || mod
           )
         )
-      }
+      )
     }
   }
 
   const incrementalCache = new IncrementalCache({
     dev: false,
-    requestHeaders: {},
+    requestHeaders: requestHeaders || {},
     flushToDisk,
-    dynamicIO,
-    fetchCache: true,
     maxMemoryCacheSize: cacheMaxMemorySize,
     fetchCacheKeyPrefix,
     getPrerenderManifest: () => ({

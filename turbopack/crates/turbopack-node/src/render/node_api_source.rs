@@ -1,6 +1,7 @@
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{FxIndexSet, RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexSet, ResolvedVc, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::introspect::{
@@ -13,7 +14,7 @@ use turbopack_dev_server::source::{
     GetContentSourceContent,
 };
 
-use super::{render_proxy::render_proxy, RenderData};
+use super::{render_proxy::render_proxy_operation, RenderData};
 use crate::{get_intermediate_asset, node_entry::NodeEntry, route_matcher::RouteMatcher};
 
 /// Creates a [NodeApiContentSource].
@@ -127,34 +128,30 @@ impl GetContentSourceContent for NodeApiContentSource {
             anyhow::bail!("Missing request data")
         };
         let entry = (*self.entry).entry(data.clone()).await?;
-        Ok(ContentSourceContent::HttpProxy(
-            render_proxy(
-                *self.cwd,
-                *self.env,
-                self.server_root.join(path.clone()),
-                *entry.module,
-                *entry.runtime_entries,
-                *entry.chunking_context,
-                *entry.intermediate_output_path,
-                *entry.output_root,
-                *entry.project_dir,
-                RenderData {
-                    params: params.clone(),
-                    method: method.clone(),
-                    url: url.clone(),
-                    original_url: original_url.clone(),
-                    raw_query: raw_query.clone(),
-                    raw_headers: raw_headers.clone(),
-                    path: format!("/{}", path).into(),
-                    data: Some(self.render_data.await?),
-                }
-                .cell(),
-                *body,
-                self.debug,
-            )
-            .to_resolved()
-            .await?,
-        )
+        Ok(ContentSourceContent::HttpProxy(render_proxy_operation(
+            self.cwd,
+            self.env,
+            self.server_root.join(path.clone()).to_resolved().await?,
+            ResolvedVc::upcast(entry.module),
+            entry.runtime_entries,
+            entry.chunking_context,
+            entry.intermediate_output_path,
+            entry.output_root,
+            entry.project_dir,
+            RenderData {
+                params: params.clone(),
+                method: method.clone(),
+                url: url.clone(),
+                original_url: original_url.clone(),
+                raw_query: raw_query.clone(),
+                raw_headers: raw_headers.clone(),
+                path: format!("/{}", path).into(),
+                data: Some(self.render_data.await?),
+            }
+            .resolved_cell(),
+            *body,
+            self.debug,
+        ))
         .cell())
     }
 }
@@ -193,16 +190,20 @@ impl Introspectable for NodeApiContentSource {
         for &entry in self.entry.entries().await?.iter() {
             let entry = entry.await?;
             set.insert((
-                Vc::cell("module".into()),
-                IntrospectableModule::new(Vc::upcast(*entry.module)),
+                ResolvedVc::cell("module".into()),
+                IntrospectableModule::new(Vc::upcast(*entry.module))
+                    .to_resolved()
+                    .await?,
             ));
             set.insert((
-                Vc::cell("intermediate asset".into()),
+                ResolvedVc::cell("intermediate asset".into()),
                 IntrospectableOutputAsset::new(get_intermediate_asset(
                     *entry.chunking_context,
                     Vc::upcast(*entry.module),
                     *entry.runtime_entries,
-                )),
+                ))
+                .to_resolved()
+                .await?,
             ));
         }
         Ok(Vc::cell(set))

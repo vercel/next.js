@@ -10,12 +10,13 @@ use std::{
 
 use anyhow::{Ok, Result};
 use byteorder::WriteBytesExt;
-use dashmap::DashMap;
 use rustc_hash::{FxHashMap, FxHasher};
+use turbo_tasks::FxDashMap;
 
 use crate::database::{
     by_key_space::ByKeySpace,
-    key_value_database::{KeySpace, KeyValueDatabase, WriteBatch},
+    key_value_database::{KeySpace, KeyValueDatabase},
+    write_batch::{BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch},
 };
 
 const CACHE_SIZE_LIMIT: usize = 100 * 1024 * 1024;
@@ -38,7 +39,7 @@ impl<T: KeyValueDatabase> Borrow<[u8]> for ValueBuffer<'_, T> {
     }
 }
 
-type Cache = ByKeySpace<DashMap<Vec<u8>, Option<Vec<u8>>, BuildHasherDefault<FxHasher>>>;
+type Cache = ByKeySpace<FxDashMap<Vec<u8>, Option<Vec<u8>>>>;
 
 pub struct StartupCacheLayer<T: KeyValueDatabase> {
     database: T,
@@ -80,7 +81,7 @@ impl<T: KeyValueDatabase> StartupCacheLayer<T> {
             fresh_db,
             cache_size: AtomicUsize::new(0),
             cache: ByKeySpace::new(|key_space| {
-                DashMap::with_capacity_and_hasher(
+                FxDashMap::with_capacity_and_hasher(
                     match key_space {
                         KeySpace::Infra => 8,
                         KeySpace::TaskMeta => 1024 * 1024,
@@ -107,6 +108,10 @@ impl<T: KeyValueDatabase> KeyValueDatabase for StartupCacheLayer<T> {
         tx: &'r Self::ReadTransaction<'l>,
     ) -> &'r Self::ReadTransaction<'i> {
         T::lower_read_transaction(tx)
+    }
+
+    fn is_empty(&self) -> bool {
+        self.database.is_empty()
     }
 
     fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>> {
@@ -155,35 +160,49 @@ impl<T: KeyValueDatabase> KeyValueDatabase for StartupCacheLayer<T> {
         Ok(value)
     }
 
-    type WriteBatch<'l>
-        = StartupCacheWriteBatch<'l, T>
+    type SerialWriteBatch<'l>
+        = StartupCacheWriteBatch<'l, T::SerialWriteBatch<'l>>
     where
         Self: 'l;
 
-    fn write_batch(&self) -> Result<Self::WriteBatch<'_>> {
-        Ok(StartupCacheWriteBatch {
-            batch: self.database.write_batch()?,
-            this: self,
+    type ConcurrentWriteBatch<'l>
+        = StartupCacheWriteBatch<'l, T::ConcurrentWriteBatch<'l>>
+    where
+        Self: 'l;
+
+    fn write_batch(
+        &self,
+    ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>> {
+        Ok(match self.database.write_batch()? {
+            WriteBatch::Serial(batch) => WriteBatch::serial(StartupCacheWriteBatch {
+                batch,
+                path: &self.path,
+                fresh_db: self.fresh_db,
+                cache: &self.cache,
+                restored_map: &self.restored_map,
+            }),
+            WriteBatch::Concurrent(batch, _) => WriteBatch::concurrent(StartupCacheWriteBatch {
+                batch,
+                path: &self.path,
+                fresh_db: self.fresh_db,
+                cache: &self.cache,
+                restored_map: &self.restored_map,
+            }),
         })
     }
 }
 
-pub struct StartupCacheWriteBatch<'a, T: KeyValueDatabase> {
-    batch: T::WriteBatch<'a>,
-    this: &'a StartupCacheLayer<T>,
+pub struct StartupCacheWriteBatch<'a, B> {
+    batch: B,
+    path: &'a PathBuf,
+    fresh_db: bool,
+    cache: &'a Cache,
+    restored_map: &'a ByKeySpace<FxHashMap<&'static [u8], &'static [u8]>>,
 }
 
-impl<'a, T: KeyValueDatabase> WriteBatch<'a> for StartupCacheWriteBatch<'a, T> {
-    fn put(&mut self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()> {
-        if !self.this.fresh_db {
-            let cache = self.this.cache.get(key_space);
-            cache.insert(key.to_vec(), Some(value.to_vec()));
-        }
-        self.batch.put(key_space, key, value)
-    }
-
+impl<'a, B: BaseWriteBatch<'a>> BaseWriteBatch<'a> for StartupCacheWriteBatch<'a, B> {
     type ValueBuffer<'l>
-        = <T::WriteBatch<'a> as WriteBatch<'a>>::ValueBuffer<'l>
+        = B::ValueBuffer<'l>
     where
         Self: 'l,
         'a: 'l;
@@ -195,27 +214,19 @@ impl<'a, T: KeyValueDatabase> WriteBatch<'a> for StartupCacheWriteBatch<'a, T> {
         self.batch.get(key_space, key)
     }
 
-    fn delete(&mut self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()> {
-        if !self.this.fresh_db {
-            let cache = self.this.cache.get(key_space);
-            cache.insert(key.to_vec(), None);
-        }
-        self.batch.delete(key_space, key)
-    }
-
     fn commit(self) -> Result<()> {
-        if !self.this.fresh_db {
+        if !self.fresh_db {
             // Remove file before writing the new snapshot to database to avoid inconsistency
-            let _ = fs::remove_file(&self.this.path);
+            let _ = fs::remove_file(self.path);
         }
         self.batch.commit()?;
-        if !self.this.fresh_db {
+        if !self.fresh_db {
             // write cache to a temp file to avoid corrupted file
-            let temp_path = self.this.path.with_extension("cache.tmp");
+            let temp_path = self.path.with_extension("cache.tmp");
             let mut writer = BufWriter::new(File::create(&temp_path)?);
             let mut size_buffer = [0u8; 4];
             let mut pos = 0;
-            for (key_space, cache) in self.this.cache.iter() {
+            for (key_space, cache) in self.cache.iter() {
                 for entry in cache.iter() {
                     if let (key, Some(value)) = entry.pair() {
                         pos += write_key_value_pair(
@@ -228,8 +239,8 @@ impl<'a, T: KeyValueDatabase> WriteBatch<'a> for StartupCacheWriteBatch<'a, T> {
                     }
                 }
             }
-            for (key_space, map) in self.this.restored_map.iter() {
-                let cache = self.this.cache.get(key_space);
+            for (key_space, map) in self.restored_map.iter() {
+                let cache = self.cache.get(key_space);
                 for (key, value) in map.iter() {
                     if !cache.contains_key(*key) {
                         let size = key.len() + value.len() + PAIR_HEADER_SIZE;
@@ -250,9 +261,45 @@ impl<'a, T: KeyValueDatabase> WriteBatch<'a> for StartupCacheWriteBatch<'a, T> {
             }
 
             // move temp file to the final location
-            fs::rename(temp_path, &self.this.path)?;
+            fs::rename(temp_path, self.path)?;
         }
         Ok(())
+    }
+}
+
+impl<'a, B: SerialWriteBatch<'a>> SerialWriteBatch<'a> for StartupCacheWriteBatch<'a, B> {
+    fn put(&mut self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()> {
+        if !self.fresh_db {
+            let cache = self.cache.get(key_space);
+            cache.insert(key.to_vec(), Some(value.to_vec()));
+        }
+        self.batch.put(key_space, key, value)
+    }
+
+    fn delete(&mut self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()> {
+        if !self.fresh_db {
+            let cache = self.cache.get(key_space);
+            cache.insert(key.to_vec(), None);
+        }
+        self.batch.delete(key_space, key)
+    }
+}
+
+impl<'a, B: ConcurrentWriteBatch<'a>> ConcurrentWriteBatch<'a> for StartupCacheWriteBatch<'a, B> {
+    fn put(&self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()> {
+        if !self.fresh_db {
+            let cache = self.cache.get(key_space);
+            cache.insert(key.to_vec(), Some(value.to_vec()));
+        }
+        self.batch.put(key_space, key, value)
+    }
+
+    fn delete(&self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()> {
+        if !self.fresh_db {
+            let cache = self.cache.get(key_space);
+            cache.insert(key.to_vec(), None);
+        }
+        self.batch.delete(key_space, key)
     }
 }
 

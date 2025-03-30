@@ -3,8 +3,8 @@ export { unstable_cache } from 'next/dist/server/web/spec-extension/unstable-cac
 export {
   revalidatePath,
   revalidateTag,
-  expirePath,
-  expireTag,
+  unstable_expirePath,
+  unstable_expireTag,
 } from 'next/dist/server/web/spec-extension/revalidate'
 
 export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
@@ -30,11 +30,12 @@ export function unstable_cacheLife(profile: 'default'): void
  * ```
  *   stale:      0 seconds
  *   revalidate: 1 seconds
- *   expire:     1 seconds
+ *   expire:     1 minute
  * ```
  *
  * This cache may be stale on clients for 0 seconds before checking with the server.
- * This cache will expire after 1 seconds. The next request will recompute it.
+ * If the server receives a new request after 1 second, start revalidating new values in the background.
+ * If this entry has no traffic for 1 minute it will expire. The next request will recompute it.
  */
 export function unstable_cacheLife(profile: 'seconds'): void
 

@@ -105,12 +105,12 @@ describe('Conflict between app file and pages file', () => {
     it('should not show error overlay for non conflict pages under app or pages dir', async () => {
       const browser = await next.browser('/non-conflict')
       await assertNoRedbox(browser)
-      expect(await getRedboxHeader(browser)).toBeUndefined()
+      expect(await getRedboxHeader(browser)).toEqual(null)
       expect(await browser.elementByCss('p').text()).toBe('non-conflict app')
 
       await browser.loadPage(next.url + '/non-conflict-pages')
       await assertNoRedbox(browser)
-      expect(await getRedboxHeader(browser)).toBeUndefined()
+      expect(await getRedboxHeader(browser)).toEqual(null)
       expect(await browser.elementByCss('h1').text()).toBe('non-conflict pages')
     })
 

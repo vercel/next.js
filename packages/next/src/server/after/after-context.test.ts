@@ -16,7 +16,7 @@ describe('AfterContext', () => {
   let workAsyncStorage: WASMod['workAsyncStorage']
   let workUnitAsyncStorage: WSMod['workUnitAsyncStorage']
   let AfterContext: AfterContextMod['AfterContext']
-  let after: AfterMod['unstable_after']
+  let after: AfterMod['after']
 
   beforeAll(async () => {
     // @ts-expect-error
@@ -32,7 +32,7 @@ describe('AfterContext', () => {
     AfterContext = AfterContextMod.AfterContext
 
     const AfterMod = await import('./after')
-    after = AfterMod.unstable_after
+    after = AfterMod.after
   })
 
   const createRun =
@@ -445,36 +445,6 @@ describe('AfterContext', () => {
     expect(afterCallback1).not.toHaveBeenCalled()
   })
 
-  it('throws from after() if onClose is not provided', async () => {
-    const waitUntilPromises: Promise<unknown>[] = []
-    const waitUntil = jest.fn((promise) => waitUntilPromises.push(promise))
-
-    const onClose = undefined
-
-    const afterContext = new AfterContext({
-      waitUntil,
-      onClose,
-      onTaskError: undefined,
-    })
-
-    const workStore = createMockWorkStore(afterContext)
-
-    const run = createRun(afterContext, workStore)
-
-    // ==================================
-
-    const afterCallback1 = jest.fn()
-
-    expect(() =>
-      run(() => {
-        after(afterCallback1)
-      })
-    ).toThrow(/Missing `onClose` implementation/)
-
-    expect(waitUntil).not.toHaveBeenCalled()
-    expect(afterCallback1).not.toHaveBeenCalled()
-  })
-
   it('does NOT shadow workAsyncStorage within after callbacks', async () => {
     const waitUntil = jest.fn()
 
@@ -572,7 +542,7 @@ const createMockWorkStore = (afterContext: AfterContext): WorkStore => {
     forceDynamic: false,
     dynamicShouldError: false,
     isStaticGeneration: false,
-    revalidatedTags: [],
+    pendingRevalidatedTags: [],
     pendingRevalidates: undefined,
     pendingRevalidateWrites: undefined,
     incrementalCache: undefined,

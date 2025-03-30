@@ -18,9 +18,10 @@ pub async fn get_next_pages_transforms_rule(
     enable_mdx_rs: bool,
 ) -> Result<ModuleRule> {
     // Apply the Next SSG transform to all pages.
-    let strip_transform = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
-        NextJsStripPageExports { export_filter },
-    ) as _));
+    let strip_transform =
+        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextJsStripPageExports {
+            export_filter,
+        }) as _));
     Ok(ModuleRule::new(
         RuleCondition::all(vec![
             RuleCondition::all(vec![

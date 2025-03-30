@@ -1,14 +1,24 @@
-# See https://help.github.com/ignore-files/ for more about ignoring files.
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
 /node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
 # testing
 /coverage
 
 # next.js
-/.next*/
+/.next/
 /out/
+
+# production
+/build
 
 # graphql code generation
 /.generated
@@ -17,13 +27,16 @@
 
 # misc
 .DS_Store
+*.pem
 
-# local env files
-.env.local
-.env.*.local
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 
-# Log files
-*.log*
+# env files (can opt-in for committing if needed)
+.env*
 
 # sitecore
 scjssconfig.json
@@ -31,3 +44,7 @@ scjssconfig.json
 
 # vercel
 .vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts

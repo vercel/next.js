@@ -3,9 +3,8 @@ use std::{
     hash::Hash,
 };
 
-use turbo_tasks::{
-    util::StaticOrArc, FxIndexSet, InvalidationReason, InvalidationReasonKind, RcStr,
-};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{util::StaticOrArc, FxIndexSet, InvalidationReason, InvalidationReasonKind};
 
 /// Invalidation was caused by a file change detected by the file watcher
 #[derive(PartialEq, Eq, Hash)]

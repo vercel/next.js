@@ -5,6 +5,10 @@ export function isGroupSegment(segment: string) {
   return segment[0] === '(' && segment.endsWith(')')
 }
 
+export function isParallelRouteSegment(segment: string) {
+  return segment.startsWith('@') && segment !== '@children'
+}
+
 export function addSearchParamsIfPageSegment(
   segment: Segment,
   searchParams: Record<string, string | string[] | undefined>

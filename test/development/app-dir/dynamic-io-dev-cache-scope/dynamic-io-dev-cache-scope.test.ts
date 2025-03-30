@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
   getRedboxDescription,
-  waitForAndOpenRuntimeError,
+  openRedbox,
   assertNoRedbox,
   retry,
 } from 'next-test-utils'
@@ -72,7 +72,7 @@ describe('Dynamic IO Dev Errors', () => {
     let desc
 
     const browser = await next.browser('/uncached')
-    await waitForAndOpenRuntimeError(browser)
+    await openRedbox(browser)
     desc = await getRedboxDescription(browser)
 
     expect(desc).toContain(
@@ -80,7 +80,7 @@ describe('Dynamic IO Dev Errors', () => {
     )
 
     await browser.refresh()
-    await waitForAndOpenRuntimeError(browser)
+    await openRedbox(browser)
     desc = await getRedboxDescription(browser)
 
     expect(desc).toContain(

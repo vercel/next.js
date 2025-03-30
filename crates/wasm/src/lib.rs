@@ -107,6 +107,7 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
                                     comments.clone(),
                                     Default::default(),
                                     unresolved_mark,
+                                    Default::default(),
                                 )
                             },
                             |_| noop_pass(),

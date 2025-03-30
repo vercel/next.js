@@ -1,6 +1,7 @@
 use anyhow::Result;
 use next_core::{all_assets_from_entries, next_manifests::NextFontManifest};
-use turbo_tasks::{RcStr, ResolvedVc, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,

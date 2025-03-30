@@ -25,7 +25,7 @@ import type { Mutable, ReadonlyReducerState } from './router-reducer-types'
  */
 export function handleAliasedPrefetchEntry(
   state: ReadonlyReducerState,
-  flightData: NormalizedFlightData[],
+  flightData: string | NormalizedFlightData[],
   url: URL,
   mutable: Mutable
 ) {
@@ -33,6 +33,10 @@ export function handleAliasedPrefetchEntry(
   let currentCache = state.cache
   const href = createHrefFromUrl(url)
   let applied
+
+  if (typeof flightData === 'string') {
+    return false
+  }
 
   for (const normalizedFlightData of flightData) {
     // If the segment doesn't have a loading component, we don't need to do anything.

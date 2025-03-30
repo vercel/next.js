@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{fxindexmap, RcStr, ResolvedVc, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{fxindexmap, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
@@ -79,7 +80,7 @@ pub async fn get_app_route_entry(
             "VAR_DEFINITION_FILENAME" => path.file_stem().await?.as_ref().unwrap().as_str().into(),
             // TODO(alexkirsz) Is this necessary?
             "VAR_DEFINITION_BUNDLE_PATH" => "".to_string().into(),
-            "VAR_RESOLVED_PAGE_PATH" => path.to_string().await?.clone_value(),
+            "VAR_RESOLVED_PAGE_PATH" => path.to_string().owned().await?,
             "VAR_USERLAND" => INNER.into(),
         },
         fxindexmap! {
@@ -105,7 +106,7 @@ pub async fn get_app_route_entry(
     let mut rsc_entry = module_asset_context
         .process(
             Vc::upcast(virtual_source),
-            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
         )
         .module();
 
@@ -123,7 +124,7 @@ pub async fn get_app_route_entry(
         pathname,
         original_name,
         rsc_entry: rsc_entry.to_resolved().await?,
-        config,
+        config: config.to_resolved().await?,
     }
     .cell())
 }
@@ -161,7 +162,7 @@ async fn wrap_edge_route(
     let wrapped = asset_context
         .process(
             Vc::upcast(source),
-            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
         )
         .module();
 

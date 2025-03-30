@@ -3,7 +3,7 @@ import {
   IncrementalCacheKind,
   type CachedAppPageValue,
   type CachedPageValue,
-  type IncrementalCacheItem,
+  type IncrementalResponseCacheEntry,
   type ResponseCacheEntry,
 } from './types'
 
@@ -12,7 +12,7 @@ import { RouteKind } from '../route-kind'
 
 export async function fromResponseCacheEntry(
   cacheEntry: ResponseCacheEntry
-): Promise<IncrementalCacheItem> {
+): Promise<IncrementalResponseCacheEntry> {
   return {
     ...cacheEntry,
     value:
@@ -39,20 +39,14 @@ export async function fromResponseCacheEntry(
 }
 
 export async function toResponseCacheEntry(
-  response: IncrementalCacheItem
+  response: IncrementalResponseCacheEntry | null
 ): Promise<ResponseCacheEntry | null> {
   if (!response) return null
-
-  if (response.value?.kind === CachedRouteKind.FETCH) {
-    throw new Error(
-      'Invariant: unexpected cachedResponse of kind fetch in response cache'
-    )
-  }
 
   return {
     isMiss: response.isMiss,
     isStale: response.isStale,
-    revalidate: response.revalidate,
+    cacheControl: response.cacheControl,
     isFallback: response.isFallback,
     value:
       response.value?.kind === CachedRouteKind.PAGES
@@ -79,7 +73,7 @@ export async function toResponseCacheEntry(
 
 export function routeKindToIncrementalCacheKind(
   routeKind: RouteKind
-): IncrementalCacheKind {
+): Exclude<IncrementalCacheKind, IncrementalCacheKind.FETCH> {
   switch (routeKind) {
     case RouteKind.PAGES:
       return IncrementalCacheKind.PAGES

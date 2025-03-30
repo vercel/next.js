@@ -1,34 +1,35 @@
 use anyhow::Result;
-use turbo_tasks::{FxIndexSet, RcStr, ResolvedVc, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkingContext, OutputChunk, OutputChunkRuntimeInfo},
-    ident::AssetIdent,
     introspect::{Introspectable, IntrospectableChildren},
     output::{OutputAsset, OutputAssets},
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
     version::VersionedContent,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunk;
 
-use crate::{ecmascript::content::EcmascriptDevChunkContent, BrowserChunkingContext};
+use crate::{ecmascript::content::EcmascriptBrowserChunkContent, BrowserChunkingContext};
 
 /// Development Ecmascript chunk.
 #[turbo_tasks::value(shared)]
-pub struct EcmascriptDevChunk {
-    chunking_context: Vc<BrowserChunkingContext>,
-    chunk: Vc<EcmascriptChunk>,
+pub struct EcmascriptBrowserChunk {
+    chunking_context: ResolvedVc<BrowserChunkingContext>,
+    chunk: ResolvedVc<EcmascriptChunk>,
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptDevChunk {
+impl EcmascriptBrowserChunk {
     /// Creates a new [`Vc<EcmascriptDevChunk>`].
     #[turbo_tasks::function]
     pub fn new(
-        chunking_context: Vc<BrowserChunkingContext>,
-        chunk: Vc<EcmascriptChunk>,
+        chunking_context: ResolvedVc<BrowserChunkingContext>,
+        chunk: ResolvedVc<EcmascriptChunk>,
     ) -> Vc<Self> {
-        EcmascriptDevChunk {
+        EcmascriptBrowserChunk {
             chunking_context,
             chunk,
         }
@@ -37,7 +38,7 @@ impl EcmascriptDevChunk {
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptDevChunk {
+impl ValueToString for EcmascriptBrowserChunk {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
         Vc::cell("Ecmascript Dev Chunk".into())
@@ -45,7 +46,7 @@ impl ValueToString for EcmascriptDevChunk {
 }
 
 #[turbo_tasks::value_impl]
-impl OutputChunk for EcmascriptDevChunk {
+impl OutputChunk for EcmascriptBrowserChunk {
     #[turbo_tasks::function]
     async fn runtime_info(&self) -> Result<Vc<OutputChunkRuntimeInfo>> {
         Ok(OutputChunkRuntimeInfo {
@@ -62,12 +63,12 @@ fn modifier() -> Vc<RcStr> {
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptDevChunk {
+impl EcmascriptBrowserChunk {
     #[turbo_tasks::function]
-    async fn own_content(self: Vc<Self>) -> Result<Vc<EcmascriptDevChunkContent>> {
+    async fn own_content(self: Vc<Self>) -> Result<Vc<EcmascriptBrowserChunkContent>> {
         let this = self.await?;
-        Ok(EcmascriptDevChunkContent::new(
-            this.chunking_context,
+        Ok(EcmascriptBrowserChunkContent::new(
+            *this.chunking_context,
             self,
             this.chunk.chunk_content(),
         ))
@@ -75,16 +76,16 @@ impl EcmascriptDevChunk {
 
     #[turbo_tasks::function]
     pub fn chunk(&self) -> Result<Vc<Box<dyn Chunk>>> {
-        Ok(Vc::upcast(self.chunk))
+        Ok(Vc::upcast(*self.chunk))
     }
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for EcmascriptDevChunk {
+impl OutputAsset for EcmascriptBrowserChunk {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
+    fn path(&self) -> Vc<FileSystemPath> {
         let ident = self.chunk.ident().with_modifier(modifier());
-        AssetIdent::from_path(self.chunking_context.chunk_path(ident, ".js".into()))
+        self.chunking_context.chunk_path(ident, ".js".into())
     }
 
     #[turbo_tasks::function]
@@ -116,7 +117,7 @@ impl OutputAsset for EcmascriptDevChunk {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for EcmascriptDevChunk {
+impl Asset for EcmascriptBrowserChunk {
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<AssetContent> {
         self.own_content().content()
@@ -129,14 +130,14 @@ impl Asset for EcmascriptDevChunk {
 }
 
 #[turbo_tasks::value_impl]
-impl GenerateSourceMap for EcmascriptDevChunk {
+impl GenerateSourceMap for EcmascriptBrowserChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap> {
+    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
         self.own_content().generate_source_map()
     }
 
     #[turbo_tasks::function]
-    fn by_section(self: Vc<Self>, section: RcStr) -> Vc<OptionSourceMap> {
+    fn by_section(self: Vc<Self>, section: RcStr) -> Vc<OptionStringifiedSourceMap> {
         self.own_content().by_section(section)
     }
 }
@@ -152,7 +153,7 @@ fn introspectable_details() -> Vc<RcStr> {
 }
 
 #[turbo_tasks::value_impl]
-impl Introspectable for EcmascriptDevChunk {
+impl Introspectable for EcmascriptBrowserChunk {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
         introspectable_type()
@@ -160,7 +161,7 @@ impl Introspectable for EcmascriptDevChunk {
 
     #[turbo_tasks::function]
     fn title(self: Vc<Self>) -> Vc<RcStr> {
-        self.ident().to_string()
+        self.path().to_string()
     }
 
     #[turbo_tasks::function]
@@ -171,10 +172,8 @@ impl Introspectable for EcmascriptDevChunk {
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let mut children = FxIndexSet::default();
-        let chunk = Vc::upcast::<Box<dyn Introspectable>>(self.chunk)
-            .resolve()
-            .await?;
-        children.insert((Vc::cell("chunk".into()), chunk));
+        let chunk = ResolvedVc::upcast::<Box<dyn Introspectable>>(self.chunk);
+        children.insert((ResolvedVc::cell("chunk".into()), chunk));
         Ok(Vc::cell(children))
     }
 }

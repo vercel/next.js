@@ -1,8 +1,9 @@
 use std::{cell::RefCell, mem::take, rc::Rc};
 
 use easy_error::{bail, Error};
-use fxhash::FxHashSet;
+use rustc_hash::FxHashSet;
 use swc_core::{
+    atoms::Atom,
     common::{
         errors::HANDLER,
         pass::{Repeat, Repeated},
@@ -17,7 +18,7 @@ use swc_core::{
 static SSG_EXPORTS: &[&str; 3] = &["getStaticProps", "getStaticPaths", "getServerSideProps"];
 
 /// Note: This paths requires running `resolver` **before** running this.
-pub fn next_ssg(eliminated_packages: Rc<RefCell<FxHashSet<String>>>) -> impl Pass {
+pub fn next_ssg(eliminated_packages: Rc<RefCell<FxHashSet<Atom>>>) -> impl Pass {
     fold_pass(Repeat::new(NextSsg {
         state: State {
             eliminated_packages,
@@ -52,7 +53,7 @@ struct State {
 
     /// Track the import packages which are eliminated in the
     /// `getServerSideProps`
-    pub eliminated_packages: Rc<RefCell<FxHashSet<String>>>,
+    pub eliminated_packages: Rc<RefCell<FxHashSet<Atom>>>,
 }
 
 impl State {
@@ -387,7 +388,7 @@ impl Fold for NextSsg {
                         self.state
                             .eliminated_packages
                             .borrow_mut()
-                            .insert(import_src.to_string());
+                            .insert(import_src.clone());
                     }
                     tracing::trace!(
                         "Dropping import `{}{:?}` because it should be removed",
