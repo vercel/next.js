@@ -10,7 +10,7 @@ export type DialogProps = {
   className?: string
   onClose?: () => void
   dialogResizerRef?: React.RefObject<HTMLDivElement | null>
-}
+} & React.HTMLAttributes<HTMLDivElement>
 
 const CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE = [
   '[data-next-mark]',

@@ -808,6 +808,7 @@
   "packages/next/src/lib/load-custom-routes.test.ts": {
     "passed": [
       "loadCustomRoutes rewrites array rewrites should be added to afterFiles",
+      "loadCustomRoutes rewrites assetPrefix automatically insert assetPrefix rewrite for /_next/ paths when assetPrefix is absolute URL with a path",
       "loadCustomRoutes rewrites assetPrefix automatically inserts assetPrefix rewrite for /_next/ paths",
       "loadCustomRoutes rewrites assetPrefix automatically inserts assetPrefix rewrite for /_next/ paths for basePath",
       "loadCustomRoutes rewrites assetPrefix automatically inserts assetPrefix rewrite for /_next/ paths when rewrites() is not present",
@@ -823,9 +824,19 @@
   },
   "packages/next/src/lib/metadata/is-metadata-route.test.ts": {
     "passed": [
-      "getExtensionRegexString with dynamic extensions should match dynamic multi-routes with dynamic extensions",
+      "getExtensionRegexString with dynamic extensions should not handle js extensions with empty dynamic extensions",
+      "getExtensionRegexString with dynamic extensions should not handle js extensions with passing null for dynamic extensions",
       "getExtensionRegexString with dynamic extensions should return the correct regex",
-      "getExtensionRegexString without dynamic extensions should return the correct regex"
+      "getExtensionRegexString without dynamic extensions should return the correct regex",
+      "isMetadataPage should match metadata page path",
+      "isMetadataPage should not match app router page path or error boundary path",
+      "isMetadataRoute should match grouped metadata routes",
+      "isMetadataRoute should match metadata routes",
+      "isMetadataRoute should require suffix for metadata routes",
+      "isMetadataRoute should support metadata variant numeric suffix",
+      "isMetadataRouteFile match file - with extension should match dynamic metadata routes",
+      "isMetadataRouteFile match file - with extension should match static metadata route files",
+      "isMetadataRouteFile match route - without extension should match metadata route page paths"
     ],
     "failed": [],
     "pending": [],
@@ -1294,6 +1305,7 @@
       "parseResumeDataCache parses a cache with a single entry",
       "parseResumeDataCache parses an empty cache",
       "stringifyResumeDataCache serializes a cache with a single entry",
+      "stringifyResumeDataCache serializes a cache with a single entry that fails",
       "stringifyResumeDataCache serializes an empty cache"
     ],
     "failed": [],
@@ -2697,6 +2709,21 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/basic/allowed-dev-origins.test.ts": {
+    "passed": [
+      "allowed-dev-origins, basePath: \"\" block mode should load images regardless of allowed origins",
+      "allowed-dev-origins, basePath: \"\" block mode should not allow dev WebSocket from cross-site",
+      "allowed-dev-origins, basePath: \"\" block mode should not allow loading internal middleware from cross-site",
+      "allowed-dev-origins, basePath: \"\" block mode should not allow loading scripts from cross-site",
+      "allowed-dev-origins, basePath: \"\" warn mode should warn about WebSocket from cross-site",
+      "allowed-dev-origins, basePath: \"\" warn mode should warn about loading internal middleware from cross-site",
+      "allowed-dev-origins, basePath: \"\" warn mode should warn about loading scripts from cross-site"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/basic/asset-prefix/asset-prefix.test.ts": {
     "passed": [
       "asset-prefix rewrites rewrites that do not start with assetPrefix should still work",
@@ -2928,14 +2955,10 @@
     "passed": [
       "misc basic dev tests, basePath: \"\" With Security Related Issues should handle encoded / value for trailing slash correctly",
       "misc basic dev tests, basePath: \"\" With Security Related Issues should not allow accessing files outside .next/static and .next/server directory",
-      "misc basic dev tests, basePath: \"\" With Security Related Issues should not allow dev WebSocket from cross-site",
-      "misc basic dev tests, basePath: \"\" With Security Related Issues should not allow loading scripts from cross-site",
       "misc basic dev tests, basePath: \"\" should allow access to public files",
       "misc basic dev tests, basePath: \"\" should set process.env.NODE_ENV in development",
       "misc basic dev tests, basePath: \"/docs\" With Security Related Issues should handle encoded / value for trailing slash correctly",
       "misc basic dev tests, basePath: \"/docs\" With Security Related Issues should not allow accessing files outside .next/static and .next/server directory",
-      "misc basic dev tests, basePath: \"/docs\" With Security Related Issues should not allow dev WebSocket from cross-site",
-      "misc basic dev tests, basePath: \"/docs\" With Security Related Issues should not allow loading scripts from cross-site",
       "misc basic dev tests, basePath: \"/docs\" should allow access to public files",
       "misc basic dev tests, basePath: \"/docs\" should set process.env.NODE_ENV in development"
     ],
@@ -4316,13 +4339,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/app-routes-subrequests/app-routes-subrequests.test.ts": {
-    "passed": ["app-routes-subrequests shortcuts after 5 subrequests"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/app-routes-trailing-slash/app-routes-trailing-slash.test.ts": {
     "passed": [
       "app-routes-trailing-slash should handle trailing slash for edge runtime",
@@ -4560,6 +4576,7 @@
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-node",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
+      "app-dir static/dynamic handling unstable_cache should be able to read the draft mode status",
       "app-dir static/dynamic handling unstable_cache should bypass cache in draft mode",
       "app-dir static/dynamic handling unstable_cache should not cache new result in draft mode",
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-cache",
@@ -4652,6 +4669,7 @@
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-node",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
+      "app-dir static/dynamic handling unstable_cache should be able to read the draft mode status",
       "app-dir static/dynamic handling unstable_cache should bypass cache in draft mode",
       "app-dir static/dynamic handling unstable_cache should not cache new result in draft mode",
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-cache",
@@ -4828,6 +4846,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/asset-prefix-absolute/asset-prefix-absolute.test.ts": {
+    "passed": [
+      "app-dir absolute assetPrefix bundles should return 200 on served assetPrefix"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/asset-prefix-with-basepath/asset-prefix-with-basepath.test.ts": {
     "passed": [
       "app-dir assetPrefix with basePath handling bundles should return 200 on served assetPrefix",
@@ -4965,11 +4992,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/css-chunking/css-chunking.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "css-chunking should be possible to disable the chunking plugin"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -4994,8 +5021,6 @@
   },
   "test/e2e/app-dir/css-order/css-order.test.ts": {
     "passed": [
-      "css-order turbo should load correct styles navigating big-interleaved-a -> big-interleaved-b",
-      "css-order turbo should load correct styles navigating big-interleaved-b -> big-interleaved-a",
       "css-order turbo should load correct styles navigating first -> first-client",
       "css-order turbo should load correct styles navigating first -> second",
       "css-order turbo should load correct styles navigating first -> second-client",
@@ -5004,24 +5029,14 @@
       "css-order turbo should load correct styles navigating first-client -> second",
       "css-order turbo should load correct styles navigating first-client -> second-client",
       "css-order turbo should load correct styles navigating first-client -> third",
-      "css-order turbo should load correct styles navigating global-first -> global-second",
-      "css-order turbo should load correct styles navigating global-second -> global-first",
       "css-order turbo should load correct styles navigating interleaved-a -> interleaved-b",
       "css-order turbo should load correct styles navigating interleaved-b -> interleaved-a",
       "css-order turbo should load correct styles navigating pages-first -> pages-second",
       "css-order turbo should load correct styles navigating pages-first -> pages-third",
-      "css-order turbo should load correct styles navigating pages-partial-reversed-a -> pages-partial-reversed-b",
-      "css-order turbo should load correct styles navigating pages-partial-reversed-b -> pages-partial-reversed-a",
-      "css-order turbo should load correct styles navigating pages-reversed-a -> pages-reversed-b",
-      "css-order turbo should load correct styles navigating pages-reversed-b -> pages-reversed-a",
       "css-order turbo should load correct styles navigating pages-second -> pages-first",
       "css-order turbo should load correct styles navigating pages-second -> pages-third",
       "css-order turbo should load correct styles navigating pages-third -> pages-first",
       "css-order turbo should load correct styles navigating pages-third -> pages-second",
-      "css-order turbo should load correct styles navigating partial-reversed-a -> partial-reversed-b",
-      "css-order turbo should load correct styles navigating partial-reversed-b -> partial-reversed-a",
-      "css-order turbo should load correct styles navigating reversed-a -> reversed-b",
-      "css-order turbo should load correct styles navigating reversed-b -> reversed-a",
       "css-order turbo should load correct styles navigating second -> first",
       "css-order turbo should load correct styles navigating second -> first-client",
       "css-order turbo should load correct styles navigating second -> second-client",
@@ -5038,8 +5053,6 @@
       "css-order turbo should load correct styles on big-interleaved-b",
       "css-order turbo should load correct styles on first",
       "css-order turbo should load correct styles on first-client",
-      "css-order turbo should load correct styles on global-first",
-      "css-order turbo should load correct styles on global-second",
       "css-order turbo should load correct styles on interleaved-a",
       "css-order turbo should load correct styles on interleaved-b",
       "css-order turbo should load correct styles on pages-first",
@@ -5051,10 +5064,6 @@
       "css-order turbo should load correct styles on pages-reversed-b",
       "css-order turbo should load correct styles on pages-second",
       "css-order turbo should load correct styles on pages-third",
-      "css-order turbo should load correct styles on partial-reversed-a",
-      "css-order turbo should load correct styles on partial-reversed-b",
-      "css-order turbo should load correct styles on reversed-a",
-      "css-order turbo should load correct styles on reversed-b",
       "css-order turbo should load correct styles on second",
       "css-order turbo should load correct styles on second-client",
       "css-order turbo should load correct styles on third",
@@ -5098,8 +5107,14 @@
       "css-order turbo should load correct styles navigating back again third -> first-client -> third -> first-client",
       "css-order turbo should load correct styles navigating back again third -> second -> third -> second",
       "css-order turbo should load correct styles navigating back again third -> second-client -> third -> second-client",
+      "css-order turbo should load correct styles navigating big-interleaved-a -> big-interleaved-b",
+      "css-order turbo should load correct styles navigating big-interleaved-b -> big-interleaved-a",
       "css-order turbo should load correct styles navigating pages-interleaved-a -> pages-interleaved-b",
-      "css-order turbo should load correct styles navigating pages-interleaved-b -> pages-interleaved-a"
+      "css-order turbo should load correct styles navigating pages-interleaved-b -> pages-interleaved-a",
+      "css-order turbo should load correct styles navigating pages-partial-reversed-a -> pages-partial-reversed-b",
+      "css-order turbo should load correct styles navigating pages-partial-reversed-b -> pages-partial-reversed-a",
+      "css-order turbo should load correct styles navigating pages-reversed-a -> pages-reversed-b",
+      "css-order turbo should load correct styles navigating pages-reversed-b -> pages-reversed-a"
     ],
     "flakey": [],
     "runtimeError": false
@@ -6052,6 +6067,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/link-component-deprecations/link-component-deprecations.test.ts": {
+    "passed": [
+      "Link component deprecations logs deprecation warning for legacyBehavior prop"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/loader-file-named-export-custom-loader-error/loader-file-named-export-custom-loader-error.test.ts": {
     "passed": [
       "Error test if the loader file export a named function in Development development only should show the error when using `Image` component",
@@ -6264,6 +6288,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/metadata-route-like-pages/metadata-route-like-pages.test.ts": {
+    "passed": [
+      "metadata-route-like-pages should able to visit icon page",
+      "metadata-route-like-pages should able to visit sitemap page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/metadata-static-generation/metadata-static-generation.test.ts": {
     "passed": [
       "app-dir - metadata-static-generation should contain async generated metadata in body for dynamic page",
@@ -6318,7 +6352,11 @@
       "app-dir - metadata-streaming should render the metadata in the browser",
       "app-dir - metadata-streaming should send streaming response for headless browser bots",
       "app-dir - metadata-streaming should send the blocking response for html limited bots",
-      "app-dir - metadata-streaming should still load viewport meta tags even if metadata is delayed"
+      "app-dir - metadata-streaming should still load viewport meta tags even if metadata is delayed",
+      "app-dir - metadata-streaming should still render metadata if children is not rendered in parallel routes layout",
+      "app-dir - metadata-streaming static should determine dynamic metadata in build and render in the body",
+      "app-dir - metadata-streaming static should render static metadata in the head",
+      "app-dir - metadata-streaming static should still render dynamic metadata in the head for html bots"
     ],
     "failed": [],
     "pending": [],
@@ -6553,7 +6591,9 @@
       "app dir - navigation relative hashes and queries should work with a hash-only href",
       "app dir - navigation relative hashes and queries should work with a query-only href",
       "app dir - navigation relative hashes and queries should work with both relative hashes and queries",
-      "app dir - navigation scroll restoration should restore original scroll position when navigating back"
+      "app dir - navigation scroll restoration should restore original scroll position when navigating back",
+      "app dir - navigation useRouter identity between navigations should preserve identity when navigating between different pages",
+      "app dir - navigation useRouter identity between navigations should preserve identity when navigating to the same page"
     ],
     "failed": [],
     "pending": [],
@@ -7339,12 +7379,12 @@
   },
   "test/e2e/app-dir/ppr-errors/ppr-errors.test.ts": {
     "passed": [],
-    "failed": [
-      "ppr build errors production mode outside of a suspense boundary should fail the build for uncaught errors",
-      "ppr build errors production mode when a postpone call is caught and logged it should should include a message telling why",
-      "ppr build errors production mode within a suspense boundary should fail the build for uncaught prerender errors"
+    "failed": [],
+    "pending": [
+      "ppr build errors production only outside of a suspense boundary should fail the build for uncaught errors",
+      "ppr build errors production only when a postpone call is caught and logged it should should include a message telling why",
+      "ppr build errors production only within a suspense boundary should fail the build for uncaught prerender errors"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -8702,7 +8742,13 @@
   },
   "test/e2e/app-dir/use-cache-custom-handler/use-cache-custom-handler.test.ts": {
     "passed": [
-      "use-cache-custom-handler should use custom cache handler if provided"
+      "use-cache-custom-handler should call getExpiration again after an action if implicit tags were revalidated",
+      "use-cache-custom-handler should not call expireTags for a normal invocation",
+      "use-cache-custom-handler should not call getExpiration again after an action if only explicit tags were revalidated",
+      "use-cache-custom-handler should revalidate after redirect using a legacy custom cache handler",
+      "use-cache-custom-handler should revalidate after redirect using a modern custom cache handler",
+      "use-cache-custom-handler should use a legacy custom cache handler if provided",
+      "use-cache-custom-handler should use a modern custom cache handler if provided"
     ],
     "failed": [],
     "pending": [],
@@ -8810,10 +8856,15 @@
       "use-cache should dedupe with react cache inside \"use cache\"",
       "use-cache should error when cookies/headers/draftMode is used inside \"use cache\"",
       "use-cache should not have unhandled rejection of Request data promises when use cache is enabled without dynamicIO",
+      "use-cache should not read nor write cached data when draft mode is enabled",
+      "use-cache should not use stale caches in server actions that have revalidated",
       "use-cache should override fetch with cookies/auth in use cache properly",
       "use-cache should override fetch with no-store in use cache properly",
       "use-cache should return the same object reference for multiple invocations",
+      "use-cache should revalidate before redirecting in a route handlers",
+      "use-cache should revalidate caches after redirect",
       "use-cache should revalidate caches during on-demand revalidation",
+      "use-cache should revalidate caches nested in unstable_cache",
       "use-cache should update after unstable_expireTag correctly",
       "use-cache should use revalidate config in fetch",
       "use-cache works with \"use cache\" in method props",
@@ -9720,6 +9771,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/instrumentation-client-hook/instrumentation-client-hook.test.ts": {
+    "passed": [
+      "Instrumentation Client Hook App Router should execute instrumentation-client from app router before hydration",
+      "Instrumentation Client Hook HMR in development mode should reload instrumentation-client when modified",
+      "Instrumentation Client Hook Pages Router should execute instrumentation-client from pages router before hydration",
+      "Instrumentation Client Hook With src folder should execute instrumentation-client from with src folder before hydration"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/instrumentation-hook-src/instrumentation-hook-src.test.ts": {
     "passed": [
       "instrumentation-hook-rsc instrumentation should not overlap with a instrumentation page",
@@ -9756,6 +9819,28 @@
     "passed": [
       "instrumentation-hook - register-once should not error when concurrent requests are made",
       "instrumentation-hook - register-once should only register once"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/link-on-navigate-prop/index.test.ts": {
+    "passed": [
+      "<Link /> onNavigate prop App Router should only trigger both onClick for external links",
+      "<Link /> onNavigate prop App Router should only trigger onClick for download links",
+      "<Link /> onNavigate prop App Router should only trigger onClick for external links with target=\"_blank\"",
+      "<Link /> onNavigate prop App Router should prevent navigation when onNavigate calls preventDefault",
+      "<Link /> onNavigate prop App Router should replace history state for external links with replace prop",
+      "<Link /> onNavigate prop App Router should trigger both onClick and onNavigate for internal navigation",
+      "<Link /> onNavigate prop App Router should trigger onClick but not onNavigate when using modifier key",
+      "<Link /> onNavigate prop Pages Router should only trigger both onClick for external links",
+      "<Link /> onNavigate prop Pages Router should only trigger onClick for download links",
+      "<Link /> onNavigate prop Pages Router should only trigger onClick for external links with target=\"_blank\"",
+      "<Link /> onNavigate prop Pages Router should prevent navigation when onNavigate calls preventDefault",
+      "<Link /> onNavigate prop Pages Router should replace history state for external links with replace prop",
+      "<Link /> onNavigate prop Pages Router should trigger both onClick and onNavigate for internal navigation",
+      "<Link /> onNavigate prop Pages Router should trigger onClick but not onNavigate when using modifier key"
     ],
     "failed": [],
     "pending": [],
@@ -9810,9 +9895,18 @@
   },
   "test/e2e/middleware-custom-matchers-i18n/test/index.test.ts": {
     "passed": [
-      "Middleware custom matchers i18n should match",
-      "Middleware custom matchers i18n should match has query on client routing",
-      "Middleware custom matchers i18n should not match",
+      "Middleware custom matchers i18n should match /en/hello",
+      "Middleware custom matchers i18n should match /hello",
+      "Middleware custom matchers i18n should match /nl-NL/about",
+      "Middleware custom matchers i18n should match /nl-NL/hello",
+      "Middleware custom matchers i18n should match has query on client routing en_hello",
+      "Middleware custom matchers i18n should match has query on client routing hello",
+      "Middleware custom matchers i18n should match has query on client routing nl-NL_about",
+      "Middleware custom matchers i18n should match has query on client routing nl-NL_hello",
+      "Middleware custom matchers i18n should not match /about",
+      "Middleware custom matchers i18n should not match /en/about",
+      "Middleware custom matchers i18n should not match /hello/invalid",
+      "Middleware custom matchers i18n should not match /invalid/hello",
       "Middleware custom matchers with root should not match"
     ],
     "failed": [],
@@ -9919,6 +10013,7 @@
       "Middleware Runtime with i18n should keep non data requests in their original shape",
       "Middleware Runtime with i18n should normalize data requests into page requests",
       "Middleware Runtime with i18n should only contain middleware route in dev middleware manifest",
+      "Middleware Runtime with i18n should read request body",
       "Middleware Runtime with i18n should redirect the same for direct visit and client-transition",
       "Middleware Runtime with i18n should respond with 400 on decode failure",
       "Middleware Runtime with i18n should rewrite correctly for non-SSG/SSP page",
@@ -9958,6 +10053,7 @@
       "Middleware Runtime without i18n should keep non data requests in their original shape",
       "Middleware Runtime without i18n should normalize data requests into page requests",
       "Middleware Runtime without i18n should only contain middleware route in dev middleware manifest",
+      "Middleware Runtime without i18n should read request body",
       "Middleware Runtime without i18n should redirect the same for direct visit and client-transition",
       "Middleware Runtime without i18n should respond with 400 on decode failure",
       "Middleware Runtime without i18n should rewrite correctly for non-SSG/SSP page",
@@ -10004,6 +10100,7 @@
       "Middleware Runtime with i18n should keep non data requests in their original shape",
       "Middleware Runtime with i18n should normalize data requests into page requests",
       "Middleware Runtime with i18n should only contain middleware route in dev middleware manifest",
+      "Middleware Runtime with i18n should read request body",
       "Middleware Runtime with i18n should redirect the same for direct visit and client-transition",
       "Middleware Runtime with i18n should respond with 400 on decode failure",
       "Middleware Runtime with i18n should rewrite correctly for non-SSG/SSP page",
@@ -10044,6 +10141,7 @@
       "Middleware Runtime without i18n should keep non data requests in their original shape",
       "Middleware Runtime without i18n should normalize data requests into page requests",
       "Middleware Runtime without i18n should only contain middleware route in dev middleware manifest",
+      "Middleware Runtime without i18n should read request body",
       "Middleware Runtime without i18n should redirect the same for direct visit and client-transition",
       "Middleware Runtime without i18n should respond with 400 on decode failure",
       "Middleware Runtime without i18n should rewrite correctly for non-SSG/SSP page",
@@ -11177,6 +11275,20 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/use-link-status/index.test.ts": {
+    "passed": [
+      "useLinkStatus should remove pending state after browser back navigation",
+      "useLinkStatus should remove pending state after shallow routing",
+      "useLinkStatus should remove pending state when navigation starts by router.push",
+      "useLinkStatus should remove pending state when server action triggers a redirect",
+      "useLinkStatus should show pending state for the last link clicked when clicking multiple links in a row",
+      "useLinkStatus should show pending state when navigating to the same path"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/useselectedlayoutsegment-s-in-pages-router/useselectedlayoutsegment-s-in-pages-router.test.ts": {
     "passed": [
       "useSelectedLayoutSegment(s) in Pages Router Should render with `useSelectedLayoutSegment(s) hooks"
@@ -11416,16 +11528,15 @@
     "runtimeError": false
   },
   "test/integration/amphtml-ssg/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "AMP SSG Support development mode should load a hybrid amp page with query correctly",
       "AMP SSG Support development mode should load a hybrid amp page without query correctly",
       "AMP SSG Support development mode should load an amp first page correctly",
       "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page",
       "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page with query",
-      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page with trailing slash"
-    ],
-    "failed": [],
-    "pending": [
+      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page with trailing slash",
       "AMP SSG Support export mode production mode should have copied SSG files correctly",
       "AMP SSG Support production mode should load a hybrid amp page with query correctly",
       "AMP SSG Support production mode should load a hybrid amp page without query correctly",
@@ -11439,21 +11550,20 @@
     "runtimeError": false
   },
   "test/integration/amphtml/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "AMP Usage AMP dev no-warn should not warn on valid amp",
       "AMP Usage AMP development mode should add data-ampdevmode to development script tags",
       "AMP Usage AMP development mode should detect amp validator warning on custom scripts",
       "AMP Usage AMP development mode should detect amp validator warning on invalid amp",
-      "AMP Usage AMP development mode should navigate from non-AMP to AMP without error",
-      "AMP Usage AMP development mode should not contain missing files warning"
-    ],
-    "failed": [],
-    "pending": [
       "AMP Usage AMP development mode should detect changes and refresh a hybrid AMP page",
       "AMP Usage AMP development mode should detect changes and refresh an AMP page",
       "AMP Usage AMP development mode should detect changes and refresh an AMP page at root pages/",
       "AMP Usage AMP development mode should detect changes to component and refresh an AMP page",
       "AMP Usage AMP development mode should detect the changes and display it",
+      "AMP Usage AMP development mode should navigate from non-AMP to AMP without error",
+      "AMP Usage AMP development mode should not contain missing files warning",
       "AMP Usage AMP development mode should not reload unless the page is edited for an AMP page",
       "AMP Usage production mode With AMP context should render nested AMP page with AMP hook",
       "AMP Usage production mode With AMP context should render nested normal page with AMP hook",

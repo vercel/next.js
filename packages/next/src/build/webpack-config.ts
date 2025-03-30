@@ -601,8 +601,11 @@ export default async function getBaseWebpackConfig(
     babelLoader,
   ].filter(Boolean)
 
+  // Rspack will inject their own React Refresh loader in @rspack/plugin-react-refresh
   const reactRefreshLoaders =
-    dev && isClient ? [require.resolve(reactRefreshLoaderName)] : []
+    !isRspack && dev && isClient
+      ? [require.resolve(reactRefreshLoaderName)]
+      : []
 
   // client components layers: SSR or browser
   const createClientLayerLoader = ({
@@ -893,7 +896,6 @@ export default async function getBaseWebpackConfig(
   }
 
   const telemetryPlugin =
-    !isRspack &&
     !dev &&
     isClient &&
     new (
@@ -1098,8 +1100,7 @@ export default async function getBaseWebpackConfig(
           }): boolean {
             return (
               !module.type?.startsWith('css') &&
-              // rspack doesn't support module.size
-              (isRspack || module.size() > 160000) &&
+              module.size() > 160000 &&
               /node_modules[/\\]/.test(module.nameForCondition() || '')
             )
           },
@@ -1113,15 +1114,12 @@ export default async function getBaseWebpackConfig(
             if (isModuleCSS(module)) {
               module.updateHash(hash)
             } else {
-              // rspack doesn't support this
-              if (!isRspack) {
-                if (!module.libIdent) {
-                  throw new Error(
-                    `Encountered unknown module type: ${module.type}. Please open an issue.`
-                  )
-                }
-                hash.update(module.libIdent({ context: dir }))
+              if (!module.libIdent) {
+                throw new Error(
+                  `Encountered unknown module type: ${module.type}. Please open an issue.`
+                )
               }
+              hash.update(module.libIdent({ context: dir }))
             }
 
             // Ensures the name of the chunk is not the same between two modules in different layers
@@ -1175,9 +1173,22 @@ export default async function getBaseWebpackConfig(
         ? [
             new (getRspackCore().SwcJsMinimizerRspackPlugin)({
               // JS minimizer configuration
+              // options should align with crates/napi/src/minify.rs#patch_opts
+              minimizerOptions: {
+                compress: {
+                  inline: 2,
+                  global_defs: {
+                    'process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE': false,
+                  },
+                },
+                mangle: !noMangling && { reserved: ['AbortSignal'] },
+              },
             }),
             new (getRspackCore().LightningCssMinimizerRspackPlugin)({
               // CSS minimizer configuration
+              minimizerOptions: {
+                targets: supportedBrowsers,
+              },
             }),
           ]
         : [
@@ -2056,8 +2067,7 @@ export default async function getBaseWebpackConfig(
         config.experimental.cssChunking &&
         new CssChunkingPlugin(config.experimental.cssChunking === 'strict'),
       telemetryPlugin,
-      !isRspack &&
-        !dev &&
+      !dev &&
         isNodeServer &&
         new (
           require('./webpack/plugins/telemetry-plugin/telemetry-plugin') as typeof import('./webpack/plugins/telemetry-plugin/telemetry-plugin')
@@ -2604,7 +2614,8 @@ export default async function getBaseWebpackConfig(
   }
 
   // Inject missing React Refresh loaders so that development mode is fast:
-  if (dev && isClient) {
+  // Rspack will inject their own React Refresh loader in @rspack/plugin-react-refresh
+  if (!isRspack && dev && isClient) {
     attachReactRefresh(webpackConfig, defaultLoaders.babel)
   }
 

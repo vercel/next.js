@@ -253,11 +253,6 @@ async function exportPageImpl(
     )
   }
 
-  // During the export phase in next build, if it's using PPR we can serve streaming metadata
-  // when it's available. When we're building the PPR rendering result, we don't need to rely
-  // on the user agent. The result can be determined to serve streaming on infrastructure level.
-  const serveStreamingMetadata = !!isRoutePPREnabled
-
   const renderOpts: WorkerRenderOpts = {
     ...components,
     ...input.renderOpts,
@@ -267,7 +262,11 @@ async function exportPageImpl(
     disableOptimizedLoading,
     locale,
     supportsDynamicResponse: false,
-    serveStreamingMetadata,
+    // During the export phase in next build, we always enable the streaming metadata since if there's
+    // any dynamic access in metadata we can determine it in the build phase.
+    // If it's static, then it won't affect anything.
+    // If it's dynamic, then it can be handled when request hits the route.
+    serveStreamingMetadata: true,
     experimental: {
       ...input.renderOpts.experimental,
       isRoutePPREnabled,

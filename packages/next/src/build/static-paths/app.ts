@@ -336,6 +336,7 @@ export async function buildAppStaticPaths({
       onAfterTaskError: afterRunner.context.onTaskError,
     },
     buildId,
+    previouslyRevalidatedTags: [],
   })
 
   const routeParams = await ComponentMod.workAsyncStorage.run(

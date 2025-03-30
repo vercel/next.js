@@ -129,7 +129,8 @@ program
   .option('--no-mangling', 'Disables mangling.')
   .option('--profile', 'Enables production profiling for React.')
   .option('--experimental-app-only', 'Builds only App Router routes.')
-  .addOption(new Option('--experimental-turbo').hideHelp())
+  .option('--turbo', 'Starts development mode using Turbopack.')
+  .option('--turbopack', 'Starts development mode using Turbopack.')
   .addOption(
     new Option(
       '--experimental-build-mode [mode]',
@@ -350,6 +351,8 @@ program
       'Specify the maximum amount of milliseconds to wait before closing inactive connections.'
     ).argParser(parseValidPositiveInteger)
   )
+  .addOption(new Option('--turbo').hideHelp())
+  .option('--turbopack', 'Starts development mode using Turbopack.')
   .action((directory: string, options: NextStartOptions) =>
     import('../cli/next-start.js').then((mod) =>
       mod.nextStart(options, directory)

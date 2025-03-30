@@ -3,31 +3,44 @@ use std::{
     collections::{hash_map, BTreeMap},
     convert::{TryFrom, TryInto},
     mem::{replace, take},
+    path::{Path, PathBuf},
     rc::Rc,
+    sync::Arc,
 };
 
+use base64::{display::Base64Display, prelude::BASE64_STANDARD};
 use hex::encode as hex_encode;
 use indoc::formatdoc;
+use pathdiff::diff_paths;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
 use swc_core::{
-    atoms::Atom,
+    atoms::{atom, Atom},
     common::{
-        comments::{Comment, CommentKind, Comments},
+        comments::{Comment, CommentKind, Comments, SingleThreadedComments},
         errors::HANDLER,
-        source_map::PURE_SP,
+        source_map::{SourceMapGenConfig, PURE_SP},
         util::take::Take,
-        BytePos, FileName, Mark, Span, SyntaxContext, DUMMY_SP,
+        BytePos, FileName, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP,
     },
     ecma::{
         ast::*,
+        codegen::{self, text_writer::JsWriter, Emitter},
         utils::{private_ident, quote_ident, ExprFactory},
         visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
     },
     quote,
 };
 use turbo_rcstr::RcStr;
+
+use crate::FxIndexMap;
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+pub enum ServerActionsMode {
+    Webpack,
+    Turbopack,
+}
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -124,14 +137,20 @@ pub type ActionsMap = BTreeMap<Atom, Atom>;
 #[tracing::instrument(level = tracing::Level::TRACE, skip_all)]
 pub fn server_actions<C: Comments>(
     file_name: &FileName,
+    file_query: Option<RcStr>,
     config: Config,
     comments: C,
+    cm: Arc<SourceMap>,
     use_cache_telemetry_tracker: Rc<RefCell<FxHashMap<String, usize>>>,
+    mode: ServerActionsMode,
 ) -> impl Pass {
     visit_mut_pass(ServerActions {
         config,
+        mode,
         comments,
+        cm,
         file_name: file_name.to_string(),
+        file_query,
         start_pos: BytePos(0),
         file_directive: None,
         in_exported_expr: false,
@@ -172,10 +191,18 @@ pub fn server_actions<C: Comments>(
 
 /// Serializes the Server Actions into a magic comment prefixed by
 /// `__next_internal_action_entry_do_not_use__`.
-fn generate_server_actions_comment(actions: ActionsMap) -> String {
+fn generate_server_actions_comment(
+    actions: &ActionsMap,
+    entry_path_query: Option<(&str, &str)>,
+) -> String {
     format!(
         " __next_internal_action_entry_do_not_use__ {} ",
-        serde_json::to_string(&actions).unwrap()
+        if let Some(entry_path_query) = entry_path_query {
+            serde_json::to_string(&(actions, entry_path_query.0, entry_path_query.1))
+        } else {
+            serde_json::to_string(&actions)
+        }
+        .unwrap()
     )
 }
 
@@ -183,7 +210,10 @@ struct ServerActions<C: Comments> {
     #[allow(unused)]
     config: Config,
     file_name: String,
+    file_query: Option<RcStr>,
     comments: C,
+    cm: Arc<SourceMap>,
+    mode: ServerActionsMode,
 
     start_pos: BytePos,
     file_directive: Option<Directive>,
@@ -1805,46 +1835,49 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         let call_server_ident = private_ident!("callServer");
         let find_source_map_url_ident = private_ident!("findSourceMapURL");
 
-        if (self.has_action || self.has_cache) && !self.config.is_react_server_layer {
-            // import {
-            //   createServerReference,
-            //   callServer,
-            //   findSourceMapURL
-            // } from 'private-next-rsc-action-client-wrapper'
-            // createServerReference("action_id")
-            new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                span: DUMMY_SP,
-                specifiers: vec![
-                    ImportSpecifier::Named(ImportNamedSpecifier {
-                        span: DUMMY_SP,
-                        local: create_ref_ident.clone(),
-                        imported: None,
-                        is_type_only: false,
-                    }),
-                    ImportSpecifier::Named(ImportNamedSpecifier {
-                        span: DUMMY_SP,
-                        local: call_server_ident.clone(),
-                        imported: None,
-                        is_type_only: false,
-                    }),
-                    ImportSpecifier::Named(ImportNamedSpecifier {
-                        span: DUMMY_SP,
-                        local: find_source_map_url_ident.clone(),
-                        imported: None,
-                        is_type_only: false,
-                    }),
-                ],
-                src: Box::new(Str {
+        let client_layer_import = ((self.has_action || self.has_cache)
+            && !self.config.is_react_server_layer)
+            .then(|| {
+                // import {
+                //   createServerReference,
+                //   callServer,
+                //   findSourceMapURL
+                // } from 'private-next-rsc-action-client-wrapper'
+                // createServerReference("action_id")
+                ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,
-                    value: "private-next-rsc-action-client-wrapper".into(),
-                    raw: None,
-                }),
-                type_only: false,
-                with: None,
-                phase: Default::default(),
-            })));
-            new.rotate_right(1);
-        }
+                    specifiers: vec![
+                        ImportSpecifier::Named(ImportNamedSpecifier {
+                            span: DUMMY_SP,
+                            local: create_ref_ident.clone(),
+                            imported: None,
+                            is_type_only: false,
+                        }),
+                        ImportSpecifier::Named(ImportNamedSpecifier {
+                            span: DUMMY_SP,
+                            local: call_server_ident.clone(),
+                            imported: None,
+                            is_type_only: false,
+                        }),
+                        ImportSpecifier::Named(ImportNamedSpecifier {
+                            span: DUMMY_SP,
+                            local: find_source_map_url_ident.clone(),
+                            imported: None,
+                            is_type_only: false,
+                        }),
+                    ],
+                    src: Box::new(Str {
+                        span: DUMMY_SP,
+                        value: "private-next-rsc-action-client-wrapper".into(),
+                        raw: None,
+                    }),
+                    type_only: false,
+                    with: None,
+                    phase: Default::default(),
+                }))
+            });
+
+        let mut client_layer_exports = FxIndexMap::default();
 
         // If it's a "use server" or a "use cache" file, all exports need to be annotated.
         if should_track_exports {
@@ -1881,7 +1914,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 })),
                             },
                         ));
-                        new.push(export_expr);
+                        client_layer_exports
+                            .insert(atom!("default"), (export_expr, ref_id.clone()));
                     } else {
                         let export_expr =
                             ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
@@ -1928,7 +1962,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     ..Default::default()
                                 })),
                             }));
-                        new.push(export_expr);
+                        client_layer_exports
+                            .insert(export_name.clone(), (export_expr, ref_id.clone()));
                     }
                 } else if !in_cache_file {
                     self.annotations.push(Stmt::Expr(ExprStmt {
@@ -2001,18 +2036,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 // Append annotations to the end of the file.
                 new.extend(self.annotations.drain(..).map(ModuleItem::Stmt));
             }
-        }
-
-        if self.has_action || self.has_cache {
-            // Prepend a special comment to the top of the file.
-            self.comments.add_leading(
-                self.start_pos,
-                Comment {
-                    span: DUMMY_SP,
-                    kind: CommentKind::Block,
-                    text: generate_server_actions_comment(actions).into(),
-                },
-            );
         }
 
         // import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
@@ -2091,6 +2114,98 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             // Make it the first item
             new.rotate_right(2);
+        }
+
+        if self.has_action || self.has_cache {
+            if self.config.is_react_server_layer {
+                // Prepend a special comment to the top of the file.
+                self.comments.add_leading(
+                    self.start_pos,
+                    Comment {
+                        span: DUMMY_SP,
+                        kind: CommentKind::Block,
+                        text: generate_server_actions_comment(
+                            &actions,
+                            match self.mode {
+                                ServerActionsMode::Webpack => None,
+                                ServerActionsMode::Turbopack => Some(("", "")),
+                            },
+                        )
+                        .into(),
+                    },
+                );
+            } else {
+                match self.mode {
+                    ServerActionsMode::Webpack => {
+                        self.comments.add_leading(
+                            self.start_pos,
+                            Comment {
+                                span: DUMMY_SP,
+                                kind: CommentKind::Block,
+                                text: generate_server_actions_comment(&actions, None).into(),
+                            },
+                        );
+                        new.push(client_layer_import.unwrap());
+                        new.rotate_right(1);
+                        new.extend(client_layer_exports.into_iter().map(|(_, (v, _))| v));
+                    }
+                    ServerActionsMode::Turbopack => {
+                        new.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                            expr: Box::new(Expr::Lit(Lit::Str(
+                                "use turbopack no side effects".into(),
+                            ))),
+                            span: DUMMY_SP,
+                        })));
+                        new.rotate_right(1);
+                        for (export, (stmt, ref_id)) in client_layer_exports {
+                            new.push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
+                                NamedExport {
+                                    specifiers: vec![ExportSpecifier::Named(
+                                        ExportNamedSpecifier {
+                                            span: DUMMY_SP,
+                                            orig: ModuleExportName::Ident(export.clone().into()),
+                                            exported: None,
+                                            is_type_only: false,
+                                        },
+                                    )],
+                                    src: Some(Box::new(
+                                        program_to_data_url(
+                                            &self.file_name,
+                                            &self.cm,
+                                            vec![
+                                                ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                                                    expr: Box::new(Expr::Lit(Lit::Str(
+                                                        "use turbopack no side effects".into(),
+                                                    ))),
+                                                    span: DUMMY_SP,
+                                                })),
+                                                client_layer_import.clone().unwrap(),
+                                                stmt,
+                                            ],
+                                            Comment {
+                                                span: DUMMY_SP,
+                                                kind: CommentKind::Block,
+                                                text: generate_server_actions_comment(
+                                                    &std::iter::once((ref_id, export)).collect(),
+                                                    Some((
+                                                        &self.file_name,
+                                                        self.file_query.as_ref().map_or("", |v| v),
+                                                    )),
+                                                )
+                                                .into(),
+                                            },
+                                        )
+                                        .into(),
+                                    )),
+                                    span: DUMMY_SP,
+                                    type_only: false,
+                                    with: None,
+                                },
+                            )));
+                        }
+                    }
+                }
+            }
         }
 
         *stmts = new;
@@ -3080,4 +3195,95 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
     };
 
     HANDLER.with(|handler| handler.struct_span_err(span, &msg).emit());
+}
+
+fn program_to_data_url(
+    file_name: &str,
+    cm: &Arc<SourceMap>,
+    body: Vec<ModuleItem>,
+    prepend_comment: Comment,
+) -> String {
+    let module_span = Span::dummy_with_cmt();
+    let comments = SingleThreadedComments::default();
+    comments.add_leading(module_span.lo, prepend_comment);
+
+    let program = &Program::Module(Module {
+        span: module_span,
+        body,
+        shebang: None,
+    });
+
+    let mut output = vec![];
+    let mut mappings = vec![];
+    let mut emitter = Emitter {
+        cfg: codegen::Config::default().with_minify(true),
+        cm: cm.clone(),
+        wr: Box::new(JsWriter::new(
+            cm.clone(),
+            " ",
+            &mut output,
+            Some(&mut mappings),
+        )),
+        comments: Some(&comments),
+    };
+
+    emitter.emit_program(program).unwrap();
+    drop(emitter);
+
+    pub struct InlineSourcesContentConfig<'a> {
+        folder_path: Option<&'a Path>,
+    }
+    // This module will be placed at `some/path/to/data:28a9d2` where the original input file lives
+    // at `some/path/to/actions.js`. So we need to generate a relative path, usually `./actions.js`
+    impl SourceMapGenConfig for InlineSourcesContentConfig<'_> {
+        fn file_name_to_source(&self, file: &FileName) -> String {
+            let FileName::Custom(file) = file else {
+                // Turbopack uses FileName::Custom for the `[project]/...` paths
+                return file.to_string();
+            };
+            let Some(folder_path) = &self.folder_path else {
+                return file.to_string();
+            };
+
+            if let Some(rel_path) = diff_paths(file, folder_path) {
+                format!("./{}", rel_path.display())
+            } else {
+                file.to_string()
+            }
+        }
+
+        fn inline_sources_content(&self, _f: &FileName) -> bool {
+            true
+        }
+    }
+
+    let map = cm.build_source_map_with_config(
+        &mappings,
+        None,
+        InlineSourcesContentConfig {
+            folder_path: PathBuf::from(format!("[project]/{file_name}")).parent(),
+        },
+    );
+    let map = {
+        if map.get_token_count() > 0 {
+            let mut buf = vec![];
+            map.to_writer(&mut buf)
+                .expect("failed to generate sourcemap");
+            Some(buf)
+        } else {
+            None
+        }
+    };
+
+    let mut output = String::from_utf8(output).expect("codegen generated non-utf8 output");
+    if let Some(map) = map {
+        output.extend(
+            format!(
+                "\n//# sourceMappingURL=data:application/json;base64,{}",
+                Base64Display::new(&map, &BASE64_STANDARD)
+            )
+            .chars(),
+        );
+    }
+    format!("data:text/javascript,{}", urlencoding::encode(&output))
 }

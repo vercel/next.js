@@ -1011,7 +1011,7 @@ async fn gen_content_with_code_gens(
             is_esm: false,
         }
         .cell()),
-        _ => Ok(EcmascriptModuleContent {
+        ParseResult::NotFound => Ok(EcmascriptModuleContent {
             inner_code: format!(
                 "const e = new Error(\"Could not parse module '{path}'\");\ne.code = \
                  'MODULE_UNPARSEABLE';\nthrow e;",

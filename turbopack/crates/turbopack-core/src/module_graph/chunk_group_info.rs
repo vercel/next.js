@@ -88,6 +88,8 @@ pub struct ChunkGroupInfo {
     pub module_chunk_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>,
     #[turbo_tasks(trace_ignore)]
     pub chunk_groups: FxIndexSet<ChunkGroup>,
+    #[turbo_tasks(trace_ignore)]
+    pub chunk_group_keys: FxIndexSet<ChunkGroupKey>,
 }
 
 #[turbo_tasks::value_impl]
@@ -174,6 +176,19 @@ pub enum ChunkGroup {
 }
 
 impl ChunkGroup {
+    /// Returns the parent group when this chunk group is a merged group. In that case `entries()`
+    /// are in unspecified order.
+    pub fn get_merged_parent(&self) -> Option<usize> {
+        match self {
+            ChunkGroup::IsolatedMerged { parent, .. } | ChunkGroup::SharedMerged { parent, .. } => {
+                Some(*parent)
+            }
+            _ => None,
+        }
+    }
+
+    /// Iterates over the entries of the chunk group. When `get_merged_parent` is Some, the order is
+    /// unspecified.
     pub fn entries(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + Clone + '_ {
         match self {
             ChunkGroup::Async(e) | ChunkGroup::Isolated(e) | ChunkGroup::Shared(e) => {
@@ -182,6 +197,15 @@ impl ChunkGroup {
             ChunkGroup::Entry(entries)
             | ChunkGroup::IsolatedMerged { entries, .. }
             | ChunkGroup::SharedMerged { entries, .. } => Either::Right(entries.iter().copied()),
+        }
+    }
+
+    pub fn entries_count(&self) -> usize {
+        match self {
+            ChunkGroup::Async(_) | ChunkGroup::Isolated(_) | ChunkGroup::Shared(_) => 1,
+            ChunkGroup::Entry(entries)
+            | ChunkGroup::IsolatedMerged { entries, .. }
+            | ChunkGroup::SharedMerged { entries, .. } => entries.len(),
         }
     }
 
@@ -245,8 +269,8 @@ impl ChunkGroup {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum ChunkGroupKey {
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ChunkGroupKey {
     /// e.g. a page
     Entry(Vec<ResolvedVc<Box<dyn Module>>>),
     /// a module with an incoming async edge
@@ -269,6 +293,12 @@ enum ChunkGroupKey {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ChunkGroupId(u32);
+
+impl From<usize> for ChunkGroupId {
+    fn from(id: usize) -> Self {
+        Self(id as u32)
+    }
+}
 
 impl Deref for ChunkGroupId {
     type Target = u32;
@@ -621,6 +651,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
         Ok(ChunkGroupInfo {
             module_chunk_groups,
+            chunk_group_keys: chunk_groups_map.keys().cloned().collect(),
             chunk_groups: chunk_groups_map
                 .into_iter()
                 .map(|(k, (_, merged_entries))| match k {

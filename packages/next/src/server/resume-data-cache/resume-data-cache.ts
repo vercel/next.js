@@ -6,6 +6,7 @@ import {
   serializeUseCacheCacheStore,
   parseUseCacheCacheStore,
   type DecryptedBoundArgsCacheStore,
+  type UseCacheCacheStoreSerialized,
 } from './cache-store'
 
 /**
@@ -114,7 +115,12 @@ export async function stringifyResumeDataCache(
       store: {
         fetch: Object.fromEntries(Array.from(resumeDataCache.fetch.entries())),
         cache: Object.fromEntries(
-          await serializeUseCacheCacheStore(resumeDataCache.cache.entries())
+          (
+            await serializeUseCacheCacheStore(resumeDataCache.cache.entries())
+          ).filter(
+            (entry): entry is [string, UseCacheCacheStoreSerialized] =>
+              entry !== null
+          )
         ),
         encryptedBoundArgs: Object.fromEntries(
           Array.from(resumeDataCache.encryptedBoundArgs.entries())

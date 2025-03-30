@@ -48,7 +48,7 @@ export class TurbopackHmr {
   }
 }
 
-export function extractModulesFromTurbopackMessage(
+function extractModulesFromTurbopackMessage(
   data: TurbopackUpdate | TurbopackUpdate[]
 ): Set<string> {
   const updatedModules: Set<string> = new Set()

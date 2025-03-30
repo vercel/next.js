@@ -97,6 +97,7 @@ swc_core = { workspace = true, features = [
     "ecma_utils",
     "ecma_visit",
 ] }
+swc_parallel = { workspace = true, default-features = false, features = ["rayon"] }
 
 # Dependencies for the native, non-wasm32 build.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

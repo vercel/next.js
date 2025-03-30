@@ -19,16 +19,17 @@ import loadConfig from '../../server/config'
 import { hasCustomExportOutput } from '../../export/utils'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
-
-const IS_TURBOPACK_BUILD = process.env.TURBOPACK && process.env.TURBOPACK_BUILD
+import { isStableBuild, CanaryOnlyError } from '../../shared/lib/canary-only'
 
 export async function turbopackBuild(): Promise<{
   duration: number
   buildTraceContext: undefined
   shutdownPromise: Promise<void>
 }> {
-  if (!IS_TURBOPACK_BUILD) {
-    throw new Error("next build doesn't support turbopack yet")
+  if (isStableBuild()) {
+    throw new CanaryOnlyError(
+      'Turbopack builds are only available in canary builds of Next.js.'
+    )
   }
 
   await validateTurboNextConfig({
