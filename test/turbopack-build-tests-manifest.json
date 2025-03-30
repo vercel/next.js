@@ -17872,13 +17872,11 @@
     "runtimeError": false
   },
   "test/production/app-dir/symbolic-file-links/symbolic-file-links.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "symbolic-file-links should work using browser",
-      "symbolic-file-links should work using cheerio",
-      "symbolic-file-links should work with fetch",
       "symbolic-file-links should work with html"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
