@@ -40,6 +40,7 @@ import {
   normalizeRewritesForBuildManifest,
   srcEmptySsgManifest,
   processRoute,
+  createEdgeRuntimeManifest,
 } from '../../../build/webpack/plugins/build-manifest-plugin'
 import getAssetPathFromRoute from '../router/utils/get-asset-path-from-route'
 import { getEntryKey, type EntryKey } from './entry-key'
@@ -454,7 +455,7 @@ export class TurbopackManifestLoader {
       middlewareBuildManifestPath,
       // we use globalThis here because middleware can be node
       // which doesn't have "self"
-      `globalThis.__BUILD_MANIFEST=${JSON.stringify(buildManifest)};`
+      createEdgeRuntimeManifest(buildManifest)
     )
 
     const interceptionRewrites = JSON.stringify(
