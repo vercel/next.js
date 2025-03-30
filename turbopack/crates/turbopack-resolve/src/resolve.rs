@@ -83,6 +83,15 @@ const NODE_EXTERNALS: [&str; 63] = [
 
 const EDGE_NODE_EXTERNALS: [&str; 5] = ["buffer", "events", "assert", "util", "async_hooks"];
 
+const BUN_EXTERNALS: [&str; 6] = [
+    "bun:ffi",
+    "bun:jsc",
+    "bun:sqlite",
+    "bun:test",
+    "bun:wrap",
+    "bun",
+];
+
 #[turbo_tasks::function]
 async fn base_resolve_options(
     resolve_path: Vc<FileSystemPath>,
@@ -111,6 +120,13 @@ async fn base_resolve_options(
             );
             direct_mappings.insert(
                 AliasPattern::exact(format!("node:{req}")),
+                ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
+                    .resolved_cell(),
+            );
+        }
+        for req in BUN_EXTERNALS {
+            direct_mappings.insert(
+                AliasPattern::exact(req),
                 ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
                     .resolved_cell(),
             );
