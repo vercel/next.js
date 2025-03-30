@@ -206,9 +206,11 @@ export function createMetadataComponents({
     const promise = resolveFinalMetadata()
     if (serveStreamingMetadata) {
       return (
-        <Suspense fallback={null}>
-          <AsyncMetadata promise={promise} />
-        </Suspense>
+        <div hidden>
+          <Suspense fallback={null}>
+            <AsyncMetadata promise={promise} />
+          </Suspense>
+        </div>
       )
     }
     const metadataState = await promise
