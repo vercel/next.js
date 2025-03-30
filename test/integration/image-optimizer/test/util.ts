@@ -909,6 +909,7 @@ export function runTests(ctx: RunTestsCtx) {
 
       if (ctx.isrFlushToDisk === false) {
         json1 = await fsToJson(ctx.imagesDir)
+        expect(json1).toStrictEqual({})
       } else {
         await check(async () => {
           json1 = await fsToJson(ctx.imagesDir)
