@@ -907,7 +907,7 @@ export function runTests(ctx: RunTestsCtx) {
 
       let json1
 
-      if (!ctx.isrFlushToDisk) {
+      if (ctx.isrFlushToDisk === false) {
         json1 = await fsToJson(ctx.imagesDir)
       } else {
         await check(async () => {
@@ -936,11 +936,7 @@ export function runTests(ctx: RunTestsCtx) {
       )
       const json2 = await fsToJson(ctx.imagesDir)
 
-      if (!ctx.isrFlushToDisk) {
-        expect(json2).toStrictEqual({})
-      } else {
-        expect(json2).toStrictEqual(json1)
-      }
+      expect(json2).toStrictEqual(json1)
 
       if (ctx.nextConfigImages?.minimumCacheTTL) {
         // Wait until expired so we can confirm image is regenerated
@@ -967,7 +963,7 @@ export function runTests(ctx: RunTestsCtx) {
           `${contentDispositionType}; filename="slow.webp"`
         )
 
-        if (!ctx.isrFlushToDisk) {
+        if (ctx.isrFlushToDisk === false) {
           const json4 = await fsToJson(ctx.imagesDir)
 
           expect(json4).toStrictEqual({})
@@ -996,7 +992,7 @@ export function runTests(ctx: RunTestsCtx) {
         expect(five.res.headers.get('Content-Disposition')).toBe(
           `${contentDispositionType}; filename="slow.webp"`
         )
-        if (!ctx.isrFlushToDisk) {
+        if (ctx.isrFlushToDisk === false) {
           const json5 = await fsToJson(ctx.imagesDir)
 
           expect(json5).toStrictEqual({})
