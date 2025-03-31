@@ -98,9 +98,8 @@ export type ChangeSubscriptions = Map<
 
 export type HandleWrittenEndpoint = (
   key: EntryKey,
-  result: TurbopackResult<WrittenEndpoint>,
-  forceDeleteCache: boolean
-) => boolean
+  result: TurbopackResult<WrittenEndpoint>
+) => void
 
 export type StartChangeSubscription = (
   key: EntryKey,
@@ -178,17 +177,11 @@ export async function handleRouteType({
       const serverKey = getEntryKey('pages', 'server', page)
 
       try {
-        // In the best case scenario, Turbopack chunks document, app, page separately in that order,
-        // so it can happen that the chunks of document change, but the chunks of app and page
-        // don't. We still need to reload the page chunks in that case though, otherwise the version
-        // of the document or app component export from the pages template is stale.
-        let documentOrAppChanged = false
         if (entrypoints.global.app) {
           const key = getEntryKey('pages', 'server', '_app')
 
           const writtenEndpoint = await entrypoints.global.app.writeToDisk()
-          documentOrAppChanged ||=
-            hooks?.handleWrittenEndpoint(key, writtenEndpoint, false) ?? false
+          hooks?.handleWrittenEndpoint(key, writtenEndpoint)
           processIssues(
             currentEntryIssues,
             key,
@@ -205,8 +198,7 @@ export async function handleRouteType({
 
           const writtenEndpoint =
             await entrypoints.global.document.writeToDisk()
-          documentOrAppChanged ||=
-            hooks?.handleWrittenEndpoint(key, writtenEndpoint, false) ?? false
+          hooks?.handleWrittenEndpoint(key, writtenEndpoint)
           processIssues(
             currentEntryIssues,
             key,
@@ -218,11 +210,7 @@ export async function handleRouteType({
         await manifestLoader.loadPagesManifest('_document')
 
         const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
-        hooks?.handleWrittenEndpoint(
-          serverKey,
-          writtenEndpoint,
-          documentOrAppChanged
-        )
+        hooks?.handleWrittenEndpoint(serverKey, writtenEndpoint)
 
         const type = writtenEndpoint?.type
 
@@ -320,7 +308,7 @@ export async function handleRouteType({
       const key = getEntryKey('pages', 'server', page)
 
       const writtenEndpoint = await route.endpoint.writeToDisk()
-      hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
+      hooks?.handleWrittenEndpoint(key, writtenEndpoint)
 
       const type = writtenEndpoint.type
 
@@ -345,7 +333,7 @@ export async function handleRouteType({
       const key = getEntryKey('app', 'server', page)
 
       const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
-      hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
+      hooks?.handleWrittenEndpoint(key, writtenEndpoint)
 
       if (dev) {
         // TODO subscriptions should only be caused by the WebSocket connections
@@ -408,7 +396,7 @@ export async function handleRouteType({
       const key = getEntryKey('app', 'server', page)
 
       const writtenEndpoint = await route.endpoint.writeToDisk()
-      hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
+      hooks?.handleWrittenEndpoint(key, writtenEndpoint)
 
       const type = writtenEndpoint.type
 
@@ -666,7 +654,7 @@ export async function handleEntrypoints({
       const key = getEntryKey('root', 'server', name)
 
       const writtenEndpoint = await instrumentation[prop].writeToDisk()
-      dev.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
+      dev.hooks.handleWrittenEndpoint(key, writtenEndpoint)
       processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
     }
     await processInstrumentation('instrumentation.nodeJs', 'nodeJs')
@@ -701,7 +689,7 @@ export async function handleEntrypoints({
 
     async function processMiddleware() {
       const writtenEndpoint = await endpoint.writeToDisk()
-      dev.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
+      dev.hooks.handleWrittenEndpoint(key, writtenEndpoint)
       processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
       await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
       const middlewareConfig =
@@ -852,7 +840,7 @@ export async function handlePagesErrorRoute({
     const key = getEntryKey('pages', 'server', '_app')
 
     const writtenEndpoint = await entrypoints.global.app.writeToDisk()
-    hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
+    hooks.handleWrittenEndpoint(key, writtenEndpoint)
     hooks.subscribeToChanges(
       key,
       false,
@@ -879,7 +867,7 @@ export async function handlePagesErrorRoute({
     const key = getEntryKey('pages', 'server', '_document')
 
     const writtenEndpoint = await entrypoints.global.document.writeToDisk()
-    hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
+    hooks.handleWrittenEndpoint(key, writtenEndpoint)
     hooks.subscribeToChanges(
       key,
       false,
@@ -905,7 +893,7 @@ export async function handlePagesErrorRoute({
     const key = getEntryKey('pages', 'server', '_error')
 
     const writtenEndpoint = await entrypoints.global.error.writeToDisk()
-    hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
+    hooks.handleWrittenEndpoint(key, writtenEndpoint)
     hooks.subscribeToChanges(
       key,
       false,

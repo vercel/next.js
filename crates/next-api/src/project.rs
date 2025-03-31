@@ -895,7 +895,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn module_graph_for_modules(
+    pub async fn module_graph_for_entries(
         self: Vc<Self>,
         evaluatable_assets: Vc<EvaluatableAssets>,
     ) -> Result<Vc<ModuleGraph>> {
@@ -907,18 +907,6 @@ impl Project {
                 .map(ResolvedVc::upcast)
                 .collect();
             ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(entries)]))
-        } else {
-            *self.whole_app_module_graphs().await?.full
-        })
-    }
-
-    #[turbo_tasks::function]
-    pub async fn module_graph_for_entries(
-        self: Vc<Self>,
-        entries: Vc<GraphEntries>,
-    ) -> Result<Vc<ModuleGraph>> {
-        Ok(if *self.per_page_module_graph().await? {
-            ModuleGraph::from_modules(entries)
         } else {
             *self.whole_app_module_graphs().await?.full
         })
