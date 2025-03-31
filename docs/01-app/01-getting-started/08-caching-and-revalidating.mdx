@@ -13,28 +13,17 @@ related:
     - app/api-reference/functions/cacheTag
 ---
 
-Next.js uses the server and client environments for caching.
+Next.js uses the server and the client environments for caching. This page describes how you can cache and define the lifetime of routes, components, and functions. As well as how to [stream](#optimizing-dynamic-routes-with-streaming) dynamic content.
 
-- On the server, you can cache the output of components and functions to reduce the need to recompute work for every user request.
-- On the client, the cached content from the server is temporarily stored in the browser to reduce the number of server requests on navigation.
+## Static Rendering
 
-This page describes how you can cache and revalidate routes, components, and functions. As well as how to [stream](#optimizing-dynamic-routes-with-streaming) dynamic content.
+By default, Next.js **prerenders** routes at build time. The render output is cached and shared across user and server requests. This is also known as **Static Rendering**.
 
-## Server-side caching
+## Dynamic Rendering
 
-### Static rendering (default)
+Using a Dynamic API or a [fetch](/docs/app/api-reference/functions/fetch) request with the `{ cache: 'no-store' }` option will skip prerendering, meaning the route will be rendered at runtime and the output won't be cached. This is also known as **Dynamic Rendering**.
 
-By default, routes are **prerendered** at build time. The result is cached and shared between users and server requests.
-
-### Dynamic rendering
-
-Using a [Dynamic API](#dynamic-apis) or a [fetch](/docs/app/api-reference/functions/fetch) request with the `{ cache: 'no-store' }` option will make a route dynamic, meaning it'll be rendered at runtime and the result won't be cached.
-
-> During development, you can check if a route is static or dynamic by running `next dev` and opening the [Next.js dev indicator](/docs/app/api-reference/config/next-config-js/devIndicators) in your local host.
-
-#### Dynamic APIs
-
-Dynamic APIs rely on information that can only be known at request time. These APIs are:
+Dynamic APIs rely on information that only be known at request time, these include:
 
 - [`cookies`](/docs/app/api-reference/functions/cookies)
 - [`headers`](/docs/app/api-reference/functions/headers)
@@ -42,11 +31,13 @@ Dynamic APIs rely on information that can only be known at request time. These A
 - [`draftMode`](/docs/app/api-reference/functions/draft-mode)
 - [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional)
 
-### Optimizing dynamic routes with streaming
+When a route is dynamic, slow data requests can block the route from rendering. To improve the initial load time, you can use [streaming](#streaming) or [caching](#caching).
 
-Slow data requests can block the whole route from rendering. To improve the initial load time and user experience, you can use streaming to break up the route's HTML into smaller _chunks_ and progressively send those chunks from the server to the client.
+> During development, you can check if a route is static or dynamic by running `next dev` and opening the [Next.js dev indicator](/docs/app/api-reference/config/next-config-js/devIndicators) in your local host.
 
-With streaming, the static parts of the page are sent immediately to the client, alongside a loading state (also known as a fallback) for the dynamic content. The loading state is then swapped for the dynamic content once fetching and rendering is complete.
+## Streaming
+
+Streaming allows you to break up the route's HTML into smaller _chunks_ and progressively send those chunks from the server to the client.
 
 <Image
   alt="How Server Rendering with Streaming Works"
@@ -61,9 +52,9 @@ There are two ways you can implement streaming in your application:
 1. With the [`loading.js` file](#loadingjs)
 2. With a [`<Suspense>` boundary](#suspense)
 
-#### `loading.js`
+### `loading.js`
 
-You can create a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file in the same folder as your page to stream the **entire page** while the data is being fetched. For example, to stream `app/blog/page.js`, add the file inside the `app/blog` folder.
+You can create a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file in the same folder as your page to stream the **entire page**. For example, to stream `app/blog/page.js`, add the file inside the `app/blog` folder.
 
 <Image
   alt="Blog folder structure with loading.js file"
@@ -101,7 +92,7 @@ Behind-the-scenes, `loading.js` will be nested inside `layout.js`, and will auto
   height="768"
 />
 
-On navigation, the user will immediately see the layout and the loading state while the page is being rendered. The loading state is then swapped for the page once rendering is complete.
+On navigation, the user will first see the layout and the loading state while the page is being rendered. The loading state is then swapped for the page once rendering is complete.
 
 <Image
   alt="Loading UI"
@@ -113,7 +104,7 @@ On navigation, the user will immediately see the layout and the loading state wh
 
 This approach works well for pages, but for more granular streaming, you can use `<Suspense>`.
 
-#### `<Suspense>`
+### `<Suspense>`
 
 `<Suspense>` allows you to be more granular about what parts of the page to stream. For example, you can immediately send any static page content that falls outside of the `<Suspense>` boundary, and stream in the list of blog posts inside the boundary.
 
@@ -165,17 +156,17 @@ export default function BlogPage() {
 }
 ```
 
-#### Creating meaningful loading states
+### Creating meaningful loading states
 
-For the best user experience, we recommend designing loading states that are meaningful and help users understand the app is responding. For example, skeletons, spinners, or a small but meaningful part of future screens such as a cover photo, title, etc.
+For the best user experience, we recommend designing loading states that are meaningful and help users understand the app is responding. For example, skeletons, spinners, or a small but meaningful part of future screens such as a blurred cover photo, title, etc.
 
-In development, you can preview and inspect the loading state of your components using [React Devtools](https://react.dev/learn/react-developer-tools).
+During development, you can preview and inspect the loading state of your components using [React Devtools](https://react.dev/learn/react-developer-tools).
 
-### Optimizing dynamic routes with `"use cache"`
+## Caching
 
-In addition to streaming, you can optimize dynamic routes by caching the output of nested components or functions.
+In addition to streaming, you can optimize dynamic routes by caching the output of components or functions.
 
-Following the example above, let's say you want to cache the blog list rather than stream it. To ensure the `<BlogList />` component is cached, make it an **asynchronous** function and add the [`'use cache'`](/docs/app/api-reference/directives/use-cache) directive:
+Following the example above, let's say you want to cache the blog list. To ensure the `<BlogList />` component is cached, make it an **asynchronous** function and add the [`'use cache'`](/docs/app/api-reference/directives/use-cache) directive:
 
 ```tsx filename="app/ui/BlogList.tsx" highlight={3,4} switcher
 import { getPosts } from '@/app/lib/data'
@@ -209,7 +200,7 @@ export default async function BlogList() {
 }
 ```
 
-In the example above, the component is being cached. But you can also cache a function's return value:
+In the example above, the component's output will be cached. But you can also cache a function's return value:
 
 ```tsx filename="app/lib/data.ts" highlight={2} switcher
 export async function getPosts() {
@@ -227,26 +218,17 @@ export async function getPosts() {
 }
 ```
 
-By caching the function, you can then call it throughout your application code and the same cache entry will be reused, as long as the arguments to the function (e.g. `slug`) are the same. If the arguments are different, a new [cache key](/docs/app/api-reference/directives/use-cache#cache-keys) will be created for the new arguments.
+By caching the function, you can call it throughout your application and the same cache entry will be reused as long as the arguments to the function (e.g. `slug`) are the same. If the arguments are different, a new [cache key](/docs/app/api-reference/directives/use-cache#cache-keys) will be created for the new arguments.
 
 > Alternatively, you can add the `'use cache'` directive at the top of the file to mark all components and/or functions in the file as cacheable. Each component or function will be cached separately, with its own cache key.
 
-## Revalidating
+### Defining the cache lifetime
 
-Revalidation allows you to update cached content without having to rebuild your entire application. It's useful for content that _sometimes_ changes, but would benefit from being cached to improve your application's performance.
+**Revalidation** allows you to update cached content without having to rebuild your entire application.
 
-In Next.js, there are two types of revalidation:
+`'use cache'` entries are not cached indefinentely, but rather, they have a default [cache life](/docs/app/api-reference/functions/cacheLife#default-cache-profiles). Once the lifetime has expired, the content is revalidated.
 
-- [Time-based](#time-based-revalidation): Based on a time interval (e.g. every hour).
-- [On-demand](#on-demand-revalidation): Triggered by a specific event (e.g. a CMS webhook).
-
-### Time-based Revalidation
-
-You can use the [`cacheLife` function](/docs/app/api-reference/functions/cacheLife) to define a time interval for how long a cached value should remain stale before it's revalidated.
-
-`cacheLife` comes with [default cache profiles](/docs/app/api-reference/functions/cacheLife#default-cache-profiles) such as `'hour'`, `'day'`, and `'week'`. These profiles can be [customized](/docs/app/api-reference/functions/cacheLife#custom-cache-profiles), if needed.
-
-To use `cacheLife`, import it from `next/cache` and nest it within the **scope** of component or function. For example, to revalidate the blog list page after one hour:
+You can define a time interval for how long a cached value should remain stale before it's revalidated by using the [`cacheLife` function](/docs/app/api-reference/functions/cacheLife). `cacheLife` comes with [default cache profiles](/docs/app/api-reference/functions/cacheLife#default-cache-profiles) such as `'hour'`, `'day'`, and `'week'`. These profiles can be [customized](/docs/app/api-reference/functions/cacheLife#custom-cache-profiles), if needed.
 
 ```tsx filename="app/blog/page.tsx" highlight={2,6} switcher
 import { getPosts } from '@/app/lib/data'
@@ -287,18 +269,17 @@ export default async function BlogList() {
 }
 ```
 
-### On-demand Revalidation
+### Invalidating cache tags on-demand
 
-You can use the [`cacheTag` function](/docs/app/api-reference/functions/cacheTag) to define a tag for a cache entry. The entry can then be revalidated using the [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) function in a [Server Function](https://react.dev/reference/rsc/server-functions) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
+You can use the [`cacheTag` function](/docs/app/api-reference/functions/cacheTag) to define a tag for a cache entry. The entry can then be invalidated using the [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) function in a [Server Function](https://react.dev/reference/rsc/server-functions) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
 
 For example, to update the list of blog posts once a new post is created, add the `cacheTag` function to the component that renders the list of posts:
 
 ```tsx filename="app/ui/posts.tsx" highlight={6} switcher
-'use cache'
-
 import { cacheTag } from 'next/cache'
 
 export function Posts({ posts }) {
+  'use cache'
   cacheTag('blog-posts')
   return (
     <ul>
@@ -311,11 +292,10 @@ export function Posts({ posts }) {
 ```
 
 ```jsx filename="app/ui/posts.js" highlight={6} switcher
-'use cache'
-
 import { cacheTag } from 'next/cache'
 
 export function Posts({ posts }) {
+  'use cache'
   cacheTag('blog-posts')
   return (
     <ul>
@@ -389,15 +369,15 @@ export async function createPost() {
 
 ## Client-side caching
 
-Next.js has an in-memory client-side cache that stores the RSC payload of route segments: [layouts](/docs/app/api-reference/file-conventions/layout), [pages](/docs/app/api-reference/file-conventions/page), and [loading states](/docs/app/api-reference/file-conventions/loading).
+Next.js has a client-side cache that stores the RSC payload of route segments: [layouts](/docs/app/api-reference/file-conventions/layout), [pages](/docs/app/api-reference/file-conventions/page), and [loading states](/docs/app/api-reference/file-conventions/loading).
 
-When a user navigates between routes, Next.js caches the visited route segments and [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) the routes the user is likely to navigate to. This results in instant back/forward navigation, no full-page reload between navigations, and preservation of React state and browser state.
+When a user navigates between routes, Next.js caches the visited segments and [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) the routes the user is likely to navigate to. This results in instant back/forward navigation, no full-page reload between navigations, and preservation of React state and browser state.
 
 > This cache specifically applies to Next.js and Server Components, and is different to the browser's [bfcache](https://web.dev/bfcache/).
 
-### Invalidation
+### Invalidating the client cache
 
-The client cache has an **automatic invalidation period** that depends on how the route was [prefetched](/docs/app/api-reference/components/link#prefetch), and if the route was [statically generated](/docs/app/getting-started/caching-and-revalidating#static-routes-default):
+The client cache has an **automatic invalidation period** that depends on how the route was prefetched, and whether the route is static or dynamic:
 
 - **Default Prefetching** (`prefetch={null}` or unspecified): not cached for dynamic routes, 5 minutes for static routes.
 - **Full Prefetching** (`prefetch={true}` or `router.prefetch`): 5 minutes for both static and dynamic routes.
