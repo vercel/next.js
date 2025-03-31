@@ -455,7 +455,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             buildTimeThresholdMs: z.number().int(),
           })
           .optional(),
-        clientInstrumentationHook: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z
