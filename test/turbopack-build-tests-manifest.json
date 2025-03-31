@@ -5986,11 +5986,10 @@
       "Dynamic Route Interpolation should work with brackets",
       "Dynamic Route Interpolation should work with brackets in API routes",
       "Dynamic Route Interpolation should work with parameter itself",
-      "Dynamic Route Interpolation should work with parameter itself in API routes"
-    ],
-    "failed": [
+      "Dynamic Route Interpolation should work with parameter itself in API routes",
       "Dynamic Route Interpolation should support both encoded and decoded nextjs reserved path convention characters in path"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
