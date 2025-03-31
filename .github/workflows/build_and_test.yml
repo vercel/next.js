@@ -498,7 +498,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: NEXT_TEST_MODE=start node run-tests.js test/e2e/app-dir/app/index.test.ts test/e2e/app-dir/app-edge/app-edge.test.ts
+      afterBuild: NEXT_TEST_MODE=start node run-tests.js test/e2e/app-dir/app/index.test.ts test/e2e/app-dir/app-edge/app-edge.test.ts test/e2e/app-dir/metadata-edge/index.test.ts
       stepName: 'test-prod-windows'
       runs_on_labels: '["windows","self-hosted","x64"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
