@@ -5986,11 +5986,10 @@
       "Dynamic Route Interpolation should work with brackets",
       "Dynamic Route Interpolation should work with brackets in API routes",
       "Dynamic Route Interpolation should work with parameter itself",
-      "Dynamic Route Interpolation should work with parameter itself in API routes"
-    ],
-    "failed": [
+      "Dynamic Route Interpolation should work with parameter itself in API routes",
       "Dynamic Route Interpolation should support both encoded and decoded nextjs reserved path convention characters in path"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -17872,13 +17871,11 @@
     "runtimeError": false
   },
   "test/production/app-dir/symbolic-file-links/symbolic-file-links.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "symbolic-file-links should work using browser",
-      "symbolic-file-links should work using cheerio",
-      "symbolic-file-links should work with fetch",
       "symbolic-file-links should work with html"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18009,8 +18006,8 @@
     "runtimeError": false
   },
   "test/production/deterministic-build/index.test.ts": {
-    "passed": [],
-    "failed": ["deterministic build should have same md5 file across build"],
+    "passed": ["deterministic build should have same md5 file across build"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
