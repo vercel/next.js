@@ -166,12 +166,6 @@ export async function initialize(opts: {
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
 
-  const randomBytes = new Uint8Array(8)
-  crypto.getRandomValues(randomBytes)
-  const middlewareSubrequestId = Buffer.from(randomBytes).toString('hex')
-  ;(globalThis as any)[Symbol.for('@next/middleware-subrequest-id')] =
-    middlewareSubrequestId
-
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
     // internal headers should not be honored by the request handler
     if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
@@ -323,15 +317,7 @@ export async function initialize(opts: {
 
       // handle hot-reloader first
       if (developmentBundler) {
-        if (
-          blockCrossSite(
-            req,
-            res,
-            config.allowedDevOrigins,
-            opts.hostname,
-            `${opts.port}`
-          )
-        ) {
+        if (blockCrossSite(req, res, config.allowedDevOrigins, opts.hostname)) {
           return
         }
         const origUrl = req.url || '/'
@@ -698,13 +684,7 @@ export async function initialize(opts: {
 
       if (opts.dev && developmentBundler && req.url) {
         if (
-          blockCrossSite(
-            req,
-            socket,
-            config.allowedDevOrigins,
-            opts.hostname,
-            `${opts.port}`
-          )
+          blockCrossSite(req, socket, config.allowedDevOrigins, opts.hostname)
         ) {
           return
         }

@@ -253,7 +253,7 @@ describe('use-cache-hanging-inputs', () => {
 
         expect({ count, title, description }).toEqual({
           count: 1,
-          title: 'Unhandled Runtime Error\nCache',
+          title: 'Runtime Error\nCache',
           description: 'Error: kaputt!',
         })
       })

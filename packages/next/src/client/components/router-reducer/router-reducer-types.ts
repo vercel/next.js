@@ -21,12 +21,6 @@ export type RouterChangeByServerResponse = ({
   serverResponse: FetchServerResponseResult
 }) => void
 
-export type RouterNavigate = (
-  href: string,
-  navigateType: 'push' | 'replace',
-  shouldScroll: boolean
-) => void
-
 export interface Mutable {
   mpaNavigation?: boolean
   patchedTree?: FlightRouterState

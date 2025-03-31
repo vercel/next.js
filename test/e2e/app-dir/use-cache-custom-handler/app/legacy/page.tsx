@@ -5,6 +5,8 @@ import {
   revalidateTag,
 } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { connection } from 'next/server'
+import React from 'react'
 
 async function getData() {
   'use cache: legacy'
@@ -21,7 +23,9 @@ async function AsyncComp() {
   return <p id="data">{data}</p>
 }
 
-export default function Legacy() {
+export default async function Legacy() {
+  await connection()
+
   return (
     <main>
       <Suspense fallback={<p>Loading...</p>}>

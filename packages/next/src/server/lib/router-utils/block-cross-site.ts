@@ -1,7 +1,6 @@
 import type { Duplex } from 'stream'
 import type { IncomingMessage, ServerResponse } from 'webpack-dev-server'
 import { parseUrl } from '../../../lib/url'
-import net from 'net'
 import { warnOnce } from '../../../build/output/log'
 import { isCsrfOriginAllowed } from '../../app-render/csrf-protection'
 
@@ -32,12 +31,30 @@ function warnOrBlockRequest(
   return true
 }
 
+function isInternalDevEndpoint(req: IncomingMessage): boolean {
+  if (!req.url) return false
+
+  try {
+    // TODO: We should standardize on a single prefix for this
+    const isMiddlewareRequest = req.url.includes('/__nextjs')
+    const isInternalAsset = req.url.includes('/_next')
+    // Static media requests are excluded, as they might be loaded via CSS and would fail
+    // CORS checks.
+    const isIgnoredRequest =
+      req.url.includes('/_next/image') ||
+      req.url.includes('/_next/static/media')
+
+    return !isIgnoredRequest && (isInternalAsset || isMiddlewareRequest)
+  } catch (err) {
+    return false
+  }
+}
+
 export const blockCrossSite = (
   req: IncomingMessage,
   res: ServerResponse | Duplex,
   allowedDevOrigins: string[] | undefined,
-  hostname: string | undefined,
-  activePort: string
+  hostname: string | undefined
 ): boolean => {
   // in the future, these will be blocked by default when allowed origins aren't configured.
   // for now, we warn when allowed origins aren't configured
@@ -52,8 +69,8 @@ export const blockCrossSite = (
     allowedOrigins.push(hostname)
   }
 
-  // only process _next URLs when
-  if (!req.url?.includes('/_next')) {
+  // only process internal URLs/middleware
+  if (!isInternalDevEndpoint(req)) {
     return false
   }
   // block non-cors request from cross-site e.g. script tag on
@@ -73,16 +90,8 @@ export const blockCrossSite = (
 
     if (parsedOrigin) {
       const originLowerCase = parsedOrigin.hostname.toLowerCase()
-      const isMatchingPort = parsedOrigin.port === activePort
-      const isIpRequest =
-        net.isIPv4(originLowerCase) || net.isIPv6(originLowerCase)
 
-      if (
-        // allow requests if direct IP and matching port and
-        // allow if any of the allowed origins match
-        !(isIpRequest && isMatchingPort) &&
-        !isCsrfOriginAllowed(originLowerCase, allowedOrigins)
-      ) {
+      if (!isCsrfOriginAllowed(originLowerCase, allowedOrigins)) {
         return warnOrBlockRequest(res, originLowerCase, mode)
       }
     }

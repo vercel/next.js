@@ -1,9 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
-const isPPR = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-
 describe('parallel-routes-and-interception', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     // TODO: remove after deployment handling is updated
     skipDeployment: true,
@@ -23,21 +21,9 @@ describe('parallel-routes-and-interception', () => {
 
     // we also check that the #children-slot id is not present
     expect(await browser.hasElementByCssSelector('#children-slot')).toBe(false)
-
-    if (isPPR && !isNextDev) {
-      let $ = await next.render$('/')
-      expect($('title').text()).toBe('')
-
-      $ = await next.render$('/', null, {
-        headers: {
-          'User-Agent': 'Discordbot',
-        },
-      })
-      expect($('title').text()).toBe('layout title')
-    } else {
-      const $ = await next.render$('/')
-      expect($('title').text()).toBe('layout title')
-    }
+    const $ = await next.render$('/')
+    expect($('title').length).toBe(1)
+    expect($('title').text()).toBe('layout title')
   })
 
   it('should render the title once for the non-existed route', async () => {

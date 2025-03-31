@@ -9,7 +9,6 @@ describe('server-navigation-error', () => {
     it('should error on navigation API redirect', async () => {
       const browser = await next.browser('/pages/redirect')
 
-      // TODO(veil): investigate the column number is off by 1 between turbo and webpack
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
@@ -17,11 +16,11 @@ describe('server-navigation-error', () => {
            "description": "Error: Next.js navigation API is not allowed to be used in Pages Router.",
            "environmentLabel": null,
            "label": "Runtime Error",
-           "source": "pages/pages/redirect.tsx (4:10) @ Page
+           "source": "pages/pages/redirect.tsx (4:11) @ Page
          > 4 |   redirect('/')
-             |          ^",
+             |           ^",
            "stack": [
-             "Page pages/pages/redirect.tsx (4:10)",
+             "Page pages/pages/redirect.tsx (4:11)",
            ],
          }
         `)
@@ -46,7 +45,6 @@ describe('server-navigation-error', () => {
     it('should error on navigation API notFound', async () => {
       const browser = await next.browser('/pages/not-found')
 
-      // TODO(veil): investigate the column number is off by 1 between turbo and webpack
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
@@ -54,11 +52,11 @@ describe('server-navigation-error', () => {
            "description": "Error: Next.js navigation API is not allowed to be used in Pages Router.",
            "environmentLabel": null,
            "label": "Runtime Error",
-           "source": "pages/pages/not-found.tsx (4:10) @ Page
+           "source": "pages/pages/not-found.tsx (4:11) @ Page
          > 4 |   notFound()
-             |          ^",
+             |           ^",
            "stack": [
-             "Page pages/pages/not-found.tsx (4:10)",
+             "Page pages/pages/not-found.tsx (4:11)",
            ],
          }
         `)

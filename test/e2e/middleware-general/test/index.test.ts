@@ -144,19 +144,6 @@ describe('Middleware Runtime', () => {
       }
     }
 
-    it('should filter request header properly', async () => {
-      const res = await next.fetch('/redirect-to-somewhere', {
-        headers: {
-          'x-middleware-subrequest':
-            'middleware:middleware:middleware:middleware:middleware',
-        },
-        redirect: 'manual',
-      })
-
-      expect(res.status).toBe(307)
-      expect(res.headers.get('location')).toContain('/somewhere')
-    })
-
     it('should handle 404 on fallback: false route correctly', async () => {
       const res = await next.fetch('/ssg-fallback-false/first')
       expect(res.status).toBe(200)
@@ -836,6 +823,17 @@ describe('Middleware Runtime', () => {
           i18n ? '/en' : ''
         }/sha.json?hello=goodbye`,
       ])
+    })
+
+    it(`should read request body`, async () => {
+      const body = { hello: 'world' }
+      const res = await fetchViaHTTP(next.url, '/request-body', undefined, {
+        body: JSON.stringify(body),
+        headers: { 'content-type': 'application/json' },
+        method: 'POST',
+      })
+
+      expect(await res.json()).toEqual(body)
     })
   }
   describe('with i18n', () => {
