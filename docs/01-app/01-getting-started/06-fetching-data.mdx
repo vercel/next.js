@@ -96,7 +96,7 @@ There are two ways to fetch data in Client Components, using:
 
 #### With the `use` hook
 
-You can use React's [`use` hook](https://react.dev/reference/react/use) to [stream](/app/getting-started/caching-and-revalidating#optimizing-dynamic-routes-with-streaming) data from the server to client. Start by fetching data in your Server component, and pass the promise to your Client Component as prop:
+You can use React's [`use` hook](https://react.dev/reference/react/use) to [stream](/app/getting-started/caching-and-revalidating#streaming) data from the server to client. Start by fetching data in your Server component, and pass the promise to your Client Component as prop:
 
 ```tsx filename="app/blog/page.tsx" switcher
 import Posts from '@/app/ui/posts
@@ -170,7 +170,7 @@ export default function Posts({ posts }) {
 }
 ```
 
-In the example above, you need to wrap the `<Posts />` component in a [`<Suspense>` boundary](https://react.dev/reference/react/Suspense). This means the fallback will be shown while the promise is being resolved. Learn more about [streaming](/docs/app/getting-started/caching-and-revalidating#optimizing-dynamic-routes-with-streaming).
+In the example above, you need to wrap the `<Posts />` component in a [`<Suspense>` boundary](https://react.dev/reference/react/Suspense). This means the fallback will be shown while the promise is being resolved. Learn more about [streaming](/docs/app/getting-started/caching-and-revalidating#streaming).
 
 #### Community libraries
 

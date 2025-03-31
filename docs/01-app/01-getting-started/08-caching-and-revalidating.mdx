@@ -13,7 +13,7 @@ related:
     - app/api-reference/functions/cacheTag
 ---
 
-Next.js uses the server and the client environments for caching. This page describes how you can cache and define the lifetime of routes, components, and functions. As well as how to [stream](#optimizing-dynamic-routes-with-streaming) dynamic content.
+Next.js uses the server and the client environments for caching. This page describes how you can cache and define the lifetime of routes, components, and functions. As well as how to [stream](#streaming) dynamic content.
 
 ## Static Rendering
 
@@ -221,6 +221,15 @@ export async function getPosts() {
 By caching the function, you can call it throughout your application and the same cache entry will be reused as long as the arguments to the function (e.g. `slug`) are the same. If the arguments are different, a new [cache key](/docs/app/api-reference/directives/use-cache#cache-keys) will be created for the new arguments.
 
 > Alternatively, you can add the `'use cache'` directive at the top of the file to mark all components and/or functions in the file as cacheable. Each component or function will be cached separately, with its own cache key.
+
+## Revalidating
+
+Revalidating allows you to update cached content without having to rebuild your entire application.
+
+There are two types of revalidation:
+
+- [Time-based](#defining-the-cache-lifetime): Based on a cache lifetime.
+- [On-demand](#invalidating-cache-tags-on-demand): Triggered by a specific event.
 
 ### Defining the cache lifetime
 
