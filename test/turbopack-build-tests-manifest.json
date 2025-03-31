@@ -18486,9 +18486,10 @@
       "Production Usage should remove placeholder for next/image correctly",
       "Production Usage should replace static pages with HTML files",
       "Production Usage should respond with 405 for POST to static page",
-      "Production Usage should warn when prefetch is true"
+      "Production Usage should warn when prefetch is true",
+      "Production Usage should output traces"
     ],
-    "failed": ["Production Usage should output traces"],
+    "failed": [],
     "pending": [
       "Production Usage With Security Related Issues should handle invalid URL properly",
       "Production Usage With basic usage should allow etag header support with getServerSideProps",
