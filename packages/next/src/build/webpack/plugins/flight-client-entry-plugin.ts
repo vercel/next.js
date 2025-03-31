@@ -51,6 +51,10 @@ import type { MetadataRouteLoaderOptions } from '../loaders/next-metadata-route-
 import type { FlightActionEntryLoaderActions } from '../loaders/next-flight-action-entry-loader'
 import getWebpackBundler from '../../../shared/lib/get-webpack-bundler'
 
+type WebpackEntryDependency = ReturnType<
+  typeof webpack.EntryPlugin.createDependency
+>
+
 interface Options {
   dev: boolean
   appDir: string
@@ -281,7 +285,7 @@ export class FlightClientEntryPlugin {
     > = []
     const createdSSRDependenciesForEntry: Record<
       string,
-      ReturnType<typeof this.injectClientEntryAndSSRModules>[3][]
+      WebpackEntryDependency[]
     > = {}
 
     const addActionEntryList: Array<ReturnType<typeof this.injectActionEntry>> =
@@ -406,17 +410,19 @@ export class FlightClientEntryPlugin {
       // and SSR modules.
       const dedupedCSSImports = deduplicateCSSImportsForEntry(mergedCSSimports)
       for (const clientEntryToInject of clientEntriesToInject) {
+        const clientImports = {
+          ...clientEntryToInject.clientComponentImports,
+          ...(
+            dedupedCSSImports[clientEntryToInject.absolutePagePath] || []
+          ).reduce<ClientComponentImports>((res, curr) => {
+            res[curr] = new Set()
+            return res
+          }, {}),
+        }
+
         const injected = this.injectClientEntryAndSSRModules({
           ...clientEntryToInject,
-          clientImports: {
-            ...clientEntryToInject.clientComponentImports,
-            ...(
-              dedupedCSSImports[clientEntryToInject.absolutePagePath] || []
-            ).reduce<ClientComponentImports>((res, curr) => {
-              res[curr] = new Set()
-              return res
-            }, {}),
-          },
+          clientImports,
         })
 
         // Track all created SSR dependencies for each entry from the server layer.
@@ -569,7 +575,7 @@ export class FlightClientEntryPlugin {
     dependencies,
   }: {
     compilation: webpack.Compilation
-    dependencies: ReturnType<typeof webpack.EntryPlugin.createDependency>[]
+    dependencies: WebpackEntryDependency[]
   }) {
     // action file path -> action names
     const collectedActions = new Map<string, ActionIdNamePair[]>()
@@ -783,7 +789,7 @@ export class FlightClientEntryPlugin {
     shouldInvalidate: boolean,
     addSSREntryPromise: Promise<void>,
     addRSCEntryPromise: Promise<void>,
-    ssrDep: ReturnType<typeof webpack.EntryPlugin.createDependency>,
+    ssrDep: WebpackEntryDependency,
   ] {
     const bundler = getWebpackBundler()
     let shouldInvalidate = false
@@ -798,61 +804,70 @@ export class FlightClientEntryPlugin {
     // For the client entry, we always use the CJS build of Next.js. If the
     // server is using the ESM build (when using the Edge runtime), we need to
     // replace them.
-    const clientBrowserLoader = `next-flight-client-entry-loader?${stringify({
-      modules: (this.isEdgeServer
-        ? modules.map(({ request, ids }) => ({
-            request: request.replace(
-              /[\\/]next[\\/]dist[\\/]esm[\\/]/,
-              '/next/dist/'.replace(/\//g, path.sep)
-            ),
-            ids,
-          }))
-        : modules
-      ).map((x) => JSON.stringify(x)),
-      server: false,
-    })}!`
+    const clientBrowserLoader =
+      modules.length === 0 && isAppRouteRoute(entryName)
+        ? null
+        : `next-flight-client-entry-loader?${stringify({
+            modules: (this.isEdgeServer
+              ? modules.map(({ request, ids }) => ({
+                  request: request.replace(
+                    /[\\/]next[\\/]dist[\\/]esm[\\/]/,
+                    '/next/dist/'.replace(/\//g, path.sep)
+                  ),
+                  ids,
+                }))
+              : modules
+            ).map((x) => JSON.stringify(x)),
+            server: false,
+          })}!`
 
-    const clientServerLoader = `next-flight-client-entry-loader?${stringify({
-      modules: modules.map((x) => JSON.stringify(x)),
-      server: true,
-    })}!`
+    const clientServerLoader =
+      // modules.length === 0
+      //   ? null
+      //   :
+      `next-flight-client-entry-loader?${stringify({
+        modules: modules.map((x) => JSON.stringify(x)),
+        server: true,
+      })}!`
 
     // Add for the client compilation
     // Inject the entry to the client compiler.
-    if (this.dev) {
-      const entries = getEntries(compiler.outputPath)
-      const pageKey = getEntryKey(
-        COMPILER_NAMES.client,
-        PAGE_TYPES.APP,
-        bundlePath
-      )
+    if (clientBrowserLoader) {
+      if (this.dev) {
+        const entries = getEntries(compiler.outputPath)
+        const pageKey = getEntryKey(
+          COMPILER_NAMES.client,
+          PAGE_TYPES.APP,
+          bundlePath
+        )
 
-      if (!entries[pageKey]) {
-        entries[pageKey] = {
-          type: EntryTypes.CHILD_ENTRY,
-          parentEntries: new Set([entryName]),
-          absoluteEntryFilePath: absolutePagePath,
-          bundlePath,
-          request: clientBrowserLoader,
-          dispose: false,
-          lastActiveTime: Date.now(),
-        }
-        shouldInvalidate = true
-      } else {
-        const entryData = entries[pageKey]
-        // New version of the client loader
-        if (entryData.request !== clientBrowserLoader) {
-          entryData.request = clientBrowserLoader
+        if (!entries[pageKey]) {
+          entries[pageKey] = {
+            type: EntryTypes.CHILD_ENTRY,
+            parentEntries: new Set([entryName]),
+            absoluteEntryFilePath: absolutePagePath,
+            bundlePath,
+            request: clientBrowserLoader,
+            dispose: false,
+            lastActiveTime: Date.now(),
+          }
           shouldInvalidate = true
+        } else {
+          const entryData = entries[pageKey]
+          // New version of the client loader
+          if (entryData.request !== clientBrowserLoader) {
+            entryData.request = clientBrowserLoader
+            shouldInvalidate = true
+          }
+          if (entryData.type === EntryTypes.CHILD_ENTRY) {
+            entryData.parentEntries.add(entryName)
+          }
+          entryData.dispose = false
+          entryData.lastActiveTime = Date.now()
         }
-        if (entryData.type === EntryTypes.CHILD_ENTRY) {
-          entryData.parentEntries.add(entryName)
-        }
-        entryData.dispose = false
-        entryData.lastActiveTime = Date.now()
+      } else {
+        pluginState.injectedClientEntries[bundlePath] = clientBrowserLoader
       }
-    } else {
-      pluginState.injectedClientEntries[bundlePath] = clientBrowserLoader
     }
 
     const clientComponentSSREntryDep = bundler.EntryPlugin.createDependency(
