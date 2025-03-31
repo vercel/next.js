@@ -3,12 +3,9 @@
  */
 const nextConfig = {
   experimental: {
-    ppr: true,
+    ppr: 'incremental',
     dynamicIO: true,
-    clientSegmentCache: true,
-    staleTimes: {
-      dynamic: 30,
-    },
+    clientSegmentCache: 'client-only',
   },
 }
 

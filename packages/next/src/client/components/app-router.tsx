@@ -149,6 +149,7 @@ export function createEmptyCacheNode(): CacheNode {
     prefetchHead: null,
     parallelRoutes: new Map(),
     loading: null,
+    navigatedAt: -1,
   }
 }
 

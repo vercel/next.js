@@ -381,6 +381,7 @@ function InnerLayoutRouter({
       // TODO-APP: remove ''
       const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
       const includeNextUrl = hasInterceptionRouteInCurrentTree(fullTree)
+      const navigatedAt = Date.now()
       cacheNode.lazyData = lazyData = fetchServerResponse(
         new URL(url, location.origin),
         {
@@ -393,6 +394,7 @@ function InnerLayoutRouter({
             type: ACTION_SERVER_PATCH,
             previousTree: fullTree,
             serverResponse,
+            navigatedAt,
           })
         })
 
@@ -565,6 +567,7 @@ export default function OuterLayoutRouter({
       prefetchHead: null,
       parallelRoutes: new Map(),
       loading: null,
+      navigatedAt: -1,
     }
 
     // Flight data fetch kicked off during render and put into the cache.

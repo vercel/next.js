@@ -211,8 +211,8 @@ importers:
         specifier: 6.1.1
         version: 6.1.1(@types/node-fetch@2.6.1)(node-fetch@2.6.7(encoding@0.1.13))
       '@vercel/og':
-        specifier: 0.6.5
-        version: 0.6.5
+        specifier: 0.6.8
+        version: 0.6.8
       abort-controller:
         specifier: 3.0.0
         version: 3.0.0
@@ -529,8 +529,8 @@ importers:
         specifier: 1.54.0
         version: 1.54.0
       satori:
-        specifier: 0.12.1
-        version: 0.12.1
+        specifier: 0.12.2
+        version: 0.12.2
       scheduler-builtin:
         specifier: npm:scheduler@0.26.0-canary-313332d1-20250326
         version: scheduler@0.26.0-canary-313332d1-20250326
@@ -6446,8 +6446,8 @@ packages:
     engines: {node: '>=16'}
     hasBin: true
 
-  '@vercel/og@0.6.5':
-    resolution: {integrity: sha512-GFXtgid3+TcVHTd668a10vGpzAh4Ty/yBZPRxKf1UicI8Vi8EthfvSxcaLW0KvQBBe1+d7TcjecLZHRT8JzQ4g==}
+  '@vercel/og@0.6.8':
+    resolution: {integrity: sha512-e4kQK9mP8ntpo3dACWirGod/hHv4qO5JMj9a/0a2AZto7b4persj5YP7t1Er372gTtYFTYxNhMx34jRvHooglw==}
     engines: {node: '>=16'}
 
   '@vitest/expect@2.0.5':
@@ -15023,8 +15023,8 @@ packages:
     engines: {node: '>=14.0.0'}
     hasBin: true
 
-  satori@0.12.1:
-    resolution: {integrity: sha512-0SbjchvDrDbeXeQgxWVtSWxww7qcFgk3DtSE2/blHOSlLsSHwIqO2fCrtVa/EudJ7Eqno8A33QNx56rUyGbLuw==}
+  satori@0.12.2:
+    resolution: {integrity: sha512-3C/laIeE6UUe9A+iQ0A48ywPVCCMKCNSTU5Os101Vhgsjd3AAxGNjyq0uAA8kulMPK5n0csn8JlxPN9riXEjLA==}
     engines: {node: '>=16'}
 
   sax@1.2.4:
@@ -23073,10 +23073,10 @@ snapshots:
       - encoding
       - supports-color
 
-  '@vercel/og@0.6.5':
+  '@vercel/og@0.6.8':
     dependencies:
       '@resvg/resvg-wasm': 2.4.0
-      satori: 0.12.1
+      satori: 0.12.2
       yoga-wasm-web: 0.3.3
 
   '@vitest/expect@2.0.5':
@@ -34010,7 +34010,7 @@ snapshots:
       immutable: 4.3.7
       source-map-js: 1.2.1
 
-  satori@0.12.1:
+  satori@0.12.2:
     dependencies:
       '@shuding/opentype.js': 1.4.0-beta.0
       css-background-parser: 0.1.0
