@@ -427,7 +427,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     .chunking_config(
         Vc::<CssChunkType>::default().to_resolved().await?,
         ChunkingConfig {
-            min_chunk_size: 0,
+            max_merge_chunk_size: 100_000,
             ..Default::default()
         },
     )

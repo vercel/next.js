@@ -529,13 +529,8 @@ exports.useDebugValue = function () {};
 exports.useDeferredValue = function (value, initialValue) {
   return ReactSharedInternals.H.useDeferredValue(value, initialValue);
 };
-exports.useEffect = function (create, createDeps, update) {
-  var dispatcher = ReactSharedInternals.H;
-  if ("function" === typeof update)
-    throw Error(
-      "useEffect CRUD overload is not enabled in this build of React."
-    );
-  return dispatcher.useEffect(create, createDeps);
+exports.useEffect = function (create, deps) {
+  return ReactSharedInternals.H.useEffect(create, deps);
 };
 exports.useId = function () {
   return ReactSharedInternals.H.useId();
@@ -576,4 +571,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.1.0-experimental-db7dfe05-20250319";
+exports.version = "19.1.0-experimental-313332d1-20250326";

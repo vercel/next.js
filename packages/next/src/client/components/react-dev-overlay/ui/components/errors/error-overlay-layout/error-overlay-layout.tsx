@@ -37,7 +37,7 @@ import { EnvironmentNameLabel } from '../environment-name-label/environment-name
 import { useFocusTrap } from '../dev-tools-indicator/utils'
 import { Fader } from '../../fader'
 
-interface ErrorOverlayLayoutProps extends ErrorBaseProps {
+export interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   errorMessage: ErrorMessageType
   errorType: ErrorType
   children?: React.ReactNode

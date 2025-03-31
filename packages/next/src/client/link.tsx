@@ -5,7 +5,7 @@ import type {
   PrefetchOptions as RouterPrefetchOptions,
 } from '../shared/lib/router/router'
 
-import React from 'react'
+import React, { createContext, useContext } from 'react'
 import type { UrlObject } from 'url'
 import { resolveHref } from './resolve-href'
 import { isLocalURL } from '../shared/lib/router/utils/is-local-url'
@@ -90,6 +90,7 @@ type InternalLinkProps = {
   locale?: string | false
   /**
    * Enable legacy link behavior.
+   * @deprecated This will be removed in v16
    * @defaultValue `false`
    * @see https://github.com/vercel/next.js/commit/489e65ed98544e69b0afd7e0cfc3f9f6c2b803b7
    */
@@ -665,14 +666,37 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         addBasePath(addLocale(as, curLocale, router?.defaultLocale))
     }
 
-    return legacyBehavior ? (
-      React.cloneElement(child, childProps)
-    ) : (
+    if (legacyBehavior) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error(
+          '`legacyBehavior` is deprecated and will be removed in a future ' +
+            'release. A codemod is available to upgrade your components:\n\n' +
+            'npx @next/codemod@latest new-link .\n\n' +
+            'Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components'
+        )
+      }
+      return React.cloneElement(child, childProps)
+    }
+
+    return (
       <a {...restProps} {...childProps}>
         {children}
       </a>
     )
   }
 )
+
+const LinkStatusContext = createContext<{
+  pending: boolean
+}>({
+  // We do not support link status in the Pages Router, so we always return false
+  pending: false,
+})
+
+export const useLinkStatus = () => {
+  // This behaviour is like React's useFormStatus. When the component is not under
+  // a <form> tag, it will get the default value, instead of throwing an error.
+  return useContext(LinkStatusContext)
+}
 
 export default Link

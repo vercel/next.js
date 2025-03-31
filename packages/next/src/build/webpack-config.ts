@@ -601,8 +601,11 @@ export default async function getBaseWebpackConfig(
     babelLoader,
   ].filter(Boolean)
 
+  // Rspack will inject their own React Refresh loader in @rspack/plugin-react-refresh
   const reactRefreshLoaders =
-    dev && isClient ? [require.resolve(reactRefreshLoaderName)] : []
+    !isRspack && dev && isClient
+      ? [require.resolve(reactRefreshLoaderName)]
+      : []
 
   // client components layers: SSR or browser
   const createClientLayerLoader = ({
@@ -2611,7 +2614,8 @@ export default async function getBaseWebpackConfig(
   }
 
   // Inject missing React Refresh loaders so that development mode is fast:
-  if (dev && isClient) {
+  // Rspack will inject their own React Refresh loader in @rspack/plugin-react-refresh
+  if (!isRspack && dev && isClient) {
     attachReactRefresh(webpackConfig, defaultLoaders.babel)
   }
 

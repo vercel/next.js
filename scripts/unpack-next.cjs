@@ -1,6 +1,6 @@
-#!/usr/bin/env node
+// This script must be run with tsx
 
-const { NEXT_DIR, exec } = require('./pack-util.cjs')
+const { NEXT_DIR, exec } = require('./pack-util')
 const fs = require('fs')
 const path = require('path')
 

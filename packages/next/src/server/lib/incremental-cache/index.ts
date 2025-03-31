@@ -260,6 +260,12 @@ export class IncrementalCache implements IncrementalCacheType {
   }
 
   async revalidateTag(tags: string | string[]): Promise<void> {
+    tags = Array.isArray(tags) ? tags : [tags]
+
+    if (tags.length === 0) {
+      return
+    }
+
     const promises: Promise<void>[] = []
 
     if (this.cacheHandler?.revalidateTag) {
@@ -268,7 +274,6 @@ export class IncrementalCache implements IncrementalCacheType {
 
     const handlers = getCacheHandlers()
     if (handlers) {
-      tags = Array.isArray(tags) ? tags : [tags]
       for (const handler of handlers) {
         promises.push(handler.expireTags(...tags))
       }
@@ -279,7 +284,11 @@ export class IncrementalCache implements IncrementalCacheType {
     const workUnitStore = workUnitAsyncStorage.getStore()
 
     if (workUnitStore?.implicitTags) {
-      await updateImplicitTagsExpiration(workUnitStore.implicitTags)
+      const tagsSet = new Set(tags)
+
+      if (workUnitStore.implicitTags.tags.some((tag) => tagsSet.has(tag))) {
+        await updateImplicitTagsExpiration(workUnitStore.implicitTags)
+      }
     }
   }
 
