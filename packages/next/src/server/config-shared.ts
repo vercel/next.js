@@ -269,7 +269,7 @@ export interface ExperimentalConfig {
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
-  clientSegmentCache?: boolean
+  clientSegmentCache?: boolean | 'client-only'
   appDocumentPreloading?: boolean
   preloadEntriesOnStart?: boolean
   /** @default true */
