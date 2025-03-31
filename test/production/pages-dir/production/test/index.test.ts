@@ -297,7 +297,7 @@ describe('Production Usage', () => {
           if (files.some((file) => item.test(file))) {
             return true
           }
-          require('console').error(
+          console.error(
             `Failed to find ${item} for page ${check.page} in`,
             files
           )
