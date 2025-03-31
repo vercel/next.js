@@ -104,7 +104,7 @@ const learnMoreLink = {
   },
   app: {
     static:
-      'https://nextjs.org/docs/app/building-your-application/rendering/server-components#static-rendering-default',
+      'https://nextjs.org/docs/app/getting-started/caching-and-revalidating#static-rendering',
     dynamic:
       'https://nextjs.org/docs/app/building-your-application/rendering/server-components#dynamic-rendering',
   },

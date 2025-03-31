@@ -23,6 +23,12 @@ By default, Next.js **prerenders** routes at build time. The render output is ca
 
 Using a Dynamic API or a [fetch](/docs/app/api-reference/functions/fetch) request with the `{ cache: 'no-store' }` option will skip prerendering, meaning the route will be rendered at runtime and the output won't be cached. This is also known as **Dynamic Rendering**.
 
+> During development, you can check if a route is static or dynamic by running `next dev` and opening the [Next.js dev indicator](/docs/app/api-reference/config/next-config-js/devIndicators) in your local host.
+
+When a route is dynamic, slow data requests can block the route from rendering. To improve the initial load time, you can use [streaming](#streaming) or [caching](#caching).
+
+### Dynamic APIs
+
 Dynamic APIs rely on information that only be known at request time, these include:
 
 - [`cookies`](/docs/app/api-reference/functions/cookies)
@@ -30,10 +36,6 @@ Dynamic APIs rely on information that only be known at request time, these inclu
 - [`connection`](/docs/app/api-reference/functions/connection)
 - [`draftMode`](/docs/app/api-reference/functions/draft-mode)
 - [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional)
-
-When a route is dynamic, slow data requests can block the route from rendering. To improve the initial load time, you can use [streaming](#streaming) or [caching](#caching).
-
-> During development, you can check if a route is static or dynamic by running `next dev` and opening the [Next.js dev indicator](/docs/app/api-reference/config/next-config-js/devIndicators) in your local host.
 
 ## Streaming
 
