@@ -1,0 +1,76 @@
+---
+title: useLinkStatus
+description: API Reference for the useLinkStatus hook.
+---
+
+`useLinkStatus` is a **Client Component** hook that lets you track the loading state of a `Link` component during navigation. It's particularly useful when you want to show loading indicators during page transitions, especially when prefetching is disabled.
+
+```tsx filename="app/example-client-component.tsx" switcher
+'use client'
+
+import { useLinkStatus } from 'next/navigation'
+import Link from 'next/link'
+
+function LoadingIndicator() {
+  const { pending } = useLinkStatus()
+  return pending ? <div>Loading...</div> : null
+}
+
+export default function ExampleClientComponent() {
+  return (
+    <Link href="/dashboard" prefetch={false}>
+      Dashboard <LoadingIndicator />
+    </Link>
+  )
+}
+```
+
+```jsx filename="app/example-client-component.js" switcher
+'use client'
+
+import { useLinkStatus } from 'next/navigation'
+import Link from 'next/link'
+
+function LoadingIndicator() {
+  const { pending } = useLinkStatus()
+  return pending ? <div>Loading...</div> : null
+}
+
+export default function ExampleClientComponent() {
+  return (
+    <Link href="/dashboard" prefetch={false}>
+      Dashboard <LoadingIndicator />
+    </Link>
+  )
+}
+```
+
+`useLinkStatus` is designed to work with [Client Components](/docs/app/building-your-application/rendering/client-components) and provides real-time feedback during navigation transitions. This helps prevent pages from appearing "frozen" while new content is loading.
+
+> **Good to know**:
+>
+> - `useLinkStatus` must be used within a descendant component of a `Link` component
+> - The hook is most useful when `prefetch={false}` is set on the `Link` component
+> - If the link has been prefetched, the pending state will be skipped
+> - When clicking multiple links in quick succession, only the last link's pending state is shown
+> - This hook is not supported in the Pages Router and will always return `{ pending: false }`
+
+## Parameters
+
+```tsx
+const { pending } = useLinkStatus()
+```
+
+`useLinkStatus` does not take any parameters.
+
+## Returns
+
+`useLinkStatus` returns an object with a single property:
+
+| Property | Type    | Description                                  |
+| -------- | ------- | -------------------------------------------- |
+| pending  | boolean | `true` before history updates, `false` after |
+
+| Version   | Changes                     |
+| --------- | --------------------------- |
+| `v15.3.0` | `useLinkStatus` introduced. |
