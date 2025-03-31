@@ -18508,6 +18508,7 @@ var Resvg2 = class extends Resvg {
 // src/index.node.ts
 import { Readable } from "stream";
 import fs from "fs";
+import { fileURLToPath } from "url";
 
 // src/emoji/index.ts
 var U200D = String.fromCharCode(8205);
@@ -18922,17 +18923,11 @@ function assertValue(v2, errorMessage) {
   return v2;
 }
 
-// src/platform/node-file-resolver.ts
-import { fileURLToPath } from "url";
-function nodeFileResolver(relativePath) {
-  return fileURLToPath(new URL(relativePath, import.meta.url));
-}
-
 // src/index.node.ts
 var satori = El.default || El;
-var fontData = fs.readFileSync(nodeFileResolver("../noto-sans-v27-latin-regular.ttf"));
-var yoga_wasm = fs.readFileSync(nodeFileResolver("../yoga.wasm"));
-var resvg_wasm = fs.readFileSync(nodeFileResolver("../resvg.wasm"));
+var fontData = fs.readFileSync(fileURLToPath(new URL("../noto-sans-v27-latin-regular.ttf", import.meta.url)));
+var yoga_wasm = fs.readFileSync(fileURLToPath(new URL("../yoga.wasm", import.meta.url)));
+var resvg_wasm = fs.readFileSync(fileURLToPath(new URL("../resvg.wasm", import.meta.url)));
 var initializedResvg = initWasm(resvg_wasm);
 var initializedYoga = initYoga(yoga_wasm).then((yoga2) => Ll(yoga2));
 var ImageResponse = class extends Response {
