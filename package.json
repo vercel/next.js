@@ -68,7 +68,7 @@
     "update-google-fonts": "node ./scripts/update-google-fonts.js",
     "patch-next": "node scripts/patch-next.cjs",
     "unpack-next": "tsx scripts/unpack-next.cjs",
-    "swc-build-native": "tsx scripts/build-native.cjs",
+    "swc-build-native": "tsx scripts/build-native.ts",
     "swc-build-wasm": "tsx scripts/build-wasm.cjs",
     "build-turbopack-cli": "cargo build -p turbopack-cli --release",
     "sweep": "tsx scripts/sweep.cjs",
