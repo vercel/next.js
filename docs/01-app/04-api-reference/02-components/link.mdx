@@ -55,27 +55,29 @@ The following props can be passed to the `<Link>` component:
 
 <PagesOnly>
 
-| Prop                                | Example                 | Type              | Required |
-| ----------------------------------- | ----------------------- | ----------------- | -------- |
-| [`href`](#href-required)            | `href="/dashboard"`     | String or Object  | Yes      |
-| [`replace`](#replace)               | `replace={false}`       | Boolean           | -        |
-| [`scroll`](#scroll)                 | `scroll={false}`        | Boolean           | -        |
-| [`prefetch`](#prefetch)             | `prefetch={false}`      | Boolean           | -        |
-| [`legacyBehavior`](#legacybehavior) | `legacyBehavior={true}` | Boolean           | -        |
-| [`passHref`](#passhref)             | `passHref={true}`       | Boolean           | -        |
-| [`shallow`](#shallow)               | `shallow={false}`       | Boolean           | -        |
-| [`locale`](#locale)                 | `locale="fr"`           | String or Boolean | -        |
+| Prop                                | Example                  | Type              | Required |
+| ----------------------------------- | ------------------------ | ----------------- | -------- |
+| [`href`](#href-required)            | `href="/dashboard"`      | String or Object  | Yes      |
+| [`replace`](#replace)               | `replace={false}`        | Boolean           | -        |
+| [`scroll`](#scroll)                 | `scroll={false}`         | Boolean           | -        |
+| [`prefetch`](#prefetch)             | `prefetch={false}`       | Boolean           | -        |
+| [`legacyBehavior`](#legacybehavior) | `legacyBehavior={true}`  | Boolean           | -        |
+| [`passHref`](#passhref)             | `passHref={true}`        | Boolean           | -        |
+| [`shallow`](#shallow)               | `shallow={false}`        | Boolean           | -        |
+| [`locale`](#locale)                 | `locale="fr"`            | String or Boolean | -        |
+| [`onNavigate`](#onnavigate)         | `onNavigate={(e) => {}}` | Function          | -        |
 
 </PagesOnly>
 
 <AppOnly>
 
-| Prop                     | Example             | Type             | Required |
-| ------------------------ | ------------------- | ---------------- | -------- |
-| [`href`](#href-required) | `href="/dashboard"` | String or Object | Yes      |
-| [`replace`](#replace)    | `replace={false}`   | Boolean          | -        |
-| [`scroll`](#scroll)      | `scroll={false}`    | Boolean          | -        |
-| [`prefetch`](#prefetch)  | `prefetch={false}`  | Boolean or null  | -        |
+| Prop                        | Example                  | Type             | Required |
+| --------------------------- | ------------------------ | ---------------- | -------- |
+| [`href`](#href-required)    | `href="/dashboard"`      | String or Object | Yes      |
+| [`replace`](#replace)       | `replace={false}`        | Boolean          | -        |
+| [`scroll`](#scroll)         | `scroll={false}`         | Boolean          | -        |
+| [`prefetch`](#prefetch)     | `prefetch={false}`       | Boolean or null  | -        |
+| [`onNavigate`](#onnavigate) | `onNavigate={(e) => {}}` | Function         | -        |
 
 </AppOnly>
 
@@ -449,6 +451,58 @@ export default function Home() {
 ```
 
 </PagesOnly>
+
+### `onNavigate`
+
+An event handler called during client-side navigation. The handler receives an event object that includes a `preventDefault()` method, allowing you to cancel the navigation if needed.
+
+```tsx filename="app/page.tsx" switcher
+import Link from 'next/link'
+
+export default function Page() {
+  return (
+    <Link
+      href="/dashboard"
+      onNavigate={(e) => {
+        // Only executes during SPA navigation
+        console.log('Navigating...')
+
+        // Optionally prevent navigation
+        // e.preventDefault()
+      }}
+    >
+      Dashboard
+    </Link>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+import Link from 'next/link'
+
+export default function Page() {
+  return (
+    <Link
+      href="/dashboard"
+      onNavigate={(e) => {
+        // Only executes during SPA navigation
+        console.log('Navigating...')
+
+        // Optionally prevent navigation
+        // e.preventDefault()
+      }}
+    >
+      Dashboard
+    </Link>
+  )
+}
+```
+
+> **Good to know**: While `onClick` and `onNavigate` may seem similar, they serve different purposes. `onClick` executes for all click events, while `onNavigate` only runs during client-side navigation. Some key differences:
+>
+> - When using modifier keys (Ctrl/Cmd+Click), `onClick` executes but `onNavigate` doesn't since Next.js prevents default navigation for new tabs.
+> - External URLs won't trigger `onNavigate` since it's only for SPA-like navigations.
+> - Links with the `download` attribute will call `onClick` but not `onNavigate` since downloads use browser navigation.
 
 ## Examples
 
@@ -1182,6 +1236,7 @@ export default function Home() {
 
 | Version   | Changes                                                                                                                                                                                         |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v15.3.0` | Add `onNavigate`                                                                                                                                                                                |
 | `v13.0.0` | No longer requires a child `<a>` tag. A [codemod](/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components) is provided to automatically update your codebase. |
 | `v10.0.0` | `href` props pointing to a dynamic route are automatically resolved and no longer require an `as` prop.                                                                                         |
 | `v8.0.0`  | Improved prefetching performance.                                                                                                                                                               |
