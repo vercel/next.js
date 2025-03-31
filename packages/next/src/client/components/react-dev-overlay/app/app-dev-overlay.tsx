@@ -55,7 +55,7 @@ function ReplaySsrOnlyErrors({
         // TODO(veil): Produces wrong Owner Stack
         // TODO(veil): Mark as recoverable error
         // TODO(veil): console.error
-        handleClientError(ssrError, [])
+        handleClientError(ssrError)
 
         // If it's missing root tags, we can't recover, make it blocking.
         if (ssrError.digest === MISSING_ROOT_TAGS_ERROR) {
