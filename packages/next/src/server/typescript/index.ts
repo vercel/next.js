@@ -32,18 +32,6 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
   typescript: ts,
 }) => {
   function create(info: tsModule.server.PluginCreateInfo) {
-    init({
-      ts,
-      info,
-    })
-
-    // Set up decorator object
-    const proxy = Object.create(null)
-    for (let k of Object.keys(info.languageService)) {
-      const x = (info.languageService as any)[k]
-      proxy[k] = (...args: Array<{}>) => x.apply(info.languageService, args)
-    }
-
     // Get plugin options
     // config is the plugin options from the user's tsconfig.json
     // e.g. { "plugins": [{ "name": "next", "enabled": true }] }
@@ -52,8 +40,21 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
     const isPluginEnabled = info.config.enabled ?? true
 
     if (!isPluginEnabled) {
-      return proxy
+      return info.languageService
     }
+
+    // Set up decorator object
+    const proxy: tsModule.LanguageService = Object.create(null)
+    for (let k of Object.keys(info.languageService)) {
+      const x = info.languageService[k as keyof tsModule.LanguageService]
+      // @ts-expect-error - JS runtime trickery which is tricky to type tersely
+      proxy[k] = (...args: Array<{}>) => x.apply(info.languageService, args)
+    }
+
+    init({
+      ts,
+      info,
+    })
 
     // Auto completion
     proxy.getCompletionsAtPosition = (
@@ -78,14 +79,6 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       if (!entryInfo.client) {
         // Remove specified entries from completion list
         prior.entries = serverLayer.filterCompletionsAtPosition(prior.entries)
-
-        // Provide autocompletion for metadata fields
-        prior = metadata.filterCompletionsAtPosition(
-          fileName,
-          position,
-          options,
-          prior
-        )
       }
 
       // Add auto completions for export configs.
@@ -129,17 +122,6 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       )
       if (entryCompletionEntryDetails) return entryCompletionEntryDetails
 
-      const metadataCompletionEntryDetails = metadata.getCompletionEntryDetails(
-        fileName,
-        position,
-        entryName,
-        formatOptions,
-        source,
-        preferences,
-        data
-      )
-      if (metadataCompletionEntryDetails) return metadataCompletionEntryDetails
-
       return info.languageService.getCompletionEntryDetails(
         fileName,
         position,
@@ -172,9 +154,6 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         ) {
           return
         }
-
-        const metadataInfo = metadata.getQuickInfoAtPosition(fileName, position)
-        if (metadataInfo) return metadataInfo
       }
 
       const overridden = entryConfig.getQuickInfoAtPosition(fileName, position)
@@ -242,15 +221,12 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
                 source,
                 node
               )
-            const metadataDiagnostics = isClientEntry
-              ? metadata.getSemanticDiagnosticsForExportVariableStatementInClientEntry(
-                  fileName,
-                  node
-                )
-              : metadata.getSemanticDiagnosticsForExportVariableStatement(
-                  fileName,
-                  node
-                )
+            const metadataDiagnostics =
+              metadata.getSemanticDiagnosticsForExportVariableStatement(
+                fileName,
+                node,
+                isClientEntry
+              )
             prior.push(...diagnostics, ...metadataDiagnostics)
           }
 
@@ -305,15 +281,12 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         ) {
           // export function ...
           if (isAppEntry) {
-            const metadataDiagnostics = isClientEntry
-              ? metadata.getSemanticDiagnosticsForExportVariableStatementInClientEntry(
-                  fileName,
-                  node
-                )
-              : metadata.getSemanticDiagnosticsForExportVariableStatement(
-                  fileName,
-                  node
-                )
+            const metadataDiagnostics =
+              metadata.getSemanticDiagnosticsForExportVariableStatement(
+                fileName,
+                node,
+                isClientEntry
+              )
             prior.push(...metadataDiagnostics)
           }
 
@@ -361,20 +334,6 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       })
 
       return prior
-    }
-
-    // Get definition and link for specific node
-    proxy.getDefinitionAndBoundSpan = (fileName: string, position: number) => {
-      const entryInfo = getEntryInfo(fileName)
-      if (isAppEntryFile(fileName) && !entryInfo.client) {
-        const metadataDefinition = metadata.getDefinitionAndBoundSpan(
-          fileName,
-          position
-        )
-        if (metadataDefinition) return metadataDefinition
-      }
-
-      return info.languageService.getDefinitionAndBoundSpan(fileName, position)
     }
 
     return proxy
