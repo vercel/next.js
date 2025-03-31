@@ -1616,8 +1616,6 @@
       "css-order turbo should load correct styles on pages-first",
       "css-order turbo should load correct styles on pages-interleaved-a",
       "css-order turbo should load correct styles on pages-interleaved-b",
-      "css-order turbo should load correct styles on pages-partial-reversed-a",
-      "css-order turbo should load correct styles on pages-reversed-a",
       "css-order turbo should load correct styles on pages-second",
       "css-order turbo should load correct styles on pages-third",
       "css-order turbo should load correct styles on second",
@@ -1625,18 +1623,7 @@
       "css-order turbo should load correct styles on third",
       "css-order turbo should load correct styles on vendor"
     ],
-    "failed": [
-      "css-order turbo should load correct styles navigating back again pages-partial-reversed-a -> pages-partial-reversed-b -> pages-partial-reversed-a -> pages-partial-reversed-b",
-      "css-order turbo should load correct styles navigating back again pages-partial-reversed-b -> pages-partial-reversed-a -> pages-partial-reversed-b -> pages-partial-reversed-a",
-      "css-order turbo should load correct styles navigating back again pages-reversed-a -> pages-reversed-b -> pages-reversed-a -> pages-reversed-b",
-      "css-order turbo should load correct styles navigating back again pages-reversed-b -> pages-reversed-a -> pages-reversed-b -> pages-reversed-a",
-      "css-order turbo should load correct styles navigating pages-partial-reversed-a -> pages-partial-reversed-b",
-      "css-order turbo should load correct styles navigating pages-partial-reversed-b -> pages-partial-reversed-a",
-      "css-order turbo should load correct styles navigating pages-reversed-a -> pages-reversed-b",
-      "css-order turbo should load correct styles navigating pages-reversed-b -> pages-reversed-a",
-      "css-order turbo should load correct styles on pages-partial-reversed-b",
-      "css-order turbo should load correct styles on pages-reversed-b"
-    ],
+    "failed": [],
     "pending": [
       "css-order turbo should load correct styles navigating back again big-interleaved-a -> big-interleaved-b -> big-interleaved-a -> big-interleaved-b",
       "css-order turbo should load correct styles navigating back again big-interleaved-b -> big-interleaved-a -> big-interleaved-b -> big-interleaved-a",
@@ -5770,7 +5757,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/basepath-trailing-slash.test.ts": {
+  "test/e2e/basepath/basepath-trailing-slash.test.ts": {
     "passed": [
       "basePath + trailingSlash should allow URL query strings on index without refresh",
       "basePath + trailingSlash should allow URL query strings without refresh",
@@ -5781,7 +5768,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/basepath.test.ts": {
+  "test/e2e/basepath/basepath.test.ts": {
     "passed": [
       "basePath should 404 for public file without basePath",
       "basePath should 404 when manually adding basePath with <Link>",
@@ -5847,11 +5834,10 @@
       "basePath should work with catch-all page",
       "basePath should work with hash links",
       "basePath should work with nested folder with same name as basePath",
-      "basePath should work with normal dynamic page"
-    ],
-    "failed": [
+      "basePath should work with normal dynamic page",
       "basePath should prefetch pages correctly in viewport with <Link>"
     ],
+    "failed": [],
     "pending": [
       "basePath should navigate back to a non-basepath 404 that starts with basepath",
       "basePath should navigate to nested index page with getStaticProps"
@@ -5986,11 +5972,10 @@
       "Dynamic Route Interpolation should work with brackets",
       "Dynamic Route Interpolation should work with brackets in API routes",
       "Dynamic Route Interpolation should work with parameter itself",
-      "Dynamic Route Interpolation should work with parameter itself in API routes"
-    ],
-    "failed": [
+      "Dynamic Route Interpolation should work with parameter itself in API routes",
       "Dynamic Route Interpolation should support both encoded and decoded nextjs reserved path convention characters in path"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -17872,13 +17857,11 @@
     "runtimeError": false
   },
   "test/production/app-dir/symbolic-file-links/symbolic-file-links.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "symbolic-file-links should work using browser",
-      "symbolic-file-links should work using cheerio",
-      "symbolic-file-links should work with fetch",
       "symbolic-file-links should work with html"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18009,8 +17992,8 @@
     "runtimeError": false
   },
   "test/production/deterministic-build/index.test.ts": {
-    "passed": [],
-    "failed": ["deterministic build should have same md5 file across build"],
+    "passed": ["deterministic build should have same md5 file across build"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
