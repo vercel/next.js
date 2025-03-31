@@ -5770,7 +5770,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/basepath-trailing-slash.test.ts": {
+  "test/e2e/basepath/basepath-trailing-slash.test.ts": {
     "passed": [
       "basePath + trailingSlash should allow URL query strings on index without refresh",
       "basePath + trailingSlash should allow URL query strings without refresh",
@@ -5781,7 +5781,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/basepath.test.ts": {
+  "test/e2e/basepath/basepath.test.ts": {
     "passed": [
       "basePath should 404 for public file without basePath",
       "basePath should 404 when manually adding basePath with <Link>",
@@ -5847,11 +5847,10 @@
       "basePath should work with catch-all page",
       "basePath should work with hash links",
       "basePath should work with nested folder with same name as basePath",
-      "basePath should work with normal dynamic page"
-    ],
-    "failed": [
+      "basePath should work with normal dynamic page",
       "basePath should prefetch pages correctly in viewport with <Link>"
     ],
+    "failed": [],
     "pending": [
       "basePath should navigate back to a non-basepath 404 that starts with basepath",
       "basePath should navigate to nested index page with getStaticProps"
