@@ -18925,9 +18925,9 @@ function assertValue(v2, errorMessage) {
 
 // src/index.node.ts
 var satori = El.default || El;
-var fontData = fs.readFileSync(fileURLToPath(new URL("../noto-sans-v27-latin-regular.ttf", import.meta.url)));
-var yoga_wasm = fs.readFileSync(fileURLToPath(new URL("../yoga.wasm", import.meta.url)));
-var resvg_wasm = fs.readFileSync(fileURLToPath(new URL("../resvg.wasm", import.meta.url)));
+var fontData = fs.readFileSync(fileURLToPath(new URL("./noto-sans-v27-latin-regular.ttf", import.meta.url)));
+var yoga_wasm = fs.readFileSync(fileURLToPath(new URL("./yoga.wasm", import.meta.url)));
+var resvg_wasm = fs.readFileSync(fileURLToPath(new URL("./resvg.wasm", import.meta.url)));
 var initializedResvg = initWasm(resvg_wasm);
 var initializedYoga = initYoga(yoga_wasm).then((yoga2) => Ll(yoga2));
 var ImageResponse = class extends Response {

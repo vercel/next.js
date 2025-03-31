@@ -23,7 +23,7 @@ overrides:
 
 patchedDependencies:
   '@vercel/og@0.6.5':
-    hash: rbntgzd4jlhr2q65jjq72gv2ym
+    hash: 75vrasnpwhrxu2cfrmiger33em
     path: patches/@vercel__og@0.6.5.patch
   stacktrace-parser@0.1.10:
     hash: misknddihoqkqinipod62zbcj4
@@ -215,7 +215,7 @@ importers:
         version: 6.1.1(@types/node-fetch@2.6.1)(node-fetch@2.6.7(encoding@0.1.13))
       '@vercel/og':
         specifier: 0.6.5
-        version: 0.6.5(patch_hash=rbntgzd4jlhr2q65jjq72gv2ym)
+        version: 0.6.5(patch_hash=75vrasnpwhrxu2cfrmiger33em)
       abort-controller:
         specifier: 3.0.0
         version: 3.0.0
@@ -23082,7 +23082,7 @@ snapshots:
       - encoding
       - supports-color
 
-  '@vercel/og@0.6.5(patch_hash=rbntgzd4jlhr2q65jjq72gv2ym)':
+  '@vercel/og@0.6.5(patch_hash=75vrasnpwhrxu2cfrmiger33em)':
     dependencies:
       '@resvg/resvg-wasm': 2.4.0
       satori: 0.12.1
