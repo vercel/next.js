@@ -216,7 +216,7 @@ describe('Production Usage', () => {
           /node_modules\/next/,
           /node_modules\/nanoid\/index\.js/,
           /node_modules\/nanoid\/url-alphabet\/index\.js/,
-          /node_modules\/es5-ext\/array\/of\/index\.js/,
+          /node_modules\/es5-ext\/array\/#\/clear\.js/,
         ],
         notTests: [/next\/dist\/pages\/_error\.js/, /\0/, /\?/, /!/],
       },
@@ -256,10 +256,7 @@ describe('Production Usage', () => {
       },
       {
         page: '/api/readfile-dirname',
-        tests: [
-          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
-          /static\/data\/item\.txt/,
-        ],
+        tests: [/webpack-api-runtime\.js/, /static\/data\/item\.txt/],
         notTests: [
           /next\/dist\/server\/next\.js/,
           /next\/dist\/bin/,
@@ -270,10 +267,7 @@ describe('Production Usage', () => {
       },
       {
         page: '/api/readfile-processcwd',
-        tests: [
-          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
-          /static\/data\/item\.txt/,
-        ],
+        tests: [/webpack-api-runtime\.js/, /static\/data\/item\.txt/],
         notTests: [
           /next\/dist\/server\/next\.js/,
           /next\/dist\/bin/,
@@ -297,7 +291,7 @@ describe('Production Usage', () => {
           if (files.some((file) => item.test(file))) {
             return true
           }
-          require('console').error(
+          console.error(
             `Failed to find ${item} for page ${check.page} in`,
             files
           )
