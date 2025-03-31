@@ -19,7 +19,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -139,7 +139,7 @@ pub(crate) async fn build_server_actions_loader(
     let module = asset_context
         .process(
             Vc::upcast(source),
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(import_map))),
+            ReferenceType::Internal(ResolvedVc::cell(import_map)),
         )
         .module();
 
@@ -218,9 +218,7 @@ pub async fn to_rsc_context(
     let module = asset_context
         .process(
             Vc::upcast(source),
-            Value::new(ReferenceType::EcmaScriptModules(
-                EcmaScriptModulesReferenceSubType::Undefined,
-            )),
+            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
         )
         .module()
         .to_resolved()

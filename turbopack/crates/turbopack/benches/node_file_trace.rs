@@ -3,7 +3,7 @@ use std::{fs, path::PathBuf};
 use criterion::{Bencher, BenchmarkId, Criterion};
 use regex::Regex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{apply_effects, ReadConsistency, ResolvedVc, TurboTasks, Value, Vc};
+use turbo_tasks::{apply_effects, ReadConsistency, ResolvedVc, TurboTasks, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, NullFileSystem};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
@@ -84,9 +84,9 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
 
                 let source = FileSource::new(input);
                 let compile_time_info = CompileTimeInfo::builder(
-                    Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
+                    Environment::new(ExecutionEnvironment::NodeJsLambda(
                         NodeJsEnvironment::default().resolved_cell(),
-                    )))
+                    ))
                     .to_resolved()
                     .await?,
                 )
@@ -113,7 +113,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                     Vc::cell("node_file_trace".into()),
                 );
                 let module = module_asset_context
-                    .process(Vc::upcast(source), Value::new(ReferenceType::Undefined))
+                    .process(Vc::upcast(source), ReferenceType::Undefined)
                     .module();
                 let rebased = RebasedAsset::new(Vc::upcast(module), input_dir, *output_dir)
                     .to_resolved()

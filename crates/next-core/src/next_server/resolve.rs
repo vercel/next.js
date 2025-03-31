@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, Value, Vc};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
 use turbo_tasks_fs::{self, glob::Glob, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
@@ -79,7 +79,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         &self,
         fs_path: ResolvedVc<FileSystemPath>,
         lookup_path: ResolvedVc<FileSystemPath>,
-        reference_type: Value<ReferenceType>,
+        reference_type: ReferenceType,
         request: ResolvedVc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         let request_value = &*request.await?;

@@ -4047,7 +4047,7 @@ mod tests {
         },
         testing::{fixture, run_test, NormalizedOutput},
     };
-    use turbo_tasks::{util::FormatDuration, ResolvedVc, Value};
+    use turbo_tasks::{util::FormatDuration, ResolvedVc};
     use turbopack_core::{
         compile_time_info::CompileTimeInfo,
         environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
@@ -4447,7 +4447,7 @@ mod tests {
     ) -> (JsValue, u32) {
         turbo_tasks_testing::VcStorage::with(async {
             let compile_time_info = CompileTimeInfo::builder(
-                Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
+                Environment::new(ExecutionEnvironment::NodeJsLambda(
                     NodeJsEnvironment {
                         compile_target: CompileTarget {
                             arch: Arch::X64,
@@ -4460,7 +4460,7 @@ mod tests {
                         cwd: ResolvedVc::cell(None),
                     }
                     .resolved_cell(),
-                )))
+                ))
                 .to_resolved()
                 .await?,
             )

@@ -1,25 +1,24 @@
-use std::{collections::BTreeMap, hash::Hash, ops::DerefMut};
+use std::{collections::BTreeMap, hash::Hash, sync::Arc};
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue};
-
-use super::ContentSourceDataFilter;
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, TaskInput};
 
 /// A parsed query string from a http request
 #[derive(
     Clone, Debug, PartialEq, Eq, Default, Hash, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
 )]
 #[serde(transparent)]
-pub struct Query(BTreeMap<String, QueryValue>);
+pub struct Query(Arc<BTreeMap<String, QueryValue>>);
 
-impl Query {
-    pub fn filter_with(&mut self, filter: &ContentSourceDataFilter) {
-        match filter {
-            ContentSourceDataFilter::All => {
-                // fast path without iterating query
-            }
-            _ => self.0.retain(|k, _| filter.contains(k)),
-        }
+impl From<BTreeMap<String, QueryValue>> for Query {
+    fn from(map: BTreeMap<String, QueryValue>) -> Self {
+        Query(Arc::new(map))
+    }
+}
+
+impl TaskInput for Query {
+    fn is_transient(&self) -> bool {
+        false
     }
 }
 
@@ -27,12 +26,6 @@ impl std::ops::Deref for Query {
     type Target = BTreeMap<String, QueryValue>;
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-impl DerefMut for Query {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }
 

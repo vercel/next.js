@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     fxindexmap, trace::TraceRawVcs, Completion, Completions, NonLocalValue, ResolvedVc, TaskInput,
-    TryFlatJoinIterExt, Value, Vc,
+    TryFlatJoinIterExt, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_fs::{
@@ -199,9 +199,7 @@ async fn config_changed(
     let config_asset = asset_context
         .process(
             Vc::upcast(FileSource::new(postcss_config_path)),
-            Value::new(ReferenceType::Internal(
-                InnerAssets::empty().to_resolved().await?,
-            )),
+            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
         )
         .module();
 
@@ -237,9 +235,7 @@ async fn extra_configs_changed(
                     match *asset_context
                         .process(
                             Vc::upcast(FileSource::new(path)),
-                            Value::new(ReferenceType::Internal(
-                                InnerAssets::empty().to_resolved().await?,
-                            )),
+                            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
                         )
                         .try_into_module()
                         .await?
@@ -403,7 +399,7 @@ async fn postcss_executor(
     let config_asset = asset_context
         .process(
             config_loader_source(project_path, postcss_config_path),
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
+            ReferenceType::Entry(EntryReferenceSubType::Undefined),
         )
         .module()
         .to_resolved()
@@ -419,9 +415,9 @@ async fn postcss_executor(
             )
             .cell(),
         )),
-        Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
+        ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
             "CONFIG".into() => config_asset
-        }))),
+        })),
     ))
 }
 
@@ -430,12 +426,8 @@ async fn find_config_in_location(
     location: PostCssConfigLocation,
     source: Vc<Box<dyn Source>>,
 ) -> Result<Option<Vc<FileSystemPath>>> {
-    if let FindContextFileResult::Found(config_path, _) = *find_context_file_or_package_key(
-        project_path,
-        postcss_configs(),
-        Value::new("postcss".into()),
-    )
-    .await?
+    if let FindContextFileResult::Found(config_path, _) =
+        *find_context_file_or_package_key(project_path, postcss_configs(), "postcss".into()).await?
     {
         return Ok(Some(*config_path));
     }
@@ -444,7 +436,7 @@ async fn find_config_in_location(
         if let FindContextFileResult::Found(config_path, _) = *find_context_file_or_package_key(
             source.ident().path().parent(),
             postcss_configs(),
-            Value::new("postcss".into()),
+            "postcss".into(),
         )
         .await?
         {

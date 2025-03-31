@@ -4,7 +4,7 @@ use anyhow::{bail, Context, Result};
 use indoc::writedoc;
 use once_cell::sync::Lazy;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -161,10 +161,7 @@ impl EcmascriptClientReferenceModule {
 
         let proxy_module = self
             .server_asset_context
-            .process(
-                Vc::upcast(proxy_source),
-                Value::new(ReferenceType::Undefined),
-            )
+            .process(Vc::upcast(proxy_source), ReferenceType::Undefined)
             .module();
 
         let Some(proxy_module) =

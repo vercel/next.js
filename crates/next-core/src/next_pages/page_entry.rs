@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::{bail, Result};
 use serde::Serialize;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{fxindexmap, FxIndexMap, ResolvedVc, Value, Vc};
+use turbo_tasks::{fxindexmap, FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_fs::{rope::RopeBuilder, File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -46,7 +46,7 @@ pub async fn create_page_ssr_entry_module(
     let definition_pathname = &*pathname.await?;
 
     let ssr_module = ssr_module_context
-        .process(source, Value::new(reference_type.clone()))
+        .process(source, reference_type.clone())
         .module()
         .to_resolved()
         .await?;
@@ -149,7 +149,7 @@ pub async fn create_page_ssr_entry_module(
     let mut ssr_module = ssr_module_context
         .process(
             source,
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
+            ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module();
 
@@ -190,9 +190,7 @@ fn process_global_item(
     module_context: Vc<Box<dyn AssetContext>>,
 ) -> Vc<Box<dyn Module>> {
     let source = Vc::upcast(FileSource::new(item.file_path()));
-    module_context
-        .process(source, Value::new(reference_type))
-        .module()
+    module_context.process(source, reference_type).module()
 }
 
 #[turbo_tasks::function]
@@ -288,7 +286,7 @@ async fn wrap_edge_page(
     let wrapped = asset_context
         .process(
             Vc::upcast(source),
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
+            ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module();
 

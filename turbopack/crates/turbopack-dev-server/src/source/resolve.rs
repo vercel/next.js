@@ -1,5 +1,5 @@
 use std::{
-    collections::btree_map::Entry,
+    collections::{btree_map::Entry, BTreeMap},
     sync::atomic::{AtomicU64, Ordering},
 };
 
@@ -9,16 +9,16 @@ use hyper::{
     Uri,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{OperationVc, ResolvedVc, TransientInstance, Value, Vc};
+use turbo_tasks::{OperationVc, ResolvedVc, TransientInstance, Vc};
 
-use super::{
-    headers::{HeaderValue, Headers},
-    query::Query,
+use crate::source::{
+    headers::HeaderValue,
+    query::{Query, QueryValue},
     request::SourceRequest,
     route_tree::RouteTree,
-    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
-    GetContentSourceContent, GetContentSourceContents, HeaderList, ProxyResult, RewriteType,
-    StaticContent,
+    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataFilter,
+    ContentSourceDataVary, GetContentSourceContent, GetContentSourceContents, HeaderList,
+    ProxyResult, RewriteType, StaticContent,
 };
 
 /// The result of [`resolve_source_request`]. Similar to a
@@ -57,7 +57,7 @@ fn get_content_source_content_vary_operation(
 fn get_content_source_content_get_operation(
     get_content: ResolvedVc<Box<dyn GetContentSourceContent>>,
     path: RcStr,
-    data: Value<ContentSourceData>,
+    data: ContentSourceData,
 ) -> Vc<ContentSourceContent> {
     get_content.get(path, data)
 }
@@ -95,7 +95,7 @@ pub async fn resolve_source_request(
                 let content_op = get_content_source_content_get_operation(
                     get_content,
                     current_asset_path.clone(),
-                    Value::new(content_data),
+                    content_data,
                 );
                 match &*content_op.read_strongly_consistent().await? {
                     ContentSourceContent::Rewrite(rewrite) => {
@@ -206,15 +206,20 @@ async fn request_to_data(
     }
     if let Some(filter) = vary.query.as_ref() {
         if let Some(query) = request.uri.query() {
-            let mut query: Query = serde_qs::from_str(query)?;
-            query.filter_with(filter);
-            data.query = Some(query);
+            let mut query: BTreeMap<String, QueryValue> = serde_qs::from_str(query)?;
+            match filter {
+                ContentSourceDataFilter::All => {
+                    // fast path without iterating query
+                }
+                _ => query.retain(|k, _| filter.contains(k)),
+            };
+            data.query = Some(query.into());
         } else {
             data.query = Some(Query::default())
         }
     }
     if let Some(filter) = vary.headers.as_ref() {
-        let mut headers = Headers::default();
+        let mut headers = BTreeMap::new();
         for (header_name, header_value) in request.headers.iter() {
             if !filter.contains(header_name.as_str()) {
                 continue;
@@ -237,7 +242,7 @@ async fn request_to_data(
                 }
             }
         }
-        data.headers = Some(headers);
+        data.headers = Some(headers.into());
     }
     if vary.cache_buster {
         data.cache_buster = CACHE_BUSTER.fetch_add(1, Ordering::SeqCst);

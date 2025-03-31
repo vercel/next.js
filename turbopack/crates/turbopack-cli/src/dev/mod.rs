@@ -15,7 +15,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{
     trace::TraceRawVcs,
     util::{FormatBytes, FormatDuration},
-    NonLocalValue, OperationVc, ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
+    NonLocalValue, OperationVc, ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Vc,
 };
 use turbo_tasks_backend::{
     noop_backing_storage, BackendOptions, NoopBackingStorage, TurboTasksBackend,
@@ -309,14 +309,14 @@ async fn source(
         .iter()
         .map(|r| match r {
             EntryRequest::Relative(p) => Request::relative(
-                Value::new(p.clone().into()),
+                p.clone().into(),
                 Default::default(),
                 Default::default(),
                 false,
             ),
             EntryRequest::Module(m, p) => Request::module(
                 m.clone(),
-                Value::new(p.clone().into()),
+                p.clone().into(),
                 Default::default(),
                 Default::default(),
             ),

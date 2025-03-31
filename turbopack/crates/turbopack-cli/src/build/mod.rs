@@ -10,8 +10,7 @@ use rustc_hash::FxHashSet;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    apply_effects, ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks,
-    Value, Vc,
+    apply_effects, ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Vc,
 };
 use turbo_tasks_backend::{
     noop_backing_storage, BackendOptions, NoopBackingStorage, TurboTasksBackend,
@@ -232,9 +231,9 @@ async fn build_internal(
                 build_output_root,
                 build_output_root,
                 build_output_root,
-                Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
+                Environment::new(ExecutionEnvironment::NodeJsLambda(
                     NodeJsEnvironment::default().resolved_cell(),
-                )))
+                ))
                 .to_resolved()
                 .await?,
                 runtime_type,
@@ -257,14 +256,14 @@ async fn build_internal(
         .map(|r| async move {
             Ok(match r {
                 EntryRequest::Relative(p) => Request::relative(
-                    Value::new(p.clone().into()),
+                    p.clone().into(),
                     Default::default(),
                     Default::default(),
                     false,
                 ),
                 EntryRequest::Module(m, p) => Request::module(
                     m.clone(),
-                    Value::new(p.clone().into()),
+                    p.clone().into(),
                     Default::default(),
                     Default::default(),
                 ),
@@ -283,11 +282,7 @@ async fn build_internal(
                 let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
                 let request = request_vc.await?;
                 origin
-                    .resolve_asset(
-                        request_vc,
-                        origin.resolve_options(Value::new(ty.clone())),
-                        Value::new(ty),
-                    )
+                    .resolve_asset(request_vc, origin.resolve_options(ty.clone()), ty)
                     .await?
                     .first_module()
                     .await?
@@ -322,7 +317,7 @@ async fn build_internal(
                 build_output_root,
                 build_output_root,
                 build_output_root,
-                Environment::new(Value::new(ExecutionEnvironment::Browser(
+                Environment::new(ExecutionEnvironment::Browser(
                     BrowserEnvironment {
                         dom: true,
                         web_worker: false,
@@ -330,7 +325,7 @@ async fn build_internal(
                         browserslist_query: browserslist_query.clone(),
                     }
                     .resolved_cell(),
-                )))
+                ))
                 .to_resolved()
                 .await?,
                 runtime_type,
@@ -372,9 +367,9 @@ async fn build_internal(
                 build_output_root,
                 build_output_root,
                 build_output_root,
-                Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
+                Environment::new(ExecutionEnvironment::NodeJsLambda(
                     NodeJsEnvironment::default().resolved_cell(),
-                )))
+                ))
                 .to_resolved()
                 .await?,
                 runtime_type,

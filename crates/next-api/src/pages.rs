@@ -31,7 +31,7 @@ use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     fxindexmap, trace::TraceRawVcs, Completion, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput,
-    Value, ValueToString, Vc,
+    ValueToString, Vc,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
@@ -622,14 +622,14 @@ impl PagesProject {
                 client_module_context,
                 self.project().project_path().join("_".into()),
             )),
-            Request::parse(Value::new(Pattern::Constant(
+            Request::parse(Pattern::Constant(
                 match *self.project().next_mode().await? {
                     NextMode::Development => "next/dist/client/next-dev-turbopack.js",
                     NextMode::Build => "next/dist/client/next-turbopack.js",
                 }
                 .into(),
-            ))),
-            Value::new(EcmaScriptModulesReferenceSubType::Undefined),
+            )),
+            EcmaScriptModulesReferenceSubType::Undefined,
             false,
             None,
         )
@@ -886,7 +886,7 @@ impl PageEndpoint {
         };
 
         let ssr_module = module_context
-            .process(self.source(), Value::new(reference_type.clone()))
+            .process(self.source(), reference_type.clone())
             .module();
 
         let config = parse_config_from_source(ssr_module, NextRuntime::default()).await?;

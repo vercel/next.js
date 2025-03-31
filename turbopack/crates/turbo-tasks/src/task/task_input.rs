@@ -1,4 +1,6 @@
-use std::{any::Any, fmt::Debug, future::Future, hash::Hash, sync::Arc, time::Duration};
+use std::{
+    collections::BTreeMap, fmt::Debug, future::Future, hash::Hash, sync::Arc, time::Duration,
+};
 
 use anyhow::Result;
 use either::Either;
@@ -6,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 
 use crate::{
-    trace::TraceRawVcs, MagicAny, ResolvedVc, TaskId, TransientInstance, TransientValue, Value,
+    trace::TraceRawVcs, MagicAny, ResolvedVc, TaskId, TransientInstance, TransientValue,
     ValueTypeId, Vc,
 };
 
@@ -67,6 +69,32 @@ where
         let mut resolved = Vec::with_capacity(self.len());
         for value in self {
             resolved.push(value.resolve_input().await?);
+        }
+        Ok(resolved)
+    }
+}
+
+// Not every collection is a good fit for `TaskInput` (equality might not behave as desired), but a
+// `BTreeMap` is guaranteed to be sorted.
+impl<K, V> TaskInput for BTreeMap<K, V>
+where
+    K: TaskInput + Ord,
+    V: TaskInput,
+{
+    fn is_resolved(&self) -> bool {
+        // note: `(K, V)` implements `TaskInput`, but we're given `(&K, &V)`, which doesn't
+        self.iter().all(|(k, v)| k.is_resolved() && v.is_resolved())
+    }
+
+    fn is_transient(&self) -> bool {
+        self.iter()
+            .any(|(k, v)| k.is_transient() || v.is_transient())
+    }
+
+    async fn resolve_input(&self) -> Result<Self> {
+        let mut resolved = BTreeMap::new();
+        for (k, v) in self {
+            resolved.insert(k.resolve_input().await?, v.resolve_input().await?);
         }
         Ok(resolved)
     }
@@ -165,29 +193,6 @@ where
 
     async fn resolve_input(&self) -> Result<Self> {
         Ok(*self)
-    }
-}
-
-impl<T> TaskInput for Value<T>
-where
-    T: Any
-        + std::fmt::Debug
-        + Clone
-        + std::hash::Hash
-        + Eq
-        + Send
-        + Sync
-        + Serialize
-        + for<'de> Deserialize<'de>
-        + TraceRawVcs
-        + 'static,
-{
-    fn is_resolved(&self) -> bool {
-        true
-    }
-
-    fn is_transient(&self) -> bool {
-        false
     }
 }
 

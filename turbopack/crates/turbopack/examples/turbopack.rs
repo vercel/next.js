@@ -9,7 +9,7 @@ use std::{
 use anyhow::Result;
 use tokio::{spawn, time::sleep};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{util::FormatDuration, ReadConsistency, TurboTasks, UpdateInfo, Value, Vc};
+use turbo_tasks::{util::FormatDuration, ReadConsistency, TurboTasks, UpdateInfo, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{emit_with_completion, register};
@@ -45,10 +45,8 @@ async fn main() -> Result<()> {
             let source = FileSource::new(entry);
             let module_asset_context = turbopack::ModuleAssetContext::new(
                 Default::default(),
-                CompileTimeInfo::new(Environment::new(Value::new(
-                    ExecutionEnvironment::NodeJsLambda(
-                        NodeJsEnvironment::default().resolved_cell(),
-                    ),
+                CompileTimeInfo::new(Environment::new(ExecutionEnvironment::NodeJsLambda(
+                    NodeJsEnvironment::default().resolved_cell(),
                 ))),
                 Default::default(),
                 ResolveOptionsContext {
@@ -64,7 +62,7 @@ async fn main() -> Result<()> {
             let module = module_asset_context
                 .process(
                     Vc::upcast(source),
-                    Value::new(turbopack_core::reference_type::ReferenceType::Undefined),
+                    turbopack_core::reference_type::ReferenceType::Undefined,
                 )
                 .module();
             let rebased = RebasedAsset::new(module, input, output);

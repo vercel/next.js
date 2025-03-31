@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use anyhow::{Context, Result};
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{fxindexmap, FxIndexMap, ResolvedVc, Value, Vc};
+use turbo_tasks::{fxindexmap, FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     reference_type::{CommonJsReferenceSubType, ReferenceType},
@@ -1022,8 +1022,8 @@ async fn insert_next_shared_aliases(
 pub async fn get_next_package(context_directory: Vc<FileSystemPath>) -> Result<Vc<FileSystemPath>> {
     let result = resolve(
         context_directory,
-        Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
-        Request::parse(Value::new(Pattern::Constant("next/package.json".into()))),
+        ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
+        Request::parse(Pattern::Constant("next/package.json".into())),
         node_cjs_resolve_options(context_directory.root()),
     );
     let source = result

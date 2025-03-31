@@ -1,7 +1,7 @@
 use anyhow::Result;
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{transition::Transition, ModuleAssetContext};
 use turbopack_core::{
@@ -72,9 +72,8 @@ impl BaseLoaderTreeBuilder {
     }
 
     pub fn process_source(&self, source: Vc<Box<dyn Source>>) -> Vc<Box<dyn Module>> {
-        let reference_type = Value::new(ReferenceType::EcmaScriptModules(
-            EcmaScriptModulesReferenceSubType::Undefined,
-        ));
+        let reference_type =
+            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined);
 
         self.server_component_transition
             .process(source, *self.module_asset_context, reference_type)

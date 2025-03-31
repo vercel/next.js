@@ -2,7 +2,7 @@ use std::iter::once;
 
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, TaskInput, Value, Vc};
+use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, TaskInput, Vc};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
@@ -378,7 +378,7 @@ pub async fn get_server_compile_time_info(
     cwd: RcStr,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
-        Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
+        Environment::new(ExecutionEnvironment::NodeJsLambda(
             NodeJsEnvironment {
                 compile_target: CompileTarget::current().to_resolved().await?,
                 node_version: NodeJsVersion::resolved_cell(NodeJsVersion::Current(
@@ -387,7 +387,7 @@ pub async fn get_server_compile_time_info(
                 cwd: ResolvedVc::cell(Some(cwd)),
             }
             .resolved_cell(),
-        )))
+        ))
         .to_resolved()
         .await?,
     )

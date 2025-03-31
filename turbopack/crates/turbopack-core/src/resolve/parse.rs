@@ -2,7 +2,7 @@ use anyhow::{Ok, Result};
 use lazy_static::lazy_static;
 use regex::Regex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 
 use super::pattern::Pattern;
 
@@ -293,7 +293,6 @@ impl Request {
         Ok(Request::Alternatives {
             requests: list
                 .into_iter()
-                .map(Value::new)
                 .map(Request::parse)
                 .map(|v| async move { v.to_resolved().await })
                 .try_join()
@@ -305,8 +304,8 @@ impl Request {
 #[turbo_tasks::value_impl]
 impl Request {
     #[turbo_tasks::function]
-    pub async fn parse(request: Value<Pattern>) -> Result<Vc<Self>> {
-        Ok(Self::cell(Request::parse_ref(request.into_value()).await?))
+    pub async fn parse(request: Pattern) -> Result<Vc<Self>> {
+        Ok(Self::cell(Request::parse_ref(request).await?))
     }
 
     #[turbo_tasks::function]
@@ -316,13 +315,13 @@ impl Request {
 
     #[turbo_tasks::function]
     pub async fn raw(
-        request: Value<Pattern>,
+        request: Pattern,
         query: Vc<RcStr>,
         fragment: Vc<RcStr>,
         force_in_lookup_dir: bool,
     ) -> Result<Vc<Self>> {
         Ok(Self::cell(Request::Raw {
-            path: request.into_value(),
+            path: request,
             force_in_lookup_dir,
             query: query.to_resolved().await?,
             fragment: fragment.to_resolved().await?,
@@ -331,13 +330,13 @@ impl Request {
 
     #[turbo_tasks::function]
     pub async fn relative(
-        request: Value<Pattern>,
+        request: Pattern,
         query: Vc<RcStr>,
         fragment: Vc<RcStr>,
         force_in_lookup_dir: bool,
     ) -> Result<Vc<Self>> {
         Ok(Self::cell(Request::Relative {
-            path: request.into_value(),
+            path: request,
             force_in_lookup_dir,
             query: query.to_resolved().await?,
             fragment: fragment.to_resolved().await?,
@@ -347,13 +346,13 @@ impl Request {
     #[turbo_tasks::function]
     pub async fn module(
         module: RcStr,
-        path: Value<Pattern>,
+        path: Pattern,
         query: Vc<RcStr>,
         fragment: Vc<RcStr>,
     ) -> Result<Vc<Self>> {
         Ok(Self::cell(Request::Module {
             module,
-            path: path.into_value(),
+            path,
             query: query.to_resolved().await?,
             fragment: fragment.to_resolved().await?,
         }))
@@ -380,17 +379,17 @@ impl Request {
                 let mut pat = Pattern::Constant(format!("./{module}").into());
                 pat.push(path.clone());
                 // TODO add query
-                Self::parse(Value::new(pat))
+                Self::parse(pat)
             }
             Request::PackageInternal { path } => {
                 let mut pat = Pattern::Constant("./".into());
                 pat.push(path.clone());
-                Self::parse(Value::new(pat))
+                Self::parse(pat)
             }
             Request::Unknown { path } => {
                 let mut pat = Pattern::Constant("./".into());
                 pat.push(path.clone());
-                Self::parse(Value::new(pat))
+                Self::parse(pat)
             }
             Request::Alternatives { requests } => {
                 let requests = requests
@@ -573,7 +572,7 @@ impl Request {
             } => {
                 let mut pat = Pattern::concat([path.clone(), suffix.into()]);
                 pat.normalize();
-                Self::raw(Value::new(pat), **query, **fragment, *force_in_lookup_dir)
+                Self::raw(pat, **query, **fragment, *force_in_lookup_dir)
             }
             Request::Relative {
                 path,
@@ -583,7 +582,7 @@ impl Request {
             } => {
                 let mut pat = Pattern::concat([path.clone(), suffix.into()]);
                 pat.normalize();
-                Self::relative(Value::new(pat), **query, **fragment, *force_in_lookup_dir)
+                Self::relative(pat, **query, **fragment, *force_in_lookup_dir)
             }
             Request::Module {
                 module,
@@ -593,7 +592,7 @@ impl Request {
             } => {
                 let mut pat = Pattern::concat([path.clone(), suffix.into()]);
                 pat.normalize();
-                Self::module(module.clone(), Value::new(pat), **query, **fragment)
+                Self::module(module.clone(), pat, **query, **fragment)
             }
             Request::ServerRelative {
                 path,
@@ -623,7 +622,7 @@ impl Request {
                 }
                 .cell()
             }
-            Request::Empty => Self::parse(Value::new(suffix.into())),
+            Request::Empty => Self::parse(suffix.into()),
             Request::PackageInternal { path } => {
                 let mut pat = Pattern::concat([path.clone(), suffix.into()]);
                 pat.normalize();

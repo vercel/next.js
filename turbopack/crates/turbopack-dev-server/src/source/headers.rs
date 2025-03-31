@@ -1,14 +1,33 @@
-use std::{collections::BTreeMap, hash::Hash, mem::replace, ops::DerefMut};
+use std::{collections::BTreeMap, hash::Hash, mem::replace, sync::Arc};
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, TaskInput};
 
 /// A parsed query string from a http request
 #[derive(
     Clone, Debug, PartialEq, Eq, Default, Hash, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
 )]
 #[serde(transparent)]
-pub struct Headers(BTreeMap<String, HeaderValue>);
+pub struct Headers(Arc<BTreeMap<String, HeaderValue>>);
+
+impl From<BTreeMap<String, HeaderValue>> for Headers {
+    fn from(map: BTreeMap<String, HeaderValue>) -> Self {
+        Headers(Arc::new(map))
+    }
+}
+
+impl TaskInput for Headers {
+    fn is_transient(&self) -> bool {
+        false
+    }
+}
+
+impl std::ops::Deref for Headers {
+    type Target = BTreeMap<String, HeaderValue>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 /// The value of an http header. HTTP headers might contain non-utf-8 bytes. An
 /// header might also occur multiple times.
@@ -19,19 +38,6 @@ pub enum HeaderValue {
     SingleBytes(Vec<u8>),
     MultiStrings(Vec<String>),
     MultiBytes(Vec<Vec<u8>>),
-}
-
-impl std::ops::Deref for Headers {
-    type Target = BTreeMap<String, HeaderValue>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for Headers {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
 }
 
 impl HeaderValue {

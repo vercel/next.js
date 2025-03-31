@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::quote;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, Value, Vc};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, Vc};
 use turbopack_core::{
     chunk::ChunkingContext, compile_time_info::CompileTimeDefineValue, module_graph::ModuleGraph,
 };
@@ -19,11 +19,8 @@ pub struct ConstantValueCodeGen {
 }
 
 impl ConstantValueCodeGen {
-    pub fn new(value: Value<CompileTimeDefineValue>, path: AstPath) -> Self {
-        ConstantValueCodeGen {
-            value: value.into_value(),
-            path,
-        }
+    pub fn new(value: CompileTimeDefineValue, path: AstPath) -> Self {
+        ConstantValueCodeGen { value, path }
     }
     pub async fn code_generation(
         &self,

@@ -6,7 +6,7 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, Value,
+    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput,
     ValueToString, Vc,
 };
 use turbopack_core::{
@@ -106,7 +106,7 @@ impl ModuleReference for UrlAssetReference {
         url_resolve(
             *self.origin,
             *self.request,
-            Value::new(ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl)),
+            ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl),
             Some(self.issue_source.clone()),
             self.in_try,
         )

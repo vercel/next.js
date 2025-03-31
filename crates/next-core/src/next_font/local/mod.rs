@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
     glob::Glob, json::parse_json_with_source_context, FileContent, FileSystemPath,
 };
@@ -76,7 +76,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
     async fn before_resolve(
         self: Vc<Self>,
         lookup_path: Vc<FileSystemPath>,
-        _reference_type: Value<ReferenceType>,
+        _reference_type: ReferenceType,
         request_vc: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         let this = &*self.await?;
@@ -296,8 +296,7 @@ async fn font_options_from_query_map(query: Vc<RcStr>) -> Result<Vc<NextFontLoca
         bail!("Expected one entry");
     };
 
-    options_from_request(&parse_json_with_source_context(&json)?)
-        .map(|o| NextFontLocalOptions::new(Value::new(o)))
+    options_from_request(&parse_json_with_source_context(&json)?).map(NextFontLocalOptions::new)
 }
 
 async fn font_file_options_from_query_map(

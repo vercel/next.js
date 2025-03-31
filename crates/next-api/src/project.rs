@@ -30,7 +30,7 @@ use turbo_tasks::{
     mark_root,
     trace::TraceRawVcs,
     Completion, Completions, FxIndexMap, IntoTraitRef, NonLocalValue, OperationValue, OperationVc,
-    ReadRef, ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc,
+    ReadRef, ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
@@ -1364,7 +1364,7 @@ impl Project {
         let module = edge_module_context
             .process(
                 source,
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
+                ReferenceType::Entry(EntryReferenceSubType::Middleware),
             )
             .module();
 

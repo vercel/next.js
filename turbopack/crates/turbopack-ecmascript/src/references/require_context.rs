@@ -16,7 +16,7 @@ use swc_core::{
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat, primitives::Regex, trace::TraceRawVcs, FxIndexMap, NonLocalValue,
-    ResolvedVc, Value, ValueToString, Vc,
+    ResolvedVc, ValueToString, Vc,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
@@ -183,7 +183,7 @@ impl RequireContextMap {
 
         for (context_relative, path) in list {
             if let Some(origin_relative) = origin_path.get_relative_path_to(&*path.await?) {
-                let request = Request::parse(Value::new(origin_relative.clone().into()))
+                let request = Request::parse(origin_relative.clone().into())
                     .to_resolved()
                     .await?;
                 let result = cjs_resolve(origin, *request, issue_source.clone(), is_optional)

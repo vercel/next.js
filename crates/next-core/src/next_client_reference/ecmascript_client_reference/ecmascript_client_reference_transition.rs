@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::{transition::Transition, ModuleAssetContext};
 use turbopack_core::{
     context::ProcessResult,
@@ -45,9 +45,9 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
         module_asset_context: Vc<ModuleAssetContext>,
-        reference_type: Value<ReferenceType>,
+        reference_type: ReferenceType,
     ) -> Result<Vc<ProcessResult>> {
-        let part = match &*reference_type {
+        let part = match &reference_type {
             ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(
                 part,
             )) => Some(part),
@@ -78,9 +78,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         let client_module = this.client_transition.process(
             client_source,
             module_asset_context,
-            Value::new(ReferenceType::Entry(
-                EntryReferenceSubType::AppClientComponent,
-            )),
+            ReferenceType::Entry(EntryReferenceSubType::AppClientComponent),
         );
         let ProcessResult::Module(client_module) = *client_module.await? else {
             return Ok(ProcessResult::Ignore.cell());
@@ -89,9 +87,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         let ssr_module = this.ssr_transition.process(
             source,
             module_asset_context,
-            Value::new(ReferenceType::Entry(
-                EntryReferenceSubType::AppClientComponent,
-            )),
+            ReferenceType::Entry(EntryReferenceSubType::AppClientComponent),
         );
 
         let ProcessResult::Module(ssr_module) = *ssr_module.await? else {

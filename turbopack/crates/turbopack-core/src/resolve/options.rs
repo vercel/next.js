@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexSet, NonLocalValue, ResolvedVc,
-    TryJoinIterExt, Value, ValueToString, Vc,
+    TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
@@ -441,9 +441,7 @@ async fn import_mapping_to_result(
             ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Empty))
         }
         ReplacedImportMapping::PrimaryAlternative(name, context) => {
-            let request = Request::parse(Value::new(name.clone()))
-                .to_resolved()
-                .await?;
+            let request = Request::parse(name.clone()).to_resolved().await?;
             ImportMapResult::Alias(request, *context)
         }
         ReplacedImportMapping::Alternatives(list) => ImportMapResult::Alternatives(

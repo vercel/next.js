@@ -36,7 +36,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
     enable_mdx_rs: bool,
 ) -> Result<Option<ModuleRule>> {
     use anyhow::{bail, Context};
-    use turbo_tasks::{TryJoinIterExt, Value};
+    use turbo_tasks::TryJoinIterExt;
     use turbo_tasks_fs::FileContent;
     use turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext};
     use turbopack_core::{
@@ -58,7 +58,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
             // one for implicit package name resolves to node_modules,
             // and one for explicit path to a .wasm binary.
             // Current resolve will fail with latter.
-            let request = Request::parse(Value::new(Pattern::Constant(name.as_str().into())));
+            let request = Request::parse(Pattern::Constant(name.as_str().into()));
             let resolve_options = resolve_options(
                 *project_path,
                 ResolveOptionsContext {
@@ -72,12 +72,12 @@ pub async fn get_swc_ecma_transform_rule_impl(
             let plugin_wasm_module_resolve_result = handle_resolve_error(
                 resolve(
                     *project_path,
-                    Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
+                    ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
                     request,
                     resolve_options,
                 )
                 .as_raw_module_result(),
-                Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
+                ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
                 *project_path,
                 request,
                 resolve_options,

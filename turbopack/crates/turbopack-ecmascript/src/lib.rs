@@ -65,7 +65,7 @@ pub use transform::{
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt,
-    Value, ValueToString, Vc,
+    ValueToString, Vc,
 };
 use turbo_tasks_fs::{glob::Glob, rope::Rope, FileJsonContent, FileSystemPath};
 use turbopack_core::{
@@ -539,7 +539,7 @@ impl EcmascriptModuleAsset {
 
     #[turbo_tasks::function]
     pub fn parse(&self) -> Vc<ParseResult> {
-        parse(*self.source, Value::new(self.ty), *self.transforms)
+        parse(*self.source, self.ty, *self.transforms)
     }
 }
 

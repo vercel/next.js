@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{OperationVc, ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{OperationVc, ResolvedVc, TryJoinIterExt, Vc};
 
 use super::{
     ContentSourceContent, ContentSourceData, ContentSourceDataVary, GetContentSourceContent,
@@ -69,11 +69,7 @@ impl GetContentSourceContent for WrappedGetContentSourceContent {
     }
 
     #[turbo_tasks::function]
-    async fn get(
-        &self,
-        path: RcStr,
-        data: Value<ContentSourceData>,
-    ) -> Result<Vc<ContentSourceContent>> {
+    async fn get(&self, path: RcStr, data: ContentSourceData) -> Result<Vc<ContentSourceContent>> {
         let res = self.inner.get(path, data);
         if let ContentSourceContent::Rewrite(rewrite) = &*res.await? {
             let rewrite = rewrite.await?;

@@ -40,7 +40,7 @@ use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     fxindexmap, fxindexset, trace::TraceRawVcs, Completion, FxIndexSet, NonLocalValue, ResolvedVc,
-    TryJoinIterExt, Value, ValueToString, Vc,
+    TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
@@ -794,9 +794,9 @@ impl AppProject {
                 client_module_context,
                 self.project().project_path().join("_".into()),
             )),
-            Request::parse(Value::new(Pattern::Constant(
+            Request::parse(Pattern::Constant(
                 "next/dist/client/app-next-turbopack.js".into(),
-            ))),
+            )),
             None,
             false,
         )

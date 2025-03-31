@@ -12,8 +12,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Value, ValueToString,
-    Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput,
+    ValueToString, Vc,
 };
 use turbo_tasks_fs::{
     util::normalize_path, FileSystemPath, LinkContent, LinkType, RawDirectoryContent,
@@ -28,6 +28,16 @@ pub enum Pattern {
     Dynamic,
     Alternatives(Vec<Pattern>),
     Concatenation(Vec<Pattern>),
+}
+
+// Manual implementation of `TaskInput` as the recursive nature of `Pattern` breaks the derive
+// macro, since it creates async recursion in `TaskInput::resolve_input`.
+//
+// Pattern does not contain any `Vc`s or `Transient*` types, so this is straightforward.
+impl TaskInput for Pattern {
+    fn is_transient(&self) -> bool {
+        false
+    }
 }
 
 fn concatenation_push_or_merge_item(list: &mut Vec<Pattern>, pat: Pattern) {
@@ -1169,15 +1179,15 @@ impl Pattern {
 
 impl Pattern {
     pub fn new(pattern: Pattern) -> Vc<Self> {
-        Pattern::new_internal(Value::new(pattern))
+        Pattern::new_internal(pattern)
     }
 }
 
 #[turbo_tasks::value_impl]
 impl Pattern {
     #[turbo_tasks::function]
-    fn new_internal(pattern: Value<Pattern>) -> Vc<Self> {
-        Self::cell(pattern.into_value())
+    fn new_internal(pattern: Pattern) -> Vc<Self> {
+        Self::cell(pattern)
     }
 }
 

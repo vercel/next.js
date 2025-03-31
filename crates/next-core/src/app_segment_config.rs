@@ -271,7 +271,7 @@ pub async fn parse_segment_config_from_source(
 
     let result = &*parse(
         *source,
-        turbo_tasks::Value::new(if path.path.ends_with(".ts") {
+        if path.path.ends_with(".ts") {
             EcmascriptModuleAssetType::Typescript {
                 tsx: false,
                 analyze_types: false,
@@ -283,7 +283,7 @@ pub async fn parse_segment_config_from_source(
             }
         } else {
             EcmascriptModuleAssetType::Ecmascript
-        }),
+        },
         EcmascriptInputTransforms::empty(),
     )
     .await?;

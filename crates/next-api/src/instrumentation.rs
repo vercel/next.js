@@ -7,7 +7,7 @@ use next_core::{
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, ResolvedVc, Value, Vc};
+use turbo_tasks::{Completion, ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -75,7 +75,7 @@ impl InstrumentationEndpoint {
             .asset_context
             .process(
                 *self.source,
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::Instrumentation)),
+                ReferenceType::Entry(EntryReferenceSubType::Instrumentation),
             )
             .module()
             .to_resolved()

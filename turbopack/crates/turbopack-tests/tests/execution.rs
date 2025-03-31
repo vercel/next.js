@@ -14,7 +14,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion,
-    NonLocalValue, OperationVc, ResolvedVc, TryJoinIterExt, TurboTasks, Value, Vc,
+    NonLocalValue, OperationVc, ResolvedVc, TaskInput, TryJoinIterExt, TurboTasks, Vc,
 };
 use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
 use turbo_tasks_bytes::stream::SingleValue;
@@ -74,7 +74,7 @@ struct JsResult {
 }
 
 #[turbo_tasks::value]
-#[derive(Copy, Clone, Debug, Hash)]
+#[derive(Copy, Clone, Debug, Hash, TaskInput)]
 enum IssueSnapshotMode {
     Snapshots,
     NoSnapshots,
@@ -200,8 +200,7 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
     ));
     let result = tt
         .run_once(async move {
-            let emit_op =
-                run_inner_operation(resource.to_str().unwrap().into(), Value::new(snapshot_mode));
+            let emit_op = run_inner_operation(resource.to_str().unwrap().into(), snapshot_mode);
             let result = emit_op.read_strongly_consistent().owned().await?;
             apply_effects(emit_op).await?;
 
@@ -217,11 +216,11 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
 #[turbo_tasks::function(operation)]
 async fn run_inner_operation(
     resource: RcStr,
-    snapshot_mode: Value<IssueSnapshotMode>,
+    snapshot_mode: IssueSnapshotMode,
 ) -> Result<Vc<JsResult>> {
     let prepared_test = prepare_test(resource).to_resolved().await?;
     let run_result_op = run_test_operation(prepared_test);
-    if *snapshot_mode == IssueSnapshotMode::Snapshots {
+    if snapshot_mode == IssueSnapshotMode::Snapshots {
         snapshot_issues(*prepared_test, run_result_op).await?;
     }
 
@@ -321,9 +320,9 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         .get_relative_path_to(&*project_root.await?)
         .context("Project path is in root path")?;
 
-    let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsBuildTime(
+    let env = Environment::new(ExecutionEnvironment::NodeJsBuildTime(
         NodeJsEnvironment::default().resolved_cell(),
-    )))
+    ))
     .to_resolved()
     .await?;
 
@@ -439,9 +438,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     let test_asset = asset_context
         .process(
             Vc::upcast(test_source),
-            Value::new(ReferenceType::Internal(
-                InnerAssets::empty().to_resolved().await?,
-            )),
+            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
         )
         .module()
         .to_resolved()
@@ -450,9 +447,9 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     let jest_entry_asset = asset_context
         .process(
             Vc::upcast(jest_entry_source),
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
+            ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
                 "TESTS".into() => test_asset,
-            }))),
+            })),
         )
         .module();
 

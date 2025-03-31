@@ -26,7 +26,7 @@ use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::{field::Empty, Instrument};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 pub use turbopack_core::condition;
 use turbopack_core::{
@@ -433,7 +433,7 @@ impl ModuleAssetContext {
     async fn process_with_transition_rules(
         self: Vc<Self>,
         source: ResolvedVc<Box<dyn Source>>,
-        reference_type: Value<ReferenceType>,
+        reference_type: ReferenceType,
     ) -> Result<Vc<ProcessResult>> {
         let this = self.await?;
         Ok(
@@ -453,7 +453,7 @@ impl ModuleAssetContext {
     async fn process_default(
         self: Vc<Self>,
         source: ResolvedVc<Box<dyn Source>>,
-        reference_type: Value<ReferenceType>,
+        reference_type: ReferenceType,
     ) -> Result<Vc<ProcessResult>> {
         process_default(self, source, reference_type, Vec::new()).await
     }
@@ -462,14 +462,14 @@ impl ModuleAssetContext {
 async fn process_default(
     module_asset_context: Vc<ModuleAssetContext>,
     source: ResolvedVc<Box<dyn Source>>,
-    reference_type: Value<ReferenceType>,
+    reference_type: ReferenceType,
     processed_rules: Vec<usize>,
 ) -> Result<Vc<ProcessResult>> {
     let span = tracing::info_span!(
         "process module",
         name = %source.ident().to_string().await?,
         layer = Empty,
-        reference_type = display(&*reference_type)
+        %reference_type,
     );
     if !span.is_disabled() {
         // Need to use record, otherwise future is not Send for some reason.
@@ -490,7 +490,7 @@ async fn process_default(
 async fn process_default_internal(
     module_asset_context: Vc<ModuleAssetContext>,
     source: ResolvedVc<Box<dyn Source>>,
-    reference_type: Value<ReferenceType>,
+    reference_type: ReferenceType,
     processed_rules: Vec<usize>,
 ) -> Result<Vc<ProcessResult>> {
     let ident = source.ident().resolve().await?;
@@ -501,7 +501,6 @@ async fn process_default_internal(
         module_asset_context.resolve_options_context(),
     );
 
-    let reference_type = reference_type.into_value();
     let part: Option<ModulePart> = match &reference_type {
         ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(part)) => {
             Some(part.clone())
@@ -555,7 +554,7 @@ async fn process_default_internal(
                                 return Ok(transition.process(
                                     *current_source,
                                     module_asset_context,
-                                    Value::new(reference_type),
+                                    reference_type,
                                 ));
                             } else {
                                 let mut processed_rules = processed_rules.clone();
@@ -563,7 +562,7 @@ async fn process_default_internal(
                                 return Box::pin(process_default(
                                     module_asset_context,
                                     current_source,
-                                    Value::new(reference_type),
+                                    reference_type,
                                     processed_rules,
                                 ))
                                 .await;
@@ -661,9 +660,9 @@ async fn process_default_internal(
 
 #[turbo_tasks::function]
 async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleAssetContext>> {
-    let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
+    let env = Environment::new(ExecutionEnvironment::NodeJsLambda(
         NodeJsEnvironment::default().resolved_cell(),
-    )))
+    ))
     .to_resolved()
     .await?;
 
@@ -714,7 +713,7 @@ impl AssetContext for ModuleAssetContext {
     async fn resolve_options(
         self: Vc<Self>,
         origin_path: Vc<FileSystemPath>,
-        _reference_type: Value<ReferenceType>,
+        _reference_type: ReferenceType,
     ) -> Result<Vc<ResolveOptions>> {
         let this = self.await?;
         let module_asset_context = if let Some(transition) = this.transition {
@@ -735,7 +734,7 @@ impl AssetContext for ModuleAssetContext {
         origin_path: Vc<FileSystemPath>,
         request: Vc<Request>,
         resolve_options: Vc<ResolveOptions>,
-        reference_type: Value<ReferenceType>,
+        reference_type: ReferenceType,
     ) -> Result<Vc<ModuleResolveResult>> {
         let context_path = origin_path.parent().resolve().await?;
 
@@ -764,7 +763,7 @@ impl AssetContext for ModuleAssetContext {
     async fn process_resolve_result(
         self: Vc<Self>,
         result: Vc<ResolveResult>,
-        reference_type: Value<ReferenceType>,
+        reference_type: ReferenceType,
     ) -> Result<Vc<ModuleResolveResult>> {
         let this = self.await?;
 
@@ -873,7 +872,7 @@ impl AssetContext for ModuleAssetContext {
     async fn process(
         self: Vc<Self>,
         asset: ResolvedVc<Box<dyn Source>>,
-        reference_type: Value<ReferenceType>,
+        reference_type: ReferenceType,
     ) -> Result<Vc<ProcessResult>> {
         let this = self.await?;
         if let Some(transition) = this.transition {

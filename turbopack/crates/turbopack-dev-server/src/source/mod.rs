@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     trace::TraceRawVcs, util::SharedError, Completion, NonLocalValue, OperationVc, ResolvedVc,
-    Upcast, Value, ValueDefault, Vc,
+    TaskInput, Upcast, ValueDefault, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream, StreamRead};
 use turbo_tasks_fs::FileSystemPath;
@@ -72,8 +72,7 @@ pub trait GetContentSourceContent {
     }
 
     /// Get the content
-    fn get(self: Vc<Self>, path: RcStr, data: Value<ContentSourceData>)
-        -> Vc<ContentSourceContent>;
+    fn get(self: Vc<Self>, path: RcStr, data: ContentSourceData) -> Vc<ContentSourceContent>;
 }
 
 #[turbo_tasks::value(transparent)]
@@ -109,11 +108,7 @@ pub trait ContentSourceSideEffect {
 #[turbo_tasks::value_impl]
 impl GetContentSourceContent for ContentSourceContent {
     #[turbo_tasks::function]
-    fn get(
-        self: Vc<Self>,
-        _path: RcStr,
-        _data: Value<ContentSourceData>,
-    ) -> Vc<ContentSourceContent> {
+    fn get(self: Vc<Self>, _path: RcStr, _data: ContentSourceData) -> Vc<ContentSourceContent> {
         self
     }
 }
@@ -182,7 +177,7 @@ impl HeaderList {
 /// `ContentSource::vary()`. So make sure to request all information that's
 /// needed.
 #[turbo_tasks::value(shared, serialization = "auto_for_input")]
-#[derive(Clone, Debug, Hash, Default)]
+#[derive(Clone, Debug, Hash, Default, TaskInput)]
 pub struct ContentSourceData {
     /// HTTP method, if requested.
     pub method: Option<RcStr>,

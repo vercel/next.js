@@ -120,7 +120,7 @@ pub use state::{State, TransientState};
 pub use task::{task_input::TaskInput, SharedReference, TypedSharedReference};
 pub use trait_ref::{IntoTraitRef, TraitRef};
 pub use turbo_tasks_macros::{function, value_impl, value_trait, KeyValuePair, TaskInput};
-pub use value::{TransientInstance, TransientValue, Value};
+pub use value::{TransientInstance, TransientValue};
 pub use value_type::{TraitMethod, TraitType, ValueType};
 pub use vc::{
     Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture, ResolvedVc,

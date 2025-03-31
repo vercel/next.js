@@ -12,8 +12,8 @@ use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    apply_effects, ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, Value,
-    ValueToString, Vc,
+    apply_effects, ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, ValueToString,
+    Vc,
 };
 use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
 use turbo_tasks_env::DotenvProcessEnv;
@@ -227,7 +227,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
     let entry_asset = project_path.join(options.entry.into());
 
-    let env = Environment::new(Value::new(match options.environment {
+    let env = Environment::new(match options.environment {
         SnapshotEnvironment::Browser => {
             ExecutionEnvironment::Browser(
                 // TODO: load more from options.json
@@ -246,7 +246,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 NodeJsEnvironment::default().resolved_cell(),
             )
         }
-    }))
+    })
     .to_resolved()
     .await?;
 
@@ -384,7 +384,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let entry_module = asset_context
         .process(
             Vc::upcast(FileSource::new(entry_asset)),
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
+            ReferenceType::Entry(EntryReferenceSubType::Undefined),
         )
         .module();
 
@@ -408,7 +408,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 entry_module.ident(),
                 ChunkGroup::Entry(all_modules.into_iter().collect()),
                 module_graph,
-                Value::new(AvailabilityInfo::Root),
+                AvailabilityInfo::Root,
             ),
             Runtime::NodeJs => {
                 Vc::cell(vec![
@@ -432,7 +432,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                             evaluatable_assets,
                             module_graph,
                             OutputAssets::empty(),
-                            Value::new(AvailabilityInfo::Root),
+                            AvailabilityInfo::Root,
                         )
                         .await?
                         .asset,
