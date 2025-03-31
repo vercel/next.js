@@ -6,7 +6,7 @@ export type Event = 'request' | 'response'
  * methods we aim to support across tests
  */
 export abstract class BrowserInterface<TCurrent = any> {
-  private promise?: Promise<TCurrent>;
+  private promise?: Promise<TCurrent>
 
   // necessary for the type of the function below
   readonly [Symbol.toStringTag]: string = 'BrowserInterface'

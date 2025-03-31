@@ -70,7 +70,7 @@ export function handleMutable(
         : // If shouldScroll is false then we should not apply scroll and focus management.
           null,
       segmentPaths: shouldScroll
-        ? mutable?.scrollableSegments ?? state.focusAndScrollRef.segmentPaths
+        ? (mutable?.scrollableSegments ?? state.focusAndScrollRef.segmentPaths)
         : // If shouldScroll is false then we should not apply scroll and focus management.
           [],
     },

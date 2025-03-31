@@ -682,7 +682,7 @@ export async function printTreeView(
 
     const sharedFiles = process.env.__NEXT_PRIVATE_DETERMINISTIC_BUILD_OUTPUT
       ? []
-      : stats.router[routerType]?.common.files ?? []
+      : (stats.router[routerType]?.common.files ?? [])
 
     messages.push([
       '+ First Load JS shared by all',

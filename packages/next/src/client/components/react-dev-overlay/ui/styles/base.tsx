@@ -26,30 +26,32 @@ export function Base({ scale = 1 }: { scale?: DevToolsScale }) {
           --color-accents-2: #222222;
           --color-accents-3: #404040;
 
-          --font-stack-monospace: '__nextjs-Geist Mono', 'Geist Mono',
-            'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier,
-            monospace;
-          --font-stack-sans: '__nextjs-Geist', 'Geist', -apple-system,
-            'Source Sans Pro', sans-serif;
+          --font-stack-monospace:
+            '__nextjs-Geist Mono', 'Geist Mono', 'SFMono-Regular', Consolas,
+            'Liberation Mono', Menlo, Courier, monospace;
+          --font-stack-sans:
+            '__nextjs-Geist', 'Geist', -apple-system, 'Source Sans Pro',
+            sans-serif;
 
           font-family: var(--font-stack-sans);
 
           /* TODO: Remove replaced ones. */
           --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-          --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1),
-            0 1px 2px -1px rgb(0 0 0 / 0.1);
-          --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1),
-            0 2px 4px -2px rgb(0 0 0 / 0.1);
-          --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1),
-            0 4px 6px -4px rgb(0 0 0 / 0.1);
-          --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1),
-            0 8px 10px -6px rgb(0 0 0 / 0.1);
+          --shadow:
+            0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+          --shadow-md:
+            0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+          --shadow-lg:
+            0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+          --shadow-xl:
+            0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
           --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
           --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
           --shadow-none: 0 0 #0000;
 
           --shadow-small: 0px 2px 2px rgba(0, 0, 0, 0.04);
-          --shadow-menu: 0px 1px 1px rgba(0, 0, 0, 0.02),
+          --shadow-menu:
+            0px 1px 1px rgba(0, 0, 0, 0.02),
             0px 4px 8px -4px rgba(0, 0, 0, 0.04),
             0px 16px 24px -8px rgba(0, 0, 0, 0.06);
 
