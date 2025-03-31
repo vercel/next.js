@@ -297,7 +297,8 @@
     },
     "patchedDependencies": {
       "webpack-sources@3.2.3": "patches/webpack-sources@3.2.3.patch",
-      "stacktrace-parser@0.1.10": "patches/stacktrace-parser@0.1.10.patch"
+      "stacktrace-parser@0.1.10": "patches/stacktrace-parser@0.1.10.patch",
+      "@vercel/og@0.6.5": "patches/@vercel__og@0.6.5.patch"
     }
   }
 }
