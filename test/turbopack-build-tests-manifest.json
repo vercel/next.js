@@ -2159,11 +2159,10 @@
       "app dir - next/dynamic should handle next/dynamic in hydration correctly",
       "app dir - next/dynamic should handle ssr: false in pages when appDir is enabled",
       "app dir - next/dynamic should not render loading by default",
-      "app dir - next/dynamic should render loading by default if loading is specified and loader is slow"
-    ],
-    "failed": [
+      "app dir - next/dynamic should render loading by default if loading is specified and loader is slow",
       "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components in edge runtime"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
