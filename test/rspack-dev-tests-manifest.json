@@ -9158,7 +9158,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/basepath.test.ts": {
+  "test/e2e/basepath/basepath.test.ts": {
     "passed": [
       "basePath should 404 for public file without basePath",
       "basePath should 404 when manually adding basePath with <Link>",
