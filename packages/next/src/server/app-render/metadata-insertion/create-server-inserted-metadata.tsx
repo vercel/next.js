@@ -2,7 +2,7 @@ import React from 'react'
 import { renderToReadableStream } from 'react-dom/server.edge'
 import {
   ServerInsertedMetadataContext,
-  type MetadataResolver,
+  type PendingMetadataNodes,
 } from '../../../shared/lib/server-inserted-metadata.shared-runtime'
 import { renderToString } from '../render-to-string'
 
@@ -15,10 +15,21 @@ const REINSERT_ICON_SCRIPT = `\
 document.querySelectorAll('body link[rel="icon"], body link[rel="apple-touch-icon"]').forEach(el => document.head.appendChild(el))`
 
 export function createServerInsertedMetadata(nonce: string | undefined) {
-  let metadataResolver: MetadataResolver | null = null
-  let metadataToFlush: React.ReactNode = null
-  const setMetadataResolver = (resolver: MetadataResolver): void => {
-    metadataResolver = resolver
+  let metadata: React.ReactNode | null = null
+
+  const setPendingMetadata = (
+    pendingMetadataNodes: PendingMetadataNodes
+  ): void => {
+    pendingMetadataNodes.then(
+      (resolvedMetadataNodes) => (metadata = resolvedMetadataNodes),
+      (_) => {
+        // It's not clear if we really ought to swallow errors here.
+        // The way we pending metadata result works errors are carried
+        // through the resolve path so it might not be possible for this
+        // promise to ever actually reject. Probably worth refactoring at some
+        // point.
+      }
+    )
   }
 
   return {
@@ -28,18 +39,20 @@ export function createServerInsertedMetadata(nonce: string | undefined) {
       children: React.ReactNode
     }) => {
       return (
-        <ServerInsertedMetadataContext.Provider value={setMetadataResolver}>
+        <ServerInsertedMetadataContext.Provider value={setPendingMetadata}>
           {children}
         </ServerInsertedMetadataContext.Provider>
       )
     },
 
     async getServerInsertedMetadata(): Promise<string> {
-      if (!metadataResolver || metadataToFlush) {
+      if (metadata === null) {
         return ''
       }
 
-      metadataToFlush = metadataResolver()
+      const metadataToFlush = metadata
+      metadata = null
+
       const html = await renderToString({
         renderToReadableStream,
         element: (

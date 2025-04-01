@@ -3,8 +3,8 @@
 import type React from 'react'
 import { createContext } from 'react'
 
-export type MetadataResolver = () => React.ReactNode
-type MetadataResolverSetter = (m: MetadataResolver) => void
+export type PendingMetadataNodes = Promise<React.ReactNode>
+type PendingMetadataSetter = (m: PendingMetadataNodes) => void
 
 export const ServerInsertedMetadataContext =
-  createContext<MetadataResolverSetter | null>(null)
+  createContext<PendingMetadataSetter | null>(null)
