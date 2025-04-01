@@ -772,7 +772,7 @@ pub struct EcmascriptModuleContent {
     // pub refresh: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TaskInput)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TaskInput, TraceRawVcs)]
 pub struct EcmascriptModuleContentOptions {
     parsed: ResolvedVc<ParseResult>,
     ident: Vc<AssetIdent>,

@@ -1,9 +1,8 @@
 import url from 'url'
-import { join } from 'path'
 import assert from 'assert'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
   assertNoRedbox,
@@ -19,11 +18,7 @@ describe('basePath', () => {
 
   beforeAll(async () => {
     next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, 'basepath/pages')),
-        public: new FileRef(join(__dirname, 'basepath/public')),
-        external: new FileRef(join(__dirname, 'basepath/external')),
-      },
+      files: __dirname,
       nextConfig: {
         basePath,
         onDemandEntries: {
@@ -290,13 +285,13 @@ describe('basePath', () => {
             `[].slice.call(document.querySelectorAll("link[rel=prefetch]")).map((e) => new URL(e.href).pathname)`
           )
           expect(prefetches).toContainEqual(
-            expect.stringMatching(/\/gsp-[^./]+\.js/)
+            expect.stringMatching(/\/gsp-?([^./]+)?\.js/)
           )
           expect(prefetches).toContainEqual(
-            expect.stringMatching(/\/gssp-[^./]+\.js/)
+            expect.stringMatching(/\/gssp-?([^./]+)?\.js/)
           )
           expect(prefetches).toContainEqual(
-            expect.stringMatching(/\/other-page-[^./]+\.js/)
+            expect.stringMatching(/\/other-page-?([^./]+)?\.js/)
           )
           return 'yes'
         }, 'yes')

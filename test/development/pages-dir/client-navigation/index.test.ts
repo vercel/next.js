@@ -270,7 +270,7 @@ describe('Client Navigation', () => {
            "count": 1,
            "description": "Error: "EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.",
            "environmentLabel": null,
-           "label": "Unhandled Runtime Error",
+           "label": "Runtime Error",
            "source": null,
            "stack": [],
          }
@@ -1257,7 +1257,7 @@ describe('Client Navigation', () => {
            "count": ${isReact18 ? 3 : 1},
            "description": "Error: An Expected error occurred",
            "environmentLabel": null,
-           "label": "Unhandled Runtime Error",
+           "label": "Runtime Error",
            "source": "pages/error-inside-browser-page.js (5:13) @ ErrorInRenderPage.render
          > 5 |       throw new Error('An Expected error occurred')
              |             ^",
@@ -1301,7 +1301,7 @@ describe('Client Navigation', () => {
              "count": 1,
              "description": "Error: An Expected error occurred",
              "environmentLabel": null,
-             "label": "Unhandled Runtime Error",
+             "label": "Runtime Error",
              "source": "pages/error-in-the-browser-global-scope.js (2:9) @ [project]/pages/error-in-the-browser-global-scope.js [client] (ecmascript)
            > 2 |   throw new Error('An Expected error occurred')
                |         ^",
@@ -1316,7 +1316,7 @@ describe('Client Navigation', () => {
              "count": 1,
              "description": "Error: An Expected error occurred",
              "environmentLabel": null,
-             "label": "Unhandled Runtime Error",
+             "label": "Runtime Error",
              "source": "pages/error-in-the-browser-global-scope.js (2:9) @ eval
            > 2 |   throw new Error('An Expected error occurred')
                |         ^",

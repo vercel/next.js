@@ -13,8 +13,9 @@ use owo_colors::OwoColorize;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
+    trace::TraceRawVcs,
     util::{FormatBytes, FormatDuration},
-    ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
+    NonLocalValue, OperationVc, ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
 };
 use turbo_tasks_backend::{
     noop_backing_storage, BackendOptions, NoopBackingStorage, TurboTasksBackend,
@@ -34,7 +35,7 @@ use turbopack_dev_server::{
         combined::CombinedContentSource, router::PrefixedRouterContentSource,
         static_assets::StaticAssetsContentSource, ContentSource,
     },
-    DevServer, DevServerBuilder, NonLocalSourceProvider,
+    DevServer, DevServerBuilder, SourceProvider,
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
@@ -215,17 +216,32 @@ impl TurbopackDevServerBuilder {
             Box::new(move || Vc::upcast(ConsoleUi::new(log_args.clone())))
         });
 
-        let source = move || {
-            source(
-                root_dir.clone(),
-                project_dir.clone(),
-                entry_requests.clone(),
-                eager_compile,
-                browserslist_query.clone(),
-            )
+        #[derive(Clone, TraceRawVcs, NonLocalValue)]
+        struct ServerSourceProvider {
+            root_dir: RcStr,
+            project_dir: RcStr,
+            entry_requests: TransientInstance<Vec<EntryRequest>>,
+            eager_compile: bool,
+            browserslist_query: RcStr,
+        }
+        impl SourceProvider for ServerSourceProvider {
+            fn get_source(&self) -> OperationVc<Box<dyn ContentSource>> {
+                source(
+                    self.root_dir.clone(),
+                    self.project_dir.clone(),
+                    self.entry_requests.clone(),
+                    self.eager_compile,
+                    self.browserslist_query.clone(),
+                )
+            }
+        }
+        let source = ServerSourceProvider {
+            root_dir,
+            project_dir,
+            entry_requests,
+            eager_compile,
+            browserslist_query,
         };
-        // safety: Everything that `source` captures in its closure is a `NonLocalValue`
-        let source = unsafe { NonLocalSourceProvider::new(source) };
 
         let issue_reporter_arc = Arc::new(move || issue_provider.get_issue_reporter());
         Ok(server.serve(tasks, source, issue_reporter_arc))

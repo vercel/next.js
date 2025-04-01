@@ -129,78 +129,77 @@ impl EcmascriptModulePartAsset {
             return Ok(Vc::upcast(module));
         };
 
-        // We follow reexports here
-        if let ModulePart::Export(export) = part {
-            // If a local binding or reexport with the same name exists, we stop here.
-            // Side effects of the barrel file are preserved.
-            if entrypoints.contains_key(&Key::Export(export.clone())) {
+        match part {
+            ModulePart::Evaluation => {
+                // We resolve the module evaluation here to prevent duplicate assets.
+                let idx = *entrypoints.get(&Key::ModuleEvaluation).unwrap();
                 return Ok(Vc::upcast(EcmascriptModulePartAsset::new(
                     module,
-                    ModulePart::Export(export),
+                    ModulePart::InternalEvaluation(idx),
                 )));
             }
 
-            let side_effect_free_packages = module.asset_context().side_effect_free_packages();
-
-            // Exclude local bindings by using exports module part.
-            let source_module = Vc::upcast(module);
-
-            let FollowExportsWithSideEffectsResult {
-                side_effects,
-                result,
-            } = &*follow_reexports_with_side_effects(
-                source_module,
-                export.clone(),
-                side_effect_free_packages,
-            )
-            .await?;
-
-            let FollowExportsResult {
-                module: final_module,
-                export_name: new_export,
-                ..
-            } = &*result.await?;
-
-            let parsed = module.parse();
-
-            let final_module = if let Some(new_export) = new_export {
-                if *new_export == export {
-                    *final_module
+            ModulePart::Export(export) => {
+                if entrypoints.contains_key(&Key::Export(export.clone())) {
+                    return Ok(Vc::upcast(EcmascriptModulePartAsset::new(
+                        module,
+                        ModulePart::Export(export),
+                    )));
+                }
+                let side_effect_free_packages = module.asset_context().side_effect_free_packages();
+                let source_module = Vc::upcast(module);
+                let FollowExportsWithSideEffectsResult {
+                    side_effects,
+                    result,
+                } = &*follow_reexports_with_side_effects(
+                    source_module,
+                    export.clone(),
+                    side_effect_free_packages,
+                )
+                .await?;
+                let FollowExportsResult {
+                    module: final_module,
+                    export_name: new_export,
+                    ..
+                } = &*result.await?;
+                let parsed = module.parse();
+                let final_module = if let Some(new_export) = new_export {
+                    if *new_export == export {
+                        *final_module
+                    } else {
+                        ResolvedVc::upcast(
+                            EcmascriptModuleFacadeModule::new(
+                                **final_module,
+                                parsed,
+                                ModulePart::renamed_export(new_export.clone(), export.clone()),
+                            )
+                            .to_resolved()
+                            .await?,
+                        )
+                    }
                 } else {
                     ResolvedVc::upcast(
                         EcmascriptModuleFacadeModule::new(
                             **final_module,
                             parsed,
-                            ModulePart::renamed_export(new_export.clone(), export.clone()),
+                            ModulePart::renamed_namespace(export.clone()),
                         )
                         .to_resolved()
                         .await?,
                     )
+                };
+                if side_effects.is_empty() {
+                    return Ok(*ResolvedVc::upcast(final_module));
                 }
-            } else {
-                ResolvedVc::upcast(
-                    EcmascriptModuleFacadeModule::new(
-                        **final_module,
-                        parsed,
-                        ModulePart::renamed_namespace(export.clone()),
-                    )
-                    .to_resolved()
-                    .await?,
-                )
-            };
-
-            if side_effects.is_empty() {
-                return Ok(*ResolvedVc::upcast(final_module));
+                let side_effects_module = SideEffectsModule::new(
+                    module,
+                    ModulePart::Export(export),
+                    *final_module,
+                    side_effects.iter().map(|v| **v).collect(),
+                );
+                return Ok(Vc::upcast(side_effects_module));
             }
-
-            let side_effects_module = SideEffectsModule::new(
-                module,
-                ModulePart::Export(export),
-                *final_module,
-                side_effects.iter().map(|v| **v).collect(),
-            );
-
-            return Ok(Vc::upcast(side_effects_module));
+            _ => (),
         }
 
         Ok(Vc::upcast(EcmascriptModulePartAsset::new(

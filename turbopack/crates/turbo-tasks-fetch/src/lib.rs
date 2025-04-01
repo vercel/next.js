@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{mark_session_dependent, ResolvedVc, Vc};
+use turbo_tasks::{duration_span, mark_session_dependent, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
 
@@ -72,11 +72,20 @@ pub async fn fetch(
         builder = builder.header("User-Agent", user_agent.as_str());
     }
 
-    let response = builder.send().await.and_then(|r| r.error_for_status());
+    let response = {
+        let _span = duration_span!("fetch request", url = url.as_str());
+        builder.send().await
+    }
+    .and_then(|r| r.error_for_status());
     match response {
         Ok(response) => {
             let status = response.status().as_u16();
-            let body = response.bytes().await?.to_vec();
+
+            let body = {
+                let _span = duration_span!("fetch response", url = url.as_str());
+                response.bytes().await?
+            }
+            .to_vec();
 
             Ok(Vc::cell(Ok(HttpResponse {
                 status,

@@ -13,7 +13,7 @@ export interface ImplicitTags {
    * implicit tags' expiration is stored in the work unit store, and used to
    * compare with a cache entry's timestamp.
    */
-  expiration: number
+  readonly expiration: number
 }
 
 const getDerivedTags = (pathname: string): string[] => {
@@ -69,16 +69,6 @@ async function getImplicitTagsExpiration(tags: string[]): Promise<number> {
   }
 
   return expiration
-}
-
-/**
- * Fetches a new expiration value for the given `implicitTags`, and mutates its
- * `expiration` property.
- */
-export async function updateImplicitTagsExpiration(
-  implicitTags: ImplicitTags
-): Promise<void> {
-  implicitTags.expiration = await getImplicitTagsExpiration(implicitTags.tags)
 }
 
 export async function getImplicitTags(

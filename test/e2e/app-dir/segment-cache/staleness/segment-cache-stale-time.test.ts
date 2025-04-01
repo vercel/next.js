@@ -79,4 +79,75 @@ describe('segment cache (staleness)', () => {
       'no-requests'
     )
   })
+
+  it('reuses dynamic data up to the staleTimes.dynamic threshold', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page)
+
+    await page.clock.install()
+
+    // Navigate to the dynamic page
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/dynamic"]'
+        )
+        await toggle.click()
+        const link = await browser.elementByCss('a[href="/dynamic"]')
+        await link.click()
+      },
+      {
+        includes: 'Dynamic content',
+      }
+    )
+    expect(await browser.elementById('dynamic-content').text()).toBe(
+      'Dynamic content'
+    )
+
+    await browser.back()
+
+    // Fast forward 29 seconds. staleTimes.dynamic is configured as 30s, so if
+    // we navigate to the same link again, the old data should be reused without
+    // a new network request.
+    await page.clock.fastForward(29 * 1000)
+
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/dynamic"]'
+      )
+      await toggle.click()
+      const link = await browser.elementByCss('a[href="/dynamic"]')
+      await link.click()
+      // The next page is immediately rendered
+      expect(await browser.elementById('dynamic-content').text()).toBe(
+        'Dynamic content'
+      )
+    }, 'no-requests')
+
+    await browser.back()
+
+    // Fast forward an additional second. This time, if we navigate to the link
+    // again, the data is stale, so we issue a new request.
+    await page.clock.fastForward(1 * 1000)
+
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/dynamic"]'
+        )
+        await toggle.click()
+        const link = await browser.elementByCss('a[href="/dynamic"]')
+        await link.click()
+      },
+      { includes: 'Dynamic content' }
+    )
+    expect(await browser.elementById('dynamic-content').text()).toBe(
+      'Dynamic content'
+    )
+  })
 })

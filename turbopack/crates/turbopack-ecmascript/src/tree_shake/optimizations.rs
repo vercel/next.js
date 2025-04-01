@@ -207,6 +207,12 @@ impl GraphOptimizer<'_> {
             let mut nodes_to_remove = Vec::new();
 
             for node in nodes_to_merge {
+                // Skip if a node no longer exists in the graph. This may happen if `nodes_to_merge`
+                // contains a duplicate.
+                if g.node_weight(node).is_none() {
+                    continue;
+                }
+
                 // Move outgoing edges from node to start
                 let outgoing_edges: Vec<_> = g
                     .edges_directed(node, Direction::Outgoing)
@@ -243,7 +249,7 @@ impl GraphOptimizer<'_> {
             // Remove merged nodes (in reverse order to preserve indices)
             nodes_to_remove.sort();
             for node in nodes_to_remove.into_iter().rev() {
-                g.remove_node(node);
+                g.remove_node(node).expect("Node should exist");
                 did_work = true;
             }
         }

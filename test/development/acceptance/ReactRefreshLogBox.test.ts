@@ -49,7 +49,7 @@ describe('ReactRefreshLogBox', () => {
          "count": 1,
          "description": "Error: idk",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "index.js (8:27) @ onClick
        >  8 |                     throw new Error('idk')
             |                           ^",
@@ -66,7 +66,7 @@ describe('ReactRefreshLogBox', () => {
          "count": 1,
          "description": "Error: idk",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "index.js (8:27) @ onClick
        >  8 |                     throw new Error('idk')
             |                           ^",
@@ -180,8 +180,8 @@ describe('ReactRefreshLogBox', () => {
              |       ^",
            "stack": [
              "[project]/index.js [ssr] (ecmascript) index.js (3:7)",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
+             "[project]/pages/index.js [ssr] (ecmascript) <module evaluation> pages/index.js (1:1)",
+             "[project]/pages/index.js [ssr] (ecmascript) pages/index.js (1:1)",
              "<FIXME-next-dist-dir>",
            ],
          }
@@ -279,7 +279,7 @@ describe('ReactRefreshLogBox', () => {
          "count": 2,
          "description": "Error: no",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "FunctionDefault.js (1:51) @ FunctionDefault
        > 1 | export default function FunctionDefault() { throw new Error('no'); }
            |                                                   ^",
@@ -297,7 +297,7 @@ describe('ReactRefreshLogBox', () => {
          "count": 1,
          "description": "Error: no",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "FunctionDefault.js (1:51) @ FunctionDefault
        > 1 | export default function FunctionDefault() { throw new Error('no'); }
            |                                                   ^",
@@ -468,7 +468,7 @@ describe('ReactRefreshLogBox', () => {
          "count": 2,
          "description": "Error: ",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "Child.js (4:11) @ ClickCount.render
        > 4 |     throw new Error()
            |           ^",
@@ -486,7 +486,7 @@ describe('ReactRefreshLogBox', () => {
          "count": 1,
          "description": "Error: ",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "Child.js (4:11) @ ClickCount.render
        > 4 |     throw new Error()
            |           ^",
@@ -637,7 +637,7 @@ describe('ReactRefreshLogBox', () => {
          "count": 1,
          "description": "Error: end https://nextjs.org",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "index.js (5:11) @ Index.useCallback[boom]
        > 5 |     throw new Error('end https://nextjs.org')
            |           ^",
@@ -654,7 +654,7 @@ describe('ReactRefreshLogBox', () => {
          "count": 1,
          "description": "Error: end https://nextjs.org",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "index.js (5:11) @ Index.useCallback[boom]
        > 5 |     throw new Error('end https://nextjs.org')
            |           ^",
@@ -694,7 +694,7 @@ describe('ReactRefreshLogBox', () => {
          "count": 1,
          "description": "Error: https://nextjs.org start",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "index.js (5:11) @ Index.useCallback[boom]
        > 5 |     throw new Error('https://nextjs.org start')
            |           ^",
@@ -711,7 +711,7 @@ describe('ReactRefreshLogBox', () => {
          "count": 1,
          "description": "Error: https://nextjs.org start",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "index.js (5:11) @ Index.useCallback[boom]
        > 5 |     throw new Error('https://nextjs.org start')
            |           ^",
@@ -751,7 +751,7 @@ describe('ReactRefreshLogBox', () => {
          "count": 1,
          "description": "Error: middle https://nextjs.org end",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "index.js (5:11) @ Index.useCallback[boom]
        > 5 |     throw new Error('middle https://nextjs.org end')
            |           ^",
@@ -768,7 +768,7 @@ describe('ReactRefreshLogBox', () => {
          "count": 1,
          "description": "Error: middle https://nextjs.org end",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "index.js (5:11) @ Index.useCallback[boom]
        > 5 |     throw new Error('middle https://nextjs.org end')
            |           ^",
@@ -808,7 +808,7 @@ describe('ReactRefreshLogBox', () => {
          "count": 1,
          "description": "Error: multiple https://nextjs.org links http://example.com",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "index.js (5:11) @ Index.useCallback[boom]
        > 5 |     throw new Error('multiple https://nextjs.org links http://example.com')
            |           ^",
@@ -825,7 +825,7 @@ describe('ReactRefreshLogBox', () => {
          "count": 1,
          "description": "Error: multiple https://nextjs.org links http://example.com",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "index.js (5:11) @ Index.useCallback[boom]
        > 5 |     throw new Error('multiple https://nextjs.org links http://example.com')
            |           ^",
@@ -865,7 +865,7 @@ describe('ReactRefreshLogBox', () => {
          "count": 1,
          "description": "Error: multiple https://nextjs.org links (http://example.com)",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "index.js (5:11) @ Index.useCallback[boom]
        > 5 |     throw new Error('multiple https://nextjs.org links (http://example.com)')
            |           ^",
@@ -882,7 +882,7 @@ describe('ReactRefreshLogBox', () => {
          "count": 1,
          "description": "Error: multiple https://nextjs.org links (http://example.com)",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "index.js (5:11) @ Index.useCallback[boom]
        > 5 |     throw new Error('multiple https://nextjs.org links (http://example.com)')
            |           ^",
@@ -1115,7 +1115,7 @@ describe('ReactRefreshLogBox', () => {
            "count": 3,
            "description": "Error: Client error",
            "environmentLabel": null,
-           "label": "Unhandled Runtime Error",
+           "label": "Runtime Error",
            "source": "pages/index.js (3:11) @ Page
          > 3 |     throw new Error('Client error')
              |           ^",
@@ -1134,7 +1134,7 @@ describe('ReactRefreshLogBox', () => {
            "count": 3,
            "description": "Error: Client error",
            "environmentLabel": null,
-           "label": "Unhandled Runtime Error",
+           "label": "Runtime Error",
            "source": "pages/index.js (3:11) @ Page
          > 3 |     throw new Error('Client error')
              |           ^",
@@ -1150,7 +1150,7 @@ describe('ReactRefreshLogBox', () => {
          "count": 1,
          "description": "Error: Client error",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "pages/index.js (3:11) @ Page
        > 3 |     throw new Error('Client error')
            |           ^",
