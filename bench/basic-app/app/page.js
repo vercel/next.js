@@ -1,12 +1,7 @@
-'use client'
-
-import { Parent } from './ui/src/index'
+import React from 'react'
 
 export default function Page() {
-  return (
-    <h1>
-      My Pagess
-      <Parent />
-    </h1>
-  )
+  return <h1>My Page</h1>
 }
+
+export const dynamic = 'force-dynamic'
