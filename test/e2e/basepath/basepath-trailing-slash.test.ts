@@ -1,6 +1,5 @@
-import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import { assertNoRedbox } from 'next-test-utils'
 
@@ -10,11 +9,7 @@ describe('basePath + trailingSlash', () => {
 
   beforeAll(async () => {
     next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, 'basepath/pages')),
-        public: new FileRef(join(__dirname, 'basepath/public')),
-        external: new FileRef(join(__dirname, 'basepath/external')),
-      },
+      files: __dirname,
       nextConfig: {
         trailingSlash: true,
         basePath,

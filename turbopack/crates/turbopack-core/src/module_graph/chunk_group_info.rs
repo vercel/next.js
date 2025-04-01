@@ -151,7 +151,7 @@ impl ChunkGroupEntry {
     }
 }
 
-#[derive(Debug, Clone, Hash, TaskInput, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, TaskInput, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 pub enum ChunkGroup {
     /// e.g. a page
     Entry(Vec<ResolvedVc<Box<dyn Module>>>),

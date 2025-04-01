@@ -19,6 +19,7 @@ export function serverPatchReducer(
 ): ReducerState {
   const {
     serverResponse: { flightData, canonicalUrl: canonicalUrlOverride },
+    navigatedAt,
   } = action
 
   const mutable: Mutable = {}
@@ -77,7 +78,7 @@ export function serverPatchReducer(
     }
 
     const cache: CacheNode = createEmptyCacheNode()
-    applyFlightData(currentCache, cache, normalizedFlightData)
+    applyFlightData(navigatedAt, currentCache, cache, normalizedFlightData)
 
     mutable.patchedTree = newTree
     mutable.cache = cache
