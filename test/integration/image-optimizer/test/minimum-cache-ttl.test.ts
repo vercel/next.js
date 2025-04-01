@@ -22,6 +22,5 @@ describe('with minimumCacheTTL of 5 sec', () => {
     },
     appDir,
     imagesDir,
-    isrFlushToDisk: true,
   })
 })

@@ -9,6 +9,5 @@ describe('with dangerouslyAllowSVG config', () => {
     nextConfigImages: { dangerouslyAllowSVG: true },
     appDir,
     imagesDir,
-    isrFlushToDisk: false,
   })
 })
