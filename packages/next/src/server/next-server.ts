@@ -193,11 +193,11 @@ export default class NextNodeServer extends BaseServer<
 
     if (process.env.TURBOPACK && !isTurbopackBuild) {
       throw new Error(
-        `Invariant: --turbopack is set but the build is not a Turbopack build`
+        `Invariant: --turbopack is set but the build used Webpack`
       )
     } else if (!process.env.TURBOPACK && isTurbopackBuild) {
       throw new Error(
-        `Invariant: --turbopack is not set but the build is a Turbopack build`
+        `Invariant: --turbopack is not set but the build used Turbopack. Add --turbopack to "next start".`
       )
     }
 
