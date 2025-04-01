@@ -11,26 +11,21 @@ related:
     - app/api-reference/functions/generate-metadata
 ---
 
-Next.js comes with Metadata APIs and [file conventions](/docs/app/api-reference/file-conventions/metadata) that can be used to add metadata to your pages and create [Open Graph (OG) images](/docs/app/api-reference/file-conventions/metadata/opengraph-image). This page will walk you through how to use these features to improve your application's SEO and web shareability.
+Next.js provides Metadata APIs that can be used to add metadata tags to your pages. These APIs are:
 
-There are three ways you can add metadata to your application:
-s
-
-1. Using the [static `metadata` object](/docs/app/api-reference/functions/generate-metadata#metadata-object)
-2. Using the [dynamic `generateMetadata` function](/docs/app/api-reference/functions/generate-metadata#generatemetadata-function) in a `layout.js` or `page.js` file.
-3. Using special [file conventions](/docs/app/api-reference/file-conventions/metadata) to add static or dynamically generated special files.
-
-With all these options, Next.js will automatically generate the relevant `<head>` elements for your pages.
+1. [The static `metadata` object](#static-metadata)
+2. [The dynamic `generateMetadata` function](#dynamic-metadata)
+3. Special [file conventions](/docs/app/api-reference/file-conventions/metadata) that can be used to add static or dynamically generated OG images and favicons.
 
 ## Static metadata
 
-To define static metadata, export a [`Metadata` object](/docs/app/api-reference/functions/generate-metadata#metadata-object) from a [`layout.js`](/docs/app/api-reference/file-conventions/layout) or static [`page.js`](/docs/app/api-reference/file-conventions/page) file.
+To define static metadata, export a [`Metadata` object](/docs/app/api-reference/functions/generate-metadata#metadata-object) from a static [`layout.js`](/docs/app/api-reference/file-conventions/layout) or [`page.js`](/docs/app/api-reference/file-conventions/page) file. For example, to add a title and description to the blog route:
 
 ```tsx filename="app/blog/layout.tsx" switcher
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: '...',
+  title: 'My Blog',
   description: '...',
 }
 
@@ -39,16 +34,18 @@ export default function Page() {}
 
 ```jsx filename="app/blog/layout.tsx" switcher
 export const metadata = {
-  title: '...',
+  title: 'My Blog',
   description: '...',
 }
 
 export default function Page() {}
 ```
 
+Behind the scenes, Next.js will automatically generate the relevant `<head>` elements for your pages. You can view a full list of [available options here](/docs/app/api-reference/functions/generate-metadata#metadata-fields).
+
 ## Dynamic metadata
 
-You can use `generateMetadata` function to `fetch` metadata that requires dynamic values. For example, to fetch the title for a blog post:
+You can use [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) function to `fetch` metadata that depends on external data. For example, to fetch the title for a blog post:
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 import type { Metadata, ResolvingMetadata } from 'next'
