@@ -241,6 +241,7 @@ struct TraversalState<'l> {
 }
 
 struct PreBatches {
+    boundary_modules: FxHashSet<ResolvedVc<Box<dyn Module>>>,
     batches: Vec<PreBatch>,
     entries: FxHashMap<ResolvedVc<Box<dyn Module>>, PreBatchIndex>,
     single_module_entries: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
@@ -249,6 +250,7 @@ struct PreBatches {
 impl PreBatches {
     fn new() -> Self {
         Self {
+            boundary_modules: FxHashSet::default(),
             batches: Vec::new(),
             entries: FxHashMap::default(),
             single_module_entries: FxIndexSet::default(),
@@ -258,20 +260,24 @@ impl PreBatches {
     fn ensure_pre_batch_for_module(
         &mut self,
         module: ResolvedVc<Box<dyn Module>>,
-        chunk_groups: &RoaringBitmapWrapper,
+        chunk_group_info: &ChunkGroupInfo,
         queue: &mut VecDeque<(ResolvedVc<Box<dyn Module>>, PreBatchIndex)>,
-    ) -> PreBatchIndex {
-        match self.entries.entry(module) {
+    ) -> Result<PreBatchIndex> {
+        Ok(match self.entries.entry(module) {
             Entry::Vacant(e) => {
                 let index = self.batches.len();
                 queue.push_back((module, index));
+                let chunk_groups = chunk_group_info
+                    .module_chunk_groups
+                    .get(&module)
+                    .context("all modules need to have chunk group info")?;
                 let batch = PreBatch::new(chunk_groups.clone());
                 self.batches.push(batch);
                 e.insert(index);
                 index
             }
             Entry::Occupied(e) => *e.get(),
-        }
+        })
     }
 
     async fn get_pre_batch_items(
@@ -281,10 +287,6 @@ impl PreBatches {
         module_graph: &ModuleGraph,
         queue: &mut VecDeque<(ResolvedVc<Box<dyn Module>>, PreBatchIndex)>,
     ) -> Result<Vec<PreBatchItem>> {
-        let entry_chunk_groups = chunk_group_info
-            .module_chunk_groups
-            .get(&ResolvedVc::upcast(entry))
-            .context("all modules need to have chunk group info")?;
         let mut state = TraversalState {
             items: Vec::new(),
             this: self,
@@ -305,15 +307,12 @@ impl PreBatches {
                         return Ok(GraphTraversalAction::Exclude);
                     }
                     if visited.insert(module) {
-                        let chunk_groups = chunk_group_info
-                            .module_chunk_groups
-                            .get(&module)
-                            .context("all modules need to have chunk group info")?;
-                        if chunk_groups != entry_chunk_groups {
-                            let idx =
-                                state
-                                    .this
-                                    .ensure_pre_batch_for_module(module, chunk_groups, queue);
+                        if parent_info.is_some() && state.this.boundary_modules.contains(&module) {
+                            let idx = state.this.ensure_pre_batch_for_module(
+                                module,
+                                chunk_group_info,
+                                queue,
+                            )?;
                             state.items.push(PreBatchItem::ParallelReference(idx));
                             return Ok(GraphTraversalAction::Exclude);
                         }
@@ -351,6 +350,62 @@ pub async fn compute_module_batches(
         let module_graph = module_graph.await?;
 
         let mut pre_batches = PreBatches::new();
+
+        // Walk the module graph and mark all modules that are boundary modules (referenced from a
+        // different chunk group bitmap)
+        module_graph
+            .traverse_all_edges_unordered(|(parent, ty), node| {
+                let std::collections::hash_set::Entry::Vacant(entry) =
+                    pre_batches.boundary_modules.entry(node.module)
+                else {
+                    // Already a boundary module, can skip check
+                    return Ok(());
+                };
+                if ty.is_parallel() {
+                    let parent_chunk_groups = chunk_group_info
+                        .module_chunk_groups
+                        .get(&parent.module)
+                        .context("all modules need to have chunk group info")?;
+                    let chunk_groups = chunk_group_info
+                        .module_chunk_groups
+                        .get(&node.module)
+                        .context("all modules need to have chunk group info")?;
+                    if parent_chunk_groups != chunk_groups {
+                        // This is a boundary module
+                        entry.insert();
+                    }
+                } else {
+                    entry.insert();
+                }
+                Ok(())
+            })
+            .await?;
+
+        // All entries are boundary modules too
+        for chunk_group in &chunk_group_info.chunk_groups {
+            for entry in chunk_group.entries() {
+                pre_batches.boundary_modules.insert(entry);
+            }
+        }
+
+        // Pre batches would be incorrect with cycles, so we need to opt-out of pre batches for
+        // cycles that include boundary modules
+        module_graph
+            .traverse_cycles(
+                |ty| ty.is_parallel(),
+                |cycle| {
+                    if cycle
+                        .iter()
+                        .any(|node| pre_batches.boundary_modules.contains(&node.module))
+                    {
+                        pre_batches
+                            .boundary_modules
+                            .extend(cycle.iter().map(|node| node.module));
+                    }
+                },
+            )
+            .await?;
+
         let mut queue: VecDeque<(ResolvedVc<Box<dyn Module>>, PreBatchIndex)> = VecDeque::new();
 
         let mut chunk_group_indicies_with_merged_children = FxHashSet::default();
@@ -359,15 +414,11 @@ pub async fn compute_module_batches(
         for chunk_group in &chunk_group_info.chunk_groups {
             for entry in chunk_group.entries() {
                 if let Some(chunkable_module) = ResolvedVc::try_downcast(entry) {
-                    let chunk_groups = chunk_group_info
-                        .module_chunk_groups
-                        .get(&entry)
-                        .context("all modules need to have chunk group info")?;
                     pre_batches.ensure_pre_batch_for_module(
                         chunkable_module,
-                        chunk_groups,
+                        &chunk_group_info,
                         &mut queue,
-                    );
+                    )?;
                 } else {
                     pre_batches.single_module_entries.insert(entry);
                 }

@@ -187,6 +187,7 @@ import isError from '../../lib/is-error'
 import { isUseCacheTimeoutError } from '../use-cache/use-cache-errors'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
 import { getPreviouslyRevalidatedTags } from '../server-utils'
+import { executeRevalidates } from '../revalidation-utils'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -1058,6 +1059,9 @@ function App<T>({
   )
 
   const initialState = createInitialRouterState({
+    // This is not used during hydration, so we don't have to pass a
+    // real timestamp.
+    navigatedAt: -1,
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
     initialParallelRoutes: new Map(),
@@ -1122,6 +1126,9 @@ function ErrorApp<T>({
   )
 
   const initialState = createInitialRouterState({
+    // This is not used during hydration, so we don't have to pass a
+    // real timestamp.
+    navigatedAt: -1,
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
     initialParallelRoutes: new Map(),
@@ -1407,13 +1414,7 @@ async function renderToHTMLOrFlightImpl(
       workStore.pendingRevalidateWrites ||
       workStore.pendingRevalidatedTags
     ) {
-      const pendingPromise = Promise.all([
-        workStore.incrementalCache?.revalidateTag(
-          workStore.pendingRevalidatedTags || []
-        ),
-        ...Object.values(workStore.pendingRevalidates || {}),
-        ...(workStore.pendingRevalidateWrites || []),
-      ]).finally(() => {
+      const pendingPromise = executeRevalidates(workStore).finally(() => {
         if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
           console.log('pending revalidates promise finished for:', url)
         }
@@ -1582,13 +1583,7 @@ async function renderToHTMLOrFlightImpl(
       workStore.pendingRevalidateWrites ||
       workStore.pendingRevalidatedTags
     ) {
-      const pendingPromise = Promise.all([
-        workStore.incrementalCache?.revalidateTag(
-          workStore.pendingRevalidatedTags || []
-        ),
-        ...Object.values(workStore.pendingRevalidates || {}),
-        ...(workStore.pendingRevalidateWrites || []),
-      ]).finally(() => {
+      const pendingPromise = executeRevalidates(workStore).finally(() => {
         if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
           console.log('pending revalidates promise finished for:', url)
         }
@@ -4212,7 +4207,17 @@ async function collectSegmentData(
   // decomposed into a separate stream per segment.
 
   const clientReferenceManifest = renderOpts.clientReferenceManifest
-  if (!clientReferenceManifest || !renderOpts.experimental.clientSegmentCache) {
+  if (
+    !clientReferenceManifest ||
+    // Do not generate per-segment data unless the experimental Segment Cache
+    // flag is enabled.
+    //
+    // We also skip generating segment data if flag is set to "client-only",
+    // rather than true. (The "client-only" option only affects the behavior of
+    // the client-side implementation; per-segment prefetches are intentionally
+    // disabled in that configuration).
+    renderOpts.experimental.clientSegmentCache !== true
+  ) {
     return
   }
 

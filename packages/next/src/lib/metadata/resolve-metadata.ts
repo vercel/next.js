@@ -68,11 +68,11 @@ type ViewportResolver = (
 
 export type MetadataErrorType = 'not-found' | 'forbidden' | 'unauthorized'
 
-export type MetadataItems = [
-  Metadata | MetadataResolver | null,
-  StaticMetadata,
-  Viewport | ViewportResolver | null,
-][]
+export type MetadataItems = Array<
+  [Metadata | MetadataResolver | null, StaticMetadata]
+>
+
+export type ViewportItems = Array<Viewport | ViewportResolver | null>
 
 type TitleTemplates = {
   title: string | null
@@ -457,22 +457,65 @@ async function collectMetadata({
   const staticFilesMetadata = await resolveStaticMetadata(tree[2], props)
   const metadataExport = mod ? getDefinedMetadata(mod, props, { route }) : null
 
-  const viewportExport = mod ? getDefinedViewport(mod, props, { route }) : null
-
-  metadataItems.push([metadataExport, staticFilesMetadata, viewportExport])
+  metadataItems.push([metadataExport, staticFilesMetadata])
 
   if (hasErrorConventionComponent && errorConvention) {
     const errorMod = await getComponentTypeModule(tree, errorConvention)
-    const errorViewportExport = errorMod
-      ? getDefinedViewport(errorMod, props, { route })
-      : null
     const errorMetadataExport = errorMod
       ? getDefinedMetadata(errorMod, props, { route })
       : null
 
     errorMetadataItem[0] = errorMetadataExport
     errorMetadataItem[1] = staticFilesMetadata
-    errorMetadataItem[2] = errorViewportExport
+  }
+}
+
+// [layout.metadata, static files metadata] -> ... -> [page.metadata, static files metadata]
+async function collectViewport({
+  tree,
+  viewportItems,
+  errorViewportItemRef,
+  props,
+  route,
+  errorConvention,
+}: {
+  tree: LoaderTree
+  viewportItems: ViewportItems
+  errorViewportItemRef: ErrorViewportItemRef
+  props: any
+  route: string
+  errorConvention?: MetadataErrorType
+}) {
+  let mod
+  let modType
+  const hasErrorConventionComponent = Boolean(
+    errorConvention && tree[2][errorConvention]
+  )
+  if (errorConvention) {
+    mod = await getComponentTypeModule(tree, 'layout')
+    modType = errorConvention
+  } else {
+    const { mod: layoutOrPageMod, modType: layoutOrPageModType } =
+      await getLayoutOrPageModule(tree)
+    mod = layoutOrPageMod
+    modType = layoutOrPageModType
+  }
+
+  if (modType) {
+    route += `/${modType}`
+  }
+
+  const viewportExport = mod ? getDefinedViewport(mod, props, { route }) : null
+
+  viewportItems.push(viewportExport)
+
+  if (hasErrorConventionComponent && errorConvention) {
+    const errorMod = await getComponentTypeModule(tree, errorConvention)
+    const errorViewportExport = errorMod
+      ? getDefinedViewport(errorMod, props, { route })
+      : null
+
+    errorViewportItemRef.current = errorViewportExport
   }
 }
 
@@ -485,7 +528,7 @@ const resolveMetadataItems = cache(async function (
 ) {
   const parentParams = {}
   const metadataItems: MetadataItems = []
-  const errorMetadataItem: MetadataItems[number] = [null, null, null]
+  const errorMetadataItem: MetadataItems[number] = [null, null]
   const treePrefix = undefined
   return resolveMetadataItemsImpl(
     metadataItems,
@@ -578,6 +621,113 @@ async function resolveMetadataItemsImpl(
   }
 
   return metadataItems
+}
+
+type ErrorViewportItemRef = { current: ViewportItems[number] }
+const resolveViewportItems = cache(async function (
+  tree: LoaderTree,
+  searchParams: Promise<ParsedUrlQuery>,
+  errorConvention: MetadataErrorType | undefined,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  workStore: WorkStore
+) {
+  const parentParams = {}
+  const viewportItems: ViewportItems = []
+  const errorViewportItemRef: ErrorViewportItemRef = {
+    current: null,
+  }
+  const treePrefix = undefined
+  return resolveViewportItemsImpl(
+    viewportItems,
+    tree,
+    treePrefix,
+    parentParams,
+    searchParams,
+    errorConvention,
+    errorViewportItemRef,
+    getDynamicParamFromSegment,
+    workStore
+  )
+})
+
+async function resolveViewportItemsImpl(
+  viewportItems: ViewportItems,
+  tree: LoaderTree,
+  /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
+  treePrefix: undefined | string[],
+  parentParams: Params,
+  searchParams: Promise<ParsedUrlQuery>,
+  errorConvention: MetadataErrorType | undefined,
+  errorViewportItemRef: ErrorViewportItemRef,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  workStore: WorkStore
+): Promise<ViewportItems> {
+  const [segment, parallelRoutes, { page }] = tree
+  const currentTreePrefix =
+    treePrefix && treePrefix.length ? [...treePrefix, segment] : [segment]
+  const isPage = typeof page !== 'undefined'
+
+  // Handle dynamic segment params.
+  const segmentParam = getDynamicParamFromSegment(segment)
+  /**
+   * Create object holding the parent params and current params
+   */
+  let currentParams = parentParams
+  if (segmentParam && segmentParam.value !== null) {
+    currentParams = {
+      ...parentParams,
+      [segmentParam.param]: segmentParam.value,
+    }
+  }
+
+  const params = createServerParamsForMetadata(currentParams, workStore)
+
+  let layerProps: LayoutProps | PageProps
+  if (isPage) {
+    layerProps = {
+      params,
+      searchParams,
+    }
+  } else {
+    layerProps = {
+      params,
+    }
+  }
+
+  await collectViewport({
+    tree,
+    viewportItems,
+    errorViewportItemRef,
+    errorConvention,
+    props: layerProps,
+    route: currentTreePrefix
+      // __PAGE__ shouldn't be shown in a route
+      .filter((s) => s !== PAGE_SEGMENT_KEY)
+      .join('/'),
+  })
+
+  for (const key in parallelRoutes) {
+    const childTree = parallelRoutes[key]
+    await resolveViewportItemsImpl(
+      viewportItems,
+      childTree,
+      currentTreePrefix,
+      currentParams,
+      searchParams,
+      errorConvention,
+      errorViewportItemRef,
+      getDynamicParamFromSegment,
+      workStore
+    )
+  }
+
+  if (Object.keys(parallelRoutes).length === 0 && errorConvention) {
+    // If there are no parallel routes, place error metadata as the last item.
+    // e.g. layout -> layout -> not-found
+    viewportItems.push(errorViewportItemRef.current)
+  }
+
+  return viewportItems
 }
 
 type WithTitle = { title?: AbsoluteTemplateString | null }
@@ -692,15 +842,15 @@ function prerenderMetadata(metadataItems: MetadataItems) {
   return resolversAndResults
 }
 
-function prerenderViewport(metadataItems: MetadataItems) {
+function prerenderViewport(viewportItems: ViewportItems) {
   // If the index is a function then it is a resolver and the next slot
   // is the corresponding result. If the index is not a function it is the result
   // itself.
   const resolversAndResults: Array<
     ((value: ResolvedViewport) => void) | Result<Viewport>
   > = []
-  for (let i = 0; i < metadataItems.length; i++) {
-    const viewportExport = metadataItems[i][2]
+  for (let i = 0; i < viewportItems.length; i++) {
+    const viewportExport = viewportItems[i]
     getResult(resolversAndResults, viewportExport)
   }
   return resolversAndResults
@@ -865,11 +1015,11 @@ export async function accumulateMetadata(
 }
 
 export async function accumulateViewport(
-  metadataItems: MetadataItems
+  viewportItems: ViewportItems
 ): Promise<ResolvedViewport> {
   const resolvedViewport: ResolvedViewport = createDefaultViewport()
 
-  const resolversAndResults = prerenderViewport(metadataItems)
+  const resolversAndResults = prerenderViewport(viewportItems)
   let i = 0
 
   while (i < resolversAndResults.length) {
@@ -929,14 +1079,14 @@ export async function resolveViewport(
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   workStore: WorkStore
 ): Promise<ResolvedViewport> {
-  const metadataItems = await resolveMetadataItems(
+  const viewportItems = await resolveViewportItems(
     tree,
     searchParams,
     errorConvention,
     getDynamicParamFromSegment,
     workStore
   )
-  return accumulateViewport(metadataItems)
+  return accumulateViewport(viewportItems)
 }
 
 function isPromiseLike<T>(

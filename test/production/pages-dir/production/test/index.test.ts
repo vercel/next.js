@@ -216,7 +216,7 @@ describe('Production Usage', () => {
           /node_modules\/next/,
           /node_modules\/nanoid\/index\.js/,
           /node_modules\/nanoid\/url-alphabet\/index\.js/,
-          /node_modules\/es5-ext\/array\/#\/clear\.js/,
+          /node_modules\/es5-ext\/array\/from\/index\.js/,
         ],
         notTests: [/next\/dist\/pages\/_error\.js/, /\0/, /\?/, /!/],
       },
@@ -256,7 +256,10 @@ describe('Production Usage', () => {
       },
       {
         page: '/api/readfile-dirname',
-        tests: [/webpack-api-runtime\.js/, /static\/data\/item\.txt/],
+        tests: [
+          /(webpack-api-runtime\.js|\[turbopack\]_runtime\.js)/,
+          /static\/data\/item\.txt/,
+        ],
         notTests: [
           /next\/dist\/server\/next\.js/,
           /next\/dist\/bin/,
@@ -267,7 +270,10 @@ describe('Production Usage', () => {
       },
       {
         page: '/api/readfile-processcwd',
-        tests: [/webpack-api-runtime\.js/, /static\/data\/item\.txt/],
+        tests: [
+          /(webpack-api-runtime\.js|\[turbopack\]_runtime\.js)/,
+          /static\/data\/item\.txt/,
+        ],
         notTests: [
           /next\/dist\/server\/next\.js/,
           /next\/dist\/bin/,

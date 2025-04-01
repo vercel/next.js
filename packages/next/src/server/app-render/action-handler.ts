@@ -49,6 +49,7 @@ import { synchronizeMutableCookies } from '../async-storage/request-store'
 import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server.edge'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { executeRevalidates } from '../revalidation-utils'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -516,17 +517,6 @@ export async function handleAction({
 
   requestStore.phase = 'action'
 
-  const resolvePendingRevalidations = async () =>
-    workUnitAsyncStorage.run(requestStore, () =>
-      Promise.all([
-        workStore.incrementalCache?.revalidateTag(
-          workStore.pendingRevalidatedTags || []
-        ),
-        ...Object.values(workStore.pendingRevalidates || {}),
-        ...(workStore.pendingRevalidateWrites || []),
-      ])
-    )
-
   // When running actions the default is no-store, you can still `cache: 'force-cache'`
   workStore.fetchCache = 'default-no-store'
 
@@ -578,7 +568,7 @@ export async function handleAction({
 
       if (isFetchAction) {
         res.statusCode = 500
-        await resolvePendingRevalidations()
+        await executeRevalidates(workStore)
 
         const promise = Promise.reject(error)
         try {
@@ -933,7 +923,7 @@ export async function handleAction({
 
       // For form actions, we need to continue rendering the page.
       if (isFetchAction) {
-        await resolvePendingRevalidations()
+        await executeRevalidates(workStore)
         addRevalidationHeader(res, { workStore, requestStore })
 
         actionResult = await finalizeAndGenerateFlight(req, ctx, requestStore, {
@@ -955,7 +945,7 @@ export async function handleAction({
       const redirectUrl = getURLFromRedirectError(err)
       const redirectType = getRedirectTypeFromError(err)
 
-      await resolvePendingRevalidations()
+      await executeRevalidates(workStore)
       addRevalidationHeader(res, { workStore, requestStore })
 
       // if it's a fetch action, we'll set the status code for logging/debugging purposes
@@ -985,7 +975,7 @@ export async function handleAction({
     } else if (isHTTPAccessFallbackError(err)) {
       res.statusCode = getAccessFallbackHTTPStatus(err)
 
-      await resolvePendingRevalidations()
+      await executeRevalidates(workStore)
       addRevalidationHeader(res, { workStore, requestStore })
 
       if (isFetchAction) {
@@ -1015,7 +1005,7 @@ export async function handleAction({
 
     if (isFetchAction) {
       res.statusCode = 500
-      await resolvePendingRevalidations()
+      await executeRevalidates(workStore)
       const promise = Promise.reject(err)
       try {
         // we need to await the promise to trigger the rejection early

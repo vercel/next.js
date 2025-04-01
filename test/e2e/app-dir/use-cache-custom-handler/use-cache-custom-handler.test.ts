@@ -147,7 +147,7 @@ describe('use-cache-custom-handler', () => {
     })
   })
 
-  it('should not call getExpiration again after an action if only explicit tags were revalidated', async () => {
+  it('should not call getExpiration again after an action', async () => {
     const browser = await next.browser(`/`)
 
     await retry(async () => {
@@ -168,31 +168,6 @@ describe('use-cache-custom-handler', () => {
       expect(cliOutput).toIncludeRepeated(
         `ModernCustomCacheHandler::expireTags`,
         1
-      )
-    })
-  })
-
-  it('should call getExpiration again after an action if implicit tags were revalidated', async () => {
-    const browser = await next.browser(`/`)
-
-    await retry(async () => {
-      const cliOutput = next.cliOutput.slice(outputIndex)
-      expect(cliOutput).toInclude('ModernCustomCacheHandler::getExpiration')
-    })
-
-    outputIndex = next.cliOutput.length
-
-    await browser.elementById('revalidate-path').click()
-
-    await retry(async () => {
-      const cliOutput = next.cliOutput.slice(outputIndex)
-      expect(cliOutput).toIncludeRepeated(
-        'ModernCustomCacheHandler::expireTags',
-        1
-      )
-      expect(cliOutput).toIncludeRepeated(
-        'ModernCustomCacheHandler::getExpiration',
-        2
       )
     })
   })
