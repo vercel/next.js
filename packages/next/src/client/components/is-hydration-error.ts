@@ -1,12 +1,13 @@
 import isError from '../../lib/is-error'
 
 const hydrationErrorRegex =
-  /hydration failed|while hydrating|content does not match|did not match|HTML didn't match/i
+  /hydration failed|while hydrating|content does not match|did not match|HTML didn't match|text didn't match/i
 
 const reactUnifiedMismatchWarning = `Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:`
 
 const reactHydrationStartMessages = [
   reactUnifiedMismatchWarning,
+  `Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:`,
   `A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:`,
 ]
 
