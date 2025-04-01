@@ -255,6 +255,13 @@ describe('use-cache', () => {
       await retry(async () => {
         expect(await browser.elementByCss('#a').text()).not.toBe(initial)
       })
+
+      if (isNextDeploy) {
+        await retry(async () => {
+          const response = await next.fetch('/cache-tag')
+          expect(response.headers.get('x-vercel-cache')).toBe('REVALIDATED')
+        })
+      }
     }
 
     let valueA = await browser.elementByCss('#a').text()
