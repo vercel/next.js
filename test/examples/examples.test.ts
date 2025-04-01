@@ -13,7 +13,6 @@ const testedExamples = [
   'blog',
   'blog-starter',
   'custom-server',
-  'headers',
   'hello-world',
   'i18n-routing',
   'i18n-routing-pages',
