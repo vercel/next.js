@@ -376,8 +376,8 @@ describe('use-cache', () => {
     const initial = await browser.elementByCss('p').text()
 
     if (!isNextDev) {
-      // Bust the ISR cache first to populate the "use cache" in-memory cache for
-      // the subsequent revalidations.
+      // Bust the ISR cache first to populate the "use cache" in-memory cache
+      // for the subsequent revalidations.
       await browser.elementByCss('button').click()
 
       await retry(async () => {
@@ -527,8 +527,8 @@ describe('use-cache', () => {
       expect(routes['/cache-fetch'].initialExpireSeconds).toBe(31536000)
 
       // The revalidate config from the fetch call should lower the revalidate
-      // config for the page.
-      expect(routes['/cache-tag'].initialRevalidateSeconds).toBe(42)
+      // config for the page (900).
+      expect(routes['/cache-tag'].initialRevalidateSeconds).toBe(800)
 
       if (process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
         // cache life profile "weeks"
