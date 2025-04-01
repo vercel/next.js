@@ -380,9 +380,9 @@ export async function createPost() {
 
 ## Client-side caching
 
-Next.js has a client-side cache that stores the RSC payload of route segments: [layouts](/docs/app/api-reference/file-conventions/layout), [pages](/docs/app/api-reference/file-conventions/page), and [loading states](/docs/app/api-reference/file-conventions/loading).
+Next.js has a client-side cache that stores the React Server Component (RSC) payload.
 
-When a user navigates between routes, Next.js caches the visited segments and [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) the routes the user is likely to navigate to. This results in instant back/forward navigation, no full-page reload between navigations, and preservation of React state and browser state.
+When a user navigates between routes, Next.js caches the visited routes and [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) the routes the user is likely to navigate to. This results in instant back/forward navigation, no full-page reload between navigations, and preservation of React state and browser state.
 
 > This cache specifically applies to Next.js and Server Components, and is different to the browser's [bfcache](https://web.dev/bfcache/).
 
