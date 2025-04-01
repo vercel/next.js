@@ -266,7 +266,9 @@ function processMessage(
           sendMessage,
           [...hmrUpdate.updatedModules],
           hmrUpdate.startMsSinceEpoch,
-          hmrUpdate.endMsSinceEpoch
+          hmrUpdate.endMsSinceEpoch,
+          // suppress the `client-hmr-latency` event if the update was a no-op:
+          hmrUpdate.hasUpdates
         )
       }
       dispatcher.onBuildOk()
@@ -300,8 +302,8 @@ function processMessage(
       } else {
         webpackStartMsSinceEpoch = Date.now()
         setPendingHotUpdateWebpack()
+        console.log('[Fast Refresh] rebuilding')
       }
-      console.log('[Fast Refresh] rebuilding')
       break
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
@@ -384,21 +386,22 @@ function processMessage(
       break
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE: {
+      turbopackHmr!.onTurbopackMessage(obj)
       dispatcher.onBeforeRefresh()
       processTurbopackMessage({
         type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
         data: obj.data,
       })
-      dispatcher.onRefresh()
       if (RuntimeErrorHandler.hadRuntimeError) {
         console.warn(REACT_REFRESH_FULL_RELOAD_FROM_ERROR)
         performFullReload(null, sendMessage)
       }
-      turbopackHmr!.onTurbopackMessage(obj)
+      dispatcher.onRefresh()
       break
     }
     // TODO-APP: make server component change more granular
     case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
+      turbopackHmr?.onServerComponentChanges()
       sendMessage(
         JSON.stringify({
           event: 'server-component-reload-page',
@@ -432,6 +435,7 @@ function processMessage(
       return
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE: {
+      turbopackHmr?.onReloadPage()
       sendMessage(
         JSON.stringify({
           event: 'client-reload-page',
@@ -444,6 +448,7 @@ function processMessage(
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE:
     case HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE: {
+      turbopackHmr?.onPageAddRemove()
       // TODO-APP: potentially only refresh if the currently viewed page was added/removed.
       return router.hmrRefresh()
     }
