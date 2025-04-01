@@ -118,3 +118,29 @@ To add a favicon to your application, create a `favicon.ico` and add to the root
 />
 
 > You can also programmatically generate favicons using code. See the [favicon docs](/docs/app/api-reference/file-conventions/metadata/app-icons) for more information.
+
+## Static Open Graph images
+
+OG images are images that represent your site in social media. To add a static OG image to your application, create a `opengraph-image.png` file in the root of the app folder.
+
+<Image
+  alt="OG image special file inside the App folder with sibling layout and page files"
+  srcLight="/docs/light/opengraph-image.png"
+  srcDark="/docs/dark/opengraph-image.png"
+  width="1600"
+  height="444"
+/>
+
+You can also add OG images for specific routes by creating a `opengraph-image.png` deeper down the folder structure. For example, to create an OG image specific to the `/blog` route, add a `opengraph-image.jpg` file inside the `blog` folder.
+
+<Image
+  alt="OG image special file inside the blog folder"
+  srcLight="/docs/light/opengraph-image-blog.png"
+  srcDark="/docs/dark/opengraph-image-blog.png"
+  width="1600"
+  height="525"
+/>
+
+The more specific image will take precedence over any OG images above it in the folder structure.
+
+> Other image formats such as `jpeg`, `png`, and `webp` are also supported. See the [Open Graph Image docs](/docs/app/api-reference/file-conventions/metadata/opengraph-image) for more information.
