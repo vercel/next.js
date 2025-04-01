@@ -18,7 +18,6 @@ const testedExamples = [
   'i18n-routing-pages',
   'image-component',
   'mdx',
-  'nested-components',
   'next-forms',
   'remove-console',
   'reproduction-template',

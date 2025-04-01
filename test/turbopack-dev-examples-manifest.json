@@ -48,7 +48,6 @@
   "inngest": true,
   "mdx": true,
   "mdx-remote": true,
-  "nested-components": true,
   "next-offline": true,
   "panda-css": true,
   "progressive-web-app": true,
