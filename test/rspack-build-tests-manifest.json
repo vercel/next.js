@@ -5737,7 +5737,7 @@
       "use-cache should prerender fully cacheable pages as static HTML",
       "use-cache should propagate unstable_cache tags correctly",
       "use-cache should return the same object reference for multiple invocations",
-      "use-cache should revalidate before redirecting in a route handlers",
+      "use-cache should revalidate before redirecting in route handlers",
       "use-cache should revalidate caches after redirect",
       "use-cache should revalidate caches during on-demand revalidation",
       "use-cache should revalidate caches nested in unstable_cache",

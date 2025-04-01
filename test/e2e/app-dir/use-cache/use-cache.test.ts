@@ -168,7 +168,7 @@ describe('use-cache', () => {
     expect(rand1).toEqual(rand2)
   })
 
-  it('should revalidate before redirecting in a route handlers', async () => {
+  it('should revalidate before redirecting in route handlers', async () => {
     const initialValues = await next.fetch('/api').then((res) => res.json())
 
     const values = await next
