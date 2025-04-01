@@ -133,8 +133,8 @@ describe('ReactRefreshLogBox', () => {
              |       ^",
            "stack": [
              "[project]/index.js [ssr] (ecmascript) index.js (3:7)",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
+             "[project]/pages/index.js [ssr] (ecmascript) <module evaluation> pages/index.js (1:1)",
+             "[project]/pages/index.js [ssr] (ecmascript) pages/index.js (1:1)",
              "<FIXME-next-dist-dir>",
            ],
          }
