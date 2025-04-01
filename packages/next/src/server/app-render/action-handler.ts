@@ -693,7 +693,7 @@ export async function handleAction({
           }
         } else {
           try {
-            actionModId = getActionModIdOrError(actionId, serverModuleMap)
+            actionModId = getActionModIdOrError(req, actionId, serverModuleMap)
           } catch (err) {
             if (actionId !== null) {
               console.error(err)
@@ -848,7 +848,7 @@ export async function handleAction({
           }
         } else {
           try {
-            actionModId = getActionModIdOrError(actionId, serverModuleMap)
+            actionModId = getActionModIdOrError(req, actionId, serverModuleMap)
           } catch (err) {
             if (actionId !== null) {
               console.error(err)
@@ -898,7 +898,7 @@ export async function handleAction({
 
       try {
         actionModId =
-          actionModId ?? getActionModIdOrError(actionId, serverModuleMap)
+          actionModId ?? getActionModIdOrError(req, actionId, serverModuleMap)
       } catch (err) {
         if (actionId !== null) {
           console.error(err)
@@ -1039,6 +1039,7 @@ export async function handleAction({
  * In either case, we'll throw an error to be handled by the caller.
  */
 function getActionModIdOrError(
+  req: BaseNextRequest,
   actionId: string | null,
   serverModuleMap: ServerModuleMap
 ): string {
@@ -1051,7 +1052,7 @@ function getActionModIdOrError(
 
   if (!actionModId) {
     throw new Error(
-      `Failed to find Server Action "${actionId}". This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
+      `${req.url}: Failed to find Server Action "${actionId}". This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
     )
   }
 

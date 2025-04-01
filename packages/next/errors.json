@@ -666,5 +666,6 @@
   "665": "Failed to find Server Action \"%s\". This request might be from an older or newer deployment.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
   "666": "Turbopack builds are only available in canary builds of Next.js.",
   "667": "receiveExpiredTags is deprecated, and not expected to be called.",
-  "668": "Internal Next.js error: Router action dispatched before initialization."
+  "668": "Internal Next.js error: Router action dispatched before initialization.",
+  "669": "%s: Failed to find Server Action \"%s\". This request might be from an older or newer deployment.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action"
 }
