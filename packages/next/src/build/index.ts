@@ -81,6 +81,7 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE,
   DYNAMIC_CSS_MANIFEST,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
+  IS_TURBOPACK_BUILD_FILE,
 } from '../shared/lib/constants'
 import {
   getSortedRoutes,
@@ -1452,7 +1453,7 @@ export default async function build(
       let shutdownPromise = Promise.resolve()
       if (!isGenerateMode) {
         if (turboNextBuild) {
-          await writeFileUtf8(path.join(distDir, 'IS_TURBOPACK_BUILD'), '')
+          await writeFileUtf8(path.join(distDir, IS_TURBOPACK_BUILD_FILE), '')
           const {
             duration: compilerDuration,
             shutdownPromise: p,

@@ -42,6 +42,7 @@ import {
   PHASE_PRODUCTION_BUILD,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   FUNCTIONS_CONFIG_MANIFEST,
+  IS_TURBOPACK_BUILD_FILE,
 } from '../shared/lib/constants'
 import { findDir } from '../lib/find-pages-dir'
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
@@ -187,6 +188,18 @@ export default class NextNodeServer extends BaseServer<
   constructor(options: Options) {
     // Initialize super class
     super(options)
+
+    const isTurbopackBuild = this.isTurbopackBuild()
+
+    if (process.env.TURBOPACK && !isTurbopackBuild) {
+      throw new Error(
+        `Invariant: --turbopack is set but the build is not a Turbopack build`
+      )
+    } else if (!process.env.TURBOPACK && isTurbopackBuild) {
+      throw new Error(
+        `Invariant: --turbopack is not set but the build is a Turbopack build`
+      )
+    }
 
     this.isDev = options.dev ?? false
     this.sriEnabled = Boolean(options.conf.experimental?.sri?.algorithm)
@@ -508,6 +521,11 @@ export default class NextNodeServer extends BaseServer<
 
       throw err
     }
+  }
+
+  private isTurbopackBuild(): boolean {
+    const isTurbopackBuildFile = join(this.distDir, IS_TURBOPACK_BUILD_FILE)
+    return fs.existsSync(isTurbopackBuildFile)
   }
 
   protected getEnabledDirectories(dev: boolean): NextEnabledDirectories {
