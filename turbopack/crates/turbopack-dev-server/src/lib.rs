@@ -61,36 +61,6 @@ where
     }
 }
 
-#[derive(Clone)]
-pub struct NonLocalSourceProvider<T>(T);
-
-impl<T> NonLocalSourceProvider<T> {
-    /// Wrap a `SourceProvider` in a type that implements `NonLocalValue`. This is useful for
-    /// closures that cannot implement `NonLocalValue` themselves.
-    ///
-    /// In the future, `auto_traits` may be be able to implement `NonLocalValue` for us, and avoid
-    /// this wrapper type and unsafe constructor.
-    ///
-    /// # Safety
-    ///
-    /// `source_provider` must be a type that could safely implement `NonLocalValue`. If it's a
-    /// closure, the closure must not capture any values that are not a `NonLocalValue`.
-    pub unsafe fn new(source_provider: T) -> Self {
-        Self(source_provider)
-    }
-}
-
-unsafe impl<T> NonLocalValue for NonLocalSourceProvider<T> {}
-
-impl<T> SourceProvider for NonLocalSourceProvider<T>
-where
-    T: SourceProvider,
-{
-    fn get_source(&self) -> OperationVc<Box<dyn ContentSource>> {
-        self.0.get_source()
-    }
-}
-
 #[derive(TraceRawVcs, Debug, NonLocalValue)]
 pub struct DevServerBuilder {
     #[turbo_tasks(trace_ignore)]
@@ -146,7 +116,7 @@ impl DevServerBuilder {
     pub fn serve(
         self,
         turbo_tasks: Arc<dyn TurboTasksApi>,
-        source_provider: impl SourceProvider + NonLocalValue + Sync,
+        source_provider: impl SourceProvider + NonLocalValue + TraceRawVcs + Sync,
         get_issue_reporter: Arc<dyn Fn() -> Vc<Box<dyn IssueReporter>> + Send + Sync>,
     ) -> DevServer {
         let ongoing_side_effects = Arc::new(Mutex::new(VecDeque::<

@@ -5887,7 +5887,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/basepath.test.ts": {
+  "test/e2e/basepath/basepath.test.ts": {
     "passed": [
       "basePath should 404 for public file without basePath",
       "basePath should 404 when manually adding basePath with <Link>",
@@ -17991,8 +17991,6 @@
   "test/production/app-dir/symbolic-file-links/symbolic-file-links.test.ts": {
     "passed": [
       "symbolic-file-links should work using browser",
-      "symbolic-file-links should work using cheerio",
-      "symbolic-file-links should work with fetch",
       "symbolic-file-links should work with html"
     ],
     "failed": [],

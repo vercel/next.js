@@ -605,7 +605,9 @@ export default abstract class Server<
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         dynamicIO: this.nextConfig.experimental.dynamicIO ?? false,
         clientSegmentCache:
-          this.nextConfig.experimental.clientSegmentCache ?? false,
+          this.nextConfig.experimental.clientSegmentCache === 'client-only'
+            ? 'client-only'
+            : Boolean(this.nextConfig.experimental.clientSegmentCache),
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
       },
