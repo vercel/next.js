@@ -257,7 +257,7 @@ describe('Production Usage', () => {
       {
         page: '/api/readfile-dirname',
         tests: [
-          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
+          /(webpack-api-runtime\.js|\[turbopack\]_runtime\.js)/,
           /static\/data\/item\.txt/,
         ],
         notTests: [
@@ -271,7 +271,7 @@ describe('Production Usage', () => {
       {
         page: '/api/readfile-processcwd',
         tests: [
-          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
+          /(webpack-api-runtime\.js|\[turbopack\]_runtime\.js)/,
           /static\/data\/item\.txt/,
         ],
         notTests: [
