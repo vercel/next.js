@@ -12,7 +12,7 @@ const EXTERNAL = {
 const COLLECTOR_PORT = 9001
 
 describe('opentelemetry', () => {
-  const { next, skipped, isNextDev } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
@@ -169,11 +169,7 @@ describe('opentelemetry', () => {
                       },
                       {
                         attributes: {
-                          'next.clientComponentLoadCount': isNextDev
-                            ? // In dev, additional client components are being loaded
-                              // due to RSC props being deserialized.
-                              11
-                            : 8,
+                          'next.clientComponentLoadCount': 8,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',
                         },

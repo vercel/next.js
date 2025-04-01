@@ -433,13 +433,20 @@ function makeGetDynamicParamFromSegment(
   }
 }
 
-function NonIndex({ ctx }: { ctx: AppRenderContext }) {
-  const is404Page = ctx.pagePath === '/404'
-  const isInvalidStatusCode =
-    typeof ctx.res.statusCode === 'number' && ctx.res.statusCode > 400
+function NonIndex({
+  pagePath,
+  statusCode,
+  isAction,
+}: {
+  pagePath: string
+  statusCode: number | undefined
+  isAction: boolean
+}) {
+  const is404Page = pagePath === '/404'
+  const isInvalidStatusCode = typeof statusCode === 'number' && statusCode > 400
 
   // Only render noindex for page request, skip for server actions
-  if (!ctx.isAction && (is404Page || isInvalidStatusCode)) {
+  if (!isAction && (is404Page || isInvalidStatusCode)) {
     return <meta name="robots" content="noindex" />
   }
   return null
@@ -527,7 +534,11 @@ async function generateDynamicRSCPayload(
         rscHead: (
           <React.Fragment key={flightDataPathHeadKey}>
             {/* noindex needs to be blocking */}
-            <NonIndex ctx={ctx} />
+            <NonIndex
+              pagePath={ctx.pagePath}
+              statusCode={ctx.res.statusCode}
+              isAction={ctx.isAction}
+            />
             {/* Adding requestId as react key to make metadata remount for each render */}
             <ViewportTree key={requestId} />
             {StreamingMetadata ? <StreamingMetadata /> : null}
@@ -859,7 +870,11 @@ async function getRSCPayload(
 
   const initialHead = (
     <React.Fragment key={flightDataPathHeadKey}>
-      <NonIndex ctx={ctx} />
+      <NonIndex
+        pagePath={ctx.pagePath}
+        statusCode={ctx.res.statusCode}
+        isAction={ctx.isAction}
+      />
       <ViewportTree key={ctx.requestId} />
       <StaticMetadata />
     </React.Fragment>
@@ -961,7 +976,11 @@ async function getErrorRSCPayload(
 
   const initialHead = (
     <React.Fragment key={flightDataPathHeadKey}>
-      <NonIndex ctx={ctx} />
+      <NonIndex
+        pagePath={ctx.pagePath}
+        statusCode={ctx.res.statusCode}
+        isAction={ctx.isAction}
+      />
       {/* Adding requestId as react key to make metadata remount for each render */}
       <ViewportTree key={requestId} />
       {process.env.NODE_ENV === 'development' && (
