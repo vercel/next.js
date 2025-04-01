@@ -45,7 +45,6 @@
   "i18n-routing": true,
   "i18n-routing-pages": true,
   "image-component": true,
-  "image-legacy-component": true,
   "inngest": true,
   "mdx": true,
   "mdx-remote": true,

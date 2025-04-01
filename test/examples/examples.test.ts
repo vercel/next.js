@@ -17,7 +17,6 @@ const testedExamples = [
   'i18n-routing',
   'i18n-routing-pages',
   'image-component',
-  'image-legacy-component',
   'mdx',
   'middleware',
   'middleware-matcher',
