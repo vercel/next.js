@@ -52,7 +52,6 @@
   "radix-ui": true,
   "reproduction-template": true,
   "reproduction-template-pages": true,
-  "server-actions-upload": true,
   "with-ably": true,
   "with-absolute-imports": true,
   "with-algolia-react-instantsearch": true,
