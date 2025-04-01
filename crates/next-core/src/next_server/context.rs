@@ -2,7 +2,7 @@ use std::iter::once;
 
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc};
+use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, Value, Vc};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
@@ -324,6 +324,13 @@ pub async fn get_server_resolve_options_context(
         enable_react: true,
         enable_mjs_extension: true,
         custom_extensions: next_config.resolve_extension().owned().await?,
+        tsconfig_path: next_config
+            .typescript_tsconfig_path()
+            .await?
+            .as_ref()
+            .map(|p| project_path.join(p.to_owned()))
+            .to_resolved()
+            .await?,
         rules: vec![(
             foreign_code_context_condition,
             resolve_options_context.clone().resolved_cell(),
