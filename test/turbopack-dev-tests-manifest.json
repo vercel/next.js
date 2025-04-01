@@ -5060,10 +5060,6 @@
       "css-order turbo should load correct styles on pages-first",
       "css-order turbo should load correct styles on pages-interleaved-a",
       "css-order turbo should load correct styles on pages-interleaved-b",
-      "css-order turbo should load correct styles on pages-partial-reversed-a",
-      "css-order turbo should load correct styles on pages-partial-reversed-b",
-      "css-order turbo should load correct styles on pages-reversed-a",
-      "css-order turbo should load correct styles on pages-reversed-b",
       "css-order turbo should load correct styles on pages-second",
       "css-order turbo should load correct styles on pages-third",
       "css-order turbo should load correct styles on second",
@@ -5089,10 +5085,6 @@
       "css-order turbo should load correct styles navigating back again pages-first -> pages-third -> pages-first -> pages-third",
       "css-order turbo should load correct styles navigating back again pages-interleaved-a -> pages-interleaved-b -> pages-interleaved-a -> pages-interleaved-b",
       "css-order turbo should load correct styles navigating back again pages-interleaved-b -> pages-interleaved-a -> pages-interleaved-b -> pages-interleaved-a",
-      "css-order turbo should load correct styles navigating back again pages-partial-reversed-a -> pages-partial-reversed-b -> pages-partial-reversed-a -> pages-partial-reversed-b",
-      "css-order turbo should load correct styles navigating back again pages-partial-reversed-b -> pages-partial-reversed-a -> pages-partial-reversed-b -> pages-partial-reversed-a",
-      "css-order turbo should load correct styles navigating back again pages-reversed-a -> pages-reversed-b -> pages-reversed-a -> pages-reversed-b",
-      "css-order turbo should load correct styles navigating back again pages-reversed-b -> pages-reversed-a -> pages-reversed-b -> pages-reversed-a",
       "css-order turbo should load correct styles navigating back again pages-second -> pages-first -> pages-second -> pages-first",
       "css-order turbo should load correct styles navigating back again pages-second -> pages-third -> pages-second -> pages-third",
       "css-order turbo should load correct styles navigating back again pages-third -> pages-first -> pages-third -> pages-first",
@@ -5112,11 +5104,7 @@
       "css-order turbo should load correct styles navigating big-interleaved-a -> big-interleaved-b",
       "css-order turbo should load correct styles navigating big-interleaved-b -> big-interleaved-a",
       "css-order turbo should load correct styles navigating pages-interleaved-a -> pages-interleaved-b",
-      "css-order turbo should load correct styles navigating pages-interleaved-b -> pages-interleaved-a",
-      "css-order turbo should load correct styles navigating pages-partial-reversed-a -> pages-partial-reversed-b",
-      "css-order turbo should load correct styles navigating pages-partial-reversed-b -> pages-partial-reversed-a",
-      "css-order turbo should load correct styles navigating pages-reversed-a -> pages-reversed-b",
-      "css-order turbo should load correct styles navigating pages-reversed-b -> pages-reversed-a"
+      "css-order turbo should load correct styles navigating pages-interleaved-b -> pages-interleaved-a"
     ],
     "flakey": [],
     "runtimeError": false
@@ -8377,6 +8365,13 @@
   },
   "test/e2e/app-dir/segment-cache/basic/segment-cache-basic.test.ts": {
     "passed": ["segment cache (basic tests) ppr is disabled"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/client-only-opt-in/client-only-opt-in.test.ts": {
+    "passed": ["segment cache prefetch scheduling prefetching is disabled"],
     "failed": [],
     "pending": [],
     "flakey": [],
