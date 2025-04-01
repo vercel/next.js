@@ -726,62 +726,57 @@ describe('Catch-all Route CSS Module Usage', () => {
 })
 
 describe('cssmodules-pure-no-check usage', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      const appDir = join(fixturesDir, 'cssmodules-pure-no-check')
+  const appDir = join(fixturesDir, 'cssmodules-pure-no-check')
 
-      let stdout
-      let code
-      let app
-      let appPort
+  let stdout
+  let code
+  let app
+  let appPort
 
-      beforeAll(async () => {
-        await remove(join(appDir, '.next'))
-        ;({ code, stdout } = await nextBuild(appDir, [], {
-          stdout: true,
-        }))
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+    ;({ code, stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    }))
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
+  })
 
-      afterAll(() => killApp(app))
+  afterAll(() => killApp(app))
 
-      it('should have compiled successfully', () => {
-        console.log(stdout)
-        expect(code).toBe(0)
-        expect(stdout).toMatch(/Compiled successfully/)
-      })
+  it('should have compiled successfully', () => {
+    console.log(stdout)
+    expect(code).toBe(0)
+    expect(stdout).toMatch(/Compiled successfully/)
+  })
 
-      it('should apply styles correctly', async () => {
-        const browser = await webdriver(appPort, '/')
+  it('should apply styles correctly', async () => {
+    const browser = await webdriver(appPort, '/')
 
-        const elementWithGlobalStyles = await browser
-          .elementByCss('#my-div')
-          .getComputedCss('font-weight')
+    const elementWithGlobalStyles = await browser
+      .elementByCss('#my-div')
+      .getComputedCss('font-weight')
 
-        expect(elementWithGlobalStyles).toBe('700')
-      })
+    expect(elementWithGlobalStyles).toBe('700')
+  })
 
-      it(`should've emitted a CSS file`, async () => {
-        const content = await renderViaHTTP(appPort, '/')
-        const $ = cheerio.load(content)
+  it(`should've emitted a CSS file`, async () => {
+    const content = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(content)
 
-        const cssSheet = $('link[rel="stylesheet"]')
-        expect(cssSheet.length).toBe(1)
-        const stylesheet = cssSheet[0].attribs['href']
+    const cssSheet = $('link[rel="stylesheet"]')
+    expect(cssSheet.length).toBe(1)
+    const stylesheet = cssSheet[0].attribs['href']
 
-        const cssContent = await fetchViaHTTP(appPort, stylesheet).then((res) =>
-          res.text()
-        )
+    const cssContent = await fetchViaHTTP(appPort, stylesheet).then((res) =>
+      res.text()
+    )
 
-        const cssCode = cssContent.replace(/\/\*.*?\*\//g, '').trim()
+    const cssCode = cssContent.replace(/\/\*.*?\*\//g, '').trim()
 
-        expect(cssCode).toInclude(`.global{font-weight:700}`)
-        expect(cssCode).toInclude(
-          `::view-transition-old(root){animation-duration:.3s}`
-        )
-      })
-    }
-  )
+    expect(cssCode).toInclude(`.global{font-weight:700}`)
+    expect(cssCode).toInclude(
+      `::view-transition-old(root){animation-duration:.3s}`
+    )
+  })
 })
