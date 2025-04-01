@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
 
 describe('css-modules-pure-no-check', () => {
-  const { next } = nextTestSetup({
+  const { isNextStart, next } = nextTestSetup({
     files: __dirname,
   })
 
@@ -16,21 +16,22 @@ describe('css-modules-pure-no-check', () => {
     expect(elementWithGlobalStyles).toBe('700')
   })
 
-  it('should have emitted a CSS file', async () => {
-    const html = await next.render('/')
-    const $html = cheerio.load(html)
+  if (isNextStart) {
+    it('should have emitted a CSS file', async () => {
+      const html = await next.render('/')
+      const $html = cheerio.load(html)
 
-    const cssLink = $html('link[rel="stylesheet"]')
-    expect(cssLink.length).toBe(1)
-    const cssHref = cssLink[0].attribs['href']
+      const cssLink = $html('link[rel="stylesheet"]')
+      expect(cssLink.length).toBe(1)
+      const cssHref = cssLink[0].attribs['href']
 
-    const res = await next.fetch(cssHref)
-    const cssContent = await res.text()
-    const cssCode = cssContent.replace(/\/\*.*?\*\//g, '').trim()
+      const res = await next.fetch(cssHref)
+      const cssCode = await res.text()
 
-    expect(cssCode).toInclude(`.global{font-weight:700}`)
-    expect(cssCode).toInclude(
-      `::view-transition-old(root){animation-duration:.3s}`
-    )
-  })
+      expect(cssCode).toInclude(`.global{font-weight:700}`)
+      expect(cssCode).toInclude(
+        `::view-transition-old(root){animation-duration:.3s}`
+      )
+    })
+  }
 })
