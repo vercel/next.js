@@ -3,13 +3,13 @@ import type {
   NextConfigComplete,
 } from '../../../server/config-shared'
 import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { needsExperimentalReact } from '../../../lib/needs-experimental-react'
 import { checkIsAppPPREnabled } from '../../../server/lib/experimental/ppr'
 import {
   getNextConfigEnv,
   getNextPublicEnvironmentVariables,
 } from '../../../lib/static-env'
+import getWebpackBundler from '../../../shared/lib/get-webpack-bundler'
 
 type BloomFilter = ReturnType<
   import('../../../shared/lib/bloom-filter').BloomFilter['export']
@@ -293,5 +293,5 @@ export function getDefineEnv({
 }
 
 export function getDefineEnvPlugin(options: DefineEnvPluginOptions) {
-  return new webpack.DefinePlugin(getDefineEnv(options))
+  return new (getWebpackBundler().DefinePlugin)(getDefineEnv(options))
 }
