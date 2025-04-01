@@ -13,7 +13,6 @@ const testedExamples = [
   'blog',
   'blog-starter',
   'custom-server',
-  'dynamic-routing',
   'environment-variables',
   'headers',
   'hello-world',

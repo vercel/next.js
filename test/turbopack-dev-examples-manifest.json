@@ -40,7 +40,6 @@
   "cms-webiny": true,
   "cms-wordpress": true,
   "convex": true,
-  "dynamic-routing": true,
   "environment-variables": true,
   "github-pages": true,
   "headers": true,
