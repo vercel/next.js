@@ -1626,12 +1626,7 @@ export default class NextNodeServer extends BaseServer<
 
       result = await adapterFn({
         handler: middlewareModule.middleware || middlewareModule,
-        request: {
-          ...requestData,
-          body: !['HEAD', 'GET'].includes(params.request.method)
-            ? requestData.body?.cloneBodyStream()
-            : undefined,
-        },
+        request: requestData,
         page: 'middleware',
       })
     } else {
