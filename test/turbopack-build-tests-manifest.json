@@ -2991,11 +2991,10 @@
   "test/e2e/app-dir/missing-suspense-with-csr-bailout/missing-suspense-with-csr-bailout.test.ts": {
     "passed": [
       "missing-suspense-with-csr-bailout next/dynamic does not emit errors related to bailing out of client side rendering",
-      "missing-suspense-with-csr-bailout useSearchParams should pass build if useSearchParams is wrapped in a suspense boundary"
-    ],
-    "failed": [
+      "missing-suspense-with-csr-bailout useSearchParams should pass build if useSearchParams is wrapped in a suspense boundary",
       "missing-suspense-with-csr-bailout useSearchParams should fail build if useSearchParams is not wrapped in a suspense boundary"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
