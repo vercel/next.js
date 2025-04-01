@@ -388,6 +388,24 @@ pub async fn compute_module_batches(
             }
         }
 
+        // Pre batches would be incorrect with cycles, so we need to opt-out of pre batches for
+        // cycles that include boundary modules
+        module_graph
+            .traverse_cycles(
+                |ty| ty.is_parallel(),
+                |cycle| {
+                    if cycle
+                        .iter()
+                        .any(|node| pre_batches.boundary_modules.contains(&node.module))
+                    {
+                        pre_batches
+                            .boundary_modules
+                            .extend(cycle.iter().map(|node| node.module));
+                    }
+                },
+            )
+            .await?;
+
         let mut queue: VecDeque<(ResolvedVc<Box<dyn Module>>, PreBatchIndex)> = VecDeque::new();
 
         let mut chunk_group_indicies_with_merged_children = FxHashSet::default();
