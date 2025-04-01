@@ -2388,11 +2388,10 @@
   },
   "test/development/app-dir/edge-errors-hmr/index.test.ts": {
     "passed": [
+      "develop - app-dir - edge errros hmr should recover from build errors when client component error",
       "develop - app-dir - edge errros hmr should recover from build errors when server component error"
     ],
-    "failed": [
-      "develop - app-dir - edge errros hmr should recover from build errors when client component error"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6752,11 +6751,12 @@
       "nextjs APIs in after() request APIs inside after() can be called in a prerendered route handler with `dynamic = \"error\" (but throw, because dynamic should error)`",
       "nextjs APIs in after() request APIs inside after() can be called in a prerendered route handler with `dynamic = \"force-static\"`",
       "nextjs APIs in after() request APIs inside after() can be called in a server action",
-      "nextjs APIs in after() request APIs inside after() cannot be called in a dynamic page",
       "nextjs APIs in after() request APIs inside after() cannot be called in a prerendered page with `dynamic = \"error\"`",
       "nextjs APIs in after() request APIs inside after() cannot be called in a prerendered page with `dynamic = \"force-static\"`"
     ],
-    "failed": [],
+    "failed": [
+      "nextjs APIs in after() request APIs inside after() cannot be called in a dynamic page"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7317,6 +7317,7 @@
       "parallel-routes-and-interception parallel routes should support parallel route tab bars",
       "parallel-routes-and-interception parallel routes should support parallel routes with no page component",
       "parallel-routes-and-interception parallel routes should throw a 404 when no matching parallel route is found",
+      "parallel-routes-and-interception route intercepting should intercept on routes that contain hyphenated/special dynamic params",
       "parallel-routes-and-interception route intercepting should re-render the layout on the server when it had a default child route",
       "parallel-routes-and-interception route intercepting should render an intercepted route at the top level from a nested path",
       "parallel-routes-and-interception route intercepting should render an intercepted route from a slot",
@@ -7330,9 +7331,7 @@
       "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route",
       "parallel-routes-and-interception-conflicting-pages should gracefully handle when two page segments match the `children` parallel slot"
     ],
-    "failed": [
-      "parallel-routes-and-interception route intercepting should intercept on routes that contain hyphenated/special dynamic params"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8527,6 +8526,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/client-only-opt-in/client-only-opt-in.test.ts": {
+    "passed": ["segment cache prefetch scheduling prefetching is disabled"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/export/segment-cache-output-export.test.ts": {
     "passed": [
       "segment cache (output: \"export\") build test should not run during dev test run"
@@ -9149,7 +9155,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/basepath-trailing-slash.test.ts": {
+  "test/e2e/basepath/basepath-trailing-slash.test.ts": {
     "passed": [
       "basePath + trailingSlash should allow URL query strings on index without refresh",
       "basePath + trailingSlash should allow URL query strings without refresh",
@@ -11636,10 +11642,10 @@
     "runtimeError": false
   },
   "test/integration/amp-export-validation/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "AMP Validation on Export production mode should have shown errors during build"
     ],
+    "failed": [],
     "pending": [
       "AMP Validation on Export production mode shows AMP warning without throwing error",
       "AMP Validation on Export production mode shows warning and error when throwing error",
@@ -20637,10 +20643,10 @@
       "Handle url imports with next build should render the /ssr page",
       "Handle url imports with next build should render the /static page",
       "Handle url imports with next build should respond on value api",
-      "Handle url imports with next dev should allow url import in css",
       "Handle url imports with next dev should respond on value api"
     ],
     "failed": [
+      "Handle url imports with next dev should allow url import in css",
       "Handle url imports with next dev should client-render the /ssg page",
       "Handle url imports with next dev should client-render the /ssr page",
       "Handle url imports with next dev should client-render the /static page",
