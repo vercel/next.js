@@ -976,13 +976,15 @@
   },
   "packages/next/src/server/app-render/csrf-protection.test.ts": {
     "passed": [
+      "isCsrfOriginAllowed should correctly handle origins that don't have a TLD (eg for localhost)",
       "isCsrfOriginAllowed should return false when allowedOrigins contains originDomain with non-matching pattern",
       "isCsrfOriginAllowed should return false when allowedOrigins does not contain originDomain",
       "isCsrfOriginAllowed should return false when allowedOrigins is empty",
       "isCsrfOriginAllowed should return false when allowedOrigins is empty string",
       "isCsrfOriginAllowed should return false when allowedOrigins is undefined",
       "isCsrfOriginAllowed should return true when allowedOrigins contains originDomain",
-      "isCsrfOriginAllowed should return true when allowedOrigins contains originDomain with matching pattern"
+      "isCsrfOriginAllowed should return true when allowedOrigins contains originDomain with matching pattern",
+      "isCsrfOriginAllowed wildcards are only supported below the domain level"
     ],
     "failed": [],
     "pending": [],
@@ -1909,7 +1911,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/development/acceptance-app/hydration-error.test.ts": {
     "passed": [
@@ -4758,7 +4760,6 @@
       "app dir - basic <Link /> should soft replace",
       "app dir - basic HMR should HMR correctly for server component",
       "app dir - basic bootstrap scripts should only bootstrap with one script, prinitializing the rest",
-      "app dir - basic data fetch with response over 16KB with chunked encoding should load page when fetching a large amount of data",
       "app dir - basic known bugs should handle as on next/link",
       "app dir - basic known bugs should handle next/link back to initially loaded page",
       "app dir - basic known bugs should handle router.refresh without resetting state",
@@ -4777,6 +4778,7 @@
       "app dir - basic next/script should pass nonce when using next/font",
       "app dir - basic next/script should pass on extra props for beforeInteractive scripts with a src prop",
       "app dir - basic next/script should pass on extra props for beforeInteractive scripts without a src prop",
+      "app dir - basic next/script should support next/script and render in correct order",
       "app dir - basic rewrites should support rewrites on client-side navigation",
       "app dir - basic rewrites should support rewrites on client-side navigation from pages to app with existing pages path",
       "app dir - basic rewrites should support rewrites on initial load",
@@ -4847,7 +4849,7 @@
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
       "app dir - basic HMR should HMR correctly for client component",
       "app dir - basic bootstrap scripts should fail to bootstrap when using CSP in Dev due to eval",
-      "app dir - basic next/script should support next/script and render in correct order",
+      "app dir - basic data fetch with response over 16KB with chunked encoding should load page when fetching a large amount of data",
       "app dir - basic should serve polyfills for browsers that do not support modules"
     ],
     "pending": [
@@ -6693,6 +6695,7 @@
       "app dir - navigation locale warnings should warn about using the `locale` prop with `next/link` in app router",
       "app dir - navigation navigating to a page with async metadata shows a fallback when prefetch completed",
       "app dir - navigation navigating to a page with async metadata shows a fallback when prefetch was pending",
+      "app dir - navigation navigating to dynamic params & changing the casing should load the page correctly",
       "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from app to pages",
       "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from pages to app",
       "app dir - navigation navigation between pages and app should not omit the hash while navigating from app to pages",
@@ -6728,12 +6731,11 @@
       "app dir - navigation relative hashes and queries should work with a query-only href",
       "app dir - navigation relative hashes and queries should work with both relative hashes and queries",
       "app dir - navigation scroll restoration should restore original scroll position when navigating back",
+      "app dir - navigation useRouter identity between navigations should preserve identity when navigating between different pages",
       "app dir - navigation useRouter identity between navigations should preserve identity when navigating to the same page"
     ],
     "failed": [
-      "app dir - navigation middleware redirect should change browser location when router.refresh() gets a redirect response",
-      "app dir - navigation navigating to dynamic params & changing the casing should load the page correctly",
-      "app dir - navigation useRouter identity between navigations should preserve identity when navigating between different pages"
+      "app dir - navigation middleware redirect should change browser location when router.refresh() gets a redirect response"
     ],
     "pending": [],
     "flakey": [],
@@ -9158,7 +9160,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/basepath.test.ts": {
+  "test/e2e/basepath/basepath.test.ts": {
     "passed": [
       "basePath should 404 for public file without basePath",
       "basePath should 404 when manually adding basePath with <Link>",
@@ -11634,10 +11636,10 @@
     "runtimeError": false
   },
   "test/integration/amp-export-validation/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "AMP Validation on Export production mode should have shown errors during build"
     ],
-    "failed": [],
     "pending": [
       "AMP Validation on Export production mode shows AMP warning without throwing error",
       "AMP Validation on Export production mode shows warning and error when throwing error",

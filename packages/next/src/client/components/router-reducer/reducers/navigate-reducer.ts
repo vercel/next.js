@@ -226,16 +226,19 @@ export function navigateReducer(
 
   return data.then(
     ({ flightData, canonicalUrl: canonicalUrlOverride, postponed }) => {
+      const navigatedAt = Date.now()
+
       let isFirstRead = false
       // we only want to mark this once
       if (!prefetchValues.lastUsedTime) {
         // important: we should only mark the cache node as dirty after we unsuspend from the call above
-        prefetchValues.lastUsedTime = Date.now()
+        prefetchValues.lastUsedTime = navigatedAt
         isFirstRead = true
       }
 
       if (prefetchValues.aliased) {
         const result = handleAliasedPrefetchEntry(
+          navigatedAt,
           state,
           flightData,
           url,
@@ -328,6 +331,7 @@ export function navigateReducer(
             postponed
           ) {
             const task = startPPRNavigation(
+              navigatedAt,
               currentCache,
               currentTree,
               treePatch,
@@ -427,9 +431,10 @@ export function navigateReducer(
               )
               // since we re-used the stale cache's loading state & refreshed the data,
               // update the `lastUsedTime` so that it can continue to be re-used for the next 30s
-              prefetchValues.lastUsedTime = Date.now()
+              prefetchValues.lastUsedTime = navigatedAt
             } else {
               applied = applyFlightData(
+                navigatedAt,
                 currentCache,
                 cache,
                 normalizedFlightData,

@@ -385,6 +385,9 @@ export async function setupFsCheck(opts: {
 
   debug('nextDataRoutes', nextDataRoutes)
   debug('dynamicRoutes', dynamicRoutes)
+  debug('customRoutes', customRoutes)
+  debug('publicFolderItems', publicFolderItems)
+  debug('nextStaticFolderItems', nextStaticFolderItems)
   debug('pageFiles', pageFiles)
   debug('appFiles', appFiles)
 

@@ -123,6 +123,7 @@ export function navigate(
     const isPrefetchHeadPartial = route.isHeadPartial
     const newCanonicalUrl = route.canonicalUrl
     return navigateUsingPrefetchedRouteTree(
+      now,
       url,
       nextUrl,
       isSamePageNavigation,
@@ -141,6 +142,7 @@ export function navigate(
   return {
     tag: NavigationResultTag.Async,
     data: navigateDynamicallyWithNoPrefetch(
+      now,
       url,
       nextUrl,
       isSamePageNavigation,
@@ -153,6 +155,7 @@ export function navigate(
 }
 
 function navigateUsingPrefetchedRouteTree(
+  now: number,
   url: URL,
   nextUrl: string | null,
   isSamePageNavigation: boolean,
@@ -174,6 +177,7 @@ function navigateUsingPrefetchedRouteTree(
   // so we can share code with the old prefetching implementation.
   const scrollableSegments: Array<FlightSegmentPath> = []
   const task = startPPRNavigation(
+    now,
     currentCacheNode,
     currentFlightRouterState,
     prefetchFlightRouterState,
@@ -339,6 +343,7 @@ function readRenderSnapshotFromCache(
 }
 
 async function navigateDynamicallyWithNoPrefetch(
+  now: number,
   url: URL,
   nextUrl: string | null,
   isSamePageNavigation: boolean,
@@ -398,6 +403,7 @@ async function navigateDynamicallyWithNoPrefetch(
   // Now we proceed exactly as we would for normal navigation.
   const scrollableSegments: Array<FlightSegmentPath> = []
   const task = startPPRNavigation(
+    now,
     currentCacheNode,
     currentFlightRouterState,
     prefetchFlightRouterState,

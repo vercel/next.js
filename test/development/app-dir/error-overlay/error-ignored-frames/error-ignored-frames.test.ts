@@ -45,8 +45,8 @@ describe('error-ignored-frames', () => {
        at processFullStringRow ()
        at processFullBinaryRow ()
        at progress ()
-       at InnerLayoutRouter (../src/client/components/layout-router.tsx (413:5))
-       at OuterLayoutRouter (../src/client/components/layout-router.tsx (612:19))"
+       at InnerLayoutRouter (../src/client/components/layout-router.tsx (415:5))
+       at OuterLayoutRouter (../src/client/components/layout-router.tsx (615:19))"
       `)
     }
   })
