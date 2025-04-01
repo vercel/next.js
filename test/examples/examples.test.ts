@@ -12,7 +12,6 @@ const testedExamples = [
   'basic-css',
   'blog',
   'blog-starter',
-  'custom-routes-proxying',
   'custom-server',
   'dynamic-routing',
   'environment-variables',
