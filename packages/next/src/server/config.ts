@@ -364,6 +364,30 @@ function assignDefaults(
         )
       }
 
+      // Convert URL to RemotePattern
+      images.remotePatterns = images.remotePatterns.map(
+        ({ protocol, hostname, port, pathname, search }) => {
+          if (
+            protocol &&
+            !['http', 'https', 'http:', 'https:'].includes(protocol)
+          ) {
+            throw new Error(
+              `Specified images.remotePatterns must have protocol "http" or "https" received "${protocol}".`
+            )
+          }
+          return {
+            protocol: protocol?.replace(/:$/, '') as
+              | 'http'
+              | 'https'
+              | undefined,
+            hostname,
+            port,
+            pathname,
+            search,
+          }
+        }
+      )
+
       // static images are automatically prefixed with assetPrefix
       // so we need to ensure _next/image allows downloading from
       // this resource
