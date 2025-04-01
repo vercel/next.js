@@ -5232,6 +5232,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/client-only-opt-in/client-only-opt-in.test.ts": {
+    "passed": [
+      "segment cache prefetch scheduling prefetches a dynamic page (with PPR enabled)",
+      "segment cache prefetch scheduling prefetches a dynamic page (without PPR enabled)",
+      "segment cache prefetch scheduling prefetches a static page in a single request"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/export/segment-cache-output-export.test.ts": {
     "passed": [
       "segment cache (output: \"export\") basic prefetch in output: \"export\" mode",
@@ -5315,7 +5326,8 @@
   },
   "test/e2e/app-dir/segment-cache/staleness/segment-cache-stale-time.test.ts": {
     "passed": [
-      "segment cache (staleness) entry expires when its stale time has elapsed"
+      "segment cache (staleness) entry expires when its stale time has elapsed",
+      "segment cache (staleness) reuses dynamic data up to the staleTimes.dynamic threshold"
     ],
     "failed": [],
     "pending": [],
@@ -5876,7 +5888,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/basepath-trailing-slash.test.ts": {
+  "test/e2e/basepath/basepath-trailing-slash.test.ts": {
     "passed": [
       "basePath + trailingSlash should allow URL query strings on index without refresh",
       "basePath + trailingSlash should allow URL query strings without refresh",
