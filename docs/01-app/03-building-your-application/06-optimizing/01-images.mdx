@@ -22,7 +22,7 @@ According to [Web Almanac](https://almanac.httparchive.org), images account for 
 
 The Next.js Image component extends the HTML `<img>` element with features for automatic image optimization:
 
-- **Size Optimization:** Automatically serve correctly sized images for each device, using modern image formats like WebP and AVIF.
+- **Size Optimization:** Automatically serve correctly sized images for each device, using modern image formats like WebP.
 - **Visual Stability:** Prevent [layout shift](/learn/seo/web-performance/cls) automatically when images are loading.
 - **Faster Page Loads:** Images are only loaded when they enter the viewport using native browser lazy loading, with optional blur-up placeholders.
 - **Asset Flexibility:** On-demand image resizing, even for images stored on remote servers
@@ -167,7 +167,7 @@ You can define a loader per-image with the [`loader` prop](/docs/app/api-referen
 
 ## Priority
 
-You should add the `priority` property to the image that will be the [Largest Contentful Paint (LCP) element](https://web.dev/lcp/#what-elements-are-considered) for each page. Doing so allows Next.js to specially prioritize the image for loading (e.g. through preload tags or priority hints), leading to a meaningful boost in LCP.
+You should add the `priority` property to the image that will be the [Largest Contentful Paint (LCP) element](https://web.dev/lcp/#what-elements-are-considered) for each page. Doing so allows Next.js to [preload](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel/preload) the image, leading to a meaningful boost in LCP.
 
 The LCP element is typically the largest image or text block visible within the viewport of the page. When you run `next dev`, you'll see a console warning if the LCP element is an `<Image>` without the `priority` property.
 

@@ -1,7 +1,7 @@
 use std::mem::take;
 
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::Vc;
 use turbopack_core::compile_time_info::CompileTimeInfo;
 use url::Url;
 
@@ -354,10 +354,7 @@ pub fn require(args: Vec<JsValue>) -> JsValue {
 }
 
 /// (try to) statically evaluate `require.context(...)()`
-async fn require_context_require(
-    val: ResolvedVc<RequireContextValue>,
-    args: Vec<JsValue>,
-) -> Result<JsValue> {
+async fn require_context_require(val: RequireContextValue, args: Vec<JsValue>) -> Result<JsValue> {
     if args.is_empty() {
         return Ok(JsValue::unknown(
             JsValue::call(
@@ -384,8 +381,7 @@ async fn require_context_require(
         ));
     };
 
-    let map = val.await?;
-    let Some(m) = map.get(s) else {
+    let Some(m) = val.0.get(s) else {
         return Ok(JsValue::unknown(
             JsValue::call(
                 Box::new(JsValue::WellKnownFunction(
@@ -407,12 +403,11 @@ async fn require_context_require(
 
 /// (try to) statically evaluate `require.context(...).keys()`
 async fn require_context_require_keys(
-    val: ResolvedVc<RequireContextValue>,
+    val: RequireContextValue,
     args: Vec<JsValue>,
 ) -> Result<JsValue> {
     Ok(if args.is_empty() {
-        let map = val.await?;
-        JsValue::array(map.keys().cloned().map(|k| k.into()).collect())
+        JsValue::array(val.0.keys().cloned().map(|k| k.into()).collect())
     } else {
         JsValue::unknown(
             JsValue::call(
@@ -429,7 +424,7 @@ async fn require_context_require_keys(
 
 /// (try to) statically evaluate `require.context(...).resolve()`
 async fn require_context_require_resolve(
-    val: ResolvedVc<RequireContextValue>,
+    val: RequireContextValue,
     args: Vec<JsValue>,
 ) -> Result<JsValue> {
     if args.len() != 1 {
@@ -458,8 +453,7 @@ async fn require_context_require_resolve(
         ));
     };
 
-    let map = val.await?;
-    let Some(m) = map.get(s) else {
+    let Some(m) = val.0.get(s) else {
         return Ok(JsValue::unknown(
             JsValue::call(
                 Box::new(JsValue::WellKnownFunction(
@@ -521,13 +515,13 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
 
 pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) -> (JsValue, bool) {
     let new_value = match (kind, prop.as_str()) {
-        (WellKnownFunctionKind::Require { .. }, Some("resolve")) => {
+        (WellKnownFunctionKind::Require, Some("resolve")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve)
         }
-        (WellKnownFunctionKind::Require { .. }, Some("cache")) => {
+        (WellKnownFunctionKind::Require, Some("cache")) => {
             JsValue::WellKnownObject(WellKnownObjectKind::RequireCache)
         }
-        (WellKnownFunctionKind::Require { .. }, Some("context")) => {
+        (WellKnownFunctionKind::Require, Some("context")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext)
         }
         (WellKnownFunctionKind::RequireContextRequire(val), Some("resolve")) => {
@@ -542,7 +536,7 @@ pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) ->
         (WellKnownFunctionKind::NodeResolveFrom, Some("silent")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom)
         }
-        (WellKnownFunctionKind::Import { .. }, Some("meta")) => {
+        (WellKnownFunctionKind::Import, Some("meta")) => {
             JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta)
         }
         #[allow(unreachable_patterns)]

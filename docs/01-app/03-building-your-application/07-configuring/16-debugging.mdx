@@ -131,9 +131,11 @@ ready - started server on 0.0.0.0:3000, url: http://localhost:3000
 For Chrome:
 
 1. Open a new tab and visit `chrome://inspect`
-2. Look for your Next.js application in the **Remote Target** section
-3. Click **inspect** to open a separate DevTools window
-4. Go to the **Sources** tab
+2. Click **Configure...** to ensure both debugging ports are listed
+3. Add both `localhost:9229` and `localhost:9230` if they're not already present
+4. Look for your Next.js application in the **Remote Target** section
+5. Click **inspect** to open a separate DevTools window
+6. Go to the **Sources** tab
 
 For Firefox:
 
@@ -149,15 +151,7 @@ Debugging server-side code works similarly to client-side debugging. When search
 
 When you encounter an error, inspecting the source code can help trace the root cause of errors.
 
-Next.js will display a Node.js logo like a green button on the dev overlay. By clicking that button, the DevTools URL is copied to your clipboard. You can open a new browser tab with that URL to inspect the Next.js server process.
-
-<Image
-  alt="Copy DevTools url example"
-  srcLight="/docs/dark/copy-devtool-url-example.png"
-  srcDark="/docs/dark/copy-devtool-url-example.png"
-  width="1600"
-  height="594"
-/>
+Next.js will display a Node.js icon underneath the Next.js version indicator on the error overlay. By clicking that icon, the DevTools URL is copied to your clipboard. You can open a new browser tab with that URL to inspect the Next.js server process.
 
 ### Debugging on Windows
 

@@ -29,7 +29,7 @@ describe('use-cache-close-over-function', () => {
       const errorSource = await getRedboxSource(browser)
 
       expect(errorDescription).toMatchInlineSnapshot(`
-        "[ Prerender ] Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+        "Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
           [function fn]
            ^^^^^^^^^^^"
       `)
@@ -66,8 +66,7 @@ describe('use-cache-close-over-function', () => {
               '\n  [function fn]' +
               '\n   ^^^^^^^^^^^' +
               '\n    at createCachedFn (app/client/page.tsx:8:2)' +
-              // TODO(veil): Method name should be "Page"
-              '\n    at createCachedFn (app/client/page.tsx:15:27)' +
+              '\n    at Page (app/client/page.tsx:15:27)' +
               '\n   6 |   }' +
               '\n   7 |' +
               '\n>  8 |   return async () => {' +
@@ -88,7 +87,7 @@ describe('use-cache-close-over-function', () => {
       const errorSource = await getRedboxSource(browser)
 
       expect(errorDescription).toMatchInlineSnapshot(`
-        "[ Prerender ] Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+        "Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
           [function fn]
            ^^^^^^^^^^^"
       `)
@@ -120,9 +119,9 @@ describe('use-cache-close-over-function', () => {
               '\n  [function fn]' +
               '\n   ^^^^^^^^^^^' +
               '\n    at createCachedFn (app/server/page.tsx:6:2)' +
-              '\n    at createCachedFn (app/server/page.tsx:12:23)' +
+              '\n    at eval (app/server/page.tsx:12:23)' +
               // TODO(veil): Should be source-mapped.
-              '\n    at (rsc)'
+              '\n    at <unknown> (rsc)'
       )
       expect(cliOutput).toContain(
         '' +

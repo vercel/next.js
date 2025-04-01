@@ -1,6 +1,6 @@
 import type { OutgoingHttpHeaders } from 'http'
 import type RenderResult from '../render-result'
-import type { Revalidate } from '../lib/revalidate'
+import type { CacheControl, Revalidate } from '../lib/cache-control'
 import type { RouteKind } from '../route-kind'
 
 export interface ResponseCacheBase {
@@ -131,15 +131,32 @@ export interface IncrementalCachedPageValue {
   status: number | undefined
 }
 
-export type IncrementalCacheEntry = {
-  curRevalidate?: Revalidate
-  // milliseconds to revalidate after
-  revalidateAfter: Revalidate
-  // -1 here dictates a blocking revalidate should be used
+export interface IncrementalResponseCacheEntry {
+  cacheControl?: CacheControl
+  /**
+   * timestamp in milliseconds to revalidate after
+   */
+  revalidateAfter?: Revalidate
+  /**
+   * `-1` here dictates a blocking revalidate should be used
+   */
   isStale?: boolean | -1
-  value: IncrementalCacheValue | null
+  isMiss?: boolean
   isFallback: boolean | undefined
+  value: Exclude<IncrementalCacheValue, CachedFetchValue> | null
 }
+
+export interface IncrementalFetchCacheEntry {
+  /**
+   * `-1` here dictates a blocking revalidate should be used
+   */
+  isStale?: boolean | -1
+  value: CachedFetchValue
+}
+
+export type IncrementalCacheEntry =
+  | IncrementalResponseCacheEntry
+  | IncrementalFetchCacheEntry
 
 export type IncrementalCacheValue =
   | CachedRedirectValue
@@ -157,7 +174,7 @@ export type ResponseCacheValue =
   | CachedRouteValue
 
 export type ResponseCacheEntry = {
-  revalidate?: Revalidate
+  cacheControl?: CacheControl
   value: ResponseCacheValue | null
   isStale?: boolean | -1
   isMiss?: boolean
@@ -170,19 +187,9 @@ export type ResponseCacheEntry = {
  */
 export type ResponseGenerator = (state: {
   hasResolved: boolean
-  previousCacheEntry?: IncrementalCacheItem
+  previousCacheEntry?: IncrementalResponseCacheEntry | null
   isRevalidating?: boolean
 }) => Promise<ResponseCacheEntry | null>
-
-export type IncrementalCacheItem = {
-  revalidateAfter?: number | false
-  curRevalidate?: number | false
-  revalidate?: number | false
-  value: IncrementalCacheValue | null
-  isStale?: boolean | -1
-  isMiss?: boolean
-  isFallback: boolean | undefined
-} | null
 
 export const enum IncrementalCacheKind {
   APP_PAGE = 'APP_PAGE',
@@ -192,38 +199,80 @@ export const enum IncrementalCacheKind {
   IMAGE = 'IMAGE',
 }
 
-export interface IncrementalCache {
-  get: (
+export interface GetIncrementalFetchCacheContext {
+  kind: IncrementalCacheKind.FETCH
+  revalidate?: Revalidate
+  fetchUrl?: string
+  fetchIdx?: number
+  tags?: string[]
+  softTags?: string[]
+}
+
+export interface GetIncrementalResponseCacheContext {
+  kind: Exclude<IncrementalCacheKind, IncrementalCacheKind.FETCH>
+
+  /**
+   * True if the route is enabled for PPR.
+   */
+  isRoutePPREnabled?: boolean
+
+  /**
+   * True if this is a fallback request.
+   */
+  isFallback: boolean
+}
+
+export interface SetIncrementalFetchCacheContext {
+  fetchCache: true
+  fetchUrl?: string
+  fetchIdx?: number
+  tags?: string[]
+}
+
+export interface SetIncrementalResponseCacheContext {
+  fetchCache?: false
+  cacheControl?: CacheControl
+
+  /**
+   * True if the route is enabled for PPR.
+   */
+  isRoutePPREnabled?: boolean
+
+  /**
+   * True if this is a fallback request.
+   */
+  isFallback?: boolean
+}
+
+export interface IncrementalResponseCache {
+  get(
+    cacheKey: string,
+    ctx: GetIncrementalResponseCacheContext
+  ): Promise<IncrementalResponseCacheEntry | null>
+  set(
     key: string,
-    ctx: {
-      kind: IncrementalCacheKind
+    data: Exclude<IncrementalCacheValue, CachedFetchValue> | null,
+    ctx: SetIncrementalResponseCacheContext
+  ): Promise<void>
+}
 
-      /**
-       * True if the route is enabled for PPR.
-       */
-      isRoutePPREnabled?: boolean
-
-      /**
-       * True if this is a fallback request.
-       */
-      isFallback: boolean
-    }
-  ) => Promise<IncrementalCacheItem>
-  set: (
+export interface IncrementalCache extends IncrementalResponseCache {
+  get(
+    cacheKey: string,
+    ctx: GetIncrementalFetchCacheContext
+  ): Promise<IncrementalFetchCacheEntry | null>
+  get(
+    cacheKey: string,
+    ctx: GetIncrementalResponseCacheContext
+  ): Promise<IncrementalResponseCacheEntry | null>
+  set(
     key: string,
-    data: IncrementalCacheValue | null,
-    ctx: {
-      revalidate: Revalidate
-
-      /**
-       * True if the route is enabled for PPR.
-       */
-      isRoutePPREnabled?: boolean
-
-      /**
-       * True if this is a fallback request.
-       */
-      isFallback: boolean
-    }
-  ) => Promise<void>
+    data: CachedFetchValue | null,
+    ctx: SetIncrementalFetchCacheContext
+  ): Promise<void>
+  set(
+    key: string,
+    data: Exclude<IncrementalCacheValue, CachedFetchValue> | null,
+    ctx: SetIncrementalResponseCacheContext
+  ): Promise<void>
 }

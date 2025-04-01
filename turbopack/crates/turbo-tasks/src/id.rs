@@ -7,7 +7,11 @@ use std::{
 
 use serde::{de::Visitor, Deserialize, Serialize};
 
-use crate::{registry, TaskPersistence};
+use crate::{
+    registry,
+    trace::{TraceRawVcs, TraceRawVcsContext},
+    TaskPersistence,
+};
 
 macro_rules! define_id {
     (
@@ -69,6 +73,10 @@ macro_rules! define_id {
                 Ok(Self { id: NonZero::try_from(id)? })
             }
         }
+
+        impl TraceRawVcs for $name {
+            fn trace_raw_vcs(&self, _trace_context: &mut TraceRawVcsContext) {}
+        }
     };
 }
 
@@ -77,19 +85,12 @@ define_id!(FunctionId: u32);
 define_id!(ValueTypeId: u32);
 define_id!(TraitTypeId: u32);
 define_id!(BackendJobId: u32);
-define_id!(ExecutionId: u64, derive(Debug));
 define_id!(SessionId: u32, derive(Debug, Serialize, Deserialize), serde(transparent));
-define_id!(
-    LocalCellId: u32,
-    derive(Debug),
-    doc = "Represents the nth call to `Vc::cell()` with `local_cells` inside of the parent ",
-    doc = "non-local task.",
-);
 define_id!(
     LocalTaskId: u32,
     derive(Debug, Serialize, Deserialize),
     serde(transparent),
-    doc = "Represents the nth `local_cells` function call inside a task.",
+    doc = "Represents the nth `local` function call inside a task.",
 );
 
 impl Debug for TaskId {

@@ -6,14 +6,6 @@ import { NextResponse } from 'next/server'
  * @returns {Promise<NextResponse | undefined>}
  */
 export async function middleware(request) {
-  if (request.nextUrl.pathname === '/flying-shuttle') {
-    return NextResponse.next({
-      headers: {
-        'x-flying-shuttle': '1',
-      },
-    })
-  }
-
   if (request.nextUrl.pathname === '/searchparams-normalization-bug') {
     const headers = new Headers(request.headers)
     headers.set('test', request.nextUrl.searchParams.get('val') || '')

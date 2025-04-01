@@ -6,6 +6,7 @@ import { fetchServerResponse } from './fetch-server-response'
 import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 
 interface RefreshInactiveParallelSegments {
+  navigatedAt: number
   state: AppRouterState
   updatedTree: FlightRouterState
   updatedCache: CacheNode
@@ -36,6 +37,7 @@ export async function refreshInactiveParallelSegments(
 }
 
 async function refreshInactiveParallelSegmentsImpl({
+  navigatedAt,
   state,
   updatedTree,
   updatedCache,
@@ -76,7 +78,12 @@ async function refreshInactiveParallelSegmentsImpl({
           // we only pass the new cache as this function is called after clearing the router cache
           // and filling in the new page data from the server. Meaning the existing cache is actually the cache that's
           // just been created & has been written to, but hasn't been "committed" yet.
-          applyFlightData(updatedCache, updatedCache, flightDataPath)
+          applyFlightData(
+            navigatedAt,
+            updatedCache,
+            updatedCache,
+            flightDataPath
+          )
         }
       } else {
         // When flightData is a string, it suggests that the server response should have triggered an MPA navigation
@@ -90,6 +97,7 @@ async function refreshInactiveParallelSegmentsImpl({
 
   for (const key in parallelRoutes) {
     const parallelFetchPromise = refreshInactiveParallelSegmentsImpl({
+      navigatedAt,
       state,
       updatedTree: parallelRoutes[key],
       updatedCache,

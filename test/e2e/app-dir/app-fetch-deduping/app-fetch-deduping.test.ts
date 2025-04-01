@@ -1,4 +1,4 @@
-import { findPort, waitFor } from 'next-test-utils'
+import { findPort, retry } from 'next-test-utils'
 import http from 'http'
 import url from 'url'
 import { outdent } from 'outdent'
@@ -112,11 +112,10 @@ describe('app-fetch-deduping', () => {
         expect(invocation(next.cliOutput)).toBe(1)
 
         // wait for the revalidation to finish
-        await waitFor(revalidate * 1000 + 1000)
-
-        await next.render('/test')
-
-        expect(invocation(next.cliOutput)).toBe(2)
+        await retry(async () => {
+          await next.render('/test')
+          expect(invocation(next.cliOutput)).toBe(2)
+        }, 10_000)
       })
     })
   } else {

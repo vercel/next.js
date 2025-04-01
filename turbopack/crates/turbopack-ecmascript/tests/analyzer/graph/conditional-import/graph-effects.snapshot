@@ -158,7 +158,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "a",
                         ),
                     ),
@@ -450,7 +450,7 @@
             StrictEqual,
             Constant(
                 Str(
-                    Word(
+                    Atom(
                         "edge",
                     ),
                 ),
@@ -639,7 +639,7 @@
                         StrictEqual,
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "edge",
                                 ),
                             ),
@@ -647,14 +647,14 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "next/dist/compiled/@vercel/og/index.edge.js",
                             ),
                         ),
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "next/dist/compiled/@vercel/og/index.node.js",
                             ),
                         ),
@@ -711,7 +711,7 @@
                             Value(
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "a",
                                         ),
                                     ),
@@ -797,7 +797,7 @@
                             Value(
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "b",
                                         ),
                                     ),
@@ -1244,7 +1244,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "c",
                         ),
                     ),

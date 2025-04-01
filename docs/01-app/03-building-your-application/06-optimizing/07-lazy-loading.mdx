@@ -55,9 +55,11 @@ export default function ClientComponentExample() {
 }
 ```
 
+> **Note:** When a Server Component dynamically imports a Client Component, automatic [code splitting](https://developer.mozilla.org/docs/Glossary/Code_splitting) is currently **not** supported.
+
 ### Skipping SSR
 
-When using `React.lazy()` and Suspense, Client Components will be pre-rendered (SSR) by default.
+When using `React.lazy()` and Suspense, Client Components will be [prerendered](https://github.com/reactwg/server-components/discussions/4) (SSR) by default.
 
 > **Note:** `ssr: false` option will only work for client components, move it into client components ensure the client code-splitting working properly.
 
@@ -127,6 +129,8 @@ export default function Page() {
 ### Adding a custom loading component
 
 ```jsx filename="app/page.js"
+'use client'
+
 import dynamic from 'next/dynamic'
 
 const WithCustomLoading = dynamic(

@@ -116,11 +116,13 @@ pub async fn create_page_ssr_entry_module(
         INNER.into() => ssr_module,
     };
 
+    let pages_structure_ref = pages_structure.await?;
+
     if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
         inner_assets.insert(
             INNER_DOCUMENT.into(),
             process_global_item(
-                pages_structure.document(),
+                *pages_structure_ref.document,
                 Value::new(reference_type.clone()),
                 ssr_module_context,
             )
@@ -130,7 +132,7 @@ pub async fn create_page_ssr_entry_module(
         inner_assets.insert(
             INNER_APP.into(),
             process_global_item(
-                pages_structure.app(),
+                *pages_structure_ref.app,
                 Value::new(reference_type.clone()),
                 ssr_module_context,
             )
@@ -177,7 +179,7 @@ fn process_global_item(
     reference_type: Value<ReferenceType>,
     module_context: Vc<Box<dyn AssetContext>>,
 ) -> Vc<Box<dyn Module>> {
-    let source = Vc::upcast(FileSource::new(item.project_path()));
+    let source = Vc::upcast(FileSource::new(item.file_path()));
     module_context.process(source, reference_type).module()
 }
 
@@ -197,6 +199,7 @@ async fn wrap_edge_page(
     const INNER_DOCUMENT: &str = "INNER_DOCUMENT";
     const INNER_APP: &str = "INNER_APP";
     const INNER_ERROR: &str = "INNER_ERROR";
+    const INNER_ERROR_500: &str = "INNER_500";
 
     let next_config_val = &*next_config.await?;
 
@@ -235,29 +238,40 @@ async fn wrap_edge_page(
         fxindexmap! {
             // TODO
             "incrementalCacheHandler" => None,
-            "userland500Page" => None,
+            "userland500Page" => pages_structure.await?.error_500.map(|_| INNER_ERROR_500.into()),
         },
     )
     .await?;
 
-    let inner_assets = fxindexmap! {
+    let pages_structure_ref = pages_structure.await?;
+
+    let mut inner_assets = fxindexmap! {
         INNER.into() => entry,
         INNER_DOCUMENT.into() => process_global_item(
-            pages_structure.document(),
+            *pages_structure_ref.document,
             reference_type.clone(),
             asset_context,
         ).to_resolved().await?,
         INNER_APP.into() => process_global_item(
-            pages_structure.app(),
+            *pages_structure_ref.app,
             reference_type.clone(),
             asset_context,
         ).to_resolved().await?,
         INNER_ERROR.into() => process_global_item(
-            pages_structure.error(),
+            *pages_structure_ref.error,
             reference_type.clone(),
             asset_context,
         ).to_resolved().await?,
     };
+
+    if let Some(error_500) = pages_structure_ref.error_500 {
+        inner_assets.insert(
+            INNER_ERROR_500.into(),
+            process_global_item(*error_500, reference_type.clone(), asset_context)
+                .to_resolved()
+                .await?,
+        );
+    }
 
     let wrapped = asset_context
         .process(

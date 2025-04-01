@@ -2,7 +2,7 @@
 name = "turbopack-css"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
+license = "MIT"
 edition = "2021"
 autobenches = false
 
@@ -19,10 +19,16 @@ indoc = { workspace = true }
 lightningcss = { workspace = true }
 once_cell = { workspace = true }
 parcel_selectors = { workspace = true }
+parcel_sourcemap = "2.1.1"
 regex = { workspace = true }
+rustc-hash = { workspace = true }
 serde = { workspace = true }
-urlencoding = { workspace = true }
-
+smallvec = { workspace = true }
+swc_core = { workspace = true, features = [
+  "ecma_ast",
+  "common",
+  "common_concurrent",
+] }
 tracing = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
@@ -31,14 +37,7 @@ turbo-tasks-hash = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 turbopack-swc-utils = { workspace = true }
-
-parcel_sourcemap = "2.1.1"
-smallvec = { workspace = true }
-swc_core = { workspace = true, features = [
-  "ecma_ast",
-  "common",
-  "common_concurrent",
-] }
+urlencoding = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

@@ -1,0 +1,25 @@
+name: Rspack Next.js production integration tests
+
+on:
+  schedule:
+    # Run an hour earlier than the turbopack tests, so we don't overwhelm the CI
+    - cron: '0 5 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  test-dev:
+    name: Rspack integration tests
+    uses: ./.github/workflows/integration_tests_reusable.yml
+    with:
+      name: rspack-production
+      test_type: production
+      run_before_test: |
+        export NEXT_RSPACK=1 NEXT_TEST_USE_RSPACK=1 \
+      # Failing tests take longer (due to timeouts and retries). Since we have
+      # many failing tests, we need smaller groups and longer timeouts, in case
+      # a group gets stuck with a cluster of failing tests.
+      e2e_groups: 12
+      integration_groups: 12
+      e2e_timeout_minutes: 90
+      integration_timeout_minutes: 90
+    secrets: inherit

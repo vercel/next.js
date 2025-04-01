@@ -52,7 +52,7 @@
         ),
         prop: Constant(
             Str(
-                Word(
+                Atom(
                     "a",
                 ),
             ),
@@ -140,7 +140,7 @@
         ),
         prop: Constant(
             Str(
-                Word(
+                Atom(
                     "b",
                 ),
             ),
@@ -228,7 +228,7 @@
         ),
         prop: Constant(
             Str(
-                Word(
+                Atom(
                     "c",
                 ),
             ),
@@ -316,7 +316,7 @@
         ),
         prop: Constant(
             Str(
-                Word(
+                Atom(
                     "d",
                 ),
             ),

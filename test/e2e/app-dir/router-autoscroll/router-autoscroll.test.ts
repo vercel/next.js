@@ -1,13 +1,11 @@
-import webdriver from 'next-webdriver'
+import webdriver, { type BrowserInterface } from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, assertNoConsoleErrors, retry } from 'next-test-utils'
 
 describe('router autoscrolling on navigation', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
-
-  type BrowserInterface = Awaited<ReturnType<typeof webdriver>>
 
   const getTopScroll = async (browser: BrowserInterface) =>
     await browser.eval('document.documentElement.scrollTop')
@@ -15,17 +13,17 @@ describe('router autoscrolling on navigation', () => {
   const getLeftScroll = async (browser: BrowserInterface) =>
     await browser.eval('document.documentElement.scrollLeft')
 
-  const waitForScrollToComplete = (
-    browser,
+  const waitForScrollToComplete = async (
+    browser: BrowserInterface,
     options: { x: number; y: number }
-  ) =>
-    check(async () => {
+  ) => {
+    await retry(async () => {
       const top = await getTopScroll(browser)
       const left = await getLeftScroll(browser)
-      return top === options.y && left === options.x
-        ? 'success'
-        : JSON.stringify({ top, left })
-    }, 'success')
+      expect({ top, left }).toEqual({ top: options.y, left: options.x })
+    })
+    await assertNoConsoleErrors(browser)
+  }
 
   const scrollTo = async (
     browser: BrowserInterface,
@@ -93,6 +91,23 @@ describe('router autoscrolling on navigation', () => {
       await browser.eval(`window.router.push("/10/100/100/1000/page2")`)
       await waitForScrollToComplete(browser, { x: 0, y: 0 })
     })
+
+    it('should scroll to top of document with new metadata', async () => {
+      const browser = await webdriver(next.url, '/')
+
+      // scroll to bottom
+      await browser.eval(
+        `window.scrollTo(0, ${await browser.eval('document.documentElement.scrollHeight')})`
+      )
+      // Just need to scroll by something
+      expect(await getTopScroll(browser)).toBeGreaterThan(0)
+
+      await browser.elementByCss('[href="/new-metadata"]').click()
+      expect(
+        await browser.eval('document.documentElement.scrollHeight')
+      ).toBeGreaterThan(0)
+      await waitForScrollToComplete(browser, { x: 0, y: 0 })
+    })
   })
 
   describe('horizontal scroll', () => {
@@ -153,7 +168,7 @@ describe('router autoscrolling on navigation', () => {
           return (
             content +
             `
-      \\\\ Add this meaningless comment to force refresh
+      // Add this meaningless comment to force refresh
       `
           )
         })

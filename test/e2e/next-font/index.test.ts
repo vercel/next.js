@@ -72,6 +72,10 @@ describe('next/font', () => {
     })
   }
 
+  it('should not have deprecation warning', async () => {
+    expect(next.cliOutput.toLowerCase()).not.toContain('deprecation')
+  })
+
   describe('import values', () => {
     test('page with font', async () => {
       const html = await renderViaHTTP(next.url, '/with-fonts')

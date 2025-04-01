@@ -1,6 +1,6 @@
 use std::mem::take;
 
-use swc_core::ecma::atoms::js_word;
+use swc_core::ecma::atoms::atom;
 
 use super::{ConstantNumber, ConstantValue, JsValue, LogicalOperator, LogicalProperty, ObjectPart};
 use crate::analyzer::JsValueUrlKind;
@@ -303,7 +303,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                             }
                         }
                         if potential_values.is_empty() {
-                            *value = JsValue::FreeVar(js_word!("undefined"));
+                            *value = JsValue::FreeVar(atom!("undefined"));
                         } else {
                             *value = potential_values_to_alternatives(
                                 potential_values,

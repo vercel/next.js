@@ -18,7 +18,7 @@ Next.js does not backport bug fixes to older versions of Next.js. Instead, we ar
 
 ### What happens if I don't verify against the canary version of Next.js?
 
-An issue with the `please verify canary` that receives no meaningful activity (e.g. new comments that acknowledge verification against `canary`) will be automatically closed and locked after 30 days.
+An issue with the `please verify canary` that receives no meaningful activity (e.g. new comments that acknowledge verification against `canary`) will be automatically closed and locked after **14** days.
 
 If your issue has not been resolved in that time and it has been closed/locked, please open a new issue, with the required reproduction, using `next@canary`.
 

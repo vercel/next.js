@@ -1,5 +1,4 @@
 use std::{
-    collections::HashSet,
     fmt::Debug,
     hash::Hash,
     iter::once,
@@ -15,6 +14,7 @@ use parking_lot::{Mutex, MutexGuard};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use ref_cast::RefCast;
 use rstest::*;
+use rustc_hash::FxHashSet;
 use turbo_tasks::FxIndexSet;
 
 use self::aggregation_data::prepare_aggregation_data;
@@ -42,7 +42,7 @@ fn check_invariants(ctx: &NodeAggregationContext<'_>, node_ids: impl IntoIterato
     let mut queue = node_ids.into_iter().collect::<Vec<_>>();
     // print(ctx, &queue[0], true);
     #[allow(clippy::mutable_key_type, reason = "this is a test")]
-    let mut visited = HashSet::new();
+    let mut visited = FxHashSet::default();
     while let Some(node_id) = queue.pop() {
         assert_eq!(node_id.0.atomic.load(Ordering::SeqCst), 0);
         let node = ctx.node(&node_id);
@@ -165,7 +165,7 @@ fn print_graph<C: AggregationContext>(
     name_fn: impl Fn(&C::NodeRef) -> String,
 ) {
     let mut queue = entries.into_iter().collect::<Vec<_>>();
-    let mut visited = queue.iter().cloned().collect::<HashSet<_>>();
+    let mut visited = queue.iter().cloned().collect::<FxHashSet<_>>();
     while let Some(node_id) = queue.pop() {
         let name = name_fn(&node_id);
         let node = ctx.node(&node_id);

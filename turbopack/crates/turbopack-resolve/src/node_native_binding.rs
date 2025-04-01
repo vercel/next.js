@@ -197,7 +197,7 @@ pub async fn resolve_node_pre_gyp_files(
                         _ => {}
                     }
                 }
-                return Ok(ModuleResolveResult::modules_with_affecting_sources(
+                return Ok(*ModuleResolveResult::modules_with_affecting_sources(
                     sources
                         .into_iter()
                         .map(|(key, source)| async move {
@@ -215,12 +215,11 @@ pub async fn resolve_node_pre_gyp_files(
                         })
                         .try_join()
                         .await?,
-                )
-                .cell());
+                ));
             }
         };
     }
-    Ok(ModuleResolveResult::unresolvable().cell())
+    Ok(*ModuleResolveResult::unresolvable())
 }
 
 #[turbo_tasks::value]
@@ -285,7 +284,7 @@ pub async fn resolve_node_gyp_build_files(
                 if let Some(captured) =
                     GYP_BUILD_TARGET_NAME.captures(&config_file.content().to_str()?)
                 {
-                    let mut resolved: FxIndexMap<RcStr, Vc<Box<dyn Source>>> =
+                    let mut resolved: FxIndexMap<RcStr, ResolvedVc<Box<dyn Source>>> =
                         FxIndexMap::with_capacity_and_hasher(captured.len(), Default::default());
                     for found in captured.iter().skip(1).flatten() {
                         let name = found.as_str();
@@ -299,23 +298,20 @@ pub async fn resolve_node_gyp_build_files(
                         if let Some((_, ResolveResultItem::Source(source))) =
                             resolved_prebuilt_file.primary.first()
                         {
-                            resolved.insert(
-                                format!("build/Release/{name}.node").into(),
-                                source.resolve().await?,
-                            );
+                            resolved.insert(format!("build/Release/{name}.node").into(), *source);
                             merged_affecting_sources
                                 .extend(resolved_prebuilt_file.affecting_sources.iter().copied());
                         }
                     }
                     if !resolved.is_empty() {
-                        return Ok(ModuleResolveResult::modules_with_affecting_sources(
+                        return Ok(*ModuleResolveResult::modules_with_affecting_sources(
                             resolved
                                 .into_iter()
                                 .map(|(key, source)| async move {
                                     Ok((
                                         RequestKey::new(key),
                                         ResolvedVc::upcast(
-                                            RawModule::new(source).to_resolved().await?,
+                                            RawModule::new(*source).to_resolved().await?,
                                         ),
                                     ))
                                 })
@@ -323,8 +319,7 @@ pub async fn resolve_node_gyp_build_files(
                                 .await?
                                 .into_iter(),
                             merged_affecting_sources,
-                        )
-                        .into());
+                        ));
                     }
                 }
             }
@@ -444,5 +439,5 @@ pub async fn resolve_node_bindings_files(
         .map(|try_dir| try_path(format!("{}/{}", try_dir, &file_name).into()))
         .try_flat_join()
         .await?;
-    Ok(ModuleResolveResult::modules(modules).cell())
+    Ok(*ModuleResolveResult::modules(modules))
 }

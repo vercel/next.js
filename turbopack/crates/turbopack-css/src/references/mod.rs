@@ -8,7 +8,7 @@ use lightningcss::{
     visitor::{Visit, Visitor},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::{
     issue::IssueSource,
     reference::ModuleReference,
@@ -39,9 +39,9 @@ pub type AnalyzedRefs = (
 /// Returns `(all_references, urls)`.
 pub fn analyze_references(
     stylesheet: &mut StyleSheetLike<'static, 'static>,
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     origin: Vc<Box<dyn ResolveOrigin>>,
-    import_context: Vc<ImportContext>,
+    import_context: Option<Vc<ImportContext>>,
 ) -> Result<AnalyzedRefs> {
     let mut references = Vec::new();
     let mut urls = Vec::new();
@@ -54,18 +54,18 @@ pub fn analyze_references(
 }
 
 struct ModuleReferencesVisitor<'a> {
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     origin: Vc<Box<dyn ResolveOrigin>>,
-    import_context: Vc<ImportContext>,
+    import_context: Option<Vc<ImportContext>>,
     references: &'a mut Vec<Vc<Box<dyn ModuleReference>>>,
     urls: &'a mut Vec<(String, Vc<UrlAssetReference>)>,
 }
 
 impl<'a> ModuleReferencesVisitor<'a> {
     fn new(
-        source: Vc<Box<dyn Source>>,
+        source: ResolvedVc<Box<dyn Source>>,
         origin: Vc<Box<dyn ResolveOrigin>>,
-        import_context: Vc<ImportContext>,
+        import_context: Option<Vc<ImportContext>>,
         references: &'a mut Vec<Vc<Box<dyn ModuleReference>>>,
         urls: &'a mut Vec<(String, Vc<UrlAssetReference>)>,
     ) -> Self {
@@ -99,7 +99,7 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
                     ImportAttributes::new_from_lightningcss(&i.clone().into_owned()).into(),
                     self.import_context,
                     IssueSource::from_line_col(
-                        Vc::upcast(self.source),
+                        ResolvedVc::upcast(self.source),
                         SourcePos {
                             line: issue_span.line as _,
                             column: issue_span.column as _,
@@ -134,7 +134,7 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
                 self.origin,
                 Request::parse(Value::new(RcStr::from(src).into())),
                 IssueSource::from_line_col(
-                    Vc::upcast(self.source),
+                    ResolvedVc::upcast(self.source),
                     SourcePos {
                         line: issue_span.line as _,
                         column: issue_span.column as _,
@@ -171,7 +171,7 @@ pub fn css_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     ty: Value<CssReferenceSubType>,
-    issue_source: Option<Vc<IssueSource>>,
+    issue_source: Option<IssueSource>,
 ) -> Vc<ModuleResolveResult> {
     url_resolve(
         origin,

@@ -47,6 +47,7 @@ pub fn assert_fields_impl_trait(
             // we reproduce the field types here to ensure any generics get used
             struct #assertion_struct_ident #impl_generics (#(#field_types),*) #where_clause;
             impl #impl_generics #assertion_struct_ident #ty_generics #where_clause {
+                #[allow(non_snake_case)]
                 fn #assertion_fn_ident<
                     Expected: #trait_path + ?Sized
                 >() {}

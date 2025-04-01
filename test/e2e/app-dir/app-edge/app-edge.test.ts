@@ -106,12 +106,21 @@ describe('app-dir edge SSR', () => {
       const manifest = JSON.parse(
         await next.readFile('.next/server/middleware-manifest.json')
       )
-      expect(manifest.functions['/(group)/group/page'].matchers).toEqual([
-        {
-          regexp: '^/group$',
-          originalSource: '/group',
-        },
-      ])
+      if (process.env.TURBOPACK) {
+        expect(manifest.functions['/(group)/group/page'].matchers).toEqual([
+          {
+            regexp: '^/group(?:/)?$',
+            originalSource: '/group',
+          },
+        ])
+      } else {
+        expect(manifest.functions['/(group)/group/page'].matchers).toEqual([
+          {
+            regexp: '^/group$',
+            originalSource: '/group',
+          },
+        ])
+      }
     })
   }
 })

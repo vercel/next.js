@@ -7,7 +7,6 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 import type { AfterContext } from '../after/after-context'
 import type { CacheLife } from '../use-cache/cache-life'
-import type { Params } from '../request/params'
 
 // Share the instance module in the next-shared layer
 import { workAsyncStorageInstance } from './work-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
@@ -55,7 +54,15 @@ export interface WorkStore {
   nextFetchId?: number
   pathWasRevalidated?: boolean
 
-  revalidatedTags?: string[]
+  // Tags that were revalidated during the current request. They need to be sent
+  // to cache handlers to propagate their revalidation.
+  pendingRevalidatedTags?: string[]
+
+  // Tags that were previously revalidated (e.g. by a redirecting server action)
+  // and have already been sent to cache handlers. Retrieved cache entries that
+  // include any of these tags must be discarded.
+  readonly previouslyRevalidatedTags: readonly string[]
+
   fetchMetrics?: FetchMetrics
 
   isDraftMode?: boolean
@@ -71,7 +78,8 @@ export interface WorkStore {
   >
   readonly assetPrefix?: string
 
-  rootParams: Params
+  dynamicIOEnabled: boolean
+  dev: boolean
 }
 
 export type WorkAsyncStorage = AsyncLocalStorage<WorkStore>

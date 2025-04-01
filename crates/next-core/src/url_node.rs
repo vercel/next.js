@@ -1,8 +1,7 @@
 //! The following code is adapted from sorted-routes.ts using GPT-4 and human
 //! review.
 
-use std::collections::HashMap;
-
+use rustc_hash::FxHashMap;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -43,7 +42,7 @@ pub enum UrlNodeError {
 
 pub struct UrlNode {
     placeholder: bool,
-    children: HashMap<String, UrlNode>,
+    children: FxHashMap<String, UrlNode>,
     slug_name: Option<String>,
     rest_slug_name: Option<String>,
     optional_rest_slug_name: Option<String>,
@@ -59,7 +58,7 @@ impl UrlNode {
     pub fn new() -> UrlNode {
         UrlNode {
             placeholder: true,
-            children: HashMap::new(),
+            children: FxHashMap::default(),
             slug_name: None,
             rest_slug_name: None,
             optional_rest_slug_name: None,

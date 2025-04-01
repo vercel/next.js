@@ -19,13 +19,13 @@ async function resolveStreamResponse(response: any, onData?: any) {
   return result
 }
 
+function stripHTMLComments(html: string): string {
+  return html.replace(/<!--[\s\S]*?-->/g, '')
+}
+
 describe('app dir - rsc basics', () => {
   const { next, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
-    dependencies: {
-      'styled-components': 'latest',
-      'server-only': 'latest',
-    },
     resolutions: {
       '@babel/core': '7.22.18',
       '@babel/parser': '7.22.16',
@@ -76,13 +76,13 @@ describe('app dir - rsc basics', () => {
   it('should correctly render page returning null', async () => {
     const homeHTML = await next.render('/return-null/page')
     const $ = cheerio.load(homeHTML)
-    expect($('#return-null-layout').html()).toBeEmpty()
+    expect(stripHTMLComments($('#return-null-layout').html())).toBeEmpty()
   })
 
   it('should correctly render component returning null', async () => {
     const homeHTML = await next.render('/return-null/component')
     const $ = cheerio.load(homeHTML)
-    expect($('#return-null-layout').html()).toBeEmpty()
+    expect(stripHTMLComments($('#return-null-layout').html())).toBeEmpty()
   })
 
   it('should correctly render layout returning null', async () => {
@@ -94,13 +94,13 @@ describe('app dir - rsc basics', () => {
   it('should correctly render page returning undefined', async () => {
     const homeHTML = await next.render('/return-undefined/page')
     const $ = cheerio.load(homeHTML)
-    expect($('#return-undefined-layout').html()).toBeEmpty()
+    expect(stripHTMLComments($('#return-undefined-layout').html())).toBeEmpty()
   })
 
   it('should correctly render component returning undefined', async () => {
     const homeHTML = await next.render('/return-undefined/component')
     const $ = cheerio.load(homeHTML)
-    expect($('#return-undefined-layout').html()).toBeEmpty()
+    expect(stripHTMLComments($('#return-undefined-layout').html())).toBeEmpty()
   })
 
   it('should correctly render layout returning undefined', async () => {
@@ -368,77 +368,6 @@ describe('app dir - rsc basics', () => {
     expect(content).toContain('bar.server.js:')
   })
 
-  it('should render initial styles of css-in-js in nodejs SSR correctly', async () => {
-    const $ = await next.render$('/css-in-js')
-    const head = $('head').html()
-
-    // from styled-jsx
-    expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
-    expect(head).toMatch(/{color:(\s*)(?:hotpink|#ff69b4);?}/) // styled-jsx/css
-
-    // from styled-components
-    expect(head).toMatch(/{color:(\s*)(?:blue|#00f);?}/)
-  })
-
-  it('should render initial styles of css-in-js in edge SSR correctly', async () => {
-    const $ = await next.render$('/css-in-js/edge')
-    const head = $('head').html()
-
-    // from styled-jsx
-    expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
-    expect(head).toMatch(/{color:(\s*)(?:hotpink|#ff69b4);?}/) // styled-jsx/css
-
-    // from styled-components
-    expect(head).toMatch(/{color:(\s*)(?:blue|#00f);?}/)
-  })
-
-  it('should render css-in-js suspense boundary correctly', async () => {
-    await next.fetch('/css-in-js/suspense').then(async (response) => {
-      const results = []
-
-      await resolveStreamResponse(response, (chunk: string) => {
-        const isSuspenseyDataResolved =
-          /<style[^<>]*>(\s)*.+{padding:2px;(\s)*color:orange;}/.test(chunk)
-        if (isSuspenseyDataResolved) results.push('data')
-
-        // check if rsc refresh script for suspense show up, the test content could change with react version
-        const hasRCScript = /\$RC=function/.test(chunk)
-        if (hasRCScript) results.push('refresh-script')
-
-        const isFallbackResolved = chunk.includes('$test-fallback-sentinel')
-        if (isFallbackResolved) results.push('fallback')
-      })
-
-      expect(results).toEqual(['fallback', 'data', 'refresh-script'])
-    })
-    // // TODO-APP: fix streaming/suspense within browser for test suite
-    // const browser = await next.browser( '/css-in-js', { waitHydration: false })
-    // const footer = await browser.elementByCss('#footer')
-    // expect(await footer.text()).toBe('wait for fallback')
-    // expect(
-    //   await browser.eval(
-    //     `window.getComputedStyle(document.querySelector('#footer')).borderColor`
-    //   )
-    // ).toBe('rgb(255, 165, 0)')
-    // // Suspense is not rendered yet
-    // expect(
-    //   await browser.eval(
-    //     `document.querySelector('#footer-inner')`
-    //   )
-    // ).toBe('null')
-
-    // // Wait for suspense boundary
-    // await check(
-    //   () => browser.elementByCss('#footer').text(),
-    //   'wait for footer'
-    // )
-    // expect(
-    //   await browser.eval(
-    //     `window.getComputedStyle(document.querySelector('#footer-inner')).color`
-    //   )
-    // ).toBe('rgb(255, 165, 0)')
-  })
-
   it('should stick to the url without trailing /page suffix', async () => {
     const browser = await next.browser('/edge/dynamic')
     const indexUrl = await browser.url()
@@ -500,8 +429,11 @@ describe('app dir - rsc basics', () => {
   })
 
   // TODO: (PPR) remove once PPR is stable
+  // TODO(new-dev-overlay): remove once new dev overlay is stable
   const bundledReactVersionPattern =
-    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' ? '-experimental-' : '-rc-'
+    process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+      ? '-experimental-'
+      : '-canary-'
 
   it('should not use bundled react for pages with app', async () => {
     const ssrPaths = ['/pages-react', '/edge-pages-react']

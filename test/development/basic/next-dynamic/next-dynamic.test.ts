@@ -66,7 +66,9 @@ describe('next/dynamic', () => {
         const $ = await get$(basePath + '/dynamic/ssr')
         // Make sure the client side knows it has to wait for the bundle
         expect(JSON.parse($('#__NEXT_DATA__').html()).dynamicIds).toContain(
-          'pages/dynamic/ssr.js -> ../../components/hello1'
+          process.env.TURBOPACK
+            ? '[project]/components/hello1.js [client] (ecmascript, next/dynamic entry)'
+            : 'pages/dynamic/ssr.js -> ../../components/hello1'
         )
         expect($('body').text()).toMatch(/Hello World 1/)
       })
@@ -75,7 +77,9 @@ describe('next/dynamic', () => {
         const $ = await get$(basePath + '/dynamic/function')
         // Make sure the client side knows it has to wait for the bundle
         expect(JSON.parse($('#__NEXT_DATA__').html()).dynamicIds).toContain(
-          'pages/dynamic/function.js -> ../../components/hello1'
+          process.env.TURBOPACK
+            ? '[project]/components/hello1.js [client] (ecmascript, next/dynamic entry)'
+            : 'pages/dynamic/function.js -> ../../components/hello1'
         )
         expect($('body').text()).toMatch(/Hello World 1/)
       })

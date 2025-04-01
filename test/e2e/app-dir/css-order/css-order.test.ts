@@ -25,9 +25,9 @@ const PAGES: Record<
     color: string
     background?: string
     conflict?: boolean
+    conflictTurbo?: boolean
     brokenLoading?: boolean
     brokenLoadingDev?: boolean
-    brokenLoadingTurbo?: boolean
   }
 > = {
   first: {
@@ -140,7 +140,6 @@ const PAGES: Record<
   'pages-interleaved-a': {
     group: 'pages-interleaved',
     brokenLoadingDev: true,
-    brokenLoadingTurbo: true,
     url: '/pages/interleaved/a',
     selector: '#helloia',
     color: 'rgb(0, 255, 0)',
@@ -148,7 +147,6 @@ const PAGES: Record<
   'pages-interleaved-b': {
     group: 'pages-interleaved',
     brokenLoadingDev: true,
-    brokenLoadingTurbo: true,
     url: '/pages/interleaved/b',
     selector: '#helloib',
     color: 'rgb(255, 0, 255)',
@@ -156,6 +154,8 @@ const PAGES: Record<
   'pages-reversed-a': {
     group: 'pages-reversed',
     brokenLoadingDev: true,
+    // TODO Turbopack can support this case with a pages dir css chunking
+    conflictTurbo: true,
     url: '/pages/reversed/a',
     selector: '#hellora',
     color: 'rgb(0, 166, 255)',
@@ -163,6 +163,8 @@ const PAGES: Record<
   'pages-reversed-b': {
     group: 'pages-reversed',
     brokenLoadingDev: true,
+    // TODO Turbopack can support this case with a pages dir css chunking
+    conflictTurbo: true,
     url: '/pages/reversed/b',
     selector: '#hellorb',
     color: 'rgb(0, 89, 255)',
@@ -170,6 +172,8 @@ const PAGES: Record<
   'pages-partial-reversed-a': {
     group: 'pages-partial-reversed',
     brokenLoadingDev: true,
+    // TODO Turbopack can support this case with a pages dir css chunking
+    conflictTurbo: true,
     url: '/pages/partial-reversed/a',
     selector: '#hellopra',
     color: 'rgb(255, 166, 255)',
@@ -178,6 +182,8 @@ const PAGES: Record<
   'pages-partial-reversed-b': {
     group: 'pages-partial-reversed',
     brokenLoadingDev: true,
+    // TODO Turbopack can support this case with a pages dir css chunking
+    conflictTurbo: true,
     url: '/pages/partial-reversed/b',
     selector: '#helloprb',
     color: 'rgb(255, 55, 255)',
@@ -235,12 +241,20 @@ describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', true])(
       const name = `should load correct styles navigating back again ${ordering.join(
         ' -> '
       )} -> ${ordering.join(' -> ')}`
-      if (ordering.some((page) => PAGES[page].conflict)) {
+      if (
+        ordering
+          .map((page) => PAGES[page])
+          .some((page) =>
+            mode === 'turbo'
+              ? page.conflictTurbo || page.conflict
+              : page.conflict
+          )
+      ) {
         // Conflict scenarios won't support that case
         continue
       }
       // TODO fix this case
-      const broken =
+      let broken =
         isNextDev || ordering.some((page) => PAGES[page].brokenLoading)
       if (broken) {
         it.todo(name)
@@ -288,28 +302,27 @@ describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])(
       const name = `should load correct styles navigating ${ordering.join(
         ' -> '
       )}`
-      if (mode !== 'turbo') {
-        if (ordering.some((page) => PAGES[page].conflict)) {
-          // Conflict scenarios won't support that case
-          continue
-        }
-        // TODO fix this case
-        const broken = ordering.some(
-          (page) =>
-            PAGES[page].brokenLoading ||
-            (isNextDev && PAGES[page].brokenLoadingDev)
-        )
-        if (broken) {
-          it.todo(name)
-          continue
-        }
-      } else {
-        // TODO fix this case
-        const broken = ordering.some((page) => PAGES[page].brokenLoadingTurbo)
-        if (broken) {
-          it.todo(name)
-          continue
-        }
+      if (
+        ordering
+          .map((page) => PAGES[page])
+          .some((page) =>
+            mode === 'turbo'
+              ? page.conflictTurbo || page.conflict
+              : page.conflict
+          )
+      ) {
+        // Conflict scenarios won't support that case
+        continue
+      }
+      // TODO fix this case
+      let broken = ordering.some(
+        (page) =>
+          PAGES[page].brokenLoading ||
+          (isNextDev && PAGES[page].brokenLoadingDev)
+      )
+      if (broken) {
+        it.todo(name)
+        continue
       }
       it(name, async () => {
         const start = PAGES[ordering[0]]
@@ -340,7 +353,10 @@ describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])(
     const { next } = nextTestSetup(options(mode))
     for (const [page, pageInfo] of Object.entries(PAGES)) {
       const name = `should load correct styles on ${page}`
-      if (mode === 'loose' && pageInfo.conflict) {
+      if (
+        (mode !== 'strict' && pageInfo.conflict) ||
+        (mode === 'turbo' && pageInfo.conflictTurbo)
+      ) {
         // Conflict scenarios won't support that case
         continue
       }

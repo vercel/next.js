@@ -10,8 +10,8 @@ use std::{
 
 use anyhow::{Ok, Result};
 use byteorder::WriteBytesExt;
-use dashmap::DashMap;
 use rustc_hash::{FxHashMap, FxHasher};
+use turbo_tasks::FxDashMap;
 
 use crate::database::{
     by_key_space::ByKeySpace,
@@ -39,7 +39,7 @@ impl<T: KeyValueDatabase> Borrow<[u8]> for ValueBuffer<'_, T> {
     }
 }
 
-type Cache = ByKeySpace<DashMap<Vec<u8>, Option<Vec<u8>>, BuildHasherDefault<FxHasher>>>;
+type Cache = ByKeySpace<FxDashMap<Vec<u8>, Option<Vec<u8>>>>;
 
 pub struct StartupCacheLayer<T: KeyValueDatabase> {
     database: T,
@@ -81,7 +81,7 @@ impl<T: KeyValueDatabase> StartupCacheLayer<T> {
             fresh_db,
             cache_size: AtomicUsize::new(0),
             cache: ByKeySpace::new(|key_space| {
-                DashMap::with_capacity_and_hasher(
+                FxDashMap::with_capacity_and_hasher(
                     match key_space {
                         KeySpace::Infra => 8,
                         KeySpace::TaskMeta => 1024 * 1024,

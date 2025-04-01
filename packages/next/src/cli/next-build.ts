@@ -16,10 +16,12 @@ export type NextBuildOptions = {
   profile?: boolean
   lint: boolean
   mangling: boolean
+  turbo?: boolean
+  turbopack?: boolean
   experimentalDebugMemoryUsage: boolean
   experimentalAppOnly?: boolean
   experimentalTurbo?: boolean
-  experimentalBuildMode: 'default' | 'compile' | 'generate'
+  experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env'
   experimentalUploadTrace?: string
 }
 
@@ -34,7 +36,6 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     lint,
     mangling,
     experimentalAppOnly,
-    experimentalTurbo,
     experimentalBuildMode,
     experimentalUploadTrace,
   } = options
@@ -71,7 +72,7 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  if (experimentalTurbo) {
+  if (options.turbo || options.turbopack) {
     process.env.TURBOPACK = '1'
   }
 

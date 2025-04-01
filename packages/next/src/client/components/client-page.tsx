@@ -51,10 +51,10 @@ export function ClientPageRoot({
     return <Component params={clientParams} searchParams={clientSearchParams} />
   } else {
     const { createRenderSearchParamsFromClient } =
-      require('../../server/request/search-params.browser') as typeof import('../../server/request/search-params.browser')
+      require('../request/search-params.browser') as typeof import('../request/search-params.browser')
     const clientSearchParams = createRenderSearchParamsFromClient(searchParams)
     const { createRenderParamsFromClient } =
-      require('../../server/request/params.browser') as typeof import('../../server/request/params.browser')
+      require('../request/params.browser') as typeof import('../request/params.browser')
     const clientParams = createRenderParamsFromClient(params)
 
     return <Component params={clientParams} searchParams={clientSearchParams} />

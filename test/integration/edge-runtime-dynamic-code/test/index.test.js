@@ -114,8 +114,10 @@ describe.each([
                     // Next.js internal frame. Feel free to adjust.
                     // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
                     '\n    at'
-                : '\n    at eval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:11:18)' +
-                    '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/middleware.js:12:53)' +
+                : '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:11:18)' +
+                    '\n    at middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:12:53)' +
+                    // Next.js internal frame. Feel free to adjust.
+                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
                     '\n    at eval (../packages/next/dist'
             )
           } else {
@@ -127,8 +129,8 @@ describe.each([
                     // Next.js internal frame. Feel free to adjust.
                     // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
                     '\n    at'
-                : '\n    at eval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:11:18)' +
-                    '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:13:23)' +
+                : '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:11:18)' +
+                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:13:23)' +
                     '\n   9 | export async function usingEval() {'
             )
           }
@@ -176,7 +178,7 @@ describe.each([
                     // Next.js internal frame. Feel free to adjust.
                     // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
                     '\n    at'
-                : '\n    at WebAssembly (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:23)' +
+                : '\n    at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:23)' +
                     '\n    at middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:24:68)' +
                     // Next.js internal frame. Feel free to adjust.
                     // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
@@ -192,7 +194,7 @@ describe.each([
                     // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
                     '\n    at'
                 : '' +
-                    '\n    at WebAssembly (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:23)' +
+                    '\n    at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:23)' +
                     '\n    at handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:17:42)' +
                     // Next.js internal frame. Feel free to adjust.
                     // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules

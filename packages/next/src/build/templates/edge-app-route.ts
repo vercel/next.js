@@ -10,12 +10,6 @@ import * as module from 'VAR_USERLAND'
 declare const nextConfig: NextConfigComplete
 // INJECT:nextConfig
 
-const cacheHandlers = {}
-
-if (!(globalThis as any).__nextCacheHandlers) {
-  ;(globalThis as any).__nextCacheHandlers = cacheHandlers
-}
-
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
 const rscManifest = self.__RSC_MANIFEST?.['VAR_PAGE']

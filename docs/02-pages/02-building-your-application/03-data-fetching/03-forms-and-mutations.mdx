@@ -34,8 +34,10 @@ export default async function handler(
 ```js filename="pages/api/submit.js" switcher
 export default function handler(req, res) {
   const data = req.body
-  const id = await createItem(data)
-  res.status(200).json({ id })
+  // call your database, etc.
+  // const id = await createItem(data)
+  // ...
+  res.status(200).json({ data })
 }
 ```
 
