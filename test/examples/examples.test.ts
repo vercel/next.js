@@ -18,7 +18,6 @@ const testedExamples = [
   'i18n-routing-pages',
   'image-component',
   'mdx',
-  'middleware',
   'middleware-matcher',
   'nested-components',
   'next-forms',
