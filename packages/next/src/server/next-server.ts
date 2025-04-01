@@ -189,20 +189,23 @@ export default class NextNodeServer extends BaseServer<
     // Initialize super class
     super(options)
 
+    const isDev = options.dev ?? false
+    this.isDev = isDev
+    this.sriEnabled = Boolean(options.conf.experimental?.sri?.algorithm)
+
     const isTurbopackBuild = this.isTurbopackBuild()
 
-    if (process.env.TURBOPACK && !isTurbopackBuild) {
-      throw new Error(
-        `Invariant: --turbopack is set but the build used Webpack`
-      )
-    } else if (!process.env.TURBOPACK && isTurbopackBuild) {
-      throw new Error(
-        `Invariant: --turbopack is not set but the build used Turbopack. Add --turbopack to "next start".`
-      )
+    if (!isDev) {
+      if (process.env.TURBOPACK && !isTurbopackBuild) {
+        throw new Error(
+          `Invariant: --turbopack is set but the build used Webpack`
+        )
+      } else if (!process.env.TURBOPACK && isTurbopackBuild) {
+        throw new Error(
+          `Invariant: --turbopack is not set but the build used Turbopack. Add --turbopack to "next start".`
+        )
+      }
     }
-
-    this.isDev = options.dev ?? false
-    this.sriEnabled = Boolean(options.conf.experimental?.sri?.algorithm)
 
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.
