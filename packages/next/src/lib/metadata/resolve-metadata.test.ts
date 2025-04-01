@@ -12,7 +12,6 @@ function accumulateMetadata(metadataItems: MetadataItems) {
   const fullMetadataItems: FullMetadataItems = metadataItems.map((item) => [
     item[0],
     item[1],
-    null,
   ])
   return originAccumulateMetadata(fullMetadataItems, {
     pathname: '/test',
@@ -23,9 +22,7 @@ function accumulateMetadata(metadataItems: MetadataItems) {
 
 function accumulateViewport(viewportExports: Viewport[]) {
   // skip the first two arguments (metadata and static metadata)
-  return originAccumulateViewport(
-    viewportExports.map((item) => [null, null, item])
-  )
+  return originAccumulateViewport(viewportExports.map((item) => item))
 }
 
 function mapUrlsToStrings(obj: any) {

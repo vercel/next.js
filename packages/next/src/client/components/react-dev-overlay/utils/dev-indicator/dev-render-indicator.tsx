@@ -3,21 +3,35 @@
  * Used by the dev tools indicator to show render status
  */
 
-import { useEffect, useOptimistic } from 'react'
+import { useSyncExternalStore } from 'react'
 
-const optimisticStateSetters = new Set<(boolean: true) => void>()
+let isVisible = false
+let listeners: Array<() => void> = []
 
-export function useIsDevRendering() {
-  const [isDevRendering, setIsDevRendering] = useOptimistic(false)
-  useEffect(() => {
-    optimisticStateSetters.add(setIsDevRendering)
-    return () => {
-      optimisticStateSetters.delete(setIsDevRendering)
-    }
-  }, [setIsDevRendering])
-  return isDevRendering
+const subscribe = (listener: () => void) => {
+  listeners.push(listener)
+  return () => {
+    listeners = listeners.filter((l) => l !== listener)
+  }
 }
 
-export function setDevRenderIndicatorPending() {
-  optimisticStateSetters.forEach((setter) => setter(true))
+const getSnapshot = () => isVisible
+
+const show = () => {
+  isVisible = true
+  listeners.forEach((listener) => listener())
+}
+
+const hide = () => {
+  isVisible = false
+  listeners.forEach((listener) => listener())
+}
+
+export function useIsDevRendering() {
+  return useSyncExternalStore(subscribe, getSnapshot)
+}
+
+export const devRenderIndicator = {
+  show,
+  hide,
 }
