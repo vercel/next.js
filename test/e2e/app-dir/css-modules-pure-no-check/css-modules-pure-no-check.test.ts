@@ -25,7 +25,8 @@ describe('css-modules-pure-no-check', () => {
     const cssHref = cssLink[0].attribs['href']
 
     const res = await next.fetch(cssHref)
-    const cssCode = await res.text()
+    const cssContent = await res.text()
+    const cssCode = cssContent.replace(/\/\*.*?\*\//g, '').trim()
 
     expect(cssCode).toInclude(`.global{font-weight:700}`)
     expect(cssCode).toInclude(
