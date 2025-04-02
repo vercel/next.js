@@ -236,11 +236,12 @@ const nextDev = async (
     hostname: host,
   }
 
-  if (options.turbo || options.turbopack) {
+  const isTurbopack = Boolean(options.turbo || options.turbopack)
+  if (isTurbopack) {
     process.env.TURBOPACK = '1'
   }
 
-  isTurboSession = !!process.env.TURBOPACK
+  isTurboSession = isTurbopack
 
   const distDir = path.join(dir, config.distDir ?? '.next')
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
