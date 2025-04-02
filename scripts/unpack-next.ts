@@ -1,14 +1,14 @@
 // This script must be run with tsx
 
-const { NEXT_DIR, exec } = require('./pack-util')
-const fs = require('fs')
-const path = require('path')
+import { NEXT_DIR, exec } from './pack-util'
+import fs from 'fs'
+import path from 'path'
 
 const TARBALLS = `${NEXT_DIR}/tarballs`
 
 const PROJECT_DIR = path.resolve(process.argv[2])
 
-function realPathIfAny(path) {
+function realPathIfAny(path: fs.PathLike) {
   try {
     return fs.realpathSync(path)
   } catch {
