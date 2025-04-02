@@ -364,22 +364,19 @@ function assignDefaults(
         )
       }
 
-      // Convert URL to RemotePattern
+      // We must convert URL to RemotePattern since URL has a colon in the protocol
+      // and also has additional properties we want to filter out. Also, new URL()
+      // accepts any protocol so we need manual validation here.
       images.remotePatterns = images.remotePatterns.map(
         ({ protocol, hostname, port, pathname, search }) => {
-          if (
-            protocol &&
-            !['http', 'https', 'http:', 'https:'].includes(protocol)
-          ) {
+          const proto = protocol?.replace(/:$/, '')
+          if (!['http', 'https', undefined].includes(proto)) {
             throw new Error(
-              `Specified images.remotePatterns must have protocol "http" or "https" received "${protocol}".`
+              `Specified images.remotePatterns must have protocol "http" or "https" received "${proto}".`
             )
           }
           return {
-            protocol: protocol?.replace(/:$/, '') as
-              | 'http'
-              | 'https'
-              | undefined,
+            protocol: proto as 'http' | 'https' | undefined,
             hostname,
             port,
             pathname,
