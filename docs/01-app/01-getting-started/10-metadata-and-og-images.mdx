@@ -214,3 +214,91 @@ You can also add OG images for specific routes by creating a `opengraph-image.pn
 The more specific image will take precedence over any OG images above it in the folder structure.
 
 > Other image formats such as `jpeg`, `png`, and `webp` are also supported. See the [Open Graph Image docs](/docs/app/api-reference/file-conventions/metadata/opengraph-image) for more information.
+
+## Generated Open Graph images
+
+The [`ImageResponse` constructor](/docs/app/api-reference/functions/image-response) allows you to generate dynamic images using JSX and CSS. This is useful for OG images that depend on data.
+
+For example, to generate a unique OG image for each blog post, add a `opengraph-image.ts` file inside the `blog` folder, and import the `ImageResponse` constructor from `next/og`:
+
+```tsx filename="app/blog/[slug]/opengraph-image.ts" switcher
+import { ImageResponse } from 'next/og'
+import { getPost } from '@/app/ui/data'
+
+// Image metadata
+export const size = {
+  width: 1200,
+  height: 630,
+}
+
+export const contentType = 'image/png'
+
+// Image generation
+export default async function Image({ params }: { params: { slug: string } }) {
+  const post = await getPost(params.slug)
+
+  return new ImageResponse(
+    (
+      // ImageResponse JSX element
+      <div
+        style={{
+          fontSize: 128,
+          background: 'white',
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {post.title}
+      </div>
+    )
+  )
+}
+```
+
+```jsx filename="app/blog/[slug]/opengraph-image.js" switcher
+import { ImageResponse } from 'next/og'
+import { getPost } from '@/app/ui/data'
+
+// Image metadata
+export const size = {
+  width: 1200,
+  height: 630,
+}
+
+export const contentType = 'image/png'
+
+// Image generation
+export default async function Image({ params }) {
+  const post = await getPost(params.slug)
+
+  return new ImageResponse(
+    (
+      // ImageResponse JSX element
+      <div
+        style={{
+          fontSize: 128,
+          background: 'white',
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {post.title}
+      </div>
+    )
+  )
+}
+```
+
+`ImageResponse` supports common CSS properties including flexbox and absolute positioning, custom fonts, text wrapping, centering, and nested images. [See the full list of supported CSS properties](/docs/app/api-reference/functions/image-response).
+
+> **Good to know**:
+>
+> - Examples are available in the [Vercel OG Playground](https://og-playground.vercel.app/).
+> - `ImageResponse` uses [@vercel/og](https://vercel.com/docs/concepts/functions/edge-functions/og-image-generation), [Satori](https://github.com/vercel/satori), and Resvg to convert HTML and CSS into PNG.
+> - Only flexbox and a subset of CSS properties are supported. Advanced layouts (e.g. `display: grid`) will not work.
