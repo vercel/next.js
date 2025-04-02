@@ -234,7 +234,7 @@ export class NextServer implements NextWrapperServer {
     if (process.env.NODE_ENV === 'production') {
       try {
         const serializedConfig = require(
-          path.join(dir, '.next', SERVER_FILES_MANIFEST)
+          path.join(dir, config.distDir, SERVER_FILES_MANIFEST)
         ).config
 
         // @ts-expect-error internal field

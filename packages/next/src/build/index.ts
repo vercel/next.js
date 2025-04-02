@@ -81,7 +81,6 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE,
   DYNAMIC_CSS_MANIFEST,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
-  IS_TURBOPACK_BUILD_FILE,
 } from '../shared/lib/constants'
 import {
   getSortedRoutes,
@@ -560,6 +559,7 @@ interface RequiredServerFilesManifest {
   relativeAppDir: string
   files: string[]
   ignore: string[]
+  turbopack: boolean
 }
 
 async function writeRequiredServerFilesManifest(
@@ -2334,7 +2334,7 @@ export default async function build(
                   ]
                 : []),
               BUILD_ID_FILE,
-              turboNextBuild ? IS_TURBOPACK_BUILD_FILE : null,
+              SERVER_FILES_MANIFEST,
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
               ...instrumentationHookEntryFiles,
@@ -2342,6 +2342,7 @@ export default async function build(
               .filter(nonNullable)
               .map((file) => path.join(config.distDir, file)),
             ignore: [] as string[],
+            turbopack: turboNextBuild,
           }
 
           return serverFilesManifest
