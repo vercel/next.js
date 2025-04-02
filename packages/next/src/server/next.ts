@@ -231,7 +231,7 @@ export class NextServer implements NextWrapperServer {
     )
 
     // check serialized build config when available
-    if (process.env.NODE_ENV === 'production') {
+    if (!this.options.dev) {
       try {
         const serializedConfig = require(
           path.join(dir, config.distDir, SERVER_FILES_MANIFEST)
