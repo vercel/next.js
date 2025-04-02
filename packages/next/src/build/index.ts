@@ -559,7 +559,6 @@ interface RequiredServerFilesManifest {
   relativeAppDir: string
   files: string[]
   ignore: string[]
-  turbopack: boolean
 }
 
 async function writeRequiredServerFilesManifest(
