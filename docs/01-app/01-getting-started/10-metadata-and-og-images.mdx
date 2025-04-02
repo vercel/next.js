@@ -33,7 +33,7 @@ There are two default `meta` tags that are always added even if a route doesn't 
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 ```
 
-The other metadata fields can be defined with the `Metadata` object (for [static metadata](#static-metadata)) or the `generateMetadata` function (for [dynamic metadata](#dynamic-metadata)).
+The other metadata fields can be defined with the `Metadata` object (for [static metadata](#static-metadata)) or the `generateMetadata` function (for [generated metadata](#generated-metadata)).
 
 ## Static metadata
 
@@ -61,7 +61,7 @@ export default function Page() {}
 
 You can view a full list of [available options here](/docs/app/api-reference/functions/generate-metadata#metadata-fields).
 
-## Dynamic metadata
+## Generated metadata
 
 You can use [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) function to `fetch` metadata that depends on data. For example, to fetch the title and description for a specific blog post:
 
