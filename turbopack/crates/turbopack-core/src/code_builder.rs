@@ -187,8 +187,13 @@ impl Code {
             }
             last_byte_pos = *byte_pos;
 
-            if pos.column != 0 || map.is_some() {
-                sections.push((pos, map.clone().unwrap_or_else(SourceMap::empty_rope)))
+            if let Some(map) = map {
+                sections.push((pos, map.clone()))
+            } else {
+                // We don't need an empty source map when column is 0 or the next char is a newline.
+                if pos.column != 0 && read.fill_buf()?.first().is_some_and(|&b| b != b'\n') {
+                    sections.push((pos, SourceMap::empty_rope()));
+                }
             }
         }
 
