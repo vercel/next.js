@@ -269,8 +269,13 @@ export function getRenderResumeDataCache(
 }
 
 export function getHmrRefreshHash(
+  workStore: WorkStore,
   workUnitStore: WorkUnitStore
 ): string | undefined {
+  if (!workStore.dev) {
+    return undefined
+  }
+
   return workUnitStore.type === 'cache'
     ? workUnitStore.hmrRefreshHash
     : workUnitStore.type === 'request'
