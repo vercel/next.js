@@ -293,7 +293,7 @@
     "picomatch": "4.0.1",
     "postcss-flexbugs-fixes": "5.0.2",
     "postcss-modules-extract-imports": "3.0.0",
-    "postcss-modules-local-by-default": "4.0.4",
+    "postcss-modules-local-by-default": "4.2.0",
     "postcss-modules-scope": "3.0.0",
     "postcss-modules-values": "4.0.0",
     "postcss-preset-env": "7.4.3",
