@@ -10,7 +10,6 @@ import { addRefreshMarkerToActiveParallelSegments } from './refetch-inactive-par
 import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
 
 export interface InitialRouterStateParameters {
-  navigatedAt: number
   initialCanonicalUrlParts: string[]
   initialParallelRoutes: CacheNode['parallelRoutes']
   initialFlightData: FlightDataPath[]
@@ -21,7 +20,6 @@ export interface InitialRouterStateParameters {
 }
 
 export function createInitialRouterState({
-  navigatedAt,
   initialFlightData,
   initialCanonicalUrlParts,
   initialParallelRoutes,
@@ -54,7 +52,6 @@ export function createInitialRouterState({
     // The cache gets seeded during the first render. `initialParallelRoutes` ensures the cache from the first render is there during the second render.
     parallelRoutes: initialParallelRoutes,
     loading,
-    navigatedAt,
   }
 
   const canonicalUrl =
@@ -72,7 +69,6 @@ export function createInitialRouterState({
   // When the cache hasn't been seeded yet we fill the cache with the head.
   if (initialParallelRoutes === null || initialParallelRoutes.size === 0) {
     fillLazyItemsTillLeafWithHead(
-      navigatedAt,
       cache,
       undefined,
       initialTree,

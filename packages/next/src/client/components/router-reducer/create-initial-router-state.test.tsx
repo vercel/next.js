@@ -19,8 +19,6 @@ const getInitialRouterStateTree = (): FlightRouterState => [
   true,
 ]
 
-const navigatedAt = Date.now()
-
 describe('createInitialRouterState', () => {
   it('should return the correct initial router state', () => {
     const initialTree = getInitialRouterStateTree()
@@ -34,7 +32,6 @@ describe('createInitialRouterState', () => {
     const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map()
 
     const state = createInitialRouterState({
-      navigatedAt,
       initialFlightData: [[initialTree, ['', children, {}, null]]],
       initialCanonicalUrlParts: initialCanonicalUrl.split('/'),
       initialParallelRoutes,
@@ -45,7 +42,6 @@ describe('createInitialRouterState', () => {
     })
 
     const state2 = createInitialRouterState({
-      navigatedAt,
       initialFlightData: [[initialTree, ['', children, {}, null]]],
       initialCanonicalUrlParts: initialCanonicalUrl.split('/'),
       initialParallelRoutes,
@@ -56,7 +52,6 @@ describe('createInitialRouterState', () => {
     })
 
     const expectedCache: CacheNode = {
-      navigatedAt,
       lazyData: null,
       rsc: children,
       prefetchRsc: null,
@@ -70,7 +65,6 @@ describe('createInitialRouterState', () => {
             [
               'linking',
               {
-                navigatedAt,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -78,7 +72,6 @@ describe('createInitialRouterState', () => {
                       [
                         '',
                         {
-                          navigatedAt,
                           lazyData: null,
                           rsc: null,
                           prefetchRsc: null,

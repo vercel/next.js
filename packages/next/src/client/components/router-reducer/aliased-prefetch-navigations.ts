@@ -24,7 +24,6 @@ import type { Mutable, ReadonlyReducerState } from './router-reducer-types'
  * more granular segment map and so the router will be able to simply re-use the loading segment for the new navigation.
  */
 export function handleAliasedPrefetchEntry(
-  navigatedAt: number,
   state: ReadonlyReducerState,
   flightData: string | NormalizedFlightData[],
   url: URL,
@@ -86,7 +85,6 @@ export function handleAliasedPrefetchEntry(
 
       // Construct a new tree and apply the aliased loading state for each parallel route
       fillNewTreeWithOnlyLoadingSegments(
-        navigatedAt,
         newCache,
         currentCache,
         treePatch,
@@ -101,7 +99,6 @@ export function handleAliasedPrefetchEntry(
 
       // copy the loading state only into the leaf node (the part that changed)
       fillCacheWithNewSubTreeDataButOnlyLoading(
-        navigatedAt,
         newCache,
         currentCache,
         normalizedFlightData
@@ -149,7 +146,6 @@ function hasLoadingComponentInSeedData(seedData: CacheNodeSeedData | null) {
 }
 
 function fillNewTreeWithOnlyLoadingSegments(
-  navigatedAt: number,
   newCache: CacheNode,
   existingCache: CacheNode,
   routerState: FlightRouterState,
@@ -184,7 +180,6 @@ function fillNewTreeWithOnlyLoadingSegments(
         prefetchHead: null,
         parallelRoutes: new Map(),
         loading,
-        navigatedAt,
       }
     } else {
       // No data available for this node. This will trigger a lazy fetch
@@ -197,7 +192,6 @@ function fillNewTreeWithOnlyLoadingSegments(
         prefetchHead: null,
         parallelRoutes: new Map(),
         loading: null,
-        navigatedAt: -1,
       }
     }
 
@@ -209,7 +203,6 @@ function fillNewTreeWithOnlyLoadingSegments(
     }
 
     fillNewTreeWithOnlyLoadingSegments(
-      navigatedAt,
       newCacheNode,
       existingCache,
       parallelRouteState,

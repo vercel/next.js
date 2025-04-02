@@ -1078,9 +1078,6 @@ function App<T>({
   )
 
   const initialState = createInitialRouterState({
-    // This is not used during hydration, so we don't have to pass a
-    // real timestamp.
-    navigatedAt: -1,
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
     initialParallelRoutes: new Map(),
@@ -1145,9 +1142,6 @@ function ErrorApp<T>({
   )
 
   const initialState = createInitialRouterState({
-    // This is not used during hydration, so we don't have to pass a
-    // real timestamp.
-    navigatedAt: -1,
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
     initialParallelRoutes: new Map(),

@@ -222,8 +222,6 @@ export function serverActionReducer(
       ? state.nextUrl
       : null
 
-  const navigatedAt = Date.now()
-
   return fetchServerAction(state, nextUrl, action).then(
     async ({
       actionResult,
@@ -331,7 +329,6 @@ export function serverActionReducer(
           cache.prefetchRsc = null
           cache.loading = cacheNodeSeedData[3]
           fillLazyItemsTillLeafWithHead(
-            navigatedAt,
             cache,
             // Existing cache is not passed in as server actions have to invalidate the entire cache.
             undefined,
@@ -349,7 +346,6 @@ export function serverActionReducer(
           }
           if (actionRevalidated) {
             await refreshInactiveParallelSegments({
-              navigatedAt,
               state,
               updatedTree: newTree,
               updatedCache: cache,

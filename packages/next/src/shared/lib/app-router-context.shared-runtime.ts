@@ -65,13 +65,6 @@ export type LazyCacheNode = {
    * Child parallel routes.
    */
   parallelRoutes: Map<string, ChildSegmentMap>
-
-  /**
-   * The timestamp of the navigation that last updated the CacheNode's data. If
-   * a CacheNode is reused from a previous navigation, this value is not
-   * updated. Used to track the staleness of the data.
-   */
-  navigatedAt: number
 }
 
 export type ReadyCacheNode = {
@@ -112,8 +105,6 @@ export type ReadyCacheNode = {
   loading: LoadingModuleData | Promise<LoadingModuleData>
 
   parallelRoutes: Map<string, ChildSegmentMap>
-
-  navigatedAt: number
 }
 
 export interface NavigateOptions {

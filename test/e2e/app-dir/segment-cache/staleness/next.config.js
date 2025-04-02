@@ -6,9 +6,6 @@ const nextConfig = {
     ppr: true,
     dynamicIO: true,
     clientSegmentCache: true,
-    staleTimes: {
-      dynamic: 30,
-    },
   },
 }
 

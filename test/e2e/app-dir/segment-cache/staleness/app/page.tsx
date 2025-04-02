@@ -20,9 +20,6 @@ export default function Page() {
             Page with stale time of 10 minutes
           </LinkAccordion>
         </li>
-        <li>
-          <LinkAccordion href="/dynamic">Page with dynamic data</LinkAccordion>
-        </li>
       </ul>
     </>
   )

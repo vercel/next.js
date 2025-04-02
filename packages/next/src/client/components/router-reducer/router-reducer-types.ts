@@ -14,11 +14,9 @@ export const ACTION_HMR_REFRESH = 'hmr-refresh'
 export const ACTION_SERVER_ACTION = 'server-action'
 
 export type RouterChangeByServerResponse = ({
-  navigatedAt,
   previousTree,
   serverResponse,
 }: {
-  navigatedAt: number
   previousTree: FlightRouterState
   serverResponse: FetchServerResponseResult
 }) => void
@@ -133,7 +131,6 @@ export interface RestoreAction {
  */
 export interface ServerPatchAction {
   type: typeof ACTION_SERVER_PATCH
-  navigatedAt: number
   serverResponse: FetchServerResponseResult
   previousTree: FlightRouterState
 }
