@@ -11,7 +11,6 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
-    ident::AssetIdent,
     issue::IssueSource,
     output::OutputAsset,
     reference::ModuleReference,
@@ -103,18 +102,9 @@ pub async fn resolve_url_reference(
     url: Vc<UrlAssetReference>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<Option<RcStr>>> {
-    let this = url.await?;
-    // TODO(WEB-662) This is not the correct way to get the current chunk path. It
-    // currently works as all chunks are in the same directory.
-    let chunk_path = chunking_context.chunk_path(
-        AssetIdent::from_path(this.origin.origin_path()),
-        ".css".into(),
-    );
-    let context_path = chunk_path.parent().await?;
+    let context_path = chunking_context.chunk_root_path().await?;
 
     if let ReferencedAsset::Some(asset) = &*url.get_referenced_asset(chunking_context).await? {
-        // TODO(WEB-662) This is not the correct way to get the path of the asset.
-        // `asset` is on module-level, but we need the output-level asset instead.
         let path = asset.path().await?;
         let relative_path = context_path
             .get_relative_path_to(&path)
