@@ -2,7 +2,7 @@ import { HTML_LIMITED_BOT_UA_RE } from './html-bots'
 
 // Bot crawler that will spin up a headless browser and execute JS
 const HEADLESS_BROWSER_BOT_UA_RE =
-  /Googlebot|Google-PageRenderer|AdsBot-Google|googleweblight|Storebot-Google/i
+  /Googlebot|Google-PageRenderer|AdsBot-Google|googleweblight|Storebot-Google|Google-InspectionTool|Google-CloudVertexBot|GoogleOther/i
 
 export const HTML_LIMITED_BOT_UA_RE_STRING = HTML_LIMITED_BOT_UA_RE.source
 
