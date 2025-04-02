@@ -15,7 +15,7 @@ export function io(expression: string, type: ApiType) {
       const prerenderSignal = workUnitStore.controller.signal
       if (prerenderSignal.aborted === false) {
         // If the prerender signal is already aborted we don't need to construct any stacks
-        // becuase something else actually terminated the prerender.
+        // because something else actually terminated the prerender.
         const workStore = workAsyncStorage.getStore()
         if (workStore) {
           let message: string
