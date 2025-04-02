@@ -42,7 +42,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
     #[turbo_tasks::function]
     async fn content_with_async_module_info(
         &self,
-        async_module_info: Option<Vc<AsyncModuleInfo>>,
+        async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let module = self.module.await?;
 
@@ -53,7 +53,9 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
 
         let analyze = self.module.analyze();
         let analyze_ref = analyze.await?;
-        let async_module_options = analyze_ref.async_module.module_options(async_module_info);
+        let async_module_options = analyze_ref
+            .async_module
+            .module_options(async_module_info.map(|info| *info));
 
         let module_type_result = *module.full_module.determine_module_type().await?;
         let generate_source_map = *self
@@ -63,17 +65,17 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
 
         let content = EcmascriptModuleContent::new(EcmascriptModuleContentOptions {
             parsed,
-            ident: self.module.ident(),
+            ident: self.module.ident().to_resolved().await?,
             specified_module_type: module_type_result.module_type,
-            module_graph: *self.module_graph,
-            chunking_context: *self.chunking_context,
-            references: analyze.references(),
-            esm_references: *analyze_ref.esm_references,
-            code_generation: *analyze_ref.code_generation,
-            async_module: *analyze_ref.async_module,
+            module_graph: self.module_graph,
+            chunking_context: self.chunking_context,
+            references: analyze.references().to_resolved().await?,
+            esm_references: analyze_ref.esm_references,
+            code_generation: analyze_ref.code_generation,
+            async_module: analyze_ref.async_module,
             generate_source_map,
             original_source_map: analyze_ref.source_map,
-            exports: *analyze_ref.exports,
+            exports: analyze_ref.exports,
             async_module_info,
         });
 

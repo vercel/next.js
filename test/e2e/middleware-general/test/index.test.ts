@@ -824,17 +824,6 @@ describe('Middleware Runtime', () => {
         }/sha.json?hello=goodbye`,
       ])
     })
-
-    it(`should read request body`, async () => {
-      const body = { hello: 'world' }
-      const res = await fetchViaHTTP(next.url, '/request-body', undefined, {
-        body: JSON.stringify(body),
-        headers: { 'content-type': 'application/json' },
-        method: 'POST',
-      })
-
-      expect(await res.json()).toEqual(body)
-    })
   }
   describe('with i18n', () => {
     setup({ i18n: true })

@@ -6,6 +6,7 @@
 #![feature(impl_trait_in_assoc_type)]
 #![feature(iter_intersperse)]
 #![feature(map_try_insert)]
+#![feature(hash_set_entry)]
 
 pub mod asset;
 pub mod changed;
