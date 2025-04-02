@@ -8,6 +8,8 @@ describe('turbopack-build-marker', () => {
     const requiredServerFilesManifest = await next.readJSON(
       '.next/required-server-files.json'
     )
-    expect(requiredServerFilesManifest.turbopack).toBe(!!process.env.TURBOPACK)
+    expect(
+      requiredServerFilesManifest.config.experimental.isTurbopackBuild
+    ).toBe(!!process.env.TURBOPACK)
   })
 })
