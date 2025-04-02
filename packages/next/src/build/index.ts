@@ -1453,7 +1453,6 @@ export default async function build(
       let shutdownPromise = Promise.resolve()
       if (!isGenerateMode) {
         if (turboNextBuild) {
-          await writeFileUtf8(path.join(distDir, IS_TURBOPACK_BUILD_FILE), '')
           const {
             duration: compilerDuration,
             shutdownPromise: p,
