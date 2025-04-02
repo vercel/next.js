@@ -210,6 +210,7 @@ import { turbopackBuild } from './turbopack-build'
 import { isPersistentCachingEnabled } from '../shared/lib/turbopack/utils'
 import { inlineStaticEnv } from '../lib/inline-static-env'
 import { populateStaticEnv } from '../lib/static-env'
+import { durationToString } from './duration-to-string'
 
 type Fallback = null | boolean | string
 
@@ -3729,18 +3730,4 @@ export default async function build(
       })
     }
   }
-}
-
-function durationToString(compilerDuration: number) {
-  let durationString
-  if (compilerDuration > 120) {
-    durationString = `${(compilerDuration / 60).toFixed(1)}min`
-  } else if (compilerDuration > 40) {
-    durationString = `${compilerDuration.toFixed(0)}s`
-  } else if (compilerDuration > 2) {
-    durationString = `${compilerDuration.toFixed(1)}s`
-  } else {
-    durationString = `${(compilerDuration * 1000).toFixed(0)}ms`
-  }
-  return durationString
 }
