@@ -151,7 +151,7 @@ export default async function webdriver(
   browserTeardown.push(browser.close.bind(browser))
 
   // Wait for application to hydrate
-  if (waitHydration) {
+  if (waitHydration && !disableJavaScript) {
     console.log(`\n> Waiting hydration for ${fullUrl}\n`)
 
     const checkHydrated = async () => {
