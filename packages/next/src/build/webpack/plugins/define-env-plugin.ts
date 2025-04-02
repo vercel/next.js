@@ -133,6 +133,7 @@ export function getDefineEnv({
         }),
     'process.turbopack': isTurbopack,
     'process.env.TURBOPACK': isTurbopack,
+    'process.env.NEXT_RSPACK': process.env.NEXT_RSPACK || '',
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
     'process.env.NODE_ENV':
       dev || config.experimental.allowDevelopmentBuild

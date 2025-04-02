@@ -19,6 +19,12 @@ export function ErrorOverlayNav({
   versionInfo,
   isTurbopack,
 }: ErrorOverlayNavProps) {
+  const bundlerName = isTurbopack
+    ? 'Turbopack'
+    : !!process.env.NEXT_RSPACK
+      ? 'Rspack'
+      : 'Webpack'
+
   return (
     <div data-nextjs-error-overlay-nav>
       <Notch side="left">
@@ -33,7 +39,7 @@ export function ErrorOverlayNav({
         <Notch side="right">
           <VersionStalenessInfo
             versionInfo={versionInfo}
-            isTurbopack={isTurbopack}
+            bundlerName={bundlerName}
           />
         </Notch>
       )}
