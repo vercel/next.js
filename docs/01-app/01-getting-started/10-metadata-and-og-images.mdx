@@ -63,7 +63,7 @@ Behind the scenes, Next.js will automatically generate the relevant `<head>` ele
 
 ## Dynamic metadata
 
-You can use [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) function to `fetch` metadata that depends on external data. For example, to fetch the title for a blog post:
+You can use [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) function to `fetch` metadata that depends on data. For example, to fetch the title and description for a specific blog post:
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 import type { Metadata, ResolvingMetadata } from 'next'
@@ -87,10 +87,6 @@ export async function generateMetadata(
   return {
     title: post.title,
     description: post.description,
-    openGraph: {
-      url: `https://example.com/blog/${slug}`,
-      images: [{ url: post.imageUrl, width: 1800, height: 1600 }],
-    },
   }
 }
 
@@ -109,17 +105,13 @@ export async function generateMetadata({ params, searchParams }, parent) {
   return {
     title: post.title,
     description: post.description,
-    openGraph: {
-      url: `https://example.com/blog/${slug}`,
-      images: [{ url: post.imageUrl, width: 1800, height: 1600 }],
-    },
   }
 }
 
 export default function Page({ params, searchParams }) {}
 ```
 
-To learn more about the available options, see the [API Reference](/docs/app/api-reference/functions/generate-metadata).
+Behind-the-scenes, Next.js will stream metadata separately from the UI and inject the metadata into the HTML as soon as it's resolved.
 
 ## Favicons
 
