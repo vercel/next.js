@@ -11,7 +11,6 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
-    ident::AssetIdent,
     issue::IssueSource,
     output::OutputAsset,
     reference::ModuleReference,
