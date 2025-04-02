@@ -32,18 +32,20 @@ export function DevOverlay({
       <DarkTheme />
 
       <RenderError state={state} isAppDir={true}>
-        {({ runtimeErrors, totalErrorCount, type }) => {
-          const isBuildError = type === 'build'
+        {({ runtimeErrors, totalErrorCount }) => {
+          const isBuildError = state.buildError !== null
           return (
             <>
-              <DevToolsIndicator
-                scale={scale}
-                setScale={setScale}
-                state={state}
-                errorCount={totalErrorCount}
-                isBuildError={isBuildError}
-                setIsErrorOverlayOpen={setIsErrorOverlayOpen}
-              />
+              {state.showIndicator && (
+                <DevToolsIndicator
+                  scale={scale}
+                  setScale={setScale}
+                  state={state}
+                  errorCount={totalErrorCount}
+                  isBuildError={isBuildError}
+                  setIsErrorOverlayOpen={setIsErrorOverlayOpen}
+                />
+              )}
 
               <ErrorOverlay
                 state={state}
