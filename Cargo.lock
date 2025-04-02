@@ -4586,13 +4586,13 @@ dependencies = [
  "next-custom-transforms",
  "once_cell",
  "owo-colors 3.5.0",
+ "par-core",
  "rand",
  "rustc-hash 2.1.0",
  "serde",
  "serde_json",
  "supports-hyperlinks",
  "swc_core",
- "swc_parallel",
  "terminal_hyperlink",
  "tokio",
  "tracing",
@@ -4962,6 +4962,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6b506ab63a8bd3cd38858c7bfc2d078a189dc3210c7f8c9be1bbaf50c082a0ae"
 dependencies = [
  "once_cell",
+ "rayon",
 ]
 
 [[package]]
@@ -8247,16 +8248,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "swc_parallel"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f16052d5123ec45c1c49100781363f3f4e4a6be2da6d82f473b79db1e3abeb8"
-dependencies = [
- "once_cell",
- "rayon",
-]
-
-[[package]]
 name = "swc_plugin_macro"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9765,6 +9756,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "once_cell",
+ "par-core",
  "parking_lot",
  "petgraph 0.6.3",
  "regex",
@@ -9775,7 +9767,6 @@ dependencies = [
  "sourcemap",
  "strsim 0.11.1",
  "swc_core",
- "swc_parallel",
  "tokio",
  "tracing",
  "turbo-rcstr",
