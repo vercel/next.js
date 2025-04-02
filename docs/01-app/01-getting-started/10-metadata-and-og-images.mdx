@@ -117,7 +117,7 @@ Behind-the-scenes, Next.js will stream metadata separately from the UI and injec
 
 There may be cases where you need to fetch the **same** data for metadata and the page itself. To avoid duplicate requests, you can use React's [`cache` function](https://react.dev/reference/react/cache) to memoize the return value and only fetch the data once. For example, to fetch the blog post information for both the metadata and the page:
 
-```tsx filename="app/ui/data.ts" highlight={4} switcher
+```tsx filename="app/lib/data.ts" highlight={4} switcher
 import { cache } from 'react'
 import { db } from '@/app/lib/db'
 
@@ -128,7 +128,7 @@ export const getPost = cache(async (slug: string) => {
 })
 ```
 
-```jsx filename="app/ui/data.js" highlight={4} switcher
+```jsx filename="app/lib/data.js" highlight={4} switcher
 import { cache } from 'react'
 import { db } from '@/app/lib/db'
 
@@ -140,7 +140,7 @@ export const getPost = cache(async (slug) => {
 ```
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
-import { getPost } from '@/app/ui/data'
+import { getPost } from '@/app/lib/data'
 
 export async function generateMetadata({
   params,
@@ -161,7 +161,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
 ```
 
 ```jsx filename="app/blog/[slug]/page.js" switcher
-import { getPost } from '@/app/ui/data'
+import { getPost } from '@/app/lib/data'
 
 export async function generateMetadata({ params }) {
   const post = await getPost(params.slug)
@@ -225,7 +225,7 @@ For example, to generate a unique OG image for each blog post, add a `opengraph-
 
 ```tsx filename="app/blog/[slug]/opengraph-image.ts" switcher
 import { ImageResponse } from 'next/og'
-import { getPost } from '@/app/ui/data'
+import { getPost } from '@/app/lib/data'
 
 // Image metadata
 export const size = {
@@ -262,7 +262,7 @@ export default async function Image({ params }: { params: { slug: string } }) {
 
 ```jsx filename="app/blog/[slug]/opengraph-image.js" switcher
 import { ImageResponse } from 'next/og'
-import { getPost } from '@/app/ui/data'
+import { getPost } from '@/app/lib/data'
 
 // Image metadata
 export const size = {
