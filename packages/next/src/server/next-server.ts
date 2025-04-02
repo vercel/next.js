@@ -192,9 +192,9 @@ export default class NextNodeServer extends BaseServer<
     this.isDev = isDev
     this.sriEnabled = Boolean(options.conf.experimental?.sri?.algorithm)
 
-    if (!isDev) {
-      // @ts-expect-error internal field not publicly exposed
-      const isTurbopackBuild = this.nextConfig.experimental?.isTurbopackBuild
+    // @ts-expect-error internal field not publicly exposed
+    const isTurbopackBuild = this.nextConfig.experimental?.isTurbopackBuild
+    if (!isDev && typeof isTurbopackBuild !== 'undefined') {
       if (process.env.TURBOPACK && !isTurbopackBuild) {
         throw new Error(
           `Invariant: --turbopack is set but the build used Webpack`
