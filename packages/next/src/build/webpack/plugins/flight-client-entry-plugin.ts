@@ -804,68 +804,67 @@ export class FlightClientEntryPlugin {
     // For the client entry, we always use the CJS build of Next.js. If the
     // server is using the ESM build (when using the Edge runtime), we need to
     // replace them.
-    const clientBrowserLoader =
-      modules.length === 0 && isAppRouteRoute(entryName)
-        ? null
-        : `next-flight-client-entry-loader?${stringify({
-            modules: (this.isEdgeServer
-              ? modules.map(({ request, ids }) => ({
-                  request: request.replace(
-                    /[\\/]next[\\/]dist[\\/]esm[\\/]/,
-                    '/next/dist/'.replace(/\//g, path.sep)
-                  ),
-                  ids,
-                }))
-              : modules
-            ).map((x) => JSON.stringify(x)),
-            server: false,
-          })}!`
+    const clientBrowserLoader = `next-flight-client-entry-loader?${stringify({
+      modules: (this.isEdgeServer
+        ? modules.map(({ request, ids }) => ({
+            request: request.replace(
+              /[\\/]next[\\/]dist[\\/]esm[\\/]/,
+              '/next/dist/'.replace(/\//g, path.sep)
+            ),
+            ids,
+          }))
+        : modules
+      ).map((x) => JSON.stringify(x)),
+      server: false,
+    })}!`
 
-    const clientServerLoader =
-      // modules.length === 0
-      //   ? null
-      //   :
-      `next-flight-client-entry-loader?${stringify({
-        modules: modules.map((x) => JSON.stringify(x)),
-        server: true,
-      })}!`
+    const clientServerLoader = `next-flight-client-entry-loader?${stringify({
+      modules: modules.map((x) => JSON.stringify(x)),
+      server: true,
+    })}!`
 
     // Add for the client compilation
     // Inject the entry to the client compiler.
-    if (clientBrowserLoader) {
-      if (this.dev) {
-        const entries = getEntries(compiler.outputPath)
-        const pageKey = getEntryKey(
-          COMPILER_NAMES.client,
-          PAGE_TYPES.APP,
-          bundlePath
-        )
 
-        if (!entries[pageKey]) {
-          entries[pageKey] = {
-            type: EntryTypes.CHILD_ENTRY,
-            parentEntries: new Set([entryName]),
-            absoluteEntryFilePath: absolutePagePath,
-            bundlePath,
-            request: clientBrowserLoader,
-            dispose: false,
-            lastActiveTime: Date.now(),
-          }
-          shouldInvalidate = true
-        } else {
-          const entryData = entries[pageKey]
-          // New version of the client loader
-          if (entryData.request !== clientBrowserLoader) {
-            entryData.request = clientBrowserLoader
-            shouldInvalidate = true
-          }
-          if (entryData.type === EntryTypes.CHILD_ENTRY) {
-            entryData.parentEntries.add(entryName)
-          }
-          entryData.dispose = false
-          entryData.lastActiveTime = Date.now()
+    if (this.dev) {
+      const entries = getEntries(compiler.outputPath)
+      const pageKey = getEntryKey(
+        COMPILER_NAMES.client,
+        PAGE_TYPES.APP,
+        bundlePath
+      )
+
+      if (!entries[pageKey]) {
+        entries[pageKey] = {
+          type: EntryTypes.CHILD_ENTRY,
+          parentEntries: new Set([entryName]),
+          absoluteEntryFilePath: absolutePagePath,
+          bundlePath,
+          request: clientBrowserLoader,
+          dispose: false,
+          lastActiveTime: Date.now(),
         }
+        shouldInvalidate = true
       } else {
+        const entryData = entries[pageKey]
+        // New version of the client loader
+        if (entryData.request !== clientBrowserLoader) {
+          entryData.request = clientBrowserLoader
+          shouldInvalidate = true
+        }
+        if (entryData.type === EntryTypes.CHILD_ENTRY) {
+          entryData.parentEntries.add(entryName)
+        }
+        entryData.dispose = false
+        entryData.lastActiveTime = Date.now()
+      }
+    } else {
+      // console.log(`isAppRouteRoute(entryName)`, isAppRouteRoute(entryName), entryName, modules.length)
+      // For app routes, we skip generating the browser bundle for client entries if there's no client references.
+      // For edge runtime, we always need to include the fixed output path of client reference manifest
+      const isNoClientReferenceAppRoute =
+        modules.length === 0 && isAppRouteRoute(entryName) && !this.isEdgeServer
+      if (!isNoClientReferenceAppRoute) {
         pluginState.injectedClientEntries[bundlePath] = clientBrowserLoader
       }
     }

@@ -53,21 +53,21 @@ describe('app dir - metadata dynamic routes', () => {
       expect(res.headers.get('cache-control')).toBe(CACHE_HEADERS.REVALIDATE)
 
       expect(text).toMatchInlineSnapshot(`
-             "<?xml version="1.0" encoding="UTF-8"?>
-             <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-             <url>
-             <loc>https://example.com</loc>
-             <lastmod>2021-01-01</lastmod>
-             <changefreq>weekly</changefreq>
-             <priority>0.5</priority>
-             </url>
-             <url>
-             <loc>https://example.com/about</loc>
-             <lastmod>2021-01-01</lastmod>
-             </url>
-             </urlset>
-             "
-          `)
+      "<?xml version="1.0" encoding="UTF-8"?>
+      <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+      <url>
+      <loc>https://example.com</loc>
+      <lastmod>2021-01-01</lastmod>
+      <changefreq>weekly</changefreq>
+      <priority>0.5</priority>
+      </url>
+      <url>
+      <loc>https://example.com/about</loc>
+      <lastmod>2021-01-01</lastmod>
+      </url>
+      </urlset>
+      "
+    `)
     })
 
     it('should support generate multi sitemaps with generateSitemaps', async () => {
@@ -226,9 +226,9 @@ describe('app dir - metadata dynamic routes', () => {
 
       if (isNextDev) {
         await retry(async () => {
-          expect(next.hasFile('.next/server/app-paths-manifest.json')).toBe(
-            true
-          )
+          expect(
+            await next.hasFile('.next/server/app-paths-manifest.json')
+          ).toBe(true)
         })
 
         const appPathsManifest = JSON.parse(
@@ -419,7 +419,8 @@ describe('app dir - metadata dynamic routes', () => {
           '/opengraph-image': false,
           '/sitemap.xml': false,
           '/twitter-image': false,
-          '/twitter-image2': false,
+          // For edge runtime we still need to keep it.
+          '/twitter-image2': true,
           // static files should be generated for app router pages
           '/(group)/dynamic/[size]': true,
           '/(group)/blog': true,
