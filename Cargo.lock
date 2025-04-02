@@ -4081,8 +4081,9 @@ dependencies = [
 
 [[package]]
 name = "mdxjs"
-version = "0.3.2"
-source = "git+https://github.com/kdy1/mdxjs-rs.git?branch=swc-core-19#d5b5d60baec4c937980fad97716cafd75058c1e4"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f93363d4ecc5209500f27b94a6fe801f0d3eecf7fa685a4563bdd3ea8c917a8"
 dependencies = [
  "markdown",
  "rustc-hash 2.1.0",
