@@ -22,7 +22,7 @@ use crate::chunk::{write_import_context, CssChunkItem};
 /// avoiding rule duplication.
 #[turbo_tasks::value]
 pub struct SingleItemCssChunk {
-    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    pub(super) chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     item: ResolvedVc<Box<dyn CssChunkItem>>,
 }
 
@@ -66,16 +66,22 @@ impl SingleItemCssChunk {
             .await?
             && code.has_source_map()
         {
-            let chunk_path = self.path().await?;
+            let source_map_path = SingleItemCssChunkSourceMapAsset::new(self).path().await?;
             write!(
                 code,
-                "\n/*# sourceMappingURL={}.map*/",
-                urlencoding::encode(chunk_path.file_name())
+                "\n/*# sourceMappingURL={}*/",
+                urlencoding::encode(source_map_path.file_name())
             )?;
         }
 
         let c = code.build().cell();
         Ok(c)
+    }
+
+    #[turbo_tasks::function]
+    pub(super) async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
+        let item = self.item.asset_ident();
+        Ok(item.with_modifier(single_item_modifier()))
     }
 }
 
@@ -101,13 +107,11 @@ fn single_item_modifier() -> Vc<RcStr> {
 #[turbo_tasks::value_impl]
 impl OutputAsset for SingleItemCssChunk {
     #[turbo_tasks::function]
-    fn path(&self) -> Vc<FileSystemPath> {
-        self.chunking_context.chunk_path(
-            self.item
-                .asset_ident()
-                .with_modifier(single_item_modifier()),
-            ".single.css".into(),
-        )
+    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        Ok(self
+            .await?
+            .chunking_context
+            .chunk_path(self.ident_for_path(), ".single.css".into()))
     }
 
     #[turbo_tasks::function]

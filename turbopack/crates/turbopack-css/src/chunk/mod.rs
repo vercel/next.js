@@ -115,11 +115,11 @@ impl CssChunk {
             .await?
             && code.has_source_map()
         {
-            let chunk_path = self.path().await?;
+            let source_map_path = CssChunkSourceMapAsset::new(self).path().await?;
             writeln!(
                 code,
-                "/*# sourceMappingURL={}.map*/",
-                urlencoding::encode(chunk_path.file_name())
+                "/*# sourceMappingURL={}*/",
+                urlencoding::encode(source_map_path.file_name())
             )?;
         }
 
@@ -133,6 +133,62 @@ impl CssChunk {
         Ok(AssetContent::file(
             File::from(code.source_code().clone()).into(),
         ))
+    }
+
+    #[turbo_tasks::function]
+    async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
+        let CssChunkContent { chunk_items, .. } = &*self.content.await?;
+        let mut common_path = if let Some(chunk_item) = chunk_items.first() {
+            let path = chunk_item.asset_ident().path().to_resolved().await?;
+            Some((path, path.await?))
+        } else {
+            None
+        };
+
+        // The included chunk items and the availability info describe the chunk
+        // uniquely
+        let chunk_item_key = chunk_item_key().to_resolved().await?;
+        for &chunk_item in chunk_items.iter() {
+            if let Some((common_path_vc, common_path_ref)) = common_path.as_mut() {
+                let path = chunk_item.asset_ident().path().await?;
+                while !path.is_inside_or_equal_ref(common_path_ref) {
+                    let parent = common_path_vc.parent().to_resolved().await?;
+                    if parent == *common_path_vc {
+                        common_path = None;
+                        break;
+                    }
+                    *common_path_vc = parent;
+                    *common_path_ref = (*common_path_vc).await?;
+                }
+            }
+        }
+        let assets = chunk_items
+            .iter()
+            .map(|chunk_item| async move {
+                Ok((
+                    chunk_item_key,
+                    chunk_item.content_ident().to_resolved().await?,
+                ))
+            })
+            .try_join()
+            .await?;
+
+        let ident = AssetIdent {
+            path: if let Some((common_path, _)) = common_path {
+                common_path
+            } else {
+                ServerFileSystem::new().root().to_resolved().await?
+            },
+            query: ResolvedVc::cell(RcStr::default()),
+            fragment: None,
+            assets,
+            modifiers: Vec::new(),
+            parts: Vec::new(),
+            layer: None,
+            content_type: None,
+        };
+
+        Ok(AssetIdent::new(Value::new(ident)))
     }
 }
 
@@ -253,61 +309,13 @@ fn chunk_item_key() -> Vc<RcStr> {
 #[turbo_tasks::value_impl]
 impl OutputAsset for CssChunk {
     #[turbo_tasks::function]
-    async fn path(&self) -> Result<Vc<FileSystemPath>> {
-        let CssChunkContent { chunk_items, .. } = &*self.content.await?;
-        let mut common_path = if let Some(chunk_item) = chunk_items.first() {
-            let path = chunk_item.asset_ident().path().to_resolved().await?;
-            Some((path, path.await?))
-        } else {
-            None
-        };
-
-        // The included chunk items and the availability info describe the chunk
-        // uniquely
-        let chunk_item_key = chunk_item_key().to_resolved().await?;
-        for &chunk_item in chunk_items.iter() {
-            if let Some((common_path_vc, common_path_ref)) = common_path.as_mut() {
-                let path = chunk_item.asset_ident().path().await?;
-                while !path.is_inside_or_equal_ref(common_path_ref) {
-                    let parent = common_path_vc.parent().to_resolved().await?;
-                    if parent == *common_path_vc {
-                        common_path = None;
-                        break;
-                    }
-                    *common_path_vc = parent;
-                    *common_path_ref = (*common_path_vc).await?;
-                }
-            }
-        }
-        let assets = chunk_items
-            .iter()
-            .map(|chunk_item| async move {
-                Ok((
-                    chunk_item_key,
-                    chunk_item.content_ident().to_resolved().await?,
-                ))
-            })
-            .try_join()
-            .await?;
-
-        let ident = AssetIdent {
-            path: if let Some((common_path, _)) = common_path {
-                common_path
-            } else {
-                ServerFileSystem::new().root().to_resolved().await?
-            },
-            query: ResolvedVc::cell(RcStr::default()),
-            fragment: None,
-            assets,
-            modifiers: Vec::new(),
-            parts: Vec::new(),
-            layer: None,
-            content_type: None,
-        };
+    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let ident = self.ident_for_path();
 
         Ok(self
+            .await?
             .chunking_context
-            .chunk_path(AssetIdent::new(Value::new(ident)), ".css".into()))
+            .chunk_path(ident, ".css".into()))
     }
 
     #[turbo_tasks::function]
