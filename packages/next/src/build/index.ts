@@ -582,7 +582,7 @@ async function writeImagesManifest(
   // By default, remotePatterns will allow no remote images ([])
   images.remotePatterns = (config?.images?.remotePatterns || []).map((p) => ({
     // Modifying the manifest should also modify matchRemotePattern()
-    protocol: p.protocol,
+    protocol: p.protocol?.replace(/:$/, '') as 'http' | 'https' | undefined,
     hostname: makeRe(p.hostname).source,
     port: p.port,
     pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
