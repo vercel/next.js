@@ -500,9 +500,9 @@ export default function Page() {
 
 > **Good to know**: While `onClick` and `onNavigate` may seem similar, they serve different purposes. `onClick` executes for all click events, while `onNavigate` only runs during client-side navigation. Some key differences:
 >
-> - When using modifier keys (Ctrl/Cmd+Click), `onClick` executes but `onNavigate` doesn't since Next.js prevents default navigation for new tabs.
-> - External URLs won't trigger `onNavigate` since it's only for SPA-like navigations.
-> - Links with the `download` attribute will call `onClick` but not `onNavigate` since downloads use browser navigation.
+> - When using modifier keys (`Ctrl`/`Cmd` + Click), `onClick` executes but `onNavigate` doesn't since Next.js prevents default navigation for new tabs.
+> - External URLs won't trigger `onNavigate` since it's only for client-side and same-origin navigations.
+> - Links with the `download` attribute will work with `onClick` but not `onNavigate` since the browser will treat the linked URL as a download. 
 
 ## Examples
 
