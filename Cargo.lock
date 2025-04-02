@@ -9692,6 +9692,7 @@ dependencies = [
  "serde",
  "smallvec",
  "swc_core",
+ "tokio",
  "tracing",
  "turbo-rcstr",
  "turbo-tasks",

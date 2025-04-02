@@ -1220,7 +1220,7 @@ impl PageEndpoint {
     #[turbo_tasks::function]
     async fn build_manifest(
         &self,
-        client_chunks: Vc<OutputAssets>,
+        client_chunks: ResolvedVc<OutputAssets>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         let node_root = self.pages_project.project().node_root();
         let client_relative_path = self.pages_project.project().client_relative_path();

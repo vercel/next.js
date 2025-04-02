@@ -14,7 +14,7 @@ use smallvec::smallvec;
 use swc_core::base::sourcemap::SourceMapBuilder;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{rope::Rope, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -291,8 +291,8 @@ pub trait ProcessCss: ParseCss {
 #[turbo_tasks::function]
 pub async fn parse_css(
     source: ResolvedVc<Box<dyn Source>>,
-    origin: Vc<Box<dyn ResolveOrigin>>,
-    import_context: Option<Vc<ImportContext>>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    import_context: Option<ResolvedVc<ImportContext>>,
     ty: CssModuleAssetType,
 ) -> Result<Vc<ParseCssResult>> {
     let span = {
@@ -311,7 +311,7 @@ pub async fn parse_css(
                     Err(_err) => ParseCssResult::Unparseable.cell(),
                     Ok(string) => {
                         process_content(
-                            **file_content,
+                            *file_content,
                             string.into_owned(),
                             fs_path.to_resolved().await?,
                             ident_str,
@@ -331,13 +331,13 @@ pub async fn parse_css(
 }
 
 async fn process_content(
-    content_vc: Vc<FileContent>,
+    content_vc: ResolvedVc<FileContent>,
     code: String,
     fs_path_vc: ResolvedVc<FileSystemPath>,
     filename: &str,
     source: ResolvedVc<Box<dyn Source>>,
-    origin: Vc<Box<dyn ResolveOrigin>>,
-    import_context: Option<Vc<ImportContext>>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    import_context: Option<ResolvedVc<ImportContext>>,
     ty: CssModuleAssetType,
 ) -> Result<Vc<ParseCssResult>> {
     #[allow(clippy::needless_lifetimes)]
@@ -470,24 +470,12 @@ async fn process_content(
     let mut stylesheet = stylesheet.to_static(config.clone());
 
     let (references, url_references) =
-        analyze_references(&mut stylesheet, source, origin, import_context)?;
-
-    let url_references = url_references
-        .into_iter()
-        .map(|(k, v)| async move { Ok((k, v.to_resolved().await?)) })
-        .try_join()
-        .await?;
+        analyze_references(&mut stylesheet, source, origin, import_context).await?;
 
     Ok(ParseCssResult::Ok {
-        code: content_vc.to_resolved().await?,
+        code: content_vc,
         stylesheet,
-        references: ResolvedVc::cell(
-            references
-                .into_iter()
-                .map(|v| v.to_resolved())
-                .try_join()
-                .await?,
-        ),
+        references: ResolvedVc::cell(references),
         url_references: ResolvedVc::cell(url_references),
         options: config,
     }
