@@ -135,6 +135,11 @@ describe('app-dir action size limit invalid config', () => {
         await actionResponse.request().headerValue('content-type')
       ).toStartWith('text/plain')
 
+      // The error should have been returned to the client and thrown, triggering the nearest error boundary.
+      expect(await browser.elementByCss('#error').text()).toBe(
+        'Something went wrong!'
+      )
+
       if (!isNextDeploy) {
         await retry(() => {
           expect(logs).toContainEqual(
@@ -218,6 +223,11 @@ describe('app-dir action size limit invalid config', () => {
       expect(
         await actionResponse.request().headerValue('content-type')
       ).toStartWith('multipart/form-data')
+
+      // The error should have been returned to the client and thrown, triggering the nearest error boundary.
+      expect(await browser.elementByCss('#error').text()).toBe(
+        'Something went wrong!'
+      )
 
       if (!isNextDeploy) {
         await retry(() => {
