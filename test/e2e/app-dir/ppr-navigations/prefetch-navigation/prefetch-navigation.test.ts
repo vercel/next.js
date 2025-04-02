@@ -81,4 +81,63 @@ describe('prefetch-navigation', () => {
     targetPageParams = await browser.elementById('params').text()
     expect(targetPageParams).toBe('Params: {"slug":["1"]}')
   })
+
+  it('should render the prefetch without waiting for the RSC request when the page has search params', async () => {
+    const rscRequestPromise = new Map<
+      string,
+      { resolve: () => Promise<void> }
+    >()
+    const browser = await next.browser('/', {
+      beforePageLoad(page: Page) {
+        page.route('**/search-params**', async (route: Route) => {
+          const request = route.request()
+          const headers = await request.allHeaders()
+          const url = new URL(request.url())
+          const pathname = url.pathname
+
+          if (headers['rsc'] === '1' && !headers['next-router-prefetch']) {
+            // Create a promise that will be resolved by the later test code
+            let resolvePromise: () => void
+            const promise = new Promise<void>((res) => {
+              resolvePromise = res
+            })
+
+            if (rscRequestPromise.has(pathname)) {
+              throw new Error('Duplicate request')
+            }
+
+            rscRequestPromise.set(pathname, {
+              resolve: async () => {
+                await route.continue()
+                // wait a moment to ensure the response is received
+                await new Promise((res) => setTimeout(res, 500))
+                resolvePromise()
+              },
+            })
+
+            // Await the promise to effectively stall the request
+            await promise
+          } else {
+            await route.continue()
+          }
+        })
+      },
+    })
+
+    // Navigate to the other page
+    await browser.elementByCss('a[href="/search-params?delay=1000"]').click()
+    await browser.waitForElementByCss('#search-params-page')
+
+    // In `beforePageLoad`, we've stalled the RSC request for this page.
+    // We should still expect to see the prefetch applied while the request is pending.
+    let fallbackText = await browser.elementById('suspense-fallback').text()
+    expect(fallbackText).toBe('Loading...')
+
+    // Resolve the request to allow the page to finish loading
+    await rscRequestPromise.get('/search-params').resolve()
+
+    // Now confirm the final value is rendered
+    let delayValue = await browser.elementById('delay-value').text()
+    expect(delayValue).toBe('Delay: 1000')
+  })
 })

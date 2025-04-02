@@ -242,7 +242,8 @@ export function navigateReducer(
           state,
           flightData,
           url,
-          mutable
+          mutable,
+          postponed
         )
 
         // We didn't return new router state because we didn't apply the aliased entry for some reason.

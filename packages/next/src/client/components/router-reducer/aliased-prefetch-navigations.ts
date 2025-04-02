@@ -28,7 +28,8 @@ export function handleAliasedPrefetchEntry(
   state: ReadonlyReducerState,
   flightData: string | NormalizedFlightData[],
   url: URL,
-  mutable: Mutable
+  mutable: Mutable,
+  postponed: boolean
 ) {
   let currentTree = state.tree
   let currentCache = state.cache
@@ -58,14 +59,6 @@ export function handleAliasedPrefetchEntry(
     // TODO-APP: remove ''
     const flightSegmentPathWithLeadingEmpty = ['', ...pathToSegment]
 
-    // Segments are keyed by searchParams (e.g. __PAGE__?{"foo":"bar"}). We might return a less specific, param-less entry,
-    // so we ensure that the final tree contains the correct searchParams (reflected in the URL) are provided in the updated FlightRouterState tree.
-    // We only do this on the first read, as otherwise we'd be overwriting the searchParams that may have already been set
-    treePatch = addSearchParamsToPageSegments(
-      treePatch,
-      Object.fromEntries(url.searchParams)
-    )
-
     let newTree = applyRouterStatePatchToTree(
       flightSegmentPathWithLeadingEmpty,
       currentTree,
@@ -90,7 +83,8 @@ export function handleAliasedPrefetchEntry(
         newCache,
         currentCache,
         treePatch,
-        seedData
+        seedData,
+        postponed
       )
     } else {
       // Copy rsc for the root node of the cache.
@@ -153,7 +147,8 @@ function fillNewTreeWithOnlyLoadingSegments(
   newCache: CacheNode,
   existingCache: CacheNode,
   routerState: FlightRouterState,
-  cacheNodeSeedData: CacheNodeSeedData | null
+  cacheNodeSeedData: CacheNodeSeedData | null,
+  postponed: boolean
 ) {
   const isLastSegment = Object.keys(routerState[1]).length === 0
   if (isLastSegment) {
@@ -179,7 +174,10 @@ function fillNewTreeWithOnlyLoadingSegments(
         lazyData: null,
         // copy the layout but null the page segment as that's not meant to be used
         rsc: segmentForParallelRoute.includes(PAGE_SEGMENT_KEY) ? null : rsc,
-        prefetchRsc: null,
+        // prefetchRsc is a PPR-only field. If we're handling an aliased prefetch
+        // that postponed, copying over loading isn't enough: we need to ensure
+        // `prefetchRsc` is set so that there's no cache miss when navigating to the new page.
+        prefetchRsc: postponed ? rsc : null,
         head: null,
         prefetchHead: null,
         parallelRoutes: new Map(),
@@ -213,7 +211,8 @@ function fillNewTreeWithOnlyLoadingSegments(
       newCacheNode,
       existingCache,
       parallelRouteState,
-      parallelSeedData
+      parallelSeedData,
+      postponed
     )
   }
 }
