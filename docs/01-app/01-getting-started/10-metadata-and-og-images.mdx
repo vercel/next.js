@@ -113,11 +113,71 @@ export default function Page({ params, searchParams }) {}
 
 Behind-the-scenes, Next.js will stream metadata separately from the UI and inject the metadata into the HTML as soon as it's resolved.
 
+### Memoizing data requests
+
+There may be cases where you need to fetch the **same** data for metadata and the page itself. To avoid duplicate requests, you can use React's [`cache` function](https://react.dev/reference/react/cache) to memoize the return value and only fetch the data once. For example, to fetch the blog post information for both the metadata and the page:
+
+```tsx filename="app/ui/data.ts" highlight={4} switcher
+import { cache } from 'react'
+
+// getPost will be used twice, but execute only once
+export const getPost = cache(async (slug: string) => {
+  const res = await db.query.posts.findFirst({ where: eq(posts.slug, slug) })
+  return res
+})
+```
+
+```jsx filename="app/ui/data.js" highlight={4} switcher
+import { cache } from 'react'
+
+// getPost will be used twice, but execute only once
+export const getPost = cache(async (slug) => {
+  const res = await db.query.posts.findFirst({ where: eq(posts.slug, slug) })
+  return res
+})
+```
+
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+import { getPost } from '@/app/ui/data'
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string }
+}) {
+  const post = await getPost(params.slug)
+  return {
+    title: post.title,
+    description: post.description,
+  }
+}
+
+export default async function Page({ params }: { params: { slug: string } }) {
+  const post = await getPost(params.slug)
+  return <div>{post.title}</div>
+}
+```
+
+```jsx filename="app/blog/[slug]/page.js" switcher
+import { getPost } from '@/app/ui/data'
+
+export async function generateMetadata({ params }) {
+  const post = await getPost(params.slug)
+  return {
+    title: post.title,
+    description: post.description,
+  }
+}
+
+export default async function Page({ params }) {
+  const post = await getPost(params.slug)
+  return <div>{post.title}</div>
+}
+```
+
 ## Favicons
 
-Favicons are small icons that represent your site in bookmarks and search results.
-
-To add a favicon to your application, create a `favicon.ico` and add to the root of the app folder.
+Favicons are small icons that represent your site in bookmarks and search results. To add a favicon to your application, create a `favicon.ico` and add to the root of the app folder.
 
 <Image
   alt="Favicon Special File inside the App Folder with sibling layout and page files"
