@@ -1,7 +1,7 @@
 import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
-describe('app-document - Rendering via HTTP', () => {
+describe('Document and App - Rendering via HTTP', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
