@@ -1,7 +1,7 @@
 import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
-describe('Client side', () => {
+describe('Document and App - Client side', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,

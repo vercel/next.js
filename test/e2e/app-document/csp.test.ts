@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('With CSP enabled', () => {
+describe('Document and App - With CSP enabled', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
