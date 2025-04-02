@@ -1,10 +1,15 @@
 use anyhow::{bail, Context, Result};
+use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Upcast, Value, ValueToString, Vc};
+use turbo_tasks::{
+    trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, Value,
+    ValueToString, Vc,
+};
 use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_hash::{hash_xxh3_hash64, DeterministicHash};
 use turbopack_core::{
-    asset::Asset,
+    asset::{Asset, AssetContent},
     chunk::{
         availability_info::AvailabilityInfo,
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
@@ -41,6 +46,31 @@ pub enum CurrentChunkMethod {
 
 pub const CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR: &str =
     "typeof document === \"object\" ? document.currentScript : undefined";
+
+#[derive(
+    Debug,
+    TaskInput,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    DeterministicHash,
+    NonLocalValue,
+)]
+pub enum ContentHashing {
+    /// Direct content hashing: Embeds the chunk content hash directly into the referencing chunk.
+    /// Benefit: No hash manifest needed.
+    /// Downside: Causes cascading hash invalidation.
+    Direct {
+        /// The length of the content hash in hex chars. Anything lower than 8 is not recommended
+        /// due to the high risk of collisions.
+        length: u8,
+    },
+}
 
 pub struct BrowserChunkingContextBuilder {
     chunking_context: BrowserChunkingContext,
@@ -125,6 +155,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn use_content_hashing(mut self, content_hashing: ContentHashing) -> Self {
+        self.chunking_context.content_hashing = Some(content_hashing);
+        self
+    }
+
     pub fn build(self) -> Vc<BrowserChunkingContext> {
         BrowserChunkingContext::new(Value::new(self.chunking_context))
     }
@@ -173,6 +208,8 @@ pub struct BrowserChunkingContext {
     runtime_type: RuntimeType,
     /// Whether to minify resulting chunks
     minify_type: MinifyType,
+    /// Whether content hashing is enabled.
+    content_hashing: Option<ContentHashing>,
     /// Whether to generate source maps
     source_maps_type: SourceMapsType,
     /// Method to use when figuring out the current chunk src
@@ -214,6 +251,7 @@ impl BrowserChunkingContext {
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
+                content_hashing: None,
                 source_maps_type: SourceMapsType::Full,
                 current_chunk_method: CurrentChunkMethod::StringLiteral,
                 manifest_chunks: false,
@@ -361,15 +399,35 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     async fn chunk_path(
         &self,
-        _asset: Option<Vc<Box<dyn Asset>>>,
+        asset: Option<Vc<Box<dyn Asset>>>,
         ident: Vc<AssetIdent>,
         extension: RcStr,
     ) -> Result<Vc<FileSystemPath>> {
         let root_path = self.chunk_root_path;
-        let name = ident
-            .output_name(*self.root_path, extension)
-            .owned()
-            .await?;
+        let name = match self.content_hashing {
+            None => {
+                ident
+                    .output_name(*self.root_path, extension)
+                    .owned()
+                    .await?
+            }
+            Some(ContentHashing::Direct { length }) => {
+                let Some(asset) = asset else {
+                    bail!("chunk_path requires an asset when content hashing is enabled");
+                };
+                let content = asset.content().await?;
+                if let AssetContent::File(file) = &*content {
+                    let hash = hash_xxh3_hash64(&file.await?);
+                    let length = length as usize;
+                    format!("{hash:0length$x}{extension}").into()
+                } else {
+                    bail!(
+                        "chunk_path requires an asset with file content when content hashing is \
+                         enabled"
+                    );
+                }
+            }
+        };
         Ok(root_path.join(name))
     }
 
