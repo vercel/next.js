@@ -119,6 +119,7 @@ There may be cases where you need to fetch the **same** data for metadata and th
 
 ```tsx filename="app/ui/data.ts" highlight={4} switcher
 import { cache } from 'react'
+import { db } from '@/app/lib/db'
 
 // getPost will be used twice, but execute only once
 export const getPost = cache(async (slug: string) => {
@@ -129,6 +130,7 @@ export const getPost = cache(async (slug: string) => {
 
 ```jsx filename="app/ui/data.js" highlight={4} switcher
 import { cache } from 'react'
+import { db } from '@/app/lib/db'
 
 // getPost will be used twice, but execute only once
 export const getPost = cache(async (slug) => {
