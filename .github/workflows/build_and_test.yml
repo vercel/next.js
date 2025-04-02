@@ -67,6 +67,7 @@ jobs:
   build-native:
     name: build-native
     uses: ./.github/workflows/build_reusable.yml
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
     with:
       skipInstallBuild: 'yes'
       stepName: 'build-native'
