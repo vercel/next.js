@@ -2278,6 +2278,7 @@ export default async function build(
 
                 // @ts-expect-error internal field TODO: fix this, should use a separate mechanism to pass the info.
                 isExperimentalCompile: isCompileMode,
+                isTurbopackBuild: turboNextBuild,
               },
             },
             appDir: dir,
@@ -2333,7 +2334,6 @@ export default async function build(
                   ]
                 : []),
               BUILD_ID_FILE,
-              SERVER_FILES_MANIFEST,
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
               ...instrumentationHookEntryFiles,
@@ -2341,7 +2341,6 @@ export default async function build(
               .filter(nonNullable)
               .map((file) => path.join(config.distDir, file)),
             ignore: [] as string[],
-            turbopack: turboNextBuild,
           }
 
           return serverFilesManifest

@@ -42,7 +42,6 @@ import {
   PHASE_PRODUCTION_BUILD,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   FUNCTIONS_CONFIG_MANIFEST,
-  SERVER_FILES_MANIFEST,
 } from '../shared/lib/constants'
 import { findDir } from '../lib/find-pages-dir'
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
@@ -194,9 +193,8 @@ export default class NextNodeServer extends BaseServer<
     this.sriEnabled = Boolean(options.conf.experimental?.sri?.algorithm)
 
     if (!isDev) {
-      const isTurbopackBuild = require(
-        join(this.distDir, SERVER_FILES_MANIFEST)
-      ).turbopack
+      // @ts-expect-error internal field not publicly exposed
+      const isTurbopackBuild = this.nextConfig.experimental.isTurbopackBuild
       if (process.env.TURBOPACK && !isTurbopackBuild) {
         throw new Error(
           `Invariant: --turbopack is set but the build used Webpack`
