@@ -23,6 +23,7 @@ const state: OverlayState = {
   routerType: 'app',
   buildError: null,
   disableDevIndicator: false,
+  showIndicator: true,
   errors: [
     {
       id: 1,
