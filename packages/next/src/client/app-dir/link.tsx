@@ -1,4 +1,4 @@
-'use client'-
+'use client'
 
 import React, { createContext, useContext, useOptimistic, useRef } from 'react'
 import type { UrlObject } from 'url'
@@ -312,23 +312,22 @@ function getReactElementRef(
   element: React.ReactElement<{ ref?: React.Ref<unknown> }>
 ): React.Ref<any> | undefined {
   // React <=18 in DEV
-  let getter = Object.getOwnPropertyDescriptor(element.props, 'ref')?.get;
-  let mayWarn = getter && 'isReactWarning' in getter && getter.isReactWarning;
+  let getter = Object.getOwnPropertyDescriptor(element.props, 'ref')?.get
+  let mayWarn = getter && 'isReactWarning' in getter && getter.isReactWarning
   if (mayWarn) {
-    return (element as any).ref;
+    return (element as any).ref
   }
 
   // React 19 in DEV
-  getter = Object.getOwnPropertyDescriptor(element, 'ref')?.get;
-  mayWarn = getter && 'isReactWarning' in getter && getter.isReactWarning;
+  getter = Object.getOwnPropertyDescriptor(element, 'ref')?.get
+  mayWarn = getter && 'isReactWarning' in getter && getter.isReactWarning
   if (mayWarn) {
-    return element.props.ref;
+    return element.props.ref
   }
 
   // Not DEV
-  return element.props.ref || (element as any).ref;
+  return element.props.ref || (element as any).ref
 }
-
 
 /**
  * A React component that extends the HTML `<a>` element to provide
