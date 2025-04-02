@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { NextInstance, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { createRequestTracker } from 'e2e-utils/request-tracker'
 import stripAnsi from 'strip-ansi'
@@ -37,7 +37,8 @@ describe('app-dir action size limit invalid config', () => {
 
   if (isNextStart) {
     it('should error if serverActions.bodySizeLimit config is a negative number', async function () {
-      await next.patchFile(
+      await using _ = await patchFileWithCleanup(
+        next,
         'next.config.js',
         `
       module.exports = {
@@ -54,7 +55,8 @@ describe('app-dir action size limit invalid config', () => {
     })
 
     it('should error if serverActions.bodySizeLimit config is invalid', async function () {
-      await next.patchFile(
+      await using _ = await patchFileWithCleanup(
+        next,
         'next.config.js',
         `
       module.exports = {
@@ -71,7 +73,8 @@ describe('app-dir action size limit invalid config', () => {
     })
 
     it('should error if serverActions.bodySizeLimit config is a negative size', async function () {
-      await next.patchFile(
+      await using _ = await patchFileWithCleanup(
+        next,
         'next.config.js',
         `
       module.exports = {
@@ -90,16 +93,6 @@ describe('app-dir action size limit invalid config', () => {
 
   describe('should respect the size set in serverActions.bodySizeLimit for plaintext fetch actions', () => {
     beforeEach(async () => {
-      await next.patchFile(
-        'next.config.js',
-        `
-        module.exports = {
-          experimental: {
-            serverActions: { bodySizeLimit: '1.5mb' }
-          },
-        }
-        `
-      )
       await next.start()
     })
 
@@ -124,7 +117,7 @@ describe('app-dir action size limit invalid config', () => {
           )
         )
         expect(logs).not.toContainEqual(
-          expect.stringContaining('Error: Body exceeded 1.5mb limit')
+          expect.stringContaining('Error: Body exceeded 2mb limit')
         )
       }
     })
@@ -134,7 +127,7 @@ describe('app-dir action size limit invalid config', () => {
       const requestTracker = createRequestTracker(browser)
 
       const [, actionResponse] = await requestTracker.captureResponse(
-        () => browser.elementByCss('#size-2mb').click(),
+        () => browser.elementByCss('#size-3mb').click(),
         { request: { method: 'POST', pathname: '/file' } }
       )
       expect(actionResponse.status()).toBe(500) // TODO: 413?
@@ -145,7 +138,7 @@ describe('app-dir action size limit invalid config', () => {
       if (!isNextDeploy) {
         await retry(() => {
           expect(logs).toContainEqual(
-            expect.stringContaining('Error: Body exceeded 1.5mb limit')
+            expect.stringContaining('Error: Body exceeded 2mb limit')
           )
           expect(logs).toContainEqual(
             expect.stringContaining(
@@ -160,16 +153,6 @@ describe('app-dir action size limit invalid config', () => {
 
   describe('should respect the size set in serverActions.bodySizeLimit for multipart fetch actions', () => {
     beforeEach(async () => {
-      await next.patchFile(
-        'next.config.js',
-        `
-      module.exports = {
-        experimental: {
-          serverActions: { bodySizeLimit: '2mb' }
-        },
-      }
-      `
-      )
       await next.start()
     })
 
@@ -252,3 +235,23 @@ describe('app-dir action size limit invalid config', () => {
     })
   })
 })
+
+async function patchFileWithCleanup(
+  next: NextInstance,
+  filename: Parameters<NextInstance['patchFile']>[0],
+  contents: Parameters<NextInstance['patchFile']>[1]
+): Promise<AsyncDisposable> {
+  const originalFile = (await next.hasFile(filename))
+    ? await next.readFile(filename)
+    : null
+  await next.patchFile(filename, contents)
+  return {
+    async [Symbol.asyncDispose]() {
+      if (originalFile === null) {
+        await next.deleteFile(filename)
+      } else {
+        await next.patchFile(filename, originalFile)
+      }
+    },
+  }
+}

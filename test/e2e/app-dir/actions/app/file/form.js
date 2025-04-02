@@ -10,8 +10,8 @@ export default function Form({ action }) {
       <button id="size-1mb" onClick={() => submit(1)}>
         1mb
       </button>
-      <button id="size-2mb" onClick={() => submit(2)}>
-        2mb
+      <button id="size-3mb" onClick={() => submit(3)}>
+        3mb
       </button>
     </>
   )
