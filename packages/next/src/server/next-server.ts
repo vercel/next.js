@@ -194,7 +194,7 @@ export default class NextNodeServer extends BaseServer<
 
     if (!isDev) {
       // @ts-expect-error internal field not publicly exposed
-      const isTurbopackBuild = this.nextConfig.experimental.isTurbopackBuild
+      const isTurbopackBuild = this.nextConfig.experimental?.isTurbopackBuild
       if (process.env.TURBOPACK && !isTurbopackBuild) {
         throw new Error(
           `Invariant: --turbopack is set but the build used Webpack`
