@@ -5,8 +5,6 @@ use turbo_tasks_fs::{File, FileSystemPath};
 
 use crate::{
     asset::{Asset, AssetContent},
-    chunk::ChunkingContext,
-    ident::AssetIdent,
     introspect::{Introspectable, IntrospectableChildren},
     output::OutputAsset,
     source_map::{GenerateSourceMap, SourceMap},
@@ -14,23 +12,20 @@ use crate::{
 
 /// Represents the source map of an ecmascript asset.
 #[turbo_tasks::value]
-pub struct SourceMapAsset {
-    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ident_for_path: ResolvedVc<AssetIdent>,
+pub struct FixedSourceMapAsset {
+    path: ResolvedVc<FileSystemPath>,
     generate_source_map: ResolvedVc<Box<dyn GenerateSourceMap>>,
 }
 
 #[turbo_tasks::value_impl]
-impl SourceMapAsset {
+impl FixedSourceMapAsset {
     #[turbo_tasks::function]
     pub fn new(
-        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-        ident_for_path: ResolvedVc<AssetIdent>,
+        path: ResolvedVc<FileSystemPath>,
         generate_source_map: ResolvedVc<Box<dyn GenerateSourceMap>>,
     ) -> Vc<Self> {
-        SourceMapAsset {
-            chunking_context,
-            ident_for_path,
+        FixedSourceMapAsset {
+            path,
             generate_source_map,
         }
         .cell()
@@ -38,21 +33,15 @@ impl SourceMapAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for SourceMapAsset {
+impl OutputAsset for FixedSourceMapAsset {
     #[turbo_tasks::function]
-    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        // NOTE(alexkirsz) We used to include the asset's version id in the path,
-        // but this caused `all_assets_map` to be recomputed on every change.
-        let this = self.await?;
-        Ok(this
-            .chunking_context
-            .chunk_path(*this.ident_for_path, ".js".into())
-            .append(".map".into()))
+    fn path(&self) -> Vc<FileSystemPath> {
+        self.path.append(".map".into())
     }
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for SourceMapAsset {
+impl Asset for FixedSourceMapAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
         if let Some(sm) = &*self.generate_source_map.generate_source_map().await? {
@@ -76,7 +65,7 @@ fn introspectable_details() -> Vc<RcStr> {
 }
 
 #[turbo_tasks::value_impl]
-impl Introspectable for SourceMapAsset {
+impl Introspectable for FixedSourceMapAsset {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
         introspectable_type()

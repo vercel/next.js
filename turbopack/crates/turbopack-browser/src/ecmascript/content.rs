@@ -10,7 +10,7 @@ use turbopack_core::{
     chunk::{ChunkingContext, MinifyType, ModuleId},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
     version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkContent, minify::minify, utils::StringifyJs};
@@ -26,6 +26,7 @@ pub struct EcmascriptBrowserChunkContent {
     pub(super) chunking_context: ResolvedVc<BrowserChunkingContext>,
     pub(super) chunk: ResolvedVc<EcmascriptBrowserChunk>,
     pub(super) content: ResolvedVc<EcmascriptChunkContent>,
+    pub(super) source_map: ResolvedVc<SourceMapAsset>,
 }
 
 #[turbo_tasks::value_impl]
@@ -35,11 +36,13 @@ impl EcmascriptBrowserChunkContent {
         chunking_context: ResolvedVc<BrowserChunkingContext>,
         chunk: ResolvedVc<EcmascriptBrowserChunk>,
         content: ResolvedVc<EcmascriptChunkContent>,
+        source_map: ResolvedVc<SourceMapAsset>,
     ) -> Result<Vc<Self>> {
         Ok(EcmascriptBrowserChunkContent {
             chunking_context,
             chunk,
             content,
+            source_map,
         }
         .cell())
     }
@@ -109,21 +112,21 @@ impl EcmascriptBrowserChunkContent {
 
         write!(code, "\n}}]);")?;
 
-        if source_maps && code.has_source_map() {
-            let filename = chunk_path.file_name();
-            write!(
-                code,
-                // findSourceMapURL assumes this co-located sourceMappingURL,
-                // and needs to be adjusted in case this is ever changed.
-                "\n\n//# sourceMappingURL={}.map",
-                urlencoding::encode(filename)
-            )?;
-        }
-
         let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
             code = minify(&*chunk_path_vc.await?, &code, source_maps, mangle)?;
+        }
+
+        if source_maps && code.has_source_map() {
+            let mut code_builder = CodeBuilder::from(code);
+            let source_map_path = this.source_map.path().await?;
+            write!(
+                code_builder,
+                "\n\n//# sourceMappingURL={}",
+                urlencoding::encode(source_map_path.file_name())
+            )?;
+            code = code_builder.build();
         }
 
         Ok(code.cell())

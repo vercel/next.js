@@ -139,6 +139,14 @@ impl Write for CodeBuilder {
     }
 }
 
+impl From<Code> for CodeBuilder {
+    fn from(code: Code) -> Self {
+        let mut builder = CodeBuilder::default();
+        builder.push_code(&code);
+        builder
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for Code {
     /// Generates the source map out of all the pushed Original code.

@@ -7,7 +7,7 @@ use turbopack_core::{
     chunk::{ChunkingContext, MinifyType},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
     version::{Version, VersionedContent},
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkContent, minify::minify, utils::StringifyJs};
@@ -20,6 +20,7 @@ pub(super) struct EcmascriptBuildNodeChunkContent {
     pub(super) content: ResolvedVc<EcmascriptChunkContent>,
     pub(super) chunking_context: ResolvedVc<NodeJsChunkingContext>,
     pub(super) chunk: ResolvedVc<EcmascriptBuildNodeChunk>,
+    pub(super) source_map: ResolvedVc<SourceMapAsset>,
 }
 
 #[turbo_tasks::value_impl]
@@ -29,11 +30,13 @@ impl EcmascriptBuildNodeChunkContent {
         chunking_context: ResolvedVc<NodeJsChunkingContext>,
         chunk: ResolvedVc<EcmascriptBuildNodeChunk>,
         content: ResolvedVc<EcmascriptChunkContent>,
+        source_map: ResolvedVc<SourceMapAsset>,
     ) -> Vc<Self> {
         EcmascriptBuildNodeChunkContent {
             content,
             chunking_context,
             chunk,
+            source_map,
         }
         .cell()
     }
@@ -50,7 +53,6 @@ impl EcmascriptBuildNodeChunkContent {
             .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk))
             .await?;
         let chunk_path_vc = this.chunk.path();
-        let chunk_path = chunk_path_vc.await?;
 
         let mut code = CodeBuilder::default();
 
@@ -74,19 +76,21 @@ impl EcmascriptBuildNodeChunkContent {
 
         write!(code, "\n}};")?;
 
-        if source_maps && code.has_source_map() {
-            let filename = chunk_path.file_name();
-            write!(
-                code,
-                "\n\n//# sourceMappingURL={}.map",
-                urlencoding::encode(filename)
-            )?;
-        }
-
         let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
             code = minify(&*chunk_path_vc.await?, &code, source_maps, mangle)?;
+        }
+
+        if source_maps && code.has_source_map() {
+            let mut code_builder = CodeBuilder::from(code);
+            let source_map_path = this.source_map.path().await?;
+            write!(
+                code_builder,
+                "\n\n//# sourceMappingURL={}",
+                urlencoding::encode(source_map_path.file_name())
+            )?;
+            code = code_builder.build();
         }
 
         Ok(code.cell())
