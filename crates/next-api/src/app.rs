@@ -1293,8 +1293,11 @@ impl AppEndpoint {
         let next_package = get_next_package(project.project_path());
         let polyfill_source =
             FileSource::new(next_package.join("dist/build/polyfills/polyfill-nomodule.js".into()));
-        let polyfill_output_path =
-            client_chunking_context.chunk_path(polyfill_source.ident(), ".js".into());
+        let polyfill_output_path = client_chunking_context.chunk_path(
+            Some(Vc::upcast(polyfill_source)),
+            polyfill_source.ident(),
+            ".js".into(),
+        );
         let polyfill_output_asset = ResolvedVc::upcast(
             RawOutput::new(polyfill_output_path, Vc::upcast(polyfill_source))
                 .to_resolved()
