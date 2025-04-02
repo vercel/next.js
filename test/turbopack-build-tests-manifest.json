@@ -1616,8 +1616,6 @@
       "css-order turbo should load correct styles on pages-first",
       "css-order turbo should load correct styles on pages-interleaved-a",
       "css-order turbo should load correct styles on pages-interleaved-b",
-      "css-order turbo should load correct styles on pages-partial-reversed-a",
-      "css-order turbo should load correct styles on pages-reversed-a",
       "css-order turbo should load correct styles on pages-second",
       "css-order turbo should load correct styles on pages-third",
       "css-order turbo should load correct styles on second",
@@ -1625,18 +1623,7 @@
       "css-order turbo should load correct styles on third",
       "css-order turbo should load correct styles on vendor"
     ],
-    "failed": [
-      "css-order turbo should load correct styles navigating back again pages-partial-reversed-a -> pages-partial-reversed-b -> pages-partial-reversed-a -> pages-partial-reversed-b",
-      "css-order turbo should load correct styles navigating back again pages-partial-reversed-b -> pages-partial-reversed-a -> pages-partial-reversed-b -> pages-partial-reversed-a",
-      "css-order turbo should load correct styles navigating back again pages-reversed-a -> pages-reversed-b -> pages-reversed-a -> pages-reversed-b",
-      "css-order turbo should load correct styles navigating back again pages-reversed-b -> pages-reversed-a -> pages-reversed-b -> pages-reversed-a",
-      "css-order turbo should load correct styles navigating pages-partial-reversed-a -> pages-partial-reversed-b",
-      "css-order turbo should load correct styles navigating pages-partial-reversed-b -> pages-partial-reversed-a",
-      "css-order turbo should load correct styles navigating pages-reversed-a -> pages-reversed-b",
-      "css-order turbo should load correct styles navigating pages-reversed-b -> pages-reversed-a",
-      "css-order turbo should load correct styles on pages-partial-reversed-b",
-      "css-order turbo should load correct styles on pages-reversed-b"
-    ],
+    "failed": [],
     "pending": [
       "css-order turbo should load correct styles navigating back again big-interleaved-a -> big-interleaved-b -> big-interleaved-a -> big-interleaved-b",
       "css-order turbo should load correct styles navigating back again big-interleaved-b -> big-interleaved-a -> big-interleaved-b -> big-interleaved-a",
@@ -2159,11 +2146,10 @@
       "app dir - next/dynamic should handle next/dynamic in hydration correctly",
       "app dir - next/dynamic should handle ssr: false in pages when appDir is enabled",
       "app dir - next/dynamic should not render loading by default",
-      "app dir - next/dynamic should render loading by default if loading is specified and loader is slow"
-    ],
-    "failed": [
+      "app dir - next/dynamic should render loading by default if loading is specified and loader is slow",
       "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components in edge runtime"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3005,11 +2991,10 @@
   "test/e2e/app-dir/missing-suspense-with-csr-bailout/missing-suspense-with-csr-bailout.test.ts": {
     "passed": [
       "missing-suspense-with-csr-bailout next/dynamic does not emit errors related to bailing out of client side rendering",
-      "missing-suspense-with-csr-bailout useSearchParams should pass build if useSearchParams is wrapped in a suspense boundary"
-    ],
-    "failed": [
+      "missing-suspense-with-csr-bailout useSearchParams should pass build if useSearchParams is wrapped in a suspense boundary",
       "missing-suspense-with-csr-bailout useSearchParams should fail build if useSearchParams is not wrapped in a suspense boundary"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

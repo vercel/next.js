@@ -9,33 +9,13 @@ export interface StepProps {
   params?: Record<string, string | number | boolean | null | undefined>
 }
 
-// Access the internal Playwright API until it's exposed publicly.
-// See https://github.com/microsoft/playwright/issues/27059.
-interface TestInfoWithRunAsStep extends TestInfo {
-  _runAsStep: <T>(
-    stepInfo: StepProps,
-    handler: (result: { complete: Complete }) => Promise<T>
-  ) => Promise<T>
-}
-
 type Complete = (result: { error?: any }) => void
 
-function isWithRunAsStep(
-  testInfo: TestInfo
-): testInfo is TestInfoWithRunAsStep {
-  return '_runAsStep' in testInfo
-}
-
 export async function step<T>(
-  testInfo: TestInfo,
+  _testInfo: TestInfo,
   props: StepProps,
   handler: (complete: Complete) => Promise<Awaited<T>>
 ): Promise<Awaited<T>> {
-  if (isWithRunAsStep(testInfo)) {
-    return testInfo._runAsStep(props, ({ complete }) => handler(complete))
-  }
-
-  // Fallback to the `test.step()`.
   let result: Awaited<T>
   let reportedError: any
   try {

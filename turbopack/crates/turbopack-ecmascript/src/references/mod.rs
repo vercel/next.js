@@ -276,6 +276,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     /// If you're unsure about which function to use, use `add_reference()`
     pub fn add_esm_evaluation_reference(&mut self, idx: usize) {
         self.esm_references.insert(idx);
+        self.esm_local_references.insert(idx);
         self.esm_evaluation_references.insert(idx);
     }
 

@@ -417,7 +417,7 @@ pub struct Rewrites {
 #[serde(rename_all = "camelCase")]
 pub struct TypeScriptConfig {
     pub ignore_build_errors: Option<bool>,
-    pub ts_config_path: Option<String>,
+    pub tsconfig_path: Option<String>,
 }
 
 #[turbo_tasks::value(eq = "manual", operation)]
@@ -1533,6 +1533,16 @@ impl NextConfig {
         let source_maps = self.experimental.turbo.as_ref().and_then(|t| t.source_maps);
 
         Ok(Vc::cell(source_maps.unwrap_or(true)))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn typescript_tsconfig_path(&self) -> Result<Vc<Option<RcStr>>> {
+        Ok(Vc::cell(
+            self.typescript
+                .tsconfig_path
+                .as_ref()
+                .map(|path| path.to_owned().into()),
+        ))
     }
 }
 

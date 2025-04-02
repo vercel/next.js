@@ -187,6 +187,7 @@ import isError from '../../lib/is-error'
 import { isUseCacheTimeoutError } from '../use-cache/use-cache-errors'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
 import { getPreviouslyRevalidatedTags } from '../server-utils'
+import { executeRevalidates } from '../revalidation-utils'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -432,13 +433,20 @@ function makeGetDynamicParamFromSegment(
   }
 }
 
-function NonIndex({ ctx }: { ctx: AppRenderContext }) {
-  const is404Page = ctx.pagePath === '/404'
-  const isInvalidStatusCode =
-    typeof ctx.res.statusCode === 'number' && ctx.res.statusCode > 400
+function NonIndex({
+  pagePath,
+  statusCode,
+  isAction,
+}: {
+  pagePath: string
+  statusCode: number | undefined
+  isAction: boolean
+}) {
+  const is404Page = pagePath === '/404'
+  const isInvalidStatusCode = typeof statusCode === 'number' && statusCode > 400
 
   // Only render noindex for page request, skip for server actions
-  if (!ctx.isAction && (is404Page || isInvalidStatusCode)) {
+  if (!isAction && (is404Page || isInvalidStatusCode)) {
     return <meta name="robots" content="noindex" />
   }
   return null
@@ -526,7 +534,11 @@ async function generateDynamicRSCPayload(
         rscHead: (
           <React.Fragment key={flightDataPathHeadKey}>
             {/* noindex needs to be blocking */}
-            <NonIndex ctx={ctx} />
+            <NonIndex
+              pagePath={ctx.pagePath}
+              statusCode={ctx.res.statusCode}
+              isAction={ctx.isAction}
+            />
             {/* Adding requestId as react key to make metadata remount for each render */}
             <ViewportTree key={requestId} />
             {StreamingMetadata ? <StreamingMetadata /> : null}
@@ -858,7 +870,11 @@ async function getRSCPayload(
 
   const initialHead = (
     <React.Fragment key={flightDataPathHeadKey}>
-      <NonIndex ctx={ctx} />
+      <NonIndex
+        pagePath={ctx.pagePath}
+        statusCode={ctx.res.statusCode}
+        isAction={ctx.isAction}
+      />
       <ViewportTree key={ctx.requestId} />
       <StaticMetadata />
     </React.Fragment>
@@ -960,7 +976,11 @@ async function getErrorRSCPayload(
 
   const initialHead = (
     <React.Fragment key={flightDataPathHeadKey}>
-      <NonIndex ctx={ctx} />
+      <NonIndex
+        pagePath={ctx.pagePath}
+        statusCode={ctx.res.statusCode}
+        isAction={ctx.isAction}
+      />
       {/* Adding requestId as react key to make metadata remount for each render */}
       <ViewportTree key={requestId} />
       {process.env.NODE_ENV === 'development' && (
@@ -1058,6 +1078,9 @@ function App<T>({
   )
 
   const initialState = createInitialRouterState({
+    // This is not used during hydration, so we don't have to pass a
+    // real timestamp.
+    navigatedAt: -1,
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
     initialParallelRoutes: new Map(),
@@ -1122,6 +1145,9 @@ function ErrorApp<T>({
   )
 
   const initialState = createInitialRouterState({
+    // This is not used during hydration, so we don't have to pass a
+    // real timestamp.
+    navigatedAt: -1,
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
     initialParallelRoutes: new Map(),
@@ -1407,13 +1433,7 @@ async function renderToHTMLOrFlightImpl(
       workStore.pendingRevalidateWrites ||
       workStore.pendingRevalidatedTags
     ) {
-      const pendingPromise = Promise.all([
-        workStore.incrementalCache?.revalidateTag(
-          workStore.pendingRevalidatedTags || []
-        ),
-        ...Object.values(workStore.pendingRevalidates || {}),
-        ...(workStore.pendingRevalidateWrites || []),
-      ]).finally(() => {
+      const pendingPromise = executeRevalidates(workStore).finally(() => {
         if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
           console.log('pending revalidates promise finished for:', url)
         }
@@ -1582,13 +1602,7 @@ async function renderToHTMLOrFlightImpl(
       workStore.pendingRevalidateWrites ||
       workStore.pendingRevalidatedTags
     ) {
-      const pendingPromise = Promise.all([
-        workStore.incrementalCache?.revalidateTag(
-          workStore.pendingRevalidatedTags || []
-        ),
-        ...Object.values(workStore.pendingRevalidates || {}),
-        ...(workStore.pendingRevalidateWrites || []),
-      ]).finally(() => {
+      const pendingPromise = executeRevalidates(workStore).finally(() => {
         if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
           console.log('pending revalidates promise finished for:', url)
         }
@@ -4212,7 +4226,17 @@ async function collectSegmentData(
   // decomposed into a separate stream per segment.
 
   const clientReferenceManifest = renderOpts.clientReferenceManifest
-  if (!clientReferenceManifest || !renderOpts.experimental.clientSegmentCache) {
+  if (
+    !clientReferenceManifest ||
+    // Do not generate per-segment data unless the experimental Segment Cache
+    // flag is enabled.
+    //
+    // We also skip generating segment data if flag is set to "client-only",
+    // rather than true. (The "client-only" option only affects the behavior of
+    // the client-side implementation; per-segment prefetches are intentionally
+    // disabled in that configuration).
+    renderOpts.experimental.clientSegmentCache !== true
+  ) {
     return
   }
 
