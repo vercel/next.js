@@ -52,7 +52,7 @@ let origConsoleError = console.error
 function nextJsHandleConsoleError(...args: any[]) {
   // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
   const error = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
-  storeHydrationErrorStateFromConsoleArgs(...args)
+  // storeHydrationErrorStateFromConsoleArgs(...args)
   handleError(error)
   origConsoleError.apply(window.console, args)
 }
