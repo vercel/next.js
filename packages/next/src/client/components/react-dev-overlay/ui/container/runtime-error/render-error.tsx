@@ -32,6 +32,7 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
 
 type Props = {
   children: (params: {
+    type: 'runtime' | 'build'
     runtimeErrors: ReadyRuntimeError[]
     totalErrorCount: number
   }) => React.ReactNode
@@ -110,11 +111,12 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
 
   const totalErrorCount = runtimeErrors.length
 
-  return children({ runtimeErrors, totalErrorCount })
+  return children({ type: 'runtime', runtimeErrors, totalErrorCount })
 }
 
 const RenderBuildError = ({ children }: Props) => {
   return children({
+    type: 'build',
     runtimeErrors: [],
     // Build errors and missing root layout tags persist until fixed,
     // so we can set a fixed error count of 1

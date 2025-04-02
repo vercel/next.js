@@ -32,8 +32,8 @@ export function DevOverlay({
       <DarkTheme />
 
       <RenderError state={state} isAppDir={true}>
-        {({ runtimeErrors, totalErrorCount }) => {
-          const isBuildError = runtimeErrors.length === 0
+        {({ runtimeErrors, totalErrorCount, type }) => {
+          const isBuildError = type === 'build'
           return (
             <>
               <DevToolsIndicator
