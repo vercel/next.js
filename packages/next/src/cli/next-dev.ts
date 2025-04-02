@@ -236,7 +236,12 @@ const nextDev = async (
     hostname: host,
   }
 
-  const isTurbopack = Boolean(options.turbo || options.turbopack)
+  const isTurbopack = Boolean(
+    options.turbo ||
+      options.turbopack ||
+      // TODO: Used for Testing in Next.js CI. Rename to something better like `NEXT_TEST_TURBOPACK`.
+      process.env.TURBOPACK
+  )
   if (isTurbopack) {
     process.env.TURBOPACK = '1'
   }
@@ -285,7 +290,7 @@ const nextDev = async (
         stdio: 'inherit',
         env: {
           ...defaultEnv,
-          TURBOPACK: process.env.TURBOPACK,
+          ...(isTurbopack ? { TURBOPACK: '1' } : undefined),
           NEXT_PRIVATE_WORKER: '1',
           NEXT_PRIVATE_TRACE_ID: traceId,
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
