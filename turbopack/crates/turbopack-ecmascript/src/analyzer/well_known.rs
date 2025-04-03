@@ -322,10 +322,12 @@ pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
 /// if we come across any unsupported syntax.
 pub fn import(args: Vec<JsValue>) -> JsValue {
     match &args[..] {
-        [JsValue::Constant(ConstantValue::Str(v))] => JsValue::Module(ModuleValue {
-            module: v.as_atom().into_owned(),
-            annotations: ImportAnnotations::default(),
-        }),
+        [JsValue::Constant(ConstantValue::Str(v))] => {
+            JsValue::promise(Box::new(JsValue::Module(ModuleValue {
+                module: v.as_atom().into_owned(),
+                annotations: ImportAnnotations::default(),
+            })))
+        }
         _ => JsValue::unknown(
             JsValue::call(
                 Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::Import)),

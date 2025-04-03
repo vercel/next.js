@@ -3928,10 +3928,12 @@ pub mod test_utils {
                 box JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
                 ref args,
             ) => match &args[0] {
-                JsValue::Constant(ConstantValue::Str(v)) => JsValue::Module(ModuleValue {
-                    module: v.as_atom().into_owned(),
-                    annotations: ImportAnnotations::default(),
-                }),
+                JsValue::Constant(ConstantValue::Str(v)) => {
+                    JsValue::promise(Box::new(JsValue::Module(ModuleValue {
+                        module: v.as_atom().into_owned(),
+                        annotations: ImportAnnotations::default(),
+                    })))
+                }
                 _ => v.into_unknown(true, "import() non constant"),
             },
             JsValue::Call(
