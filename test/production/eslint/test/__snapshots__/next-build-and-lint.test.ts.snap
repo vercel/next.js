@@ -451,6 +451,9 @@ exports[`Next Build production mode first time setup with TypeScript 1`] = `
     "no-var": [
       "error",
     ],
+    "no-with": [
+      "off",
+    ],
     "prefer-const": [
       "error",
     ],
