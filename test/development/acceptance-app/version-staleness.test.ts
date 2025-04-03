@@ -85,13 +85,19 @@ describe('Error Overlay version staleness', () => {
 
     if (process.env.TURBOPACK) {
       expect(await getStaleness(browser)).toMatchInlineSnapshot(`
-       "Next.js 2.0.0 (outdated)
-       Turbopack"
-      `)
+         "Next.js 2.0.0 (outdated)
+         Turbopack"
+        `)
+    } else if (process.env.NEXT_RSPACK) {
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
+         "Next.js 2.0.0 (outdated)
+         Rspack"
+        `)
     } else {
-      expect(await getStaleness(browser)).toMatchInlineSnapshot(
-        `"Next.js 2.0.0 (outdated)"`
-      )
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
+         "Next.js 2.0.0 (outdated)
+         Webpack"
+        `)
     }
   })
 
@@ -118,13 +124,19 @@ describe('Error Overlay version staleness', () => {
 
     if (process.env.TURBOPACK) {
       expect(await getStaleness(browser)).toMatchInlineSnapshot(`
-       "Next.js 3.0.0 (outdated)
-       Turbopack"
-      `)
+         "Next.js 3.0.0 (outdated)
+         Turbopack"
+        `)
+    } else if (process.env.NEXT_RSPACK) {
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
+         "Next.js 3.0.0 (outdated)
+         Rspack"
+        `)
     } else {
-      expect(await getStaleness(browser)).toMatchInlineSnapshot(
-        `"Next.js 3.0.0 (outdated)"`
-      )
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
+         "Next.js 3.0.0 (outdated)
+         Webpack"
+        `)
     }
   })
 })
