@@ -1741,6 +1741,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/acceptance-app/ReactRefreshLogBox-builtins.test.ts": {
+    "passed": [
+      "ReactRefreshLogBox-builtins app Module not found",
+      "ReactRefreshLogBox-builtins app Module not found empty import trace",
+      "ReactRefreshLogBox-builtins app Module not found missing global CSS",
+      "ReactRefreshLogBox-builtins app Node.js builtins"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/acceptance-app/ReactRefreshLogBox-scss.test.ts": {
     "passed": [],
     "failed": [],
@@ -4994,6 +5006,13 @@
     "passed": [
       "css-client-side-nav-parallel-routes should apply styles after navigation"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/css-modules-pure-no-check/css-modules-pure-no-check.test.ts": {
+    "passed": ["css-modules-pure-no-check should apply styles correctly"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -8966,6 +8985,55 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-document/client.test.ts": {
+    "passed": [
+      "Document and App - Client side should detect the changes to pages/_app.js and display it",
+      "Document and App - Client side should detect the changes to pages/_document.js and display it",
+      "Document and App - Client side should keep state between page navigations",
+      "Document and App - Client side should share module state with pages"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-document/csp.test.ts": {
+    "passed": [
+      "Document and App - With CSP enabled should load inline script by hash",
+      "Document and App - With CSP enabled should load inline script by nonce"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-document/index.test.ts": {
+    "passed": ["Document and App should not have any missing key warnings"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-document/rendering.test.ts": {
+    "passed": [
+      "Document and App - Rendering via HTTP _app should share module state with pages",
+      "Document and App - Rendering via HTTP _app should show valid error when thrown in _app getInitialProps",
+      "Document and App - Rendering via HTTP _app shows a custom tag",
+      "Document and App - Rendering via HTTP _document Document.getInitialProps returns html prop representing app shell",
+      "Document and App - Rendering via HTTP _document adds a timestamp to link tags with preload attribute to invalidate the cache in dev",
+      "Document and App - Rendering via HTTP _document adds crossOrigin to all scripts and preload links",
+      "Document and App - Rendering via HTTP _document adds nonces to all scripts and preload links",
+      "Document and App - Rendering via HTTP _document renders ctx.renderPage with enhanceApp and enhanceComponent correctly",
+      "Document and App - Rendering via HTTP _document renders ctx.renderPage with enhanceApp correctly",
+      "Document and App - Rendering via HTTP _document renders ctx.renderPage with enhanceComponent correctly",
+      "Document and App - Rendering via HTTP _document renders ctx.renderPage with enhancer correctly",
+      "Document and App - Rendering via HTTP _document should include required elements in rendered html"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/async-modules/index.test.ts": {
     "passed": [
       "Async modules can render async 404 pages",
@@ -11915,33 +11983,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/app-document/test/index.test.js": {
-    "passed": [
-      "Document and App Client side It should share module state with pages",
-      "Document and App Client side should detect the changes to pages/_app.js and display it",
-      "Document and App Client side should detect the changes to pages/_document.js and display it",
-      "Document and App Client side should keep state between page navigations",
-      "Document and App Rendering via HTTP _app It should share module state with pages",
-      "Document and App Rendering via HTTP _app It should show valid error when thrown in _app getInitialProps",
-      "Document and App Rendering via HTTP _app It shows a custom tag",
-      "Document and App Rendering via HTTP _document Document.getInitialProps returns html prop representing app shell",
-      "Document and App Rendering via HTTP _document It adds a timestamp to link tags with preload attribute to invalidate the cache (DEV only)",
-      "Document and App Rendering via HTTP _document It adds crossOrigin to all scripts and preload links",
-      "Document and App Rendering via HTTP _document It adds nonces to all scripts and preload links",
-      "Document and App Rendering via HTTP _document It renders ctx.renderPage with enhanceApp and enhanceComponent correctly",
-      "Document and App Rendering via HTTP _document It renders ctx.renderPage with enhanceApp correctly",
-      "Document and App Rendering via HTTP _document It renders ctx.renderPage with enhanceComponent correctly",
-      "Document and App Rendering via HTTP _document It renders ctx.renderPage with enhancer correctly",
-      "Document and App Rendering via HTTP _document should include required elements in rendered html",
-      "Document and App With CSP enabled should load inline script by hash",
-      "Document and App With CSP enabled should load inline script by nonce",
-      "Document and App should not have any missing key warnings"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/app-dynamic-error/test/index.test.ts": {
     "passed": [],
     "failed": [],
@@ -12742,7 +12783,10 @@
   "test/integration/css-modules/test/index.test.js": {
     "passed": [
       "Can hot reload CSS Module without losing state should update CSS color without remounting <input>",
-      "Has CSS Module in computed styles in Development should have CSS for page"
+      "Has CSS Module in computed styles in Development should have CSS for page",
+      "cssmodules-pure-no-check usage should apply styles correctly",
+      "cssmodules-pure-no-check usage should have compiled successfully",
+      "cssmodules-pure-no-check usage should've emitted a CSS file"
     ],
     "failed": [],
     "pending": [
@@ -17181,6 +17225,7 @@
       "Image Optimizer config checks should error when images.loader is assigned but images.path is not",
       "Image Optimizer config checks should error when images.loaderFile does not exist",
       "Image Optimizer config checks should error when images.minimumCacheTTL is not valid",
+      "Image Optimizer config checks should error when images.remotePatterns URL has invalid protocol",
       "Image Optimizer config checks should error when images.remotePatterns is invalid",
       "Image Optimizer config checks should error when images.unoptimized is not a boolean",
       "Image Optimizer config checks should error when loader contains invalid value",
@@ -19077,6 +19122,7 @@
     ],
     "failed": [],
     "pending": [
+      "Image Component Unicode Image URL production mode should build correct images-manifest.json",
       "Image Component Unicode Image URL production mode should load external image with space",
       "Image Component Unicode Image URL production mode should load external unicode image",
       "Image Component Unicode Image URL production mode should load internal image with space",
