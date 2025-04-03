@@ -1234,11 +1234,7 @@ export default function Home() {
 
 ### Blocking navigation
 
-You can use the `onNavigate` prop to block navigation when certain conditions are met, such as when a form has unsaved changes. When you need to block navigation across multiple components in your app (like preventing navigation from any link while a form is being edited), React Context provides a clean way to share this blocking state.
-
-Here's how to implement this pattern:
-
-First, create a context to track the navigation blocking state:
+You can use the `onNavigate` prop to block navigation when certain conditions are met, such as when a form has unsaved changes. When you need to block navigation across multiple components in your app (like preventing navigation from any link while a form is being edited), React Context provides a clean way to share this blocking state. First, create a context to track the navigation blocking state:
 
 ```tsx filename="app/contexts/navigation-blocker.tsx" switcher
 'use client'
@@ -1474,7 +1470,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Then use the Nav and Form components in your page:
+Then, use the `Nav` and `Form` components in your page:
 
 ```tsx filename="app/page.tsx" switcher
 import Nav from './components/nav'
@@ -1510,7 +1506,7 @@ export default function Page() {
 }
 ```
 
-Now when a user tries to navigate away using any `CustomLink` while the form has unsaved changes, they'll be prompted to confirm before leaving.
+When a user tries to navigate away using `CustomLink` while the form has unsaved changes, they'll be prompted to confirm before leaving.
 
 ## Version history
 
