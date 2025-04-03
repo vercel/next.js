@@ -52,10 +52,16 @@ describe('Error Overlay version staleness', () => {
          "Next.js 1.0.0 (outdated)
          Turbopack"
         `)
+    } else if (process.env.NEXT_RSPACK) {
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
+         "Next.js 1.0.0 (outdated)
+         Rspack"
+        `)
     } else {
-      expect(await getStaleness(browser)).toMatchInlineSnapshot(
-        `"Next.js 1.0.0 (outdated)"`
-      )
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
+         "Next.js 1.0.0 (outdated)
+         Webpack"
+        `)
     }
   })
 
