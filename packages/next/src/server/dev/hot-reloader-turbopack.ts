@@ -37,7 +37,7 @@ import {
 } from '../../client/components/react-dev-overlay/server/middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
-import { deleteAppClientCache, deleteCache } from './require-cache'
+import { deleteCache, deleteFromRequireCache } from './require-cache'
 import {
   clearAllModuleContexts,
   clearModuleContext,
@@ -339,7 +339,16 @@ export async function createHotReloaderTurbopack(
     )
 
     if (hasAppPaths) {
-      deleteAppClientCache()
+      deleteFromRequireCache(
+        require.resolve(
+          'next/dist/compiled/next-server/app-page-turbo.runtime.dev.js'
+        )
+      )
+      deleteFromRequireCache(
+        require.resolve(
+          'next/dist/compiled/next-server/app-page-turbo-experimental.runtime.dev.js'
+        )
+      )
     }
 
     const serverPaths = writtenEndpoint.serverPaths.map(({ path: p }) =>
