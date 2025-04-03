@@ -136,7 +136,7 @@ impl Asset for SingleItemCssChunk {
             let source_map_path = SingleItemCssChunkSourceMapAsset::new(self).path().await?;
             write!(
                 rope_builder,
-                "\n\n//# sourceMappingURL={}",
+                "\n/*# sourceMappingURL={}*/",
                 urlencoding::encode(source_map_path.file_name())
             )?;
             rope_builder.build()

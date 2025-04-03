@@ -132,7 +132,7 @@ impl CssChunk {
             let source_map_path = CssChunkSourceMapAsset::new(self).path().await?;
             write!(
                 rope_builder,
-                "\n\n//# sourceMappingURL={}",
+                "/*# sourceMappingURL={}*/",
                 urlencoding::encode(source_map_path.file_name())
             )?;
             rope_builder.build()
