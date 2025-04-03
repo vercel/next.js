@@ -2909,7 +2909,7 @@ export async function next_bundle_app_dev_turbo_experimental(task, opts) {
       bundleType: 'app',
       experimental: true,
     }),
-    name: 'next-bundle-app-dev-experimental',
+    name: 'next-bundle-app-dev-turbo-experimental',
   })
 }
 
@@ -2945,7 +2945,7 @@ export async function next_bundle_pages_dev_turbo(task, opts) {
       turbo: true,
       bundleType: 'pages',
     }),
-    name: 'next-bundle-pages-dev',
+    name: 'next-bundle-pages-dev-turbo',
   })
 }
 
