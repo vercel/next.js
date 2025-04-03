@@ -195,7 +195,7 @@ export default function GlobalError({ error, reset }) {
 
 ### Graceful Error Recovery with a Custom Error Boundary
 
-When rendering fails on the client, it’s often useful to show the last known good UI than a blank screen for a better user experience.
+When rendering fails on the client, it can be useful to show the last known server rendered UI for a better user experience.
 
 The `GracefullyDegradingErrorBoundary` is a custom error boundary that captures and preserves the current HTML before an error occurs. If a rendering error happens, it re-renders the captured HTML statically and displays a persistent notification bar to inform the user.
 
