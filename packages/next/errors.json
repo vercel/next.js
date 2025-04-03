@@ -669,5 +669,6 @@
   "668": "Internal Next.js error: Router action dispatched before initialization.",
   "669": "Invariant: --turbopack is set but the build used Webpack",
   "670": "Invariant: --turbopack is not set but the build used Turbopack. Add --turbopack to \"next start\".",
-  "671": "Specified images.remotePatterns must have protocol \"http\" or \"https\" received \"%s\"."
+  "671": "Specified images.remotePatterns must have protocol \"http\" or \"https\" received \"%s\".",
+  "672": "Expected `telemetry` to be set in globals"
 }
