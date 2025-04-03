@@ -13,6 +13,7 @@ import {
   type CachedFetchData,
 } from '../../response-cache'
 import type { UnstableCacheStore } from '../../app-render/work-unit-async-storage.external'
+import { createScopedCacheHandlers } from '../../use-cache/handlers'
 
 type Callback = (...args: any[]) => Promise<any>
 
@@ -142,7 +143,7 @@ export function unstable_cache<T extends Callback>(
       const fetchIdx =
         (workStore ? workStore.nextFetchId : noStoreFetchIdx) ?? 1
 
-      const implicitTags = workUnitStore?.implicitTags
+      const implicitTags = workUnitStore?.implicitTags ?? []
 
       const innerCacheStore: UnstableCacheStore = {
         type: 'unstable-cache',
@@ -152,6 +153,9 @@ export function unstable_cache<T extends Callback>(
           workUnitStore &&
           workStore &&
           getDraftModeProviderForCacheScope(workStore, workUnitStore),
+        cacheHandlers:
+          workUnitStore?.cacheHandlers ??
+          createScopedCacheHandlers(implicitTags),
       }
 
       if (workStore) {
@@ -209,7 +213,7 @@ export function unstable_cache<T extends Callback>(
             kind: IncrementalCacheKind.FETCH,
             revalidate: options.revalidate,
             tags,
-            softTags: implicitTags?.tags,
+            softTags: implicitTags,
             fetchIdx,
             fetchUrl,
           })
@@ -302,7 +306,7 @@ export function unstable_cache<T extends Callback>(
             tags,
             fetchIdx,
             fetchUrl,
-            softTags: implicitTags?.tags,
+            softTags: implicitTags,
           })
 
           if (cacheEntry && cacheEntry.value) {

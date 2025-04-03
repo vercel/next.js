@@ -70,7 +70,7 @@ import {
   getRedirectStatusCodeFromError,
 } from '../../client/components/redirect'
 import { isRedirectError } from '../../client/components/redirect-error'
-import { getImplicitTags, type ImplicitTags } from '../lib/implicit-tags'
+import { getImplicitTags } from '../lib/implicit-tags'
 import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
 import { FlightRenderResult } from './flight-render-result'
@@ -188,6 +188,7 @@ import { isUseCacheTimeoutError } from '../use-cache/use-cache-errors'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
 import { getPreviouslyRevalidatedTags } from '../server-utils'
 import { executeRevalidates } from '../revalidation-utils'
+import { createScopedCacheHandlers } from '../use-cache/handlers'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -711,11 +712,17 @@ async function warmupDevRender(
   const prerenderController = new AbortController()
   const cacheSignal = new CacheSignal()
 
+  const implicitTags = getImplicitTags(
+    renderOpts.routeModule.definition.page,
+    new URL(req.url).pathname,
+    null
+  )
+
   const prerenderStore: PrerenderStore = {
     type: 'prerender',
     phase: 'render',
     rootParams,
-    implicitTags: undefined,
+    implicitTags,
     renderSignal: renderController.signal,
     controller: prerenderController,
     cacheSignal,
@@ -725,6 +732,7 @@ async function warmupDevRender(
     stale: INFINITE_CACHE,
     tags: [],
     prerenderResumeDataCache,
+    cacheHandlers: createScopedCacheHandlers(implicitTags),
   }
 
   const rscPayload = await workUnitAsyncStorage.run(
@@ -1366,9 +1374,9 @@ async function renderToHTMLOrFlightImpl(
 
   getTracer().setRootSpanAttribute('next.route', pagePath)
 
-  const implicitTags = await getImplicitTags(
+  const implicitTags = getImplicitTags(
     workStore.page,
-    url,
+    url.pathname,
     fallbackRouteParams
   )
 
@@ -2238,7 +2246,7 @@ async function spawnDynamicValidationInDev(
     type: 'prerender',
     phase: 'render',
     rootParams,
-    implicitTags: undefined,
+    implicitTags: requestStore.implicitTags,
     renderSignal: initialServerRenderController.signal,
     controller: initialServerPrerenderController,
     cacheSignal,
@@ -2248,6 +2256,7 @@ async function spawnDynamicValidationInDev(
     stale: INFINITE_CACHE,
     tags: [],
     prerenderResumeDataCache,
+    cacheHandlers: requestStore.cacheHandlers,
   }
 
   const initialClientController = new AbortController()
@@ -2255,7 +2264,7 @@ async function spawnDynamicValidationInDev(
     type: 'prerender',
     phase: 'render',
     rootParams,
-    implicitTags: undefined,
+    implicitTags: requestStore.implicitTags,
     renderSignal: initialClientController.signal,
     controller: initialClientController,
     cacheSignal,
@@ -2265,6 +2274,7 @@ async function spawnDynamicValidationInDev(
     stale: INFINITE_CACHE,
     tags: [],
     prerenderResumeDataCache,
+    cacheHandlers: requestStore.cacheHandlers,
   }
 
   // We're not going to use the result of this render because the only time it could be used
@@ -2401,7 +2411,7 @@ async function spawnDynamicValidationInDev(
     type: 'prerender',
     phase: 'render',
     rootParams,
-    implicitTags: undefined,
+    implicitTags: requestStore.implicitTags,
     renderSignal: finalServerController.signal,
     controller: finalServerController,
     // During the final prerender we don't need to track cache access so we omit the signal
@@ -2412,6 +2422,7 @@ async function spawnDynamicValidationInDev(
     stale: INFINITE_CACHE,
     tags: [],
     prerenderResumeDataCache,
+    cacheHandlers: requestStore.cacheHandlers,
   }
 
   const finalClientController = new AbortController()
@@ -2422,7 +2433,7 @@ async function spawnDynamicValidationInDev(
     type: 'prerender',
     phase: 'render',
     rootParams,
-    implicitTags: undefined,
+    implicitTags: requestStore.implicitTags,
     renderSignal: finalClientController.signal,
     controller: finalClientController,
     // During the final prerender we don't need to track cache access so we omit the signal
@@ -2433,6 +2444,7 @@ async function spawnDynamicValidationInDev(
     stale: INFINITE_CACHE,
     tags: [],
     prerenderResumeDataCache,
+    cacheHandlers: requestStore.cacheHandlers,
   }
 
   const finalServerPayload = await workUnitAsyncStorage.run(
@@ -2593,7 +2605,7 @@ async function prerenderToStream(
   metadata: AppPageRenderResultMetadata,
   workStore: WorkStore,
   tree: LoaderTree,
-  implicitTags: ImplicitTags
+  implicitTags: string[]
 ): Promise<PrerenderToStreamResult> {
   // When prerendering formState is always null. We still include it
   // because some shared APIs expect a formState value and this is slightly
@@ -2707,6 +2719,8 @@ async function prerenderToStream(
 
   let prerenderStore: PrerenderStore | null = null
 
+  const cacheHandlers = createScopedCacheHandlers(implicitTags)
+
   try {
     if (renderOpts.experimental.dynamicIO) {
       if (renderOpts.experimental.isRoutePPREnabled) {
@@ -2757,8 +2771,9 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
-          tags: [...implicitTags.tags],
+          tags: [...implicitTags],
           prerenderResumeDataCache,
+          cacheHandlers,
         })
 
         // We're not going to use the result of this render because the only time it could be used
@@ -2851,8 +2866,9 @@ async function prerenderToStream(
             revalidate: INFINITE_CACHE,
             expire: INFINITE_CACHE,
             stale: INFINITE_CACHE,
-            tags: [...implicitTags.tags],
+            tags: [...implicitTags],
             prerenderResumeDataCache,
+            cacheHandlers,
           }
 
           const prerender = require('react-dom/static.edge')
@@ -2937,8 +2953,9 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
-          tags: [...implicitTags.tags],
+          tags: [...implicitTags],
           prerenderResumeDataCache,
+          cacheHandlers,
         })
 
         const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
@@ -3006,8 +3023,9 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
-          tags: [...implicitTags.tags],
+          tags: [...implicitTags],
           prerenderResumeDataCache,
+          cacheHandlers,
         }
 
         let clientIsDynamic = false
@@ -3240,8 +3258,9 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
-          tags: [...implicitTags.tags],
+          tags: [...implicitTags],
           prerenderResumeDataCache,
+          cacheHandlers,
         })
 
         const initialClientController = new AbortController()
@@ -3257,8 +3276,9 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
-          tags: [...implicitTags.tags],
+          tags: [...implicitTags],
           prerenderResumeDataCache,
+          cacheHandlers,
         })
 
         // We're not going to use the result of this render because the only time it could be used
@@ -3410,8 +3430,9 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
-          tags: [...implicitTags.tags],
+          tags: [...implicitTags],
           prerenderResumeDataCache,
+          cacheHandlers,
         })
 
         let clientIsDynamic = false
@@ -3434,8 +3455,9 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
-          tags: [...implicitTags.tags],
+          tags: [...implicitTags],
           prerenderResumeDataCache,
+          cacheHandlers,
         })
 
         const finalServerPayload = await workUnitAsyncStorage.run(
@@ -3625,8 +3647,9 @@ async function prerenderToStream(
         revalidate: INFINITE_CACHE,
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
-        tags: [...implicitTags.tags],
+        tags: [...implicitTags],
         prerenderResumeDataCache,
+        cacheHandlers,
       })
       const RSCPayload = await workUnitAsyncStorage.run(
         reactServerPrerenderStore,
@@ -3658,8 +3681,9 @@ async function prerenderToStream(
         revalidate: INFINITE_CACHE,
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
-        tags: [...implicitTags.tags],
+        tags: [...implicitTags],
         prerenderResumeDataCache,
+        cacheHandlers,
       }
       const prerender = require('react-dom/static.edge')
         .prerender as (typeof import('react-dom/static.edge'))['prerender']
@@ -3847,7 +3871,8 @@ async function prerenderToStream(
         revalidate: INFINITE_CACHE,
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
-        tags: [...implicitTags.tags],
+        tags: [...implicitTags],
+        cacheHandlers,
       })
       // This is a regular static generation. We don't do dynamic tracking because we rely on
       // the old-school dynamic error handling to bail out of static generation
@@ -4003,7 +4028,7 @@ async function prerenderToStream(
       type: 'prerender-legacy',
       phase: 'render',
       rootParams,
-      implicitTags: implicitTags,
+      implicitTags,
       revalidate:
         typeof prerenderStore?.revalidate !== 'undefined'
           ? prerenderStore.revalidate
@@ -4016,7 +4041,8 @@ async function prerenderToStream(
         typeof prerenderStore?.stale !== 'undefined'
           ? prerenderStore.stale
           : INFINITE_CACHE,
-      tags: [...(prerenderStore?.tags || implicitTags.tags)],
+      tags: [...(prerenderStore?.tags || implicitTags)],
+      cacheHandlers,
     })
     const errorRSCPayload = await workUnitAsyncStorage.run(
       prerenderLegacyStore,

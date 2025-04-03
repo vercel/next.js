@@ -36,13 +36,13 @@ import {
   getClientReferenceManifestForRsc,
   getServerModuleMap,
 } from '../app-render/encryption-utils'
-import type { CacheEntry } from '../lib/cache-handlers/types'
+import type { CacheEntry, Timestamp } from '../lib/cache-handlers/types'
 import type { CacheSignal } from '../app-render/cache-signal'
 import { decryptActionBoundArgs } from '../app-render/encryption'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { getDigestForWellKnownError } from '../app-render/create-error-handler'
 import { DYNAMIC_EXPIRE } from './constants'
-import { getCacheHandler } from './handlers'
+import { createScopedCacheHandlers } from './handlers'
 import { UseCacheTimeoutError } from './use-cache-errors'
 import { createHangingInputAbortSignal } from '../app-render/dynamic-rendering'
 import {
@@ -51,7 +51,6 @@ import {
 } from '../request/search-params'
 import type { Params } from '../request/params'
 import React from 'react'
-import type { ImplicitTags } from '../lib/implicit-tags'
 
 type CacheKeyParts =
   | [buildId: string, id: string, args: unknown[]]
@@ -63,15 +62,20 @@ export interface UseCachePageComponentProps {
   $$isPageComponent: true
 }
 
+interface GenerateCacheEntryOptions {
+  readonly clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>
+  readonly shouldPropagateCacheLifeAndTags: boolean
+  readonly timeoutError: UseCacheTimeoutError
+}
+
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 function generateCacheEntry(
   workStore: WorkStore,
-  outerWorkUnitStore: WorkUnitStore | undefined,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
+  outerWorkUnitStore: WorkUnitStore,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError
+  options: GenerateCacheEntryOptions
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
   // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
   // generation cannot read anything from the context we're currently executing which
@@ -82,20 +86,18 @@ function generateCacheEntry(
     generateCacheEntryWithRestoredWorkStore,
     workStore,
     outerWorkUnitStore,
-    clientReferenceManifest,
     encodedArguments,
     fn,
-    timeoutError
+    options
   )
 }
 
 function generateCacheEntryWithRestoredWorkStore(
   workStore: WorkStore,
-  outerWorkUnitStore: WorkUnitStore | undefined,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
+  outerWorkUnitStore: WorkUnitStore,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError
+  options: GenerateCacheEntryOptions
 ) {
   // Since we cleared the AsyncLocalStorage we need to restore the workStore.
   // Note: We explicitly don't restore the RequestStore nor the PrerenderStore.
@@ -109,20 +111,18 @@ function generateCacheEntryWithRestoredWorkStore(
     generateCacheEntryWithCacheContext,
     workStore,
     outerWorkUnitStore,
-    clientReferenceManifest,
     encodedArguments,
     fn,
-    timeoutError
+    options
   )
 }
 
 function generateCacheEntryWithCacheContext(
   workStore: WorkStore,
-  outerWorkUnitStore: WorkUnitStore | undefined,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
+  outerWorkUnitStore: WorkUnitStore,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError
+  options: GenerateCacheEntryOptions
 ) {
   if (!workStore.cacheLifeProfiles) {
     throw new Error(
@@ -147,11 +147,13 @@ function generateCacheEntryWithCacheContext(
       ? outerWorkUnitStore
       : undefined
 
+  const implicitTags = outerWorkUnitStore?.implicitTags ?? []
+
   // Initialize the Store for this Cache entry.
   const cacheStore: UseCacheStore = {
     type: 'cache',
     phase: 'render',
-    implicitTags: outerWorkUnitStore?.implicitTags,
+    implicitTags,
     revalidate: defaultCacheLife.revalidate,
     expire: defaultCacheLife.expire,
     stale: defaultCacheLife.stale,
@@ -167,6 +169,9 @@ function generateCacheEntryWithCacheContext(
     draftMode:
       outerWorkUnitStore &&
       getDraftModeProviderForCacheScope(workStore, outerWorkUnitStore),
+    cacheHandlers:
+      outerWorkUnitStore?.cacheHandlers ??
+      createScopedCacheHandlers(implicitTags),
   }
 
   return workUnitAsyncStorage.run(
@@ -174,15 +179,14 @@ function generateCacheEntryWithCacheContext(
     generateCacheEntryImpl,
     outerWorkUnitStore,
     cacheStore,
-    clientReferenceManifest,
     encodedArguments,
     fn,
-    timeoutError
+    options
   )
 }
 
 function propagateCacheLifeAndTags(
-  workUnitStore: WorkUnitStore | undefined,
+  workUnitStore: WorkUnitStore,
   entry: CacheEntry
 ): void {
   if (
@@ -215,7 +219,7 @@ function propagateCacheLifeAndTags(
 
 async function collectResult(
   savedStream: ReadableStream,
-  outerWorkUnitStore: WorkUnitStore | undefined,
+  outerWorkUnitStore: WorkUnitStore,
   innerCacheStore: UseCacheStore,
   startTime: number,
   errors: Array<unknown>, // This is a live array that gets pushed into.,
@@ -279,8 +283,6 @@ async function collectResult(
     stale: collectedStale,
     tags: collectedTags === null ? [] : collectedTags,
   }
-  // Propagate tags/revalidate to the parent context.
-  propagateCacheLifeAndTags(outerWorkUnitStore, entry)
 
   const cacheSignal =
     outerWorkUnitStore && outerWorkUnitStore.type === 'prerender'
@@ -298,12 +300,11 @@ async function collectResult(
 }
 
 async function generateCacheEntryImpl(
-  outerWorkUnitStore: WorkUnitStore | undefined,
+  outerWorkUnitStore: WorkUnitStore,
   innerCacheStore: UseCacheStore,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError
+  options: GenerateCacheEntryOptions
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
   const temporaryReferences = createServerTemporaryReferenceSet()
 
@@ -343,6 +344,12 @@ async function generateCacheEntryImpl(
           getServerModuleMap(),
           { temporaryReferences }
         )
+
+  const {
+    clientReferenceManifest,
+    timeoutError,
+    shouldPropagateCacheLifeAndTags,
+  } = options
 
   // Track the timestamp when we started computing the result.
   const startTime = performance.timeOrigin + performance.now()
@@ -412,6 +419,13 @@ async function generateCacheEntryImpl(
     errors,
     timer
   )
+
+  if (shouldPropagateCacheLifeAndTags) {
+    promiseOfCacheEntry.then((entry) => {
+      // Propagate tags/revalidate to the parent context.
+      propagateCacheLifeAndTags(outerWorkUnitStore, entry)
+    })
+  }
 
   // Return the stream as we're creating it. This means that if it ends up
   // erroring we cannot return a stale-while-error version but it allows
@@ -505,11 +519,6 @@ export function cache(
   boundArgsLength: number,
   fn: (...args: unknown[]) => Promise<unknown>
 ) {
-  const cacheHandler = getCacheHandler(kind)
-  if (cacheHandler === undefined) {
-    throw new Error('Unknown cache handler: ' + kind)
-  }
-
   // Capture the timeout error here to ensure a useful stack.
   const timeoutError = new UseCacheTimeoutError()
   Error.captureStackTrace(timeoutError, cache)
@@ -518,13 +527,17 @@ export function cache(
   const cachedFn = {
     [name]: async function (...args: any[]) {
       const workStore = workAsyncStorage.getStore()
-      if (workStore === undefined) {
-        throw new Error(
-          '"use cache" cannot be used outside of App Router. Expected a WorkStore.'
-        )
+      const workUnitStore = workUnitAsyncStorage.getStore()
+
+      if (!workStore || !workUnitStore) {
+        throw new Error('"use cache" cannot be used outside of App Router.')
       }
 
-      const workUnitStore = workUnitAsyncStorage.getStore()
+      const cacheHandler = workUnitStore.cacheHandlers.get(kind)
+
+      if (!cacheHandler) {
+        throw new Error('Unknown cache handler: ' + kind)
+      }
 
       // Get the clientReferenceManifest while we're still in the outer Context.
       // In case getClientReferenceManifestSingleton is implemented using AsyncLocalStorage.
@@ -694,20 +707,47 @@ export function cache(
         const implicitTags = workUnitStore?.implicitTags
         const forceRevalidate = shouldForceRevalidate(workStore, workUnitStore)
 
-        let entry = forceRevalidate
-          ? undefined
-          : 'getExpiration' in cacheHandler
-            ? await cacheHandler.get(serializedCacheKey)
-            : // Legacy cache handlers require implicit tags to be passed in,
-              // instead of checking their staleness here, as we do for modern
-              // cache handlers (see below).
-              await cacheHandler.get(
-                serializedCacheKey,
-                implicitTags?.tags ?? []
-              )
+        // Lazily refresh the tags for the cache handler that's associated with
+        // this cache function. This is only done once per request and cache
+        // handler, when it's called for the first time.
+        if ('refreshTags' in cacheHandler) {
+          await cacheHandler.refreshTags()
+        }
 
-        if (entry && shouldDiscardCacheEntry(entry, workStore, implicitTags)) {
-          entry = undefined
+        let entry: CacheEntry | undefined
+
+        if (!forceRevalidate) {
+          if ('getExpiration' in cacheHandler) {
+            const cachedEntry = await cacheHandler.get(serializedCacheKey)
+
+            if (cachedEntry) {
+              const expiration = await cacheHandler.getImplicitTagsExpiration()
+
+              if (
+                !shouldDiscardCacheEntry(cachedEntry, workStore, {
+                  tags: implicitTags,
+                  expiration,
+                })
+              ) {
+                entry = cachedEntry
+              }
+            }
+          } else {
+            // Legacy cache handlers require implicit tags to be passed in,
+            // instead of checking their staleness here, as we do for modern
+            // cache handlers (see above).
+            const cachedEntry = await cacheHandler.get(
+              serializedCacheKey,
+              implicitTags
+            )
+
+            if (
+              cachedEntry &&
+              !shouldDiscardCacheEntry(cachedEntry, workStore)
+            ) {
+              entry = cachedEntry
+            }
+          }
         }
 
         const currentTime = performance.timeOrigin + performance.now()
@@ -750,10 +790,13 @@ export function cache(
           const [newStream, pendingCacheEntry] = await generateCacheEntry(
             workStore,
             workUnitStore,
-            clientReferenceManifest,
             encodedCacheKeyParts,
             fn,
-            timeoutError
+            {
+              clientReferenceManifest,
+              timeoutError,
+              shouldPropagateCacheLifeAndTags: true,
+            }
           )
 
           // When draft mode is enabled, we must not save the cache entry.
@@ -810,15 +853,21 @@ export function cache(
           }
 
           if (currentTime > entry.timestamp + entry.revalidate * 1000) {
-            // If this is stale, and we're not in a prerender (i.e. this is dynamic render),
-            // then we should warm up the cache with a fresh revalidated entry.
+            // If this is stale, and we're not in a prerender (i.e. this is
+            // dynamic render), then we should warm up the cache with a fresh
+            // revalidated entry.
             const [ignoredStream, pendingCacheEntry] = await generateCacheEntry(
               workStore,
-              undefined, // This is not running within the context of this unit.
-              clientReferenceManifest,
+              workUnitStore,
               encodedCacheKeyParts,
               fn,
-              timeoutError
+              {
+                clientReferenceManifest,
+                timeoutError,
+                // This is not running within the context of this unit, so we
+                // don't want to propagate to the parent scope.
+                shouldPropagateCacheLifeAndTags: false,
+              }
             )
 
             let savedCacheEntry: Promise<CacheEntry>
@@ -918,7 +967,7 @@ function isPageComponent(
 
 function shouldForceRevalidate(
   workStore: WorkStore,
-  workUnitStore: WorkUnitStore | undefined
+  workUnitStore: WorkUnitStore
 ): boolean {
   if (workStore.isOnDemandRevalidate || workStore.isDraftMode) {
     return true
@@ -940,7 +989,7 @@ function shouldForceRevalidate(
 function shouldDiscardCacheEntry(
   entry: CacheEntry,
   workStore: WorkStore,
-  implicitTags: ImplicitTags | undefined
+  implicitTags?: { tags: string[]; expiration: Timestamp }
 ): boolean {
   // If the cache entry contains revalidated tags that the cache handler might
   // not know about yet, we need to discard it.

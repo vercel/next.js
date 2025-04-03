@@ -14,15 +14,26 @@ import type {
   PrerenderResumeDataCache,
 } from '../resume-data-cache/resume-data-cache'
 import type { Params } from '../request/params'
-import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
+import type { ScopedCacheHandler } from '../use-cache/handlers'
+import type { CacheHandler } from '../lib/cache-handlers/types'
 
 export type WorkUnitPhase = 'action' | 'render' | 'after'
 
 export interface CommonWorkUnitStore {
   /** NOTE: Will be mutated as phases change */
   phase: WorkUnitPhase
-  readonly implicitTags: ImplicitTags | undefined
+  readonly implicitTags: string[]
+
+  /**
+   * Cache handlers that are scoped to the work unit. They memoize the results
+   * of `refreshTags`, and `getExpiration` for the work unit's implicit tags
+   * (via `getImplicitTagsExpiration`). Currently, implicit tags are the same
+   * for all work units (inferred from the route), so they could theoretically
+   * be part of the work store. In the future we might change that though, which
+   * is why it makes more sense to scope them to the work unit.
+   */
+  readonly cacheHandlers: Map<string, ScopedCacheHandler | CacheHandler>
 }
 
 export interface RequestStore extends CommonWorkUnitStore {

@@ -18,7 +18,7 @@ import {
   type WorkStoreContext,
 } from '../../async-storage/work-store'
 import { type HTTP_METHOD, HTTP_METHODS, isHTTPMethod } from '../../web/http'
-import { getImplicitTags, type ImplicitTags } from '../../lib/implicit-tags'
+import { getImplicitTags } from '../../lib/implicit-tags'
 import { patchFetch } from '../../lib/patch-fetch'
 import { getTracer } from '../../lib/trace/tracer'
 import { AppRouteRouteHandlersSpan } from '../../lib/trace/constants'
@@ -83,6 +83,7 @@ import {
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
 import { INFINITE_CACHE } from '../../../lib/constants'
 import { executeRevalidates } from '../../revalidation-utils'
+import { createScopedCacheHandlers } from '../../use-cache/handlers'
 
 export class WrappedNextRouterError {
   constructor(
@@ -301,7 +302,7 @@ export class AppRouteRouteModule extends RouteModule<
     // inside this function. Right now we get passed a RequestStore even when
     // we're going to do a prerender. We should probably just split do up into prexecute and execute
     requestStore: RequestStore,
-    implicitTags: ImplicitTags,
+    implicitTags: string[],
     request: NextRequest,
     context: AppRouteRouteHandlerContext
   ) {
@@ -350,6 +351,8 @@ export class AppRouteRouteModule extends RouteModule<
             ? INFINITE_CACHE
             : userlandRevalidate
 
+        const cacheHandlers = createScopedCacheHandlers(implicitTags)
+
         if (dynamicIOEnabled) {
           /**
            * When we are attempting to statically prerender the GET handler of a route.ts module
@@ -391,8 +394,9 @@ export class AppRouteRouteModule extends RouteModule<
               revalidate: defaultRevalidate,
               expire: INFINITE_CACHE,
               stale: INFINITE_CACHE,
-              tags: [...implicitTags.tags],
+              tags: [...implicitTags],
               prerenderResumeDataCache: null,
+              cacheHandlers,
             })
 
           let prospectiveResult
@@ -476,8 +480,9 @@ export class AppRouteRouteModule extends RouteModule<
             revalidate: defaultRevalidate,
             expire: INFINITE_CACHE,
             stale: INFINITE_CACHE,
-            tags: [...implicitTags.tags],
+            tags: [...implicitTags],
             prerenderResumeDataCache: null,
+            cacheHandlers,
           })
 
           let responseHandled = false
@@ -552,7 +557,8 @@ export class AppRouteRouteModule extends RouteModule<
             revalidate: defaultRevalidate,
             expire: INFINITE_CACHE,
             stale: INFINITE_CACHE,
-            tags: [...implicitTags.tags],
+            tags: [...implicitTags],
+            cacheHandlers,
           }
 
           res = await workUnitAsyncStorage.run(
@@ -670,9 +676,9 @@ export class AppRouteRouteModule extends RouteModule<
       isAction: getIsServerAction(req),
     }
 
-    const implicitTags = await getImplicitTags(
+    const implicitTags = getImplicitTags(
       this.definition.page,
-      req.nextUrl,
+      req.nextUrl.pathname,
       // App Routes don't support unknown route params.
       null
     )

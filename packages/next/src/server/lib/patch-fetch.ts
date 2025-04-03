@@ -753,7 +753,7 @@ export function createPatchedFetcher(
                   fetchUrl,
                   fetchIdx,
                   tags,
-                  softTags: implicitTags?.tags,
+                  softTags: implicitTags,
                 })
 
             if (hasNoExplicitCacheConfig) {

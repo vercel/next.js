@@ -255,7 +255,7 @@ export async function adapter(
             const requestStore = createRequestStoreForAPI(
               request,
               request.nextUrl,
-              undefined,
+              [],
               onUpdateCookies,
               previewProps
             )

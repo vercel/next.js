@@ -23,7 +23,7 @@ import { splitCookiesString } from '../web/utils'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import type { RenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import type { Params } from '../request/params'
-import type { ImplicitTags } from '../lib/implicit-tags'
+import { createScopedCacheHandlers } from '../use-cache/handlers'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
@@ -68,7 +68,7 @@ type RequestContext = RequestResponsePair & {
   renderOpts?: WrapperRenderOpts
   isHmrRefresh?: boolean
   serverComponentsHmrCache?: ServerComponentsHmrCache
-  implicitTags: ImplicitTags | undefined
+  implicitTags: string[]
 }
 
 type RequestResponsePair =
@@ -186,6 +186,7 @@ function createRequestStoreImpl(
     type: 'request',
     phase,
     implicitTags,
+    cacheHandlers: createScopedCacheHandlers(implicitTags),
     // Rather than just using the whole `url` here, we pull the parts we want
     // to ensure we don't use parts of the URL that we shouldn't. This also
     // lets us avoid requiring an empty string for `search` in the type.
