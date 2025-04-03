@@ -111,6 +111,13 @@ impl ConstantString {
         }
     }
 
+    pub fn as_atom(&self) -> Cow<Atom> {
+        match self {
+            Self::Atom(s) => Cow::Borrowed(s),
+            Self::RcStr(s) => Cow::Owned(s.as_str().into()),
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.as_str().is_empty()
     }
@@ -3879,8 +3886,8 @@ pub mod test_utils {
                 box JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
                 ref args,
             ) => match &args[0] {
-                JsValue::Constant(v) => JsValue::Module(ModuleValue {
-                    module: v.to_string().into(),
+                JsValue::Constant(ConstantValue::Str(v)) => JsValue::Module(ModuleValue {
+                    module: v.as_atom().into_owned(),
                     annotations: ImportAnnotations::default(),
                 }),
                 _ => v.into_unknown(true, "import() non constant"),
