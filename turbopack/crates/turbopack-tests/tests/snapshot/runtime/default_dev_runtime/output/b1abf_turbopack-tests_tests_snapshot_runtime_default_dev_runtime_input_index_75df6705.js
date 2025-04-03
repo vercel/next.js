@@ -1,5 +1,5 @@
 (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([
-    "output/b1abf_turbopack-tests_tests_snapshot_runtime_default_dev_runtime_input_index_75df6705.js",
+    document.currentScript,
     {},
     {"otherChunks":["output/b1abf_turbopack-tests_tests_snapshot_runtime_default_dev_runtime_input_index_9cac9e61.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/runtime/default_dev_runtime/input/index.js [test] (ecmascript)"]}
 ]);
@@ -547,6 +547,11 @@ function getWorkerBlobURL(chunks) {
  */ function getChunkRelativeUrl(chunkPath) {
     return `${CHUNK_BASE_PATH}${chunkPath.split("/").map((p)=>encodeURIComponent(p)).join("/")}${CHUNK_SUFFIX_PATH}`;
 }
+function getPathFromScript(chunkScript) {
+    const src = decodeURIComponent(chunkScript.getAttribute("src"));
+    const path = src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
+    return path;
+}
 /**
  * Marks a chunk list as a runtime chunk list. There can be more than one
  * runtime chunk list. For instance, integration tests can have multiple chunk
@@ -554,7 +559,8 @@ function getWorkerBlobURL(chunks) {
  */ function markChunkListAsRuntime(chunkListPath) {
     runtimeChunkLists.add(chunkListPath);
 }
-function registerChunk([chunkPath, chunkModules, runtimeParams]) {
+function registerChunk([chunkScript, chunkModules, runtimeParams]) {
+    const chunkPath = getPathFromScript(chunkScript);
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
         if (!moduleFactories[moduleId]) {
             moduleFactories[moduleId] = moduleFactory;
@@ -1376,7 +1382,8 @@ function createModuleHot(moduleId, hotData) {
 /**
  * Subscribes to chunk list updates from the update server and applies them.
  */ function registerChunkList(chunkUpdateProvider, chunkList) {
-    const chunkListPath = chunkList.path;
+    const chunkListScript = chunkList.script;
+    const chunkListPath = getPathFromScript(chunkListScript);
     chunkUpdateProvider.push([
         chunkListPath,
         handleApply.bind(null, chunkListPath)

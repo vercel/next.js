@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/4e721_crates_turbopack-tests_tests_snapshot_imports_duplicate-binding_input_8498b7ee._.js", {
+(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([document.currentScript, {
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/duplicate-binding/input/table.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";

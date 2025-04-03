@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_css_embed-url_input_4242144a._.js", {
+(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([document.currentScript, {
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.module.css [test] (css module)": ((__turbopack_context__) => {
 

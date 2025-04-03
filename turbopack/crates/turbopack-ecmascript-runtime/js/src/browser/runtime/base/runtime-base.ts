@@ -22,13 +22,13 @@ type RuntimeParams = {
 };
 
 type ChunkRegistration = [
-  chunkPath: ChunkPath,
+  chunkPath: ChunkScript,
   chunkModules: ModuleFactories,
   params: RuntimeParams | undefined
 ];
 
 type ChunkList = {
-  path: ChunkListPath;
+  script: ChunkListScript;
   chunks: ChunkData[];
   source: "entry" | "dynamic";
 };
@@ -305,6 +305,17 @@ function getChunkRelativeUrl(chunkPath: ChunkPath | ChunkListPath): ChunkUrl {
 }
 
 /**
+ * Return the ChunkPath from a ChunkScript.
+ */
+function getPathFromScript(chunkScript: ChunkScript): ChunkPath;
+function getPathFromScript(chunkScript: ChunkListScript): ChunkListPath;
+function getPathFromScript(chunkScript: ChunkScript | ChunkListScript): ChunkPath | ChunkListPath {
+  const src = decodeURIComponent(chunkScript.getAttribute("src")!);
+  const path = src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
+  return path as ChunkPath | ChunkListPath;
+}
+
+/**
  * Marks a chunk list as a runtime chunk list. There can be more than one
  * runtime chunk list. For instance, integration tests can have multiple chunk
  * groups loaded at runtime, each with its own chunk list.
@@ -314,10 +325,11 @@ function markChunkListAsRuntime(chunkListPath: ChunkListPath) {
 }
 
 function registerChunk([
-  chunkPath,
+  chunkScript,
   chunkModules,
   runtimeParams,
 ]: ChunkRegistration) {
+  const chunkPath = getPathFromScript(chunkScript);
   for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
     if (!moduleFactories[moduleId]) {
       moduleFactories[moduleId] = moduleFactory;

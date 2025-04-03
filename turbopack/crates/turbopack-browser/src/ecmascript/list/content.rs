@@ -1,8 +1,7 @@
 use std::io::Write;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use indoc::writedoc;
-use serde::Serialize;
 use turbo_tasks::{FxIndexMap, IntoTraitRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
@@ -25,7 +24,6 @@ use super::{
 /// Contents of an [`EcmascriptDevChunkList`].
 #[turbo_tasks::value]
 pub(super) struct EcmascriptDevChunkListContent {
-    chunk_list_path: String,
     pub(super) chunks_contents: FxIndexMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
     source: EcmascriptDevChunkListSource,
 }
@@ -38,10 +36,6 @@ impl EcmascriptDevChunkListContent {
         let chunk_list_ref = chunk_list.await?;
         let output_root = chunk_list_ref.chunking_context.output_root().await?;
         Ok(EcmascriptDevChunkListContent {
-            chunk_list_path: output_root
-                .get_path_to(&*chunk_list.path().await?)
-                .context("chunk list path not in output root")?
-                .to_string(),
             chunks_contents: chunk_list_ref
                 .chunks
                 .await?
@@ -111,11 +105,11 @@ impl EcmascriptDevChunkListContent {
     pub(super) async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
 
-        let params = EcmascriptDevChunkListParams {
-            path: &this.chunk_list_path,
-            chunks: this.chunks_contents.keys().map(|s| s.as_str()).collect(),
-            source: this.source,
-        };
+        let chunks = this
+            .chunks_contents
+            .keys()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
 
         let mut code = CodeBuilder::default();
 
@@ -126,13 +120,17 @@ impl EcmascriptDevChunkListContent {
             code,
             r#"
                 (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([
-                    {},
+                    document.currentScript,
                     {{}},
                 ]);
-                (globalThis.TURBOPACK_CHUNK_LISTS = globalThis.TURBOPACK_CHUNK_LISTS || []).push({:#});
+                (globalThis.TURBOPACK_CHUNK_LISTS = globalThis.TURBOPACK_CHUNK_LISTS || []).push({{
+                    script: document.currentScript,
+                    chunks: {:#},
+                    source: {:#}
+                }});
             "#,
-            StringifyJs(&this.chunk_list_path),
-            StringifyJs(&params),
+            StringifyJs(&chunks),
+            StringifyJs(&this.source),
         )?;
 
         Ok(Code::cell(code.build()))
@@ -158,15 +156,4 @@ impl VersionedContent for EcmascriptDevChunkListContent {
     fn update(self: Vc<Self>, from_version: Vc<Box<dyn Version>>) -> Vc<Update> {
         update_chunk_list(self, from_version)
     }
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct EcmascriptDevChunkListParams<'a> {
-    /// Path to the chunk list to register.
-    path: &'a str,
-    /// All chunks that belong to the chunk list.
-    chunks: Vec<&'a str>,
-    /// Where this chunk list is from.
-    source: EcmascriptDevChunkListSource,
 }

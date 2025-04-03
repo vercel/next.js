@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use indoc::writedoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
@@ -67,22 +67,10 @@ impl EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
-        let output_root = this.chunking_context.output_root().await?;
         let source_maps = *this
             .chunking_context
             .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk))
             .await?;
-        let chunk_path_vc = this.chunk.path();
-        let chunk_path = chunk_path_vc.await?;
-        let chunk_server_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
-            path
-        } else {
-            bail!(
-                "chunk path {} is not in output root {}",
-                chunk_path.to_string(),
-                output_root.to_string()
-            );
-        };
         let mut code = CodeBuilder::new(source_maps);
 
         // When a chunk is executed, it will either register itself with the current
@@ -95,9 +83,8 @@ impl EcmascriptBrowserChunkContent {
         writedoc!(
             code,
             r#"
-                (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([{chunk_path}, {{
+                (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([document.currentScript, {{
             "#,
-            chunk_path = StringifyJs(chunk_server_path)
         )?;
 
         let content = this.content.await?;

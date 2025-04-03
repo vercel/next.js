@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_basic_chunked_input_1efdaca0._.js", {
+(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([document.currentScript, {
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/chunked/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";

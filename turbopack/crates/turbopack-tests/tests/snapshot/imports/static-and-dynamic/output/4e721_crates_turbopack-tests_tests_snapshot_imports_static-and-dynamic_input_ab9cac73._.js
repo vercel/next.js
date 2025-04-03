@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/4e721_crates_turbopack-tests_tests_snapshot_imports_static-and-dynamic_input_ab9cac73._.js", {
+(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([document.currentScript, {
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/vercel.mjs [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
