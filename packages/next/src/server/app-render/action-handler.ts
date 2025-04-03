@@ -827,13 +827,12 @@ export async function handleAction({
               } else {
                 // We couldn't decode an action, so this POST request turned out not to be
                 // a server action request even though it looked like one.
-                // we shouldn't apply size limits to it.
-                sizeLimitedBody.cancel()
+                warnAboutPostRequestToPage(workStore.page)
                 return
               }
             } else {
               // not a server action request.
-              // we shouldn't apply size limits to it.
+              warnAboutPostRequestToPage(workStore.page)
               return
             }
           }
@@ -1036,6 +1035,15 @@ export async function handleAction({
 
     throw err
   }
+}
+
+function warnAboutPostRequestToPage(page: string) {
+  // TODO: docs
+  console.warn(
+    `Received a POST request targetting page "${page}". This is only supported when using a server action.\n` +
+      `If your application is performing a POST request to a route handler that redirects to a page, ` +
+      `make sure the redirect uses the 303 HTTP status code instead of 307 or 308.`
+  )
 }
 
 async function parseBodyAsFormDataNode(
