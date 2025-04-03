@@ -3,49 +3,59 @@ title: useLinkStatus
 description: API Reference for the useLinkStatus hook.
 ---
 
-`useLinkStatus` is a **Client Component** hook that lets you track the loading state of a `Link` component during navigation. It can be used to show loading indicators during page transitions, especially when [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) is disabled.
+`useLinkStatus` is a **Client Component** hook that lets you track the loading state of a `Link` component during navigation. It can be used to show loading indicators during page transitions, especially when [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) is disabled, or the routed page does not have a suspense boundary.
 
-```tsx filename="app/example-client-component.tsx" switcher
+```tsx filename="app/loading-indicator.tsx" switcher
 'use client'
 
 import { useLinkStatus } from 'next/navigation'
-import Link from 'next/link'
 
-function LoadingIndicator() {
+export default function LoadingIndicator() {
   const { pending } = useLinkStatus()
   return pending ? <div>Loading...</div> : null
 }
+```
 
-export default function ExampleClientComponent() {
+```jsx filename="app/loading-indicator.js" switcher
+'use client'
+
+import { useLinkStatus } from 'next/navigation'
+
+export default function LoadingIndicator() {
+  const { pending } = useLinkStatus()
+  return pending ? <div>Loading...</div> : null
+}
+```
+
+```tsx filename="app/header.tsx" switcher
+import Link from 'next/link'
+import LoadingIndicator from './loading-indicator'
+
+export default function Header() {
   return (
-    <Link href="/dashboard" prefetch={false}>
-      Dashboard <LoadingIndicator />
-    </Link>
+    <header>
+      <Link href="/dashboard" prefetch={false}>
+        Dashboard <LoadingIndicator />
+      </Link>
+    </header>
   )
 }
 ```
 
-```jsx filename="app/example-client-component.js" switcher
-'use client'
-
-import { useLinkStatus } from 'next/navigation'
+```jsx filename="app/header.js" switcher
 import Link from 'next/link'
+import LoadingIndicator from './loading-indicator'
 
-function LoadingIndicator() {
-  const { pending } = useLinkStatus()
-  return pending ? <div>Loading...</div> : null
-}
-
-export default function ExampleClientComponent() {
+export default function Header() {
   return (
-    <Link href="/dashboard" prefetch={false}>
-      Dashboard <LoadingIndicator />
-    </Link>
+    <header>
+      <Link href="/dashboard" prefetch={false}>
+        Dashboard <LoadingIndicator />
+      </Link>
+    </header>
   )
 }
 ```
-
-`useLinkStatus` is designed to work with [Client Components](/docs/app/building-your-application/rendering/client-components) and provides real-time feedback during navigation transitions. This helps prevent pages from appearing "frozen" while new content is loading.
 
 > **Good to know**:
 >
@@ -70,6 +80,122 @@ const { pending } = useLinkStatus()
 | Property | Type    | Description                                  |
 | -------- | ------- | -------------------------------------------- |
 | pending  | boolean | `true` before history updates, `false` after |
+
+## Examples
+
+### Improving the user experience when navigating with new query parameters
+
+When navigating between categories in this example, the page may appear unresponsive since the `<PageSkeleton />` fallback won't replace the existing content (see [React's documentation on preventing unwanted loading indicators](https://react.dev/reference/react/useTransition#preventing-unwanted-loading-indicators)). The `useLinkStatus` hook improves the user experience by allowing you to display a loading indicator while new data is being fetched.
+
+```tsx filename="app/page.tsx" switcher
+'use client'
+
+import { useSearchParams, useLinkStatus } from 'next/navigation'
+import Link from 'next/link'
+import { Suspense } from 'react'
+
+function LoadingIndicator() {
+  const { pending } = useLinkStatus()
+  return pending ? <span>⌛</span> : null
+}
+
+function MenuBar() {
+  return (
+    <div>
+      <Link href="?category=electronics">
+        Electronics <LoadingIndicator />
+      </Link>
+      <Link href="?category=clothing">
+        Clothing <LoadingIndicator />
+      </Link>
+      <Link href="?category=books">
+        Books <LoadingIndicator />
+      </Link>
+    </div>
+  )
+}
+
+async function ProductList({ category }: { category: string }) {
+  const products = await fetchProducts(category)
+
+  return (
+    <ul>
+      {products.map((product) => (
+        <li key={product}>{product}</li>
+      ))}
+    </ul>
+  )
+}
+
+export default async function ProductCategories({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    category: string
+  }>
+}) {
+  const { category } = await searchParams
+
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <MenuBar />
+      <ProductList category={category} />
+    </Suspense>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+'use client'
+
+import { useSearchParams, useLinkStatus } from 'next/navigation'
+import Link from 'next/link'
+import { Suspense } from 'react'
+
+function LoadingIndicator() {
+  const { pending } = useLinkStatus()
+  return pending ? <span>⌛</span> : null
+}
+
+function MenuBar() {
+  return (
+    <div>
+      <Link href="?category=electronics">
+        Electronics <LoadingIndicator />
+      </Link>
+      <Link href="?category=clothing">
+        Clothing <LoadingIndicator />
+      </Link>
+      <Link href="?category=books">
+        Books <LoadingIndicator />
+      </Link>
+    </div>
+  )
+}
+
+async function ProductList({ category }) {
+  const products = await fetchProducts(category)
+
+  return (
+    <ul>
+      {products.map((product) => (
+        <li key={product}>{product}</li>
+      ))}
+    </ul>
+  )
+}
+
+export default async function ProductCategories({ searchParams }) {
+  const { category } = await searchParams
+
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <MenuBar />
+      <ProductList category={category} />
+    </Suspense>
+  )
+}
+```
 
 | Version   | Changes                     |
 | --------- | --------------------------- |
