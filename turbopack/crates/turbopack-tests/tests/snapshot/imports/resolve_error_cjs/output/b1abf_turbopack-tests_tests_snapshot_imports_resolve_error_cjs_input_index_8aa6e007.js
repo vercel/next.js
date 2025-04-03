@@ -1,5 +1,5 @@
 (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([
-    document.currentScript,
+    "output/b1abf_turbopack-tests_tests_snapshot_imports_resolve_error_cjs_input_index_8aa6e007.js",
     {},
     {"otherChunks":["output/b1abf_turbopack-tests_tests_snapshot_imports_resolve_error_cjs_input_index_bdab1dc6.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/resolve_error_cjs/input/index.js [test] (ecmascript)"]}
 ]);

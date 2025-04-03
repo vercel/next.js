@@ -1,5 +1,5 @@
 (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([
-    document.currentScript,
+    "output/b1abf_turbopack-tests_tests_snapshot_runtime_default_dev_runtime_input_index_75df6705.js",
     {},
     {"otherChunks":["output/b1abf_turbopack-tests_tests_snapshot_runtime_default_dev_runtime_input_index_9cac9e61.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/runtime/default_dev_runtime/input/index.js [test] (ecmascript)"]}
 ]);
@@ -548,6 +548,9 @@ function getWorkerBlobURL(chunks) {
     return `${CHUNK_BASE_PATH}${chunkPath.split("/").map((p)=>encodeURIComponent(p)).join("/")}${CHUNK_SUFFIX_PATH}`;
 }
 function getPathFromScript(chunkScript) {
+    if (typeof chunkScript === "string") {
+        return chunkScript;
+    }
     const src = decodeURIComponent(chunkScript.getAttribute("src"));
     const path = src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
     return path;

@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([document.currentScript, {
+(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_cff3cff1._.js", {
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/typescript/tsconfig-extends-module/input/index.ts [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";

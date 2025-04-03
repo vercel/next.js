@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([document.currentScript, {
+(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/4e721_crates_turbopack-tests_tests_snapshot_import-meta_esm-multiple_input_2057b4c5._.js", {
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/esm-multiple/input/mod.mjs [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";

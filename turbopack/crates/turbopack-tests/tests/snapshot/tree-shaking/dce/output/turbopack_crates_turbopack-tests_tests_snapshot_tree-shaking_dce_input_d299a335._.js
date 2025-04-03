@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([document.currentScript, {
+(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_tree-shaking_dce_input_d299a335._.js", {
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/tree-shaking/dce/input/module.js [test] (ecmascript) <internal part 3>": ((__turbopack_context__) => {
 "use strict";
