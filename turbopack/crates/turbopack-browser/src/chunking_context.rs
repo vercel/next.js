@@ -32,6 +32,13 @@ use crate::ecmascript::{
     list::asset::{EcmascriptDevChunkList, EcmascriptDevChunkListSource},
 };
 
+#[turbo_tasks::value]
+#[derive(Debug, Clone, Copy, Hash)]
+pub enum CurrentChunkMethod {
+    StringLiteral,
+    DocumentCurrentScript,
+}
+
 pub struct BrowserChunkingContextBuilder {
     chunking_context: BrowserChunkingContext,
 }
@@ -89,6 +96,11 @@ impl BrowserChunkingContextBuilder {
 
     pub fn source_maps(mut self, source_maps: SourceMapsType) -> Self {
         self.chunking_context.source_maps_type = source_maps;
+        self
+    }
+
+    pub fn current_chunk_method(mut self, method: CurrentChunkMethod) -> Self {
+        self.chunking_context.current_chunk_method = method;
         self
     }
 
@@ -160,6 +172,8 @@ pub struct BrowserChunkingContext {
     minify_type: MinifyType,
     /// Whether to generate source maps
     source_maps_type: SourceMapsType,
+    /// Method to use when figuring out the current chunk src
+    current_chunk_method: CurrentChunkMethod,
     /// Whether to use manifest chunks for lazy compilation
     manifest_chunks: bool,
     /// The module id strategy to use
@@ -198,6 +212,7 @@ impl BrowserChunkingContext {
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
                 source_maps_type: SourceMapsType::Full,
+                current_chunk_method: CurrentChunkMethod::StringLiteral,
                 manifest_chunks: false,
                 module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
                 chunking_configs: Default::default(),
@@ -296,6 +311,11 @@ impl BrowserChunkingContext {
                 bail!("Unable to generate output asset for chunk");
             },
         )
+    }
+
+    #[turbo_tasks::function]
+    pub fn current_chunk_method(&self) -> Vc<CurrentChunkMethod> {
+        self.current_chunk_method.cell()
     }
 }
 

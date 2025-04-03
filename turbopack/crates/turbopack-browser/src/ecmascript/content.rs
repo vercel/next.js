@@ -1,6 +1,7 @@
 use std::io::Write;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
+use either::Either;
 use indoc::writedoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
@@ -19,7 +20,7 @@ use super::{
     chunk::EcmascriptBrowserChunk, content_entry::EcmascriptBrowserChunkContentEntries,
     merged::merger::EcmascriptBrowserChunkContentMerger, version::EcmascriptBrowserChunkVersion,
 };
-use crate::BrowserChunkingContext;
+use crate::{chunking_context::CurrentChunkMethod, BrowserChunkingContext};
 
 #[turbo_tasks::value(serialization = "none")]
 pub struct EcmascriptBrowserChunkContent {
@@ -71,6 +72,26 @@ impl EcmascriptBrowserChunkContent {
             .chunking_context
             .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk))
             .await?;
+        // Lifetime hack to pull out the var into this scope
+        let chunk_path;
+        let script_or_path = match *this.chunking_context.current_chunk_method().await? {
+            CurrentChunkMethod::StringLiteral => {
+                let output_root = this.chunking_context.output_root().await?;
+                let chunk_path_vc = this.chunk.path();
+                chunk_path = chunk_path_vc.await?;
+                let chunk_server_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
+                    path
+                } else {
+                    bail!(
+                        "chunk path {} is not in output root {}",
+                        chunk_path.to_string(),
+                        output_root.to_string()
+                    );
+                };
+                Either::Left(StringifyJs(chunk_server_path))
+            }
+            CurrentChunkMethod::DocumentCurrentScript => Either::Right("document.currentScript"),
+        };
         let mut code = CodeBuilder::new(source_maps);
 
         // When a chunk is executed, it will either register itself with the current
@@ -83,8 +104,8 @@ impl EcmascriptBrowserChunkContent {
         writedoc!(
             code,
             r#"
-                (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([document.currentScript, {{
-            "#,
+                (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([{script_or_path}, {{
+            "#
         )?;
 
         let content = this.content.await?;
