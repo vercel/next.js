@@ -1646,18 +1646,6 @@ importers:
         specifier: ^0.7.0
         version: 0.7.3
 
-  packages/next-plugin-rspack:
-    dependencies:
-      '@rspack/core':
-        specifier: 1.3.0
-        version: 1.3.0(@swc/helpers@0.5.15)
-      '@rspack/plugin-react-refresh':
-        specifier: 1.0.1
-        version: 1.0.1(react-refresh@0.12.0)
-      react-refresh:
-        specifier: 0.12.0
-        version: 0.12.0
-
   packages/next-plugin-storybook: {}
 
   packages/next-polyfill-module:
@@ -1680,6 +1668,18 @@ importers:
       whatwg-fetch:
         specifier: 3.0.0
         version: 3.0.0
+
+  packages/next-rspack:
+    dependencies:
+      '@rspack/core':
+        specifier: 1.3.0
+        version: 1.3.0(@swc/helpers@0.5.15)
+      '@rspack/plugin-react-refresh':
+        specifier: 1.0.1
+        version: 1.0.1(react-refresh@0.12.0)
+      react-refresh:
+        specifier: 0.12.0
+        version: 0.12.0
 
   packages/next-swc:
     devDependencies:
