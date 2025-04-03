@@ -75,11 +75,7 @@ impl ChunkItemOrBatchWithInfo {
 }
 
 #[turbo_tasks::function]
-async fn batch_size(
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ty: ResolvedVc<Box<dyn ChunkType>>,
-    batch: Vc<ChunkItemBatchWithAsyncModuleInfo>,
-) -> Result<Vc<usize>> {
+async fn batch_size(batch: Vc<ChunkItemBatchWithAsyncModuleInfo>) -> Result<Vc<usize>> {
     let size = batch
         .await?
         .chunk_items
@@ -101,7 +97,6 @@ async fn batch_size(
 
 async fn plain_chunk_items_with_info(
     chunk_item_or_batch: ChunkItemOrBatchWithAsyncModuleInfo,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<ChunkItemsWithInfo> {
     Ok(match chunk_item_or_batch {
         ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(chunk_item_with_info) => {
@@ -132,12 +127,7 @@ async fn plain_chunk_items_with_info(
             let by_type = batch_by_type
                 .iter()
                 .map(|&(ty, ref chunk_item_or_batch)| {
-                    plain_chunk_items_with_info_with_type(
-                        chunk_item_or_batch,
-                        ty,
-                        None,
-                        chunking_context,
-                    )
+                    plain_chunk_items_with_info_with_type(chunk_item_or_batch, ty, None)
                 })
                 .try_join()
                 .await?;
@@ -152,7 +142,6 @@ async fn plain_chunk_items_with_info_with_type(
     chunk_item_or_batch: &ChunkItemOrBatchWithAsyncModuleInfo,
     ty: ResolvedVc<Box<dyn ChunkType>>,
     batch_group: Option<ResolvedVc<ChunkItemBatchGroup>>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<(
     ResolvedVc<Box<dyn ChunkType>>,
     SmallVec<[ChunkItemOrBatchWithInfo; 1]>,
@@ -179,7 +168,7 @@ async fn plain_chunk_items_with_info_with_type(
             ))
         }
         &ChunkItemOrBatchWithAsyncModuleInfo::Batch(batch) => {
-            let size = *batch_size(chunking_context, *ty, *batch).await?;
+            let size = *batch_size(*batch).await?;
             Ok((
                 ty,
                 smallvec![ChunkItemOrBatchWithInfo::Batch { batch, size }],
@@ -192,10 +181,8 @@ async fn plain_chunk_items_with_info_with_type(
 #[turbo_tasks::function]
 async fn chunk_items_with_info(
     chunk_item_or_batch: ChunkItemOrBatchWithAsyncModuleInfo,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ChunkItemsWithInfo>> {
-    let chunk_items_with_info =
-        plain_chunk_items_with_info(chunk_item_or_batch, chunking_context).await?;
+    let chunk_items_with_info = plain_chunk_items_with_info(chunk_item_or_batch).await?;
     Ok(chunk_items_with_info.cell())
 }
 
@@ -204,15 +191,9 @@ async fn chunk_items_with_info_with_type(
     chunk_item_or_batch: ChunkItemOrBatchWithAsyncModuleInfo,
     ty: ResolvedVc<Box<dyn ChunkType>>,
     batch_group: Option<ResolvedVc<ChunkItemBatchGroup>>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ChunkItemsWithInfo>> {
-    let result = plain_chunk_items_with_info_with_type(
-        &chunk_item_or_batch,
-        ty,
-        batch_group,
-        chunking_context,
-    )
-    .await?;
+    let result =
+        plain_chunk_items_with_info_with_type(&chunk_item_or_batch, ty, batch_group).await?;
     Ok(ChunkItemsWithInfo {
         by_type: smallvec![result],
     }
@@ -222,22 +203,15 @@ async fn chunk_items_with_info_with_type(
 #[turbo_tasks::function]
 async fn batch_chunk_items_with_info(
     batch_group: Vc<ChunkItemBatchGroup>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<BatchChunkItemsWithInfo>> {
     let split_batch_group = batch_group.split_by_chunk_type().await?;
     if split_batch_group.len() == 1 {
         let &(ty, batch) = split_batch_group.into_iter().next().unwrap();
-        Ok(batch_chunk_items_with_info_with_type(
-            *batch,
-            *ty,
-            chunking_context,
-        ))
+        Ok(batch_chunk_items_with_info_with_type(*batch, *ty))
     } else {
         let maps = split_batch_group
             .into_iter()
-            .map(|&(ty, batch)| {
-                batch_chunk_items_with_info_with_type(*batch, *ty, chunking_context)
-            })
+            .map(|&(ty, batch)| batch_chunk_items_with_info_with_type(*batch, *ty))
             .try_join()
             .await?;
         Ok(Vc::cell(
@@ -253,7 +227,6 @@ async fn batch_chunk_items_with_info(
 async fn batch_chunk_items_with_info_with_type(
     batch_group: Vc<ChunkItemBatchGroup>,
     ty: Vc<Box<dyn ChunkType>>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<BatchChunkItemsWithInfo>> {
     let map = batch_group
         .await?
@@ -262,14 +235,9 @@ async fn batch_chunk_items_with_info_with_type(
         .map(async |item| {
             Ok((
                 item.clone(),
-                chunk_items_with_info_with_type(
-                    item.clone(),
-                    ty,
-                    Some(batch_group),
-                    chunking_context,
-                )
-                .to_resolved()
-                .await?,
+                chunk_items_with_info_with_type(item.clone(), ty, Some(batch_group))
+                    .to_resolved()
+                    .await?,
             ))
         })
         .try_join()
@@ -299,8 +267,8 @@ pub async fn make_chunks(
     let chunk_items: Vec<ReadRef<ChunkItemsWithInfo>> = batch_info(
         &batch_groups,
         &chunk_items_or_batches,
-        |batch_group| batch_chunk_items_with_info(batch_group, *chunking_context).into_future(),
-        |c| chunk_items_with_info(c.clone(), *chunking_context).to_resolved(),
+        |batch_group| batch_chunk_items_with_info(batch_group).into_future(),
+        |c| chunk_items_with_info(c.clone()).to_resolved(),
     )
     .instrument(span)
     .await?
@@ -363,7 +331,7 @@ pub async fn make_chunks(
                     )
                     .await?;
                 } else {
-                    let chunk_items = expand_batches(chunk_items, ty, chunking_context).await?;
+                    let chunk_items = expand_batches(chunk_items).await?;
                     let chunk_items = chunk_items.iter().collect();
                     app_vendors_split(
                         chunk_items,

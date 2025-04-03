@@ -13,8 +13,8 @@ use turbo_tasks::{
 use crate::{
     chunk::{
         chunk_item_batch::attach_async_info_to_chunkable_module, ChunkItem,
-        ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
-        ChunkableModule, ChunkingContext, ChunkingType,
+        ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkableModule,
+        ChunkingContext, ChunkingType,
     },
     module::{Module, StyleType},
     module_graph::{
@@ -237,7 +237,6 @@ pub async fn compute_style_groups(
                 chunking_context,
             )
             .await?;
-            let ty = chunk_item.chunk_item.ty();
             let size = *chunk_item.chunk_item.estimated_size(None).await?;
             Ok((chunk_item, size))
         })

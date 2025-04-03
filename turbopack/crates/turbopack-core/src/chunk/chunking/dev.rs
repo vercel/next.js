@@ -5,11 +5,11 @@ use either::Either;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use tracing::Level;
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, ValueToString};
+use turbo_tasks::{FxIndexMap, TryJoinIterExt, ValueToString};
 
 use crate::chunk::{
     chunking::{make_chunk, ChunkItemOrBatchWithInfo, SplitContext},
-    ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
+    ChunkItem, ChunkItemWithAsyncModuleInfo,
 };
 
 /// Handle chunk items based on their total size. If the total size is too
@@ -38,8 +38,6 @@ async fn handle_split_group<'l>(
 /// Expands all batches and ensures that there are only terminal ChunkItems left.
 pub async fn expand_batches(
     chunk_items: Vec<&ChunkItemOrBatchWithInfo>,
-    ty: ResolvedVc<Box<dyn ChunkType>>,
-    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 ) -> Result<Vec<ChunkItemOrBatchWithInfo>> {
     let mut expanded = Vec::new();
     for item in chunk_items {

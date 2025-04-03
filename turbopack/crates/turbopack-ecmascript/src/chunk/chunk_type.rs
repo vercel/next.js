@@ -3,13 +3,12 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueDefault, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
-        round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup,
-        ChunkItemOrBatchWithAsyncModuleInfo, ChunkType, ChunkingContext,
+        Chunk, ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo, ChunkType, ChunkingContext,
     },
     output::OutputAssets,
 };
 
-use super::{EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkItem};
+use super::{EcmascriptChunk, EcmascriptChunkContent};
 use crate::chunk::batch::{EcmascriptChunkItemBatchGroup, EcmascriptChunkItemOrBatchWithAsyncInfo};
 
 #[turbo_tasks::value]
