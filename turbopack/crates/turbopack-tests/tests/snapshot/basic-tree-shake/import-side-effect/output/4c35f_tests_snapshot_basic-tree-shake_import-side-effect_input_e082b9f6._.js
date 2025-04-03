@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([document.currentScript, {
+(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/4c35f_tests_snapshot_basic-tree-shake_import-side-effect_input_e082b9f6._.js", {
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-side-effect/input/lib.js [test] (ecmascript) <internal part 0>": ((__turbopack_context__) => {
 "use strict";

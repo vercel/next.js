@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([document.currentScript, {
+(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_imports_json_input_52abdb3f._.js", {
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/json/input/package.json (json)": ((__turbopack_context__) => {
 
