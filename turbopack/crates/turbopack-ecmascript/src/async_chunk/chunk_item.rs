@@ -4,8 +4,8 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbopack_core::{
     chunk::{
-        ChunkData, ChunkItem, ChunkType, ChunkingContext, ChunkingContextExt, ChunksData,
-        ModuleChunkItemIdExt,
+        AsyncModuleInfo, ChunkData, ChunkItem, ChunkType, ChunkingContext, ChunkingContextExt,
+        ChunksData, ModuleChunkItemIdExt,
     },
     ident::AssetIdent,
     module::Module,
@@ -197,5 +197,15 @@ impl ChunkItem for AsyncLoaderChunkItem {
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
         *ResolvedVc::upcast(self.module)
+    }
+
+    #[turbo_tasks::function]
+    fn estimated_size(
+        self: Vc<Self>,
+        _async_module_info: Option<Vc<AsyncModuleInfo>>,
+    ) -> Vc<usize> {
+        // Use a constant here to avoid depending on chunking to estimate size.
+        // This avoid creating a cycle.
+        Vc::cell(128)
     }
 }

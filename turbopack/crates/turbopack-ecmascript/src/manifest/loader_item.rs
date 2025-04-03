@@ -6,8 +6,8 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{
-        ChunkData, ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ChunksData,
-        ModuleChunkItemIdExt,
+        AsyncModuleInfo, ChunkData, ChunkItem, ChunkType, ChunkableModule, ChunkingContext,
+        ChunksData, ModuleChunkItemIdExt,
     },
     ident::AssetIdent,
     module::Module,
@@ -126,6 +126,11 @@ impl ChunkItem for ManifestLoaderChunkItem {
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
         *ResolvedVc::upcast(self.manifest)
+    }
+
+    #[turbo_tasks::function]
+    fn estimated_size(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<usize> {
+        EcmascriptChunkItem::estimated_size(self, async_module_info)
     }
 }
 

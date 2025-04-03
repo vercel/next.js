@@ -434,6 +434,14 @@ pub trait CssChunkItem: ChunkItem {
     fn id(self: Vc<Self>) -> Vc<ModuleId> {
         CssChunkContext::of(CssChunkItem::chunking_context(self)).chunk_item_id(self)
     }
+    async fn estimated_size(
+        self: Vc<Self>,
+        _async_module_info: Option<Vc<AsyncModuleInfo>>,
+    ) -> Result<Vc<usize>> {
+        Ok(Vc::cell(self.content().await.map_or(0, |content| {
+            round_chunk_item_size(content.inner_code.len())
+        })))
+    }
 }
 
 #[turbo_tasks::function]
@@ -557,23 +565,6 @@ impl ChunkType for CssChunkType {
         }
         .cell();
         Ok(Vc::upcast(CssChunk::new(*chunking_context, content)))
-    }
-
-    #[turbo_tasks::function]
-    async fn chunk_item_size(
-        &self,
-        _chunking_context: Vc<Box<dyn ChunkingContext>>,
-        chunk_item: Vc<Box<dyn ChunkItem>>,
-        _async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Result<Vc<usize>> {
-        let Some(chunk_item) =
-            Vc::try_resolve_downcast::<Box<dyn CssChunkItem>>(chunk_item).await?
-        else {
-            bail!("Chunk item is not an css chunk item but reporting chunk type css");
-        };
-        Ok(Vc::cell(chunk_item.content().await.map_or(0, |content| {
-            round_chunk_item_size(content.inner_code.len())
-        })))
     }
 }
 

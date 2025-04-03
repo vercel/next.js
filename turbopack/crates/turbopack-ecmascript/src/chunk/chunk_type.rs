@@ -64,26 +64,6 @@ impl ChunkType for EcmascriptChunkType {
         .cell();
         Ok(Vc::upcast(EcmascriptChunk::new(chunking_context, content)))
     }
-
-    #[turbo_tasks::function]
-    async fn chunk_item_size(
-        &self,
-        _chunking_context: Vc<Box<dyn ChunkingContext>>,
-        chunk_item: Vc<Box<dyn ChunkItem>>,
-        async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Result<Vc<usize>> {
-        let Some(chunk_item) =
-            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkItem>>(chunk_item).await?
-        else {
-            bail!("Chunk item is not an ecmascript chunk item but reporting chunk type ecmascript");
-        };
-        Ok(Vc::cell(
-            chunk_item
-                .content_with_async_module_info(async_module_info)
-                .await
-                .map_or(0, |content| round_chunk_item_size(content.inner_code.len())),
-        ))
-    }
 }
 
 #[turbo_tasks::value_impl]

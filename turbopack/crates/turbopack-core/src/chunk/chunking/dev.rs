@@ -54,11 +54,7 @@ pub async fn expand_batches(
                         .chunk_items
                         .iter()
                         .map(async |item| {
-                            let size = ty.chunk_item_size(
-                                *chunking_context,
-                                *item.chunk_item,
-                                item.async_info.map(|i| *i),
-                            );
+                            let size = item.chunk_item.estimated_size(item.async_info.map(|i| *i));
                             let asset_ident = item.chunk_item.asset_ident().to_string();
                             Ok(ChunkItemOrBatchWithInfo::ChunkItem {
                                 chunk_item: item.clone(),

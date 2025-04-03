@@ -7,7 +7,10 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkingContext},
+    chunk::{
+        round_chunk_item_size, AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo,
+        ChunkingContext,
+    },
     code_builder::{Code, CodeBuilder},
     error::PrettyPrintError,
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
@@ -227,6 +230,17 @@ pub trait EcmascriptChunkItem: ChunkItem {
     /// generation
     fn need_async_module_info(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
+    }
+
+    async fn estimated_size(
+        self: Vc<Self>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+    ) -> Result<Vc<usize>> {
+        Ok(Vc::cell(
+            self.content_with_async_module_info(async_module_info)
+                .await
+                .map_or(0, |content| round_chunk_item_size(content.inner_code.len())),
+        ))
     }
 }
 

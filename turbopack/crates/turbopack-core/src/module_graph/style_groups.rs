@@ -238,9 +238,7 @@ pub async fn compute_style_groups(
             )
             .await?;
             let ty = chunk_item.chunk_item.ty();
-            let size = *ty
-                .chunk_item_size(chunking_context, *chunk_item.chunk_item, None)
-                .await?;
+            let size = *chunk_item.chunk_item.estimated_size(None).await?;
             Ok((chunk_item, size))
         })
         .try_join()

@@ -4,7 +4,7 @@ use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, MinifyType},
+    chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext, MinifyType},
     context::AssetContext,
     ident::AssetIdent,
     module::{Module, OptionStyleType, StyleType},
@@ -227,6 +227,11 @@ impl ChunkItem for CssModuleChunkItem {
             }
         }
         Ok(Vc::cell(references))
+    }
+
+    #[turbo_tasks::function]
+    fn estimated_size(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<usize> {
+        CssChunkItem::estimated_size(self, async_module_info)
     }
 }
 

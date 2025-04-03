@@ -7,8 +7,8 @@ use turbo_tasks_fs::{glob::Glob, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        ChunkItem, ChunkType, ChunkableModule, ChunkableModuleReference, ChunkingContext,
-        EvaluatableAsset,
+        AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkableModuleReference,
+        ChunkingContext, EvaluatableAsset,
     },
     ident::AssetIdent,
     module::Module,
@@ -167,6 +167,11 @@ impl ChunkItem for HmrEntryChunkItem {
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
         Vc::upcast(*self.module)
+    }
+
+    #[turbo_tasks::function]
+    fn estimated_size(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<usize> {
+        EcmascriptChunkItem::estimated_size(self, async_module_info)
     }
 }
 
