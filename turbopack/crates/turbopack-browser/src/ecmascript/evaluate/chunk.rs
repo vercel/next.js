@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use indoc::writedoc;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
@@ -74,23 +74,11 @@ impl EcmascriptBrowserEvaluateChunk {
         let chunking_context = this.chunking_context.await?;
         let environment = this.chunking_context.environment();
 
-        let output_root = this.chunking_context.output_root().await?;
         let output_root_to_root_path = this.chunking_context.output_root_to_root_path();
         let source_maps = *this
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?;
-        let chunk_path_vc = self.path();
-        let chunk_path = chunk_path_vc.await?;
-        let chunk_public_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
-            path
-        } else {
-            bail!(
-                "chunk path {} is not in output root {}",
-                chunk_path.to_string(),
-                output_root.to_string()
-            );
-        };
 
         let other_chunks_data = self.chunks_data().await?;
         let other_chunks_data = other_chunks_data.iter().try_join().await?;
@@ -139,12 +127,11 @@ impl EcmascriptBrowserEvaluateChunk {
             code,
             r#"
                 (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([
-                    {},
+                    document.currentScript,
                     {{}},
                     {}
                 ]);
             "#,
-            StringifyJs(&chunk_public_path),
             StringifyJs(&params),
         )?;
 

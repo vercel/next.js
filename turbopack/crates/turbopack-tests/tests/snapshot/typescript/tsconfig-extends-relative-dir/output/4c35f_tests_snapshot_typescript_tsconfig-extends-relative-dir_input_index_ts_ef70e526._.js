@@ -1,5 +1,5 @@
 (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([
-    "output/4c35f_tests_snapshot_typescript_tsconfig-extends-relative-dir_input_index_ts_ef70e526._.js",
+    document.currentScript,
     {},
     {"otherChunks":["output/4c35f_tests_snapshot_typescript_tsconfig-extends-relative-dir_input_ef6815c7._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/typescript/tsconfig-extends-relative-dir/input/index.ts [test] (ecmascript)"]}
 ]);

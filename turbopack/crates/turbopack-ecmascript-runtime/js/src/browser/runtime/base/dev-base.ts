@@ -1083,7 +1083,8 @@ function registerChunkList(
   chunkUpdateProvider: ChunkUpdateProvider,
   chunkList: ChunkList
 ) {
-  const chunkListPath = chunkList.path;
+  const chunkListScript = chunkList.script;
+  const chunkListPath = getPathFromScript(chunkListScript);
   chunkUpdateProvider.push([
     chunkListPath,
     handleApply.bind(null, chunkListPath),
