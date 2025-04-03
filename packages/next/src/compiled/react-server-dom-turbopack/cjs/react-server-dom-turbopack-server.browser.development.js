@@ -2858,6 +2858,37 @@
       );
       return null;
     }
+
+    function isConsumableValue(value) {
+      if (typeof value !== "object" || value === null) {
+        return false;
+      }
+
+      if (typeof ReadableStream === "function" && value instanceof ReadableStream) {
+        return true;
+      }
+
+      const iteratorFn = getIteratorFn(value);
+      if (iteratorFn) {
+        const iterator = iteratorFn.call(value);
+        if (iterator === value) {
+          // Iterator, not Iterable
+          return true;
+        }
+      }
+
+      const getAsyncIterator = value[ASYNC_ITERATOR];
+      if (typeof getAsyncIterator === "function") {
+        const iterator = getAsyncIterator.call(value);
+        if (iterator === value) {
+          // Generators/Iterators are Iterables but they're also their own iterator functions.
+          return true;
+        }
+      }
+
+      return false;
+    }
+
     function reviveModel(response, parentObj, parentKey, value, reference) {
       if ("string" === typeof value)
         return parseModelString(
@@ -2871,6 +2902,7 @@
         if (
           (void 0 !== reference &&
             void 0 !== response._temporaryReferences &&
+            !isConsumableValue(value) &&
             response._temporaryReferences.set(value, reference),
           Array.isArray(value))
         )

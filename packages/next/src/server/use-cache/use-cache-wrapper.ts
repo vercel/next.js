@@ -2,15 +2,18 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 /* eslint-disable import/no-extraneous-dependencies */
 import {
   renderToReadableStream,
-  decodeReply,
+  decodeReply as decodeReplyFromString,
   decodeReplyFromAsyncIterable,
   createTemporaryReferenceSet as createServerTemporaryReferenceSet,
+  type TemporaryReferenceSet as ServerTemporaryReferenceSet,
 } from 'react-server-dom-webpack/server.edge'
 /* eslint-disable import/no-extraneous-dependencies */
 import {
   createFromReadableStream,
   encodeReply,
   createTemporaryReferenceSet as createClientTemporaryReferenceSet,
+  type TemporaryReferenceSet,
+  type ServerConsumerManifest,
 } from 'react-server-dom-webpack/client.edge'
 
 import type { WorkStore } from '../app-render/work-async-storage.external'
@@ -52,6 +55,8 @@ import {
 import type { Params } from '../request/params'
 import React from 'react'
 import type { ImplicitTags } from '../lib/implicit-tags'
+import { scheduleOnNextTick as scheduleAfterCurrentMicrotaskQueue } from '../../lib/scheduler'
+import { isAbortError } from '../pipe-readable'
 
 type CacheKeyParts = [
   buildId: string,
@@ -72,7 +77,7 @@ function generateCacheEntry(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
-  encodedArguments: FormData | string,
+  encodedCacheKey: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
@@ -86,7 +91,7 @@ function generateCacheEntry(
     workStore,
     outerWorkUnitStore,
     clientReferenceManifest,
-    encodedArguments,
+    encodedCacheKey,
     fn,
     timeoutError
   )
@@ -96,7 +101,7 @@ function generateCacheEntryWithRestoredWorkStore(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
-  encodedArguments: FormData | string,
+  encodedCacheKey: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
 ) {
@@ -113,7 +118,7 @@ function generateCacheEntryWithRestoredWorkStore(
     workStore,
     outerWorkUnitStore,
     clientReferenceManifest,
-    encodedArguments,
+    encodedCacheKey,
     fn,
     timeoutError
   )
@@ -123,7 +128,7 @@ function generateCacheEntryWithCacheContext(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
-  encodedArguments: FormData | string,
+  encodedCacheKey: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
 ) {
@@ -177,7 +182,7 @@ function generateCacheEntryWithCacheContext(
     outerWorkUnitStore,
     cacheStore,
     clientReferenceManifest,
-    encodedArguments,
+    encodedCacheKey,
     fn,
     timeoutError
   )
@@ -299,52 +304,61 @@ async function collectResult(
   return entry
 }
 
+async function decodeReply<T>(
+  outerWorkUnitStore: WorkUnitStore | undefined,
+  encodedArguments: FormData | string,
+  temporaryReferences: ServerTemporaryReferenceSet
+): Promise<T> {
+  return typeof encodedArguments === 'string'
+    ? await decodeReplyFromString<T>(encodedArguments, getServerModuleMap(), {
+        temporaryReferences,
+      })
+    : await decodeReplyFromAsyncIterable<T>(
+        {
+          async *[Symbol.asyncIterator]() {
+            for (const entry of encodedArguments) {
+              yield entry
+            }
+
+            // The encoded arguments might contain hanging promises. In this
+            // case we don't want to reject with "Error: Connection closed.",
+            // so we intentionally keep the iterable alive. This is similar to
+            // the halting trick that we do while rendering.
+            if (outerWorkUnitStore?.type === 'prerender') {
+              await new Promise<void>((resolve) => {
+                if (outerWorkUnitStore.renderSignal.aborted) {
+                  resolve()
+                } else {
+                  outerWorkUnitStore.renderSignal.addEventListener(
+                    'abort',
+                    () => resolve(),
+                    { once: true }
+                  )
+                }
+              })
+            }
+          },
+        },
+        getServerModuleMap(),
+        { temporaryReferences }
+      )
+}
+
 async function generateCacheEntryImpl(
   outerWorkUnitStore: WorkUnitStore | undefined,
   innerCacheStore: UseCacheStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
-  encodedArguments: FormData | string,
+  encodedCacheKey: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
   const temporaryReferences = createServerTemporaryReferenceSet()
 
-  const [, , , args] =
-    typeof encodedArguments === 'string'
-      ? await decodeReply<CacheKeyParts>(
-          encodedArguments,
-          getServerModuleMap(),
-          { temporaryReferences }
-        )
-      : await decodeReplyFromAsyncIterable<CacheKeyParts>(
-          {
-            async *[Symbol.asyncIterator]() {
-              for (const entry of encodedArguments) {
-                yield entry
-              }
-
-              // The encoded arguments might contain hanging promises. In this
-              // case we don't want to reject with "Error: Connection closed.",
-              // so we intentionally keep the iterable alive. This is similar to
-              // the halting trick that we do while rendering.
-              if (outerWorkUnitStore?.type === 'prerender') {
-                await new Promise<void>((resolve) => {
-                  if (outerWorkUnitStore.renderSignal.aborted) {
-                    resolve()
-                  } else {
-                    outerWorkUnitStore.renderSignal.addEventListener(
-                      'abort',
-                      () => resolve(),
-                      { once: true }
-                    )
-                  }
-                })
-              }
-            },
-          },
-          getServerModuleMap(),
-          { temporaryReferences }
-        )
+  const [, , , args] = await decodeReply<CacheKeyParts>(
+    outerWorkUnitStore,
+    encodedCacheKey,
+    temporaryReferences
+  )
 
   // Track the timestamp when we started computing the result.
   const startTime = performance.timeOrigin + performance.now()
@@ -451,20 +465,22 @@ async function getNthCacheEntry(
 
 async function encodeFormData(formData: FormData): Promise<string> {
   let result = ''
+
   for (let [key, value] of formData) {
-    // We don't need this key to be serializable but from a security perspective it should not be
-    // possible to generate a string that looks the same from a different structure. To ensure this
-    // we need a delimeter between fields but just using a delimeter is not enough since a string
-    // might contain that delimeter. We use the length of each field as the delimeter to avoid
+    // We don't need this key to be serializable but from a security perspective
+    // it should not be possible to generate a string that looks the same from a
+    // different structure. To ensure this we need a delimiter between fields
+    // but just using a delimiter is not enough since a string might contain
+    // that delimiter. We use the length of each field as the delimiter to avoid
     // escaping the values.
     result += key.length.toString(16) + ':' + key
     let stringValue
     if (typeof value === 'string') {
       stringValue = value
     } else {
-      // The FormData might contain binary data that is not valid UTF-8 so this cache
-      // key may generate a UCS-2 string. Passing this to another service needs to be
-      // aware that the key might not be compatible.
+      // The FormData might contain binary data that is not valid UTF-8 so this
+      // cache key may generate a UCS-2 string. Passing this to another service
+      // needs to be aware that the key might not be compatible.
       const arrayBuffer = await value.arrayBuffer()
       if (arrayBuffer.byteLength % 2 === 0) {
         stringValue = String.fromCodePoint(...new Uint16Array(arrayBuffer))
@@ -532,24 +548,6 @@ export function cache(
       // In case getClientReferenceManifestSingleton is implemented using AsyncLocalStorage.
       const clientReferenceManifest = getClientReferenceManifestForRsc()
 
-      // Because the Action ID is not yet unique per implementation of that Action we can't
-      // safely reuse the results across builds yet. In the meantime we add the buildId to the
-      // arguments as a seed to ensure they're not reused. Remove this once Action IDs hash
-      // the implementation.
-      const buildId = workStore.buildId
-
-      // In dev mode, when the HMR refresh hash is set, we include it in the
-      // cache key. This ensures that cache entries are not reused when server
-      // components have been edited. This is a very coarse approach. But it's
-      // also only a temporary solution until Action IDs are unique per
-      // implementation. Remove this once Action IDs hash the implementation.
-      const hmrRefreshHash = workUnitStore && getHmrRefreshHash(workUnitStore)
-
-      const hangingInputAbortSignal =
-        workUnitStore?.type === 'prerender'
-          ? createHangingInputAbortSignal(workUnitStore)
-          : undefined
-
       // When dynamicIO is not enabled, we can not encode searchParams as
       // hanging promises. To still avoid unused search params from making a
       // page dynamic, we overwrite them here with a promise that resolves to an
@@ -604,19 +602,34 @@ export function cache(
         args.unshift(boundArgs)
       }
 
-      const temporaryReferences = createClientTemporaryReferenceSet()
-      const cacheKeyParts: CacheKeyParts = [buildId, hmrRefreshHash, id, args]
-      const encodedCacheKeyParts: FormData | string = await encodeReply(
-        cacheKeyParts,
-        { temporaryReferences, signal: hangingInputAbortSignal }
-      )
+      const serverConsumerManifest: ServerConsumerManifest = {
+        // moduleLoading must be null because we don't want to trigger preloads
+        // of ClientReferences to be added to the consumer. Instead, we'll wait
+        // for any ClientReference to be emitted which themselves will handle
+        // the preloading.
+        moduleLoading: null,
+        moduleMap: isEdgeRuntime
+          ? clientReferenceManifest.edgeRscModuleMapping
+          : clientReferenceManifest.rscModuleMapping,
+        serverModuleMap: getServerModuleMap(),
+      }
+
+      const [encodedCacheKey, temporaryReferences] =
+        await createEncodedCacheKey(
+          id,
+          args,
+          workUnitStore,
+          workStore,
+          clientReferenceManifest,
+          serverConsumerManifest
+        )
 
       const serializedCacheKey =
-        typeof encodedCacheKeyParts === 'string'
+        typeof encodedCacheKey === 'string'
           ? // Fast path for the simple case for simple inputs. We let the CacheHandler
             // Convert it to an ArrayBuffer if it wants to.
-            encodedCacheKeyParts
-          : await encodeFormData(encodedCacheKeyParts)
+            encodedCacheKey
+          : await encodeFormData(encodedCacheKey)
 
       let stream: undefined | ReadableStream = undefined
 
@@ -748,7 +761,7 @@ export function cache(
             workStore,
             workUnitStore,
             clientReferenceManifest,
-            encodedCacheKeyParts,
+            encodedCacheKey,
             fn,
             timeoutError
           )
@@ -813,7 +826,7 @@ export function cache(
               workStore,
               undefined, // This is not running within the context of this unit.
               clientReferenceManifest,
-              encodedCacheKeyParts,
+              encodedCacheKey,
               fn,
               timeoutError
             )
@@ -854,17 +867,6 @@ export function cache(
       // the server, which is required to pick it up for replaying again on the client.
       const replayConsoleLogs = true
 
-      const serverConsumerManifest = {
-        // moduleLoading must be null because we don't want to trigger preloads of ClientReferences
-        // to be added to the consumer. Instead, we'll wait for any ClientReference to be emitted
-        // which themselves will handle the preloading.
-        moduleLoading: null,
-        moduleMap: isEdgeRuntime
-          ? clientReferenceManifest.edgeRscModuleMapping
-          : clientReferenceManifest.rscModuleMapping,
-        serverModuleMap: getServerModuleMap(),
-      }
-
       return createFromReadableStream(stream, {
         serverConsumerManifest,
         temporaryReferences,
@@ -875,6 +877,128 @@ export function cache(
   }[name]
 
   return React.cache(cachedFn)
+}
+
+async function createEncodedCacheKey(
+  id: string,
+  args: unknown[],
+  workUnitStore: WorkUnitStore | undefined,
+  workStore: WorkStore,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
+  serverConsumerManifest: ServerConsumerManifest
+): Promise<[FormData | string, TemporaryReferenceSet]> {
+  // Because the Action ID is not yet unique per implementation of that Action we can't
+  // safely reuse the results across builds yet. In the meantime we add the buildId to the
+  // arguments as a seed to ensure they're not reused. Remove this once Action IDs hash
+  // the implementation.
+  const buildId = workStore.buildId
+
+  // In dev mode, when the HMR refresh hash is set, we include it in the
+  // cache key. This ensures that cache entries are not reused when server
+  // components have been edited. This is a very coarse approach. But it's
+  // also only a temporary solution until Action IDs are unique per
+  // implementation. Remove this once Action IDs hash the implementation.
+  const hmrRefreshHash = workUnitStore && getHmrRefreshHash(workUnitStore)
+
+  const hangingInputAbortSignal =
+    workUnitStore?.type === 'prerender'
+      ? createHangingInputAbortSignal(workUnitStore)
+      : undefined
+
+  const cacheKeyParts: CacheKeyParts = [buildId, hmrRefreshHash, id, args]
+
+  let temporaryReferences = createClientTemporaryReferenceSet()
+  let encodedCacheKey = await encodeReply(cacheKeyParts, {
+    temporaryReferences,
+    signal: hangingInputAbortSignal,
+  })
+
+  if (mayContainSerializedAsyncValues(encodedCacheKey)) {
+    // decode, serialize, deserialize, and encode again.
+    // Essentially, this is simulating passing a reply from the client to the server and back, and then encoding it.
+    // (Unfortunately, we can't just call `encodeReply` twice, because it consumes ReadableStreams and async iterators)
+    // This is a bit convoluted, but it lets us ensure that all async values
+    // Are serialized deterministically, regardless of the order in which they resolve or stream in.
+    // This is because after the first encoding, we'll have all their values available synchronously,
+    // So they'll be serialized in traversal order.
+
+    // "Server": decode and serialize
+
+    const serverTemporaryReferences = createServerTemporaryReferenceSet()
+    const decodedCacheKey = await decodeReply<CacheKeyParts>(
+      workUnitStore,
+      encodedCacheKey,
+      serverTemporaryReferences
+    )
+
+    // Wait for async values inside `decodedCacheKey` to resolve.
+    // We already waited for them when doing `encodeReply`, so this should be near instant.
+    // TODO: is this waiting too long?
+    await new Promise<void>((resolve) =>
+      scheduleAfterCurrentMicrotaskQueue(resolve)
+    )
+
+    const serverStreamAbortController = hangingInputAbortSignal
+      ? new AbortController()
+      : undefined
+    const serverStreamAbortSignal = serverStreamAbortController
+      ? serverStreamAbortController.signal
+      : undefined
+
+    const serverStream = renderToReadableStream(
+      decodedCacheKey,
+      clientReferenceManifest.clientModules,
+      {
+        environmentName: 'Cache',
+        temporaryReferences: serverTemporaryReferences,
+        onError(thrownValue) {
+          // If we triggered an abort, there's no need to log an error.
+          if (
+            serverStreamAbortSignal &&
+            serverStreamAbortSignal.aborted &&
+            isAbortError(thrownValue)
+          ) {
+            return
+          }
+          console.error(thrownValue)
+        },
+        signal: serverStreamAbortSignal,
+      }
+    )
+
+    // "Client" #2: deserialize, and do the final encoding
+
+    const resolvedCacheKey = await createFromReadableStream<CacheKeyParts>(
+      serverStream,
+      {
+        serverConsumerManifest,
+        temporaryReferences,
+      }
+    )
+
+    // By this point, all async values inside `resolvedCacheKey` should be available microtaskily,
+    // because the first `encodeReply` waited for all of them when serializing.
+    // we still might need to abort to account for hanging promises,
+    // but since everything else is microtasky, we can just flush the microtask queue and then abort.
+    const encodedCacheKeyAbortSignal = hangingInputAbortSignal
+      ? abortAfterCurrentMicrotaskQueue()
+      : undefined
+
+    // use a clean temporary reference set. some values may not be referentially equal due to serialization,
+    // so we shouldn't re-use the original one.
+    temporaryReferences = createClientTemporaryReferenceSet()
+
+    encodedCacheKey = await encodeReply(resolvedCacheKey, {
+      temporaryReferences,
+      signal: encodedCacheKeyAbortSignal,
+    })
+
+    if (serverStreamAbortController) {
+      serverStreamAbortController.abort()
+    }
+  }
+
+  return [encodedCacheKey, temporaryReferences]
 }
 
 /**
@@ -979,5 +1103,37 @@ function isRecentlyRevalidatedTag(tag: string, workStore: WorkStore): boolean {
     return true
   }
 
+  return false
+}
+
+function abortAfterCurrentMicrotaskQueue(): AbortSignal {
+  const abortController = new AbortController()
+  scheduleAfterCurrentMicrotaskQueue(() => {
+    abortController.abort()
+  })
+  return abortController.signal
+}
+
+function mayContainSerializedAsyncValues(encoded: string | FormData): boolean {
+  if (typeof encoded === 'string') {
+    // async values are always encoded as multiple rows,
+    // which are always represented as FormData, never strings.
+    return false
+  }
+
+  for (const entry of encoded.values()) {
+    if (typeof entry !== 'string') {
+      // possibly a blob used for binary ReadableStreams, although it could also be a TypedArray
+      return true
+    }
+
+    // - promise: "$@1"
+    // - AsyncIterable: "$X1"
+    // - AsyncIterator: "$x1"
+    // - ReadableStream: "$r1" or "$R1"
+    if (/"\$[@xXrR][0-9a-f]+"/.test(entry)) {
+      return true
+    }
+  }
   return false
 }
