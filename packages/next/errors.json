@@ -645,8 +645,8 @@
   "644": "@rspack/core is not available. Please make sure the appropriate Next.js plugin is installed.",
   "645": "@rspack/plugin-react-refresh is not available. Please make sure the appropriate Next.js plugin is installed.",
   "646": "No span found for compilation",
-  "647": "@rspack/core is not available. Please make sure `@next/plugin-rspack` is correctly installed.",
-  "648": "@rspack/plugin-react-refresh is not available. Please make sure `@next/plugin-rspack` is correctly installed.",
+  "647": "@rspack/core is not available. Please make sure `next-rspack` is correctly installed.",
+  "648": "@rspack/plugin-react-refresh is not available. Please make sure `next-rspack` is correctly installed.",
   "649": "Cache handlers not initialized",
   "650": "experimental.nodeMiddleware",
   "651": "Unexpected module type %s",
@@ -669,5 +669,6 @@
   "668": "Internal Next.js error: Router action dispatched before initialization.",
   "669": "Invariant: --turbopack is set but the build used Webpack",
   "670": "Invariant: --turbopack is not set but the build used Turbopack. Add --turbopack to \"next start\".",
-  "671": "Specified images.remotePatterns must have protocol \"http\" or \"https\" received \"%s\"."
+  "671": "Specified images.remotePatterns must have protocol \"http\" or \"https\" received \"%s\".",
+  "672": "Expected `telemetry` to be set in globals"
 }
