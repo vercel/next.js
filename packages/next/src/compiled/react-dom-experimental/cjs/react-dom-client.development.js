@@ -4864,7 +4864,7 @@
         ((reusableLaneDevToolDetails.color = "secondary-light"),
         (reusableLaneOptions.start = startTime),
         (reusableLaneOptions.end = endTime),
-        performance.measure("Suspended", reusableLaneOptions));
+        performance.measure("Suspended on CSS", reusableLaneOptions));
     }
     function logCommitErrored(startTime, endTime, errors, passive) {
       if (supportsUserTiming) {
@@ -16829,7 +16829,7 @@
           default:
             if (((startTime = yieldStartTime), supportsUserTiming)) {
               var yieldDuration = yieldEndTime - startTime;
-              1 > yieldDuration ||
+              3 > yieldDuration ||
                 ((reusableComponentDevToolDetails.color =
                   5 > yieldDuration
                     ? "primary-light"
@@ -17318,7 +17318,11 @@
             (reusableLaneOptions.start = previousRenderStartTime),
             (reusableLaneOptions.end = renderStartTime$jscomp$0),
             performance.measure(
-              isSpawnedUpdate ? "Cascade" : "Blocked",
+              isSpawnedUpdate
+                ? "Cascading Update"
+                : 5 < renderStartTime$jscomp$0 - previousRenderStartTime
+                  ? "Update Blocked"
+                  : "Update",
               reusableLaneOptions
             )));
         blockingSuspendedTime = blockingUpdateTime = -1.1;
@@ -17381,7 +17385,12 @@
             ((reusableLaneDevToolDetails.color = "primary-light"),
             (reusableLaneOptions.start = endTime),
             (reusableLaneOptions.end = renderStartTime$jscomp$0),
-            performance.measure("Blocked", reusableLaneOptions))),
+            performance.measure(
+              5 < renderStartTime$jscomp$0 - endTime
+                ? "Update Blocked"
+                : "Update",
+              reusableLaneOptions
+            ))),
         (transitionSuspendedTime =
           transitionUpdateTime =
           transitionStartTime =
@@ -28911,11 +28920,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-experimental-040f8286-20250402" !== isomorphicReactPackageVersion)
+      if ("19.2.0-experimental-b10cb4c0-20250403" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-experimental-040f8286-20250402\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-experimental-b10cb4c0-20250403\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -28952,10 +28961,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.2.0-experimental-040f8286-20250402",
+          version: "19.2.0-experimental-b10cb4c0-20250403",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.2.0-experimental-040f8286-20250402"
+          reconcilerVersion: "19.2.0-experimental-b10cb4c0-20250403"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -29097,7 +29106,7 @@
       listenToAllSupportedEvents(container);
       return new ReactDOMHydrationRoot(initialChildren);
     };
-    exports.version = "19.2.0-experimental-040f8286-20250402";
+    exports.version = "19.2.0-experimental-b10cb4c0-20250403";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

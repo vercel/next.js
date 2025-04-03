@@ -3224,7 +3224,7 @@ function logSuspendedCommitPhase(startTime, endTime) {
     ((reusableLaneDevToolDetails.color = "secondary-light"),
     (reusableLaneOptions.start = startTime),
     (reusableLaneOptions.end = endTime),
-    performance.measure("Suspended", reusableLaneOptions));
+    performance.measure("Suspended on CSS", reusableLaneOptions));
 }
 function logCommitErrored(startTime, endTime, errors, passive) {
   supportsUserTiming &&
@@ -13105,7 +13105,7 @@ function performWorkOnRoot(root$jscomp$0, lanes, forceSync) {
       default:
         if (((startTime = yieldStartTime), supportsUserTiming)) {
           var yieldDuration = yieldEndTime - startTime;
-          1 > yieldDuration ||
+          3 > yieldDuration ||
             ((reusableComponentDevToolDetails.color =
               5 > yieldDuration
                 ? "primary-light"
@@ -13545,7 +13545,11 @@ function prepareFreshStack(root, lanes) {
         (reusableLaneOptions.start = previousRenderStartTime),
         (reusableLaneOptions.end = renderStartTime$jscomp$0),
         performance.measure(
-          isSpawnedUpdate ? "Cascade" : "Blocked",
+          isSpawnedUpdate
+            ? "Cascading Update"
+            : 5 < renderStartTime$jscomp$0 - previousRenderStartTime
+              ? "Update Blocked"
+              : "Update",
           reusableLaneOptions
         )));
     blockingSuspendedTime = blockingUpdateTime = -1.1;
@@ -13603,7 +13607,10 @@ function prepareFreshStack(root, lanes) {
         ((reusableLaneDevToolDetails.color = "primary-light"),
         (reusableLaneOptions.start = endTime),
         (reusableLaneOptions.end = renderStartTime$jscomp$0),
-        performance.measure("Blocked", reusableLaneOptions))),
+        performance.measure(
+          5 < renderStartTime$jscomp$0 - endTime ? "Update Blocked" : "Update",
+          reusableLaneOptions
+        ))),
     (transitionSuspendedTime =
       transitionUpdateTime =
       transitionStartTime =
@@ -19628,14 +19635,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2151 = React.version;
 if (
-  "19.2.0-experimental-040f8286-20250402" !==
+  "19.2.0-experimental-b10cb4c0-20250403" !==
   isomorphicReactPackageVersion$jscomp$inline_2151
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2151,
-      "19.2.0-experimental-040f8286-20250402"
+      "19.2.0-experimental-b10cb4c0-20250403"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -19657,10 +19664,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2761 = {
   bundleType: 0,
-  version: "19.2.0-experimental-040f8286-20250402",
+  version: "19.2.0-experimental-b10cb4c0-20250403",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-experimental-040f8286-20250402"
+  reconcilerVersion: "19.2.0-experimental-b10cb4c0-20250403"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2762 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -19925,7 +19932,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.2.0-experimental-040f8286-20250402";
+exports.version = "19.2.0-experimental-b10cb4c0-20250403";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
