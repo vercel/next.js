@@ -3,7 +3,7 @@ import { cx } from '../../utils/cx'
 
 export function VersionStalenessInfo({
   versionInfo,
-  bundlerName = 'Webpack',
+  bundlerName,
 }: {
   versionInfo: VersionInfo
   // Passed from parent for easier handling in Storybook.

@@ -17,13 +17,11 @@ export function ErrorOverlayNav({
   activeIdx,
   setActiveIndex,
   versionInfo,
-  isTurbopack,
 }: ErrorOverlayNavProps) {
-  const bundlerName = isTurbopack
-    ? 'Turbopack'
-    : !!process.env.NEXT_RSPACK
-      ? 'Rspack'
-      : 'Webpack'
+  const bundlerName = (process.env.__NEXT_BUNDLER || 'Webpack') as
+    | 'Webpack'
+    | 'Turbopack'
+    | 'Rspack'
 
   return (
     <div data-nextjs-error-overlay-nav>
