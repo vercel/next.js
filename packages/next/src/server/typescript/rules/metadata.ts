@@ -87,13 +87,13 @@ function updateVirtualFileWithType(
     TYPE_IMPORT
 
   if (virtualTsEnv.sys.fileExists(fileName)) {
-    log('[next] Updating file: ' + fileName)
+    log('Updating file: ' + fileName)
     // FIXME: updateFile() breaks as the file doesn't exists, which is weird.
     // virtualTsEnv.updateFile(fileName, newSource)
     virtualTsEnv.deleteFile(fileName)
     virtualTsEnv.createFile(fileName, newSource)
   } else {
-    log('[next] Creating file: ' + fileName)
+    log('Creating file: ' + fileName)
     virtualTsEnv.createFile(fileName, newSource)
   }
 

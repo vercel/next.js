@@ -16,7 +16,7 @@ let appDirRegExp: RegExp
 export let virtualTsEnv: VirtualTypeScriptEnvironment
 
 export function log(message: string) {
-  info.project.projectService.logger.info(message)
+  info.project.projectService.logger.info('[next] ' + message)
 }
 
 // This function has to be called initially.
@@ -31,7 +31,7 @@ export function init(opts: {
     '^' + (projectDir + '(/src)?/app').replace(/[\\/]/g, '[\\/]')
   )
 
-  log('[next] Initializing Next.js TypeScript plugin: ' + projectDir)
+  log('Initializing Next.js TypeScript plugin: ' + projectDir)
 
   const compilerOptions = info.project.getCompilerOptions()
   const fsMap = createDefaultMapFromNodeModules(
@@ -48,11 +48,14 @@ export function init(opts: {
     compilerOptions
   )
 
-  if (!virtualTsEnv) {
-    throw new Error('[next] Failed to create virtual TypeScript environment.')
+  if (virtualTsEnv) {
+    log(
+      'Failed to create virtual TypeScript environment. This is a bug in Next.js TypeScript plugin. Please report it by opening an issue at https://github.com/vercel/next.js/issues.'
+    )
+    return
   }
 
-  log('[next] Successfully initialized Next.js TypeScript plugin!')
+  log('Successfully initialized Next.js TypeScript plugin!')
 }
 
 export function getTs() {
