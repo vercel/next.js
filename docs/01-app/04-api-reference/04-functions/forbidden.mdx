@@ -126,13 +126,12 @@ export default async function AdminPage() {
 When implementing mutations in Server Actions, you can use `forbidden` to only allow users with a specific role to update sensitive data.
 
 ```ts filename="app/actions/update-role.ts" switcher
-'use server'
-
 import { verifySession } from '@/app/lib/dal'
 import { forbidden } from 'next/navigation'
 import db from '@/app/lib/db'
 
 export async function updateRole(formData: FormData) {
+  'use server'
   const session = await verifySession()
 
   // Ensure only admins can update roles
@@ -146,13 +145,12 @@ export async function updateRole(formData: FormData) {
 ```
 
 ```js filename="app/actions/update-role.js" switcher
-'use server'
-
 import { verifySession } from '@/app/lib/dal'
 import { forbidden } from 'next/navigation'
 import db from '@/app/lib/db'
 
 export async function updateRole(formData) {
+  'use server'
   const session = await verifySession()
 
   // Ensure only admins can update roles

@@ -70,11 +70,10 @@ This will purge the Client-side Router Cache, and revalidate the Data Cache on t
 ### Server Action
 
 ```ts filename="app/actions.ts" switcher
-'use server'
-
 import { revalidatePath } from 'next/cache'
 
 export default async function submit() {
+  'use server'
   await submitForm()
   revalidatePath('/')
 }
