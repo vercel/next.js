@@ -1407,10 +1407,10 @@ Treat [Server Actions](/docs/app/building-your-application/data-fetching/server-
 In the example below, we check the user's role before allowing the action to proceed:
 
 ```ts filename="app/lib/actions.ts" switcher
+'use server'
 import { verifySession } from '@/app/lib/dal'
 
 export async function serverAction(formData: FormData) {
-  'use server'
   const session = await verifySession()
   const userRole = session?.user?.role
 
@@ -1424,10 +1424,10 @@ export async function serverAction(formData: FormData) {
 ```
 
 ```js filename="app/lib/actions.js" switcher
+'use server'
 import { verifySession } from '@/app/lib/dal'
 
 export async function serverAction() {
-  'use server'
   const session = await verifySession()
   const userRole = session.user.role
 

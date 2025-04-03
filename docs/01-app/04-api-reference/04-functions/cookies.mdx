@@ -146,10 +146,11 @@ export default async function Page() {
 You can use the `(await cookies()).set(name, value, options)` method in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers) to set a cookie. The [`options` object](#options) is optional.
 
 ```tsx filename="app/actions.ts" switcher
+'use server'
+
 import { cookies } from 'next/headers'
 
 export async function create(data) {
-  'use server'
   const cookieStore = await cookies()
 
   cookieStore.set('name', 'lee')
@@ -166,10 +167,11 @@ export async function create(data) {
 ```
 
 ```js filename="app/actions.js" switcher
+'use server'
+
 import { cookies } from 'next/headers'
 
 export async function create(data) {
-  'use server'
   const cookieStore = await cookies()
 
   cookieStore.set('name', 'lee')
@@ -216,21 +218,21 @@ There are three ways you can delete a cookie.
 Using the `delete()` method:
 
 ```tsx filename="app/actions.ts" switcher
+'use server'
 
 import { cookies } from 'next/headers'
 
 export async function delete(data) {
-  'use server'
   (await cookies()).delete('name')
 }
 ```
 
 ```js filename="app/actions.js" switcher
+'use server'
 
 import { cookies } from 'next/headers'
 
 export async function delete(data) {
-  'use server'
   (await cookies()).delete('name')
 }
 ```
@@ -238,21 +240,21 @@ export async function delete(data) {
 Setting a new cookie with the same name and an empty value:
 
 ```tsx filename="app/actions.ts" switcher
+'use server'
 
 import { cookies } from 'next/headers'
 
 export async function delete(data) {
-  'use server'
   (await cookies()).set('name', '')
 }
 ```
 
 ```js filename="app/actions.js" switcher
+'use server'
 
 import { cookies } from 'next/headers'
 
 export async function delete(data) {
-  'use server'
   (await cookies()).set('name', '')
 }
 ```
@@ -260,21 +262,21 @@ export async function delete(data) {
 Setting the `maxAge` to 0 will immediately expire a cookie. `maxAge` accepts a value in seconds.
 
 ```tsx filename="app/actions.ts" switcher
+'use server'
 
 import { cookies } from 'next/headers'
 
 export async function delete(data) {
-  'use server'
   (await cookies()).set('name', 'value', { maxAge: 0 })
 }
 ```
 
 ```js filename="app/actions.js" switcher
+'use server'
 
 import { cookies } from 'next/headers'
 
 export async function delete(data) {
-  'use server'
   (await cookies()).set('name', 'value', { maxAge: 0 })
 ``
 }
