@@ -3,7 +3,7 @@ title: useLinkStatus
 description: API Reference for the useLinkStatus hook.
 ---
 
-`useLinkStatus` is a **Client Component** hook that lets you track the loading state of a `Link` component during navigation. It can be used to show loading indicators during page transitions, especially when [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) is disabled, or the routed page does not have a suspense boundary.
+`useLinkStatus` is a **Client Component** hook that lets you track the loading state of a `Link` component during navigation. It can be used to show loading indicators during page transitions, especially when [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) is disabled, or the linked route does not have any loading states. 
 
 ```tsx filename="app/loading-indicator.tsx" switcher
 'use client'
@@ -85,7 +85,9 @@ const { pending } = useLinkStatus()
 
 ### Improving the user experience when navigating with new query parameters
 
-When navigating between categories in this example, the page may appear unresponsive since the `<PageSkeleton />` fallback won't replace the existing content (see [React's documentation on preventing unwanted loading indicators](https://react.dev/reference/react/useTransition#preventing-unwanted-loading-indicators)). The `useLinkStatus` hook improves the user experience by allowing you to display a loading indicator while new data is being fetched.
+In this example, navigating between categories updates the query string (e.g. ?category=books). However, the page may appear unresponsive because the `<PageSkeleton />` fallback won't replace the existing content (see [preventing unwanted loading indicators](https://react.dev/reference/react/useTransition#preventing-unwanted-loading-indicators)). 
+
+You can use the `useLinkStatus` hook to render a lightweight loading indicator next to the active link and provide immediate feedback to the user while the data is being fetched. 
 
 ```tsx filename="app/page.tsx" switcher
 'use client'
