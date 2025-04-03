@@ -52,7 +52,6 @@ impl EcmascriptBuildNodeChunkContent {
             .chunking_context
             .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk))
             .await?;
-        let chunk_path_vc = this.chunk.path();
 
         let mut code = CodeBuilder::default();
 
@@ -79,7 +78,7 @@ impl EcmascriptBuildNodeChunkContent {
         let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
-            code = minify(&*chunk_path_vc.await?, &code, source_maps, mangle)?;
+            code = minify(&code, source_maps, mangle)?;
         }
 
         Ok(code.cell())
