@@ -2275,7 +2275,6 @@ export default async function build(
 
                 // @ts-expect-error internal field TODO: fix this, should use a separate mechanism to pass the info.
                 isExperimentalCompile: isCompileMode,
-                isTurbopackBuild: isTurbopack,
               },
             },
             appDir: dir,
