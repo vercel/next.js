@@ -239,48 +239,55 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
       focusAndScrollRef.hashFragment = null
       focusAndScrollRef.segmentPaths = []
 
-      handleSmoothScroll(
-        () => {
-          // In case of hash scroll, we only need to scroll the element into view
-          if (hashFragment) {
-            ;(domNode as HTMLElement).scrollIntoView()
+      // We don't want to block the browser paint for this operation
+      setTimeout(() => {
+        handleSmoothScroll(
+          () => {
+            // In case of hash scroll, we only need to scroll the element into view
+            if (hashFragment) {
+              ;(domNode as HTMLElement).scrollIntoView()
 
-            return
+              return
+            }
+            // Store the current viewport height because reading `clientHeight` causes a reflow,
+            // and it won't change during this function.
+            const htmlElement = document.documentElement
+            const viewportHeight = htmlElement.clientHeight
+
+            // If the element's top edge is already in the viewport, exit early.
+            if (
+              topOfElementInViewport(domNode as HTMLElement, viewportHeight)
+            ) {
+              return
+            }
+
+            // Otherwise, try scrolling go the top of the document to be backward compatible with pages
+            // scrollIntoView() called on `<html/>` element scrolls horizontally on chrome and firefox (that shouldn't happen)
+            // We could use it to scroll horizontally following RTL but that also seems to be broken - it will always scroll left
+            // scrollLeft = 0 also seems to ignore RTL and manually checking for RTL is too much hassle so we will scroll just vertically
+            htmlElement.scrollTop = 0
+
+            // Scroll to domNode if domNode is not in viewport when scrolled to top of document
+            if (
+              !topOfElementInViewport(domNode as HTMLElement, viewportHeight)
+            ) {
+              // Scroll into view doesn't scroll horizontally by default when not needed
+              ;(domNode as HTMLElement).scrollIntoView()
+            }
+          },
+          {
+            // We will force layout by querying domNode position
+            dontForceLayout: true,
+            onlyHashChange: focusAndScrollRef.onlyHashChange,
           }
-          // Store the current viewport height because reading `clientHeight` causes a reflow,
-          // and it won't change during this function.
-          const htmlElement = document.documentElement
-          const viewportHeight = htmlElement.clientHeight
+        )
 
-          // If the element's top edge is already in the viewport, exit early.
-          if (topOfElementInViewport(domNode as HTMLElement, viewportHeight)) {
-            return
-          }
+        // Mutate after scrolling so that it can be read by `handleSmoothScroll`
+        focusAndScrollRef.onlyHashChange = false
 
-          // Otherwise, try scrolling go the top of the document to be backward compatible with pages
-          // scrollIntoView() called on `<html/>` element scrolls horizontally on chrome and firefox (that shouldn't happen)
-          // We could use it to scroll horizontally following RTL but that also seems to be broken - it will always scroll left
-          // scrollLeft = 0 also seems to ignore RTL and manually checking for RTL is too much hassle so we will scroll just vertically
-          htmlElement.scrollTop = 0
-
-          // Scroll to domNode if domNode is not in viewport when scrolled to top of document
-          if (!topOfElementInViewport(domNode as HTMLElement, viewportHeight)) {
-            // Scroll into view doesn't scroll horizontally by default when not needed
-            ;(domNode as HTMLElement).scrollIntoView()
-          }
-        },
-        {
-          // We will force layout by querying domNode position
-          dontForceLayout: true,
-          onlyHashChange: focusAndScrollRef.onlyHashChange,
-        }
-      )
-
-      // Mutate after scrolling so that it can be read by `handleSmoothScroll`
-      focusAndScrollRef.onlyHashChange = false
-
-      // Set focus on the element
-      domNode.focus()
+        // Set focus on the element
+        domNode.focus()
+      }, 0)
     }
   }
 
