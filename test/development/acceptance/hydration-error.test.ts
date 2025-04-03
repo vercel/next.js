@@ -11,6 +11,11 @@ describe('Error overlay for hydration errors in Pages router', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
+    // TODO: once Next.js minimal React version is 19.1, remove this override.
+    dependencies: {
+      react: isReact18 ? '^18.3.1' : '^19.1.0',
+      'react-dom': isReact18 ? '^18.3.1' : '^19.1.0',
+    },
   })
 
   it('includes a React docs link when hydration error does occur', async () => {
