@@ -12,7 +12,7 @@ import { useLinkStatus } from 'next/navigation'
 
 export default function LoadingIndicator() {
   const { pending } = useLinkStatus()
-  return pending ? <div>Loading...</div> : null
+  return pending ? <span>⌛</span> : null
 }
 ```
 
@@ -23,7 +23,7 @@ import { useLinkStatus } from 'next/navigation'
 
 export default function LoadingIndicator() {
   const { pending } = useLinkStatus()
-  return pending ? <div>Loading...</div> : null
+  return pending ? <span>⌛</span> : null
 }
 ```
 
@@ -89,17 +89,33 @@ In this example, navigating between categories updates the query string (e.g. ?c
 
 You can use the `useLinkStatus` hook to render a lightweight loading indicator next to the active link and provide immediate feedback to the user while the data is being fetched.
 
-```tsx filename="app/page.tsx" switcher
+```tsx filename="app/components/loading-indicator.tsx" switcher
 'use client'
 
-import { useSearchParams, useLinkStatus } from 'next/navigation'
-import Link from 'next/link'
-import { Suspense } from 'react'
+import { useLinkStatus } from 'next/navigation'
 
-function LoadingIndicator() {
+export default function LoadingIndicator() {
   const { pending } = useLinkStatus()
   return pending ? <span>⌛</span> : null
 }
+```
+
+```jsx filename="app/components/loading-indicator.js" switcher
+'use client'
+
+import { useLinkStatus } from 'next/navigation'
+
+export default function LoadingIndicator() {
+  const { pending } = useLinkStatus()
+  return pending ? <span>⌛</span> : null
+}
+```
+
+```tsx filename="app/page.tsx" switcher
+import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import { Suspense } from 'react'
+import LoadingIndicator from './loading-indicator'
 
 function MenuBar() {
   return (
@@ -148,16 +164,10 @@ export default async function ProductCategories({
 ```
 
 ```jsx filename="app/page.js" switcher
-'use client'
-
-import { useSearchParams, useLinkStatus } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Suspense } from 'react'
-
-function LoadingIndicator() {
-  const { pending } = useLinkStatus()
-  return pending ? <span>⌛</span> : null
-}
+import LoadingIndicator from './loading-indicator'
 
 function MenuBar() {
   return (
