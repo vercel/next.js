@@ -15,7 +15,8 @@ path_join2 = path.join*0*
 path_join3 = path.join*0*
 - *0* path.join: The Node.js path.join method: https://nodejs.org/api/path.html#pathjoinpaths
 
-path_join4 = module<"path", {}>["join"]
+path_join4 = path.join*0*
+- *0* path.join: The Node.js path.join method: https://nodejs.org/api/path.html#pathjoinpaths
 
 z1_joined = "foo/bar"
 
