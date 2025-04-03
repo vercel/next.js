@@ -127,21 +127,24 @@
     (
         "path_join4",
         Member(
-            5,
-            Call(
-                3,
-                FreeVar(
-                    "import",
-                ),
-                [
-                    Constant(
-                        Str(
-                            Atom(
-                                "path",
+            6,
+            Awaited(
+                4,
+                Call(
+                    3,
+                    FreeVar(
+                        "import",
+                    ),
+                    [
+                        Constant(
+                            Str(
+                                Atom(
+                                    "path",
+                                ),
                             ),
                         ),
-                    ),
-                ],
+                    ],
+                ),
             ),
             Constant(
                 Str(

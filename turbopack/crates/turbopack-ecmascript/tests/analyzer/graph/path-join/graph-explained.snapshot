@@ -10,7 +10,7 @@ path_join2 = module<path, {}>["default"]["join"]
 
 path_join3 = module<path, {}>["join"]
 
-path_join4 = FreeVar(import)("path")["join"]
+path_join4 = await(FreeVar(import)("path"))["join"]
 
 z1_joined = path["join"]("foo", "bar")
 
