@@ -89,7 +89,7 @@ In this example, navigating between categories updates the query string (e.g. ?c
 
 You can use the `useLinkStatus` hook to render a lightweight loading indicator next to the active link and provide immediate feedback to the user while the data is being fetched.
 
-```tsx filename="app/loading-indicator.tsx" switcher
+```tsx filename="app/components/loading-indicator.tsx" switcher
 'use client'
 
 import { useLinkStatus } from 'next/navigation'
@@ -100,7 +100,7 @@ export default function LoadingIndicator() {
 }
 ```
 
-```jsx filename="app/loading-indicator.js" switcher
+```jsx filename="app/components/loading-indicator.js" switcher
 'use client'
 
 import { useLinkStatus } from 'next/navigation'
