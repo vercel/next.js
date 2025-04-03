@@ -489,6 +489,12 @@ pub enum JsValue {
     /// A tenary operator `test ? cons : alt`
     /// `(total_node_count, test, cons, alt)`
     Tenary(u32, Box<JsValue>, Box<JsValue>, Box<JsValue>),
+    /// A promise resolving to some value
+    /// `(total_node_count, value)`
+    Promise(u32, Box<JsValue>),
+    /// An await call (potentially) unwrapping a promise.
+    /// `(total_node_count, value)`
+    Awaited(u32, Box<JsValue>),
 
     /// A for-of loop
     ///
@@ -741,6 +747,8 @@ impl Display for JsValue {
             }
             JsValue::Iterated(_, iterable) => write!(f, "Iterated({})", iterable),
             JsValue::TypeOf(_, operand) => write!(f, "typeof({})", operand),
+            JsValue::Promise(_, operand) => write!(f, "Promise<{}>", operand),
+            JsValue::Awaited(_, operand) => write!(f, "await({})", operand),
         }
     }
 }
@@ -802,6 +810,7 @@ impl JsValue {
             | JsValue::Object { .. }
             | JsValue::Alternatives { .. }
             | JsValue::Function(..)
+            | JsValue::Promise(..)
             | JsValue::Member(..) => JsValueMetaKind::Nested,
             JsValue::Concat(..)
             | JsValue::Add(..)
@@ -814,6 +823,7 @@ impl JsValue {
             | JsValue::Tenary(..)
             | JsValue::MemberCall(..)
             | JsValue::Iterated(..)
+            | JsValue::Awaited(..)
             | JsValue::TypeOf(..) => JsValueMetaKind::Operation,
             JsValue::Variable(..)
             | JsValue::Argument(..)
@@ -998,6 +1008,14 @@ impl JsValue {
         Self::Member(1 + o.total_nodes() + p.total_nodes(), o, p)
     }
 
+    pub fn promise(operand: Box<JsValue>) -> Self {
+        Self::Promise(1 + operand.total_nodes(), operand)
+    }
+
+    pub fn awaited(operand: Box<JsValue>) -> Self {
+        Self::Awaited(1 + operand.total_nodes(), operand)
+    }
+
     pub fn unknown(
         value: impl Into<Arc<JsValue>>,
         side_effects: bool,
@@ -1070,6 +1088,8 @@ impl JsValue {
             | JsValue::Member(c, _, _)
             | JsValue::Function(c, _, _)
             | JsValue::Iterated(c, ..)
+            | JsValue::Promise(c, ..)
+            | JsValue::Awaited(c, ..)
             | JsValue::TypeOf(c, ..) => *c,
         }
     }
@@ -1109,6 +1129,12 @@ impl JsValue {
                 *c = 1 + test.total_nodes() + cons.total_nodes() + alt.total_nodes();
             }
             JsValue::Not(c, r) => {
+                *c = 1 + r.total_nodes();
+            }
+            JsValue::Promise(c, r) => {
+                *c = 1 + r.total_nodes();
+            }
+            JsValue::Awaited(c, r) => {
                 *c = 1 + r.total_nodes();
             }
 
@@ -1257,6 +1283,12 @@ impl JsValue {
                     iterable.make_unknown_without_content(false, "node limit reached");
                 }
                 JsValue::TypeOf(_, operand) => {
+                    operand.make_unknown_without_content(false, "node limit reached");
+                }
+                JsValue::Awaited(_, operand) => {
+                    operand.make_unknown_without_content(false, "node limit reached");
+                }
+                JsValue::Promise(_, operand) => {
                     operand.make_unknown_without_content(false, "node limit reached");
                 }
                 JsValue::Member(_, o, p) => {
@@ -1498,6 +1530,18 @@ impl JsValue {
             JsValue::TypeOf(_, operand) => {
                 format!(
                     "typeof({})",
+                    operand.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
+                )
+            }
+            JsValue::Promise(_, operand) => {
+                format!(
+                    "Promise<{}>",
+                    operand.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
+                )
+            }
+            JsValue::Awaited(_, operand) => {
+                format!(
+                    "await({})",
                     operand.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
                 )
             }
@@ -2118,6 +2162,8 @@ impl JsValue {
             JsValue::Argument(_, _) => false,
             JsValue::Iterated(_, iterable) => iterable.has_side_effects(),
             JsValue::TypeOf(_, operand) => operand.has_side_effects(),
+            JsValue::Promise(_, operand) => operand.has_side_effects(),
+            JsValue::Awaited(_, operand) => operand.has_side_effects(),
         }
     }
 
@@ -2314,7 +2360,8 @@ impl JsValue {
             | JsValue::Module(..)
             | JsValue::Function(..)
             | JsValue::WellKnownObject(_)
-            | JsValue::WellKnownFunction(_) => Some(false),
+            | JsValue::WellKnownFunction(_)
+            | JsValue::Promise(_, _) => Some(false),
 
             // Booleans are not strings
             JsValue::Not(..) | JsValue::Binary(..) => Some(false),
@@ -2352,6 +2399,11 @@ impl JsValue {
                 ),
                 _,
             ) => Some(true),
+
+            JsValue::Awaited(_, operand) => match &**operand {
+                JsValue::Promise(_, v) => v.is_string(),
+                v => v.is_string(),
+            },
 
             JsValue::FreeVar(..)
             | JsValue::Variable(_)
@@ -2657,14 +2709,10 @@ macro_rules! for_each_children_async {
                 $value.update_total_nodes();
                 ($value, m1 || m2)
             }
-            JsValue::Iterated(_, box iterable) => {
-                let (new_iterable, modified) = $visit_fn(take(iterable), $($args),+).await?;
-                *iterable = new_iterable;
-
-                $value.update_total_nodes();
-                ($value, modified)
-            }
-            JsValue::TypeOf(_, box operand) => {
+            JsValue::Iterated(_, box operand)
+            | JsValue::TypeOf(_, box operand)
+            | JsValue::Promise(_, box operand)
+            | JsValue::Awaited(_, box operand) => {
                 let (new_operand, modified) = $visit_fn(take(operand), $($args),+).await?;
                 *operand = new_operand;
 
@@ -2969,15 +3017,10 @@ impl JsValue {
                 modified
             }
 
-            JsValue::Iterated(_, iterable) => {
-                let modified = visitor(iterable);
-                if modified {
-                    self.update_total_nodes();
-                }
-                modified
-            }
-
-            JsValue::TypeOf(_, operand) => {
+            JsValue::Iterated(_, operand)
+            | JsValue::TypeOf(_, operand)
+            | JsValue::Promise(_, operand)
+            | JsValue::Awaited(_, operand) => {
                 let modified = visitor(operand);
                 if modified {
                     self.update_total_nodes();
@@ -3171,11 +3214,10 @@ impl JsValue {
                 visitor(alt);
             }
 
-            JsValue::Iterated(_, iterable) => {
-                visitor(iterable);
-            }
-
-            JsValue::TypeOf(_, operand) => {
+            JsValue::Iterated(_, operand)
+            | JsValue::TypeOf(_, operand)
+            | JsValue::Promise(_, operand)
+            | JsValue::Awaited(_, operand) => {
                 visitor(operand);
             }
 
@@ -3573,10 +3615,10 @@ impl JsValue {
                 cons.similar_hash(state, depth - 1);
                 alt.similar_hash(state, depth - 1);
             }
-            JsValue::Iterated(_, iterable) => {
-                iterable.similar_hash(state, depth - 1);
-            }
-            JsValue::TypeOf(_, operand) => {
+            JsValue::Iterated(_, operand)
+            | JsValue::TypeOf(_, operand)
+            | JsValue::Promise(_, operand)
+            | JsValue::Awaited(_, operand) => {
                 operand.similar_hash(state, depth - 1);
             }
             JsValue::Module(ModuleValue {
