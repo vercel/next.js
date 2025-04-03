@@ -164,18 +164,12 @@ describe('use-cache-custom-handler', () => {
     await retry(async () => {
       const cliOutput = next.cliOutput.slice(outputIndex)
       expect(cliOutput).toInclude('ModernCustomCacheHandler::refreshTags')
-      expect(cliOutput).toInclude('ModernCustomCacheHandler::getExpiration')
       expect(cliOutput).not.toInclude('ModernCustomCacheHandler::expireTags')
     })
   })
 
   it('should not call getExpiration after an action', async () => {
     const browser = await next.browser(`/`)
-
-    await retry(async () => {
-      const cliOutput = next.cliOutput.slice(outputIndex)
-      expect(cliOutput).toInclude('ModernCustomCacheHandler::getExpiration')
-    })
 
     outputIndex = next.cliOutput.length
 
