@@ -714,7 +714,7 @@ async function warmupDevRender(
 
   const implicitTags = getImplicitTags(
     renderOpts.routeModule.definition.page,
-    new URL(req.url).pathname,
+    ctx.url.pathname,
     null
   )
 
