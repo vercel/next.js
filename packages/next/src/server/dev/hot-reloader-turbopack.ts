@@ -37,7 +37,7 @@ import {
 } from '../../client/components/react-dev-overlay/server/middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
-import { deleteAppClientCache, deleteCache } from './require-cache'
+import { deleteCache, deleteFromRequireCache } from './require-cache'
 import {
   clearAllModuleContexts,
   clearModuleContext,
@@ -170,7 +170,7 @@ export async function createHotReloaderTurbopack(
 
   // For the debugging purpose, check if createNext or equivalent next instance setup in test cases
   // works correctly. Normally `run-test` hides output so only will be visible when `--debug` flag is used.
-  if (process.env.TURBOPACK && isTestMode) {
+  if (isTestMode) {
     require('console').log('Creating turbopack project', {
       dir: projectPath,
       testMode: isTestMode,
@@ -296,7 +296,7 @@ export async function createHotReloaderTurbopack(
       // Always clear the cache, don't check if files have changed
       force?: boolean
     } = {}
-  ): void {
+  ): boolean {
     if (force) {
       for (const { path, contentHash } of writtenEndpoint.serverPaths) {
         serverPathState.set(path, contentHash)
@@ -328,7 +328,7 @@ export async function createHotReloaderTurbopack(
       }
 
       if (!hasChange) {
-        return
+        return false
       }
     }
 
@@ -339,7 +339,16 @@ export async function createHotReloaderTurbopack(
     )
 
     if (hasAppPaths) {
-      deleteAppClientCache()
+      deleteFromRequireCache(
+        require.resolve(
+          'next/dist/compiled/next-server/app-page-turbo.runtime.dev.js'
+        )
+      )
+      deleteFromRequireCache(
+        require.resolve(
+          'next/dist/compiled/next-server/app-page-turbo-experimental.runtime.dev.js'
+        )
+      )
     }
 
     const serverPaths = writtenEndpoint.serverPaths.map(({ path: p }) =>
@@ -351,7 +360,7 @@ export async function createHotReloaderTurbopack(
       deleteCache(file)
     }
 
-    return
+    return true
   }
 
   const buildingIds = new Set()
@@ -601,9 +610,9 @@ export async function createHotReloaderTurbopack(
           serverFields,
 
           hooks: {
-            handleWrittenEndpoint: (id, result) => {
+            handleWrittenEndpoint: (id, result, forceDeleteCache) => {
               currentWrittenEntrypoints.set(id, result)
-              clearRequireCache(id, result)
+              return clearRequireCache(id, result, { force: forceDeleteCache })
             },
             propagateServerField: propagateServerField.bind(null, opts),
             sendHmr,
@@ -997,10 +1006,12 @@ export async function createHotReloaderTurbopack(
                 logErrors: true,
                 hooks: {
                   subscribeToChanges,
-                  handleWrittenEndpoint: (id, result) => {
-                    clearRequireCache(id, result)
+                  handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                     currentWrittenEntrypoints.set(id, result)
                     assetMapper.setPathsForKey(id, result.clientPaths)
+                    return clearRequireCache(id, result, {
+                      force: forceDeleteCache,
+                    })
                   },
                 },
               })
@@ -1061,10 +1072,12 @@ export async function createHotReloaderTurbopack(
 
               hooks: {
                 subscribeToChanges,
-                handleWrittenEndpoint: (id, result) => {
+                handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                   currentWrittenEntrypoints.set(id, result)
-                  clearRequireCache(id, result)
                   assetMapper.setPathsForKey(id, result.clientPaths)
+                  return clearRequireCache(id, result, {
+                    force: forceDeleteCache,
+                  })
                 },
               },
             })

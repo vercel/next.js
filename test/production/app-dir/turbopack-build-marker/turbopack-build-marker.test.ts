@@ -5,8 +5,11 @@ describe('turbopack-build-marker', () => {
   })
 
   it('should have Turbopack build marker', async () => {
-    expect(await next.hasFile('.next/IS_TURBOPACK_BUILD')).toBe(
-      !!process.env.TURBOPACK
+    const requiredServerFilesManifest = await next.readJSON(
+      '.next/required-server-files.json'
     )
+    expect(
+      requiredServerFilesManifest.config.experimental.isTurbopackBuild
+    ).toBe(!!process.env.TURBOPACK)
   })
 })

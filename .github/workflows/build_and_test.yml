@@ -67,6 +67,8 @@ jobs:
   build-native:
     name: build-native
     uses: ./.github/workflows/build_reusable.yml
+    needs: ['changes']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
     with:
       skipInstallBuild: 'yes'
       stepName: 'build-native'
@@ -75,6 +77,8 @@ jobs:
   build-native-windows:
     name: build-native-windows
     uses: ./.github/workflows/build_reusable.yml
+    needs: ['changes']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
     with:
       skipInstallBuild: 'yes'
       stepName: 'build-native-windows'
