@@ -1,6 +1,7 @@
 import { NEXT_CACHE_IMPLICIT_TAG_ID } from '../../lib/constants'
 import type { FallbackRouteParams } from '../request/fallback-params'
 import { getCacheHandlers } from '../use-cache/handlers'
+import { createLazyResult } from './lazy-result'
 
 export interface ImplicitTags {
   /**
@@ -9,11 +10,13 @@ export interface ImplicitTags {
    */
   readonly tags: string[]
   /**
-   * Modern cache handlers don't receive implicit tags. Instead, the
-   * implicit tags' expiration is stored in the work unit store, and used to
-   * compare with a cache entry's timestamp.
+   * Modern cache handlers don't receive implicit tags. Instead, the implicit
+   * tags' expiration is stored in the work unit store, and used to compare with
+   * a cache entry's timestamp. Note: This is a promise-like value so that we
+   * can evaluate it lazily when a cache entry is read. It allows us to skip
+   * fetching the expiration value if no caches are read at all.
    */
-  readonly expiration: number
+  readonly expiration: PromiseLike<number>
 }
 
 const getDerivedTags = (pathname: string): string[] => {
@@ -98,7 +101,9 @@ export async function getImplicitTags(
     tags.push(tag)
   }
 
-  const expiration = await getImplicitTagsExpiration(tags)
+  const expiration = createLazyResult(async () =>
+    getImplicitTagsExpiration(tags)
+  )
 
   return { tags, expiration }
 }

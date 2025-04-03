@@ -54,14 +54,25 @@ export interface WorkStore {
   nextFetchId?: number
   pathWasRevalidated?: boolean
 
-  // Tags that were revalidated during the current request. They need to be sent
-  // to cache handlers to propagate their revalidation.
+  /**
+   * Tags that were revalidated during the current request. They need to be sent
+   * to cache handlers to propagate their revalidation.
+   */
   pendingRevalidatedTags?: string[]
 
-  // Tags that were previously revalidated (e.g. by a redirecting server action)
-  // and have already been sent to cache handlers. Retrieved cache entries that
-  // include any of these tags must be discarded.
+  /**
+   * Tags that were previously revalidated (e.g. by a redirecting server action)
+   * and have already been sent to cache handlers. Retrieved cache entries that
+   * include any of these tags must be discarded.
+   */
   readonly previouslyRevalidatedTags: readonly string[]
+
+  /**
+   * This map contains promise-like values so that we can evaluate them lazily
+   * when a cache entry is read. It allows us to skip refreshing tags if no
+   * caches are read at all.
+   */
+  readonly refreshTagsByCacheKind: Map<string, PromiseLike<void>>
 
   fetchMetrics?: FetchMetrics
 
