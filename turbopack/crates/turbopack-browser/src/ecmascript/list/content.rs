@@ -1,8 +1,13 @@
 use std::io::Write;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use either::Either;
 use indoc::writedoc;
-use turbo_tasks::{FxIndexMap, IntoTraitRef, ResolvedVc, TryJoinIterExt, Vc};
+use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{
+    trace::TraceRawVcs, FxIndexMap, IntoTraitRef, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc,
+};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -20,10 +25,18 @@ use super::{
     update::update_chunk_list,
     version::EcmascriptDevChunkListVersion,
 };
+use crate::chunking_context::CurrentChunkMethod;
+
+#[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
+enum CurrentChunkMethodWithData {
+    StringLiteral(RcStr),
+    DocumentCurrentScript,
+}
 
 /// Contents of an [`EcmascriptDevChunkList`].
 #[turbo_tasks::value]
 pub(super) struct EcmascriptDevChunkListContent {
+    current_chunk_method: CurrentChunkMethodWithData,
     pub(super) chunks_contents: FxIndexMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
     source: EcmascriptDevChunkListSource,
 }
@@ -35,21 +48,35 @@ impl EcmascriptDevChunkListContent {
     pub async fn new(chunk_list: Vc<EcmascriptDevChunkList>) -> Result<Vc<Self>> {
         let chunk_list_ref = chunk_list.await?;
         let output_root = chunk_list_ref.chunking_context.output_root().await?;
+        let current_chunk_method = match *chunk_list_ref
+            .chunking_context
+            .current_chunk_method()
+            .await?
+        {
+            CurrentChunkMethod::StringLiteral => {
+                let path = output_root
+                    .get_path_to(&*chunk_list.path().await?)
+                    .context("chunk list path not in output root")?
+                    .into();
+                CurrentChunkMethodWithData::StringLiteral(path)
+            }
+            CurrentChunkMethod::DocumentCurrentScript => {
+                CurrentChunkMethodWithData::DocumentCurrentScript
+            }
+        };
         Ok(EcmascriptDevChunkListContent {
+            current_chunk_method,
             chunks_contents: chunk_list_ref
                 .chunks
                 .await?
                 .iter()
-                .map(|chunk| {
-                    let output_root = output_root.clone();
-                    async move {
-                        Ok((
-                            output_root
-                                .get_path_to(&*chunk.path().await?)
-                                .map(|path| path.to_string()),
-                            chunk.versioned_content().to_resolved().await?,
-                        ))
-                    }
+                .map(async |chunk| {
+                    Ok((
+                        output_root
+                            .get_path_to(&*chunk.path().await?)
+                            .map(|path| path.to_string()),
+                        chunk.versioned_content().to_resolved().await?,
+                    ))
                 })
                 .try_join()
                 .await?
@@ -111,6 +138,13 @@ impl EcmascriptDevChunkListContent {
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
 
+        let script_or_path = match &this.current_chunk_method {
+            CurrentChunkMethodWithData::StringLiteral(path) => Either::Left(StringifyJs(path)),
+            CurrentChunkMethodWithData::DocumentCurrentScript => {
+                Either::Right("document.currentScript")
+            }
+        };
+
         let mut code = CodeBuilder::default();
 
         // When loaded, JS chunks must register themselves with the `TURBOPACK` global
@@ -120,11 +154,11 @@ impl EcmascriptDevChunkListContent {
             code,
             r#"
                 (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([
-                    document.currentScript,
+                    {script_or_path},
                     {{}},
                 ]);
                 (globalThis.TURBOPACK_CHUNK_LISTS = globalThis.TURBOPACK_CHUNK_LISTS || []).push({{
-                    script: document.currentScript,
+                    script: {script_or_path},
                     chunks: {:#},
                     source: {:#}
                 }});

@@ -1,6 +1,7 @@
 use std::io::Write;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
+use either::Either;
 use indoc::writedoc;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
@@ -26,7 +27,7 @@ use turbopack_ecmascript::{
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 
-use crate::BrowserChunkingContext;
+use crate::{chunking_context::CurrentChunkMethod, BrowserChunkingContext};
 
 /// An Ecmascript chunk that:
 /// * Contains the Turbopack browser runtime code; and
@@ -79,6 +80,26 @@ impl EcmascriptBrowserEvaluateChunk {
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?;
+        // Lifetime hack to pull out the var into this scope
+        let chunk_path;
+        let script_or_path = match *this.chunking_context.current_chunk_method().await? {
+            CurrentChunkMethod::StringLiteral => {
+                let output_root = this.chunking_context.output_root().await?;
+                let chunk_path_vc = self.path();
+                chunk_path = chunk_path_vc.await?;
+                let chunk_server_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
+                    path
+                } else {
+                    bail!(
+                        "chunk path {} is not in output root {}",
+                        chunk_path.to_string(),
+                        output_root.to_string()
+                    );
+                };
+                Either::Left(StringifyJs(chunk_server_path))
+            }
+            CurrentChunkMethod::DocumentCurrentScript => Either::Right("document.currentScript"),
+        };
 
         let other_chunks_data = self.chunks_data().await?;
         let other_chunks_data = other_chunks_data.iter().try_join().await?;
@@ -127,7 +148,7 @@ impl EcmascriptBrowserEvaluateChunk {
             code,
             r#"
                 (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([
-                    document.currentScript,
+                    {script_or_path},
                     {{}},
                     {}
                 ]);

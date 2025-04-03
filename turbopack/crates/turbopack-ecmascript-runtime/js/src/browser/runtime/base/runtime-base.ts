@@ -307,9 +307,12 @@ function getChunkRelativeUrl(chunkPath: ChunkPath | ChunkListPath): ChunkUrl {
 /**
  * Return the ChunkPath from a ChunkScript.
  */
-function getPathFromScript(chunkScript: ChunkScript): ChunkPath;
-function getPathFromScript(chunkScript: ChunkListScript): ChunkListPath;
-function getPathFromScript(chunkScript: ChunkScript | ChunkListScript): ChunkPath | ChunkListPath {
+function getPathFromScript(chunkScript: ChunkPath | ChunkScript): ChunkPath;
+function getPathFromScript(chunkScript: ChunkListPath | ChunkListScript): ChunkListPath;
+function getPathFromScript(chunkScript: ChunkPath | ChunkListPath | ChunkScript | ChunkListScript): ChunkPath | ChunkListPath {
+  if (typeof chunkScript === "string") {
+    return chunkScript as ChunkPath | ChunkListPath;
+  }
   const src = decodeURIComponent(chunkScript.getAttribute("src")!);
   const path = src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
   return path as ChunkPath | ChunkListPath;
