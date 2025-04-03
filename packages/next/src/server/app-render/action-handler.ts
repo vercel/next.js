@@ -757,10 +757,8 @@ export async function handleAction({
 
         if (isMultipartAction) {
           if (isFetchAction) {
-            const sizeLimitedBody = getSizeLimitedStreamNode(
-              req.body,
-              bodySizeLimit
-            )
+            const sizeLimitTransformStream =
+              createSizeLimitedTransformStreamNode(bodySizeLimit)
 
             const busboy = (require('busboy') as typeof import('busboy'))({
               defParamCharset: 'utf8',
@@ -768,14 +766,7 @@ export async function handleAction({
               limits: { fieldSize: bodySizeLimit.byteLength },
             })
 
-            // We need to use `pipeline(one, two)` instead of `one.pipe(two)` to propagate size limit errors correctly.
-            pipeline(
-              sizeLimitedBody.stream,
-              busboy,
-              // Avoid unhandled errors from `pipeline()` by passing an empty completion callback.
-              // We'll propagate the errors properly when consuming the stream.
-              () => {}
-            )
+            pipeline(req.body, sizeLimitTransformStream, busboy, () => {})
 
             boundActionArguments = await decodeReplyFromBusboy(
               busboy,
@@ -789,15 +780,23 @@ export async function handleAction({
             const body = freshBody ?? req.body
 
             if (isMpaAction) {
-              const sizeLimitedBody = getSizeLimitedStreamNode(
+              const sizeLimitTransformStream =
+                createSizeLimitedTransformStreamNode(bodySizeLimit)
+              const sizeLimitedBody = pipeline(
                 body,
-                bodySizeLimit
+                sizeLimitTransformStream,
+                () => {}
               )
 
               // React doesn't yet publish a busboy version of decodeAction
               // so we polyfill the parsing of FormData.
+              //
+              // This will throw if the body exceeds the size limit, because it consumes the whole body stream.
+              // Note that this can result in throwing a size limit error for a request that *really* looks like
+              // a server action, but isn't one. But we need to parse the whole FormData to decode an action,
+              // so there's not much we can do about it.
               const formData = await parseBodyAsFormDataNode(
-                sizeLimitedBody.stream,
+                sizeLimitedBody,
                 req.headers['content-type']
               )
 
@@ -850,13 +849,14 @@ export async function handleAction({
             }
           }
 
-          const sizeLimitedBody = getSizeLimitedStreamNode(
+          const sizeLimitedBody = pipeline(
             req.body,
-            bodySizeLimit
+            createSizeLimitedTransformStreamNode(bodySizeLimit),
+            () => {}
           )
 
           const chunks: Buffer[] = []
-          for await (const chunk of sizeLimitedBody.stream) {
+          for await (const chunk of sizeLimitedBody) {
             chunks.push(Buffer.from(chunk))
           }
 
@@ -1094,17 +1094,16 @@ function resolveBodySizeLimitNode(
   }
 }
 
-function getSizeLimitedStreamNode(
-  sourceStream: Readable,
+function createSizeLimitedTransformStreamNode(
   sizeLimit: ResolvedBodySizeLimit
-): { stream: Transform; cancel: () => void } {
+): Transform {
   if (process.env.NEXT_RUNTIME === 'edge') {
     throw new InvariantError('This function cannot be used in the edge runtime')
   } else {
     const { Transform } = require('node:stream') as typeof import('node:stream')
 
     let size = 0
-    const sizeLimitTransform = new Transform({
+    return new Transform({
       transform(chunk, encoding, callback) {
         size += Buffer.byteLength(chunk, encoding)
         if (size > sizeLimit.byteLength) {
@@ -1123,16 +1122,6 @@ function getSizeLimitedStreamNode(
         callback(null, chunk)
       },
     })
-
-    const onError = (error: Error) => sizeLimitTransform.destroy(error)
-
-    const stream = sourceStream.pipe(sizeLimitTransform)
-    sourceStream.on('error', onError)
-    const cancel = () => {
-      sourceStream.unpipe(sizeLimitTransform)
-      sourceStream.off('error', onError)
-    }
-    return { stream: stream, cancel }
   }
 }
 
