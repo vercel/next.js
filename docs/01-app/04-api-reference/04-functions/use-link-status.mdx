@@ -3,7 +3,7 @@ title: useLinkStatus
 description: API Reference for the useLinkStatus hook.
 ---
 
-`useLinkStatus` is a **Client Component** hook that lets you track the loading state of a `Link` component during navigation. It's particularly useful when you want to show loading indicators during page transitions, especially when prefetching is disabled.
+`useLinkStatus` is a **Client Component** hook that lets you track the loading state of a `Link` component during navigation. It can be used to show loading indicators during page transitions, especially when [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) is disabled.
 
 ```tsx filename="app/example-client-component.tsx" switcher
 'use client'
@@ -51,7 +51,7 @@ export default function ExampleClientComponent() {
 >
 > - `useLinkStatus` must be used within a descendant component of a `Link` component
 > - The hook is most useful when `prefetch={false}` is set on the `Link` component
-> - If the link has been prefetched, the pending state will be skipped
+> - If the linked route has been prefetched, the pending state will be skipped
 > - When clicking multiple links in quick succession, only the last link's pending state is shown
 > - This hook is not supported in the Pages Router and will always return `{ pending: false }`
 
