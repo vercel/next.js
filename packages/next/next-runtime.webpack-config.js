@@ -229,12 +229,8 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
           experimental ? true : false
         ),
         'process.env.NEXT_RUNTIME': JSON.stringify('nodejs'),
-        ...(turbo
-          ? {
-              'process.turbopack': JSON.stringify(turbo),
-              'process.env.TURBOPACK': JSON.stringify(turbo),
-            }
-          : undefined),
+        'process.turbopack': JSON.stringify(turbo),
+        'process.env.TURBOPACK': JSON.stringify(turbo),
       }),
       !!process.env.ANALYZE &&
         new BundleAnalyzerPlugin({
