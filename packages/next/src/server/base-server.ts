@@ -1979,7 +1979,6 @@ export default abstract class Server<
     resolvedPathname: string
   ): void {
     const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}, ${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}`
-    const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
 
     let addedNextUrlToVary = false
 
@@ -1988,11 +1987,9 @@ export default abstract class Server<
       // We use the Vary header to signal this behavior to the client to properly cache the response.
       res.appendHeader('vary', `${baseVaryHeader}, ${NEXT_URL}`)
       addedNextUrlToVary = true
-    } else if (isAppPath || isRSCRequest) {
-      // We don't need to include `Next-URL` in the Vary header for non-interception routes since it won't affect the response.
-      // We also set this header for pages to avoid caching issues when navigating between pages and app.
-      res.appendHeader('vary', baseVaryHeader)
     }
+    // For other cases such as App Router requests or RSC requests we don't need to set vary header since we already
+    // have the _rsc query with the unique hash value.
 
     if (!addedNextUrlToVary) {
       // Remove `Next-URL` from the request headers we determined it wasn't necessary to include in the Vary header.
