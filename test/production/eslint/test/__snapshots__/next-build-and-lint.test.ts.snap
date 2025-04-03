@@ -651,6 +651,9 @@ exports[`Next Build production mode first time setup with TypeScript - ESLint v8
     "no-var": [
       "error",
     ],
+    "no-with": [
+      "off",
+    ],
     "prefer-const": [
       "error",
     ],
@@ -986,6 +989,9 @@ exports[`Next Build production mode first time setup with TypeScript - ESLint v9
     ],
     "no-var": [
       "error",
+    ],
+    "no-with": [
+      "off",
     ],
     "prefer-const": [
       "error",
