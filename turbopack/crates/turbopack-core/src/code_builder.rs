@@ -55,7 +55,7 @@ impl CodeBuilder {
     pub fn new(collect_mappings: bool) -> Self {
         Self {
             code: RopeBuilder::default(),
-            mappings: collect_mappings.then(|| Vec::new()),
+            mappings: collect_mappings.then(Vec::new),
         }
     }
 
