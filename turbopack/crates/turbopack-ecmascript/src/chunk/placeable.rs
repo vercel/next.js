@@ -188,10 +188,6 @@ pub async fn is_marked_as_side_effect_free(
         }
     }
 
-    println!(
-        "is_marked_as_side_effect_free flase {:?}",
-        path.to_string().await?
-    );
     Ok(Vc::cell(false))
 }
 
