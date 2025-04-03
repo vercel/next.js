@@ -5,11 +5,11 @@ description: API Reference for the notFound function.
 
 The `notFound` function allows you to render the [`not-found file`](/docs/app/api-reference/file-conventions/not-found) within a route segment as well as inject a `<meta name="robots" content="noindex" />` tag.
 
-## `notFound()`
+## `notFound()` 
 
 Invoking the `notFound()` function throws a `NEXT_HTTP_ERROR_FALLBACK;404` error and terminates rendering of the route segment in which it was thrown. Specifying a [**not-found** file](/docs/app/api-reference/file-conventions/not-found) allows you to gracefully handle such errors by rendering a Not Found UI within the segment.
 
-#### Example
+#### Example 
 
 ```jsx filename="app/user/[id]/page.js"
 import { notFound } from 'next/navigation'
