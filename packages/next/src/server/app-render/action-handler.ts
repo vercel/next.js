@@ -783,15 +783,16 @@ export async function handleAction({
               { temporaryReferences }
             )
           } else {
-            const { isMpaActionBodyNode } = require('./is-mpa-action-body')
-            const sizeLimitedBody = getSizeLimitedStreamNode(
-              req.body,
-              bodySizeLimit
-            )
-            sizeLimitedBody.stream.cork() // buffer while `isMpaActionBodyNode` reads the first couple of lines
+            const { isMPAactionRequest } =
+              require('./is-mpa-action-body') as typeof import('./is-mpa-action-body')
+            const [isMpaAction, freshBody] = await isMPAactionRequest(req)
+            const body = freshBody ?? req.body
 
-            if (await isMpaActionBodyNode(req.body, req.headers)) {
-              sizeLimitedBody.stream.uncork()
+            if (isMpaAction) {
+              const sizeLimitedBody = getSizeLimitedStreamNode(
+                body,
+                bodySizeLimit
+              )
 
               // React doesn't yet publish a busboy version of decodeAction
               // so we polyfill the parsing of FormData.
@@ -834,7 +835,6 @@ export async function handleAction({
             } else {
               // not a server action request.
               // we shouldn't apply size limits to it.
-              sizeLimitedBody.cancel()
               return
             }
           }
