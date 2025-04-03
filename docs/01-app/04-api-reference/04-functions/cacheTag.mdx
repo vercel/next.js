@@ -67,20 +67,22 @@ export async function getData() {
 You can then purge the cache on-demand using [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) API in another function, for example, a [route handler](/docs/app/building-your-application/routing/route-handlers) or [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations):
 
 ```tsx filename="app/action.ts" switcher
+'use server'
+
 import { revalidateTag } from 'next/cache'
 
 export default async function submit() {
-  'use server'
   await addPost()
   revalidateTag('my-data')
 }
 ```
 
 ```jsx filename="app/action.js" switcher
+'use server'
+
 import { revalidateTag } from 'next/cache'
 
 export default async function submit() {
-  'use server'
   await addPost()
   revalidateTag('my-data')
 }
@@ -178,20 +180,22 @@ export async function Bookings({ type = 'haircut' }) {
 Using [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag), you can invalidate the cache for a specific tag when needed:
 
 ```tsx filename="app/actions.ts" switcher
+'use server'
+
 import { revalidateTag } from 'next/cache'
 
 export async function updateBookings() {
-  'use server'
   await updateBookingData()
   revalidateTag('bookings-data')
 }
 ```
 
 ```jsx filename="app/actions.js" switcher
+'use server'
+
 import { revalidateTag } from 'next/cache'
 
 export async function updateBookings() {
-  'use server'
   await updateBookingData()
   revalidateTag('bookings-data')
 }

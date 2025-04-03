@@ -291,20 +291,22 @@ For a more precise method of revalidation, invalidate pages on-demand with the `
 For example, this Server Action would get called after adding a new post. Regardless of how you retrieve your data in your Server Component, either using `fetch` or connecting to a database, this will clear the cache for the entire route and allow the Server Component to fetch fresh data.
 
 ```ts filename="app/actions.ts" switcher
+'use server'
+
 import { revalidatePath } from 'next/cache'
 
 export async function createPost() {
-  'use server'
   // Invalidate the /posts route in the cache
   revalidatePath('/posts')
 }
 ```
 
 ```js filename="app/actions.js" switcher
+'use server'
+
 import { revalidatePath } from 'next/cache'
 
 export async function createPost() {
-  'use server'
   // Invalidate the /posts route in the cache
   revalidatePath('/posts')
 }
@@ -377,20 +379,22 @@ export default async function Page() {
 You can then use `revalidateTag` in a [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers):
 
 ```ts filename="app/actions.ts" switcher
+'use server'
+
 import { revalidateTag } from 'next/cache'
 
 export async function createPost() {
-  'use server'
   // Invalidate all data tagged with 'posts' in the cache
   revalidateTag('posts')
 }
 ```
 
 ```js filename="app/actions.js" switcher
+'use server'
+
 import { revalidateTag } from 'next/cache'
 
 export async function createPost() {
-  'use server'
   // Invalidate all data tagged with 'posts' in the cache
   revalidateTag('posts')
 }

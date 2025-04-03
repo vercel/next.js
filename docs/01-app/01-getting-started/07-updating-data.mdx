@@ -15,33 +15,23 @@ You can update data in Next.js using React's [Server Functions](https://react.de
 
 ## Creating Server Functions
 
-A Server Function can be defined by using the [`use server`](https://react.dev/reference/rsc/use-server) directive. You can place the directive in an **asynchronous** function to mark the function as a Server Function.
+A Server Function can be defined by using the [`use server`](https://react.dev/reference/rsc/use-server) directive. You can place the directive at the top of an **asynchronous** function to mark the function as a Server Function, or at the top of a separate file to mark all exports of that file. We recommend using a separate file in most instances.
 
 ```ts filename="app/lib/actions.ts" switcher
-export async function createPost(formData: FormData) {
-  'use server'
-  // Update data
-}
+'use server'
 
-export async function deletePost(formData: FormData) {
-  'use server'
-  // Update data
-}
+export async function createPost(formData: FormData) {}
+
+export async function deletePost(formData: FormData) {}
 ```
 
 ```js filename="app/lib/actions.js" switcher
-export async function createPost(formData) {
-  'use server'
-  // Update data
-}
+'use server'
 
-export async function deletePost(formData) {
-  'use server'
-  // Update data
-}
+export async function createPost(formData) {}
+
+export async function deletePost(formData) {}
 ```
-
-> You can also add `use server` at the top of a file to mark all exports of that file as Server Functions. However, this can lead to functions being marked as Server Functions when they are not intended to be used as such. We recommend scoping `use server` to the function level instead as shown above.
 
 ### Server Components
 
@@ -75,18 +65,18 @@ export default function Page() {
 
 ### Client Components
 
-It's not possible to define Server Functions in Client Components. However, you can invoke them in Client Components by placing the functions in a separate file and importing them:
+It's not possible to define Server Functions in Client Components. However, you can invoke them in Client Components by importing them from a file that has the `"use server"` directive at the top of it:
 
 ```ts filename="app/actions.ts" switcher
-export async function createPost() {
-  'use server'
-}
+'use server'
+
+export async function createPost() {}
 ```
 
 ```js filename="app/actions.js" switcher
-export async function createPost() {
-  'use server'
-}
+'use server'
+
+export async function createPost() {}
 ```
 
 ```tsx filename="app/ui/button.tsx" switcher
@@ -151,8 +141,9 @@ export function Form() {
 ```
 
 ```ts filename="app/actions.ts" switcher
+'use server'
+
 export async function createPost(formData: FormData) {
-  'use server'
   const title = formData.get('title')
   const content = formData.get('content')
 
@@ -162,8 +153,9 @@ export async function createPost(formData: FormData) {
 ```
 
 ```js filename="app/actions.js" switcher
+'use server'
+
 export async function createPost(formData) {
-  'use server'
   const title = formData.get('title')
   const content = formData.get('content')
 
@@ -273,10 +265,11 @@ export function Button() {
 After performing an update, you can revalidate the Next.js cache and show the updated data by calling [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) within the Server Function:
 
 ```ts filename="app/lib/actions.ts" switcher
+'use server'
+
 import { revalidatePath } from 'next/cache'
 
 export async function createPost(formData: FormData) {
-  'use server'
   // Update data
   // ...
 
@@ -285,10 +278,11 @@ export async function createPost(formData: FormData) {
 ```
 
 ```js filename="app/actions.js" switcher
+'use server'
+
 import { revalidatePath } from 'next/cache'
 
 export async function createPost(formData) {
-  'use server'
   // Update data
   // ...
   revalidatePath('/posts')
@@ -300,10 +294,11 @@ export async function createPost(formData) {
 You may want to redirect the user to a different page after performing an update. You can do this by calling [`redirect`](/docs/app/api-reference/functions/redirect) within the Server Function:
 
 ```ts filename="app/lib/actions.ts" switcher
+'use server'
+
 import { redirect } from 'next/navigation'
 
 export async function createPost(formData: FormData) {
-  'use server'
   // Update data
   // ...
 
@@ -312,10 +307,11 @@ export async function createPost(formData: FormData) {
 ```
 
 ```js filename="app/actions.js" switcher
+'use server'
+
 import { redirect } from 'next/navigation'
 
 export async function createPost(formData) {
-  'use server'
   // Update data
   // ...
 

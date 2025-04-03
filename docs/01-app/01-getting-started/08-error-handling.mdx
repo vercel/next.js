@@ -23,8 +23,9 @@ Expected errors are those that can occur during the normal operation of the appl
 You can use the [`useActionState`](https://react.dev/reference/react/useActionState) hook to manage the state of [Server Functions](https://react.dev/reference/rsc/server-functions) and handle expected errors. Avoid using `try`/`catch` blocks for expected errors. Instead, you can model expected errors as return values, not as thrown exceptions.
 
 ```ts filename="app/actions.ts" switcher
+'use server'
+
 export async function createPost(prevState: any, formData: FormData) {
-  'use server'
   const title = formData.get('title')
   const content = formData.get('content')
 
@@ -41,8 +42,9 @@ export async function createPost(prevState: any, formData: FormData) {
 ```
 
 ```js filename="app/actions.js" switcher
+'use server'
+
 export async function createPost(prevState, formData) {
-  'use server'
   const title = formData.get('title')
   const content = formData.get('content')
 

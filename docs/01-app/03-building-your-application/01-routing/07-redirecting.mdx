@@ -42,11 +42,12 @@ The `redirect` function allows you to redirect the user to another URL. You can 
 `redirect` is often used after a mutation or event. For example, creating a post:
 
 ```ts filename="app/actions.ts" switcher
+'use server'
+
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 
 export async function createPost(id: string) {
-  'use server'
   try {
     // Call database
   } catch (error) {
@@ -59,11 +60,12 @@ export async function createPost(id: string) {
 ```
 
 ```js filename="app/actions.js" switcher
+'use server'
+
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 
 export async function createPost(id) {
-  'use server'
   try {
     // Call database
   } catch (error) {
@@ -92,11 +94,12 @@ The `permanentRedirect` function allows you to **permanently** redirect the user
 `permanentRedirect` is often used after a mutation or event that changes an entity's canonical URL, such as updating a user's profile URL after they change their username:
 
 ```ts filename="app/actions.ts" switcher
+'use server'
+
 import { permanentRedirect } from 'next/navigation'
 import { revalidateTag } from 'next/cache'
 
 export async function updateUsername(username: string, formData: FormData) {
-  'use server'
   try {
     // Call database
   } catch (error) {
@@ -109,11 +112,12 @@ export async function updateUsername(username: string, formData: FormData) {
 ```
 
 ```js filename="app/actions.js" switcher
+'use server'
+
 import { permanentRedirect } from 'next/navigation'
 import { revalidateTag } from 'next/cache'
 
 export async function updateUsername(username, formData) {
-  'use server'
   try {
     // Call database
   } catch (error) {

@@ -32,20 +32,22 @@ fetch(url, { next: { tags: [...] } });
 ### Server Action
 
 ```ts filename="app/actions.ts" switcher
+'use server'
+
 import { revalidateTag } from 'next/cache'
 
 export default async function submit() {
-  'use server'
   await addPost()
   revalidateTag('posts')
 }
 ```
 
 ```js filename="app/actions.js" switcher
+'use server'
+
 import { revalidateTag } from 'next/cache'
 
 export default async function submit() {
-  'use server'
   await addPost()
   revalidateTag('posts')
 }
