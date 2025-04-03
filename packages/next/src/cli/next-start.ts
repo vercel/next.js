@@ -13,8 +13,6 @@ export type NextStartOptions = {
   port: number
   hostname?: string
   keepAliveTimeout?: number
-  turbo?: boolean
-  turbopack?: boolean
 }
 
 /**
@@ -31,16 +29,6 @@ const nextStart = async (options: NextStartOptions, directory?: string) => {
 
   if (isPortIsReserved(port)) {
     printAndExit(getReservedPortExplanation(port), 1)
-  }
-
-  const isTurbopack = Boolean(
-    options.turbo ||
-      options.turbopack ||
-      // TODO: Used for Testing in Next.js CI. Rename to something better like `NEXT_TEST_TURBOPACK`.
-      process.env.TURBOPACK
-  )
-  if (isTurbopack) {
-    process.env.TURBOPACK = '1'
   }
 
   await startServer({
