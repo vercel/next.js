@@ -197,7 +197,7 @@ export default function GlobalError({ error, reset }) {
 
 When rendering fails on the client, it can be useful to show the last known server rendered UI for a better user experience.
 
-The `GracefullyDegradingErrorBoundary` is a custom error boundary that captures and preserves the current HTML before an error occurs. If a rendering error happens, it re-renders the captured HTML statically and displays a persistent notification bar to inform the user.
+The `GracefullyDegradingErrorBoundary` is an example of a custom error boundary that captures and preserves the current HTML before an error occurs. If a rendering error happens, it re-renders the captured HTML and displays a persistent notification bar to inform the user.
 
 ```tsx filename="app/dashboard/error.tsx" switcher
 'use client'
