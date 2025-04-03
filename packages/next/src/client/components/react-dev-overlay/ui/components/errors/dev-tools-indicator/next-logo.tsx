@@ -25,7 +25,7 @@ export const NextLogo = forwardRef(function NextLogo(
     isBuildError,
     onTriggerClick,
     toggleErrorOverlay,
-    scale,
+    scale = 1,
     ...props
   }: Props,
   propRef: React.Ref<HTMLButtonElement>
