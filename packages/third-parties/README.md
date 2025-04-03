@@ -20,6 +20,8 @@ export default function Page() {
 }
 ```
 
+> **Note:** The `autoplay=1` parameter does not work. This is due to browser restrictions that require videos to be muted before autoplay is allowed. Currently, [lite-youtube-embed](https://github.com/paulirish/lite-youtube-embed) does not support setting the muted state. See [this issue](https://github.com/paulirish/lite-youtube-embed/issues/139) for more details.
+
 ### Google Maps Embed
 
 The `GoogleMapsEmbed` component can be used to add a [Google Maps Embed](https://developers.google.com/maps/documentation/embed/get-started) to your page. By default, it uses the `loading` attribute to lazy-load below the fold.
