@@ -707,17 +707,14 @@ export function cache(
         const implicitTags = workUnitStore?.implicitTags
         const forceRevalidate = shouldForceRevalidate(workStore, workUnitStore)
 
-        // Lazily refresh the tags for the cache handler that's associated with
-        // this cache function. This is only done once per request and cache
-        // handler, when it's called for the first time.
-        if ('refreshTags' in cacheHandler) {
-          await cacheHandler.refreshTags()
-        }
-
         let entry: CacheEntry | undefined
 
         if (!forceRevalidate) {
           if ('getExpiration' in cacheHandler) {
+            // Lazily refresh the tags for the cache handler. This is only sent
+            // out once per request to the underlying cache handler.
+            await cacheHandler.refreshTags()
+
             const cachedEntry = await cacheHandler.get(serializedCacheKey)
 
             if (cachedEntry) {
