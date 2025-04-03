@@ -148,13 +148,12 @@ export default function UnauthorizedPage() {
 You can invoke `unauthorized` in Server Actions to ensure only authenticated users can perform specific mutations.
 
 ```ts filename="app/actions/update-profile.ts" switcher
-'use server'
-
 import { verifySession } from '@/app/lib/dal'
 import { unauthorized } from 'next/navigation'
 import db from '@/app/lib/db'
 
 export async function updateProfile(data: FormData) {
+  'use server'
   const session = await verifySession()
 
   // If the user is not authenticated, return a 401
@@ -168,13 +167,12 @@ export async function updateProfile(data: FormData) {
 ```
 
 ```js filename="app/actions/update-profile.js" switcher
-'use server'
-
 import { verifySession } from '@/app/lib/dal'
 import { unauthorized } from 'next/navigation'
 import db from '@/app/lib/db'
 
 export async function updateProfile(data) {
+  'use server'
   const session = await verifySession()
 
   // If the user is not authenticated, return a 401

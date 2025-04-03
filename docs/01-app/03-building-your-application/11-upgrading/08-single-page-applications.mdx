@@ -356,15 +356,15 @@ You can progressively adopt Server Actions while still using client components. 
 For example, create your first Server Action:
 
 ```tsx filename="app/actions.ts" switcher
-'use server'
-
-export async function create() {}
+export async function create() {
+  'use server'
+}
 ```
 
 ```js filename="app/actions.js" switcher
-'use server'
-
-export async function create() {}
+export async function create() {
+  'use server'
+}
 ```
 
 You can import and use a Server Action from the client, similar to calling a JavaScript function. You do not need to create an API endpoint manually:

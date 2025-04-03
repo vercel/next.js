@@ -163,21 +163,19 @@ export function ClientRedirect() {
 ```
 
 ```ts filename="app/actions.ts" switcher
-'use server'
-
 import { redirect } from 'next/navigation'
 
 export async function navigate(data: FormData) {
+  'use server'
   redirect(`/posts/${data.get('id')}`)
 }
 ```
 
 ```js filename="app/actions.js" switcher
-'use server'
-
 import { redirect } from 'next/navigation'
 
 export async function navigate(data) {
+  'use server'
   redirect(`/posts/${data.get('id')}`)
 }
 ```

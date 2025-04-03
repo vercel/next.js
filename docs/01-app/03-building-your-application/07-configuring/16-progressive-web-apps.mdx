@@ -404,8 +404,6 @@ Now, let’s create the Server Actions which this file calls.
 Create a new file to contain your actions at `app/actions.ts`. This file will handle creating subscriptions, deleting subscriptions, and sending notifications.
 
 ```tsx filename="app/actions.ts" switcher
-'use server'
-
 import webpush from 'web-push'
 
 webpush.setVapidDetails(
@@ -417,6 +415,7 @@ webpush.setVapidDetails(
 let subscription: PushSubscription | null = null
 
 export async function subscribeUser(sub: PushSubscription) {
+  'use server'
   subscription = sub
   // In a production environment, you would want to store the subscription in a database
   // For example: await db.subscriptions.create({ data: sub })
@@ -453,7 +452,6 @@ export async function sendNotification(message: string) {
 ```
 
 ```jsx filename="app/actions.js" switcher
-'use server';
 
 import webpush from 'web-push';
 
@@ -466,6 +464,7 @@ webpush.setVapidDetails(
 let subscription= null;
 
 export async function subscribeUser(sub) {
+  'use server';
   subscription = sub;
   // In a production environment, you would want to store the subscription in a database
   // For example: await db.subscriptions.create({ data: sub })

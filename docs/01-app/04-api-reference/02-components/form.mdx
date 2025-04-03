@@ -338,10 +338,10 @@ After a mutation, it's common to redirect to the new resource. You can use the [
 > **Good to know**: Since the "destination" of the form submission is not known until the action is executed, `<Form>` cannot automatically prefetch shared UI.
 
 ```tsx filename="/app/posts/actions.ts" switcher
-'use server'
 import { redirect } from 'next/navigation'
 
 export async function createPost(formData: FormData) {
+  'use server'
   // Create a new post
   // ...
 
@@ -351,10 +351,10 @@ export async function createPost(formData: FormData) {
 ```
 
 ```jsx filename="/app/posts/actions.js" switcher
-'use server'
 import { redirect } from 'next/navigation'
 
 export async function createPost(formData) {
+  'use server'
   // Create a new post
   // ...
 
