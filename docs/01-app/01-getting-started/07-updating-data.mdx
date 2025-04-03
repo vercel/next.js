@@ -41,7 +41,7 @@ export async function deletePost(formData) {
 }
 ```
 
-> You can also add `'use server'` at the top of a file to mark all exports of that file as Server Functions. However, this can lead to functions being marked as Server Functions when they are not intended to be used as such. We recommend scoping it to the function level instead as shown above.
+> You can also add `use server` at the top of a file to mark all exports of that file as Server Functions. However, this can lead to functions being marked as Server Functions when they are not intended to be used as such. We recommend scoping `use server` to the function level instead as shown above.
 
 ### Server Components
 
