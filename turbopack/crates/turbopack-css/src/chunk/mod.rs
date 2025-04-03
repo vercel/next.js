@@ -10,7 +10,10 @@ use turbo_tasks::{
     FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueDefault, ValueToString,
     Vc,
 };
-use turbo_tasks_fs::{rope::Rope, File, FileSystem, FileSystemPath};
+use turbo_tasks_fs::{
+    rope::{Rope, RopeBuilder},
+    File, FileSystem, FileSystemPath,
+};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -66,8 +69,13 @@ impl CssChunk {
 
         let this = self.await?;
 
-        let mut code = CodeBuilder::default();
-        let mut body = CodeBuilder::default();
+        let source_maps = *this
+            .chunking_context
+            .reference_chunk_source_maps(Vc::upcast(self))
+            .await?;
+
+        let mut code = CodeBuilder::new(source_maps);
+        let mut body = CodeBuilder::new(source_maps);
         let mut external_imports = FxIndexSet::default();
         for css_item in &this.content.await?.chunk_items {
             let id = &*css_item.id().await?;
@@ -109,20 +117,6 @@ impl CssChunk {
         let built = &body.build();
         code.push_code(built);
 
-        if *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?
-            && code.has_source_map()
-        {
-            let source_map_path = CssChunkSourceMapAsset::new(self).path().await?;
-            writeln!(
-                code,
-                "/*# sourceMappingURL={}*/",
-                urlencoding::encode(source_map_path.file_name())
-            )?;
-        }
-
         let c = code.build().cell();
         Ok(c)
     }
@@ -130,9 +124,23 @@ impl CssChunk {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let code = self.code().await?;
-        Ok(AssetContent::file(
-            File::from(code.source_code().clone()).into(),
-        ))
+
+        let rope = if code.has_source_map() {
+            use std::io::Write;
+            let mut rope_builder = RopeBuilder::default();
+            rope_builder.concat(code.source_code());
+            let source_map_path = CssChunkSourceMapAsset::new(self).path().await?;
+            write!(
+                rope_builder,
+                "\n\n//# sourceMappingURL={}",
+                urlencoding::encode(source_map_path.file_name())
+            )?;
+            rope_builder.build()
+        } else {
+            code.source_code().clone()
+        };
+
+        Ok(AssetContent::file(File::from(rope).into()))
     }
 
     #[turbo_tasks::function]

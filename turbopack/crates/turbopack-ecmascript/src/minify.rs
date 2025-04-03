@@ -118,7 +118,7 @@ pub fn minify(path: &FileSystemPath, code: &Code, source_maps: bool, mangle: boo
         print_program(cm.clone(), program, source_maps.is_some())?
     };
 
-    let mut builder = CodeBuilder::default();
+    let mut builder = CodeBuilder::new(source_maps.is_some());
     if let Some(original_map) = source_maps.as_ref() {
         src_map_buf.shrink_to_fit();
         builder.push_source(
