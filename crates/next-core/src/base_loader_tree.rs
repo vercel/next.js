@@ -16,8 +16,8 @@ pub struct BaseLoaderTreeBuilder {
     pub inner_assets: FxIndexMap<RcStr, ResolvedVc<Box<dyn Module>>>,
     counter: usize,
     pub imports: Vec<RcStr>,
-    pub module_asset_context: Vc<ModuleAssetContext>,
-    pub server_component_transition: Vc<Box<dyn Transition>>,
+    pub module_asset_context: ResolvedVc<ModuleAssetContext>,
+    pub server_component_transition: ResolvedVc<Box<dyn Transition>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -53,8 +53,8 @@ impl AppDirModuleType {
 
 impl BaseLoaderTreeBuilder {
     pub fn new(
-        module_asset_context: Vc<ModuleAssetContext>,
-        server_component_transition: Vc<Box<dyn Transition>>,
+        module_asset_context: ResolvedVc<ModuleAssetContext>,
+        server_component_transition: ResolvedVc<Box<dyn Transition>>,
     ) -> Self {
         BaseLoaderTreeBuilder {
             inner_assets: FxIndexMap::default(),
@@ -77,13 +77,13 @@ impl BaseLoaderTreeBuilder {
         ));
 
         self.server_component_transition
-            .process(source, self.module_asset_context, reference_type)
+            .process(source, *self.module_asset_context, reference_type)
             .module()
     }
 
     pub fn process_module(&self, module: Vc<Box<dyn Module>>) -> Vc<Box<dyn Module>> {
         self.server_component_transition
-            .process_module(module, self.module_asset_context)
+            .process_module(module, *self.module_asset_context)
     }
 
     pub async fn create_module_tuple_code(

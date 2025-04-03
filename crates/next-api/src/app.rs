@@ -1267,7 +1267,7 @@ impl AppEndpoint {
         if emit_manifests != EmitManifests::None {
             let app_build_manifest = AppBuildManifest {
                 pages: fxindexmap!(
-                    app_entry.original_name.clone() => Vc::cell(entry_client_chunks
+                    app_entry.original_name.clone() => ResolvedVc::cell(entry_client_chunks
                         .iter()
                         .chain(client_shared_chunks.iter())
                         .copied()

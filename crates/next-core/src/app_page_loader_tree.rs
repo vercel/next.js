@@ -34,8 +34,8 @@ pub struct AppPageLoaderTreeBuilder {
 
 impl AppPageLoaderTreeBuilder {
     fn new(
-        module_asset_context: Vc<ModuleAssetContext>,
-        server_component_transition: Vc<Box<dyn Transition>>,
+        module_asset_context: ResolvedVc<ModuleAssetContext>,
+        server_component_transition: ResolvedVc<Box<dyn Transition>>,
         base_path: Option<RcStr>,
     ) -> Self {
         AppPageLoaderTreeBuilder {
@@ -195,7 +195,7 @@ impl AppPageLoaderTreeBuilder {
                     .push(format!("import {identifier} from \"{inner_module_id}\";").into());
 
                 let source = dynamic_image_metadata_source(
-                    Vc::upcast(self.base.module_asset_context),
+                    *ResolvedVc::upcast(self.base.module_asset_context),
                     **path,
                     name.into(),
                     app_page.clone(),
@@ -240,7 +240,7 @@ impl AppPageLoaderTreeBuilder {
         let module = Vc::upcast(StructuredImageModuleType::create_module(
             Vc::upcast(FileSource::new(path)),
             BlurPlaceholderMode::None,
-            self.base.module_asset_context,
+            *self.base.module_asset_context,
         ));
         let module = self.base.process_module(module).to_resolved().await?;
         self.base
@@ -422,8 +422,8 @@ pub struct AppPageLoaderTreeModule {
 impl AppPageLoaderTreeModule {
     pub async fn build(
         loader_tree: Vc<AppPageLoaderTree>,
-        module_asset_context: Vc<ModuleAssetContext>,
-        server_component_transition: Vc<Box<dyn Transition>>,
+        module_asset_context: ResolvedVc<ModuleAssetContext>,
+        server_component_transition: ResolvedVc<Box<dyn Transition>>,
         base_path: Option<RcStr>,
     ) -> Result<Self> {
         AppPageLoaderTreeBuilder::new(module_asset_context, server_component_transition, base_path)

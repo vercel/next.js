@@ -231,15 +231,18 @@ export class NextServer implements NextWrapperServer {
     )
 
     // check serialized build config when available
-    if (process.env.NODE_ENV === 'production') {
+    if (!this.options.dev) {
       try {
         const serializedConfig = require(
-          path.join(dir, '.next', SERVER_FILES_MANIFEST)
+          path.join(dir, config.distDir, SERVER_FILES_MANIFEST)
         ).config
 
         // @ts-expect-error internal field
         config.experimental.isExperimentalCompile =
           serializedConfig.experimental.isExperimentalCompile
+        // @ts-expect-error internal field
+        config.experimental.isTurbopackBuild =
+          serializedConfig.experimental.isTurbopackBuild
       } catch (_) {
         // if distDir is customized we don't know until we
         // load the config so fallback to loading the config

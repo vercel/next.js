@@ -81,7 +81,6 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE,
   DYNAMIC_CSS_MANIFEST,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
-  IS_TURBOPACK_BUILD_FILE,
 } from '../shared/lib/constants'
 import {
   getSortedRoutes,
@@ -583,7 +582,7 @@ async function writeImagesManifest(
   // By default, remotePatterns will allow no remote images ([])
   images.remotePatterns = (config?.images?.remotePatterns || []).map((p) => ({
     // Modifying the manifest should also modify matchRemotePattern()
-    protocol: p.protocol,
+    protocol: p.protocol?.replace(/:$/, '') as 'http' | 'https' | undefined,
     hostname: makeRe(p.hostname).source,
     port: p.port,
     pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
@@ -819,7 +818,7 @@ export default async function build(
   runLint = true,
   noMangling = false,
   appDirOnly = false,
-  turboNextBuild = false,
+  isTurbopack = false,
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env',
   traceUploadUrl: string | undefined
 ): Promise<void> {
@@ -831,7 +830,7 @@ export default async function build(
   try {
     const nextBuildSpan = trace('next-build', undefined, {
       buildMode: experimentalBuildMode,
-      isTurboBuild: String(turboNextBuild),
+      isTurboBuild: String(isTurbopack),
       version: process.env.__NEXT_VERSION as string,
     })
 
@@ -886,7 +885,7 @@ export default async function build(
       NextBuildContext.buildId = buildId
 
       if (experimentalBuildMode === 'generate-env') {
-        if (turboNextBuild) {
+        if (isTurbopack) {
           Log.warn('generate-env is not needed with turbopack')
           process.exit(0)
         }
@@ -1207,7 +1206,7 @@ export default async function build(
       }
 
       // Turbopack already handles conflicting app and page routes.
-      if (!turboNextBuild) {
+      if (!isTurbopack) {
         const numConflictingAppPaths = conflictingAppPagePaths.length
         if (mappedAppPages && numConflictingAppPaths > 0) {
           Log.error(
@@ -1452,8 +1451,7 @@ export default async function build(
 
       let shutdownPromise = Promise.resolve()
       if (!isGenerateMode) {
-        if (turboNextBuild) {
-          await writeFileUtf8(path.join(distDir, IS_TURBOPACK_BUILD_FILE), '')
+        if (isTurbopack) {
           const {
             duration: compilerDuration,
             shutdownPromise: p,
@@ -2233,10 +2231,7 @@ export default async function build(
         )
         // If there's edge routes, append the edge instrumentation hook
         // Turbopack generates this chunk with a hashed name and references it in middleware-manifest.
-        if (
-          !process.env.TURBOPACK &&
-          (edgeRuntimeAppCount || edgeRuntimePagesCount)
-        ) {
+        if (!isTurbopack && (edgeRuntimeAppCount || edgeRuntimePagesCount)) {
           instrumentationHookEntryFiles.push(
             path.join(
               SERVER_DIRECTORY,
@@ -2279,6 +2274,7 @@ export default async function build(
 
                 // @ts-expect-error internal field TODO: fix this, should use a separate mechanism to pass the info.
                 isExperimentalCompile: isCompileMode,
+                isTurbopackBuild: isTurbopack,
               },
             },
             appDir: dir,
@@ -2291,7 +2287,7 @@ export default async function build(
               path.join(SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
-              ...(!process.env.TURBOPACK
+              ...(!isTurbopack
                 ? [
                     path.join(
                       SERVER_DIRECTORY,
@@ -2327,14 +2323,13 @@ export default async function build(
                     ),
                   ]
                 : []),
-              ...(pagesDir && !turboNextBuild
+              ...(pagesDir && !isTurbopack
                 ? [
                     DYNAMIC_CSS_MANIFEST + '.json',
                     path.join(SERVER_DIRECTORY, DYNAMIC_CSS_MANIFEST + '.js'),
                   ]
                 : []),
               BUILD_ID_FILE,
-              turboNextBuild ? IS_TURBOPACK_BUILD_FILE : null,
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
               ...instrumentationHookEntryFiles,
@@ -2391,7 +2386,7 @@ export default async function build(
             ],
           }
 
-          if (turboNextBuild) {
+          if (isTurbopack) {
             await writeManifest(
               path.join(
                 distDir,
@@ -2523,7 +2518,7 @@ export default async function build(
 
       // we don't need to inline for turbopack build as
       // it will handle it's own caching separate of compile
-      if (isGenerateMode && !turboNextBuild) {
+      if (isGenerateMode && !isTurbopack) {
         Log.info('Inlining static env ...')
 
         await nextBuildSpan
@@ -3724,7 +3719,7 @@ export default async function build(
         mode: 'build',
         projectDir: dir,
         distDir: loadedConfig.distDir,
-        isTurboSession: turboNextBuild,
+        isTurboSession: isTurbopack,
         sync: true,
       })
     }
