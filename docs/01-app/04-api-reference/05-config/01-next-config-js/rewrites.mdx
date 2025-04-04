@@ -90,10 +90,12 @@ The order Next.js routes are checked is:
 
 1. [headers](/docs/app/api-reference/config/next-config-js/headers) are checked/applied
 2. [redirects](/docs/app/api-reference/config/next-config-js/redirects) are checked/applied
-3. `beforeFiles` rewrites are checked/applied
-4. static files from the [public directory](/docs/app/building-your-application/optimizing/static-assets), `_next/static` files, and non-dynamic pages are checked/served
-5. `afterFiles` rewrites are checked/applied, if one of these rewrites is matched we check dynamic routes/static files after each match
-6. `fallback` rewrites are checked/applied, these are applied before rendering the 404 page and after dynamic routes/all static assets have been checked. If you use [fallback: true/'blocking'](/docs/pages/api-reference/functions/get-static-paths#fallback-true) in `getStaticPaths`, the fallback `rewrites` defined in your `next.config.js` will _not_ be run.
+3. [Middleware](/docs/app/building-your-application/routing/middleware) (`rewrites`, `redirects`, etc.), if a `middleware.ts` file is present
+4. `beforeFiles` rewrites are checked/applied
+5. static files from the [public directory](/docs/app/building-your-application/optimizing/static-assets), `_next/static` files, and non-dynamic pages are checked/served
+6. `afterFiles` rewrites are checked/applied, if one of these rewrites is matched we check dynamic routes/static files after each match
+7. Dynamic Routes (`/blog/[slug]`)
+8. `fallback` rewrites are checked/applied, these are applied before rendering the 404 page and after dynamic routes/all static assets have been checked. If you use [fallback: true/'blocking'](/docs/pages/api-reference/functions/get-static-paths#fallback-true) in `getStaticPaths`, the fallback `rewrites` defined in your `next.config.js` will _not_ be run.
 
 </AppOnly>
 
