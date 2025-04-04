@@ -400,6 +400,63 @@ export default async function Image({ params }) {
 }
 ```
 
+#### Using Edge runtime with local assets
+
+This example uses the Edge runtime to fetch a local image on the file system and passes it as an `ArrayBuffer` to the `src` attribute of an `<img>` element. The local asset should be placed relative to the example source file location.
+
+```tsx filename="app/opengraph-image.tsx" switcher
+import { ImageResponse } from 'next/og'
+
+export const runtime = 'edge'
+
+export default async function Image() {
+  const logoSrc = await fetch(new URL('./logo.png', import.meta.url)).then(
+    (res) => res.arrayBuffer()
+  )
+
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {/* @ts-expect-error next/og supports src as ArrayBuffer or Buffer */}
+        <img src={logoSrc} height="100" />
+      </div>
+    )
+  )
+}
+```
+
+```jsx filename="app/opengraph-image.js" switcher
+import { ImageResponse } from 'next/og'
+
+export const runtime = 'edge'
+
+export default async function Image() {
+  const logoSrc = await fetch(new URL('./logo.png', import.meta.url)).then(
+    (res) => res.arrayBuffer()
+  )
+
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <img src={logoSrc} height="100" />
+      </div>
+    )
+  )
+}
+```
+
 #### Using Node.js runtime with local assets
 
 This example uses the Node.js runtime to fetch a local image on the file system and passes it as an `ArrayBuffer` to the `src` attribute of an `<img>` element. The local asset should be placed relative to the root of your project, rather than the location of the example source file.
@@ -422,6 +479,7 @@ export default async function Image() {
           justifyContent: 'center',
         }}
       >
+        {/* @ts-expect-error next/og supports src as ArrayBuffer or Buffer */}
         <img src={logoSrc} height="100" />
       </div>
     )
