@@ -14,7 +14,8 @@ use turbopack::{
     resolve_options_context::ResolveOptionsContext,
 };
 use turbopack_browser::{
-    react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext, CurrentChunkMethod,
+    react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext, ContentHashing,
+    CurrentChunkMethod,
 };
 use turbopack_core::{
     chunk::{
@@ -486,6 +487,7 @@ pub async fn get_client_chunking_context(
                 ..Default::default()
             },
         );
+        builder = builder.use_content_hashing(ContentHashing::Direct { length: 16 })
     }
 
     Ok(Vc::upcast(builder.build()))
