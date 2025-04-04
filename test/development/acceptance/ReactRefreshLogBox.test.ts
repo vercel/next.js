@@ -1161,10 +1161,7 @@ describe('ReactRefreshLogBox', () => {
       `)
     }
 
-    // TODO: fix the broken collapsing in callstack
-    if (!isReact18) {
-      await toggleCollapseCallStackFrames(browser)
-    }
+    await toggleCollapseCallStackFrames(browser)
 
     // Expect more than the default amount of frames
     // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
