@@ -158,18 +158,6 @@ module.exports = {
                           "line": 1,
                         },
                       },
-                      {
-                        "map": {
-                          "mappings": "A",
-                          "names": [],
-                          "sources": [],
-                          "version": 3,
-                        },
-                        "offset": {
-                          "column": 264,
-                          "line": 1,
-                        },
-                      },
                     ],
                     "version": 3,
                   }
@@ -213,18 +201,6 @@ module.exports = {
                         },
                         "offset": {
                           "column": 0,
-                          "line": 1,
-                        },
-                      },
-                      {
-                        "map": {
-                          "mappings": "A",
-                          "names": [],
-                          "sources": [],
-                          "version": 3,
-                        },
-                        "offset": {
-                          "column": 264,
                           "line": 1,
                         },
                       },
