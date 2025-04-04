@@ -2187,9 +2187,13 @@
     "passed": [
       "Error overlay for hydration errors in Pages router includes a React docs link when hydration error does occur",
       "Error overlay for hydration errors in Pages router should not show a hydration error when using `useId` in a client component",
+      "Error overlay for hydration errors in Pages router should show error if script is directly placed under html instead of body"
+    ],
+    "failed": [
       "Error overlay for hydration errors in Pages router should only show one hydration error when bad nesting happened - div > tr",
       "Error overlay for hydration errors in Pages router should only show one hydration error when bad nesting happened - div under p",
       "Error overlay for hydration errors in Pages router should only show one hydration error when bad nesting happened - p under p",
+      "Error overlay for hydration errors in Pages router should show correct hydration error when client and server render different text",
       "Error overlay for hydration errors in Pages router should show correct hydration error when client renders an extra element",
       "Error overlay for hydration errors in Pages router should show correct hydration error when client renders an extra node inside Suspense content",
       "Error overlay for hydration errors in Pages router should show correct hydration error when client renders an extra text node",
@@ -2197,11 +2201,7 @@
       "Error overlay for hydration errors in Pages router should show correct hydration error when server renders an extra text node",
       "Error overlay for hydration errors in Pages router should show correct hydration error when server renders an extra text node in an invalid place",
       "Error overlay for hydration errors in Pages router should show correct hydration error when server renders an extra whitespace in an invalid place",
-      "Error overlay for hydration errors in Pages router should show error if script is directly placed under html instead of body",
       "Error overlay for hydration errors in Pages router should show the highlighted bad nesting html snippet when bad nesting happened"
-    ],
-    "failed": [
-      "Error overlay for hydration errors in Pages router should show correct hydration error when client and server render different text"
     ],
     "pending": [],
     "flakey": [],
@@ -2273,8 +2273,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/build-error-logs/build-error-logs.test.ts": {
-    "passed": ["build-error-logs should only log error a single time"],
-    "failed": [],
+    "passed": [],
+    "failed": ["build-error-logs should only log error a single time"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2695,17 +2695,6 @@
       "typed-env should rewrite env types if .env is modified"
     ],
     "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/development/app-dir/use-cache-dev/use-cache-dev.test.ts": {
-    "passed": [
-      "use-cache-dev should return cached data after reload",
-      "use-cache-dev should return fresh data after hard reload",
-      "use-cache-dev should successfully finish compilation when \"use cache\" directive is added/removed"
-    ],
-    "failed": ["use-cache-dev should update cached data after editing a file"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3875,7 +3864,6 @@
       "app-dir action handling should be possible to catch network errors",
       "app-dir action handling should be possible to catch regular errors",
       "app-dir action handling should bundle external libraries if they are on the action layer",
-      "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
       "app-dir action handling should handle action correctly with middleware rewrite",
       "app-dir action handling should handle actions executed in quick succession",
       "app-dir action handling should handle basic actions correctly",
@@ -3884,7 +3872,6 @@
       "app-dir action handling should log a warning when a server action is not found but an id is provided",
       "app-dir action handling should not block navigation events while a server action is in flight",
       "app-dir action handling should not block router.back() while a server action is in flight",
-      "app-dir action handling should not error when a forwarded action triggers a redirect (edge)",
       "app-dir action handling should not log errors for non-action form POSTs",
       "app-dir action handling should only submit action once when resubmitting an action after navigation",
       "app-dir action handling should propagate errors from a `text/plain` response to an error boundary",
@@ -3918,7 +3905,9 @@
       "app-dir action handling Edge SSR should handle unicode search params",
       "app-dir action handling HMR should support updating the action",
       "app-dir action handling redirects displays searchParams correctly when redirecting with SearchParams",
+      "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
       "app-dir action handling should forward action request to a worker that contains the action handler (node)",
+      "app-dir action handling should not error when a forwarded action triggers a redirect (edge)",
       "app-dir action handling should not error when a forwarded action triggers a redirect (node)"
     ],
     "pending": [
@@ -4778,6 +4767,7 @@
       "app dir - basic next/script should pass `nonce`",
       "app dir - basic next/script should pass nonce when using next/font",
       "app dir - basic next/script should pass on extra props for beforeInteractive scripts with a src prop",
+      "app dir - basic next/script should pass on extra props for beforeInteractive scripts without a src prop",
       "app dir - basic next/script should support next/script and render in correct order",
       "app dir - basic rewrites should support rewrites on client-side navigation",
       "app dir - basic rewrites should support rewrites on client-side navigation from pages to app with existing pages path",
@@ -4849,7 +4839,6 @@
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
       "app dir - basic HMR should HMR correctly for client component",
       "app dir - basic bootstrap scripts should fail to bootstrap when using CSP in Dev due to eval",
-      "app dir - basic next/script should pass on extra props for beforeInteractive scripts without a src prop",
       "app dir - basic should serve polyfills for browsers that do not support modules"
     ],
     "pending": [
@@ -6139,10 +6128,11 @@
   },
   "test/e2e/app-dir/interception-route-prefetch-cache/interception-route-prefetch-cache.test.ts": {
     "passed": [
-      "interception-route-prefetch-cache runtime = edge should render the correct interception when two distinct layouts share the same path structure",
       "interception-route-prefetch-cache runtime = nodejs should render the correct interception when two distinct layouts share the same path structure"
     ],
-    "failed": [],
+    "failed": [
+      "interception-route-prefetch-cache runtime = edge should render the correct interception when two distinct layouts share the same path structure"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6262,6 +6252,7 @@
       "app-dir - logging with fetches verbose logging should log each page request only once",
       "app-dir - logging with fetches verbose logging should log requests for client-side navigations",
       "app-dir - logging with fetches verbose logging should log requests with correct indentation",
+      "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches verbose logging should not contain trailing word page for app router routes",
       "app-dir - logging with fetches verbose logging should not limit the number of requests that are logged",
       "app-dir - logging with fetches verbose logging should not log _rsc query for client navigation RSC request",
@@ -6287,7 +6278,6 @@
     "failed": [
       "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches default logging should not contain metadata internal segments for dynamic metadata routes",
-      "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes"
     ],
     "pending": [],
@@ -7324,7 +7314,6 @@
       "parallel-routes-and-interception parallel routes should support parallel route tab bars",
       "parallel-routes-and-interception parallel routes should support parallel routes with no page component",
       "parallel-routes-and-interception parallel routes should throw a 404 when no matching parallel route is found",
-      "parallel-routes-and-interception route intercepting should intercept on routes that contain hyphenated/special dynamic params",
       "parallel-routes-and-interception route intercepting should re-render the layout on the server when it had a default child route",
       "parallel-routes-and-interception route intercepting should render an intercepted route at the top level from a nested path",
       "parallel-routes-and-interception route intercepting should render an intercepted route from a slot",
@@ -7338,7 +7327,9 @@
       "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route",
       "parallel-routes-and-interception-conflicting-pages should gracefully handle when two page segments match the `children` parallel slot"
     ],
-    "failed": [],
+    "failed": [
+      "parallel-routes-and-interception route intercepting should intercept on routes that contain hyphenated/special dynamic params"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8028,7 +8019,6 @@
       "app dir - rsc basics next internal shared context should not error if just load next/router module in app page",
       "app dir - rsc basics react@experimental should opt into the react@experimental when enabling ppr",
       "app dir - rsc basics react@experimental should opt into the react@experimental when enabling taint",
-      "app dir - rsc basics should be able to navigate between rsc routes",
       "app dir - rsc basics should correctly render component returning null",
       "app dir - rsc basics should correctly render component returning undefined",
       "app dir - rsc basics should correctly render layout returning null",
@@ -8061,7 +8051,8 @@
       "app dir - rsc basics should use canary react for app"
     ],
     "failed": [
-      "app dir - rsc basics should be able to call legacy react-dom/server APIs in client components"
+      "app dir - rsc basics should be able to call legacy react-dom/server APIs in client components",
+      "app dir - rsc basics should be able to navigate between rsc routes"
     ],
     "pending": [
       "app dir - rsc basics should support partial hydration with inlined server data in browser"
@@ -8913,6 +8904,17 @@
       "use-cache-custom-handler should use a modern custom cache handler if provided"
     ],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/use-cache-dev/use-cache-dev.test.ts": {
+    "passed": [
+      "use-cache-dev should return cached data after reload",
+      "use-cache-dev should return fresh data after hard reload",
+      "use-cache-dev should successfully finish compilation when \"use cache\" directive is added/removed"
+    ],
+    "failed": ["use-cache-dev should update cached data after editing a file"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9986,7 +9988,9 @@
       "Instrumentation Client Hook App Router should execute instrumentation-client from app router before hydration",
       "Instrumentation Client Hook HMR in development mode should reload instrumentation-client when modified",
       "Instrumentation Client Hook Pages Router should execute instrumentation-client from pages router before hydration",
-      "Instrumentation Client Hook With src folder should execute instrumentation-client from with src folder before hydration"
+      "Instrumentation Client Hook With src folder should execute instrumentation-client from with src folder before hydration",
+      "Instrumentation Client Hook onRouterTransitionStart onRouterTransitionStart fires at the start of a back/forward navigation",
+      "Instrumentation Client Hook onRouterTransitionStart onRouterTransitionStart fires at the start of a navigation"
     ],
     "failed": [],
     "pending": [],
