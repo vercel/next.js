@@ -1388,12 +1388,12 @@ function createModuleHot(moduleId, hotData) {
 }
 /**
  * Subscribes to chunk list updates from the update server and applies them.
- */ function registerChunkList(chunkUpdateProvider, chunkList) {
+ */ function registerChunkList(chunkList) {
     const chunkListScript = chunkList.script;
     const chunkListPath = getPathFromScript(chunkListScript);
     // The "chunk" is also registered to finish the loading in the backend
     BACKEND.registerChunk(chunkListPath);
-    chunkUpdateProvider.push([
+    globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS.push([
         chunkListPath,
         handleApply.bind(null, chunkListPath)
     ]);
@@ -1416,17 +1416,6 @@ function createModuleHot(moduleId, hotData) {
     }
 }
 globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS ??= [];
-const chunkListsToRegister = globalThis.TURBOPACK_CHUNK_LISTS;
-if (Array.isArray(chunkListsToRegister)) {
-    for (const chunkList of chunkListsToRegister){
-        registerChunkList(globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS, chunkList);
-    }
-}
-globalThis.TURBOPACK_CHUNK_LISTS = {
-    push: (chunkList)=>{
-        registerChunkList(globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS, chunkList);
-    }
-};
 /**
  * This file contains the runtime code specific to the Turbopack development
  * ECMAScript DOM runtime.
@@ -1686,6 +1675,9 @@ function _eval({ code, url, map }) {
 const chunksToRegister = globalThis.TURBOPACK;
 globalThis.TURBOPACK = { push: registerChunk };
 chunksToRegister.forEach(registerChunk);
+const chunkListsToRegister = globalThis.TURBOPACK_CHUNK_LISTS || [];
+chunkListsToRegister.forEach(registerChunkList);
+globalThis.TURBOPACK_CHUNK_LISTS = { push: registerChunkList };
 })();
 
 
