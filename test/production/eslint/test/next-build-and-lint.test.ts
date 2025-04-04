@@ -50,24 +50,17 @@ describe('Next Build', () => {
               stdio: ['pipe', 'pipe', 'inherit'],
             }
           )
-          const { parser, plugins, settings } = JSON.parse(
+          const { parser, settings, ...eslintConfigAfterSetup } = JSON.parse(
             eslintConfigAfterSetupJSON
           )
 
+          expect(eslintConfigAfterSetup).toMatchSnapshot()
           expect({
             parser,
-            plugins,
             settings,
           }).toEqual({
             // parser: require.resolve('eslint-config-next')
             parser: expect.stringContaining('eslint-config-next'),
-            plugins: [
-              'react-hooks',
-              'jsx-a11y',
-              'react',
-              'import',
-              '@next/next',
-            ],
             settings: {
               'import/parsers': expect.any(Object),
               'import/resolver': expect.any(Object),
@@ -140,24 +133,17 @@ describe('Next Build', () => {
               stdio: ['pipe', 'pipe', 'inherit'],
             }
           )
-          const { parser, plugins, settings } = JSON.parse(
+          const { parser, settings, ...eslintConfigAfterSetup } = JSON.parse(
             eslintConfigAfterSetupJSON
           )
 
+          expect(eslintConfigAfterSetup).toMatchSnapshot()
           expect({
             parser,
-            plugins,
             settings,
           }).toEqual({
             // parser: require.resolve('eslint-config-next')
             parser: expect.stringContaining('eslint-config-next'),
-            plugins: [
-              'react-hooks',
-              'jsx-a11y',
-              'react',
-              'import',
-              '@next/next',
-            ],
             settings: {
               'import/parsers': expect.any(Object),
               'import/resolver': expect.any(Object),
@@ -228,25 +214,17 @@ describe('Next Build', () => {
               stdio: ['pipe', 'pipe', 'inherit'],
             }
           )
-          const { parser, plugins, settings } = JSON.parse(
+          const { parser, settings, ...eslintConfigAfterSetup } = JSON.parse(
             eslintConfigAfterSetupJSON
           )
 
+          expect(eslintConfigAfterSetup).toMatchSnapshot()
           expect({
             parser,
-            plugins,
             settings,
           }).toEqual({
             // parser: require.resolve('@typescript-eslint/parser')
             parser: expect.stringContaining('@typescript-eslint/parser'),
-            plugins: [
-              'react-hooks',
-              'jsx-a11y',
-              'react',
-              'import',
-              '@next/next',
-              '@typescript-eslint',
-            ],
             settings: {
               'import/parsers': expect.any(Object),
               'import/resolver': expect.any(Object),
@@ -319,25 +297,17 @@ describe('Next Build', () => {
               stdio: ['pipe', 'pipe', 'inherit'],
             }
           )
-          const { parser, plugins, settings } = JSON.parse(
+          const { parser, settings, ...eslintConfigAfterSetup } = JSON.parse(
             eslintConfigAfterSetupJSON
           )
 
+          expect(eslintConfigAfterSetup).toMatchSnapshot()
           expect({
             parser,
-            plugins,
             settings,
           }).toEqual({
             // parser: require.resolve('@typescript-eslint/parser')
             parser: expect.stringContaining('@typescript-eslint/parser'),
-            plugins: [
-              'react-hooks',
-              'jsx-a11y',
-              'react',
-              'import',
-              '@next/next',
-              '@typescript-eslint',
-            ],
             settings: {
               'import/parsers': expect.any(Object),
               'import/resolver': expect.any(Object),
