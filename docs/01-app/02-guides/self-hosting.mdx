@@ -104,7 +104,7 @@ The majority of core Next.js features needed to build a static site are supporte
 - [Dynamic Routes when using `getStaticPaths`](/docs/app/building-your-application/routing/dynamic-routes)
 - Prefetching with `next/link`
 - Preloading JavaScript
-- [Dynamic Imports](/docs/pages/building-your-application/optimizing/lazy-loading)
+- [Dynamic Imports](/docs/pages/guides/lazy-loading)
 - Any styling options (e.g. CSS Modules, styled-jsx)
 - [Client-side data fetching](/docs/pages/building-your-application/data-fetching/client-side)
 - [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props)
@@ -128,7 +128,7 @@ Features that require a Node.js server, or dynamic logic that cannot be computed
 - [Middleware](/docs/app/building-your-application/routing/middleware)
 - [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration)
 - [Image Optimization](/docs/app/building-your-application/optimizing/images) with the default `loader`
-- [Draft Mode](/docs/app/building-your-application/configuring/draft-mode)
+- [Draft Mode](/docs/app/guides/draft-mode)
 - [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations)
 - [Intercepting Routes](/docs/app/building-your-application/routing/intercepting-routes)
 
@@ -142,7 +142,7 @@ export const dynamic = 'error'
 
 <PagesOnly>
 
-- [Internationalized Routing](/docs/pages/building-your-application/routing/internationalization)
+- [Internationalized Routing](/docs/pages/guides/internationalization)
 - [API Routes](/docs/pages/building-your-application/routing/api-routes)
 - [Rewrites](/docs/pages/api-reference/config/next-config-js/rewrites)
 - [Redirects](/docs/pages/api-reference/config/next-config-js/redirects)
@@ -150,7 +150,7 @@ export const dynamic = 'error'
 - [Middleware](/docs/pages/building-your-application/routing/middleware)
 - [Incremental Static Regeneration](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration)
 - [Image Optimization](/docs/pages/building-your-application/optimizing/images) with the default `loader`
-- [Draft Mode](/docs/pages/building-your-application/configuring/draft-mode)
+- [Draft Mode](/docs/pages/guides/draft-mode)
 - [`getStaticPaths` with `fallback: true`](/docs/pages/api-reference/functions/get-static-paths#fallback-true)
 - [`getStaticPaths` with `fallback: 'blocking'`](/docs/pages/api-reference/functions/get-static-paths#fallback-blocking)
 - [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props)
@@ -411,7 +411,7 @@ export default function ClientComponent() {
 
 ### Middleware
 
-[Middleware](/docs/app/building-your-application/routing/middleware) works self-hosted with zero configuration when deploying using `next start`. Since it requires access to the incoming request, it is not supported when using a [static export](/docs/app/guides/self-hosting#static-html-exports).
+[Middleware](/docs/app/building-your-application/routing/middleware) works self-hosted with zero configuration when deploying using `next start`. Since it requires access to the incoming request, it is not supported when using a [static export](/docs/app/guides/self-hosting#static-html-export).
 
 Middleware uses a [runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) that is a subset of all available Node.js APIs to help ensure low latency, since it may run in front of every route or asset in your application. This runtime does not require running “at the edge” and works in a single-region server. Additional configuration and infrastructure are required to run Middleware in multiple regions.
 
@@ -480,7 +480,7 @@ You can configure the Next.js cache location if you want to persist cached pages
 
 - Next.js sets the `Cache-Control` header of `public, max-age=31536000, immutable` to truly immutable assets. It cannot be overridden. These immutable files contain a SHA-hash in the file name, so they can be safely cached indefinitely. For example, [Static Image Imports](/docs/app/building-your-application/optimizing/images#local-images). You can [configure the TTL](/docs/app/api-reference/components/image#caching-behavior) for images.
 - Incremental Static Regeneration (ISR) sets the `Cache-Control` header of `s-maxage: <revalidate in getStaticProps>, stale-while-revalidate`. This revalidation time is defined in your [`getStaticProps` function](/docs/pages/building-your-application/data-fetching/get-static-props) in seconds. If you set `revalidate: false`, it will default to a one-year cache duration.
-- Dynamically rendered pages set a `Cache-Control` header of `private, no-cache, no-store, max-age=0, must-revalidate` to prevent user-specific data from being cached. This applies to both the App Router and Pages Router. This also includes [Draft Mode](/docs/app/building-your-application/configuring/draft-mode).
+- Dynamically rendered pages set a `Cache-Control` header of `private, no-cache, no-store, max-age=0, must-revalidate` to prevent user-specific data from being cached. This applies to both the App Router and Pages Router. This also includes [Draft Mode](/docs/app/guides/draft-mode).
 
 #### Static Assets
 

@@ -326,7 +326,7 @@ When leveraging [`i18n` support](/docs/app/guides/internationalization) with hea
 
 <PagesOnly>
 
-When leveraging [`i18n` support](/docs/pages/building-your-application/routing/internationalization) with headers each `source` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the header. If `locale: false` is used you must prefix the `source` with a locale for it to be matched correctly.
+When leveraging [`i18n` support](/docs/pages/guides/internationalization) with headers each `source` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the header. If `locale: false` is used you must prefix the `source` with a locale for it to be matched correctly.
 
 </PagesOnly>
 
@@ -531,7 +531,7 @@ If you're deploying to [Vercel](https://vercel.com/docs/concepts/edge-network/he
 
 [This header](https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Frame-Options) indicates whether the site should be allowed to be displayed within an `iframe`. This can prevent against clickjacking attacks.
 
-**This header has been superseded by CSP's `frame-ancestors` option**, which has better support in modern browsers (see [Content Security Policy](/docs/app/building-your-application/configuring/content-security-policy) for configuration details).
+**This header has been superseded by CSP's `frame-ancestors` option**, which has better support in modern browsers (see [Content Security Policy](/docs/app/guides/content-security-policy) for configuration details).
 
 ```js
 {
@@ -577,7 +577,7 @@ For example, a user trying to download an image, but having it treated as a diff
 
 ### Content-Security-Policy
 
-Learn more about adding a [Content Security Policy](/docs/app/building-your-application/configuring/content-security-policy) to your application.
+Learn more about adding a [Content Security Policy](/docs/app/guides/content-security-policy) to your application.
 
 ## Version History
 
