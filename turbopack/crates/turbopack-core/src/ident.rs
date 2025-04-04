@@ -4,14 +4,14 @@ use anyhow::Result;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TaskInput, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64, DeterministicHash, Xxh3Hash64Hasher};
 
 use crate::resolve::ModulePart;
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug, Hash, TaskInput)]
 pub struct AssetIdent {
     /// The primary path of the asset
     pub path: ResolvedVc<FileSystemPath>,
@@ -121,14 +121,14 @@ impl ValueToString for AssetIdent {
 #[turbo_tasks::value_impl]
 impl AssetIdent {
     #[turbo_tasks::function]
-    pub fn new(ident: Value<AssetIdent>) -> Vc<Self> {
-        ident.into_value().cell()
+    pub fn new(ident: AssetIdent) -> Vc<Self> {
+        ident.cell()
     }
 
     /// Creates an [AssetIdent] from a [Vc<FileSystemPath>]
     #[turbo_tasks::function]
     pub fn from_path(path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
-        Self::new(Value::new(AssetIdent {
+        Self::new(AssetIdent {
             path,
             query: ResolvedVc::cell(RcStr::default()),
             fragment: None,
@@ -137,56 +137,56 @@ impl AssetIdent {
             parts: Vec::new(),
             layer: None,
             content_type: None,
-        }))
+        })
     }
 
     #[turbo_tasks::function]
     pub fn with_query(&self, query: ResolvedVc<RcStr>) -> Vc<Self> {
         let mut this = self.clone();
         this.query = query;
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_modifier(&self, modifier: ResolvedVc<RcStr>) -> Vc<Self> {
         let mut this = self.clone();
         this.add_modifier(modifier);
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_part(&self, part: ModulePart) -> Vc<Self> {
         let mut this = self.clone();
         this.parts.push(part);
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_path(&self, path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         let mut this = self.clone();
         this.path = path;
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_layer(&self, layer: ResolvedVc<RcStr>) -> Vc<Self> {
         let mut this = self.clone();
         this.layer = Some(layer);
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub fn with_content_type(&self, content_type: RcStr) -> Vc<Self> {
         let mut this = self.clone();
         this.content_type = Some(content_type);
-        Self::new(Value::new(this))
+        Self::new(this)
     }
 
     #[turbo_tasks::function]
     pub async fn rename_as(&self, pattern: RcStr) -> Result<Vc<Self>> {
         let mut this = self.clone();
         this.rename_as_ref(&pattern).await?;
-        Ok(Self::new(Value::new(this)))
+        Ok(Self::new(this))
     }
 
     #[turbo_tasks::function]

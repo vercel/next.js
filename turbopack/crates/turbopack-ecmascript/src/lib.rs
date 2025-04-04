@@ -164,7 +164,7 @@ pub struct EcmascriptOptions {
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Hash, Debug, Copy, Clone)]
+#[derive(Hash, Debug, Copy, Clone, TaskInput)]
 pub enum EcmascriptModuleAssetType {
     /// Module with EcmaScript code
     Ecmascript,
@@ -230,7 +230,7 @@ impl EcmascriptModuleAssetBuilder {
             EcmascriptModuleAsset::new_with_inner_assets(
                 *self.source,
                 *self.asset_context,
-                Value::new(self.ty),
+                self.ty,
                 *self.transforms,
                 *self.options,
                 *self.compile_time_info,
@@ -240,7 +240,7 @@ impl EcmascriptModuleAssetBuilder {
             EcmascriptModuleAsset::new(
                 *self.source,
                 *self.asset_context,
-                Value::new(self.ty),
+                self.ty,
                 *self.transforms,
                 *self.options,
                 *self.compile_time_info,
@@ -483,8 +483,7 @@ impl EcmascriptModuleAsset {
     pub fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
-
-        ty: Value<EcmascriptModuleAssetType>,
+        ty: EcmascriptModuleAssetType,
         transforms: ResolvedVc<EcmascriptInputTransforms>,
         options: ResolvedVc<EcmascriptOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
@@ -492,10 +491,9 @@ impl EcmascriptModuleAsset {
         Self::cell(EcmascriptModuleAsset {
             source,
             asset_context,
-            ty: ty.into_value(),
+            ty,
             transforms,
             options,
-
             compile_time_info,
             inner_assets: None,
             last_successful_parse: Default::default(),
@@ -506,7 +504,7 @@ impl EcmascriptModuleAsset {
     pub fn new_with_inner_assets(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
-        ty: Value<EcmascriptModuleAssetType>,
+        ty: EcmascriptModuleAssetType,
         transforms: ResolvedVc<EcmascriptInputTransforms>,
         options: ResolvedVc<EcmascriptOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
@@ -515,7 +513,7 @@ impl EcmascriptModuleAsset {
         Self::cell(EcmascriptModuleAsset {
             source,
             asset_context,
-            ty: ty.into_value(),
+            ty,
             transforms,
             options,
             compile_time_info,
@@ -586,7 +584,7 @@ impl Module for EcmascriptModuleAsset {
             }
             ident.add_modifier(modifier().to_resolved().await?);
             ident.layer = Some(self.asset_context.layer().to_resolved().await?);
-            Ok(AssetIdent::new(Value::new(ident)))
+            Ok(AssetIdent::new(ident))
         } else {
             Ok(self
                 .source
