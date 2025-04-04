@@ -114,18 +114,25 @@ const runTests = (isDev) => {
       expect(script.attr('data-nscript')).toBeDefined()
 
       // Script is inserted before NextScripts
+      let scriptCount
       if (process.env.TURBOPACK) {
         // Turbopack generates different script names
-        expect(
-          $(
+        if (isDev) {
+          scriptCount = $(
             `#${id} ~ script[src^="/_next/static/chunks/%5Broot-of-the-server%5D__"]`
           ).length
-        ).toBeGreaterThan(0)
+        } else {
+          // In production mode, content hashes are used
+          scriptCount = $(
+            `#${id} ~ script[src^="/_next/static/chunks/"]`
+          ).length
+        }
       } else {
-        expect(
-          $(`#${id} ~ script[src^="/_next/static/chunks/main"]`).length
-        ).toBeGreaterThan(0)
+        scriptCount = $(
+          `#${id} ~ script[src^="/_next/static/chunks/main"]`
+        ).length
       }
+      expect(scriptCount).toBeGreaterThan(0)
     }
 
     test('scriptBeforeInteractive')
