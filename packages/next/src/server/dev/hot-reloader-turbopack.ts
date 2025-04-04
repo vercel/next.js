@@ -948,6 +948,15 @@ export async function createHotReloaderTurbopack(
       isApp,
       url: requestUrl,
     }) {
+      // When there is no route definition this is an internal file not a route the user added.
+      // Middleware and instrumentation are handled in turbpack-utils.ts handleEntrypoints instead.
+      if (!definition) {
+        if (inputPage === '/middleware') return
+        if (inputPage === '/src/middleware') return
+        if (inputPage === '/instrumentation') return
+        if (inputPage === '/src/instrumentation') return
+      }
+
       return hotReloaderSpan
         .traceChild('ensure-page', {
           inputPage,
