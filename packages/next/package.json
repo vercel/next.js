@@ -110,7 +110,7 @@
   },
   "peerDependencies": {
     "@opentelemetry/api": "^1.1.0",
-    "@playwright/test": "^1.51.1",
+    "@playwright/test": "^1.41.2",
     "babel-plugin-react-compiler": "*",
     "react": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0",
     "react-dom": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0",
@@ -170,7 +170,7 @@
     "@next/react-refresh-utils": "15.3.0-canary.34",
     "@next/swc": "15.3.0-canary.34",
     "@opentelemetry/api": "1.6.0",
-    "@playwright/test": "1.51.1",
+    "@playwright/test": "1.41.2",
     "@storybook/addon-a11y": "8.6.0",
     "@storybook/addon-essentials": "8.6.0",
     "@storybook/addon-interactions": "8.6.0",
