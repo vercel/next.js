@@ -64,6 +64,7 @@ To learn more about configuring the behavior of the built-in [Image Optimization
 - [PixelBin](#pixelbin)
 - [Sanity](#sanity)
 - [Sirv](#sirv)
+- [Storyblok](#storyblok)
 - [Supabase](#supabase)
 - [Thumbor](#thumbor)
 - [Imagekit](#imagekitio)
@@ -218,6 +219,16 @@ export default function sirvLoader({ src, width, quality }) {
   params.set('w', params.get('w') || width.toString())
   params.set('q', (quality || 85).toString())
   return url.href
+}
+```
+
+### Storyblok
+
+```js
+// Docs: https://www.storyblok.com/docs/image-service#basic-usage
+export default function storyblokLoader({ src, width, quality }) {
+  const params = [`${width}x0`, `filters:quality(${quality || 75})`]
+  return `${src}/m/${params.join('/')}`
 }
 ```
 
