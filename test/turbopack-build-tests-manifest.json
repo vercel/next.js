@@ -5535,6 +5535,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/use-cache-dev/use-cache-dev.test.ts": {
+    "passed": [
+      "use-cache-dev should ignore an existing HMR refresh hash cookie with \"next start\""
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/use-cache-hanging-inputs/use-cache-hanging-inputs.test.ts": {
     "passed": [
       "use-cache-hanging-inputs should fail the build with errors after a timeout"
@@ -6597,7 +6606,9 @@
       "Instrumentation Client Hook App Router should execute instrumentation-client from app router before hydration",
       "Instrumentation Client Hook HMR in development mode skips tests in non-dev mode",
       "Instrumentation Client Hook Pages Router should execute instrumentation-client from pages router before hydration",
-      "Instrumentation Client Hook With src folder should execute instrumentation-client from with src folder before hydration"
+      "Instrumentation Client Hook With src folder should execute instrumentation-client from with src folder before hydration",
+      "Instrumentation Client Hook onRouterTransitionStart onRouterTransitionStart fires at the start of a back/forward navigation",
+      "Instrumentation Client Hook onRouterTransitionStart onRouterTransitionStart fires at the start of a navigation"
     ],
     "failed": [],
     "pending": [],
@@ -18189,13 +18200,6 @@
       "symbolic-file-links should work using browser",
       "symbolic-file-links should work with html"
     ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/production/app-dir/turbopack-build-marker/turbopack-build-marker.test.ts": {
-    "passed": ["turbopack-build-marker should have Turbopack build marker"],
     "failed": [],
     "pending": [],
     "flakey": [],
