@@ -3256,49 +3256,6 @@ export default abstract class Server<
 
     const { value: cachedData } = cacheEntry
 
-    if (
-      typeof segmentPrefetchHeader === 'string' &&
-      cachedData?.kind === CachedRouteKind.APP_PAGE &&
-      cachedData.segmentData
-    ) {
-      // This is a prefetch request issued by the client Segment Cache. These
-      // should never reach the application layer (lambda). We should either
-      // respond from the cache (HIT) or respond with 204 No Content (MISS).
-
-      // Set a header to indicate that PPR is enabled for this route. This
-      // lets the client distinguish between a regular cache miss and a cache
-      // miss due to PPR being disabled. In other contexts this header is used
-      // to indicate that the response contains dynamic data, but here we're
-      // only using it to indicate that the feature is enabled — the segment
-      // response itself contains whether the data is dynamic.
-      res.setHeader(NEXT_DID_POSTPONE_HEADER, '2')
-
-      const matchedSegment = cachedData.segmentData.get(segmentPrefetchHeader)
-      if (matchedSegment !== undefined) {
-        // Cache hit
-        return {
-          type: 'rsc',
-          body: RenderResult.fromStatic(matchedSegment),
-          // TODO: Eventually this should use cache control of the individual
-          // segment, not the whole page.
-          cacheControl: cacheEntry.cacheControl,
-        }
-      }
-
-      // Cache miss. Either a cache entry for this route has not been generated
-      // (which technically should not be possible when PPR is enabled, because
-      // at a minimum there should always be a fallback entry) or there's no
-      // match for the requested segment. Respond with a 204 No Content. We
-      // don't bother to respond with 404, because these requests are only
-      // issued as part of a prefetch.
-      res.statusCode = 204
-      return {
-        type: 'rsc',
-        body: RenderResult.fromStatic(''),
-        cacheControl: cacheEntry?.cacheControl,
-      }
-    }
-
     // If the cache value is an image, we should error early.
     if (cachedData?.kind === CachedRouteKind.IMAGE) {
       throw new InvariantError('SSG should not return an image cache value')
@@ -3378,6 +3335,56 @@ export default abstract class Server<
     }
 
     cacheEntry.cacheControl = cacheControl
+
+    if (
+      typeof segmentPrefetchHeader === 'string' &&
+      cachedData?.kind === CachedRouteKind.APP_PAGE &&
+      cachedData.segmentData
+    ) {
+      // This is a prefetch request issued by the client Segment Cache. These
+      // should never reach the application layer (lambda). We should either
+      // respond from the cache (HIT) or respond with 204 No Content (MISS).
+
+      // Set a header to indicate that PPR is enabled for this route. This
+      // lets the client distinguish between a regular cache miss and a cache
+      // miss due to PPR being disabled. In other contexts this header is used
+      // to indicate that the response contains dynamic data, but here we're
+      // only using it to indicate that the feature is enabled — the segment
+      // response itself contains whether the data is dynamic.
+      res.setHeader(NEXT_DID_POSTPONE_HEADER, '2')
+
+      // Add the cache tags header to the response if it exists and we're in
+      // minimal mode while rendering a static page.
+      const tags = cachedData.headers?.[NEXT_CACHE_TAGS_HEADER]
+      if (this.minimalMode && isSSG && tags && typeof tags === 'string') {
+        res.setHeader(NEXT_CACHE_TAGS_HEADER, tags)
+      }
+
+      const matchedSegment = cachedData.segmentData.get(segmentPrefetchHeader)
+      if (matchedSegment !== undefined) {
+        // Cache hit
+        return {
+          type: 'rsc',
+          body: RenderResult.fromStatic(matchedSegment),
+          // TODO: Eventually this should use cache control of the individual
+          // segment, not the whole page.
+          cacheControl: cacheEntry.cacheControl,
+        }
+      }
+
+      // Cache miss. Either a cache entry for this route has not been generated
+      // (which technically should not be possible when PPR is enabled, because
+      // at a minimum there should always be a fallback entry) or there's no
+      // match for the requested segment. Respond with a 204 No Content. We
+      // don't bother to respond with 404, because these requests are only
+      // issued as part of a prefetch.
+      res.statusCode = 204
+      return {
+        type: 'rsc',
+        body: RenderResult.fromStatic(''),
+        cacheControl: cacheEntry?.cacheControl,
+      }
+    }
 
     // If there's a callback for `onCacheEntry`, call it with the cache entry
     // and the revalidate options.
@@ -3520,15 +3527,11 @@ export default abstract class Server<
         }
       }
 
-      if (
-        this.minimalMode &&
-        isSSG &&
-        cachedData.headers?.[NEXT_CACHE_TAGS_HEADER]
-      ) {
-        res.setHeader(
-          NEXT_CACHE_TAGS_HEADER,
-          cachedData.headers[NEXT_CACHE_TAGS_HEADER] as string
-        )
+      // Add the cache tags header to the response if it exists and we're in
+      // minimal mode while rendering a static page.
+      const tags = cachedData.headers?.[NEXT_CACHE_TAGS_HEADER]
+      if (this.minimalMode && isSSG && tags && typeof tags === 'string') {
+        res.setHeader(NEXT_CACHE_TAGS_HEADER, tags)
       }
 
       // If the request is a data request, then we shouldn't set the status code
