@@ -514,7 +514,7 @@ export function cache(
   kind: string,
   id: string,
   boundArgsLength: number,
-  fn: (...args: unknown[]) => Promise<unknown>
+  originalFn: (...args: unknown[]) => Promise<unknown>
 ) {
   const cacheHandler = getCacheHandler(kind)
   if (cacheHandler === undefined) {
@@ -525,7 +525,7 @@ export function cache(
   const timeoutError = new UseCacheTimeoutError()
   Error.captureStackTrace(timeoutError, cache)
 
-  const name = fn.name
+  const name = originalFn.name
   const cachedFn = {
     [name]: async function (...args: any[]) {
       const workStore = workAsyncStorage.getStore()
@@ -534,6 +534,8 @@ export function cache(
           '"use cache" cannot be used outside of App Router. Expected a WorkStore.'
         )
       }
+
+      let fn = originalFn
 
       const workUnitStore = workUnitAsyncStorage.getStore()
 
@@ -572,8 +574,6 @@ export function cache(
         const [{ params, searchParams }] = args
         // Overwrite the props to omit $$isPageComponent.
         args = [{ params, searchParams }]
-
-        const originalFn = fn
 
         fn = {
           [name]: async ({
