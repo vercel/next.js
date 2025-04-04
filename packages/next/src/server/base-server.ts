@@ -104,7 +104,6 @@ import {
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   NEXT_URL,
-  NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_IS_PRERENDER_HEADER,
 } from '../client/components/app-router-headers'
 import type {
@@ -1978,14 +1977,12 @@ export default abstract class Server<
     isAppPath: boolean,
     resolvedPathname: string
   ): void {
-    const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}, ${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}`
-
     let addedNextUrlToVary = false
 
     if (isAppPath && this.pathCouldBeIntercepted(resolvedPathname)) {
       // Interception route responses can vary based on the `Next-URL` header.
       // We use the Vary header to signal this behavior to the client to properly cache the response.
-      res.appendHeader('vary', `${baseVaryHeader}, ${NEXT_URL}`)
+      res.appendHeader('vary', `${NEXT_URL}`)
       addedNextUrlToVary = true
     }
     // For other cases such as App Router requests or RSC requests we don't need to set vary header since we already

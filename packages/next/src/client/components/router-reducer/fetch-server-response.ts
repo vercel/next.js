@@ -185,7 +185,7 @@ export async function fetchServerResponse(
     const canonicalUrl = res.redirected ? responseUrl : undefined
 
     const contentType = res.headers.get('content-type') || ''
-    const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
+    const interception = res.headers.get('vary') === NEXT_URL
     const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
     const staleTimeHeader = res.headers.get(NEXT_ROUTER_STALE_TIME_HEADER)
     const staleTime =
