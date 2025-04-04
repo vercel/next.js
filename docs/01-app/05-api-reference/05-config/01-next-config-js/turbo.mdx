@@ -50,7 +50,7 @@ The following options are available for the `turbo` configuration:
 | `rules`             | List of supported webpack loaders to apply when running with Turbopack. |
 | `resolveAlias`      | Map aliased imports to modules to load in their place.                  |
 | `resolveExtensions` | List of extensions to resolve when importing files.                     |
-| `moduleIdStrategy`  | Assign module IDs                                                       |
+| `moduleIds`         | Assign module IDs                                                       |
 | `treeShaking`       | Enable tree shaking for the turbopack dev server and build.             |
 | `memoryLimit`       | A target memory limit for turbo, in bytes.                              |
 
@@ -157,14 +157,12 @@ Turbopack currently supports two strategies for assigning module IDs:
 
 If not set, Turbopack will use `'named'` for development builds and `'deterministic'` for production builds.
 
-To configure the module IDs strategy, use the `moduleIdStrategy` field in `next.config.js`:
+To configure the module IDs strategy, use the `moduleIds` field in `next.config.js`:
 
 ```js filename="next.config.js"
 module.exports = {
-  experimental: {
-    turbo: {
-      moduleIdStrategy: 'deterministic',
-    },
+  turbo: {
+    moduleIds: 'deterministic',
   },
 }
 ```
