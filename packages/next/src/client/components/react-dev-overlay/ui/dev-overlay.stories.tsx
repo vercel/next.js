@@ -92,8 +92,9 @@ export const Default: Story = {
           src={imgApp}
           style={{
             width: '100%',
-            height: '100vh',
+            height: '100%',
             objectFit: 'contain',
+            filter: 'invert(1)',
           }}
         />
         <DevOverlay

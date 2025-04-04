@@ -36,7 +36,6 @@ import type { ReadyRuntimeError } from '../../../../utils/get-error-by-type'
 import { EnvironmentNameLabel } from '../environment-name-label/environment-name-label'
 import { useFocusTrap } from '../dev-tools-indicator/utils'
 import { Fader } from '../../fader'
-import { Resizer } from '../../resizer'
 
 export interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   errorMessage: ErrorMessageType
@@ -60,7 +59,6 @@ export function ErrorOverlayLayout({
   errorType,
   children,
   errorCode,
-  errorCount,
   error,
   debugInfo,
   isBuildError,
@@ -85,10 +83,6 @@ export function ErrorOverlayLayout({
     } as React.CSSProperties,
   }
 
-  const [animating, setAnimating] = React.useState(
-    Boolean(transitionDurationMs)
-  )
-
   const faderRef = React.useRef<HTMLDivElement | null>(null)
   const hasFooter = Boolean(footerMessage || errorCode)
   const dialogRef = React.useRef<HTMLDivElement | null>(null)
@@ -101,23 +95,9 @@ export function ErrorOverlayLayout({
     }
   }
 
-  function onTransitionEnd({ propertyName, target }: React.TransitionEvent) {
-    // We can only measure height after the `scale` transition ends,
-    // otherwise we will measure height as a multiple of the animating value
-    // which will give us an incorrect value.
-    if (propertyName === 'scale' && target === dialogRef.current) {
-      setAnimating(false)
-    }
-  }
-
   return (
     <ErrorOverlayOverlay fixed={isBuildError} {...animationProps}>
-      <div
-        data-nextjs-dialog-root
-        onTransitionEnd={onTransitionEnd}
-        ref={dialogRef}
-        {...animationProps}
-      >
+      <div data-nextjs-dialog-root ref={dialogRef} {...animationProps}>
         <ErrorOverlayNav
           runtimeErrors={runtimeErrors}
           activeIdx={activeIdx}
@@ -139,37 +119,30 @@ export function ErrorOverlayLayout({
             )
           }
         >
-          <Resizer
-            ref={dialogResizerRef}
-            measure={!animating}
-            data-nextjs-dialog-sizer
-          >
-            <DialogContent>
-              <ErrorOverlayDialogHeader>
-                <div
-                  className="nextjs__container_errors__error_title"
-                  // allow assertion in tests before error rating is implemented
-                  data-nextjs-error-code={errorCode}
-                >
-                  <span data-nextjs-error-label-group>
-                    <ErrorTypeLabel errorType={errorType} />
-                    {error.environmentName && (
-                      <EnvironmentNameLabel
-                        environmentName={error.environmentName}
-                      />
-                    )}
-                  </span>
-                  <ErrorOverlayToolbar error={error} debugInfo={debugInfo} />
-                </div>
-                <ErrorMessage errorMessage={errorMessage} />
-              </ErrorOverlayDialogHeader>
+          <DialogContent>
+            <ErrorOverlayDialogHeader>
+              <div
+                className="nextjs__container_errors__error_title"
+                // allow assertion in tests before error rating is implemented
+                data-nextjs-error-code={errorCode}
+              >
+                <span data-nextjs-error-label-group>
+                  <ErrorTypeLabel errorType={errorType} />
+                  {error.environmentName && (
+                    <EnvironmentNameLabel
+                      environmentName={error.environmentName}
+                    />
+                  )}
+                </span>
+                <ErrorOverlayToolbar error={error} debugInfo={debugInfo} />
+              </div>
+              <ErrorMessage errorMessage={errorMessage} />
+            </ErrorOverlayDialogHeader>
 
-              <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>
-            </DialogContent>
-          </Resizer>
-
+            <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>
+          </DialogContent>
           <ErrorOverlayBottomStack
-            errorCount={errorCount}
+            errorCount={runtimeErrors?.length ?? 0}
             activeIdx={activeIdx ?? 0}
           />
         </ErrorOverlayDialog>
