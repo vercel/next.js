@@ -39,6 +39,9 @@ pub enum CurrentChunkMethod {
     DocumentCurrentScript,
 }
 
+pub const CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR: &str =
+    "typeof document === \"object\" ? document.currentScript : undefined";
+
 pub struct BrowserChunkingContextBuilder {
     chunking_context: BrowserChunkingContext,
 }

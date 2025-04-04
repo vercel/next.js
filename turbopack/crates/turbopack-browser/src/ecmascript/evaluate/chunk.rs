@@ -27,7 +27,10 @@ use turbopack_ecmascript::{
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 
-use crate::{chunking_context::CurrentChunkMethod, BrowserChunkingContext};
+use crate::{
+    chunking_context::{CurrentChunkMethod, CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR},
+    BrowserChunkingContext,
+};
 
 /// An Ecmascript chunk that:
 /// * Contains the Turbopack browser runtime code; and
@@ -98,7 +101,9 @@ impl EcmascriptBrowserEvaluateChunk {
                 };
                 Either::Left(StringifyJs(chunk_server_path))
             }
-            CurrentChunkMethod::DocumentCurrentScript => Either::Right("document.currentScript"),
+            CurrentChunkMethod::DocumentCurrentScript => {
+                Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
+            }
         };
 
         let other_chunks_data = self.chunks_data().await?;

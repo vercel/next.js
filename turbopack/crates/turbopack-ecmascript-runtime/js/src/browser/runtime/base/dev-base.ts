@@ -20,10 +20,6 @@ const devModuleCache: ModuleCache<HotModule> = Object.create(null);
 type RefreshRuntimeGlobals =
   import("@next/react-refresh-utils/dist/runtime").RefreshRuntimeGlobals;
 
-// Workers are loaded via blob object urls and aren't relative to the main context, this gets
-// prefixed to chunk urls in the worker.
-// declare var TURBOPACK_WORKER_LOCATION: string;
-// declare var CHUNK_BASE_PATH: string;
 declare var $RefreshHelpers$: RefreshRuntimeGlobals["$RefreshHelpers$"];
 declare var $RefreshReg$: RefreshRuntimeGlobals["$RefreshReg$"];
 declare var $RefreshSig$: RefreshRuntimeGlobals["$RefreshSig$"];
@@ -1085,6 +1081,8 @@ function registerChunkList(
 ) {
   const chunkListScript = chunkList.script;
   const chunkListPath = getPathFromScript(chunkListScript);
+  // The "chunk" is also registered to finish the loading in the backend
+  BACKEND.registerChunk(chunkListPath as string as ChunkPath);
   chunkUpdateProvider.push([
     chunkListPath,
     handleApply.bind(null, chunkListPath),
