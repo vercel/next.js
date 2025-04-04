@@ -50,7 +50,6 @@ export function DevOverlay({
               <ErrorOverlay
                 state={state}
                 runtimeErrors={runtimeErrors}
-                errorCount={totalErrorCount}
                 isErrorOverlayOpen={isErrorOverlayOpen}
                 setIsErrorOverlayOpen={setIsErrorOverlayOpen}
               />

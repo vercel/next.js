@@ -13,7 +13,6 @@ export interface ErrorBaseProps {
   transitionDurationMs: number
   isTurbopack: boolean
   versionInfo: OverlayState['versionInfo']
-  errorCount: number
 }
 
 export function ErrorOverlay({
@@ -21,13 +20,11 @@ export function ErrorOverlay({
   runtimeErrors,
   isErrorOverlayOpen,
   setIsErrorOverlayOpen,
-  errorCount,
 }: {
   state: OverlayState
   runtimeErrors: ReadyRuntimeError[]
   isErrorOverlayOpen: boolean
   setIsErrorOverlayOpen: (value: boolean) => void
-  errorCount: number
 }) {
   const isTurbopack = !!process.env.TURBOPACK
 
@@ -41,7 +38,6 @@ export function ErrorOverlay({
     transitionDurationMs,
     isTurbopack,
     versionInfo: state.versionInfo,
-    errorCount,
   }
 
   if (state.buildError !== null) {

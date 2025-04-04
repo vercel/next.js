@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, Suspense } from 'react'
+import { useState, useMemo, useEffect, useRef, Suspense } from 'react'
 import type { DebugInfo } from '../../types'
 import { Overlay } from '../components/overlay'
 import { RuntimeError } from './runtime-error'
@@ -88,6 +88,18 @@ export function Errors({
   ...props
 }: ErrorsProps) {
   const dialogResizerRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    // Close the error overlay when pressing escape
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
 
   const isLoading = useMemo<boolean>(() => {
     return runtimeErrors.length < 1
