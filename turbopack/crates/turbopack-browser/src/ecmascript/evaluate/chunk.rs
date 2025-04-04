@@ -1,6 +1,7 @@
 use std::io::Write;
 
 use anyhow::{bail, Result};
+use either::Either;
 use indoc::writedoc;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
@@ -26,7 +27,10 @@ use turbopack_ecmascript::{
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 
-use crate::BrowserChunkingContext;
+use crate::{
+    chunking_context::{CurrentChunkMethod, CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR},
+    BrowserChunkingContext,
+};
 
 /// An Ecmascript chunk that:
 /// * Contains the Turbopack browser runtime code; and
@@ -74,22 +78,32 @@ impl EcmascriptBrowserEvaluateChunk {
         let chunking_context = this.chunking_context.await?;
         let environment = this.chunking_context.environment();
 
-        let output_root = this.chunking_context.output_root().await?;
         let output_root_to_root_path = this.chunking_context.output_root_to_root_path();
         let source_maps = *this
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?;
-        let chunk_path_vc = self.path();
-        let chunk_path = chunk_path_vc.await?;
-        let chunk_public_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
-            path
-        } else {
-            bail!(
-                "chunk path {} is not in output root {}",
-                chunk_path.to_string(),
-                output_root.to_string()
-            );
+        // Lifetime hack to pull out the var into this scope
+        let chunk_path;
+        let script_or_path = match *this.chunking_context.current_chunk_method().await? {
+            CurrentChunkMethod::StringLiteral => {
+                let output_root = this.chunking_context.output_root().await?;
+                let chunk_path_vc = self.path();
+                chunk_path = chunk_path_vc.await?;
+                let chunk_server_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
+                    path
+                } else {
+                    bail!(
+                        "chunk path {} is not in output root {}",
+                        chunk_path.to_string(),
+                        output_root.to_string()
+                    );
+                };
+                Either::Left(StringifyJs(chunk_server_path))
+            }
+            CurrentChunkMethod::DocumentCurrentScript => {
+                Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
+            }
         };
 
         let other_chunks_data = self.chunks_data().await?;
@@ -139,12 +153,11 @@ impl EcmascriptBrowserEvaluateChunk {
             code,
             r#"
                 (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([
-                    {},
+                    {script_or_path},
                     {{}},
                     {}
                 ]);
             "#,
-            StringifyJs(&chunk_public_path),
             StringifyJs(&params),
         )?;
 
@@ -181,7 +194,7 @@ impl EcmascriptBrowserEvaluateChunk {
         let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
-            code = minify(&*chunk_path_vc.await?, &code, source_maps, mangle)?;
+            code = minify(&code, source_maps, mangle)?;
         }
 
         Ok(code.cell())

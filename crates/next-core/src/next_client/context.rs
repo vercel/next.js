@@ -13,7 +13,9 @@ use turbopack::{
     },
     resolve_options_context::ResolveOptionsContext,
 };
-use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
+use turbopack_browser::{
+    react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext, CurrentChunkMethod,
+};
 use turbopack_core::{
     chunk::{
         module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, MinifyType,
@@ -462,6 +464,7 @@ pub async fn get_client_chunking_context(
         SourceMapsType::None
     })
     .asset_base_path(asset_prefix)
+    .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
     .module_id_strategy(module_id_strategy);
 
     if next_mode.is_development() {
