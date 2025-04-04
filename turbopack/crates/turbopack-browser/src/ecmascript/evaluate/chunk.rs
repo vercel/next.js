@@ -5,7 +5,7 @@ use indoc::writedoc;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::{rope::RopeBuilder, File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -130,7 +130,7 @@ impl EcmascriptBrowserEvaluateChunk {
             runtime_module_ids,
         };
 
-        let mut code = CodeBuilder::default();
+        let mut code = CodeBuilder::new(source_maps);
 
         // We still use the `TURBOPACK` global variable to store the chunk here,
         // as there may be another runtime already loaded in the page.
@@ -178,17 +178,6 @@ impl EcmascriptBrowserEvaluateChunk {
             }
         }
 
-        if source_maps && code.has_source_map() {
-            let filename = chunk_path.file_name();
-            write!(
-                code,
-                // findSourceMapURL assumes this co-located sourceMappingURL,
-                // and needs to be adjusted in case this is ever changed.
-                "\n\n//# sourceMappingURL={}.map",
-                urlencoding::encode(filename)
-            )?;
-        }
-
         let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
@@ -197,25 +186,9 @@ impl EcmascriptBrowserEvaluateChunk {
 
         Ok(code.cell())
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptBrowserEvaluateChunk {
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("Ecmascript Browser Evaluate Chunk".into())
-    }
-}
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("ecmascript browser evaluate chunk".into())
-}
-
-#[turbo_tasks::value_impl]
-impl OutputAsset for EcmascriptBrowserEvaluateChunk {
-    #[turbo_tasks::function]
-    async fn path(&self) -> Result<Vc<FileSystemPath>> {
+    async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self.ident.owned().await?;
 
         ident.add_modifier(modifier().to_resolved().await?);
@@ -238,8 +211,40 @@ impl OutputAsset for EcmascriptBrowserEvaluateChunk {
                 .await?,
         );
 
-        let ident = AssetIdent::new(Value::new(ident));
-        Ok(self.chunking_context.chunk_path(ident, ".js".into()))
+        Ok(AssetIdent::new(Value::new(ident)))
+    }
+
+    #[turbo_tasks::function]
+    async fn source_map(self: Vc<Self>) -> Result<Vc<SourceMapAsset>> {
+        let this = self.await?;
+        Ok(SourceMapAsset::new(
+            Vc::upcast(*this.chunking_context),
+            self.ident_for_path(),
+            Vc::upcast(self),
+        ))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for EcmascriptBrowserEvaluateChunk {
+    #[turbo_tasks::function]
+    fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell("Ecmascript Browser Evaluate Chunk".into())
+    }
+}
+
+#[turbo_tasks::function]
+fn modifier() -> Vc<RcStr> {
+    Vc::cell("ecmascript browser evaluate chunk".into())
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for EcmascriptBrowserEvaluateChunk {
+    #[turbo_tasks::function]
+    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
+        let ident = self.ident_for_path();
+        Ok(this.chunking_context.chunk_path(ident, ".js".into()))
     }
 
     #[turbo_tasks::function]
@@ -253,9 +258,7 @@ impl OutputAsset for EcmascriptBrowserEvaluateChunk {
             .await?;
 
         if include_source_map {
-            references.push(ResolvedVc::upcast(
-                SourceMapAsset::new(Vc::upcast(self)).to_resolved().await?,
-            ));
+            references.push(ResolvedVc::upcast(self.source_map().to_resolved().await?));
         }
 
         for chunk_data in &*self.chunks_data().await? {
@@ -271,9 +274,22 @@ impl Asset for EcmascriptBrowserEvaluateChunk {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let code = self.code().await?;
-        Ok(AssetContent::file(
-            File::from(code.source_code().clone()).into(),
-        ))
+
+        let rope = if code.has_source_map() {
+            let mut rope_builder = RopeBuilder::default();
+            rope_builder.concat(code.source_code());
+            let source_map_path = self.source_map().path().await?;
+            write!(
+                rope_builder,
+                "\n\n//# sourceMappingURL={}",
+                urlencoding::encode(source_map_path.file_name())
+            )?;
+            rope_builder.build()
+        } else {
+            code.source_code().clone()
+        };
+
+        Ok(AssetContent::file(File::from(rope).into()))
     }
 }
 

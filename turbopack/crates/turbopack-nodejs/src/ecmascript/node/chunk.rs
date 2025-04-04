@@ -36,6 +36,16 @@ impl EcmascriptBuildNodeChunk {
         }
         .cell()
     }
+
+    #[turbo_tasks::function]
+    async fn source_map(self: Vc<Self>) -> Result<Vc<SourceMapAsset>> {
+        let this = self.await?;
+        Ok(SourceMapAsset::new(
+            Vc::upcast(*this.chunking_context),
+            this.chunk.ident().with_modifier(modifier()),
+            Vc::upcast(self),
+        ))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -60,6 +70,7 @@ impl EcmascriptBuildNodeChunk {
             *this.chunking_context,
             self,
             this.chunk.chunk_content(),
+            self.source_map(),
         ))
     }
 }
@@ -88,9 +99,7 @@ impl OutputAsset for EcmascriptBuildNodeChunk {
         }
 
         if include_source_map {
-            references.push(ResolvedVc::upcast(
-                SourceMapAsset::new(Vc::upcast(self)).to_resolved().await?,
-            ));
+            references.push(ResolvedVc::upcast(self.source_map().to_resolved().await?));
         }
 
         Ok(Vc::cell(references))
