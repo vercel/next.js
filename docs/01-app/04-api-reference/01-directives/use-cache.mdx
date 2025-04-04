@@ -189,7 +189,7 @@ export default function Page() {
 > **Good to know**:
 >
 > - If `use cache` is added only to the `layout` or the `page`, only that route segment and any components imported into it will be cached.
-> - This is recommended for applications that previously used the [`export const dynamic = "force-static"`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) option, and will ensure the entire route is prerendered.
+> - If any of the nested children in the route use [Dynamic APIs](/docs/app/getting-started/caching-and-revalidating#dynamic-apis), then the route will opt out of prerendering.
 
 ### Caching a component's output with `use cache`
 
