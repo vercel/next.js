@@ -462,7 +462,7 @@ export function makeErroringExoticSearchParamsForUseCache(
         typeof prop === 'string' &&
         (prop === 'then' || !wellKnownProperties.has(prop))
       ) {
-        throwForSearchParamsAccessInUseCache(workStore.route)
+        throwForSearchParamsAccessInUseCache(workStore)
       }
 
       return ReflectAdapter.get(target, prop, receiver)
@@ -476,13 +476,13 @@ export function makeErroringExoticSearchParamsForUseCache(
         typeof prop === 'string' &&
         (prop === 'then' || !wellKnownProperties.has(prop))
       ) {
-        throwForSearchParamsAccessInUseCache(workStore.route)
+        throwForSearchParamsAccessInUseCache(workStore)
       }
 
       return ReflectAdapter.has(target, prop)
     },
     ownKeys() {
-      throwForSearchParamsAccessInUseCache(workStore.route)
+      throwForSearchParamsAccessInUseCache(workStore)
     },
   })
 

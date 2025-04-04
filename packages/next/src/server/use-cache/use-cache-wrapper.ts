@@ -177,6 +177,7 @@ function generateCacheEntryWithCacheContext(
   return workUnitAsyncStorage.run(
     cacheStore,
     generateCacheEntryImpl,
+    workStore,
     outerWorkUnitStore,
     cacheStore,
     clientReferenceManifest,
@@ -220,6 +221,7 @@ function propagateCacheLifeAndTags(
 
 async function collectResult(
   savedStream: ReadableStream,
+  workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   innerCacheStore: UseCacheStore,
   startTime: number,
@@ -248,7 +250,9 @@ async function collectResult(
   let idx = 0
   const bufferStream = new ReadableStream({
     pull(controller) {
-      if (idx < buffer.length) {
+      if (workStore.invalidUsageError) {
+        controller.error(workStore.invalidUsageError)
+      } else if (idx < buffer.length) {
         controller.enqueue(buffer[idx++])
       } else if (errors.length > 0) {
         // TODO: Should we use AggregateError here?
@@ -303,6 +307,7 @@ async function collectResult(
 }
 
 async function generateCacheEntryImpl(
+  workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   innerCacheStore: UseCacheStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
@@ -411,6 +416,7 @@ async function generateCacheEntryImpl(
 
   const promiseOfCacheEntry = collectResult(
     savedStream,
+    workStore,
     outerWorkUnitStore,
     innerCacheStore,
     startTime,
@@ -508,7 +514,7 @@ export function cache(
   kind: string,
   id: string,
   boundArgsLength: number,
-  fn: (...args: unknown[]) => Promise<unknown>
+  originalFn: (...args: unknown[]) => Promise<unknown>
 ) {
   const cacheHandler = getCacheHandler(kind)
   if (cacheHandler === undefined) {
@@ -519,7 +525,7 @@ export function cache(
   const timeoutError = new UseCacheTimeoutError()
   Error.captureStackTrace(timeoutError, cache)
 
-  const name = fn.name
+  const name = originalFn.name
   const cachedFn = {
     [name]: async function (...args: any[]) {
       const workStore = workAsyncStorage.getStore()
@@ -528,6 +534,8 @@ export function cache(
           '"use cache" cannot be used outside of App Router. Expected a WorkStore.'
         )
       }
+
+      let fn = originalFn
 
       const workUnitStore = workUnitAsyncStorage.getStore()
 
@@ -566,8 +574,6 @@ export function cache(
         const [{ params, searchParams }] = args
         // Overwrite the props to omit $$isPageComponent.
         args = [{ params, searchParams }]
-
-        const originalFn = fn
 
         fn = {
           [name]: async ({
