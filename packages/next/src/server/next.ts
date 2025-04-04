@@ -240,6 +240,9 @@ export class NextServer implements NextWrapperServer {
         // @ts-expect-error internal field
         config.experimental.isExperimentalCompile =
           serializedConfig.experimental.isExperimentalCompile
+        // @ts-expect-error internal field
+        config.experimental.isTurbopackBuild =
+          serializedConfig.experimental.isTurbopackBuild
       } catch (_) {
         // if distDir is customized we don't know until we
         // load the config so fallback to loading the config
