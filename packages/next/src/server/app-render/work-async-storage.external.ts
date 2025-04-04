@@ -9,6 +9,7 @@ import type { CacheLife } from '../use-cache/cache-life'
 
 // Share the instance module in the next-shared layer
 import { workAsyncStorageInstance } from './work-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
+import type { LazyResult } from '../lib/lazy-result'
 
 export interface WorkStore {
   readonly isStaticGeneration: boolean
@@ -74,11 +75,11 @@ export interface WorkStore {
   readonly previouslyRevalidatedTags: readonly string[]
 
   /**
-   * This map contains promise-like values so that we can evaluate them lazily
-   * when a cache entry is read. It allows us to skip refreshing tags if no
-   * caches are read at all.
+   * This map contains lazy results so that we can evaluate them when the first
+   * cache entry is read. It allows us to skip refreshing tags if no caches are
+   * read at all.
    */
-  readonly refreshTagsByCacheKind: Map<string, PromiseLike<void>>
+  readonly refreshTagsByCacheKind: Map<string, LazyResult<void>>
 
   fetchMetrics?: FetchMetrics
 

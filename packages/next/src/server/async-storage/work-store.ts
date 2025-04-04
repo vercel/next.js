@@ -10,7 +10,7 @@ import type { CacheLife } from '../use-cache/cache-life'
 import { AfterContext } from '../after/after-context'
 
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
-import { createLazyResult } from '../lib/lazy-result'
+import { createLazyResult, type LazyResult } from '../lib/lazy-result'
 import { getCacheHandlerEntries } from '../use-cache/handlers'
 
 export type WorkStoreContext = {
@@ -156,11 +156,11 @@ function createAfterContext(renderOpts: RequestLifecycleOpts): AfterContext {
 }
 
 /**
- * Creates a map with promise-like objects, that refresh tags for the given
- * cache kind when they're awaited for the first time.
+ * Creates a map with lazy results that refresh tags for the respective cache
+ * kind when they're awaited for the first time.
  */
-function createRefreshTagsByCacheKind(): Map<string, PromiseLike<void>> {
-  const refreshTagsByCacheKind = new Map<string, PromiseLike<void>>()
+function createRefreshTagsByCacheKind(): Map<string, LazyResult<void>> {
+  const refreshTagsByCacheKind = new Map<string, LazyResult<void>>()
   const cacheHandlers = getCacheHandlerEntries()
 
   if (cacheHandlers) {
