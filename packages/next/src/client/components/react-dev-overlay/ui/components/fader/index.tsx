@@ -1,21 +1,22 @@
-import type { CSSProperties } from 'react'
+import { type CSSProperties, type Ref, forwardRef } from 'react'
 
-export function Fader({
-  stop,
-  blur,
-  side,
-  style,
-  height,
-  ref,
-}: {
-  stop?: string
-  blur?: string
-  height?: number
-  side: 'top' | 'bottom' | 'left' | 'right'
-  className?: string
-  style?: CSSProperties
-  ref?: React.Ref<HTMLDivElement>
-}) {
+export const Fader = forwardRef(function Fader(
+  {
+    stop,
+    blur,
+    side,
+    style,
+    height,
+  }: {
+    stop?: string
+    blur?: string
+    height?: number
+    side: 'top' | 'bottom' | 'left' | 'right'
+    className?: string
+    style?: CSSProperties
+  },
+  ref: Ref<HTMLDivElement>
+) {
   return (
     <div
       ref={ref}
@@ -33,7 +34,7 @@ export function Fader({
       }
     />
   )
-}
+})
 
 export const FADER_STYLES = `
   .nextjs-scroll-fader {

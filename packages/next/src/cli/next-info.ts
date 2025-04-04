@@ -141,7 +141,7 @@ async function printInfo() {
 
   if (process.env.NEXT_RSPACK) {
     relevantPackages += `
-  @next/plugin-rspack: ${getPackageVersion('@next/plugin-rspack')}`
+  next-rspack: ${getPackageVersion('next-rspack')}`
   }
 
   console.log(`

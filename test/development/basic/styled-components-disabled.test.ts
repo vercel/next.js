@@ -22,7 +22,7 @@ import { retry } from 'next-test-utils'
           ),
         },
         dependencies: {
-          'styled-components': '5.3.3',
+          'styled-components': '6.1.16',
         },
       })
     })

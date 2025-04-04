@@ -70,7 +70,6 @@ pub struct ResolvedVc<T>
 where
     T: ?Sized,
 {
-    // no-resolved-vc(kdy1): This is a resolved Vc, so we don't need to resolve it again
     pub(crate) node: Vc<T>,
 }
 

@@ -666,7 +666,7 @@ pub async fn get_server_module_options_context(
             foreign_next_server_rules.extend(internal_custom_rules);
 
             custom_source_transform_rules.push(
-                get_next_react_server_components_transform_rule(next_config, false, Some(*app_dir))
+                get_next_react_server_components_transform_rule(next_config, false, Some(app_dir))
                     .await?,
             );
 
@@ -736,7 +736,7 @@ pub async fn get_server_module_options_context(
             {
                 custom_source_transform_rules.push(get_ecma_transform_rule(
                     Box::new(ClientDirectiveTransformer::new(
-                        *ecmascript_client_reference_transition_name,
+                        ecmascript_client_reference_transition_name,
                     )),
                     enable_mdx_rs.is_some(),
                     true,
@@ -747,7 +747,7 @@ pub async fn get_server_module_options_context(
             foreign_next_server_rules.extend(internal_custom_rules);
 
             custom_source_transform_rules.push(
-                get_next_react_server_components_transform_rule(next_config, true, Some(*app_dir))
+                get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
                     .await?,
             );
 
@@ -803,7 +803,7 @@ pub async fn get_server_module_options_context(
             next_server_rules.extend(source_transform_rules);
 
             let mut common_next_server_rules = vec![
-                get_next_react_server_components_transform_rule(next_config, true, Some(*app_dir))
+                get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
                     .await?,
             ];
 
@@ -812,7 +812,7 @@ pub async fn get_server_module_options_context(
             {
                 common_next_server_rules.push(get_ecma_transform_rule(
                     Box::new(ClientDirectiveTransformer::new(
-                        *ecmascript_client_reference_transition_name,
+                        ecmascript_client_reference_transition_name,
                     )),
                     enable_mdx_rs.is_some(),
                     true,
@@ -890,7 +890,7 @@ pub async fn get_server_module_options_context(
             {
                 custom_source_transform_rules.push(get_ecma_transform_rule(
                     Box::new(ClientDirectiveTransformer::new(
-                        *ecmascript_client_reference_transition_name,
+                        ecmascript_client_reference_transition_name,
                     )),
                     enable_mdx_rs.is_some(),
                     true,
@@ -906,12 +906,7 @@ pub async fn get_server_module_options_context(
             }
 
             custom_source_transform_rules.push(
-                get_next_react_server_components_transform_rule(
-                    next_config,
-                    true,
-                    app_dir.as_deref().copied(),
-                )
-                .await?,
+                get_next_react_server_components_transform_rule(next_config, true, app_dir).await?,
             );
 
             internal_custom_rules.extend(custom_source_transform_rules.iter().cloned());
