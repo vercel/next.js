@@ -90,7 +90,7 @@ const EDGE_UNSUPPORTED_NODE_INTERNALS: [&str; 44] = [
 #[turbo_tasks::function]
 pub async fn get_next_client_import_map(
     project_path: ResolvedVc<FileSystemPath>,
-    ty: Value<ClientContextType>,
+    ty: ClientContextType,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ImportMap>> {
@@ -115,7 +115,7 @@ pub async fn get_next_client_import_map(
     )
     .await?;
 
-    match ty.into_value() {
+    match ty {
         ClientContextType::Pages { .. } => {}
         ClientContextType::App { app_dir } => {
             let react_flavor = if *next_config.enable_ppr().await?
@@ -229,7 +229,7 @@ pub async fn get_next_client_import_map(
         },
     );
 
-    match ty.into_value() {
+    match ty {
         ClientContextType::Pages { .. }
         | ClientContextType::App { .. }
         | ClientContextType::Fallback => {
@@ -283,12 +283,10 @@ pub async fn get_next_build_import_map() -> Result<Vc<ImportMap>> {
 /// Computes the Next-specific client fallback import map, which provides
 /// polyfills to Node.js externals.
 #[turbo_tasks::function]
-pub async fn get_next_client_fallback_import_map(
-    ty: Value<ClientContextType>,
-) -> Result<Vc<ImportMap>> {
+pub async fn get_next_client_fallback_import_map(ty: ClientContextType) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
-    match ty.into_value() {
+    match ty {
         ClientContextType::Pages {
             pages_dir: context_dir,
         }
@@ -313,7 +311,7 @@ pub async fn get_next_client_fallback_import_map(
 #[turbo_tasks::function]
 pub async fn get_next_server_import_map(
     project_path: ResolvedVc<FileSystemPath>,
-    ty: Value<ServerContextType>,
+    ty: ServerContextType,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ImportMap>> {
@@ -335,8 +333,6 @@ pub async fn get_next_server_import_map(
         [],
     )
     .await?;
-
-    let ty = ty.into_value();
 
     let external = ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Traced)
         .resolved_cell();
@@ -404,7 +400,7 @@ pub async fn get_next_server_import_map(
 #[turbo_tasks::function]
 pub async fn get_next_edge_import_map(
     project_path: ResolvedVc<FileSystemPath>,
-    ty: Value<ServerContextType>,
+    ty: ServerContextType,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ImportMap>> {
@@ -471,7 +467,6 @@ pub async fn get_next_edge_import_map(
     )
     .await?;
 
-    let ty = ty.into_value();
     match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }

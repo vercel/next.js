@@ -110,11 +110,11 @@ impl MiddlewareEndpoint {
         let module_graph = this.project.module_graph(*module);
 
         let evaluatable_assets = get_server_runtime_entries(
-            Value::new(ServerContextType::Middleware {
+            ServerContextType::Middleware {
                 app_dir: this.app_dir,
                 ecmascript_client_reference_transition_name: this
                     .ecmascript_client_reference_transition_name,
-            }),
+            },
             this.project.next_mode(),
         )
         .resolve_entries(*this.asset_context)
@@ -151,11 +151,11 @@ impl MiddlewareEndpoint {
             .entry_chunk_group(
                 this.project.node_root().join("server/middleware.js".into()),
                 get_server_runtime_entries(
-                    Value::new(ServerContextType::Middleware {
+                    ServerContextType::Middleware {
                         app_dir: this.app_dir,
                         ecmascript_client_reference_transition_name: this
                             .ecmascript_client_reference_transition_name,
-                    }),
+                    },
                     this.project.next_mode(),
                 )
                 .resolve_entries(*this.asset_context)

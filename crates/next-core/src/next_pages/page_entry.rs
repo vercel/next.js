@@ -33,7 +33,7 @@ pub struct PageSsrEntryModule {
 #[turbo_tasks::function]
 pub async fn create_page_ssr_entry_module(
     pathname: Vc<RcStr>,
-    reference_type: Value<ReferenceType>,
+    reference_type: ReferenceType,
     project_root: Vc<FileSystemPath>,
     ssr_module_context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
@@ -46,12 +46,10 @@ pub async fn create_page_ssr_entry_module(
     let definition_pathname = &*pathname.await?;
 
     let ssr_module = ssr_module_context
-        .process(source, reference_type.clone())
+        .process(source, Value::new(reference_type.clone()))
         .module()
         .to_resolved()
         .await?;
-
-    let reference_type = reference_type.into_value();
 
     let template_file = match (&reference_type, runtime) {
         (ReferenceType::Entry(EntryReferenceSubType::Page), _) => {
@@ -129,14 +127,14 @@ pub async fn create_page_ssr_entry_module(
         if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
             let document_module = process_global_item(
                 *pages_structure_ref.document,
-                Value::new(reference_type.clone()),
+                reference_type.clone(),
                 ssr_module_context,
             )
             .to_resolved()
             .await?;
             let app_module = process_global_item(
                 *pages_structure_ref.app,
-                Value::new(reference_type.clone()),
+                reference_type.clone(),
                 ssr_module_context,
             )
             .to_resolved()
@@ -163,7 +161,7 @@ pub async fn create_page_ssr_entry_module(
                 ssr_module,
                 definition_page.clone(),
                 definition_pathname.clone(),
-                Value::new(reference_type),
+                reference_type,
                 pages_structure,
                 next_config,
             );
@@ -188,11 +186,13 @@ pub async fn create_page_ssr_entry_module(
 #[turbo_tasks::function]
 fn process_global_item(
     item: Vc<PagesStructureItem>,
-    reference_type: Value<ReferenceType>,
+    reference_type: ReferenceType,
     module_context: Vc<Box<dyn AssetContext>>,
 ) -> Vc<Box<dyn Module>> {
     let source = Vc::upcast(FileSource::new(item.file_path()));
-    module_context.process(source, reference_type).module()
+    module_context
+        .process(source, Value::new(reference_type))
+        .module()
 }
 
 #[turbo_tasks::function]
@@ -202,7 +202,7 @@ async fn wrap_edge_page(
     entry: ResolvedVc<Box<dyn Module>>,
     page: RcStr,
     pathname: RcStr,
-    reference_type: Value<ReferenceType>,
+    reference_type: ReferenceType,
     pages_structure: Vc<PagesStructure>,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<Box<dyn Module>>> {

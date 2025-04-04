@@ -196,7 +196,7 @@ impl AppProject {
             self.project().project_path(),
             self.project().execution_context(),
             self.project().client_compile_time_info().environment(),
-            Value::new(self.client_ty().owned().await?),
+            self.client_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
             self.project().encryption_key(),
@@ -208,7 +208,7 @@ impl AppProject {
     async fn client_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_client_resolve_options_context(
             self.project().project_path(),
-            Value::new(self.client_ty().owned().await?),
+            self.client_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -231,7 +231,7 @@ impl AppProject {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(self.rsc_ty().owned().await?),
+            self.rsc_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
@@ -244,7 +244,7 @@ impl AppProject {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(self.rsc_ty().owned().await?),
+            self.rsc_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
@@ -257,7 +257,7 @@ impl AppProject {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(self.route_ty().owned().await?),
+            self.route_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
@@ -270,7 +270,7 @@ impl AppProject {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(self.route_ty().owned().await?),
+            self.route_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
@@ -282,7 +282,7 @@ impl AppProject {
     async fn rsc_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_server_resolve_options_context(
             self.project().project_path(),
-            Value::new(self.rsc_ty().owned().await?),
+            self.rsc_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -293,7 +293,7 @@ impl AppProject {
     async fn edge_rsc_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_edge_resolve_options_context(
             self.project().project_path(),
-            Value::new(self.rsc_ty().owned().await?),
+            self.rsc_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -304,7 +304,7 @@ impl AppProject {
     async fn route_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_server_resolve_options_context(
             self.project().project_path(),
-            Value::new(self.route_ty().owned().await?),
+            self.route_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -317,7 +317,7 @@ impl AppProject {
     ) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_edge_resolve_options_context(
             self.project().project_path(),
-            Value::new(self.route_ty().owned().await?),
+            self.route_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -578,7 +578,7 @@ impl AppProject {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(self.ssr_ty().owned().await?),
+            self.ssr_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
@@ -591,7 +591,7 @@ impl AppProject {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(self.ssr_ty().owned().await?),
+            self.ssr_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
@@ -603,7 +603,7 @@ impl AppProject {
     async fn ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_server_resolve_options_context(
             self.project().project_path(),
-            Value::new(self.ssr_ty().owned().await?),
+            self.ssr_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -614,7 +614,7 @@ impl AppProject {
     async fn edge_ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_edge_resolve_options_context(
             self.project().project_path(),
-            Value::new(self.ssr_ty().owned().await?),
+            self.ssr_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -726,7 +726,7 @@ impl AppProject {
     #[turbo_tasks::function]
     async fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
         Ok(get_server_runtime_entries(
-            Value::new(self.rsc_ty().owned().await?),
+            self.rsc_ty().owned().await?,
             self.project().next_mode(),
         ))
     }
@@ -755,7 +755,7 @@ impl AppProject {
     async fn client_runtime_entries(self: Vc<Self>) -> Result<Vc<EvaluatableAssets>> {
         Ok(get_client_runtime_entries(
             self.project().project_path(),
-            Value::new(self.client_ty().owned().await?),
+            self.client_ty().owned().await?,
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),

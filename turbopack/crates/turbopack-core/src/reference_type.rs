@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, TaskInput, Vc};
 
 use crate::{module::Module, resolve::ModulePart};
 
@@ -28,20 +28,20 @@ impl InnerAssets {
 // behavior.
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, TaskInput)]
 pub enum CommonJsReferenceSubType {
     Custom(u8),
     Undefined,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, TaskInput)]
 pub enum ImportWithType {
     Json,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Default, Clone, Hash)]
+#[derive(Debug, Default, Clone, Hash, TaskInput)]
 pub enum EcmaScriptModulesReferenceSubType {
     ImportPart(ModulePart),
     Import,
@@ -170,7 +170,7 @@ impl ImportContext {
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, TaskInput)]
 pub enum CssReferenceSubType {
     AtImport(Option<ResolvedVc<ImportContext>>),
     /// Reference from ModuleCssAsset to an imported ModuleCssAsset for retrieving the composed
@@ -185,7 +185,7 @@ pub enum CssReferenceSubType {
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, TaskInput)]
 pub enum UrlReferenceSubType {
     EcmaScriptNewUrl,
     CssUrl,
@@ -194,14 +194,14 @@ pub enum UrlReferenceSubType {
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, TaskInput)]
 pub enum TypeScriptReferenceSubType {
     Custom(u8),
     Undefined,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, TaskInput)]
 pub enum WorkerReferenceSubType {
     WebWorker,
     SharedWorker,
@@ -213,7 +213,7 @@ pub enum WorkerReferenceSubType {
 // TODO(sokra) this was next.js specific values. We want to solve this in a
 // different way.
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, TaskInput)]
 pub enum EntryReferenceSubType {
     Web,
     Page,
@@ -229,7 +229,7 @@ pub enum EntryReferenceSubType {
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, TaskInput)]
 pub enum ReferenceType {
     CommonJs(CommonJsReferenceSubType),
     EcmaScriptModules(EcmaScriptModulesReferenceSubType),
