@@ -3,23 +3,21 @@ import { cx } from '../../utils/cx'
 
 export function VersionStalenessInfo({
   versionInfo,
-  isTurbopack,
+  bundlerName,
 }: {
   versionInfo: VersionInfo
-  isTurbopack?: boolean
+  // Passed from parent for easier handling in Storybook.
+  bundlerName: 'Webpack' | 'Turbopack' | 'Rspack'
 }) {
   const { staleness } = versionInfo
   let { text, indicatorClass, title } = getStaleness(versionInfo)
 
+  const isTurbopack = bundlerName === 'Turbopack'
   const shouldBeLink = staleness.startsWith('stale')
   if (shouldBeLink) {
     return (
       <a
-        className={cx(
-          'nextjs-container-build-error-version-status',
-          'dialog-exclude-closing-from-outside-click',
-          isTurbopack && 'turbopack-border'
-        )}
+        className="nextjs-container-build-error-version-status dialog-exclude-closing-from-outside-click"
         target="_blank"
         rel="noopener noreferrer"
         href="https://nextjs.org/docs/messages/version-staleness"
@@ -30,7 +28,9 @@ export function VersionStalenessInfo({
         <span data-nextjs-version-checker title={title}>
           {text}
         </span>
-        {isTurbopack && <span className="turbopack-text">Turbopack</span>}
+        <span className={cx(isTurbopack && 'turbopack-text')}>
+          {bundlerName}
+        </span>
       </a>
     )
   }
@@ -41,7 +41,7 @@ export function VersionStalenessInfo({
       <span data-nextjs-version-checker title={title}>
         {text}
       </span>
-      {isTurbopack && <span className="turbopack-text">Turbopack</span>}
+      <span className={cx(isTurbopack && 'turbopack-text')}>{bundlerName}</span>
     </span>
   )
 }

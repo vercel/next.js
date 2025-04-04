@@ -3,7 +3,7 @@ title: useLinkStatus
 description: API Reference for the useLinkStatus hook.
 ---
 
-`useLinkStatus` is a **Client Component** hook that lets you track the loading state of a `Link` component during navigation. It can be used to show loading indicators during page transitions, especially when [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) is disabled, or the linked route does not have any loading states. 
+`useLinkStatus` is a **Client Component** hook that lets you track the loading state of a `Link` component during navigation. It can be used to show loading indicators during page transitions, especially when [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) is disabled, or the linked route does not have any loading states.
 
 ```tsx filename="app/loading-indicator.tsx" switcher
 'use client'
@@ -12,7 +12,7 @@ import { useLinkStatus } from 'next/navigation'
 
 export default function LoadingIndicator() {
   const { pending } = useLinkStatus()
-  return pending ? <div>Loading...</div> : null
+  return pending ? <span>⌛</span> : null
 }
 ```
 
@@ -23,7 +23,7 @@ import { useLinkStatus } from 'next/navigation'
 
 export default function LoadingIndicator() {
   const { pending } = useLinkStatus()
-  return pending ? <div>Loading...</div> : null
+  return pending ? <span>⌛</span> : null
 }
 ```
 
@@ -85,21 +85,37 @@ const { pending } = useLinkStatus()
 
 ### Improving the user experience when navigating with new query parameters
 
-In this example, navigating between categories updates the query string (e.g. ?category=books). However, the page may appear unresponsive because the `<PageSkeleton />` fallback won't replace the existing content (see [preventing unwanted loading indicators](https://react.dev/reference/react/useTransition#preventing-unwanted-loading-indicators)). 
+In this example, navigating between categories updates the query string (e.g. ?category=books). However, the page may appear unresponsive because the `<PageSkeleton />` fallback won't replace the existing content (see [preventing unwanted loading indicators](https://react.dev/reference/react/useTransition#preventing-unwanted-loading-indicators)).
 
-You can use the `useLinkStatus` hook to render a lightweight loading indicator next to the active link and provide immediate feedback to the user while the data is being fetched. 
+You can use the `useLinkStatus` hook to render a lightweight loading indicator next to the active link and provide immediate feedback to the user while the data is being fetched.
 
-```tsx filename="app/page.tsx" switcher
+```tsx filename="app/components/loading-indicator.tsx" switcher
 'use client'
 
-import { useSearchParams, useLinkStatus } from 'next/navigation'
-import Link from 'next/link'
-import { Suspense } from 'react'
+import { useLinkStatus } from 'next/navigation'
 
-function LoadingIndicator() {
+export default function LoadingIndicator() {
   const { pending } = useLinkStatus()
   return pending ? <span>⌛</span> : null
 }
+```
+
+```jsx filename="app/components/loading-indicator.js" switcher
+'use client'
+
+import { useLinkStatus } from 'next/navigation'
+
+export default function LoadingIndicator() {
+  const { pending } = useLinkStatus()
+  return pending ? <span>⌛</span> : null
+}
+```
+
+```tsx filename="app/page.tsx" switcher
+import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import { Suspense } from 'react'
+import LoadingIndicator from './loading-indicator'
 
 function MenuBar() {
   return (
@@ -148,16 +164,10 @@ export default async function ProductCategories({
 ```
 
 ```jsx filename="app/page.js" switcher
-'use client'
-
-import { useSearchParams, useLinkStatus } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Suspense } from 'react'
-
-function LoadingIndicator() {
-  const { pending } = useLinkStatus()
-  return pending ? <span>⌛</span> : null
-}
+import LoadingIndicator from './loading-indicator'
 
 function MenuBar() {
   return (

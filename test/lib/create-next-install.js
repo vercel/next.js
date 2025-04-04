@@ -134,9 +134,7 @@ async function createNextInstall({
       }
 
       if (useRspack) {
-        combinedDependencies['@next/plugin-rspack'] = pkgPaths.get(
-          '@next/plugin-rspack'
-        )
+        combinedDependencies['next-rspack'] = pkgPaths.get('next-rspack')
       }
 
       const scripts = {
@@ -192,7 +190,7 @@ async function createNextInstall({
       }
 
       if (useRspack) {
-        // This is what the @next/plugin-rspack plugin does.
+        // This is what the next-rspack plugin does.
         // TODO: Load the plugin properly during test
         process.env.NEXT_RSPACK = 'true'
         process.env.RSPACK_CONFIG_VALIDATE = 'loose-silent'
