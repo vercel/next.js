@@ -53,12 +53,9 @@ import type { Params } from '../request/params'
 import React from 'react'
 import type { ImplicitTags } from '../lib/implicit-tags'
 
-type CacheKeyParts = [
-  buildId: string,
-  hmrRefreshHash: string | undefined,
-  id: string,
-  args: unknown[],
-]
+type CacheKeyParts =
+  | [buildId: string, id: string, args: unknown[]]
+  | [buildId: string, id: string, args: unknown[], hmrRefreshHash: string]
 
 export interface UseCachePageComponentProps {
   params: Promise<Params>
@@ -162,7 +159,8 @@ function generateCacheEntryWithCacheContext(
     explicitExpire: undefined,
     explicitStale: undefined,
     tags: null,
-    hmrRefreshHash: outerWorkUnitStore && getHmrRefreshHash(outerWorkUnitStore),
+    hmrRefreshHash:
+      outerWorkUnitStore && getHmrRefreshHash(workStore, outerWorkUnitStore),
     isHmrRefresh: useCacheOrRequestStore?.isHmrRefresh ?? false,
     serverComponentsHmrCache: useCacheOrRequestStore?.serverComponentsHmrCache,
     forceRevalidate: shouldForceRevalidate(workStore, outerWorkUnitStore),
@@ -309,7 +307,7 @@ async function generateCacheEntryImpl(
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
   const temporaryReferences = createServerTemporaryReferenceSet()
 
-  const [, , , args] =
+  const [, , args] =
     typeof encodedArguments === 'string'
       ? await decodeReply<CacheKeyParts>(
           encodedArguments,
@@ -543,7 +541,8 @@ export function cache(
       // components have been edited. This is a very coarse approach. But it's
       // also only a temporary solution until Action IDs are unique per
       // implementation. Remove this once Action IDs hash the implementation.
-      const hmrRefreshHash = workUnitStore && getHmrRefreshHash(workUnitStore)
+      const hmrRefreshHash =
+        workUnitStore && getHmrRefreshHash(workStore, workUnitStore)
 
       const hangingInputAbortSignal =
         workUnitStore?.type === 'prerender'
@@ -605,7 +604,11 @@ export function cache(
       }
 
       const temporaryReferences = createClientTemporaryReferenceSet()
-      const cacheKeyParts: CacheKeyParts = [buildId, hmrRefreshHash, id, args]
+
+      const cacheKeyParts: CacheKeyParts = hmrRefreshHash
+        ? [buildId, id, args, hmrRefreshHash]
+        : [buildId, id, args]
+
       const encodedCacheKeyParts: FormData | string = await encodeReply(
         cacheKeyParts,
         { temporaryReferences, signal: hangingInputAbortSignal }

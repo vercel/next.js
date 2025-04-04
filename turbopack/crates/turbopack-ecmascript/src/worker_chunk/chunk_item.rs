@@ -42,11 +42,7 @@ impl WorkerLoaderChunkItem {
         let module = self.module.await?;
 
         Ok(self.chunking_context.evaluated_chunk_group_assets(
-            AssetIdent::from_path(
-                self.chunking_context
-                    .chunk_path(module.inner.ident(), ".js".into()),
-            )
-            .with_modifier(worker_modifier()),
+            module.inner.ident().with_modifier(worker_modifier()),
             ChunkGroup::Isolated(ResolvedVc::upcast(module.inner)),
             *self.module_graph,
             Value::new(AvailabilityInfo::Root),

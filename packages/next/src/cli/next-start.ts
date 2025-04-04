@@ -33,10 +33,6 @@ const nextStart = async (options: NextStartOptions, directory?: string) => {
     printAndExit(getReservedPortExplanation(port), 1)
   }
 
-  if (options.turbo || options.turbopack) {
-    process.env.TURBOPACK = '1'
-  }
-
   await startServer({
     dir,
     isDev: false,
