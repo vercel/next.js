@@ -281,7 +281,7 @@ Learn more in the [React Query documentation](https://tanstack.com/query/latest/
 
 ### Rendering components only in the browser
 
-Client components are [prerendered](https://github.com/reactwg/server-components/discussions/4) during `next build`. If you want to disable prerendering for a client component and only load it in the browser environment, you can use [`next/dynamic`](/docs/app/building-your-application/optimizing/lazy-loading#nextdynamic):
+Client components are [prerendered](https://github.com/reactwg/server-components/discussions/4) during `next build`. If you want to disable prerendering for a client component and only load it in the browser environment, you can use [`next/dynamic`](/docs/app/guides/lazy-loading#nextdynamic):
 
 ```jsx
 import dynamic from 'next/dynamic'
@@ -393,7 +393,7 @@ Learn more about [mutating data with Server Actions](/docs/app/building-your-app
 
 ## Static export (optional)
 
-Next.js also supports generating a fully [static site](/docs/app/building-your-application/deploying/static-exports). This has some advantages over strict SPAs:
+Next.js also supports generating a fully [static site](/docs/app/guides/self-hosting#static-html-exports). This has some advantages over strict SPAs:
 
 - **Automatic code-splitting**: Instead of shipping a single `index.html`, Next.js will generate an HTML file per route, so your visitors get the content faster without waiting for the client JavaScript bundle.
 - **Improved user experience:** Instead of a minimal skeleton for all routes, you get fully rendered pages for each route. When users navigate client side, transitions remain instant and SPA-like.
@@ -412,7 +412,7 @@ export default nextConfig
 
 After running `next build`, Next.js will create an `out` folder with the HTML/CSS/JS assets for your application.
 
-> **Note:** Next.js server features are not supported with static exports. [Learn more](/docs/app/building-your-application/deploying/static-exports#unsupported-features).
+> **Note:** Next.js server features are not supported with static exports. [Learn more](/docs/app/guides/self-hosting#static-html-exports#unsupported-features).
 
 ## Migrating existing projects to Next.js
 
