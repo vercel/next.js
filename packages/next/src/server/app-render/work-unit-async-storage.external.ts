@@ -23,7 +23,7 @@ export type WorkUnitPhase = 'action' | 'render' | 'after'
 export interface CommonWorkUnitStore {
   /** NOTE: Will be mutated as phases change */
   phase: WorkUnitPhase
-  readonly implicitTags: ImplicitTags | undefined
+  readonly implicitTags: ImplicitTags
 }
 
 export interface RequestStore extends CommonWorkUnitStore {
@@ -162,7 +162,16 @@ export type PrerenderStore =
   | PrerenderStorePPR
   | PrerenderStoreModern
 
-export interface UseCacheStore extends CommonWorkUnitStore {
+export interface CommonCacheStore
+  extends Omit<CommonWorkUnitStore, 'implicitTags'> {
+  /**
+   * A cache work unit store might not always have an outer work unit store,
+   * from which implicit tags could be inherited.
+   */
+  readonly implicitTags: ImplicitTags | undefined
+}
+
+export interface UseCacheStore extends CommonCacheStore {
   type: 'cache'
   // Collected revalidate times and tags for this cache entry during the cache render.
   revalidate: number // implicit revalidate time from inner caches / fetches
@@ -181,7 +190,7 @@ export interface UseCacheStore extends CommonWorkUnitStore {
   readonly draftMode: DraftModeProvider | undefined
 }
 
-export interface UnstableCacheStore extends CommonWorkUnitStore {
+export interface UnstableCacheStore extends CommonCacheStore {
   type: 'unstable-cache'
   // Draft mode is only available if the outer work unit store is a request
   // store and draft mode is enabled.
