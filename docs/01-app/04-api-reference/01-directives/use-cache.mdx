@@ -105,19 +105,17 @@ function CachedComponent({ children }) {
 
 The return value of the cacheable function must be serializable. This ensures that the cached data can be stored and retrieved correctly.
 
-## At build time
+## `use cache` at build time
 
 When used at the top of a [layout](/docs/app/api-reference/file-conventions/layout) or [page](/docs/app/api-reference/file-conventions/page), the route segment will be prerendered, allowing it to later be [revalidated](#during-revalidation).
 
 This means `use cache` cannot be used with [request-time APIs](/docs/app/getting-started/caching-and-revalidating#dynamic-apis) like `cookies` or `headers`.
 
-## At runtime
+## `use cache` at runtime
 
 On the **server**, the cache entries of individual components or functions will be cached in-memory.
 
 Then, on the **client**, any content returned from the server cache will be stored in the browser's memory for the duration of the session or until [revalidated](#during-revalidation).
-
-> In future, Next.js will support storing function cache entries in a persistent cache.
 
 ## During revalidation
 
@@ -188,7 +186,10 @@ export default function Page() {
 }
 ```
 
-> This is recommended for applications that previously used the [`export const dynamic = "force-static"`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) option, and will ensure the entire route is prerendered.
+> **Good to know**:
+>
+> - If `use cache` is added only to the `layout` or the `page`, only that route segment and any components imported into it will be cached.
+> - This is recommended for applications that previously used the [`export const dynamic = "force-static"`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) option, and will ensure the entire route is prerendered.
 
 ### Caching a component's output with `use cache`
 
