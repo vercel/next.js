@@ -70,7 +70,7 @@ next lint --dir pages --dir utils --file bar.js
 
 ### Specifying a root directory within a monorepo
 
-If you're using `eslint-plugin-next` in a project where Next.js isn't installed in your root directory (such as a monorepo), you can tell `eslint-plugin-next` where to find your Next.js application using the `settings` property in your `.eslintrc`:
+If you're using `eslint-plugin-next` in a project where Next.js isn't installed in your root directory (such as a monorepo), you can tell `eslint-plugin-next` where to find your Next.js application using the `settings` property in your `eslint.config.mjs`:
 
 ```mjs filename="eslint.config.mjs"
 import { FlatCompat } from '@eslint/eslintrc'
@@ -106,7 +106,7 @@ next lint --no-cache
 
 ### Disabling rules
 
-If you would like to modify or disable any rules provided by the supported plugins (`react`, `react-hooks`, `next`), you can directly change them using the `rules` property in your `.eslintrc`:
+If you would like to modify or disable any rules provided by the supported plugins (`react`, `react-hooks`, `next`), you can directly change them using the `rules` property in your `eslint.config.mjs`:
 
 ```mjs filename="eslint.config.mjs"
 import { FlatCompat } from '@eslint/eslintrc'
