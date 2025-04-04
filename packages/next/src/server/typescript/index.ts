@@ -39,7 +39,12 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
     // The default user config is { "name": "next" }
     const isPluginEnabled = info.config.enabled ?? true
 
-    if (!isPluginEnabled) {
+    const isPluginInitialized = init({
+      ts,
+      info,
+    })
+
+    if (!isPluginEnabled || !isPluginInitialized) {
       return info.languageService
     }
 
@@ -50,11 +55,6 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       // @ts-expect-error - JS runtime trickery which is tricky to type tersely
       proxy[k] = (...args: Array<{}>) => x.apply(info.languageService, args)
     }
-
-    init({
-      ts,
-      info,
-    })
 
     // Auto completion
     proxy.getCompletionsAtPosition = (
