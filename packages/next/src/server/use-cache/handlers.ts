@@ -2,9 +2,7 @@ import DefaultCacheHandler from '../lib/cache-handlers/default'
 import type { CacheHandlerCompat } from '../lib/cache-handlers/types'
 
 const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
-  ? (message: string, ...args: any[]) => {
-      console.log(`use-cache: ${message}`, ...args)
-    }
+  ? console.debug.bind(console, 'use-cache:')
   : () => {}
 
 const handlersSymbol = Symbol.for('@next/cache-handlers')

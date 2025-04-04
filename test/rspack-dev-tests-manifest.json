@@ -9024,7 +9024,7 @@
       "use-cache should override fetch with cookies/auth in use cache properly",
       "use-cache should override fetch with no-store in use cache properly",
       "use-cache should return the same object reference for multiple invocations",
-      "use-cache should revalidate before redirecting in a route handlers",
+      "use-cache should revalidate before redirecting in route handlers",
       "use-cache should revalidate caches after redirect",
       "use-cache should revalidate caches during on-demand revalidation",
       "use-cache should revalidate caches nested in unstable_cache",

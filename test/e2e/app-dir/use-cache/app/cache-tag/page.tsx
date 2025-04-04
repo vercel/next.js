@@ -21,7 +21,7 @@ async function getCachedWithTag({
     `https://next-data-api-endpoint.vercel.app/api/random?tag=${tag}`,
     {
       cache: fetchCache === 'force' ? 'force-cache' : undefined,
-      next: { revalidate: fetchCache === 'revalidate' ? 42 : undefined },
+      next: { revalidate: fetchCache === 'revalidate' ? 800 : undefined },
     }
   )
 
