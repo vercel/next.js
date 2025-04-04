@@ -3065,7 +3065,7 @@ export default async function build(
                     throw new Error('Dynamic route not found')
                   }
 
-                  dynamicRoute.prefetchSegmentDataRoutes = []
+                  dynamicRoute.prefetchSegmentDataRoutes ??= []
                   for (const segmentPath of metadata.segmentPaths) {
                     const result = buildPrefetchSegmentDataRoute(
                       route.pathname,
