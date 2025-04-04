@@ -142,7 +142,7 @@ export default async function Image() {
           name: 'Inter',
           data: interSemiBold,
           style: 'normal',
-          weight: 400,
+          weight: 600,
         },
       ],
     }
@@ -198,7 +198,7 @@ export default async function Image() {
           name: 'Inter',
           data: interSemiBold,
           style: 'normal',
-          weight: 400,
+          weight: 600,
         },
       ],
     }
@@ -402,7 +402,7 @@ export default async function Image({ params }) {
 
 #### Using Node.js runtime with local assets
 
-This example uses the Node.js runtime to fetch a local image on the file system and passes it as an `ArrayBuffer` to the `src` attribute of an `<img>` element. The local asset should be placed relative to the root of your project, rather than the location of the example source file.
+This example uses the Node.js runtime to fetch a local image on the file system and passes it as a `base64-encoded data URL` to the `src` attribute of an <img> element. The local asset should be placed relative to the root of your project, rather than the location of the example source file.
 
 ```tsx filename="app/opengraph-image.tsx" switcher
 import { ImageResponse } from 'next/og'
@@ -411,7 +411,7 @@ import { readFile } from 'node:fs/promises'
 
 export default async function Image() {
   const logoData = await readFile(join(process.cwd(), 'logo.png'))
-  const logoSrc = Uint8Array.from(logoData).buffer
+  const base64Image = `data:image/png;base64,${Buffer.from(logoData).toString('base64')}`
 
   return new ImageResponse(
     (
@@ -422,7 +422,7 @@ export default async function Image() {
           justifyContent: 'center',
         }}
       >
-        <img src={logoSrc} height="100" />
+        <img src={base64Image} height={100} alt={'Logo'} />
       </div>
     )
   )
@@ -436,7 +436,7 @@ import { readFile } from 'node:fs/promises'
 
 export default async function Image() {
   const logoData = await readFile(join(process.cwd(), 'logo.png'))
-  const logoSrc = Uint8Array.from(logoData).buffer
+  const base64Image = `data:image/png;base64,${Buffer.from(logoData).toString('base64')}`
 
   return new ImageResponse(
     (
@@ -447,7 +447,7 @@ export default async function Image() {
           justifyContent: 'center',
         }}
       >
-        <img src={logoSrc} height="100" />
+        <img src={base64Image} height="100" alt="Logo" />
       </div>
     )
   )
