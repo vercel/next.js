@@ -323,7 +323,7 @@ impl OutputAsset for CssChunk {
         Ok(self
             .await?
             .chunking_context
-            .chunk_path(ident, ".css".into()))
+            .chunk_path(Some(Vc::upcast(self)), ident, ".css".into()))
     }
 
     #[turbo_tasks::function]
