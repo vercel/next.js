@@ -1,4 +1,4 @@
-use std::{io::Write, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
 use swc_core::{
@@ -118,21 +118,13 @@ pub fn minify(path: &FileSystemPath, code: &Code, source_maps: bool, mangle: boo
         print_program(cm.clone(), program, source_maps.is_some())?
     };
 
-    let mut builder = CodeBuilder::default();
+    let mut builder = CodeBuilder::new(source_maps.is_some());
     if let Some(original_map) = source_maps.as_ref() {
         src_map_buf.shrink_to_fit();
         builder.push_source(
             &src.into(),
             Some(generate_js_source_map(cm, src_map_buf, Some(original_map))?),
         );
-
-        write!(
-            builder,
-            // findSourceMapURL assumes this co-located sourceMappingURL,
-            // and needs to be adjusted in case this is ever changed.
-            "\n//# sourceMappingURL={}.map",
-            urlencoding::encode(path.file_name())
-        )?;
     } else {
         builder.push_source(&src.into(), None);
     }
@@ -167,10 +159,6 @@ fn print_program(
             emitter
                 .emit_program(&program)
                 .context("failed to emit module")?;
-        }
-        if source_maps {
-            // end with a new line when we have a source map comment
-            buf.push(b'\n');
         }
         // Invalid utf8 is valid in javascript world.
         // SAFETY: SWC generates valid utf8.
