@@ -264,7 +264,7 @@ export function NodejsInspectorButton({
         title={label}
         aria-label={label}
         className="nodejs-inspector-button"
-        href={`https://nextjs.org/docs/app/building-your-application/configuring/debugging#server-side-code`}
+        href={`https://nextjs.org/docs/app/guides/debugging#server-side-code`}
         target="_blank"
         rel="noopener noreferrer"
       >
