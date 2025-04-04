@@ -12,11 +12,23 @@ export interface ImplicitTags {
   /**
    * Modern cache handlers don't receive implicit tags. Instead, the implicit
    * tags' expiration is stored in the work unit store, and used to compare with
-   * a cache entry's timestamp. Note: This is a promise-like value so that we
-   * can evaluate it lazily when a cache entry is read. It allows us to skip
-   * fetching the expiration value if no caches are read at all.
+   * a cache entry's timestamp.
+   *
+   * Note: If this is a promise-like value, it represents a lazy value that is
+   * evaluated when a cache entry is read for the first time. It allows us to
+   * skip fetching the expiration value if no caches are read at all. After it's
+   * retrieved, we store it as a number to allow synchronous access during
+   * subsequent cache reads.
    */
-  readonly expiration: PromiseLike<number>
+  expiration: PromiseLike<number> | number
+}
+
+/**
+ * Same as {@link ImplicitTags}, but with a resolved numerical expiration value.
+ */
+export interface ResolvedImplicitTags {
+  readonly tags: string[]
+  readonly expiration: number
 }
 
 const getDerivedTags = (pathname: string): string[] => {
@@ -101,9 +113,27 @@ export async function getImplicitTags(
     tags.push(tag)
   }
 
-  const expiration = createLazyResult(async () =>
-    getImplicitTagsExpiration(tags)
+  const expiration = createLazyResult(
+    async () =>
+      (implicitTags.expiration = await getImplicitTagsExpiration(tags))
   )
 
-  return { tags, expiration }
+  const implicitTags: ImplicitTags = { tags, expiration }
+
+  return implicitTags
+}
+
+export function isResolvedImplicitTags(
+  implicitTags: ImplicitTags
+): implicitTags is ResolvedImplicitTags {
+  return typeof implicitTags.expiration === 'number'
+}
+
+export async function resolveImplicitTags(
+  implicitTags: ImplicitTags
+): Promise<ResolvedImplicitTags> {
+  return {
+    tags: implicitTags.tags,
+    expiration: await implicitTags.expiration,
+  }
 }

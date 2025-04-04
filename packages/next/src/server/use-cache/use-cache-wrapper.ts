@@ -51,7 +51,11 @@ import {
 } from '../request/search-params'
 import type { Params } from '../request/params'
 import React from 'react'
-import type { ImplicitTags } from '../lib/implicit-tags'
+import {
+  isResolvedImplicitTags,
+  resolveImplicitTags,
+  type ResolvedImplicitTags,
+} from '../lib/implicit-tags'
 import { createLazyResult } from '../lib/lazy-result'
 
 type CacheKeyParts =
@@ -722,12 +726,16 @@ export function cache(
                 implicitTags?.tags ?? []
               )
 
-        if (
-          entry &&
-          (await shouldDiscardCacheEntry(entry, workStore, implicitTags))
-        ) {
-          debug?.('discarding stale entry', serializedCacheKey)
-          entry = undefined
+        if (entry) {
+          const resolvedImplicitTags =
+            !implicitTags || isResolvedImplicitTags(implicitTags)
+              ? implicitTags
+              : await resolveImplicitTags(implicitTags)
+
+          if (shouldDiscardCacheEntry(entry, workStore, resolvedImplicitTags)) {
+            debug?.('discarding stale entry', serializedCacheKey)
+            entry = undefined
+          }
         }
 
         const currentTime = performance.timeOrigin + performance.now()
@@ -951,11 +959,11 @@ function shouldForceRevalidate(
   return false
 }
 
-async function shouldDiscardCacheEntry(
+function shouldDiscardCacheEntry(
   entry: CacheEntry,
   workStore: WorkStore,
-  implicitTags: ImplicitTags | undefined
-): Promise<boolean> {
+  implicitTags: ResolvedImplicitTags | undefined
+): boolean {
   // If the cache entry contains revalidated tags that the cache handler might
   // not know about yet, we need to discard it.
   if (entry.tags.some((tag) => isRecentlyRevalidatedTag(tag, workStore))) {
@@ -965,7 +973,7 @@ async function shouldDiscardCacheEntry(
   if (implicitTags) {
     // If the cache entry was created before any of the implicit tags were
     // revalidated last, we also need to discard it.
-    if (entry.timestamp <= (await implicitTags.expiration)) {
+    if (entry.timestamp <= implicitTags.expiration) {
       debug?.(
         'entry was created at',
         entry.timestamp,
