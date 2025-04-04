@@ -78,7 +78,8 @@ export function initializeCacheHandlers(): boolean {
 /**
  * Get a cache handler by kind.
  * @param kind - The kind of cache handler to get.
- * @returns The cache handler, or `undefined` if it is not initialized or does not exist.
+ * @returns The cache handler, or `undefined` if it does not exist.
+ * @throws If the cache handlers are not initialized.
  */
 export function getCacheHandler(kind: string): CacheHandlerCompat | undefined {
   // This should never be called before initializeCacheHandlers.
@@ -90,8 +91,9 @@ export function getCacheHandler(kind: string): CacheHandlerCompat | undefined {
 }
 
 /**
- * Get an iterator over the cache handlers.
- * @returns An iterator over the cache handlers, or `undefined` if they are not initialized.
+ * Get a set iterator over the cache handlers.
+ * @returns An iterator over the cache handlers, or `undefined` if they are not
+ * initialized.
  */
 export function getCacheHandlers():
   | SetIterator<CacheHandlerCompat>
@@ -101,6 +103,22 @@ export function getCacheHandlers():
   }
 
   return reference[handlersSetSymbol].values()
+}
+
+/**
+ * Get a map iterator over the cache handlers (keyed by kind).
+ * @returns An iterator over the cache handler entries, or `undefined` if they
+ * are not initialized.
+ * @throws If the cache handlers are not initialized.
+ */
+export function getCacheHandlerEntries():
+  | MapIterator<[string, CacheHandlerCompat]>
+  | undefined {
+  if (!reference[handlersMapSymbol]) {
+    return undefined
+  }
+
+  return reference[handlersMapSymbol].entries()
 }
 
 /**

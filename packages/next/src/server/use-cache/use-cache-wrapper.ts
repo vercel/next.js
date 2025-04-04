@@ -52,6 +52,7 @@ import {
 import type { Params } from '../request/params'
 import React from 'react'
 import type { ImplicitTags } from '../lib/implicit-tags'
+import { createLazyResult } from '../lib/lazy-result'
 
 type CacheKeyParts =
   | [buildId: string, id: string, args: unknown[]]
@@ -694,6 +695,11 @@ export function cache(
         const implicitTags = workUnitStore?.implicitTags
         const forceRevalidate = shouldForceRevalidate(workStore, workUnitStore)
 
+        // Lazily refresh the tags for the cache handler that's associated with
+        // this cache function. This is only done once per request and cache
+        // handler, when it's awaited for the first time.
+        await workStore.refreshTagsByCacheKind.get(kind)
+
         let entry = forceRevalidate
           ? undefined
           : 'getExpiration' in cacheHandler
@@ -706,7 +712,10 @@ export function cache(
                 implicitTags?.tags ?? []
               )
 
-        if (entry && shouldDiscardCacheEntry(entry, workStore, implicitTags)) {
+        if (
+          entry &&
+          (await shouldDiscardCacheEntry(entry, workStore, implicitTags))
+        ) {
           entry = undefined
         }
 
@@ -880,25 +889,6 @@ export function cache(
   return React.cache(cachedFn)
 }
 
-/**
- * Calls the given function only when the returned promise is awaited.
- */
-function createLazyResult<TResult>(
-  fn: () => Promise<TResult>
-): PromiseLike<TResult> {
-  let pendingResult: Promise<TResult> | undefined
-
-  return {
-    then(onfulfilled, onrejected) {
-      if (!pendingResult) {
-        pendingResult = fn()
-      }
-
-      return pendingResult.then(onfulfilled, onrejected)
-    },
-  }
-}
-
 function isPageComponent(
   args: any[]
 ): args is [UseCachePageComponentProps, undefined] {
@@ -937,11 +927,11 @@ function shouldForceRevalidate(
   return false
 }
 
-function shouldDiscardCacheEntry(
+async function shouldDiscardCacheEntry(
   entry: CacheEntry,
   workStore: WorkStore,
   implicitTags: ImplicitTags | undefined
-): boolean {
+): Promise<boolean> {
   // If the cache entry contains revalidated tags that the cache handler might
   // not know about yet, we need to discard it.
   if (entry.tags.some((tag) => isRecentlyRevalidatedTag(tag, workStore))) {
@@ -951,7 +941,7 @@ function shouldDiscardCacheEntry(
   if (implicitTags) {
     // If the cache entry was created before any of the implicit tags were
     // revalidated last, we also need to discard it.
-    if (entry.timestamp <= implicitTags.expiration) {
+    if (entry.timestamp <= (await implicitTags.expiration)) {
       return true
     }
 

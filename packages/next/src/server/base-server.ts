@@ -1440,7 +1440,9 @@ export default abstract class Server<
         await Promise.all(
           [...cacheHandlers].map(async (cacheHandler) => {
             if ('refreshTags' in cacheHandler) {
-              await cacheHandler.refreshTags()
+              // Note: cacheHandler.refreshTags() is called lazily before the
+              // first cache entry is retrieved. It allows us to skip the
+              // refresh request if no caches are read at all.
             } else {
               const previouslyRevalidatedTags = getPreviouslyRevalidatedTags(
                 req.headers,
