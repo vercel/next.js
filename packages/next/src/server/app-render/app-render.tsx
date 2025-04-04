@@ -53,6 +53,7 @@ import {
   NEXT_URL,
   RSC_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
+  NEXT_HMR_REFRESH_HASH_COOKIE,
 } from '../../client/components/app-router-headers'
 import {
   createTrackedMetadataContext,
@@ -226,6 +227,12 @@ export type AppRenderContext = {
   isNotFoundPath: boolean
   nonce: string | undefined
   res: BaseNextResponse
+  /**
+   * For now, the implicit tags are common for the whole route. If we ever start
+   * rendering/revalidating segments independently, they need to move to the
+   * work unit store.
+   */
+  implicitTags: ImplicitTags
 }
 
 interface ParseRequestHeadersOptions {
@@ -679,7 +686,15 @@ async function warmupDevRender(
   req: BaseNextRequest,
   ctx: AppRenderContext
 ): Promise<RenderResult> {
-  const renderOpts = ctx.renderOpts
+  const {
+    clientReferenceManifest,
+    componentMod,
+    getDynamicParamFromSegment,
+    implicitTags,
+    renderOpts,
+    workStore,
+  } = ctx
+
   if (!renderOpts.dev) {
     throw new InvariantError(
       'generateDynamicFlightRenderResult should never be called in `next start` mode.'
@@ -687,8 +702,8 @@ async function warmupDevRender(
   }
 
   const rootParams = getRootParams(
-    ctx.componentMod.tree,
-    ctx.getDynamicParamFromSegment
+    componentMod.tree,
+    getDynamicParamFromSegment
   )
 
   function onFlightDataRenderError(err: DigestedError) {
@@ -715,7 +730,7 @@ async function warmupDevRender(
     type: 'prerender',
     phase: 'render',
     rootParams,
-    implicitTags: undefined,
+    implicitTags,
     renderSignal: renderController.signal,
     controller: prerenderController,
     cacheSignal,
@@ -725,6 +740,7 @@ async function warmupDevRender(
     stale: INFINITE_CACHE,
     tags: [],
     prerenderResumeDataCache,
+    hmrRefreshHash: req.cookies[NEXT_HMR_REFRESH_HASH_COOKIE],
   }
 
   const rscPayload = await workUnitAsyncStorage.run(
@@ -737,9 +753,9 @@ async function warmupDevRender(
   // which contains the subset React.
   workUnitAsyncStorage.run(
     prerenderStore,
-    ctx.componentMod.renderToReadableStream,
+    componentMod.renderToReadableStream,
     rscPayload,
-    ctx.clientReferenceManifest.clientModules,
+    clientReferenceManifest.clientModules,
     {
       onError,
       signal: renderController.signal,
@@ -757,7 +773,7 @@ async function warmupDevRender(
   // that calls into renderToHTML... expects a result. We should refactor this to
   // lift the warmup pathway outside of renderToHTML... but for now this suffices
   return new FlightRenderResult('', {
-    fetchMetrics: ctx.workStore.fetchMetrics,
+    fetchMetrics: workStore.fetchMetrics,
     devRenderResumeDataCache: createRenderResumeDataCache(
       prerenderResumeDataCache
     ),
@@ -1341,6 +1357,12 @@ async function renderToHTMLOrFlightImpl(
 
   const isActionRequest = getServerActionRequestMetadata(req).isServerAction
 
+  const implicitTags = await getImplicitTags(
+    workStore.page,
+    url,
+    fallbackRouteParams
+  )
+
   const ctx: AppRenderContext = {
     componentMod: ComponentMod,
     url,
@@ -1362,15 +1384,10 @@ async function renderToHTMLOrFlightImpl(
     nonce,
     res,
     sharedContext,
+    implicitTags,
   }
 
   getTracer().setRootSpanAttribute('next.route', pagePath)
-
-  const implicitTags = await getImplicitTags(
-    workStore.page,
-    url,
-    fallbackRouteParams
-  )
 
   if (isStaticGeneration) {
     // We're either building or revalidating. In either case we need to
@@ -1392,8 +1409,7 @@ async function renderToHTMLOrFlightImpl(
       ctx,
       metadata,
       workStore,
-      loaderTree,
-      implicitTags
+      loaderTree
     )
 
     // If we're debugging partial prerendering, print all the dynamic API accesses
@@ -2215,11 +2231,15 @@ async function spawnDynamicValidationInDev(
   route: string,
   requestStore: RequestStore
 ): Promise<void> {
-  const { componentMod: ComponentMod } = ctx
+  const { componentMod: ComponentMod, implicitTags } = ctx
   const rootParams = getRootParams(
     ComponentMod.tree,
     ctx.getDynamicParamFromSegment
   )
+
+  const hmrRefreshHash = requestStore.cookies.get(
+    NEXT_HMR_REFRESH_HASH_COOKIE
+  )?.value
 
   // Prerender controller represents the lifetime of the prerender.
   // It will be aborted when a Task is complete or a synchronously aborting
@@ -2238,7 +2258,7 @@ async function spawnDynamicValidationInDev(
     type: 'prerender',
     phase: 'render',
     rootParams,
-    implicitTags: undefined,
+    implicitTags,
     renderSignal: initialServerRenderController.signal,
     controller: initialServerPrerenderController,
     cacheSignal,
@@ -2248,6 +2268,7 @@ async function spawnDynamicValidationInDev(
     stale: INFINITE_CACHE,
     tags: [],
     prerenderResumeDataCache,
+    hmrRefreshHash,
   }
 
   const initialClientController = new AbortController()
@@ -2255,7 +2276,7 @@ async function spawnDynamicValidationInDev(
     type: 'prerender',
     phase: 'render',
     rootParams,
-    implicitTags: undefined,
+    implicitTags,
     renderSignal: initialClientController.signal,
     controller: initialClientController,
     cacheSignal,
@@ -2265,6 +2286,7 @@ async function spawnDynamicValidationInDev(
     stale: INFINITE_CACHE,
     tags: [],
     prerenderResumeDataCache,
+    hmrRefreshHash,
   }
 
   // We're not going to use the result of this render because the only time it could be used
@@ -2401,7 +2423,7 @@ async function spawnDynamicValidationInDev(
     type: 'prerender',
     phase: 'render',
     rootParams,
-    implicitTags: undefined,
+    implicitTags,
     renderSignal: finalServerController.signal,
     controller: finalServerController,
     // During the final prerender we don't need to track cache access so we omit the signal
@@ -2412,6 +2434,7 @@ async function spawnDynamicValidationInDev(
     stale: INFINITE_CACHE,
     tags: [],
     prerenderResumeDataCache,
+    hmrRefreshHash,
   }
 
   const finalClientController = new AbortController()
@@ -2422,7 +2445,7 @@ async function spawnDynamicValidationInDev(
     type: 'prerender',
     phase: 'render',
     rootParams,
-    implicitTags: undefined,
+    implicitTags,
     renderSignal: finalClientController.signal,
     controller: finalClientController,
     // During the final prerender we don't need to track cache access so we omit the signal
@@ -2433,6 +2456,7 @@ async function spawnDynamicValidationInDev(
     stale: INFINITE_CACHE,
     tags: [],
     prerenderResumeDataCache,
+    hmrRefreshHash,
   }
 
   const finalServerPayload = await workUnitAsyncStorage.run(
@@ -2592,16 +2616,23 @@ async function prerenderToStream(
   ctx: AppRenderContext,
   metadata: AppPageRenderResultMetadata,
   workStore: WorkStore,
-  tree: LoaderTree,
-  implicitTags: ImplicitTags
+  tree: LoaderTree
 ): Promise<PrerenderToStreamResult> {
   // When prerendering formState is always null. We still include it
   // because some shared APIs expect a formState value and this is slightly
   // more explicit than making it an optional function argument
   const formState = null
-  const rootParams = getRootParams(tree, ctx.getDynamicParamFromSegment)
 
-  const renderOpts = ctx.renderOpts
+  const {
+    assetPrefix,
+    getDynamicParamFromSegment,
+    implicitTags,
+    nonce,
+    pagePath,
+    renderOpts,
+  } = ctx
+
+  const rootParams = getRootParams(tree, getDynamicParamFromSegment)
   const ComponentMod = renderOpts.ComponentMod
   // TODO: fix this typescript
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
@@ -2610,7 +2641,7 @@ async function prerenderToStream(
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
   const { ServerInsertedMetadataProvider, getServerInsertedMetadata } =
-    createServerInsertedMetadata(ctx.nonce)
+    createServerInsertedMetadata(nonce)
 
   const tracingMetadata = getTracedMetadata(
     getTracer().getTracePropagationData(),
@@ -2624,25 +2655,25 @@ async function prerenderToStream(
           polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
       )
       .map((polyfill) => ({
-        src: `${ctx.assetPrefix}/_next/${polyfill}${getAssetQueryString(
+        src: `${assetPrefix}/_next/${polyfill}${getAssetQueryString(
           ctx,
           false
         )}`,
         integrity: renderOpts.subresourceIntegrityManifest?.[polyfill],
         crossOrigin: renderOpts.crossOrigin,
         noModule: true,
-        nonce: ctx.nonce,
+        nonce: nonce,
       }))
 
   const [preinitScripts, bootstrapScript] = getRequiredScripts(
     renderOpts.buildManifest,
     // Why is assetPrefix optional on renderOpts?
     // @TODO make it default empty string on renderOpts and get rid of it from ctx
-    ctx.assetPrefix,
+    assetPrefix,
     renderOpts.crossOrigin,
     renderOpts.subresourceIntegrityManifest,
     getAssetQueryString(ctx, true),
-    ctx.nonce,
+    nonce,
     renderOpts.page
   )
 
@@ -2759,6 +2790,7 @@ async function prerenderToStream(
           stale: INFINITE_CACHE,
           tags: [...implicitTags.tags],
           prerenderResumeDataCache,
+          hmrRefreshHash: undefined,
         })
 
         // We're not going to use the result of this render because the only time it could be used
@@ -2853,6 +2885,7 @@ async function prerenderToStream(
             stale: INFINITE_CACHE,
             tags: [...implicitTags.tags],
             prerenderResumeDataCache,
+            hmrRefreshHash: undefined,
           }
 
           const prerender = require('react-dom/static.edge')
@@ -2870,7 +2903,7 @@ async function prerenderToStream(
                   ServerInsertedMetadataProvider={
                     ServerInsertedMetadataProvider
                   }
-                  nonce={ctx.nonce}
+                  nonce={nonce}
                 />,
                 {
                   signal: initialClientController.signal,
@@ -2939,6 +2972,7 @@ async function prerenderToStream(
           stale: INFINITE_CACHE,
           tags: [...implicitTags.tags],
           prerenderResumeDataCache,
+          hmrRefreshHash: undefined,
         })
 
         const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
@@ -3008,6 +3042,7 @@ async function prerenderToStream(
           stale: INFINITE_CACHE,
           tags: [...implicitTags.tags],
           prerenderResumeDataCache,
+          hmrRefreshHash: undefined,
         }
 
         let clientIsDynamic = false
@@ -3026,7 +3061,7 @@ async function prerenderToStream(
                 clientReferenceManifest={clientReferenceManifest}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
                 ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
-                nonce={ctx.nonce}
+                nonce={nonce}
               />,
               {
                 signal: finalClientController.signal,
@@ -3151,13 +3186,13 @@ async function prerenderToStream(
                 clientReferenceManifest={clientReferenceManifest}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
                 ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
-                nonce={ctx.nonce}
+                nonce={nonce}
               />,
               JSON.parse(JSON.stringify(postponed)),
               {
                 signal: createPostponedAbortSignal('static prerender resume'),
                 onError: htmlRendererErrorHandler,
-                nonce: ctx.nonce,
+                nonce,
               }
             )
 
@@ -3171,7 +3206,7 @@ async function prerenderToStream(
             stream: await continueStaticPrerender(htmlStream, {
               inlinedDataStream: createInlinedDataReadableStream(
                 reactServerResult.consumeAsStream(),
-                ctx.nonce,
+                nonce,
                 formState
               ),
               getServerInsertedHTML,
@@ -3242,6 +3277,7 @@ async function prerenderToStream(
           stale: INFINITE_CACHE,
           tags: [...implicitTags.tags],
           prerenderResumeDataCache,
+          hmrRefreshHash: undefined,
         })
 
         const initialClientController = new AbortController()
@@ -3259,6 +3295,7 @@ async function prerenderToStream(
           stale: INFINITE_CACHE,
           tags: [...implicitTags.tags],
           prerenderResumeDataCache,
+          hmrRefreshHash: undefined,
         })
 
         // We're not going to use the result of this render because the only time it could be used
@@ -3340,7 +3377,7 @@ async function prerenderToStream(
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
-              nonce={ctx.nonce}
+              nonce={nonce}
             />,
             {
               signal: initialClientController.signal,
@@ -3412,6 +3449,7 @@ async function prerenderToStream(
           stale: INFINITE_CACHE,
           tags: [...implicitTags.tags],
           prerenderResumeDataCache,
+          hmrRefreshHash: undefined,
         })
 
         let clientIsDynamic = false
@@ -3436,6 +3474,7 @@ async function prerenderToStream(
           stale: INFINITE_CACHE,
           tags: [...implicitTags.tags],
           prerenderResumeDataCache,
+          hmrRefreshHash: undefined,
         })
 
         const finalServerPayload = await workUnitAsyncStorage.run(
@@ -3493,7 +3532,7 @@ async function prerenderToStream(
                   ServerInsertedMetadataProvider={
                     ServerInsertedMetadataProvider
                   }
-                  nonce={ctx.nonce}
+                  nonce={nonce}
                 />,
                 {
                   signal: finalClientController.signal,
@@ -3590,7 +3629,7 @@ async function prerenderToStream(
           stream: await continueFizzStream(htmlStream!, {
             inlinedDataStream: createInlinedDataReadableStream(
               serverPrerenderStreamResult.asStream(),
-              ctx.nonce,
+              nonce,
               formState
             ),
             isStaticGeneration: true,
@@ -3672,7 +3711,7 @@ async function prerenderToStream(
           clientReferenceManifest={clientReferenceManifest}
           ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
           ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
-          nonce={ctx.nonce}
+          nonce={nonce}
         />,
         {
           onError: htmlRendererErrorHandler,
@@ -3804,13 +3843,13 @@ async function prerenderToStream(
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
-              nonce={ctx.nonce}
+              nonce={nonce}
             />,
             JSON.parse(JSON.stringify(postponed)),
             {
               signal: createPostponedAbortSignal('static prerender resume'),
               onError: htmlRendererErrorHandler,
-              nonce: ctx.nonce,
+              nonce,
             }
           )
 
@@ -3824,7 +3863,7 @@ async function prerenderToStream(
           stream: await continueStaticPrerender(htmlStream, {
             inlinedDataStream: createInlinedDataReadableStream(
               reactServerResult.consumeAsStream(),
-              ctx.nonce,
+              nonce,
               formState
             ),
             getServerInsertedHTML,
@@ -3883,11 +3922,11 @@ async function prerenderToStream(
           clientReferenceManifest={clientReferenceManifest}
           ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
           ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
-          nonce={ctx.nonce}
+          nonce={nonce}
         />,
         {
           onError: htmlRendererErrorHandler,
-          nonce: ctx.nonce,
+          nonce,
           bootstrapScripts: [bootstrapScript],
         }
       )
@@ -3917,7 +3956,7 @@ async function prerenderToStream(
         stream: await continueFizzStream(htmlStream, {
           inlinedDataStream: createInlinedDataReadableStream(
             reactServerResult.consumeAsStream(),
-            ctx.nonce,
+            nonce,
             formState
           ),
           isStaticGeneration: true,
@@ -3958,7 +3997,7 @@ async function prerenderToStream(
     if (shouldBailoutToCSR) {
       const stack = getStackWithoutErrorMessage(err)
       error(
-        `${err.reason} should be wrapped in a suspense boundary at page "${ctx.pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout\n${stack}`
+        `${err.reason} should be wrapped in a suspense boundary at page "${pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout\n${stack}`
       )
 
       throw err
@@ -3991,11 +4030,11 @@ async function prerenderToStream(
 
     const [errorPreinitScripts, errorBootstrapScript] = getRequiredScripts(
       renderOpts.buildManifest,
-      ctx.assetPrefix,
+      assetPrefix,
       renderOpts.crossOrigin,
       renderOpts.subresourceIntegrityManifest,
       getAssetQueryString(ctx, false),
-      ctx.nonce,
+      nonce,
       '/_not-found/page'
     )
 
@@ -4047,11 +4086,11 @@ async function prerenderToStream(
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
             preinitScripts={errorPreinitScripts}
             clientReferenceManifest={clientReferenceManifest}
-            nonce={ctx.nonce}
+            nonce={nonce}
           />
         ),
         streamOptions: {
-          nonce: ctx.nonce,
+          nonce,
           // Include hydration scripts in the HTML
           bootstrapScripts: [errorBootstrapScript],
           formState,
@@ -4089,7 +4128,7 @@ async function prerenderToStream(
         stream: await continueFizzStream(fizzStream, {
           inlinedDataStream: createInlinedDataReadableStream(
             flightStream,
-            ctx.nonce,
+            nonce,
             formState
           ),
           isStaticGeneration: true,

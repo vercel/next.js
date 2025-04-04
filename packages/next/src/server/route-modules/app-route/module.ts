@@ -393,6 +393,7 @@ export class AppRouteRouteModule extends RouteModule<
               stale: INFINITE_CACHE,
               tags: [...implicitTags.tags],
               prerenderResumeDataCache: null,
+              hmrRefreshHash: undefined,
             })
 
           let prospectiveResult
@@ -478,6 +479,7 @@ export class AppRouteRouteModule extends RouteModule<
             stale: INFINITE_CACHE,
             tags: [...implicitTags.tags],
             prerenderResumeDataCache: null,
+            hmrRefreshHash: undefined,
           })
 
           let responseHandled = false
