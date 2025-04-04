@@ -177,6 +177,7 @@ function generateCacheEntryWithCacheContext(
   return workUnitAsyncStorage.run(
     cacheStore,
     generateCacheEntryImpl,
+    workStore,
     outerWorkUnitStore,
     cacheStore,
     clientReferenceManifest,
@@ -220,6 +221,7 @@ function propagateCacheLifeAndTags(
 
 async function collectResult(
   savedStream: ReadableStream,
+  workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   innerCacheStore: UseCacheStore,
   startTime: number,
@@ -248,7 +250,9 @@ async function collectResult(
   let idx = 0
   const bufferStream = new ReadableStream({
     pull(controller) {
-      if (idx < buffer.length) {
+      if (workStore.invalidUsageError) {
+        controller.error(workStore.invalidUsageError)
+      } else if (idx < buffer.length) {
         controller.enqueue(buffer[idx++])
       } else if (errors.length > 0) {
         // TODO: Should we use AggregateError here?
@@ -303,6 +307,7 @@ async function collectResult(
 }
 
 async function generateCacheEntryImpl(
+  workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   innerCacheStore: UseCacheStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
@@ -411,6 +416,7 @@ async function generateCacheEntryImpl(
 
   const promiseOfCacheEntry = collectResult(
     savedStream,
+    workStore,
     outerWorkUnitStore,
     innerCacheStore,
     startTime,

@@ -1428,6 +1428,9 @@ async function renderToHTMLOrFlightImpl(
 
     // If we encountered any unexpected errors during build we fail the
     // prerendering phase and the build.
+    if (workStore.invalidUsageError) {
+      throw workStore.invalidUsageError
+    }
     if (response.digestErrorsMap.size) {
       const buildFailingError = response.digestErrorsMap.values().next().value
       if (buildFailingError) throw buildFailingError
@@ -1611,6 +1614,10 @@ async function renderToHTMLOrFlightImpl(
       formState,
       postponedState
     )
+
+    if (workStore.invalidUsageError) {
+      throw workStore.invalidUsageError
+    }
 
     // If we have pending revalidates, wait until they are all resolved.
     if (
