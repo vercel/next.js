@@ -509,7 +509,7 @@ function bindingToApi(
     try {
       return await fn()
     } catch (nativeError: any) {
-      throw new TurbopackInternalError(nativeError)
+      throw TurbopackInternalError.createAndRecordTelemetry(nativeError)
     }
   }
 
@@ -577,7 +577,7 @@ function bindingToApi(
       } catch (e) {
         if (e === cancel) return
         if (e instanceof Error) {
-          throw new TurbopackInternalError(e)
+          throw TurbopackInternalError.createAndRecordTelemetry(e)
         }
         throw e
       } finally {

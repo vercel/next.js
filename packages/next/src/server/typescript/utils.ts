@@ -1,4 +1,11 @@
-import path from 'path'
+import type { VirtualTypeScriptEnvironment } from 'next/dist/compiled/@typescript/vfs'
+import {
+  createFSBackedSystem,
+  createDefaultMapFromNodeModules,
+  createVirtualTypeScriptEnvironment,
+} from 'next/dist/compiled/@typescript/vfs'
+
+import path, { join } from 'path'
 
 import type tsModule from 'typescript/lib/tsserverlibrary'
 type TypeScript = typeof import('typescript/lib/tsserverlibrary')
@@ -6,9 +13,10 @@ type TypeScript = typeof import('typescript/lib/tsserverlibrary')
 let ts: TypeScript
 let info: tsModule.server.PluginCreateInfo
 let appDirRegExp: RegExp
+export let virtualTsEnv: VirtualTypeScriptEnvironment
 
 export function log(message: string) {
-  info.project.projectService.logger.info(message)
+  info.project.projectService.logger.info('[next] ' + message)
 }
 
 // This function has to be called initially.
@@ -16,13 +24,38 @@ export function init(opts: {
   ts: TypeScript
   info: tsModule.server.PluginCreateInfo
 }) {
+  const projectDir = opts.info.project.getCurrentDirectory()
   ts = opts.ts
   info = opts.info
-  const projectDir = info.project.getCurrentDirectory()
   appDirRegExp = new RegExp(
     '^' + (projectDir + '(/src)?/app').replace(/[\\/]/g, '[\\/]')
   )
-  log('Starting Next.js TypeScript plugin: ' + projectDir)
+
+  log('Initializing Next.js TypeScript plugin: ' + projectDir)
+
+  const compilerOptions = info.project.getCompilerOptions()
+  const fsMap = createDefaultMapFromNodeModules(
+    compilerOptions,
+    ts,
+    join(projectDir, 'node_modules/typescript/lib')
+  )
+  const system = createFSBackedSystem(fsMap, projectDir, ts)
+
+  virtualTsEnv = createVirtualTypeScriptEnvironment(
+    system,
+    [],
+    ts,
+    compilerOptions
+  )
+
+  if (virtualTsEnv) {
+    log(
+      'Failed to create virtual TypeScript environment. This is a bug in Next.js TypeScript plugin. Please report it by opening an issue at https://github.com/vercel/next.js/issues.'
+    )
+    return
+  }
+
+  log('Successfully initialized Next.js TypeScript plugin!')
 }
 
 export function getTs() {
@@ -39,6 +72,13 @@ export function getTypeChecker() {
 
 export function getSource(fileName: string) {
   return info.languageService.getProgram()?.getSourceFile(fileName)
+}
+
+export function getSourceFromVirtualTsEnv(fileName: string) {
+  if (virtualTsEnv.sys.fileExists(fileName)) {
+    return virtualTsEnv.getSourceFile(fileName)
+  }
+  return getSource(fileName)
 }
 
 export function removeStringQuotes(str: string): string {

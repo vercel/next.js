@@ -56,7 +56,6 @@ export const CONFIG_FILES = [
   'next.config.ts',
 ]
 export const BUILD_ID_FILE = 'BUILD_ID'
-export const IS_TURBOPACK_BUILD_FILE = 'IS_TURBOPACK_BUILD'
 export const BLOCKED_PAGES = ['/_document', '/_app', '/_error']
 export const CLIENT_PUBLIC_FILES_PATH = 'public'
 export const CLIENT_STATIC_FILES_PATH = 'static'

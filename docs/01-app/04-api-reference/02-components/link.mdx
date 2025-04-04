@@ -55,27 +55,29 @@ The following props can be passed to the `<Link>` component:
 
 <PagesOnly>
 
-| Prop                                | Example                 | Type              | Required |
-| ----------------------------------- | ----------------------- | ----------------- | -------- |
-| [`href`](#href-required)            | `href="/dashboard"`     | String or Object  | Yes      |
-| [`replace`](#replace)               | `replace={false}`       | Boolean           | -        |
-| [`scroll`](#scroll)                 | `scroll={false}`        | Boolean           | -        |
-| [`prefetch`](#prefetch)             | `prefetch={false}`      | Boolean           | -        |
-| [`legacyBehavior`](#legacybehavior) | `legacyBehavior={true}` | Boolean           | -        |
-| [`passHref`](#passhref)             | `passHref={true}`       | Boolean           | -        |
-| [`shallow`](#shallow)               | `shallow={false}`       | Boolean           | -        |
-| [`locale`](#locale)                 | `locale="fr"`           | String or Boolean | -        |
+| Prop                                | Example                  | Type              | Required |
+| ----------------------------------- | ------------------------ | ----------------- | -------- |
+| [`href`](#href-required)            | `href="/dashboard"`      | String or Object  | Yes      |
+| [`replace`](#replace)               | `replace={false}`        | Boolean           | -        |
+| [`scroll`](#scroll)                 | `scroll={false}`         | Boolean           | -        |
+| [`prefetch`](#prefetch)             | `prefetch={false}`       | Boolean           | -        |
+| [`legacyBehavior`](#legacybehavior) | `legacyBehavior={true}`  | Boolean           | -        |
+| [`passHref`](#passhref)             | `passHref={true}`        | Boolean           | -        |
+| [`shallow`](#shallow)               | `shallow={false}`        | Boolean           | -        |
+| [`locale`](#locale)                 | `locale="fr"`            | String or Boolean | -        |
+| [`onNavigate`](#onnavigate)         | `onNavigate={(e) => {}}` | Function          | -        |
 
 </PagesOnly>
 
 <AppOnly>
 
-| Prop                     | Example             | Type             | Required |
-| ------------------------ | ------------------- | ---------------- | -------- |
-| [`href`](#href-required) | `href="/dashboard"` | String or Object | Yes      |
-| [`replace`](#replace)    | `replace={false}`   | Boolean          | -        |
-| [`scroll`](#scroll)      | `scroll={false}`    | Boolean          | -        |
-| [`prefetch`](#prefetch)  | `prefetch={false}`  | Boolean or null  | -        |
+| Prop                        | Example                  | Type             | Required |
+| --------------------------- | ------------------------ | ---------------- | -------- |
+| [`href`](#href-required)    | `href="/dashboard"`      | String or Object | Yes      |
+| [`replace`](#replace)       | `replace={false}`        | Boolean          | -        |
+| [`scroll`](#scroll)         | `scroll={false}`         | Boolean          | -        |
+| [`prefetch`](#prefetch)     | `prefetch={false}`       | Boolean or null  | -        |
+| [`onNavigate`](#onnavigate) | `onNavigate={(e) => {}}` | Function         | -        |
 
 </AppOnly>
 
@@ -449,6 +451,58 @@ export default function Home() {
 ```
 
 </PagesOnly>
+
+### `onNavigate`
+
+An event handler called during client-side navigation. The handler receives an event object that includes a `preventDefault()` method, allowing you to cancel the navigation if needed.
+
+```tsx filename="app/page.tsx" switcher
+import Link from 'next/link'
+
+export default function Page() {
+  return (
+    <Link
+      href="/dashboard"
+      onNavigate={(e) => {
+        // Only executes during SPA navigation
+        console.log('Navigating...')
+
+        // Optionally prevent navigation
+        // e.preventDefault()
+      }}
+    >
+      Dashboard
+    </Link>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+import Link from 'next/link'
+
+export default function Page() {
+  return (
+    <Link
+      href="/dashboard"
+      onNavigate={(e) => {
+        // Only executes during SPA navigation
+        console.log('Navigating...')
+
+        // Optionally prevent navigation
+        // e.preventDefault()
+      }}
+    >
+      Dashboard
+    </Link>
+  )
+}
+```
+
+> **Good to know**: While `onClick` and `onNavigate` may seem similar, they serve different purposes. `onClick` executes for all click events, while `onNavigate` only runs during client-side navigation. Some key differences:
+>
+> - When using modifier keys (`Ctrl`/`Cmd` + Click), `onClick` executes but `onNavigate` doesn't since Next.js prevents default navigation for new tabs.
+> - External URLs won't trigger `onNavigate` since it's only for client-side and same-origin navigations.
+> - Links with the `download` attribute will work with `onClick` but not `onNavigate` since the browser will treat the linked URL as a download.
 
 ## Examples
 
@@ -1178,10 +1232,287 @@ export default function Home() {
 
 </PagesOnly>
 
+### Blocking navigation
+
+You can use the `onNavigate` prop to block navigation when certain conditions are met, such as when a form has unsaved changes. When you need to block navigation across multiple components in your app (like preventing navigation from any link while a form is being edited), React Context provides a clean way to share this blocking state. First, create a context to track the navigation blocking state:
+
+```tsx filename="app/contexts/navigation-blocker.tsx" switcher
+'use client'
+
+import { createContext, useState, useContext } from 'react'
+
+interface NavigationBlockerContextType {
+  isBlocked: boolean
+  setIsBlocked: (isBlocked: boolean) => void
+}
+
+export const NavigationBlockerContext =
+  createContext<NavigationBlockerContextType>({
+    isBlocked: false,
+    setIsBlocked: () => {},
+  })
+
+export function NavigationBlockerProvider({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const [isBlocked, setIsBlocked] = useState(false)
+
+  return (
+    <NavigationBlockerContext.Provider value={{ isBlocked, setIsBlocked }}>
+      {children}
+    </NavigationBlockerContext.Provider>
+  )
+}
+
+export function useNavigationBlocker() {
+  return useContext(NavigationBlockerContext)
+}
+```
+
+```jsx filename="app/contexts/navigation-blocker.js" switcher
+'use client'
+
+import { createContext, useState, useContext } from 'react'
+
+export const NavigationBlockerContext = createContext({
+  isBlocked: false,
+  setIsBlocked: () => {},
+})
+
+export function NavigationBlockerProvider({ children }) {
+  const [isBlocked, setIsBlocked] = useState(false)
+
+  return (
+    <NavigationBlockerContext.Provider value={{ isBlocked, setIsBlocked }}>
+      {children}
+    </NavigationBlockerContext.Provider>
+  )
+}
+
+export function useNavigationBlocker() {
+  return useContext(NavigationBlockerContext)
+}
+```
+
+Create a form component that uses the context:
+
+```tsx filename="app/components/form.tsx" switcher
+'use client'
+
+import { useNavigationBlocker } from '../contexts/navigation-blocker'
+
+export default function Form() {
+  const { setIsBlocked } = useNavigationBlocker()
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        setIsBlocked(false)
+      }}
+      onChange={() => setIsBlocked(true)}
+    >
+      <input type="text" name="name" />
+      <button type="submit">Save</button>
+    </form>
+  )
+}
+```
+
+```jsx filename="app/components/form.js" switcher
+'use client'
+
+import { useNavigationBlocker } from '../contexts/navigation-blocker'
+
+export default function Form() {
+  const { setIsBlocked } = useNavigationBlocker()
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        setIsBlocked(false)
+      }}
+      onChange={() => setIsBlocked(true)}
+    >
+      <input type="text" name="name" />
+      <button type="submit">Save</button>
+    </form>
+  )
+}
+```
+
+Create a custom Link component that blocks navigation:
+
+```tsx filename="app/components/custom-link.tsx" switcher
+'use client'
+
+import Link from 'next/link'
+import { useNavigationBlocker } from '../contexts/navigation-blocker'
+
+interface CustomLinkProps extends React.ComponentProps<typeof Link> {
+  children: React.ReactNode
+}
+
+export function CustomLink({ children, ...props }: CustomLinkProps) {
+  const { isBlocked } = useNavigationBlocker()
+
+  return (
+    <Link
+      onNavigate={(e) => {
+        if (
+          isBlocked &&
+          !window.confirm('You have unsaved changes. Leave anyway?')
+        ) {
+          e.preventDefault()
+        }
+      }}
+      {...props}
+    >
+      {children}
+    </Link>
+  )
+}
+```
+
+```jsx filename="app/components/custom-link.js" switcher
+'use client'
+
+import Link from 'next/link'
+import { useNavigationBlocker } from '../contexts/navigation-blocker'
+
+export function CustomLink({ children, ...props }) {
+  const { isBlocked } = useNavigationBlocker()
+
+  return (
+    <Link
+      onNavigate={(e) => {
+        if (
+          isBlocked &&
+          !window.confirm('You have unsaved changes. Leave anyway?')
+        ) {
+          e.preventDefault()
+        }
+      }}
+      {...props}
+    >
+      {children}
+    </Link>
+  )
+}
+```
+
+Create a navigation component:
+
+```tsx filename="app/components/nav.tsx" switcher
+'use client'
+
+import { CustomLink as Link } from './custom-link'
+
+export default function Nav() {
+  return (
+    <nav>
+      <Link href="/">Home</Link>
+      <Link href="/about">About</Link>
+    </nav>
+  )
+}
+```
+
+```jsx filename="app/components/nav.js" switcher
+'use client'
+
+import { CustomLink as Link } from './custom-link'
+
+export default function Nav() {
+  return (
+    <nav>
+      <Link href="/">Home</Link>
+      <Link href="/about">About</Link>
+    </nav>
+  )
+}
+```
+
+Finally, wrap your app with the `NavigationBlockerProvider` in the root layout and use the components in your page:
+
+```tsx filename="app/layout.tsx" switcher
+import { NavigationBlockerProvider } from './contexts/navigation-blocker'
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <NavigationBlockerProvider>{children}</NavigationBlockerProvider>
+      </body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+import { NavigationBlockerProvider } from './contexts/navigation-blocker'
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        <NavigationBlockerProvider>{children}</NavigationBlockerProvider>
+      </body>
+    </html>
+  )
+}
+```
+
+Then, use the `Nav` and `Form` components in your page:
+
+```tsx filename="app/page.tsx" switcher
+import Nav from './components/nav'
+import Form from './components/form'
+
+export default function Page() {
+  return (
+    <div>
+      <Nav />
+      <main>
+        <h1>Welcome to the Dashboard</h1>
+        <Form />
+      </main>
+    </div>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+import Nav from './components/nav'
+import Form from './components/form'
+
+export default function Page() {
+  return (
+    <div>
+      <Nav />
+      <main>
+        <h1>Welcome to the Dashboard</h1>
+        <Form />
+      </main>
+    </div>
+  )
+}
+```
+
+When a user tries to navigate away using `CustomLink` while the form has unsaved changes, they'll be prompted to confirm before leaving.
+
 ## Version history
 
 | Version   | Changes                                                                                                                                                                                         |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v15.3.0` | Add `onNavigate` API                                                                                                                                                                            |
 | `v13.0.0` | No longer requires a child `<a>` tag. A [codemod](/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components) is provided to automatically update your codebase. |
 | `v10.0.0` | `href` props pointing to a dynamic route are automatically resolved and no longer require an `as` prop.                                                                                         |
 | `v8.0.0`  | Improved prefetching performance.                                                                                                                                                               |

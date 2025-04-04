@@ -40,6 +40,7 @@ import { getSelectedParams } from './router-reducer/compute-changed-path'
 import type { FlightRouterState } from '../../server/app-render/types'
 import { useNavFailureHandler } from './nav-failure-handler'
 import {
+  dispatchTraverseAction,
   publicAppRouterInstance,
   type AppRouterActionQueue,
 } from './app-router-instance'
@@ -418,11 +419,10 @@ function Router({
       // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
       // Without startTransition works if the cache is there for this path
       startTransition(() => {
-        dispatchAppRouterAction({
-          type: ACTION_RESTORE,
-          url: new URL(window.location.href),
-          tree: event.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
-        })
+        dispatchTraverseAction(
+          window.location.href,
+          event.state.__PRIVATE_NEXTJS_INTERNALS_TREE
+        )
       })
     }
 

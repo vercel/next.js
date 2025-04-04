@@ -269,6 +269,11 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
+    async fn chunk_root_path(&self) -> Vc<FileSystemPath> {
+        *self.chunk_root_path
+    }
+
+    #[turbo_tasks::function]
     async fn chunk_path(
         &self,
         ident: Vc<AssetIdent>,
