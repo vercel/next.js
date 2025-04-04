@@ -32,11 +32,11 @@ describe('use-cache-custom-handler', () => {
     )
 
     expect(next.cliOutput.slice(outputIndex)).toMatch(
-      /ModernCustomCacheHandler::get \["(development|[A-Za-z0-9_-]{21})","\$undefined","([0-9a-f]{2})+",\[\]\]/
+      /ModernCustomCacheHandler::get \["(development|[A-Za-z0-9_-]{21})","([0-9a-f]{2})+",\[\]\]/
     )
 
     expect(next.cliOutput.slice(outputIndex)).toMatch(
-      /ModernCustomCacheHandler::set \["(development|[A-Za-z0-9_-]{21})","\$undefined","([0-9a-f]{2})+",\[\]\]/
+      /ModernCustomCacheHandler::set \["(development|[A-Za-z0-9_-]{21})","([0-9a-f]{2})+",\[\]\]/
     )
 
     // The data should be cached initially.
@@ -67,11 +67,11 @@ describe('use-cache-custom-handler', () => {
     )
 
     expect(next.cliOutput.slice(outputIndex)).toMatch(
-      /LegacyCustomCacheHandler::get \["(development|[A-Za-z0-9_-]{21})","\$undefined","([0-9a-f]{2})+",\[\]\] \["_N_T_\/layout","_N_T_\/legacy\/layout","_N_T_\/legacy\/page","_N_T_\/legacy"\]/
+      /LegacyCustomCacheHandler::get \["(development|[A-Za-z0-9_-]{21})","([0-9a-f]{2})+",\[\]\] \["_N_T_\/layout","_N_T_\/legacy\/layout","_N_T_\/legacy\/page","_N_T_\/legacy"\]/
     )
 
     expect(next.cliOutput.slice(outputIndex)).toMatch(
-      /LegacyCustomCacheHandler::set \["(development|[A-Za-z0-9_-]{21})","\$undefined","([0-9a-f]{2})+",\[\]\]/
+      /LegacyCustomCacheHandler::set \["(development|[A-Za-z0-9_-]{21})","([0-9a-f]{2})+",\[\]\]/
     )
 
     // The data should be cached initially.

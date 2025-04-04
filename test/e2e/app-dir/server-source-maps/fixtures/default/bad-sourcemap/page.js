@@ -4,8 +4,12 @@
 
 import { connection } from 'next/server'
 
+function logError() {
+  console.error(new Error('Boom!'))
+}
+
 export default async function Page() {
   await connection()
-  console.error(new Error('Boom!'))
+  logError()
   return <p>Hello, Dave!</p>
 }

@@ -523,6 +523,16 @@ To protect your application from malicious users, configuration is required in o
 ```js filename="next.config.js"
 module.exports = {
   images: {
+    remotePatterns: [new URL('https://example.com/account123/**')],
+  },
+}
+```
+
+Versions of Next.js prior to 15.3.0 can configure `remotePatterns` using the object:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
     remotePatterns: [
       {
         protocol: 'https',
@@ -1106,6 +1116,7 @@ This `next/image` component uses browser native [lazy loading](https://caniuse.c
 
 | Version    | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v15.3.0`  | `remotePatterns` added support for array of `URL` objects.                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `v15.0.0`  | `contentDispositionType` configuration default changed to `attachment`.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `v14.2.23` | `qualities` configuration added.                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `v14.2.15` | `decoding` prop added and `localPatterns` configuration added.                                                                                                                                                                                                                                                                                                                                                                                                                                                |

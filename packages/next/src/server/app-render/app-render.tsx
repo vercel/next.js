@@ -1092,7 +1092,7 @@ function App<T>({
     prerendered: response.S,
   })
 
-  const actionQueue = createMutableActionQueue(initialState)
+  const actionQueue = createMutableActionQueue(initialState, null)
 
   const { HeadManagerContext } =
     require('../../shared/lib/head-manager-context.shared-runtime') as typeof import('../../shared/lib/head-manager-context.shared-runtime')
@@ -1159,7 +1159,7 @@ function ErrorApp<T>({
     prerendered: response.S,
   })
 
-  const actionQueue = createMutableActionQueue(initialState)
+  const actionQueue = createMutableActionQueue(initialState, null)
 
   return (
     <ServerInsertedMetadataProvider>
@@ -4149,16 +4149,9 @@ export async function warmFlightResponse(
   flightStream: ReadableStream<Uint8Array>,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
 ) {
-  let createFromReadableStream
-  if (process.env.TURBOPACK) {
-    createFromReadableStream =
-      // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-turbopack/client.edge').createFromReadableStream
-  } else {
-    createFromReadableStream =
-      // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-webpack/client.edge').createFromReadableStream
-  }
+  const { createFromReadableStream } =
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    require('react-server-dom-webpack/client.edge') as typeof import('react-server-dom-webpack/client.edge')
 
   try {
     createFromReadableStream(flightStream, {

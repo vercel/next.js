@@ -525,13 +525,16 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
         remotePatterns: z
           .array(
-            z.strictObject({
-              hostname: z.string(),
-              pathname: z.string().optional(),
-              port: z.string().max(5).optional(),
-              protocol: z.enum(['http', 'https']).optional(),
-              search: z.string().optional(),
-            })
+            z.union([
+              z.instanceof(URL),
+              z.strictObject({
+                hostname: z.string(),
+                pathname: z.string().optional(),
+                port: z.string().max(5).optional(),
+                protocol: z.enum(['http', 'https']).optional(),
+                search: z.string().optional(),
+              }),
+            ])
           )
           .max(50)
           .optional(),

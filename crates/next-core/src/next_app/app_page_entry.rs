@@ -33,8 +33,8 @@ use crate::{
 /// Computes the entry for a Next.js app page.
 #[turbo_tasks::function]
 pub async fn get_app_page_entry(
-    nodejs_context: Vc<ModuleAssetContext>,
-    edge_context: Vc<ModuleAssetContext>,
+    nodejs_context: ResolvedVc<ModuleAssetContext>,
+    edge_context: ResolvedVc<ModuleAssetContext>,
     loader_tree: Vc<AppPageLoaderTree>,
     page: AppPage,
     project_root: Vc<FileSystemPath>,
@@ -48,7 +48,8 @@ pub async fn get_app_page_entry(
         nodejs_context
     };
 
-    let server_component_transition = Vc::upcast(NextServerComponentTransition::new());
+    let server_component_transition =
+        ResolvedVc::upcast(NextServerComponentTransition::new().to_resolved().await?);
 
     let base_path = next_config.await?.base_path.clone();
     let loader_tree = AppPageLoaderTreeModule::build(
@@ -123,7 +124,7 @@ pub async fn get_app_page_entry(
 
     if is_edge {
         rsc_entry = wrap_edge_page(
-            Vc::upcast(module_asset_context),
+            *ResolvedVc::upcast(module_asset_context),
             project_root,
             rsc_entry,
             page,

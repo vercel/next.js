@@ -72,7 +72,13 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  if (options.turbo || options.turbopack) {
+  const isTurbopack = Boolean(
+    options.turbo ||
+      options.turbopack ||
+      // TODO: Used for Testing in Next.js CI. Rename to something better like `NEXT_TEST_TURBOPACK`.
+      process.env.TURBOPACK
+  )
+  if (isTurbopack) {
     process.env.TURBOPACK = '1'
   }
 
@@ -83,7 +89,7 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     lint,
     !mangling,
     experimentalAppOnly,
-    !!process.env.TURBOPACK,
+    isTurbopack,
     experimentalBuildMode,
     traceUploadUrl
   )

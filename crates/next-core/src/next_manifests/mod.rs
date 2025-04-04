@@ -29,7 +29,7 @@ pub struct PagesManifest {
 pub struct BuildManifest {
     pub polyfill_files: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     pub root_main_files: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
-    pub pages: FxIndexMap<RcStr, Vc<OutputAssets>>,
+    pub pages: FxIndexMap<RcStr, ResolvedVc<OutputAssets>>,
 }
 
 impl BuildManifest {
@@ -111,12 +111,7 @@ impl BuildManifest {
             ..Default::default()
         };
 
-        let chunks: Vec<ReadRef<OutputAssets>> = self
-            .pages
-            .values()
-            // rustc struggles here, so be very explicit
-            .try_join()
-            .await?;
+        let chunks: Vec<ReadRef<OutputAssets>> = self.pages.values().try_join().await?;
 
         let references = chunks
             .into_iter()
@@ -420,7 +415,7 @@ pub struct FontManifestEntry {
 
 #[derive(Default, Debug)]
 pub struct AppBuildManifest {
-    pub pages: FxIndexMap<RcStr, Vc<OutputAssets>>,
+    pub pages: FxIndexMap<RcStr, ResolvedVc<OutputAssets>>,
 }
 
 impl AppBuildManifest {

@@ -108,7 +108,12 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
     }
   }, [nextError, isAppDir])
 
-  const totalErrorCount = runtimeErrors.length
+  const totalErrorCount = errors.filter((err, idx) => {
+    const prev = errors[idx - 1]
+    // Check for duplicates
+    if (idx > 0) return getErrorSignature(prev) !== getErrorSignature(err)
+    return true
+  }).length
 
   return children({ runtimeErrors, totalErrorCount })
 }
