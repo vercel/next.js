@@ -68,7 +68,7 @@ const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
   ? console.debug.bind(console, 'use-cache:')
-  : () => {}
+  : undefined
 
 function generateCacheEntry(
   workStore: WorkStore,
@@ -720,7 +720,7 @@ export function cache(
           entry &&
           (await shouldDiscardCacheEntry(entry, workStore, implicitTags))
         ) {
-          debug('discarding stale entry', serializedCacheKey)
+          debug?.('discarding stale entry', serializedCacheKey)
           entry = undefined
         }
 
@@ -763,14 +763,14 @@ export function cache(
 
           if (entry) {
             if (currentTime > entry.timestamp + entry.expire * 1000) {
-              debug('entry is expired', serializedCacheKey)
+              debug?.('entry is expired', serializedCacheKey)
             }
 
             if (
               workStore.isStaticGeneration &&
               currentTime > entry.timestamp + entry.revalidate * 1000
             ) {
-              debug('static generation, entry is stale', serializedCacheKey)
+              debug?.('static generation, entry is stale', serializedCacheKey)
             }
           }
 
@@ -960,7 +960,7 @@ async function shouldDiscardCacheEntry(
     // If the cache entry was created before any of the implicit tags were
     // revalidated last, we also need to discard it.
     if (entry.timestamp <= (await implicitTags.expiration)) {
-      debug(
+      debug?.(
         'entry was created at',
         entry.timestamp,
         'before implicit tags were revalidated at',
@@ -987,7 +987,7 @@ function isRecentlyRevalidatedTag(tag: string, workStore: WorkStore): boolean {
 
   // Was the tag previously revalidated (e.g. by a redirecting server action)?
   if (previouslyRevalidatedTags.includes(tag)) {
-    debug('tag', tag, 'was previously revalidated')
+    debug?.('tag', tag, 'was previously revalidated')
 
     return true
   }
@@ -996,7 +996,7 @@ function isRecentlyRevalidatedTag(tag: string, workStore: WorkStore): boolean {
   // In this case the revalidation might not have been propagated to the cache
   // handler yet, so we read it from the pending tags in the work store.
   if (pendingRevalidatedTags?.includes(tag)) {
-    debug('tag', tag, 'was just revalidated')
+    debug?.('tag', tag, 'was just revalidated')
 
     return true
   }

@@ -43,21 +43,21 @@ const pendingSets = new Map<string, Promise<void>>()
 
 const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
   ? console.debug.bind(console, 'DefaultCacheHandler:')
-  : () => {}
+  : undefined
 
 const DefaultCacheHandler: CacheHandlerV2 = {
   async get(cacheKey) {
     const pendingPromise = pendingSets.get(cacheKey)
 
     if (pendingPromise) {
-      debug('get', cacheKey, 'pending')
+      debug?.('get', cacheKey, 'pending')
       await pendingPromise
     }
 
     const privateEntry = memoryCache.get(cacheKey)
 
     if (!privateEntry) {
-      debug('get', cacheKey, 'not found')
+      debug?.('get', cacheKey, 'not found')
       return undefined
     }
 
@@ -69,20 +69,20 @@ const DefaultCacheHandler: CacheHandlerV2 = {
       // In-memory caches should expire after revalidate time because it is
       // unlikely that a new entry will be able to be used before it is dropped
       // from the cache.
-      debug('get', cacheKey, 'expired')
+      debug?.('get', cacheKey, 'expired')
 
       return undefined
     }
 
     if (isStale(entry.tags, entry.timestamp)) {
-      debug('get', cacheKey, 'had stale tag')
+      debug?.('get', cacheKey, 'had stale tag')
 
       return undefined
     }
     const [returnStream, newSaved] = entry.value.tee()
     entry.value = newSaved
 
-    debug('get', cacheKey, 'found', {
+    debug?.('get', cacheKey, 'found', {
       tags: entry.tags,
       timestamp: entry.timestamp,
       revalidate: entry.revalidate,
@@ -96,7 +96,7 @@ const DefaultCacheHandler: CacheHandlerV2 = {
   },
 
   async set(cacheKey, pendingEntry) {
-    debug('set', cacheKey, 'start')
+    debug?.('set', cacheKey, 'start')
 
     let resolvePending: () => void = () => {}
     const pendingPromise = new Promise<void>((resolve) => {
@@ -124,10 +124,10 @@ const DefaultCacheHandler: CacheHandlerV2 = {
         size,
       })
 
-      debug('set', cacheKey, 'done')
+      debug?.('set', cacheKey, 'done')
     } catch (err) {
       // TODO: store partial buffer with error after we retry 3 times
-      debug('set', cacheKey, 'failed', err)
+      debug?.('set', cacheKey, 'failed', err)
     } finally {
       resolvePending()
       pendingSets.delete(cacheKey)
@@ -143,14 +143,14 @@ const DefaultCacheHandler: CacheHandlerV2 = {
       ...tags.map((tag) => tagsManifest.get(tag) ?? 0)
     )
 
-    debug('getExpiration', { tags, expiration })
+    debug?.('getExpiration', { tags, expiration })
 
     return expiration
   },
 
   async expireTags(...tags) {
     const timestamp = Math.round(performance.timeOrigin + performance.now())
-    debug('expireTags', { tags, timestamp })
+    debug?.('expireTags', { tags, timestamp })
 
     for (const tag of tags) {
       // TODO: update file-system-cache?
