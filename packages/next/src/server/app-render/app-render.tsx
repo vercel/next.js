@@ -53,6 +53,7 @@ import {
   NEXT_URL,
   RSC_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
+  NEXT_HMR_REFRESH_HASH_COOKIE,
 } from '../../client/components/app-router-headers'
 import {
   createTrackedMetadataContext,
@@ -725,6 +726,7 @@ async function warmupDevRender(
     stale: INFINITE_CACHE,
     tags: [],
     prerenderResumeDataCache,
+    hmrRefreshHash: req.cookies[NEXT_HMR_REFRESH_HASH_COOKIE],
   }
 
   const rscPayload = await workUnitAsyncStorage.run(
@@ -2221,6 +2223,10 @@ async function spawnDynamicValidationInDev(
     ctx.getDynamicParamFromSegment
   )
 
+  const hmrRefreshHash = requestStore.cookies.get(
+    NEXT_HMR_REFRESH_HASH_COOKIE
+  )?.value
+
   // Prerender controller represents the lifetime of the prerender.
   // It will be aborted when a Task is complete or a synchronously aborting
   // API is called. Notably during cache-filling renders this does not actually
@@ -2248,6 +2254,7 @@ async function spawnDynamicValidationInDev(
     stale: INFINITE_CACHE,
     tags: [],
     prerenderResumeDataCache,
+    hmrRefreshHash,
   }
 
   const initialClientController = new AbortController()
@@ -2265,6 +2272,7 @@ async function spawnDynamicValidationInDev(
     stale: INFINITE_CACHE,
     tags: [],
     prerenderResumeDataCache,
+    hmrRefreshHash,
   }
 
   // We're not going to use the result of this render because the only time it could be used
@@ -2412,6 +2420,7 @@ async function spawnDynamicValidationInDev(
     stale: INFINITE_CACHE,
     tags: [],
     prerenderResumeDataCache,
+    hmrRefreshHash,
   }
 
   const finalClientController = new AbortController()
@@ -2433,6 +2442,7 @@ async function spawnDynamicValidationInDev(
     stale: INFINITE_CACHE,
     tags: [],
     prerenderResumeDataCache,
+    hmrRefreshHash,
   }
 
   const finalServerPayload = await workUnitAsyncStorage.run(
@@ -2759,6 +2769,7 @@ async function prerenderToStream(
           stale: INFINITE_CACHE,
           tags: [...implicitTags.tags],
           prerenderResumeDataCache,
+          hmrRefreshHash: undefined,
         })
 
         // We're not going to use the result of this render because the only time it could be used
@@ -2853,6 +2864,7 @@ async function prerenderToStream(
             stale: INFINITE_CACHE,
             tags: [...implicitTags.tags],
             prerenderResumeDataCache,
+            hmrRefreshHash: undefined,
           }
 
           const prerender = require('react-dom/static.edge')
@@ -2939,6 +2951,7 @@ async function prerenderToStream(
           stale: INFINITE_CACHE,
           tags: [...implicitTags.tags],
           prerenderResumeDataCache,
+          hmrRefreshHash: undefined,
         })
 
         const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
@@ -3008,6 +3021,7 @@ async function prerenderToStream(
           stale: INFINITE_CACHE,
           tags: [...implicitTags.tags],
           prerenderResumeDataCache,
+          hmrRefreshHash: undefined,
         }
 
         let clientIsDynamic = false
@@ -3242,6 +3256,7 @@ async function prerenderToStream(
           stale: INFINITE_CACHE,
           tags: [...implicitTags.tags],
           prerenderResumeDataCache,
+          hmrRefreshHash: undefined,
         })
 
         const initialClientController = new AbortController()
@@ -3259,6 +3274,7 @@ async function prerenderToStream(
           stale: INFINITE_CACHE,
           tags: [...implicitTags.tags],
           prerenderResumeDataCache,
+          hmrRefreshHash: undefined,
         })
 
         // We're not going to use the result of this render because the only time it could be used
@@ -3412,6 +3428,7 @@ async function prerenderToStream(
           stale: INFINITE_CACHE,
           tags: [...implicitTags.tags],
           prerenderResumeDataCache,
+          hmrRefreshHash: undefined,
         })
 
         let clientIsDynamic = false
@@ -3436,6 +3453,7 @@ async function prerenderToStream(
           stale: INFINITE_CACHE,
           tags: [...implicitTags.tags],
           prerenderResumeDataCache,
+          hmrRefreshHash: undefined,
         })
 
         const finalServerPayload = await workUnitAsyncStorage.run(

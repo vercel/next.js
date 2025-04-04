@@ -16,6 +16,7 @@ import type {
 import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
+import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../client/components/app-router-headers'
 
 export type WorkUnitPhase = 'action' | 'render' | 'after'
 
@@ -121,6 +122,13 @@ export interface PrerenderStoreModern extends CommonWorkUnitStore {
   // not part of the primary render path and are just prerendering to produce
   // validation results
   validating?: boolean
+
+  /**
+   * The HMR refresh hash is only provided in dev mode. It is needed for the dev
+   * warmup render to ensure that the cache keys will be identical for the
+   * subsequent dynamic render.
+   */
+  readonly hmrRefreshHash: string | undefined
 }
 
 export interface PrerenderStorePPR extends CommonWorkUnitStore {
@@ -276,10 +284,10 @@ export function getHmrRefreshHash(
     return undefined
   }
 
-  return workUnitStore.type === 'cache'
+  return workUnitStore.type === 'cache' || workUnitStore.type === 'prerender'
     ? workUnitStore.hmrRefreshHash
     : workUnitStore.type === 'request'
-      ? workUnitStore.cookies.get('__next_hmr_refresh_hash__')?.value
+      ? workUnitStore.cookies.get(NEXT_HMR_REFRESH_HASH_COOKIE)?.value
       : undefined
 }
 
