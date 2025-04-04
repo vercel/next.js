@@ -555,7 +555,7 @@ function getPathFromScript(chunkScript) {
         return chunkScript;
     }
     const chunkUrl = typeof TURBOPACK_NEXT_CHUNK_URLS !== "undefined" ? TURBOPACK_NEXT_CHUNK_URLS.pop() : chunkScript.getAttribute("src");
-    const src = decodeURIComponent(chunkUrl);
+    const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ""));
     const path = src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
     return path;
 }
