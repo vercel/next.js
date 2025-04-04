@@ -294,7 +294,7 @@ export function abortOnSynchronousPlatformIOAccess(
       dynamicTracking.syncDynamicErrorWithStack = errorWithStack
     }
   }
-  return abortOnSynchronousDynamicDataAccess(route, expression, prerenderStore)
+  abortOnSynchronousDynamicDataAccess(route, expression, prerenderStore)
 }
 
 export function trackSynchronousPlatformIOAccessInDev(
@@ -321,19 +321,27 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
   errorWithStack: Error,
   prerenderStore: PrerenderStoreModern
 ): never {
-  const dynamicTracking = prerenderStore.dynamicTracking
-  if (dynamicTracking) {
-    if (dynamicTracking.syncDynamicErrorWithStack === null) {
-      dynamicTracking.syncDynamicExpression = expression
-      dynamicTracking.syncDynamicErrorWithStack = errorWithStack
-      if (prerenderStore.validating === true) {
-        // We always log Request Access in dev at the point of calling the function
-        // So we mark the dynamic validation as not requiring it to be printed
-        dynamicTracking.syncDynamicLogged = true
+  const prerenderSignal = prerenderStore.controller.signal
+  if (prerenderSignal.aborted === false) {
+    // TODO it would be better to move this aborted check into the callsite so we can avoid making
+    // the error object when it isn't relevant to the aborting of the prerender however
+    // since we need the throw semantics regardless of whether we abort it is easier to land
+    // this way. See how this was handled with `abortOnSynchronousPlatformIOAccess` for a closer
+    // to ideal implementation
+    const dynamicTracking = prerenderStore.dynamicTracking
+    if (dynamicTracking) {
+      if (dynamicTracking.syncDynamicErrorWithStack === null) {
+        dynamicTracking.syncDynamicExpression = expression
+        dynamicTracking.syncDynamicErrorWithStack = errorWithStack
+        if (prerenderStore.validating === true) {
+          // We always log Request Access in dev at the point of calling the function
+          // So we mark the dynamic validation as not requiring it to be printed
+          dynamicTracking.syncDynamicLogged = true
+        }
       }
     }
+    abortOnSynchronousDynamicDataAccess(route, expression, prerenderStore)
   }
-  abortOnSynchronousDynamicDataAccess(route, expression, prerenderStore)
   throw createPrerenderInterruptedError(
     `Route ${route} needs to bail out of prerendering at this point because it used ${expression}.`
   )

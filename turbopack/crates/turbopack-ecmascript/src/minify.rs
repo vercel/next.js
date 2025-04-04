@@ -16,7 +16,10 @@ use swc_core::{
         },
         minifier::option::{CompressOptions, ExtraOptions, MangleOptions, MinifyOptions},
         parser::{lexer::Lexer, Parser, StringInput, Syntax},
-        transforms::base::fixer::paren_remover,
+        transforms::base::{
+            fixer::paren_remover,
+            hygiene::{self, hygiene_with_config},
+        },
     },
 };
 use tracing::{instrument, Level};
@@ -98,6 +101,13 @@ pub fn minify(path: &FileSystemPath, code: &Code, source_maps: bool, mangle: boo
                         mangle_name_cache: None,
                     },
                 );
+
+                if !mangle {
+                    program.mutate(hygiene_with_config(hygiene::Config {
+                        top_level_mark,
+                        ..Default::default()
+                    }));
+                }
 
                 Ok(program.apply(ecma::transforms::base::fixer::fixer(Some(
                     &comments as &dyn Comments,
