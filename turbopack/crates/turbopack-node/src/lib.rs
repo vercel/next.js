@@ -256,7 +256,7 @@ pub async fn get_intermediate_asset(
     other_entries: Vc<EvaluatableAssets>,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
     Ok(Vc::upcast(chunking_context.root_entry_chunk_group_asset(
-        chunking_context.chunk_path(main_entry.ident(), ".js".into()),
+        chunking_context.chunk_path(None, main_entry.ident(), ".js".into()),
         other_entries.with_entry(*main_entry),
         ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(
                 other_entries

@@ -98,10 +98,11 @@ fn single_item_modifier() -> Vc<RcStr> {
 impl OutputAsset for SingleItemCssChunk {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(self
-            .await?
-            .chunking_context
-            .chunk_path(self.ident_for_path(), ".single.css".into()))
+        Ok(self.await?.chunking_context.chunk_path(
+            Some(Vc::upcast(self)),
+            self.ident_for_path(),
+            ".single.css".into(),
+        ))
     }
 
     #[turbo_tasks::function]

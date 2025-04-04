@@ -244,7 +244,9 @@ impl OutputAsset for EcmascriptBrowserEvaluateChunk {
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
         let ident = self.ident_for_path();
-        Ok(this.chunking_context.chunk_path(ident, ".js".into()))
+        Ok(this
+            .chunking_context
+            .chunk_path(Some(Vc::upcast(self)), ident, ".js".into()))
     }
 
     #[turbo_tasks::function]
