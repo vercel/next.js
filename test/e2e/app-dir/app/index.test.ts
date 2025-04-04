@@ -335,7 +335,9 @@ describe('app dir - basic', () => {
         ['RSC'.toString()]: '1',
       },
     })
-    expect(res.headers.get('vary')).toBe('Accept-Encoding')
+    expect(res.headers.get('vary')).toBe(
+      isNextDeploy ? null : 'Accept-Encoding'
+    )
   })
 
   it('should pass props from getServerSideProps in root layout', async () => {
