@@ -1,7 +1,7 @@
 use anyhow::Result;
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{
         ChunkData, ChunkItem, ChunkType, ChunkingContext, ChunkingContextExt, ChunksData,
@@ -56,7 +56,7 @@ impl AsyncLoaderChunkItem {
             module.inner.ident(),
             ChunkGroup::Async(ResolvedVc::upcast(module.inner)),
             *self.module_graph,
-            Value::new(module.availability_info),
+            module.availability_info,
         ))
     }
 

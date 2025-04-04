@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -49,13 +49,13 @@ impl ManifestAsyncModule {
         module: ResolvedVc<Box<dyn ChunkableModule>>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_info: AvailabilityInfo,
     ) -> Vc<Self> {
         Self::cell(ManifestAsyncModule {
             inner: module,
             module_graph,
             chunking_context,
-            availability_info: availability_info.into_value(),
+            availability_info,
         })
     }
 
@@ -65,7 +65,7 @@ impl ManifestAsyncModule {
             self.inner.ident(),
             ChunkGroup::Async(ResolvedVc::upcast(self.inner)),
             *self.module_graph,
-            Value::new(self.availability_info),
+            self.availability_info,
         )
     }
 
@@ -91,7 +91,7 @@ impl ManifestAsyncModule {
             self.ident(),
             ChunkGroup::Async(ResolvedVc::upcast(self)),
             *this.module_graph,
-            Value::new(this.availability_info),
+            this.availability_info,
         ))
     }
 

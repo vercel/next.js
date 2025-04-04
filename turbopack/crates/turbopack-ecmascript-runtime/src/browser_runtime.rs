@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::Result;
 use indoc::writedoc;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::Vc;
 use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     context::AssetContext,
@@ -19,7 +19,7 @@ pub async fn get_browser_runtime_code(
     environment: Vc<Environment>,
     chunk_base_path: Vc<Option<RcStr>>,
     chunk_suffix_path: Vc<Option<RcStr>>,
-    runtime_type: Value<RuntimeType>,
+    runtime_type: RuntimeType,
     output_root_to_root_path: Vc<RcStr>,
     generate_source_map: bool,
 ) -> Result<Vc<Code>> {
@@ -32,7 +32,7 @@ pub async fn get_browser_runtime_code(
     );
 
     let mut runtime_base_code = vec!["browser/runtime/base/runtime-base.ts"];
-    match *runtime_type {
+    match runtime_type {
         RuntimeType::Production => runtime_base_code.push("browser/runtime/base/build-base.ts"),
         RuntimeType::Development => {
             runtime_base_code.push("browser/runtime/base/dev-base.ts");
@@ -50,7 +50,7 @@ pub async fn get_browser_runtime_code(
         .await?;
 
     let mut runtime_backend_code = vec![];
-    match (chunk_loading, *runtime_type) {
+    match (chunk_loading, runtime_type) {
         (ChunkLoading::Edge, RuntimeType::Development) => {
             runtime_backend_code.push("browser/runtime/edge/runtime-backend-edge.ts");
             runtime_backend_code.push("browser/runtime/edge/dev-backend-edge.ts");
@@ -159,7 +159,7 @@ pub async fn get_browser_runtime_code(
             chunksToRegister.forEach(registerChunk);
         "#
     )?;
-    if matches!(*runtime_type, RuntimeType::Development) {
+    if matches!(runtime_type, RuntimeType::Development) {
         writedoc!(
             code,
             r#"

@@ -5,7 +5,7 @@ use either::Either;
 use indoc::writedoc;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{rope::RopeBuilder, File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -167,7 +167,7 @@ impl EcmascriptBrowserEvaluateChunk {
                     environment,
                     chunking_context.chunk_base_path(),
                     chunking_context.chunk_suffix_path(),
-                    Value::new(chunking_context.runtime_type()),
+                    chunking_context.runtime_type(),
                     output_root_to_root_path,
                     source_maps,
                 );
@@ -178,7 +178,7 @@ impl EcmascriptBrowserEvaluateChunk {
                     environment,
                     chunking_context.chunk_base_path(),
                     chunking_context.chunk_suffix_path(),
-                    Value::new(chunking_context.runtime_type()),
+                    chunking_context.runtime_type(),
                     output_root_to_root_path,
                     source_maps,
                 );

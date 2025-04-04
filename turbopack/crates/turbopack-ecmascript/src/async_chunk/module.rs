@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext},
@@ -32,12 +32,12 @@ impl AsyncLoaderModule {
     pub fn new(
         module: ResolvedVc<Box<dyn ChunkableModule>>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_info: AvailabilityInfo,
     ) -> Vc<Self> {
         Self::cell(AsyncLoaderModule {
             inner: module,
             chunking_context,
-            availability_info: availability_info.into_value(),
+            availability_info,
         })
     }
 
