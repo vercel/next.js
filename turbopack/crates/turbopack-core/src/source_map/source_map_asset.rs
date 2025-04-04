@@ -1,6 +1,10 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexSet, NonLocalValue, ResolvedVc,
+    ValueToString, Vc,
+};
 use turbo_tasks_fs::{File, FileSystemPath};
 
 use crate::{
@@ -12,11 +16,21 @@ use crate::{
     source_map::{GenerateSourceMap, SourceMap},
 };
 
+#[derive(PartialEq, Eq, Serialize, Deserialize, NonLocalValue, TraceRawVcs, ValueDebugFormat)]
+enum PathType {
+    Fixed {
+        path: ResolvedVc<FileSystemPath>,
+    },
+    FromIdent {
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        ident_for_path: ResolvedVc<AssetIdent>,
+    },
+}
+
 /// Represents the source map of an ecmascript asset.
 #[turbo_tasks::value]
 pub struct SourceMapAsset {
-    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ident_for_path: ResolvedVc<AssetIdent>,
+    path_ty: PathType,
     generate_source_map: ResolvedVc<Box<dyn GenerateSourceMap>>,
 }
 
@@ -29,8 +43,22 @@ impl SourceMapAsset {
         generate_source_map: ResolvedVc<Box<dyn GenerateSourceMap>>,
     ) -> Vc<Self> {
         SourceMapAsset {
-            chunking_context,
-            ident_for_path,
+            path_ty: PathType::FromIdent {
+                chunking_context,
+                ident_for_path,
+            },
+            generate_source_map,
+        }
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn new_fixed(
+        path: ResolvedVc<FileSystemPath>,
+        generate_source_map: ResolvedVc<Box<dyn GenerateSourceMap>>,
+    ) -> Vc<Self> {
+        SourceMapAsset {
+            path_ty: PathType::Fixed { path },
             generate_source_map,
         }
         .cell()
@@ -44,10 +72,15 @@ impl OutputAsset for SourceMapAsset {
         // NOTE(alexkirsz) We used to include the asset's version id in the path,
         // but this caused `all_assets_map` to be recomputed on every change.
         let this = self.await?;
-        Ok(this
-            .chunking_context
-            .chunk_path(*this.ident_for_path, ".js".into())
-            .append(".map".into()))
+        Ok(match this.path_ty {
+            PathType::FromIdent {
+                chunking_context,
+                ident_for_path,
+            } => chunking_context
+                .chunk_path(*ident_for_path, ".js".into())
+                .append(".map".into()),
+            PathType::Fixed { path } => path.append(".map".into()),
+        })
     }
 }
 

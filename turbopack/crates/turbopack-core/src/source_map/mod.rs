@@ -18,11 +18,9 @@ use crate::{
     source_pos::SourcePos, virtual_source::VirtualSource, SOURCE_URL_PROTOCOL,
 };
 
-pub(crate) mod fixed_source_map_asset;
 pub(crate) mod source_map_asset;
 pub mod utils;
 
-pub use fixed_source_map_asset::FixedSourceMapAsset;
 pub use source_map_asset::SourceMapAsset;
 
 /// Represents an empty value in a u32 variable in the sourcemap crate.
