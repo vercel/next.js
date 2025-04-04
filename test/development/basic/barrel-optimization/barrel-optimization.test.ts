@@ -16,6 +16,7 @@ import { nextTestSetup } from 'e2e-utils'
           '@heroicons/react': '2.0.18',
           '@visx/visx': '3.3.0',
           'recursive-barrel': '1.0.0',
+          '@phosphor-icons/react': '2.1.7',
         },
       })
 
@@ -113,6 +114,11 @@ import { nextTestSetup } from 'e2e-utils'
       it('should support visx', async () => {
         const html = await next.render('/visx')
         expect(html).toContain('<linearGradient')
+      })
+
+      it('should support @phosphor-icons/react', async () => {
+        const html = await next.render('/phosphor-icons')
+        expect(html).toContain('<svg xmlns="http://www.w3.org/2000/svg"')
       })
 
       it('should not break "use client" directive in optimized packages', async () => {
