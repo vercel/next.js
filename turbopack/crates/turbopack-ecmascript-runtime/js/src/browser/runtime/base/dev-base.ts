@@ -1076,14 +1076,13 @@ function disposeChunk(chunkPath: ChunkPath): boolean {
  * Subscribes to chunk list updates from the update server and applies them.
  */
 function registerChunkList(
-  chunkUpdateProvider: ChunkUpdateProvider,
   chunkList: ChunkList
 ) {
   const chunkListScript = chunkList.script;
   const chunkListPath = getPathFromScript(chunkListScript);
   // The "chunk" is also registered to finish the loading in the backend
   BACKEND.registerChunk(chunkListPath as string as ChunkPath);
-  chunkUpdateProvider.push([
+  globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS!.push([
     chunkListPath,
     handleApply.bind(null, chunkListPath),
   ]);
@@ -1107,16 +1106,3 @@ function registerChunkList(
 }
 
 globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS ??= [];
-
-const chunkListsToRegister = globalThis.TURBOPACK_CHUNK_LISTS;
-if (Array.isArray(chunkListsToRegister)) {
-  for (const chunkList of chunkListsToRegister) {
-    registerChunkList(globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS, chunkList);
-  }
-}
-
-globalThis.TURBOPACK_CHUNK_LISTS = {
-  push: (chunkList) => {
-    registerChunkList(globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS!, chunkList);
-  },
-} satisfies ChunkListProvider;
