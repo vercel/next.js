@@ -1,9 +1,10 @@
+import {
+  NEXT_INTERCEPTION_MARKER_PREFIX,
+  NEXT_QUERY_PARAM_PREFIX,
+} from '../../../../lib/constants'
 import { INTERCEPTION_ROUTE_MARKERS } from '../../../../server/future/helpers/interception-routes'
 import { escapeStringRegexp } from '../../escape-regexp'
 import { removeTrailingSlash } from './remove-trailing-slash'
-
-const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
-const NEXT_INTERCEPTION_MARKER_PREFIX = 'nxtI'
 
 export interface Group {
   pos: number
