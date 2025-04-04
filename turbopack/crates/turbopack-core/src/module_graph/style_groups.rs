@@ -97,8 +97,8 @@ pub async fn compute_style_groups(
         batches_graph
             .traverse_edges_from_entries_topological(
                 entries.iter().copied(),
-                &mut (),
-                |parent_info, module, _| {
+                &mut visited,
+                async |parent_info, module, visited| {
                     if let Some((_, ModuleBatchesGraphEdge { ty, .. })) = parent_info {
                         if !matches!(
                             ty,
@@ -122,7 +122,7 @@ pub async fn compute_style_groups(
                             return;
                         }
                     }
-                    items_in_postorder.insert(*item);
+                    items_in_postorder.insert(item);
                 },
             )
             .await?;
