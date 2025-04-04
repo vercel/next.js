@@ -9,7 +9,10 @@ use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
+    chunk::{
+        AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext,
+        ModuleChunkItemIdExt,
+    },
     context::{AssetContext, ProcessResult},
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
@@ -314,6 +317,11 @@ impl ChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
         Vc::upcast(*self.module)
+    }
+
+    #[turbo_tasks::function]
+    fn estimated_size(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<usize> {
+        EcmascriptChunkItem::estimated_size(self, async_module_info)
     }
 }
 

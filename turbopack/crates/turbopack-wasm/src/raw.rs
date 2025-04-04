@@ -3,7 +3,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+    chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
@@ -137,6 +137,11 @@ impl ChunkItem for RawModuleChunkItem {
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
         Vc::upcast(*self.module)
+    }
+
+    #[turbo_tasks::function]
+    fn estimated_size(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<usize> {
+        EcmascriptChunkItem::estimated_size(self, async_module_info)
     }
 }
 

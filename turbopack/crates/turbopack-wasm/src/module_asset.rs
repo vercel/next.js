@@ -238,6 +238,11 @@ impl ChunkItem for ModuleChunkItem {
     fn module(&self) -> Vc<Box<dyn Module>> {
         Vc::upcast(*self.module)
     }
+
+    #[turbo_tasks::function]
+    fn estimated_size(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<usize> {
+        EcmascriptChunkItem::estimated_size(self, async_module_info)
+    }
 }
 
 #[turbo_tasks::value_impl]

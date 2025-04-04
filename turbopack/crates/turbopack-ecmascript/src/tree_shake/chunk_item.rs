@@ -111,6 +111,11 @@ impl ChunkItem for EcmascriptModulePartChunkItem {
     fn module(&self) -> Vc<Box<dyn Module>> {
         *ResolvedVc::upcast(self.module)
     }
+
+    #[turbo_tasks::function]
+    fn estimated_size(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<usize> {
+        EcmascriptChunkItem::estimated_size(self, async_module_info)
+    }
 }
 
 #[turbo_tasks::value(shared)]
@@ -140,6 +145,11 @@ impl ChunkItem for SideEffectsModuleChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         *self.chunking_context
+    }
+
+    #[turbo_tasks::function]
+    fn estimated_size(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<usize> {
+        EcmascriptChunkItem::estimated_size(self, async_module_info)
     }
 }
 

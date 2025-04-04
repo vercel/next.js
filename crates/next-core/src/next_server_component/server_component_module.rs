@@ -7,7 +7,10 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
+    chunk::{
+        AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext,
+        ModuleChunkItemIdExt,
+    },
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
@@ -170,5 +173,10 @@ impl ChunkItem for NextServerComponentChunkItem {
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
         Vc::upcast(*self.inner)
+    }
+
+    #[turbo_tasks::function]
+    fn estimated_size(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<usize> {
+        EcmascriptChunkItem::estimated_size(self, async_module_info)
     }
 }

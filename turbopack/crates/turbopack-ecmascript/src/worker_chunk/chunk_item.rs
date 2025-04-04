@@ -4,8 +4,8 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbopack_core::{
     chunk::{
-        availability_info::AvailabilityInfo, ChunkData, ChunkItem, ChunkType, ChunkingContext,
-        ChunkingContextExt, ChunksData,
+        availability_info::AvailabilityInfo, AsyncModuleInfo, ChunkData, ChunkItem, ChunkType,
+        ChunkingContext, ChunkingContextExt, ChunksData,
     },
     ident::AssetIdent,
     module::Module,
@@ -122,5 +122,10 @@ impl ChunkItem for WorkerLoaderChunkItem {
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
         *ResolvedVc::upcast(self.module)
+    }
+
+    #[turbo_tasks::function]
+    fn estimated_size(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<usize> {
+        EcmascriptChunkItem::estimated_size(self, async_module_info)
     }
 }

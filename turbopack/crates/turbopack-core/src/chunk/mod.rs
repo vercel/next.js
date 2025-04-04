@@ -304,6 +304,8 @@ pub trait ChunkItem {
     /// ChunkItem. TODO: Remove this as part of the chunk refactoring.
     fn module(self: Vc<Self>) -> Vc<Box<dyn Module>>;
 
+    fn estimated_size(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<usize>;
+
     fn chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>>;
 }
 
@@ -320,13 +322,6 @@ pub trait ChunkType: ValueToString {
         batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
         referenced_output_assets: Vc<OutputAssets>,
     ) -> Vc<Box<dyn Chunk>>;
-
-    fn chunk_item_size(
-        &self,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        chunk_item: Vc<Box<dyn ChunkItem>>,
-        async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Vc<usize>;
 }
 
 pub fn round_chunk_item_size(size: usize) -> usize {
