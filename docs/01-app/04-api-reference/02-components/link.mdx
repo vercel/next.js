@@ -1362,11 +1362,11 @@ export function CustomLink({ children, ...props }: CustomLinkProps) {
   return (
     <Link
       onNavigate={(e) => {
-        if (isBlocked) {
+        if (
+          isBlocked &&
+          !window.confirm('You have unsaved changes. Leave anyway?')
+        ) {
           e.preventDefault()
-          if (!window.confirm('You have unsaved changes. Leave anyway?')) {
-            e.preventDefault()
-          }
         }
       }}
       {...props}
@@ -1389,11 +1389,11 @@ export function CustomLink({ children, ...props }) {
   return (
     <Link
       onNavigate={(e) => {
-        if (isBlocked) {
+        if (
+          isBlocked &&
+          !window.confirm('You have unsaved changes. Leave anyway?')
+        ) {
           e.preventDefault()
-          if (!window.confirm('You have unsaved changes. Leave anyway?')) {
-            e.preventDefault()
-          }
         }
       }}
       {...props}
