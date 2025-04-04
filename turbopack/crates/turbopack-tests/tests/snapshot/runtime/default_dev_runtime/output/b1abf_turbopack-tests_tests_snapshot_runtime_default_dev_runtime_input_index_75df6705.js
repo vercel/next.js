@@ -354,6 +354,7 @@ relativeURL.prototype = URL.prototype;
  * shared runtime utils.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../base/globals.d.ts" />
 /// <reference path="../../../shared/runtime-utils.ts" />
+// Used in WebWorkers to tell the runtime about the chunk base path
 var SourceType = /*#__PURE__*/ function(SourceType) {
     /**
    * The module was instantiated because it was included in an evaluated chunk's
@@ -493,7 +494,9 @@ async function loadChunkPath(source, chunkPath) {
     return `/ROOT/${modulePath ?? ""}`;
 }
 function getWorkerBlobURL(chunks) {
-    let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};importScripts(${chunks.map((c)=>`self.TURBOPACK_WORKER_LOCATION + ${JSON.stringify(getChunkRelativeUrl(c))}`).join(", ")});`;
+    let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};
+self.TURBOPACK_NEXT_CHUNK_URLS = ${JSON.stringify(chunks.reverse().map(getChunkRelativeUrl), null, 2)};
+importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_LOCATION + c).reverse());`;
     let blob = new Blob([
         bootstrap
     ], {
@@ -551,7 +554,8 @@ function getPathFromScript(chunkScript) {
     if (typeof chunkScript === "string") {
         return chunkScript;
     }
-    const src = decodeURIComponent(chunkScript.getAttribute("src"));
+    const chunkUrl = typeof TURBOPACK_NEXT_CHUNK_URLS !== "undefined" ? TURBOPACK_NEXT_CHUNK_URLS.pop() : chunkScript.getAttribute("src");
+    const src = decodeURIComponent(chunkUrl);
     const path = src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
     return path;
 }
@@ -1387,6 +1391,8 @@ function createModuleHot(moduleId, hotData) {
  */ function registerChunkList(chunkUpdateProvider, chunkList) {
     const chunkListScript = chunkList.script;
     const chunkListPath = getPathFromScript(chunkListScript);
+    // The "chunk" is also registered to finish the loading in the backend
+    BACKEND.registerChunk(chunkListPath);
     chunkUpdateProvider.push([
         chunkListPath,
         handleApply.bind(null, chunkListPath)
@@ -1528,6 +1534,7 @@ async function loadWebAssemblyModule(_source, wasmChunkPath) {
             if (isCss(chunkUrl)) {
             // ignore
             } else if (isJs(chunkUrl)) {
+                self.TURBOPACK_NEXT_CHUNK_URLS.push(chunkUrl);
                 importScripts(TURBOPACK_WORKER_LOCATION + chunkUrl);
             } else {
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
