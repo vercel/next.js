@@ -662,6 +662,16 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             }
         }
 
+        JsValue::Awaited(_, operand) => {
+            if let JsValue::Promise(_, inner) = &mut **operand {
+                *value = take(inner);
+                true
+            } else {
+                *value = take(operand);
+                true
+            }
+        }
+
         _ => false,
     }
 }
