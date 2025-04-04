@@ -24,6 +24,7 @@ const renderTestComponent = () => {
       rendered={true}
       transitionDurationMs={200}
       isTurbopack={false}
+      errorCount={1}
       versionInfo={{
         installed: '15.0.0',
         staleness: 'fresh',

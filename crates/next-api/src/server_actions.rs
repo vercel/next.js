@@ -7,7 +7,6 @@ use next_core::{
     },
     util::NextRuntime,
 };
-use rustc_hash::FxHashMap;
 use swc_core::{
     atoms::Atom,
     common::comments::Comments,
@@ -204,10 +203,18 @@ async fn build_manifest(
 /// The ActionBrowser layer's module is in the Client context, and we need to
 /// bring it into the RSC context.
 pub async fn to_rsc_context(
-    module: Vc<Box<dyn Module>>,
+    client_module: Vc<Box<dyn Module>>,
+    entry_path: &str,
+    entry_query: &str,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<ResolvedVc<Box<dyn Module>>> {
-    let source = FileSource::new_with_query(module.ident().path(), module.ident().query());
+    // TODO a cleaner solution would something similar to the EcmascriptClientReferenceModule, as
+    // opposed to the following hack to construct the RSC module corresponding to this client
+    // module.
+    let source = FileSource::new_with_query(
+        client_module.ident().path().root().join(entry_path.into()),
+        Vc::cell(entry_query.into()),
+    );
     let module = asset_context
         .process(
             Vc::upcast(source),
@@ -228,7 +235,7 @@ pub async fn to_rsc_context(
 pub fn parse_server_actions(
     program: &Program,
     comments: &dyn Comments,
-) -> Option<BTreeMap<String, String>> {
+) -> Option<(BTreeMap<String, String>, String, String)> {
     let byte_pos = match program {
         Program::Module(m) => m.span.lo,
         Program::Script(s) => s.span.lo,
@@ -274,7 +281,8 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
         return Ok(Vc::cell(None));
     };
 
-    let Some(mut actions) = parse_server_actions(original, comments) else {
+    let Some((mut actions, entry_path, entry_query)) = parse_server_actions(original, comments)
+    else {
         return Ok(Vc::cell(None));
     };
 
@@ -295,7 +303,14 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
 
     let mut actions = FxIndexMap::from_iter(actions.into_iter());
     actions.sort_keys();
-    Ok(Vc::cell(Some(ResolvedVc::cell(actions))))
+    Ok(Vc::cell(Some(
+        ActionMap {
+            actions,
+            entry_path,
+            entry_query,
+        }
+        .resolved_cell(),
+    )))
 }
 
 fn all_export_names(program: &Program) -> Vec<Atom> {
@@ -396,8 +411,13 @@ impl AllActions {
 }
 
 /// Maps the hashed action id to the action's exported function name.
-#[turbo_tasks::value(transparent)]
-pub struct ActionMap(FxIndexMap<String, String>);
+#[turbo_tasks::value]
+#[derive(Debug)]
+pub struct ActionMap {
+    pub actions: FxIndexMap<String, String>,
+    pub entry_path: String,
+    pub entry_query: String,
+}
 
 /// An Option wrapper around [ActionMap].
 #[turbo_tasks::value(transparent)]
@@ -406,7 +426,7 @@ struct OptionActionMap(Option<ResolvedVc<ActionMap>>);
 type LayerAndActions = (ActionLayer, ResolvedVc<ActionMap>);
 /// A mapping of every module module containing Server Actions, mapping to its layer and actions.
 #[turbo_tasks::value(transparent)]
-pub struct AllModuleActions(FxHashMap<ResolvedVc<Box<dyn Module>>, LayerAndActions>);
+pub struct AllModuleActions(FxIndexMap<ResolvedVc<Box<dyn Module>>, LayerAndActions>);
 
 #[turbo_tasks::function]
 pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllModuleActions>> {

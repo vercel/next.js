@@ -62,6 +62,7 @@ export const MultipleFrames: Story = {
           lineNumber: 5,
         },
       },
+      ...Array(5).fill(ignoredFrame),
       {
         ...frame,
         originalStackFrame: {

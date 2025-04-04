@@ -3,6 +3,8 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import { outdent } from 'outdent'
 import path from 'path'
 
+const isRspack = process.env.NEXT_RSPACK !== undefined
+
 describe('ReactRefreshLogBox _app _document', () => {
   const { isTurbopack, next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
@@ -120,6 +122,39 @@ describe('ReactRefreshLogBox _app _document', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./pages/_app.js
+         × Module build failed:
+         ├─▶   ×
+         │     │   x Expression expected
+         │     │    ,-[<FIXME-project-root>/pages/_app.js:2:1]
+         │     │  1 | function MyApp({ Component, pageProps }) {
+         │     │  2 |   return <<Component {...pageProps} />;
+         │     │    :           ^
+         │     │  3 | }
+         │     │  4 | export default MyApp
+         │     │    \`----
+         │     │
+         │     │   x Expression expected
+         │     │    ,-[<FIXME-project-root>/pages/_app.js:2:1]
+         │     │  1 | function MyApp({ Component, pageProps }) {
+         │     │  2 |   return <<Component {...pageProps} />;
+         │     │    :            ^^^^^^^^^
+         │     │  3 | }
+         │     │  4 | export default MyApp
+         │     │    \`----
+         │     │
+         │
+         ╰─▶ Syntax Error",
+         "stack": [],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
@@ -208,6 +243,32 @@ describe('ReactRefreshLogBox _app _document', () => {
        Parsing ecmascript source code failed
        > 3 | class MyDocument extends Document {{
            |                                    ^",
+         "stack": [],
+       }
+      `)
+    } else if (isRspack) {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./pages/_document.js
+         × Module build failed:
+         ├─▶   ×
+         │     │   x Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key
+         │     │    ,-[<FIXME-project-root>/pages/_document.js:3:1]
+         │     │  1 | import Document, { Html, Head, Main, NextScript } from 'next/document'
+         │     │  2 |
+         │     │  3 | class MyDocument extends Document {{
+         │     │    :                                    ^
+         │     │  4 |   static async getInitialProps(ctx) {
+         │     │  5 |     const initialProps = await Document.getInitialProps(ctx)
+         │     │  6 |     return { ...initialProps }
+         │     │    \`----
+         │     │
+         │
+         ╰─▶ Syntax Error",
          "stack": [],
        }
       `)

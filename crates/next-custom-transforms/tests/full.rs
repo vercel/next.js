@@ -81,6 +81,7 @@ fn test(input: &Path, minify: bool) {
                 optimize_server_react: None,
                 prefer_esm: false,
                 debug_function_name: false,
+                css_env: None,
             };
 
             let unresolved_mark = Mark::new();

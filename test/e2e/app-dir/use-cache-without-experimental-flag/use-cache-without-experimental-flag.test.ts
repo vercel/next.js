@@ -32,7 +32,6 @@ describe('use-cache-without-experimental-flag', () => {
       if (isTurbopack) {
         expect(buildOutput).toMatchInlineSnapshot(`
          "Error: Turbopack build failed with 1 errors:
-         Page: {"type":"app","side":"server","page":"/page"}
          ./app/page.tsx:1:1
          Ecmascript file had an error
          > 1 | 'use cache'

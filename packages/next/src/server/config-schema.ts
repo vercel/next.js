@@ -128,6 +128,7 @@ const zTurboRuleConfigItemOrShortcut: zod.ZodType<TurboRuleConfigItemOrShortcut>
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
   z.strictObject({
+    allowedDevOrigins: z.array(z.string()).optional(),
     amp: z
       .object({
         canonicalBase: z.string().optional(),
@@ -298,7 +299,9 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         memoryBasedWorkersCount: z.boolean().optional(),
         craCompat: z.boolean().optional(),
         caseSensitiveRoutes: z.boolean().optional(),
-        clientSegmentCache: z.boolean().optional(),
+        clientSegmentCache: z
+          .union([z.boolean(), z.literal('client-only')])
+          .optional(),
         disableOptimizedLoading: z.boolean().optional(),
         disablePostcssPresetEnv: z.boolean().optional(),
         dynamicIO: z.boolean().optional(),
@@ -522,13 +525,16 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
         remotePatterns: z
           .array(
-            z.strictObject({
-              hostname: z.string(),
-              pathname: z.string().optional(),
-              port: z.string().max(5).optional(),
-              protocol: z.enum(['http', 'https']).optional(),
-              search: z.string().optional(),
-            })
+            z.union([
+              z.instanceof(URL),
+              z.strictObject({
+                hostname: z.string(),
+                pathname: z.string().optional(),
+                port: z.string().max(5).optional(),
+                protocol: z.enum(['http', 'https']).optional(),
+                search: z.string().optional(),
+              }),
+            ])
           )
           .max(50)
           .optional(),

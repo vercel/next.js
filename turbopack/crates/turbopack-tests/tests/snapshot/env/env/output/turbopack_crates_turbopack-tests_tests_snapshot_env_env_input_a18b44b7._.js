@@ -2,7 +2,7 @@
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/env/env/input/.env/.env.js [test] (ecmascript)": (function(__turbopack_context__) {
 
-var { g: global, d: __dirname, m: module, e: exports } = __turbopack_context__;
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
 {
 const env = process.env = {
     ...process.env
@@ -14,7 +14,7 @@ env["FOOBAR"] = foobar;
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/env/env/input/index.js [test] (ecmascript)": (function(__turbopack_context__) {
 
-var { g: global, d: __dirname, m: module, e: exports } = __turbopack_context__;
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
 {
 console.log(process.env.FOOBAR);
 console.log(process.env.BARFOO);

@@ -602,6 +602,8 @@ pub struct ResolveOptions {
     pub enable_typescript_with_output_extension: bool,
     /// Warn instead of error for resolve errors
     pub loose_errors: bool,
+    /// Whether to parse data URIs into modules (as opposed to keeping them as externals)
+    pub parse_data_uris: bool,
 
     pub placeholder_for_future_extensions: (),
 }

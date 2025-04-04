@@ -61,7 +61,7 @@ export function connect({
     throw new Error("A separate HMR handler was already registered");
   }
   globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS = {
-    push: ([chunkPath, callback]: [ChunkPath, UpdateCallback]) => {
+    push: ([chunkPath, callback]: [ChunkListPath, UpdateCallback]) => {
       subscribeToChunkUpdate(chunkPath, sendMessage, callback);
     },
   };
@@ -202,7 +202,7 @@ function mergeChunkListChunks(
 ): Record<ChunkPath, ChunkUpdate> {
   const chunks: Record<ChunkPath, ChunkUpdate> = {};
 
-  for (const [chunkPath, chunkUpdateA] of Object.entries(chunksA)) {
+  for (const [chunkPath, chunkUpdateA] of Object.entries(chunksA) as Array<[ChunkPath, ChunkUpdate]>) {
     const chunkUpdateB = chunksB[chunkPath];
     if (chunkUpdateB != null) {
       const mergedUpdate = mergeChunkUpdates(chunkUpdateA, chunkUpdateB);
@@ -214,7 +214,7 @@ function mergeChunkListChunks(
     }
   }
 
-  for (const [chunkPath, chunkUpdateB] of Object.entries(chunksB)) {
+  for (const [chunkPath, chunkUpdateB] of Object.entries(chunksB) as Array<[ChunkPath, ChunkUpdate]>) {
     if (chunks[chunkPath] == null) {
       chunks[chunkPath] = chunkUpdateB;
     }
@@ -280,7 +280,7 @@ function mergeEcmascriptChunksUpdates(
 
   const chunks: Record<ChunkPath, EcmascriptMergedChunkUpdate> = {};
 
-  for (const [chunkPath, chunkUpdateA] of Object.entries(chunksA)) {
+  for (const [chunkPath, chunkUpdateA] of Object.entries(chunksA) as Array<[ChunkPath, EcmascriptMergedChunkUpdate]>) {
     const chunkUpdateB = chunksB[chunkPath];
     if (chunkUpdateB != null) {
       const mergedUpdate = mergeEcmascriptChunkUpdates(
@@ -295,7 +295,7 @@ function mergeEcmascriptChunksUpdates(
     }
   }
 
-  for (const [chunkPath, chunkUpdateB] of Object.entries(chunksB)) {
+  for (const [chunkPath, chunkUpdateB] of Object.entries(chunksB) as Array<[ChunkPath, EcmascriptMergedChunkUpdate]>) {
     if (chunks[chunkPath] == null) {
       chunks[chunkPath] = chunkUpdateB;
     }
@@ -530,13 +530,13 @@ function finalizeUpdate() {
 }
 
 function subscribeToChunkUpdate(
-  chunkPath: ChunkPath,
+  chunkListPath: ChunkListPath,
   sendMessage: SendMessage,
   callback: UpdateCallback
 ): () => void {
   return subscribeToUpdate(
     {
-      path: chunkPath,
+      path: chunkListPath,
     },
     sendMessage,
     callback

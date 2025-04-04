@@ -1,6 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import type { OverlayState } from '../shared'
 
+// @ts-expect-error
+import imgApp from './app.png'
+
 import { useState } from 'react'
 import { DevOverlay } from './dev-overlay'
 import { ACTION_UNHANDLED_ERROR } from '../shared'
@@ -20,6 +23,7 @@ const state: OverlayState = {
   routerType: 'app',
   buildError: null,
   disableDevIndicator: false,
+  showIndicator: true,
   errors: [
     {
       id: 1,
@@ -70,7 +74,6 @@ const state: OverlayState = {
     },
   ],
   refreshState: { type: 'idle' },
-  rootLayoutMissingTags: [],
   notFound: false,
   staticIndicator: false,
   debugInfo: { devtoolsFrontendUrl: undefined },
@@ -84,11 +87,21 @@ export const Default: Story = {
   render: function DevOverlayStory() {
     const [isErrorOverlayOpen, setIsErrorOverlayOpen] = useState(true)
     return (
-      <DevOverlay
-        state={state}
-        isErrorOverlayOpen={isErrorOverlayOpen}
-        setIsErrorOverlayOpen={setIsErrorOverlayOpen}
-      />
+      <>
+        <img
+          src={imgApp}
+          style={{
+            width: '100%',
+            height: '100vh',
+            objectFit: 'contain',
+          }}
+        />
+        <DevOverlay
+          state={state}
+          isErrorOverlayOpen={isErrorOverlayOpen}
+          setIsErrorOverlayOpen={setIsErrorOverlayOpen}
+        />
+      </>
     )
   },
 }

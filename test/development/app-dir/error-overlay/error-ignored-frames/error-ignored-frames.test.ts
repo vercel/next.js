@@ -45,8 +45,8 @@ describe('error-ignored-frames', () => {
        at processFullStringRow ()
        at processFullBinaryRow ()
        at progress ()
-       at InnerLayoutRouter (../src/client/components/layout-router.tsx (408:5))
-       at OuterLayoutRouter (../src/client/components/layout-router.tsx (607:19))"
+       at InnerLayoutRouter (../src/client/components/layout-router.tsx (415:5))
+       at OuterLayoutRouter (../src/client/components/layout-router.tsx (615:19))"
       `)
     }
   })
@@ -99,15 +99,15 @@ describe('error-ignored-frames', () => {
     if (isTurbopack) {
       expect(expendedStack).toMatchInlineSnapshot(`
        "at <unknown> (app/interleaved/page.tsx (7:11))
-       at Page (app/interleaved/page.tsx (6:35))
        at invokeCallback ()
+       at Page (app/interleaved/page.tsx (6:35))
        at ClientPageRoot ()"
       `)
     } else {
       expect(expendedStack).toMatchInlineSnapshot(`
        "at eval (app/interleaved/page.tsx (7:11))
-       at Page (app/interleaved/page.tsx (6:36))
        at invokeCallback (node_modules/interleave/index.js (2:1))
+       at Page (app/interleaved/page.tsx (6:36))
        at ClientPageRoot (../src/client/components/client-page.tsx (60:12))"
       `)
     }

@@ -2,7 +2,7 @@
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/dynamic-import/input/index.js [test] (ecmascript)": (function(__turbopack_context__) {
 
-var { g: global, d: __dirname, m: module, e: exports } = __turbopack_context__;
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
 {
 async function main() {
     const lib = await __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/dynamic-import/input/lib.js [test] (ecmascript, async loader)")(__turbopack_context__.i);

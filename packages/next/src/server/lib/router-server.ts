@@ -49,6 +49,8 @@ import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 import { NEXT_PATCH_SYMBOL } from './patch-fetch'
 import type { ServerInitResult } from './render-server'
 import { filterInternalHeaders } from './server-ipc/utils'
+import { blockCrossSite } from './router-utils/block-cross-site'
+import { traceGlobals } from '../../trace/shared'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -121,6 +123,8 @@ export async function initialize(opts: {
     const telemetry = new Telemetry({
       distDir: path.join(opts.dir, config.distDir),
     })
+    traceGlobals.set('telemetry', telemetry)
+
     const { pagesDir, appDir } = findPagesDir(opts.dir)
 
     const { setupDevBundler } =
@@ -316,6 +320,9 @@ export async function initialize(opts: {
 
       // handle hot-reloader first
       if (developmentBundler) {
+        if (blockCrossSite(req, res, config.allowedDevOrigins, opts.hostname)) {
+          return
+        }
         const origUrl = req.url || '/'
 
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
@@ -679,6 +686,11 @@ export async function initialize(opts: {
       })
 
       if (opts.dev && developmentBundler && req.url) {
+        if (
+          blockCrossSite(req, socket, config.allowedDevOrigins, opts.hostname)
+        ) {
+          return
+        }
         const { basePath, assetPrefix } = config
 
         let hmrPrefix = basePath

@@ -7,8 +7,8 @@ use futures::{
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    duration_span, mark_finished, prevent_gc, util::SharedError, RawVc, ResolvedVc, TaskInput,
-    ValueToString, Vc,
+    duration_span, mark_finished, prevent_gc, trace::TraceRawVcs, util::SharedError, RawVc,
+    ResolvedVc, TaskInput, ValueToString, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
@@ -199,7 +199,7 @@ struct RenderStreamSender {
 #[turbo_tasks::value(transparent)]
 struct RenderStream(#[turbo_tasks(trace_ignore)] Stream<RenderItemResult>);
 
-#[derive(Clone, Debug, TaskInput, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Clone, Debug, TaskInput, PartialEq, Eq, Hash, Deserialize, Serialize, TraceRawVcs)]
 struct RenderStreamOptions {
     cwd: ResolvedVc<FileSystemPath>,
     env: ResolvedVc<Box<dyn ProcessEnv>>,

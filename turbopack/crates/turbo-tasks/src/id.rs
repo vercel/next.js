@@ -7,7 +7,11 @@ use std::{
 
 use serde::{de::Visitor, Deserialize, Serialize};
 
-use crate::{registry, TaskPersistence};
+use crate::{
+    registry,
+    trace::{TraceRawVcs, TraceRawVcsContext},
+    TaskPersistence,
+};
 
 macro_rules! define_id {
     (
@@ -68,6 +72,10 @@ macro_rules! define_id {
             fn try_from(id: NonZeroU64) -> Result<Self, Self::Error> {
                 Ok(Self { id: NonZero::try_from(id)? })
             }
+        }
+
+        impl TraceRawVcs for $name {
+            fn trace_raw_vcs(&self, _trace_context: &mut TraceRawVcsContext) {}
         }
     };
 }

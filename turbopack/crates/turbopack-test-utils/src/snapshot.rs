@@ -1,6 +1,6 @@
-use std::{env, fs, path::PathBuf};
+use std::{env, path::PathBuf};
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Context, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -8,8 +8,7 @@ use similar::TextDiff;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
-    DirectoryContent, DirectoryEntry, DiskFileSystem, File, FileContent, FileSystemEntryType,
-    FileSystemPath,
+    DirectoryContent, DirectoryEntry, File, FileContent, FileSystemEntryType, FileSystemPath,
 };
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_cli_utils::issue::{format_issue, LogOptions};
@@ -187,12 +186,7 @@ async fn get_contents(file: Vc<AssetContent>, path: Vc<FileSystemPath>) -> Resul
 }
 
 async fn remove_file(path: Vc<FileSystemPath>) -> Result<()> {
-    let fs = Vc::try_resolve_downcast_type::<DiskFileSystem>(path.fs())
-        .await?
-        .context(anyhow!("unexpected fs type"))?
-        .await?;
-    let sys_path = fs.to_sys_path(path).await?;
-    fs::remove_file(&sys_path).context(format!("remove file {} error", sys_path.display()))?;
+    path.write(FileContent::NotFound.cell()).await?;
     Ok(())
 }
 

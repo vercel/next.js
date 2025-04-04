@@ -2,7 +2,7 @@
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/define/input/index.js [test] (ecmascript)": (function(__turbopack_context__) {
 
-var { g: global, d: __dirname, m: module, e: exports } = __turbopack_context__;
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
 {
 if ("TURBOPACK compile-time truthy", 1) {
     console.log('DEFINED_VALUE');

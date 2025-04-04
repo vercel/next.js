@@ -1,6 +1,5 @@
 import * as React from 'react'
 import { useOnClickOutside } from '../../hooks/use-on-click-outside'
-import { useMeasureHeight } from '../../hooks/use-measure-height'
 
 export type DialogProps = {
   children?: React.ReactNode
@@ -10,7 +9,7 @@ export type DialogProps = {
   className?: string
   onClose?: () => void
   dialogResizerRef?: React.RefObject<HTMLDivElement | null>
-}
+} & React.HTMLAttributes<HTMLDivElement>
 
 const CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE = [
   '[data-next-mark]',
@@ -36,9 +35,6 @@ const Dialog: React.FC<DialogProps> = function Dialog({
       ? 'dialog'
       : undefined
   )
-
-  const ref = React.useRef<HTMLDivElement | null>(null)
-  const [height, pristine] = useMeasureHeight(ref)
 
   useOnClickOutside(
     dialogRef.current,
@@ -102,19 +98,7 @@ const Dialog: React.FC<DialogProps> = function Dialog({
       }}
       {...props}
     >
-      <div
-        ref={dialogResizerRef}
-        data-nextjs-dialog-sizer
-        // [x] Don't animate on initial load
-        // [x] No duplicate elements
-        // [x] Responds to content growth
-        style={{
-          height,
-          transition: pristine ? undefined : 'height 250ms var(--timing-swift)',
-        }}
-      >
-        <div ref={ref}>{children}</div>
-      </div>
+      {children}
     </div>
   )
 }

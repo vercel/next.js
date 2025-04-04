@@ -16,7 +16,7 @@ describe('app dir - dynamic error trace', () => {
        "count": 1,
        "description": "Error: Route / with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
        "environmentLabel": "Server",
-       "label": "Unhandled Runtime Error",
+       "label": "Runtime Error",
        "source": "app/lib.js (4:13) @ Foo
      > 4 |   useHeaders()
          |             ^",

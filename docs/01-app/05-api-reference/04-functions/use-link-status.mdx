@@ -1,0 +1,214 @@
+---
+title: useLinkStatus
+description: API Reference for the useLinkStatus hook.
+---
+
+`useLinkStatus` is a **Client Component** hook that lets you track the loading state of a `Link` component during navigation. It can be used to show loading indicators during page transitions, especially when [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) is disabled, or the linked route does not have any loading states.
+
+```tsx filename="app/loading-indicator.tsx" switcher
+'use client'
+
+import { useLinkStatus } from 'next/navigation'
+
+export default function LoadingIndicator() {
+  const { pending } = useLinkStatus()
+  return pending ? <span>⌛</span> : null
+}
+```
+
+```jsx filename="app/loading-indicator.js" switcher
+'use client'
+
+import { useLinkStatus } from 'next/navigation'
+
+export default function LoadingIndicator() {
+  const { pending } = useLinkStatus()
+  return pending ? <span>⌛</span> : null
+}
+```
+
+```tsx filename="app/header.tsx" switcher
+import Link from 'next/link'
+import LoadingIndicator from './loading-indicator'
+
+export default function Header() {
+  return (
+    <header>
+      <Link href="/dashboard" prefetch={false}>
+        Dashboard <LoadingIndicator />
+      </Link>
+    </header>
+  )
+}
+```
+
+```jsx filename="app/header.js" switcher
+import Link from 'next/link'
+import LoadingIndicator from './loading-indicator'
+
+export default function Header() {
+  return (
+    <header>
+      <Link href="/dashboard" prefetch={false}>
+        Dashboard <LoadingIndicator />
+      </Link>
+    </header>
+  )
+}
+```
+
+> **Good to know**:
+>
+> - `useLinkStatus` must be used within a descendant component of a `Link` component
+> - The hook is most useful when `prefetch={false}` is set on the `Link` component
+> - If the linked route has been prefetched, the pending state will be skipped
+> - When clicking multiple links in quick succession, only the last link's pending state is shown
+> - This hook is not supported in the Pages Router and will always return `{ pending: false }`
+
+## Parameters
+
+```tsx
+const { pending } = useLinkStatus()
+```
+
+`useLinkStatus` does not take any parameters.
+
+## Returns
+
+`useLinkStatus` returns an object with a single property:
+
+| Property | Type    | Description                                  |
+| -------- | ------- | -------------------------------------------- |
+| pending  | boolean | `true` before history updates, `false` after |
+
+## Examples
+
+### Improving the user experience when navigating with new query parameters
+
+In this example, navigating between categories updates the query string (e.g. ?category=books). However, the page may appear unresponsive because the `<PageSkeleton />` fallback won't replace the existing content (see [preventing unwanted loading indicators](https://react.dev/reference/react/useTransition#preventing-unwanted-loading-indicators)).
+
+You can use the `useLinkStatus` hook to render a lightweight loading indicator next to the active link and provide immediate feedback to the user while the data is being fetched.
+
+```tsx filename="app/components/loading-indicator.tsx" switcher
+'use client'
+
+import { useLinkStatus } from 'next/navigation'
+
+export default function LoadingIndicator() {
+  const { pending } = useLinkStatus()
+  return pending ? <span>⌛</span> : null
+}
+```
+
+```jsx filename="app/components/loading-indicator.js" switcher
+'use client'
+
+import { useLinkStatus } from 'next/navigation'
+
+export default function LoadingIndicator() {
+  const { pending } = useLinkStatus()
+  return pending ? <span>⌛</span> : null
+}
+```
+
+```tsx filename="app/page.tsx" switcher
+import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import { Suspense } from 'react'
+import LoadingIndicator from './loading-indicator'
+
+function MenuBar() {
+  return (
+    <div>
+      <Link href="?category=electronics">
+        Electronics <LoadingIndicator />
+      </Link>
+      <Link href="?category=clothing">
+        Clothing <LoadingIndicator />
+      </Link>
+      <Link href="?category=books">
+        Books <LoadingIndicator />
+      </Link>
+    </div>
+  )
+}
+
+async function ProductList({ category }: { category: string }) {
+  const products = await fetchProducts(category)
+
+  return (
+    <ul>
+      {products.map((product) => (
+        <li key={product}>{product}</li>
+      ))}
+    </ul>
+  )
+}
+
+export default async function ProductCategories({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    category: string
+  }>
+}) {
+  const { category } = await searchParams
+
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <MenuBar />
+      <ProductList category={category} />
+    </Suspense>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import { Suspense } from 'react'
+import LoadingIndicator from './loading-indicator'
+
+function MenuBar() {
+  return (
+    <div>
+      <Link href="?category=electronics">
+        Electronics <LoadingIndicator />
+      </Link>
+      <Link href="?category=clothing">
+        Clothing <LoadingIndicator />
+      </Link>
+      <Link href="?category=books">
+        Books <LoadingIndicator />
+      </Link>
+    </div>
+  )
+}
+
+async function ProductList({ category }) {
+  const products = await fetchProducts(category)
+
+  return (
+    <ul>
+      {products.map((product) => (
+        <li key={product}>{product}</li>
+      ))}
+    </ul>
+  )
+}
+
+export default async function ProductCategories({ searchParams }) {
+  const { category } = await searchParams
+
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <MenuBar />
+      <ProductList category={category} />
+    </Suspense>
+  )
+}
+```
+
+| Version   | Changes                     |
+| --------- | --------------------------- |
+| `v15.3.0` | `useLinkStatus` introduced. |

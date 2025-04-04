@@ -1,0 +1,19 @@
+/* cssmodules-pure-no-check */
+
+/* View Transitions API - requires global scope to work properly */
+:global(::view-transition-old(root)) {
+  animation-duration: 0.3s;
+}
+
+/* a local class */
+.home {
+  background-color: #f0f0f0;
+  color: #333;
+  font-size: 16px;
+  padding: 20px;
+}
+
+/* a global class */
+:global(.global) {
+  font-weight: 700;
+}

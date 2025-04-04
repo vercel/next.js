@@ -84,7 +84,7 @@ import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import * as Log from '../build/output/log'
-import { getUtils } from './server-utils'
+import { getPreviouslyRevalidatedTags, getUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
 import {
   addRequestMeta,
@@ -104,7 +104,6 @@ import {
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   NEXT_URL,
-  NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_IS_PRERENDER_HEADER,
 } from '../client/components/app-router-headers'
 import type {
@@ -131,7 +130,6 @@ import {
   CACHE_ONE_YEAR,
   INFINITE_CACHE,
   MATCHED_PATH_HEADER,
-  NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_RESUME_HEADER,
 } from '../lib/constants'
@@ -176,8 +174,9 @@ import {
   shouldServeStreamingMetadata,
   isHtmlBotRequest,
 } from './lib/streaming-metadata'
-import { getCacheHandlers } from './use-cache/handlers'
 import { InvariantError } from '../shared/lib/invariant-error'
+import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
+import { getCacheHandlers } from './use-cache/handlers'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -605,7 +604,9 @@ export default abstract class Server<
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         dynamicIO: this.nextConfig.experimental.dynamicIO ?? false,
         clientSegmentCache:
-          this.nextConfig.experimental.clientSegmentCache ?? false,
+          this.nextConfig.experimental.clientSegmentCache === 'client-only'
+            ? 'client-only'
+            : Boolean(this.nextConfig.experimental.clientSegmentCache),
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
       },
@@ -1218,7 +1219,10 @@ export default abstract class Server<
             delete parsedUrl.query[key]
 
             if (typeof value === 'undefined') continue
-            queryParams[normalizedKey] = value
+
+            queryParams[normalizedKey] = Array.isArray(value)
+              ? value.map((v) => decodeQueryPathParameter(v))
+              : decodeQueryPathParameter(value)
           }
 
           // interpolate dynamic params and normalize URL if needed
@@ -1430,20 +1434,27 @@ export default abstract class Server<
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
 
-      // If the header is present, receive the expired tags from all the
-      // cache handlers.
-      const handlers = getCacheHandlers()
-      if (handlers) {
-        const header = req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER]
-        const expiredTags = typeof header === 'string' ? header.split(',') : []
+      const cacheHandlers = getCacheHandlers()
 
-        const promises: Promise<void>[] = []
-        for (const handler of handlers) {
-          promises.push(handler.receiveExpiredTags(...expiredTags))
-        }
+      if (cacheHandlers) {
+        await Promise.all(
+          [...cacheHandlers].map(async (cacheHandler) => {
+            if ('refreshTags' in cacheHandler) {
+              // Note: cacheHandler.refreshTags() is called lazily before the
+              // first cache entry is retrieved. It allows us to skip the
+              // refresh request if no caches are read at all.
+            } else {
+              const previouslyRevalidatedTags = getPreviouslyRevalidatedTags(
+                req.headers,
+                this.getPrerenderManifest().preview.previewModeId
+              )
 
-        // Only await if there are any promises to wait for.
-        if (promises.length > 0) await Promise.all(promises)
+              await cacheHandler.receiveExpiredTags(
+                ...previouslyRevalidatedTags
+              )
+            }
+          })
+        )
       }
 
       // set server components HMR cache to request meta so it can be passed
@@ -1968,21 +1979,16 @@ export default abstract class Server<
     isAppPath: boolean,
     resolvedPathname: string
   ): void {
-    const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}, ${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}`
-    const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
-
     let addedNextUrlToVary = false
 
     if (isAppPath && this.pathCouldBeIntercepted(resolvedPathname)) {
       // Interception route responses can vary based on the `Next-URL` header.
       // We use the Vary header to signal this behavior to the client to properly cache the response.
-      res.appendHeader('vary', `${baseVaryHeader}, ${NEXT_URL}`)
+      res.appendHeader('vary', `${NEXT_URL}`)
       addedNextUrlToVary = true
-    } else if (isAppPath || isRSCRequest) {
-      // We don't need to include `Next-URL` in the Vary header for non-interception routes since it won't affect the response.
-      // We also set this header for pages to avoid caching issues when navigating between pages and app.
-      res.appendHeader('vary', baseVaryHeader)
     }
+    // For other cases such as App Router requests or RSC requests we don't need to set vary header since we already
+    // have the _rsc query with the unique hash value.
 
     if (!addedNextUrlToVary) {
       // Remove `Next-URL` from the request headers we determined it wasn't necessary to include in the Vary header.

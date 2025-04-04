@@ -83,6 +83,7 @@ pub struct NextConfig {
     pub transpile_packages: Option<Vec<RcStr>>,
     pub modularize_imports: Option<FxIndexMap<String, ModularizeImportPackageConfig>>,
     pub dist_dir: Option<RcStr>,
+    pub deployment_id: Option<RcStr>,
     sass_options: Option<serde_json::Value>,
     pub trailing_slash: Option<bool>,
     pub asset_prefix: Option<RcStr>,
@@ -416,7 +417,7 @@ pub struct Rewrites {
 #[serde(rename_all = "camelCase")]
 pub struct TypeScriptConfig {
     pub ignore_build_errors: Option<bool>,
-    pub ts_config_path: Option<String>,
+    pub tsconfig_path: Option<String>,
 }
 
 #[turbo_tasks::value(eq = "manual", operation)]
@@ -670,9 +671,6 @@ pub struct ExperimentalConfig {
     turbo: Option<ExperimentalTurboConfig>,
     external_middleware_rewrites_resolve: Option<bool>,
     scroll_restoration: Option<bool>,
-    use_deployment_id: Option<bool>,
-    use_deployment_id_server_actions: Option<bool>,
-    deployment_id: Option<RcStr>,
     manual_client_base_path: Option<bool>,
     optimistic_client_cache: Option<bool>,
     middleware_prefetch: Option<MiddlewarePrefetchType>,
@@ -1393,6 +1391,17 @@ impl NextConfig {
         )))
     }
 
+    /// Returns the suffix to use for chunk loading.
+    #[turbo_tasks::function]
+    pub async fn chunk_suffix_path(self: Vc<Self>) -> Result<Vc<Option<RcStr>>> {
+        let this = self.await?;
+
+        match &this.deployment_id {
+            Some(deployment_id) => Ok(Vc::cell(Some(format!("?dpl={}", deployment_id).into()))),
+            None => Ok(Vc::cell(None)),
+        }
+    }
+
     #[turbo_tasks::function]
     pub fn enable_ppr(&self) -> Vc<bool> {
         Vc::cell(
@@ -1524,6 +1533,16 @@ impl NextConfig {
         let source_maps = self.experimental.turbo.as_ref().and_then(|t| t.source_maps);
 
         Ok(Vc::cell(source_maps.unwrap_or(true)))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn typescript_tsconfig_path(&self) -> Result<Vc<Option<RcStr>>> {
+        Ok(Vc::cell(
+            self.typescript
+                .tsconfig_path
+                .as_ref()
+                .map(|path| path.to_owned().into()),
+        ))
     }
 }
 

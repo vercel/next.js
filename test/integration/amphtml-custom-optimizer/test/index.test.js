@@ -13,10 +13,11 @@ let app
 let appPort
 const appDir = join(__dirname, '../')
 
-describe('AMP Custom Optimizer', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
+// Turbopack does not support AMP rendering.
+;(process.env.TURBOPACK ? describe.skip : describe)(
+  'AMP Custom Optimizer',
+  () => {
+    describe('production mode', () => {
       it('should build and start for static page', async () => {
         const { code } = await nextBuild(appDir)
         expect(code).toBe(0)
@@ -54,6 +55,6 @@ describe('AMP Custom Optimizer', () => {
           'script async src="https://cdn.ampproject.org/rtv/001515617716922/v0.mjs"'
         )
       })
-    }
-  )
-})
+    })
+  }
+)

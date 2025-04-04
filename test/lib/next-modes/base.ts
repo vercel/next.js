@@ -65,8 +65,8 @@ export class NextInstance {
   protected overrideFiles: ResolvedFileConfig
   protected nextConfig?: NextConfig
   protected installCommand?: InstallCommand
-  protected buildCommand?: string
-  protected buildOptions?: string
+  public buildCommand?: string
+  public buildOptions?: string
   protected startCommand?: string
   protected startOptions?: string[]
   protected dependencies?: PackageJson['dependencies'] = {}
@@ -122,6 +122,12 @@ export class NextInstance {
 
       await fs.cp(files.fsPath, testDir, {
         recursive: true,
+        // By default Node.js turns relative symlinks into absolute symlinks.
+        // We don't want absolute symlinks because the test directory is isolated
+        // and the symlink would turn into a path to the Next.js repo original file.
+        // Setting this option to `true` will keep the symlink relative. Ensuring it's isolated.
+        // See https://nodejs.org/api/fs.html#fscpsrc-dest-options-callback
+        verbatimSymlinks: true,
         filter(source) {
           // we don't copy a package.json as it's manually written
           // via the createNextInstall process

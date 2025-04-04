@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, Suspense } from 'react'
+import { useState, useMemo, useRef, Suspense } from 'react'
 import type { DebugInfo } from '../../types'
 import { Overlay } from '../components/overlay'
 import { RuntimeError } from './runtime-error'
@@ -10,11 +10,14 @@ import {
   getHydrationWarningType,
 } from '../../../errors/hydration-error-info'
 import {
-  getUnhandledErrorType,
-  isUnhandledConsoleOrRejection,
+  isConsoleError,
+  getConsoleErrorType,
 } from '../../../errors/console-error'
 import { extractNextErrorCode } from '../../../../../lib/error-telemetry-utils'
-import { ErrorOverlayLayout } from '../components/errors/error-overlay-layout/error-overlay-layout'
+import {
+  ErrorOverlayLayout,
+  type ErrorOverlayLayoutProps,
+} from '../components/errors/error-overlay-layout/error-overlay-layout'
 import { NEXTJS_HYDRATION_ERROR_LINK } from '../../../is-hydration-error'
 import type { ReadyRuntimeError } from '../../utils/get-error-by-type'
 import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
@@ -38,9 +41,8 @@ function ErrorDescription({
   error: Error
   hydrationWarning: string | null
 }) {
-  const isUnhandledOrReplayError = isUnhandledConsoleOrRejection(error)
-  const unhandledErrorType = isUnhandledOrReplayError
-    ? getUnhandledErrorType(error)
+  const unhandledErrorType = isConsoleError(error)
+    ? getConsoleErrorType(error)
     : null
   const isConsoleErrorStringMessage = unhandledErrorType === 'string'
   // If the error is:
@@ -48,10 +50,7 @@ function ErrorDescription({
   // - captured console error or unhandled rejection
   // skip displaying the error name
   const title =
-    (isUnhandledOrReplayError && isConsoleErrorStringMessage) ||
-    hydrationWarning
-      ? ''
-      : error.name + ': '
+    isConsoleErrorStringMessage || hydrationWarning ? '' : error.name + ': '
 
   const environmentName =
     'environmentName' in error ? error.environmentName : ''
@@ -75,6 +74,13 @@ function ErrorDescription({
   )
 }
 
+function getErrorType(error: Error): ErrorOverlayLayoutProps['errorType'] {
+  if (isConsoleError(error)) {
+    return 'Console Error'
+  }
+  return 'Runtime Error'
+}
+
 export function Errors({
   runtimeErrors,
   debugInfo,
@@ -82,18 +88,6 @@ export function Errors({
   ...props
 }: ErrorsProps) {
   const dialogResizerRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    // Close the error overlay when pressing escape
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        onClose()
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
 
   const isLoading = useMemo<boolean>(() => {
     return runtimeErrors.length < 1
@@ -119,7 +113,7 @@ export function Errors({
   const isServerError = ['server', 'edge-server'].includes(
     getErrorSource(error) || ''
   )
-  const isUnhandledError = isUnhandledConsoleOrRejection(error)
+  const errorType = getErrorType(error)
   const errorDetails: HydrationErrorState = (error as any).details || {}
   const notes = errorDetails.notes || ''
   const [warningTemplate, serverContent, clientContent] =
@@ -145,13 +139,7 @@ export function Errors({
   return (
     <ErrorOverlayLayout
       errorCode={errorCode}
-      errorType={
-        isServerError
-          ? 'Runtime Error'
-          : isUnhandledError
-            ? 'Console Error'
-            : 'Unhandled Runtime Error'
-      }
+      errorType={errorType}
       errorMessage={
         <ErrorDescription error={error} hydrationWarning={hydrationWarning} />
       }

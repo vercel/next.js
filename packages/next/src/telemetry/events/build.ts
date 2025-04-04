@@ -1,6 +1,7 @@
 import type { TelemetryPlugin } from '../../build/webpack/plugins/telemetry-plugin/telemetry-plugin'
 import type { SWC_TARGET_TRIPLE } from '../../build/webpack/plugins/telemetry-plugin/telemetry-plugin'
 import type { UseCacheTrackerKey } from '../../build/webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
+import { extractNextErrorCode } from '../../lib/error-telemetry-utils'
 
 const REGEXP_DIRECTORY_DUNDER =
   /[\\/]__[^\\/]+(?<![\\/]__(?:tests|mocks))__[\\/]/i
@@ -103,6 +104,7 @@ type EventBuildOptimized = {
   rewritesWithHasCount: number
   redirectsWithHasCount: number
   middlewareCount: number
+  isRspack: boolean
   totalAppPagesCount?: number
   staticAppPagesCount?: number
   serverAppPagesCount?: number
@@ -114,7 +116,7 @@ export function eventBuildOptimize(
   pagePaths: string[],
   event: Omit<
     EventBuildOptimized,
-    'totalPageCount' | 'hasDunderPages' | 'hasTestPages'
+    'totalPageCount' | 'hasDunderPages' | 'hasTestPages' | 'isRspack'
   >
 ): { eventName: string; payload: EventBuildOptimized } {
   return {
@@ -134,6 +136,7 @@ export function eventBuildOptimize(
       serverAppPagesCount: event.serverAppPagesCount,
       edgeRuntimeAppCount: event.edgeRuntimeAppCount,
       edgeRuntimePagesCount: event.edgeRuntimePagesCount,
+      isRspack: process.env.NEXT_RSPACK !== undefined,
     },
   }
 }
@@ -176,6 +179,7 @@ export type EventBuildFeatureUsage = {
     | 'esmExternals'
     | 'webpackPlugins'
     | UseCacheTrackerKey
+    | 'turbopackPersistentCaching'
   invocationCount: number
 }
 export function eventBuildFeatureUsage(
@@ -208,4 +212,22 @@ export function eventPackageUsedInGetServerSideProps(
       package: packageName,
     },
   }))
+}
+
+export const ERROR_THROWN_EVENT = 'NEXT_ERROR_THROWN'
+type ErrorThrownEvent = {
+  eventName: typeof ERROR_THROWN_EVENT
+  payload: {
+    errorCode: string | undefined
+  }
+}
+
+// Creates a Telemetry event for errors. For privacy, only includes the error code.
+export function eventErrorThrown(error: Error): ErrorThrownEvent {
+  return {
+    eventName: ERROR_THROWN_EVENT,
+    payload: {
+      errorCode: extractNextErrorCode(error) || 'Unknown',
+    },
+  }
 }

@@ -7,7 +7,12 @@
  * specific to the runtime context.
  */
 
-type ChunkPath = string;
+type CurrentScript = { getAttribute: (name: string) => string | null };
+type ChunkListPath = string & { readonly brand: unique symbol };
+type ChunkListScript = CurrentScript & { readonly brand: unique symbol };
+type ChunkPath = string & { readonly brand: unique symbol };
+type ChunkScript = CurrentScript & { readonly brand: unique symbol };
+type ChunkUrl = string & { readonly brand: unique symbol };
 type ModuleId = string;
 
 interface Exports {
@@ -37,6 +42,7 @@ type ExportNamespace = (namespace: any) => void;
 type DynamicExport = (object: Record<string, any>) => void;
 
 type LoadChunk = (chunkPath: ChunkPath) => Promise<any> | undefined;
+type LoadChunkByUrl = (chunkUrl: ChunkUrl) => Promise<any> | undefined;
 type LoadWebAssembly = (
   wasmChunkPath: ChunkPath,
   imports: WebAssembly.Imports
@@ -95,6 +101,7 @@ interface TurbopackBaseContext<M> {
   c: ModuleCache<M>;
   M: ModuleFactories;
   l: LoadChunk;
+  L: LoadChunkByUrl;
   w: LoadWebAssembly;
   u: LoadWebAssemblyModule;
   g: typeof globalThis;

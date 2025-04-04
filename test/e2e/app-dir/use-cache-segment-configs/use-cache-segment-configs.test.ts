@@ -56,7 +56,6 @@ describe('use-cache-segment-configs', () => {
       if (isTurbopack) {
         expect(buildOutput).toMatchInlineSnapshot(`
          "Error: Turbopack build failed with 1 errors:
-         Page: {"type":"app","side":"server","page":"/runtime/page"}
          ./app/runtime/page.tsx:1:14
          Ecmascript file had an error
          > 1 | export const runtime = 'edge'

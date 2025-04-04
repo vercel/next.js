@@ -14,7 +14,7 @@ use std::fmt::Write;
 use anyhow::{bail, Error, Result};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{FileContent, FileJsonContent};
+use turbo_tasks_fs::{glob::Glob, FileContent, FileJsonContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
@@ -85,6 +85,11 @@ impl EcmascriptChunkPlaceable for JsonModuleAsset {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports::Value.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(&self, _side_effect_free_packages: Vc<Glob>) -> Vc<bool> {
+        Vc::cell(true)
     }
 }
 

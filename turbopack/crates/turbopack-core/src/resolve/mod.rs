@@ -32,6 +32,7 @@ use self::{
 };
 use crate::{
     context::AssetContext,
+    data_uri_source::DataUriSource,
     file_source::FileSource,
     issue::{
         module::emit_unknown_module_type_error, resolve::ResolvingIssue, IssueExt, IssueSource,
@@ -43,6 +44,7 @@ use crate::{
     reference_type::ReferenceType,
     resolve::{
         node::{node_cjs_resolve_options, node_esm_resolve_options},
+        parse::stringify_data_uri,
         pattern::{read_matches, PatternMatch},
         plugin::AfterResolvePlugin,
     },
@@ -1997,6 +1999,40 @@ async fn resolve_internal_inline(
                     &unspecified_conditions,
                 )
                 .await?
+            }
+            Request::DataUri {
+                media_type,
+                encoding,
+                data,
+            } => {
+                // Behave like Request::Uri
+                let uri: RcStr = stringify_data_uri(media_type, encoding, *data)
+                    .await?
+                    .into();
+                if options.await?.parse_data_uris {
+                    *ResolveResult::primary_with_key(
+                        RequestKey::new(uri.clone()),
+                        ResolveResultItem::Source(ResolvedVc::upcast(
+                            DataUriSource::new(
+                                media_type.clone(),
+                                encoding.clone(),
+                                **data,
+                                lookup_path,
+                            )
+                            .to_resolved()
+                            .await?,
+                        )),
+                    )
+                } else {
+                    *ResolveResult::primary_with_key(
+                        RequestKey::new(uri.clone()),
+                        ResolveResultItem::External {
+                            name: uri,
+                            ty: ExternalType::Url,
+                            traced: ExternalTraced::Untraced,
+                        },
+                    )
+                }
             }
             Request::Uri {
                 protocol,

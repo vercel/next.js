@@ -28,31 +28,32 @@ import metadata from './rules/metadata'
 import errorEntry from './rules/error'
 import type tsModule from 'typescript/lib/tsserverlibrary'
 
-type NextTypePluginOptions = {
-  enabled?: boolean
-}
-
 export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
   typescript: ts,
 }) => {
   function create(info: tsModule.server.PluginCreateInfo) {
-    init({
+    // Get plugin options
+    // config is the plugin options from the user's tsconfig.json
+    // e.g. { "plugins": [{ "name": "next", "enabled": true }] }
+    // config will be { "name": "next", "enabled": true }
+    // The default user config is { "name": "next" }
+    const isPluginEnabled = info.config.enabled ?? true
+
+    const isPluginInitialized = init({
       ts,
       info,
     })
 
-    // Set up decorator object
-    const proxy = Object.create(null)
-    for (let k of Object.keys(info.languageService)) {
-      const x = (info.languageService as any)[k]
-      proxy[k] = (...args: Array<{}>) => x.apply(info.languageService, args)
+    if (!isPluginEnabled || !isPluginInitialized) {
+      return info.languageService
     }
 
-    const pluginOptions: NextTypePluginOptions = info.config ?? {
-      enabled: true,
-    }
-    if (!pluginOptions.enabled) {
-      return proxy
+    // Set up decorator object
+    const proxy: tsModule.LanguageService = Object.create(null)
+    for (let k of Object.keys(info.languageService)) {
+      const x = info.languageService[k as keyof tsModule.LanguageService]
+      // @ts-expect-error - JS runtime trickery which is tricky to type tersely
+      proxy[k] = (...args: Array<{}>) => x.apply(info.languageService, args)
     }
 
     // Auto completion

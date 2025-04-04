@@ -6,6 +6,7 @@
 #![feature(impl_trait_in_assoc_type)]
 #![feature(iter_intersperse)]
 #![feature(map_try_insert)]
+#![feature(hash_set_entry)]
 
 pub mod asset;
 pub mod changed;
@@ -14,6 +15,7 @@ pub mod code_builder;
 pub mod compile_time_info;
 pub mod condition;
 pub mod context;
+pub mod data_uri_source;
 pub mod diagnostics;
 pub mod environment;
 pub mod error;

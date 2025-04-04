@@ -2,7 +2,7 @@
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/resolve_error_cjs/input/index.js [test] (ecmascript)": (function(__turbopack_context__) {
 
-var { g: global, d: __dirname, m: module, e: exports } = __turbopack_context__;
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
 {
 const dne = (()=>{
     const e = new Error("Cannot find module 'does-not-exist/path'");

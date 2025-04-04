@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use lightningcss::{
     css_modules::{CssModuleExport, CssModuleExports, Pattern, Segment},
     stylesheet::{ParserOptions, PrinterOptions, StyleSheet, ToCssResult},
@@ -14,7 +14,7 @@ use smallvec::smallvec;
 use swc_core::base::sourcemap::SourceMapBuilder;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{rope::Rope, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -23,7 +23,6 @@ use turbopack_core::{
         Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
         StyledString,
     },
-    module_graph::ModuleGraph,
     reference::ModuleReferences,
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
@@ -191,6 +190,8 @@ pub async fn process_css_with_placeholder(
                 _ => bail!("this case should be filtered out while parsing"),
             };
 
+            // We use NoMinify because this is not a final css. We need to replace url references,
+            // and we do final codegen with proper minification.
             let (result, _) = stylesheet.to_css(&code, MinifyType::NoMinify, false, false)?;
 
             let exports = result.exports.map(|exports| {
@@ -218,7 +219,6 @@ pub async fn process_css_with_placeholder(
 #[turbo_tasks::function]
 pub async fn finalize_css(
     result: Vc<CssWithPlaceholderResult>,
-    module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     minify_type: MinifyType,
 ) -> Result<Vc<FinalCssResult>> {
@@ -245,8 +245,7 @@ pub async fn finalize_css(
             let mut url_map = FxHashMap::default();
 
             for (src, reference) in (*url_references.await?).iter() {
-                let resolved =
-                    resolve_url_reference(**reference, module_graph, chunking_context).await?;
+                let resolved = resolve_url_reference(**reference, chunking_context).await?;
                 if let Some(v) = resolved.as_ref().cloned() {
                     url_map.insert(RcStr::from(src.as_str()), v);
                 }
@@ -284,7 +283,6 @@ pub trait ProcessCss: ParseCss {
 
     async fn finalize_css(
         self: Vc<Self>,
-        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         minify_type: MinifyType,
     ) -> Result<Vc<FinalCssResult>>;
@@ -293,8 +291,8 @@ pub trait ProcessCss: ParseCss {
 #[turbo_tasks::function]
 pub async fn parse_css(
     source: ResolvedVc<Box<dyn Source>>,
-    origin: Vc<Box<dyn ResolveOrigin>>,
-    import_context: Option<Vc<ImportContext>>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    import_context: Option<ResolvedVc<ImportContext>>,
     ty: CssModuleAssetType,
 ) -> Result<Vc<ParseCssResult>> {
     let span = {
@@ -313,7 +311,7 @@ pub async fn parse_css(
                     Err(_err) => ParseCssResult::Unparseable.cell(),
                     Ok(string) => {
                         process_content(
-                            **file_content,
+                            *file_content,
                             string.into_owned(),
                             fs_path.to_resolved().await?,
                             ident_str,
@@ -333,13 +331,13 @@ pub async fn parse_css(
 }
 
 async fn process_content(
-    content_vc: Vc<FileContent>,
+    content_vc: ResolvedVc<FileContent>,
     code: String,
     fs_path_vc: ResolvedVc<FileSystemPath>,
     filename: &str,
     source: ResolvedVc<Box<dyn Source>>,
-    origin: Vc<Box<dyn ResolveOrigin>>,
-    import_context: Option<Vc<ImportContext>>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    import_context: Option<ResolvedVc<ImportContext>>,
     ty: CssModuleAssetType,
 ) -> Result<Vc<ParseCssResult>> {
     #[allow(clippy::needless_lifetimes)]
@@ -435,6 +433,14 @@ async fn process_content(
                     }
                 }
 
+                // minify() is actually transform, and it performs operations like CSS modules
+                // handling.
+                //
+                //
+                // See: https://github.com/parcel-bundler/lightningcss/issues/935#issuecomment-2739325537
+                ss.minify(Default::default())
+                    .context("failed to transform css")?;
+
                 stylesheet_into_static(&ss, without_warnings(config.clone()))
             }
             Err(e) => {
@@ -464,24 +470,12 @@ async fn process_content(
     let mut stylesheet = stylesheet.to_static(config.clone());
 
     let (references, url_references) =
-        analyze_references(&mut stylesheet, source, origin, import_context)?;
-
-    let url_references = url_references
-        .into_iter()
-        .map(|(k, v)| async move { Ok((k, v.to_resolved().await?)) })
-        .try_join()
-        .await?;
+        analyze_references(&mut stylesheet, source, origin, import_context).await?;
 
     Ok(ParseCssResult::Ok {
-        code: content_vc.to_resolved().await?,
+        code: content_vc,
         stylesheet,
-        references: ResolvedVc::cell(
-            references
-                .into_iter()
-                .map(|v| v.to_resolved())
-                .try_join()
-                .await?,
-        ),
+        references: ResolvedVc::cell(references),
         url_references: ResolvedVc::cell(url_references),
         options: config,
     }

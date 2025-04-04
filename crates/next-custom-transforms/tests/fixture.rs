@@ -18,7 +18,7 @@ use next_custom_transforms::transforms::{
     page_config::page_config_test,
     pure::pure_magic,
     react_server_components::server_components,
-    server_actions::{self, server_actions},
+    server_actions::{self, server_actions, ServerActionsMode},
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
     strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
     warn_for_edge_runtime::warn_for_edge_runtime,
@@ -542,13 +542,19 @@ fn server_actions_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
     let is_development = input.iter().any(|s| s.to_str() == Some("development"));
+    let mode = if input.iter().any(|s| s.to_str() == Some("turbopack")) {
+        ServerActionsMode::Turbopack
+    } else {
+        ServerActionsMode::Webpack
+    };
     test_fixture(
         syntax(),
-        &|_tr| {
+        &|tr| {
             (
                 resolver(Mark::new(), Mark::new(), false),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
+                    None,
                     server_actions::Config {
                         is_react_server_layer,
                         is_development,
@@ -556,8 +562,10 @@ fn server_actions_fixture(input: PathBuf) {
                         hash_salt: "".into(),
                         cache_kinds: FxHashSet::from_iter(["x".into()]),
                     },
-                    _tr.comments.as_ref().clone(),
+                    tr.comments.as_ref().clone(),
+                    tr.cm.clone(),
                     Default::default(),
+                    mode,
                 ),
             )
         },
@@ -575,7 +583,7 @@ fn next_font_with_directive_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
-        &|_tr| {
+        &|tr| {
             (
                 resolver(Mark::new(), Mark::new(), false),
                 next_font_loaders(FontLoaderConfig {
@@ -584,6 +592,7 @@ fn next_font_with_directive_fixture(input: PathBuf) {
                 }),
                 server_actions(
                     &FileName::Real("/app/test.tsx".into()),
+                    None,
                     server_actions::Config {
                         is_react_server_layer: true,
                         is_development: true,
@@ -591,8 +600,10 @@ fn next_font_with_directive_fixture(input: PathBuf) {
                         hash_salt: "".into(),
                         cache_kinds: FxHashSet::default(),
                     },
-                    _tr.comments.as_ref().clone(),
+                    tr.comments.as_ref().clone(),
+                    tr.cm.clone(),
                     Default::default(),
+                    ServerActionsMode::Webpack,
                 ),
             )
         },
@@ -881,14 +892,20 @@ fn test_source_maps(input: PathBuf) {
     let output: PathBuf = input.parent().unwrap().join("output.js");
     let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
     let is_development = input.iter().any(|s| s.to_str() == Some("development"));
+    let mode = if input.iter().any(|s| s.to_str() == Some("turbopack")) {
+        ServerActionsMode::Turbopack
+    } else {
+        ServerActionsMode::Webpack
+    };
 
     test_fixture(
         syntax(),
-        &|_tr| {
+        &|tr| {
             (
                 resolver(Mark::new(), Mark::new(), false),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
+                    None,
                     server_actions::Config {
                         is_react_server_layer,
                         is_development,
@@ -896,8 +913,10 @@ fn test_source_maps(input: PathBuf) {
                         hash_salt: "".into(),
                         cache_kinds: FxHashSet::from_iter([]),
                     },
-                    _tr.comments.as_ref().clone(),
+                    tr.comments.as_ref().clone(),
+                    tr.cm.clone(),
                     Default::default(),
+                    mode,
                 ),
             )
         },

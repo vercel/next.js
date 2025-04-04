@@ -18,7 +18,7 @@ use super::EsmAssetReference;
 use crate::{
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
-    references::AstPath,
+    references::{esm::base::ReferencedAsset, AstPath},
 };
 
 #[derive(Hash, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs, NonLocalValue)]
@@ -50,7 +50,20 @@ impl EsmBinding {
 
         let export = self.export.clone();
         let imported_module = self.reference.get_referenced_asset();
-        let imported_module = imported_module.await?.get_ident(chunking_context).await?;
+
+        enum ImportedIdent {
+            Module(String),
+            None,
+            Unresolvable,
+        }
+
+        let imported_ident = match &*imported_module.await? {
+            ReferencedAsset::None => ImportedIdent::None,
+            imported_module => imported_module
+                .get_ident(chunking_context)
+                .await?
+                .map_or(ImportedIdent::Unresolvable, ImportedIdent::Module),
+        };
 
         let mut ast_path = self.ast_path.0.clone();
         loop {
@@ -60,17 +73,34 @@ impl EsmBinding {
                 Some(swc_core::ecma::visit::AstParentKind::Prop(PropField::Shorthand)) => {
                     ast_path.pop();
                     visitors.push(
-                    create_visitor!(exact ast_path, visit_mut_prop(prop: &mut Prop) {
-                        if let Prop::Shorthand(ident) = prop {
-                            // TODO: Merge with the above condition when https://rust-lang.github.io/rfcs/2497-if-let-chains.html lands.
-                            if let Some(imported_ident) = imported_module.as_deref() {
-                                *prop = Prop::KeyValue(KeyValueProp {
-                                    key: PropName::Ident(ident.clone().into()),
-                                    value: Box::new(make_expr(imported_ident, export.as_deref(), ident.span, false))
-                                });
+                        create_visitor!(exact ast_path, visit_mut_prop(prop: &mut Prop) {
+                            if let Prop::Shorthand(ident) = prop {
+                                // TODO: Merge with the above condition when https://rust-lang.github.io/rfcs/2497-if-let-chains.html lands.
+                                match &imported_ident {
+                                    ImportedIdent::Module(imported_ident) => {
+                                        *prop = Prop::KeyValue(KeyValueProp {
+                                            key: PropName::Ident(ident.clone().into()),
+                                            value: Box::new(make_expr(
+                                                imported_ident,
+                                                export.as_deref(),
+                                                ident.span,
+                                                false,
+                                            )),
+                                        });
+                                    }
+                                    ImportedIdent::None => {
+                                        *prop = Prop::KeyValue(KeyValueProp {
+                                            key: PropName::Ident(ident.clone().into()),
+                                            value: Expr::undefined(ident.span),
+                                        });
+                                    }
+                                    ImportedIdent::Unresolvable => {
+                                        // Do nothing, the reference will insert a throw
+                                    }
+                                }
                             }
-                        }
-                    }));
+                        }),
+                    );
                     break;
                 }
                 // Any other expression can be replaced with the import accessor.
@@ -85,13 +115,18 @@ impl EsmBinding {
 
                     visitors.push(
                         create_visitor!(exact ast_path, visit_mut_expr(expr: &mut Expr) {
-                            if let Some(ident) = imported_module.as_deref() {
-                                use swc_core::common::Spanned;
-                                *expr = make_expr(ident, export.as_deref(), expr.span(), in_call);
+                            use swc_core::common::Spanned;
+                            match &imported_ident {
+                                ImportedIdent::Module(imported_ident) => {
+                                    *expr = make_expr(imported_ident, export.as_deref(), expr.span(), in_call);
+                                }
+                                ImportedIdent::None => {
+                                    *expr = *Expr::undefined(expr.span());
+                                }
+                                ImportedIdent::Unresolvable => {
+                                    // Do nothing, the reference will insert a throw
+                                }
                             }
-                            // If there's no identifier for the imported module,
-                            // resolution failed and will insert code that throws
-                            // before this expression is reached. Leave behind the original identifier.
                         }),
                     );
                     break;
@@ -111,14 +146,22 @@ impl EsmBinding {
 
                         visitors.push(
                         create_visitor!(exact ast_path, visit_mut_simple_assign_target(l: &mut SimpleAssignTarget) {
-                                if let Some(ident) = imported_module.as_deref() {
-                                    use swc_core::common::Spanned;
-                                    *l = match make_expr(ident, export.as_deref(), l.span(), false) {
+                            use swc_core::common::Spanned;
+                            match &imported_ident {
+                                ImportedIdent::Module(imported_ident) => {
+                                    *l = match make_expr(imported_ident, export.as_deref(), l.span(), false) {
                                         Expr::Ident(ident) => SimpleAssignTarget::Ident(ident.into()),
                                         Expr::Member(member) => SimpleAssignTarget::Member(member),
                                         _ => unreachable!(),
                                     };
                                 }
+                                ImportedIdent::None => {
+                                    // Do nothing, cannot assign to `undefined`
+                                }
+                                ImportedIdent::Unresolvable => {
+                                    // Do nothing, the reference will insert a throw
+                                }
+                            }
                         }));
                         break;
                     }
