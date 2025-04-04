@@ -11,7 +11,7 @@ const getExpectedErrorMessage = (route: string) =>
   `Error: Route ${route} used "searchParams" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "searchParams" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
 
 describe('use-cache-standalone-search-params', () => {
-  const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
@@ -43,29 +43,20 @@ describe('use-cache-standalone-search-params', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        if (isTurbopack) {
-          // TODO(veil): Should have a mapped error source.
-          expect(errorSource).toBe(null)
+        expect(errorSource).toMatchInlineSnapshot(`
+         "app/search-params-used/page.tsx (8:17) @ Page
 
-          // TODO(veil): Should be a relative filename.
-          expect(cliOutput).toContain(`${expectedErrorMessage}
-    at Page (file:/`)
-        } else {
-          expect(errorSource).toMatchInlineSnapshot(`
-           "app/search-params-used/page.tsx (8:17) @ Page
+            6 |   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+            7 | }) {
+         >  8 |   const param = (await searchParams).foo
+              |                 ^
+            9 |
+           10 |   return <p>param: {param}</p>
+           11 | }"
+        `)
 
-              6 |   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
-              7 | }) {
-           >  8 |   const param = (await searchParams).foo
-                |                 ^
-              9 |
-             10 |   return <p>param: {param}</p>
-             11 | }"
-          `)
-
-          expect(cliOutput).toContain(`${expectedErrorMessage}
+        expect(cliOutput).toContain(`${expectedErrorMessage}
     at Page (app/search-params-used/page.tsx:8:17)`)
-        }
       })
     })
 
@@ -88,29 +79,20 @@ describe('use-cache-standalone-search-params', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        if (isTurbopack) {
-          // TODO(veil): Should have a mapped error source.
-          expect(errorSource).toBe(null)
+        expect(errorSource).toMatchInlineSnapshot(`
+         "app/search-params-caught/page.tsx (11:5) @ Page
 
-          // TODO(veil): Should be a relative filename.
-          expect(cliOutput).toContain(`${expectedErrorMessage}
-    at Page (file:/`)
-        } else {
-          expect(errorSource).toMatchInlineSnapshot(`
-           "app/search-params-caught/page.tsx (11:5) @ Page
+            9 |
+           10 |   try {
+         > 11 |     param = (await searchParams).foo
+              |     ^
+           12 |   } catch {}
+           13 |
+           14 |   return <p>param: {param}</p>"
+        `)
 
-              9 |
-             10 |   try {
-           > 11 |     param = (await searchParams).foo
-                |     ^
-             12 |   } catch {}
-             13 |
-             14 |   return <p>param: {param}</p>"
-          `)
-
-          expect(cliOutput).toContain(`${expectedErrorMessage}
+        expect(cliOutput).toContain(`${expectedErrorMessage}
     at Page (app/search-params-caught/page.tsx:11:4)`)
-        }
       })
 
       it('should also show an error after the second reload', async () => {
