@@ -25,7 +25,9 @@ use super::{
     update::update_chunk_list,
     version::EcmascriptDevChunkListVersion,
 };
-use crate::chunking_context::CurrentChunkMethod;
+use crate::chunking_context::{
+    CurrentChunkMethod, CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR,
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
 enum CurrentChunkMethodWithData {
@@ -141,7 +143,7 @@ impl EcmascriptDevChunkListContent {
         let script_or_path = match &this.current_chunk_method {
             CurrentChunkMethodWithData::StringLiteral(path) => Either::Left(StringifyJs(path)),
             CurrentChunkMethodWithData::DocumentCurrentScript => {
-                Either::Right("document.currentScript")
+                Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
             }
         };
 
@@ -153,10 +155,6 @@ impl EcmascriptDevChunkListContent {
         writedoc!(
             code,
             r#"
-                (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([
-                    {script_or_path},
-                    {{}},
-                ]);
                 (globalThis.TURBOPACK_CHUNK_LISTS = globalThis.TURBOPACK_CHUNK_LISTS || []).push({{
                     script: {script_or_path},
                     chunks: {:#},

@@ -20,7 +20,10 @@ use super::{
     chunk::EcmascriptBrowserChunk, content_entry::EcmascriptBrowserChunkContentEntries,
     merged::merger::EcmascriptBrowserChunkContentMerger, version::EcmascriptBrowserChunkVersion,
 };
-use crate::{chunking_context::CurrentChunkMethod, BrowserChunkingContext};
+use crate::{
+    chunking_context::{CurrentChunkMethod, CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR},
+    BrowserChunkingContext,
+};
 
 #[turbo_tasks::value(serialization = "none")]
 pub struct EcmascriptBrowserChunkContent {
@@ -90,7 +93,9 @@ impl EcmascriptBrowserChunkContent {
                 };
                 Either::Left(StringifyJs(chunk_server_path))
             }
-            CurrentChunkMethod::DocumentCurrentScript => Either::Right("document.currentScript"),
+            CurrentChunkMethod::DocumentCurrentScript => {
+                Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
+            }
         };
         let mut code = CodeBuilder::new(source_maps);
 
