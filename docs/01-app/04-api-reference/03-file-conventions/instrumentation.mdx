@@ -99,7 +99,6 @@ export function onRequestError(
       | 'react-server-components-payload'
       | 'server-rendering'
     revalidateReason: 'on-demand' | 'stale' | undefined // undefined is a normal request without revalidation
-    renderType: 'dynamic' | 'dynamic-resume' // 'dynamic-resume' for PPR
   }
 ): void | Promise<void>
 ```
