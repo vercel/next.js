@@ -94,36 +94,38 @@ pub async fn compute_style_groups(
         }
         let mut visited = FxHashSet::default();
         let mut items_in_postorder = FxIndexSet::default();
-        batches_graph.traverse_edges_from_entries_topological(
-            entries.iter().copied(),
-            &mut (),
-            |parent_info, module, _| {
-                if let Some((_, ModuleBatchesGraphEdge { ty, .. })) = parent_info {
-                    if !matches!(
-                        ty,
-                        ChunkingType::Parallel | ChunkingType::ParallelInheritAsync
-                    ) {
-                        return Ok(GraphTraversalAction::Exclude);
+        batches_graph
+            .traverse_edges_from_entries_topological(
+                entries.iter().copied(),
+                &mut visited,
+                async |parent_info, module, visited| {
+                    if let Some((_, ModuleBatchesGraphEdge { ty, .. })) = parent_info {
+                        if !matches!(
+                            ty,
+                            ChunkingType::Parallel | ChunkingType::ParallelInheritAsync
+                        ) {
+                            return Ok(GraphTraversalAction::Exclude);
+                        }
                     }
-                }
-                if visited.insert(module) {
-                    Ok(GraphTraversalAction::Continue)
-                } else {
-                    Ok(GraphTraversalAction::Exclude)
-                }
-            },
-            |parent_info, item, _| {
-                if let Some((_, ModuleBatchesGraphEdge { ty, .. })) = parent_info {
-                    if !matches!(
-                        ty,
-                        ChunkingType::Parallel | ChunkingType::ParallelInheritAsync
-                    ) {
-                        return;
+                    if visited.insert(module) {
+                        Ok(GraphTraversalAction::Continue)
+                    } else {
+                        Ok(GraphTraversalAction::Exclude)
                     }
-                }
-                items_in_postorder.insert(*item);
-            },
-        )?;
+                },
+                |parent_info, item, _| {
+                    if let Some((_, ModuleBatchesGraphEdge { ty, .. })) = parent_info {
+                        if !matches!(
+                            ty,
+                            ChunkingType::Parallel | ChunkingType::ParallelInheritAsync
+                        ) {
+                            return;
+                        }
+                    }
+                    items_in_postorder.insert(item);
+                },
+            )
+            .await?;
 
         let mut styles = FxIndexSet::default();
         let mut handle_module = async |module| {

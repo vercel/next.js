@@ -1,6 +1,6 @@
 use std::{
     collections::{BinaryHeap, VecDeque},
-    hash::Hash,
+    hash::{BuildHasher, Hash},
     ops::{Deref, DerefMut},
 };
 
@@ -8,7 +8,7 @@ use anyhow::{bail, Result};
 use either::Either;
 use indexmap::map::Entry;
 use roaring::RoaringBitmap;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -25,19 +25,16 @@ use crate::{
         GraphTraversalAction, ModuleGraph, SingleModuleGraphModuleNode, SingleModuleGraphNode,
     },
 };
-
 #[derive(
     Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat,
 )]
-pub struct RoaringBitmapWrapper(#[turbo_tasks(trace_ignore)] pub RoaringBitmap);
-
-impl TaskInput for RoaringBitmapWrapper {
-    fn is_transient(&self) -> bool {
-        false
-    }
-}
+pub struct RoaringBitmapWrapper(#[turbo_tasks(trace_ignore)] RoaringBitmap);
 
 impl RoaringBitmapWrapper {
+    pub fn new(value: RoaringBitmap) -> RoaringBitmapWrapper {
+        RoaringBitmapWrapper(value)
+    }
+
     /// Whether `self` contains bits that are not in `other`
     ///
     /// The existing `is_superset` method also returns true for equal sets
@@ -47,6 +44,11 @@ impl RoaringBitmapWrapper {
 
     pub fn into_inner(self) -> RoaringBitmap {
         self.0
+    }
+}
+impl TaskInput for RoaringBitmapWrapper {
+    fn is_transient(&self) -> bool {
+        false
     }
 }
 unsafe impl NonLocalValue for RoaringBitmapWrapper {}
@@ -198,6 +200,17 @@ impl ChunkGroupInfo {
                 }
             }
         }
+    }
+
+    pub async fn hash_chunk_groups(&self, chunk_groups: &RoaringBitmapWrapper) -> Result<u64> {
+        let mut entries = chunk_groups
+            .iter()
+            .flat_map(|idx| self.chunk_groups[idx as usize].entries())
+            .map(|m| m.ident().to_string())
+            .try_join()
+            .await?;
+        entries.sort();
+        Ok(FxBuildHasher.hash_one(entries))
     }
 }
 
@@ -356,6 +369,19 @@ impl ChunkGroup {
                 )
             }
         })
+    }
+}
+
+impl ChunkGroupInfo {
+    pub fn get_individual(
+        &self,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<&RoaringBitmapWrapper> {
+        if let Some(chunk_group) = self.module_chunk_groups.get(&module) {
+            Ok(chunk_group)
+        } else {
+            anyhow::bail!("Module has no chunk group info");
+        }
     }
 }
 

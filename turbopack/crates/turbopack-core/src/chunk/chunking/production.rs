@@ -625,7 +625,7 @@ fn merge_chunk_groups<'l>(
     if let (Some(chunk_groups), Some(chunk_groups2)) = (chunk_groups, chunk_groups2) {
         let l = &**chunk_groups.as_ref();
         let r = &**chunk_groups2.as_ref();
-        Some(Cow::Owned(RoaringBitmapWrapper(l & r)))
+        Some(Cow::Owned(RoaringBitmapWrapper::new(l & r)))
     } else {
         None
     }

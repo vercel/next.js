@@ -47,7 +47,6 @@ pub enum ModuleOrBatch {
 pub enum ChunkableModuleOrBatch {
     Module(ResolvedVc<Box<dyn ChunkableModule>>),
     Batch(ResolvedVc<ModuleBatch>),
-    None(usize),
 }
 
 impl ChunkableModuleOrBatch {
@@ -55,7 +54,7 @@ impl ChunkableModuleOrBatch {
         match module_or_batch {
             ModuleOrBatch::Module(module) => ResolvedVc::try_downcast(module).map(Self::Module),
             ModuleOrBatch::Batch(batch) => Some(Self::Batch(batch)),
-            ModuleOrBatch::None(i) => Some(Self::None(i)),
+            ModuleOrBatch::None(_) => None,
         }
     }
 
@@ -67,7 +66,6 @@ impl ChunkableModuleOrBatch {
             ChunkableModuleOrBatch::Batch(batch) => {
                 IdentStrings::Multiple(batch.ident_strings().await?)
             }
-            ChunkableModuleOrBatch::None(_) => IdentStrings::None,
         })
     }
 }
@@ -77,7 +75,6 @@ impl From<ChunkableModuleOrBatch> for ModuleOrBatch {
         match chunkable_module_or_batch {
             ChunkableModuleOrBatch::Module(module) => Self::Module(ResolvedVc::upcast(module)),
             ChunkableModuleOrBatch::Batch(batch) => Self::Batch(batch),
-            ChunkableModuleOrBatch::None(i) => Self::None(i),
         }
     }
 }

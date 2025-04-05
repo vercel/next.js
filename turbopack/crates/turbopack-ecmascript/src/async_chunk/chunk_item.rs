@@ -37,7 +37,7 @@ impl AsyncLoaderChunkItem {
     #[turbo_tasks::function]
     pub(super) async fn chunks(&self) -> Result<Vc<OutputAssets>> {
         let module = self.module.await?;
-        if let Some(chunk_items) = module.availability_info.available_modules() {
+        if let Some(available_chunk_groups) = module.availability_info.available_chunk_groups() {
             let inner_module = ResolvedVc::upcast(module.inner);
             let batches = self
                 .module_graph
@@ -47,7 +47,13 @@ impl AsyncLoaderChunkItem {
             if let Some(chunkable_module_or_batch) =
                 ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
             {
-                if *chunk_items.get(chunkable_module_or_batch).await? {
+                if *available_chunk_groups
+                    .is_available(
+                        self.module_graph.chunk_group_info(),
+                        chunkable_module_or_batch,
+                    )
+                    .await?
+                {
                     return Ok(Vc::cell(vec![]));
                 }
             }
@@ -167,11 +173,18 @@ impl ChunkItem for AsyncLoaderChunkItem {
     #[turbo_tasks::function]
     async fn content_ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self.module.ident();
-        if let Some(available_chunk_items) =
-            self.module.await?.availability_info.available_modules()
+        if let Some(available_chunk_items) = self
+            .module
+            .await?
+            .availability_info
+            .available_chunk_groups()
         {
             ident = ident.with_modifier(Vc::cell(
-                available_chunk_items.hash().await?.to_string().into(),
+                available_chunk_items
+                    .hash(self.module_graph.chunk_group_info())
+                    .await?
+                    .to_string()
+                    .into(),
             ));
         }
         Ok(ident)

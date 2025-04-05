@@ -345,14 +345,12 @@ impl ChunkingContext for NodeJsChunkingContext {
         module_graph: Vc<ModuleGraph>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<ChunkGroupResult>> {
-        let span = tracing::info_span!("chunking", module = ident.to_string().await?.to_string());
         async move {
-            let modules = chunk_group.entries();
             let MakeChunkGroupResult {
                 chunks,
                 availability_info,
             } = make_chunk_group(
-                modules,
+                chunk_group,
                 module_graph,
                 ResolvedVc::upcast(self),
                 availability_info.into_value(),
@@ -371,7 +369,10 @@ impl ChunkingContext for NodeJsChunkingContext {
             }
             .cell())
         }
-        .instrument(span)
+        .instrument(tracing::info_span!(
+            "chunking",
+            module = display(ident.to_string().await?)
+        ))
         .await
     }
 
@@ -384,59 +385,67 @@ impl ChunkingContext for NodeJsChunkingContext {
         extra_chunks: Vc<OutputAssets>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<EntryChunkGroupResult>> {
-        let availability_info = availability_info.into_value();
+        async move {
+            let availability_info = availability_info.into_value();
 
-        let evaluatable_assets_ref = evaluatable_assets.await?;
-        let entries = evaluatable_assets_ref
-            .iter()
-            .map(|&asset| ResolvedVc::upcast::<Box<dyn Module>>(asset));
+            let evaluatable_assets_ref = evaluatable_assets.await?;
+            let entries = evaluatable_assets_ref
+                .iter()
+                .map(|&asset| ResolvedVc::upcast::<Box<dyn Module>>(asset));
 
-        let MakeChunkGroupResult {
-            chunks,
-            availability_info,
-        } = make_chunk_group(
-            entries,
-            module_graph,
-            ResolvedVc::upcast(self),
-            availability_info,
-        )
-        .await?;
-
-        let extra_chunks = extra_chunks.await?;
-        let other_chunks: Vec<_> = extra_chunks
-            .iter()
-            .copied()
-            .chain(
-                chunks
-                    .iter()
-                    .map(|chunk| self.generate_chunk(**chunk).to_resolved())
-                    .try_join()
-                    .await?,
-            )
-            .collect();
-
-        let Some(module) = ResolvedVc::try_sidecast(*evaluatable_assets_ref.last().unwrap()) else {
-            bail!("module must be placeable in an ecmascript chunk");
-        };
-
-        let asset = ResolvedVc::upcast(
-            EcmascriptBuildNodeEntryChunk::new(
-                path,
-                Vc::cell(other_chunks),
-                evaluatable_assets,
-                *module,
+            let MakeChunkGroupResult {
+                chunks,
+                availability_info,
+            } = make_chunk_group(
+                ChunkGroup::Entry(entries.collect()),
                 module_graph,
-                *self,
+                ResolvedVc::upcast(self),
+                availability_info,
             )
-            .to_resolved()
-            .await?,
-        );
+            .await?;
 
-        Ok(EntryChunkGroupResult {
-            asset,
-            availability_info,
+            let extra_chunks = extra_chunks.await?;
+            let other_chunks: Vec<_> = extra_chunks
+                .iter()
+                .copied()
+                .chain(
+                    chunks
+                        .iter()
+                        .map(|chunk| self.generate_chunk(**chunk).to_resolved())
+                        .try_join()
+                        .await?,
+                )
+                .collect();
+
+            let Some(module) = ResolvedVc::try_sidecast(*evaluatable_assets_ref.last().unwrap())
+            else {
+                bail!("module must be placeable in an ecmascript chunk");
+            };
+
+            let asset = ResolvedVc::upcast(
+                EcmascriptBuildNodeEntryChunk::new(
+                    path,
+                    Vc::cell(other_chunks),
+                    evaluatable_assets,
+                    *module,
+                    module_graph,
+                    *self,
+                )
+                .to_resolved()
+                .await?,
+            );
+
+            Ok(EntryChunkGroupResult {
+                asset,
+                availability_info,
+            }
+            .cell())
         }
-        .cell())
+        .instrument(tracing::info_span!(
+            "entry_chunk_group",
+            module = display(path.to_string().await?)
+        ))
+        .await
     }
 
     #[turbo_tasks::function]
