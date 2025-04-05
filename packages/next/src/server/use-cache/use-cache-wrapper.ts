@@ -51,8 +51,7 @@ import {
 } from '../request/search-params'
 import type { Params } from '../request/params'
 import React from 'react'
-import type { ImplicitTags } from '../lib/implicit-tags'
-import { createLazyResult } from '../lib/lazy-result'
+import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
 
 type CacheKeyParts =
   | [buildId: string, id: string, args: unknown[]]
@@ -702,15 +701,13 @@ export function cache(
           cacheSignal.beginRead()
         }
 
-        const implicitTags = workUnitStore?.implicitTags
-        const forceRevalidate = shouldForceRevalidate(workStore, workUnitStore)
+        const lazyRefreshTags = workStore.refreshTagsByCacheKind.get(kind)
 
-        // Lazily refresh the tags for the cache handler that's associated with
-        // this cache function. This is only done once per request and cache
-        // handler, when it's awaited for the first time.
-        await workStore.refreshTagsByCacheKind.get(kind)
+        if (lazyRefreshTags && !isResolvedLazyResult(lazyRefreshTags)) {
+          await lazyRefreshTags
+        }
 
-        let entry = forceRevalidate
+        let entry = shouldForceRevalidate(workStore, workUnitStore)
           ? undefined
           : 'getExpiration' in cacheHandler
             ? await cacheHandler.get(serializedCacheKey)
@@ -719,15 +716,37 @@ export function cache(
               // cache handlers (see below).
               await cacheHandler.get(
                 serializedCacheKey,
-                implicitTags?.tags ?? []
+                workUnitStore?.implicitTags?.tags ?? []
               )
 
-        if (
-          entry &&
-          (await shouldDiscardCacheEntry(entry, workStore, implicitTags))
-        ) {
-          debug?.('discarding stale entry', serializedCacheKey)
-          entry = undefined
+        if (entry) {
+          const implicitTags = workUnitStore?.implicitTags?.tags ?? []
+          let implicitTagsExpiration = 0
+
+          if (workUnitStore?.implicitTags) {
+            const lazyExpiration =
+              workUnitStore.implicitTags.expirationsByCacheKind.get(kind)
+
+            if (lazyExpiration) {
+              if (isResolvedLazyResult(lazyExpiration)) {
+                implicitTagsExpiration = lazyExpiration.value
+              } else {
+                implicitTagsExpiration = await lazyExpiration
+              }
+            }
+          }
+
+          if (
+            shouldDiscardCacheEntry(
+              entry,
+              workStore,
+              implicitTags,
+              implicitTagsExpiration
+            )
+          ) {
+            debug?.('discarding stale entry', serializedCacheKey)
+            entry = undefined
+          }
         }
 
         const currentTime = performance.timeOrigin + performance.now()
@@ -951,38 +970,35 @@ function shouldForceRevalidate(
   return false
 }
 
-async function shouldDiscardCacheEntry(
+function shouldDiscardCacheEntry(
   entry: CacheEntry,
   workStore: WorkStore,
-  implicitTags: ImplicitTags | undefined
-): Promise<boolean> {
+  implicitTags: string[],
+  implicitTagsExpiration: number
+): boolean {
   // If the cache entry contains revalidated tags that the cache handler might
   // not know about yet, we need to discard it.
   if (entry.tags.some((tag) => isRecentlyRevalidatedTag(tag, workStore))) {
     return true
   }
 
-  if (implicitTags) {
-    // If the cache entry was created before any of the implicit tags were
-    // revalidated last, we also need to discard it.
-    if (entry.timestamp <= (await implicitTags.expiration)) {
-      debug?.(
-        'entry was created at',
-        entry.timestamp,
-        'before implicit tags were revalidated at',
-        implicitTags.expiration
-      )
+  // If the cache entry was created before any of the implicit tags were
+  // revalidated last, we also need to discard it.
+  if (entry.timestamp <= implicitTagsExpiration) {
+    debug?.(
+      'entry was created at',
+      entry.timestamp,
+      'before implicit tags were revalidated at',
+      implicitTagsExpiration
+    )
 
-      return true
-    }
+    return true
+  }
 
-    // Finally, if any of the implicit tags have been revalidated recently, we
-    // also need to discard the cache entry.
-    if (
-      implicitTags.tags.some((tag) => isRecentlyRevalidatedTag(tag, workStore))
-    ) {
-      return true
-    }
+  // Finally, if any of the implicit tags have been revalidated recently, we
+  // also need to discard the cache entry.
+  if (implicitTags.some((tag) => isRecentlyRevalidatedTag(tag, workStore))) {
+    return true
   }
 
   return false
