@@ -2,7 +2,7 @@ use std::iter::once;
 
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc};
+use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, Value, Vc};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
@@ -324,6 +324,13 @@ pub async fn get_server_resolve_options_context(
         enable_react: true,
         enable_mjs_extension: true,
         custom_extensions: next_config.resolve_extension().owned().await?,
+        tsconfig_path: next_config
+            .typescript_tsconfig_path()
+            .await?
+            .as_ref()
+            .map(|p| project_path.join(p.to_owned()))
+            .to_resolved()
+            .await?,
         rules: vec![(
             foreign_code_context_condition,
             resolve_options_context.clone().resolved_cell(),
@@ -659,7 +666,7 @@ pub async fn get_server_module_options_context(
             foreign_next_server_rules.extend(internal_custom_rules);
 
             custom_source_transform_rules.push(
-                get_next_react_server_components_transform_rule(next_config, false, Some(*app_dir))
+                get_next_react_server_components_transform_rule(next_config, false, Some(app_dir))
                     .await?,
             );
 
@@ -729,7 +736,7 @@ pub async fn get_server_module_options_context(
             {
                 custom_source_transform_rules.push(get_ecma_transform_rule(
                     Box::new(ClientDirectiveTransformer::new(
-                        *ecmascript_client_reference_transition_name,
+                        ecmascript_client_reference_transition_name,
                     )),
                     enable_mdx_rs.is_some(),
                     true,
@@ -740,7 +747,7 @@ pub async fn get_server_module_options_context(
             foreign_next_server_rules.extend(internal_custom_rules);
 
             custom_source_transform_rules.push(
-                get_next_react_server_components_transform_rule(next_config, true, Some(*app_dir))
+                get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
                     .await?,
             );
 
@@ -796,7 +803,7 @@ pub async fn get_server_module_options_context(
             next_server_rules.extend(source_transform_rules);
 
             let mut common_next_server_rules = vec![
-                get_next_react_server_components_transform_rule(next_config, true, Some(*app_dir))
+                get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
                     .await?,
             ];
 
@@ -805,7 +812,7 @@ pub async fn get_server_module_options_context(
             {
                 common_next_server_rules.push(get_ecma_transform_rule(
                     Box::new(ClientDirectiveTransformer::new(
-                        *ecmascript_client_reference_transition_name,
+                        ecmascript_client_reference_transition_name,
                     )),
                     enable_mdx_rs.is_some(),
                     true,
@@ -883,7 +890,7 @@ pub async fn get_server_module_options_context(
             {
                 custom_source_transform_rules.push(get_ecma_transform_rule(
                     Box::new(ClientDirectiveTransformer::new(
-                        *ecmascript_client_reference_transition_name,
+                        ecmascript_client_reference_transition_name,
                     )),
                     enable_mdx_rs.is_some(),
                     true,
@@ -899,12 +906,7 @@ pub async fn get_server_module_options_context(
             }
 
             custom_source_transform_rules.push(
-                get_next_react_server_components_transform_rule(
-                    next_config,
-                    true,
-                    app_dir.as_deref().copied(),
-                )
-                .await?,
+                get_next_react_server_components_transform_rule(next_config, true, app_dir).await?,
             );
 
             internal_custom_rules.extend(custom_source_transform_rules.iter().cloned());

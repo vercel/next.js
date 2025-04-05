@@ -3,13 +3,13 @@ import type {
   NextConfigComplete,
 } from '../../../server/config-shared'
 import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { needsExperimentalReact } from '../../../lib/needs-experimental-react'
 import { checkIsAppPPREnabled } from '../../../server/lib/experimental/ppr'
 import {
   getNextConfigEnv,
   getNextPublicEnvironmentVariables,
 } from '../../../lib/static-env'
+import getWebpackBundler from '../../../shared/lib/get-webpack-bundler'
 
 type BloomFilter = ReturnType<
   import('../../../shared/lib/bloom-filter').BloomFilter['export']
@@ -133,6 +133,11 @@ export function getDefineEnv({
         }),
     'process.turbopack': isTurbopack,
     'process.env.TURBOPACK': isTurbopack,
+    'process.env.__NEXT_BUNDLER': isTurbopack
+      ? 'Turbopack'
+      : process.env.NEXT_RSPACK
+        ? 'Rspack'
+        : 'Webpack',
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
     'process.env.NODE_ENV':
       dev || config.experimental.allowDevelopmentBuild
@@ -240,9 +245,6 @@ export function getDefineEnv({
     'process.env.__NEXT_TELEMETRY_DISABLED': Boolean(
       process.env.NEXT_TELEMETRY_DISABLED
     ),
-    'process.env.__NEXT_EXPERIMENTAL_CLIENT_INSTRUMENTATION_HOOK': Boolean(
-      config.experimental.clientInstrumentationHook
-    ),
     ...(isNodeOrEdgeCompilation
       ? {
           // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -296,5 +298,5 @@ export function getDefineEnv({
 }
 
 export function getDefineEnvPlugin(options: DefineEnvPluginOptions) {
-  return new webpack.DefinePlugin(getDefineEnv(options))
+  return new (getWebpackBundler().DefinePlugin)(getDefineEnv(options))
 }

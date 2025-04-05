@@ -213,7 +213,7 @@ export interface RenderOptsPartial {
     expireTime: number | undefined
     clientTraceMetadata: string[] | undefined
     dynamicIO: boolean
-    clientSegmentCache: boolean
+    clientSegmentCache: boolean | 'client-only'
     inlineCss: boolean
     authInterrupts: boolean
   }

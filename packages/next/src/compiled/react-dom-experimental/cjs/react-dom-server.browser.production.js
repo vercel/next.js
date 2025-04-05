@@ -3733,9 +3733,6 @@ function readPreviousThenableFromState() {
 function unsupportedRefresh() {
   throw Error(formatProdErrorMessage(393));
 }
-function unsupportedStartGesture() {
-  throw Error(formatProdErrorMessage(547));
-}
 function noop$1() {}
 var HooksDispatcher = {
     readContext: function (context) {
@@ -3826,10 +3823,6 @@ var HooksDispatcher = {
     },
     useEffectEvent: function () {
       return throwOnUseEffectEventCall;
-    },
-    useSwipeTransition: function (previous, current) {
-      resolveCurrentlyRenderingComponent();
-      return [current, unsupportedStartGesture];
     }
   },
   currentResumableState = null,
@@ -6899,12 +6892,12 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.1.0-experimental-313332d1-20250326" !== isomorphicReactPackageVersion)
+  if ("19.2.0-experimental-040f8286-20250402" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.1.0-experimental-313332d1-20250326"
+        "19.2.0-experimental-040f8286-20250402"
       )
     );
 }
@@ -7159,4 +7152,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.1.0-experimental-313332d1-20250326";
+exports.version = "19.2.0-experimental-040f8286-20250402";

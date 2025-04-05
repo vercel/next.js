@@ -82,6 +82,7 @@ import {
 } from '../../../client/components/http-access-fallback/http-access-fallback'
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
 import { INFINITE_CACHE } from '../../../lib/constants'
+import { executeRevalidates } from '../../revalidation-utils'
 
 export class WrappedNextRouterError {
   constructor(
@@ -323,13 +324,9 @@ export class AppRouteRouteModule extends RouteModule<
     }
 
     const resolvePendingRevalidations = () => {
-      context.renderOpts.pendingWaitUntil = Promise.all([
-        workStore.incrementalCache?.revalidateTag(
-          workStore.pendingRevalidatedTags || []
-        ),
-        ...Object.values(workStore.pendingRevalidates || {}),
-        ...(workStore.pendingRevalidateWrites || []),
-      ]).finally(() => {
+      context.renderOpts.pendingWaitUntil = executeRevalidates(
+        workStore
+      ).finally(() => {
         if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
           console.log(
             'pending revalidates promise finished for:',
@@ -396,6 +393,7 @@ export class AppRouteRouteModule extends RouteModule<
               stale: INFINITE_CACHE,
               tags: [...implicitTags.tags],
               prerenderResumeDataCache: null,
+              hmrRefreshHash: undefined,
             })
 
           let prospectiveResult
@@ -481,6 +479,7 @@ export class AppRouteRouteModule extends RouteModule<
             stale: INFINITE_CACHE,
             tags: [...implicitTags.tags],
             prerenderResumeDataCache: null,
+            hmrRefreshHash: undefined,
           })
 
           let responseHandled = false

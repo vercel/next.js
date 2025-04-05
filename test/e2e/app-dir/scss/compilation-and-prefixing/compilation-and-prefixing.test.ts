@@ -106,18 +106,6 @@ describe.each([
                       "line": 1,
                     },
                   },
-                  {
-                    "map": {
-                      "mappings": "A",
-                      "names": [],
-                      "sources": [],
-                      "version": 3,
-                    },
-                    "offset": {
-                      "column": 91,
-                      "line": 1,
-                    },
-                  },
                 ],
                 "version": 3,
               }
@@ -140,18 +128,6 @@ describe.each([
                     },
                     "offset": {
                       "column": 0,
-                      "line": 1,
-                    },
-                  },
-                  {
-                    "map": {
-                      "mappings": "A",
-                      "names": [],
-                      "sources": [],
-                      "version": 3,
-                    },
-                    "offset": {
-                      "column": 91,
                       "line": 1,
                     },
                   },

@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
-    Vc,
+    trace::TraceRawVcs, FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt,
+    TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -30,20 +30,20 @@ use crate::{
     util::NextRuntime,
 };
 
-#[derive(TaskInput, Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(TaskInput, Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 pub struct ClientReferenceManifestOptions {
-    pub node_root: Vc<FileSystemPath>,
-    pub client_relative_path: Vc<FileSystemPath>,
+    pub node_root: ResolvedVc<FileSystemPath>,
+    pub client_relative_path: ResolvedVc<FileSystemPath>,
     pub entry_name: RcStr,
-    pub client_references: Vc<ClientReferenceGraphResult>,
-    pub client_references_chunks: Vc<ClientReferencesChunks>,
-    pub rsc_app_entry_chunks: Vc<OutputAssets>,
-    pub client_chunking_context: Vc<Box<dyn ChunkingContext>>,
-    pub ssr_chunking_context: Option<Vc<Box<dyn ChunkingContext>>>,
-    pub async_module_info: Vc<AsyncModulesInfo>,
-    pub next_config: Vc<NextConfig>,
+    pub client_references: ResolvedVc<ClientReferenceGraphResult>,
+    pub client_references_chunks: ResolvedVc<ClientReferencesChunks>,
+    pub rsc_app_entry_chunks: ResolvedVc<OutputAssets>,
+    pub client_chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    pub ssr_chunking_context: Option<ResolvedVc<Box<dyn ChunkingContext>>>,
+    pub async_module_info: ResolvedVc<AsyncModulesInfo>,
+    pub next_config: ResolvedVc<NextConfig>,
     pub runtime: NextRuntime,
-    pub mode: Vc<NextMode>,
+    pub mode: NextMode,
 }
 
 #[turbo_tasks::value_impl]
@@ -181,7 +181,7 @@ impl ClientReferenceManifest {
                 let server_path = client_reference_module_ref.server_ident.to_string().await?;
                 let client_module = client_reference_module_ref.client_module;
                 let client_chunk_item_id = client_module
-                    .chunk_item_id(Vc::upcast(client_chunking_context))
+                    .chunk_item_id(*ResolvedVc::upcast(client_chunking_context))
                     .await?;
 
                 let (client_chunks_paths, client_is_async) =
@@ -226,11 +226,11 @@ impl ClientReferenceManifest {
                 if let Some(ssr_chunking_context) = ssr_chunking_context {
                     let ssr_module = client_reference_module_ref.ssr_module;
                     let ssr_chunk_item_id = ssr_module
-                        .chunk_item_id(Vc::upcast(ssr_chunking_context))
+                        .chunk_item_id(*ResolvedVc::upcast(ssr_chunking_context))
                         .await?;
 
                     let rsc_chunk_item_id = client_reference_module
-                        .chunk_item_id(Vc::upcast(ssr_chunking_context))
+                        .chunk_item_id(*ResolvedVc::upcast(ssr_chunking_context))
                         .await?;
 
                     let (ssr_chunks_paths, ssr_is_async) = if runtime == NextRuntime::Edge {
@@ -385,7 +385,7 @@ impl ClientReferenceManifest {
                 }
 
                 let inlined = next_config.await?.experimental.inline_css.unwrap_or(false)
-                    && mode.await?.is_production();
+                    && mode.is_production();
                 let entry_css_files_vec = entry_css_files_with_chunk
                     .into_iter()
                     .map(async |(path, chunk)| {

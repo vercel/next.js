@@ -645,8 +645,8 @@
   "644": "@rspack/core is not available. Please make sure the appropriate Next.js plugin is installed.",
   "645": "@rspack/plugin-react-refresh is not available. Please make sure the appropriate Next.js plugin is installed.",
   "646": "No span found for compilation",
-  "647": "@rspack/core is not available. Please make sure `@next/plugin-rspack` is correctly installed.",
-  "648": "@rspack/plugin-react-refresh is not available. Please make sure `@next/plugin-rspack` is correctly installed.",
+  "647": "@rspack/core is not available. Please make sure `next-rspack` is correctly installed.",
+  "648": "@rspack/plugin-react-refresh is not available. Please make sure `next-rspack` is correctly installed.",
   "649": "Cache handlers not initialized",
   "650": "experimental.nodeMiddleware",
   "651": "Unexpected module type %s",
@@ -666,5 +666,9 @@
   "665": "Failed to find Server Action \"%s\". This request might be from an older or newer deployment.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
   "666": "Turbopack builds are only available in canary builds of Next.js.",
   "667": "receiveExpiredTags is deprecated, and not expected to be called.",
-  "668": "Internal Next.js error: Router action dispatched before initialization."
+  "668": "Internal Next.js error: Router action dispatched before initialization.",
+  "669": "Invariant: --turbopack is set but the build used Webpack",
+  "670": "Invariant: --turbopack is not set but the build used Turbopack. Add --turbopack to \"next start\".",
+  "671": "Specified images.remotePatterns must have protocol \"http\" or \"https\" received \"%s\".",
+  "672": "Expected `telemetry` to be set in globals"
 }

@@ -30,19 +30,11 @@ export function useFlightStream<T>(
   }
 
   // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
-  let createFromReadableStream
-  // @TODO: investigate why the aliasing for turbopack doesn't pick this up, requiring this runtime check
-  if (process.env.TURBOPACK) {
-    createFromReadableStream =
-      // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-turbopack/client.edge').createFromReadableStream
-  } else {
-    createFromReadableStream =
-      // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-webpack/client.edge').createFromReadableStream
-  }
+  const { createFromReadableStream } =
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    require('react-server-dom-webpack/client.edge') as typeof import('react-server-dom-webpack/client.edge')
 
-  const newResponse = createFromReadableStream(flightStream, {
+  const newResponse = createFromReadableStream<T>(flightStream, {
     serverConsumerManifest: {
       moduleLoading: clientReferenceManifest.moduleLoading,
       moduleMap: isEdgeRuntime

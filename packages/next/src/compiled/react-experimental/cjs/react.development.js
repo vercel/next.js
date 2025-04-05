@@ -503,7 +503,65 @@
     function useOptimistic(passthrough, reducer) {
       return resolveDispatcher().useOptimistic(passthrough, reducer);
     }
+    function releaseAsyncTransition() {
+      ReactSharedInternals.asyncTransitions--;
+    }
+    function startTransition(scope) {
+      var prevTransition = ReactSharedInternals.T,
+        currentTransition = {};
+      currentTransition.types =
+        null !== prevTransition ? prevTransition.types : null;
+      currentTransition.gesture = null;
+      currentTransition._updatedFibers = new Set();
+      ReactSharedInternals.T = currentTransition;
+      try {
+        var returnValue = scope(),
+          onStartTransitionFinish = ReactSharedInternals.S;
+        null !== onStartTransitionFinish &&
+          onStartTransitionFinish(currentTransition, returnValue);
+        "object" === typeof returnValue &&
+          null !== returnValue &&
+          "function" === typeof returnValue.then &&
+          (ReactSharedInternals.asyncTransitions++,
+          returnValue.then(releaseAsyncTransition, releaseAsyncTransition),
+          returnValue.then(noop, reportGlobalError));
+      } catch (error) {
+        reportGlobalError(error);
+      } finally {
+        null === prevTransition &&
+          currentTransition._updatedFibers &&
+          ((scope = currentTransition._updatedFibers.size),
+          currentTransition._updatedFibers.clear(),
+          10 < scope &&
+            console.warn(
+              "Detected a large number of updates inside startTransition. If this is due to a subscription please re-write it to use React provided hooks. Otherwise concurrent mode guarantees are off the table."
+            )),
+          null !== prevTransition &&
+            null !== currentTransition.types &&
+            (null !== prevTransition.types &&
+              prevTransition.types !== currentTransition.types &&
+              console.error(
+                "We expected inner Transitions to have transferred the outer types set and that you cannot add to the outer Transition while inside the inner.This is a bug in React."
+              ),
+            (prevTransition.types = currentTransition.types)),
+          (ReactSharedInternals.T = prevTransition);
+      }
+    }
     function noop() {}
+    function addTransitionType(type) {
+      var transition = ReactSharedInternals.T;
+      if (null !== transition) {
+        var transitionTypes = transition.types;
+        null === transitionTypes
+          ? (transition.types = [type])
+          : -1 === transitionTypes.indexOf(type) && transitionTypes.push(type);
+      } else
+        0 === ReactSharedInternals.asyncTransitions &&
+          console.error(
+            "addTransitionType can only be called inside a `startTransition()` or `startGestureTransition()` callback. It must be associated with a specific Transition."
+          ),
+          startTransition(addTransitionType.bind(null, type));
+    }
     function enqueueTask(task) {
       if (null === enqueueTaskImpl)
         try {
@@ -667,8 +725,9 @@
         A: null,
         T: null,
         S: null,
-        V: null,
+        G: null,
         actQueue: null,
+        asyncTransitions: 0,
         isBatchingLegacy: !1,
         didScheduleLegacyUpdate: !1,
         didUsePromise: !1,
@@ -1131,44 +1190,11 @@
       });
       return compare;
     };
-    exports.startTransition = function (scope) {
-      var prevTransition = ReactSharedInternals.T,
-        currentTransition = {};
-      ReactSharedInternals.T = currentTransition;
-      currentTransition._updatedFibers = new Set();
-      try {
-        var returnValue = scope(),
-          onStartTransitionFinish = ReactSharedInternals.S;
-        null !== onStartTransitionFinish &&
-          onStartTransitionFinish(currentTransition, returnValue);
-        "object" === typeof returnValue &&
-          null !== returnValue &&
-          "function" === typeof returnValue.then &&
-          returnValue.then(noop, reportGlobalError);
-      } catch (error) {
-        reportGlobalError(error);
-      } finally {
-        null === prevTransition &&
-          currentTransition._updatedFibers &&
-          ((scope = currentTransition._updatedFibers.size),
-          currentTransition._updatedFibers.clear(),
-          10 < scope &&
-            console.warn(
-              "Detected a large number of updates inside startTransition. If this is due to a subscription please re-write it to use React provided hooks. Otherwise concurrent mode guarantees are off the table."
-            )),
-          (ReactSharedInternals.T = prevTransition);
-      }
-    };
+    exports.startTransition = startTransition;
     exports.unstable_Activity = REACT_ACTIVITY_TYPE;
     exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
     exports.unstable_ViewTransition = REACT_VIEW_TRANSITION_TYPE;
-    exports.unstable_addTransitionType = function (type) {
-      var pendingTransitionTypes = ReactSharedInternals.V;
-      null === pendingTransitionTypes
-        ? (ReactSharedInternals.V = [type])
-        : -1 === pendingTransitionTypes.indexOf(type) &&
-          pendingTransitionTypes.push(type);
-    };
+    exports.unstable_addTransitionType = addTransitionType;
     exports.unstable_getCacheForType = function (resourceType) {
       var dispatcher = ReactSharedInternals.A;
       return dispatcher
@@ -1180,11 +1206,44 @@
       reason.$$typeof = REACT_POSTPONE_TYPE;
       throw reason;
     };
+    exports.unstable_startGestureTransition = function (
+      provider,
+      scope,
+      options
+    ) {
+      if (null == provider)
+        throw Error(
+          "A Timeline is required as the first argument to startGestureTransition."
+        );
+      var prevTransition = ReactSharedInternals.T,
+        currentTransition = { types: null };
+      currentTransition.gesture = provider;
+      currentTransition._updatedFibers = new Set();
+      ReactSharedInternals.T = currentTransition;
+      try {
+        var returnValue = scope();
+        "object" === typeof returnValue &&
+          null !== returnValue &&
+          "function" === typeof returnValue.then &&
+          console.error(
+            "Cannot use an async function in startGestureTransition. It must be able to start immediately."
+          );
+        var onStartGestureTransitionFinish = ReactSharedInternals.G;
+        if (null !== onStartGestureTransitionFinish)
+          return onStartGestureTransitionFinish(
+            currentTransition,
+            provider,
+            options
+          );
+      } catch (error) {
+        reportGlobalError(error);
+      } finally {
+        ReactSharedInternals.T = prevTransition;
+      }
+      return function () {};
+    };
     exports.unstable_useCacheRefresh = function () {
       return resolveDispatcher().useCacheRefresh();
-    };
-    exports.unstable_useSwipeTransition = function (previous, current, next) {
-      return resolveDispatcher().useSwipeTransition(previous, current, next);
     };
     exports.use = function (usable) {
       return resolveDispatcher().use(usable);
@@ -1267,7 +1326,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.1.0-experimental-313332d1-20250326";
+    exports.version = "19.2.0-experimental-040f8286-20250402";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

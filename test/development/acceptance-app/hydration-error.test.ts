@@ -73,6 +73,7 @@ describe('Error overlay for hydration errors in App router', () => {
 
     expect(await getRedboxTotalErrorCount(browser)).toBe(1)
 
+    // TODO(veil): Should be "rendered text"
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
       `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:"`
     )

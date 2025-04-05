@@ -188,7 +188,8 @@ export default class NextNodeServer extends BaseServer<
     // Initialize super class
     super(options)
 
-    this.isDev = options.dev ?? false
+    const isDev = options.dev ?? false
+    this.isDev = isDev
     this.sriEnabled = Boolean(options.conf.experimental?.sri?.algorithm)
 
     /**
@@ -1605,12 +1606,7 @@ export default class NextNodeServer extends BaseServer<
 
       result = await adapterFn({
         handler: middlewareModule.middleware || middlewareModule,
-        request: {
-          ...requestData,
-          body: !['HEAD', 'GET'].includes(params.request.method)
-            ? requestData.body?.cloneBodyStream()
-            : undefined,
-        },
+        request: requestData,
         page: 'middleware',
       })
     } else {

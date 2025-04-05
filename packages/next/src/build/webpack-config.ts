@@ -95,6 +95,7 @@ import {
 } from './next-dir-paths'
 import { getRspackCore, getRspackReactRefresh } from '../shared/lib/get-rspack'
 import { RspackProfilingPlugin } from './webpack/plugins/rspack-profiling-plugin'
+import getWebpackBundler from '../shared/lib/get-webpack-bundler'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -171,11 +172,17 @@ let loggedIgnoredCompilerOptions = false
 const reactRefreshLoaderName =
   'next/dist/compiled/@next/react-refresh-utils/dist/loader'
 
+function getReactRefreshLoader() {
+  return process.env.NEXT_RSPACK
+    ? getRspackReactRefresh().loader
+    : require.resolve(reactRefreshLoaderName)
+}
+
 export function attachReactRefresh(
   webpackConfig: webpack.Configuration,
   targetLoader: webpack.RuleSetUseItem
 ) {
-  const reactRefreshLoader = require.resolve(reactRefreshLoaderName)
+  const reactRefreshLoader = getReactRefreshLoader()
   webpackConfig.module?.rules?.forEach((rule) => {
     if (rule && typeof rule === 'object' && 'use' in rule) {
       const curr = rule.use
@@ -341,6 +348,7 @@ export default async function getBaseWebpackConfig(
     fetchCacheKeyPrefix?: string
   }
 ): Promise<webpack.Configuration> {
+  const bundler = getWebpackBundler()
   const isClient = compilerType === COMPILER_NAMES.client
   const isEdgeServer = compilerType === COMPILER_NAMES.edgeServer
   const isNodeServer = compilerType === COMPILER_NAMES.server
@@ -601,11 +609,7 @@ export default async function getBaseWebpackConfig(
     babelLoader,
   ].filter(Boolean)
 
-  // Rspack will inject their own React Refresh loader in @rspack/plugin-react-refresh
-  const reactRefreshLoaders =
-    !isRspack && dev && isClient
-      ? [require.resolve(reactRefreshLoaderName)]
-      : []
+  const reactRefreshLoaders = dev && isClient ? [getReactRefreshLoader()] : []
 
   // client components layers: SSR or browser
   const createClientLayerLoader = ({
@@ -1870,7 +1874,7 @@ export default async function getBaseWebpackConfig(
     },
     plugins: [
       isNodeServer &&
-        new webpack.NormalModuleReplacementPlugin(
+        new bundler.NormalModuleReplacementPlugin(
           /\.\/(.+)\.shared-runtime$/,
           function (resource) {
             const moduleName = path.basename(
@@ -1898,11 +1902,11 @@ export default async function getBaseWebpackConfig(
         isClient &&
         (isRspack
           ? // eslint-disable-next-line
-            new (getRspackReactRefresh() as any)()
+            new (getRspackReactRefresh() as any)({ injectLoader: false })
           : new ReactRefreshWebpackPlugin(webpack)),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       (isClient || isEdgeServer) &&
-        new webpack.ProvidePlugin({
+        new bundler.ProvidePlugin({
           // Buffer is used by getInlineScriptSource
           Buffer: [require.resolve('buffer'), 'Buffer'],
           // Avoid process being overridden when in web run time
@@ -1952,7 +1956,7 @@ export default async function getBaseWebpackConfig(
       // solution that requires the user to opt into importing specific locales.
       // https://github.com/jmblog/how-to-optimize-momentjs-with-webpack
       config.excludeDefaultMomentLocales &&
-        new webpack.IgnorePlugin({
+        new bundler.IgnorePlugin({
           resourceRegExp: /^\.\/locale$/,
           contextRegExp: /moment$/,
         }),
@@ -1969,14 +1973,14 @@ export default async function getBaseWebpackConfig(
             ]
 
             if (isClient || isEdgeServer) {
-              devPlugins.push(new webpack.HotModuleReplacementPlugin())
+              devPlugins.push(new bundler.HotModuleReplacementPlugin())
             }
 
             return devPlugins
           })()
         : []),
       !dev &&
-        new webpack.IgnorePlugin({
+        new bundler.IgnorePlugin({
           resourceRegExp: /react-is/,
           contextRegExp: /next[\\/]dist[\\/]/,
         }),
@@ -2614,8 +2618,7 @@ export default async function getBaseWebpackConfig(
   }
 
   // Inject missing React Refresh loaders so that development mode is fast:
-  // Rspack will inject their own React Refresh loader in @rspack/plugin-react-refresh
-  if (!isRspack && dev && isClient) {
+  if (dev && isClient) {
     attachReactRefresh(webpackConfig, defaultLoaders.babel)
   }
 

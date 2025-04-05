@@ -2,7 +2,7 @@ use std::iter::once;
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc};
+use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, Value, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
@@ -13,7 +13,10 @@ use turbopack::{
     },
     resolve_options_context::ResolveOptionsContext,
 };
-use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
+use turbopack_browser::{
+    react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext, ContentHashing,
+    CurrentChunkMethod,
+};
 use turbopack_core::{
     chunk::{
         module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, MinifyType,
@@ -169,7 +172,7 @@ pub async fn get_client_resolve_options_context(
             .to_resolved()
             .await?;
     let custom_conditions = vec![mode.await?.condition().into()];
-    let module_options_context = ResolveOptionsContext {
+    let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().to_resolved().await?),
         custom_conditions,
         import_map: Some(next_client_import_map),
@@ -201,16 +204,24 @@ pub async fn get_client_resolve_options_context(
         )],
         ..Default::default()
     };
+
     Ok(ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
         custom_extensions: next_config.resolve_extension().owned().await?,
+        tsconfig_path: next_config
+            .typescript_tsconfig_path()
+            .await?
+            .as_ref()
+            .map(|p| project_path.join(p.to_owned()))
+            .to_resolved()
+            .await?,
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
-            module_options_context.clone().resolved_cell(),
+            resolve_options_context.clone().resolved_cell(),
         )],
-        ..module_options_context
+        ..resolve_options_context
     }
     .cell())
 }
@@ -454,6 +465,7 @@ pub async fn get_client_chunking_context(
         SourceMapsType::None
     })
     .asset_base_path(asset_prefix)
+    .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
     .module_id_strategy(module_id_strategy);
 
     if next_mode.is_development() {
@@ -475,6 +487,7 @@ pub async fn get_client_chunking_context(
                 ..Default::default()
             },
         );
+        builder = builder.use_content_hashing(ContentHashing::Direct { length: 16 })
     }
 
     Ok(Vc::upcast(builder.build()))

@@ -3,6 +3,7 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    chunk::ChunkingContext,
     output::OutputAsset,
     source_map::{GenerateSourceMap, SourceMap},
 };
@@ -26,8 +27,18 @@ impl SingleItemCssChunkSourceMapAsset {
 #[turbo_tasks::value_impl]
 impl OutputAsset for SingleItemCssChunkSourceMapAsset {
     #[turbo_tasks::function]
-    fn path(&self) -> Vc<FileSystemPath> {
-        self.chunk.path().append(".map".into())
+    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
+        Ok(this
+            .chunk
+            .await?
+            .chunking_context
+            .chunk_path(
+                Some(Vc::upcast(self)),
+                this.chunk.ident_for_path(),
+                ".single.css".into(),
+            )
+            .append(".map".into()))
     }
 }
 
