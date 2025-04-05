@@ -3057,21 +3057,32 @@ export default async function build(
                   )
                 }
 
-                if (!isAppRouteHandler && metadata?.segmentPaths) {
-                  const dynamicRoute = routesManifest.dynamicRoutes.find(
-                    (r) => r.page === page
+                if (!isAppRouteHandler) {
+                  // We want to create a dynamic route per pathname that's
+                  // emitted and if not, we want to create one.
+                  let dynamicRoute = routesManifest.dynamicRoutes.find((r) =>
+                    isRoutePPREnabled
+                      ? r.page === route.pathname
+                      : r.page === page
                   )
-                  if (!dynamicRoute) {
-                    throw new Error('Dynamic route not found')
+                  if (!dynamicRoute && isRoutePPREnabled) {
+                    dynamicRoute = pageToRoute(route.pathname)
+                    routesManifest.dynamicRoutes.push(dynamicRoute)
                   }
 
-                  dynamicRoute.prefetchSegmentDataRoutes ??= []
-                  for (const segmentPath of metadata.segmentPaths) {
-                    const result = buildPrefetchSegmentDataRoute(
-                      route.pathname,
-                      segmentPath
-                    )
-                    dynamicRoute.prefetchSegmentDataRoutes.push(result)
+                  if (metadata?.segmentPaths) {
+                    if (!dynamicRoute) {
+                      throw new Error('Dynamic route not found')
+                    }
+
+                    dynamicRoute.prefetchSegmentDataRoutes ??= []
+                    for (const segmentPath of metadata.segmentPaths) {
+                      const result = buildPrefetchSegmentDataRoute(
+                        route.pathname,
+                        segmentPath
+                      )
+                      dynamicRoute.prefetchSegmentDataRoutes.push(result)
+                    }
                   }
                 }
 
@@ -3481,6 +3492,13 @@ export default async function build(
           await fs.rm(outdir, { recursive: true, force: true })
           await writeManifest(pagesManifestPath, pagesManifest)
         })
+
+        // Sort the dynamic routes by pathname to ensure that they're in the
+        // correct dynamic resolution order.
+        routesManifest.dynamicRoutes = getSortedRouteObjects(
+          routesManifest.dynamicRoutes,
+          (r) => r.page
+        )
 
         // We need to write the manifest with rewrites after build as it might
         // have been modified.
