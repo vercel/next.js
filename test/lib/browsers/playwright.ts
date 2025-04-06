@@ -56,10 +56,6 @@ interface ElementHandleExt extends ElementHandle {
 
 export class Playwright extends BrowserInterface {
   private activeTrace?: string
-  private eventCallbacks: Record<Event, Set<(...args: any[]) => void>> = {
-    request: new Set(),
-    response: new Set(),
-  }
   private async initContextTracing(url: string, context: BrowserContext) {
     if (!tracePlaywright) {
       return
@@ -107,17 +103,19 @@ export class Playwright extends BrowserInterface {
   }
 
   on(event: Event, cb: (...args: any[]) => void) {
-    if (!this.eventCallbacks[event]) {
-      throw new Error(
-        `Invalid event passed to browser.on, received ${event}. Valid events are ${Object.keys(
-          this.eventCallbacks
-        )}`
-      )
-    }
-    this.eventCallbacks[event]?.add(cb)
+    context.on(
+      // @ts-expect-error `context.on` is an overloaded function https://github.com/microsoft/TypeScript/issues/14107
+      event,
+      cb
+    )
   }
+
   off(event: Event, cb: (...args: any[]) => void) {
-    this.eventCallbacks[event]?.delete(cb)
+    context.off(
+      // @ts-expect-error `context.on` is an overloaded function https://github.com/microsoft/TypeScript/issues/14107
+      event,
+      cb
+    )
   }
 
   async setup(
@@ -242,12 +240,6 @@ export class Playwright extends BrowserInterface {
       if (opts?.pushErrorAsConsoleLog) {
         pageLogs.push({ source: 'error', message: error.message, args: [] })
       }
-    })
-    page.on('request', (req) => {
-      this.eventCallbacks.request.forEach((cb) => cb(req))
-    })
-    page.on('response', (res) => {
-      this.eventCallbacks.response.forEach((cb) => cb(res))
     })
 
     if (opts?.disableCache) {
