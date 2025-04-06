@@ -607,6 +607,7 @@ export default abstract class Server<
           this.nextConfig.experimental.clientSegmentCache === 'client-only'
             ? 'client-only'
             : Boolean(this.nextConfig.experimental.clientSegmentCache),
+        dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
       },
