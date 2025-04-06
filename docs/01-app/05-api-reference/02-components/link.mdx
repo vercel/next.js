@@ -71,13 +71,13 @@ The following props can be passed to the `<Link>` component:
 
 <AppOnly>
 
-| Prop                        | Example                  | Type             | Required |
-| --------------------------- | ------------------------ | ---------------- | -------- |
-| [`href`](#href-required)    | `href="/dashboard"`      | String or Object | Yes      |
-| [`replace`](#replace)       | `replace={false}`        | Boolean          | -        |
-| [`scroll`](#scroll)         | `scroll={false}`         | Boolean          | -        |
-| [`prefetch`](#prefetch)     | `prefetch={false}`       | Boolean or null  | -        |
-| [`onNavigate`](#onnavigate) | `onNavigate={(e) => {}}` | Function         | -        |
+| Prop                        | Example                  | Type                    | Required |
+| --------------------------- | ------------------------ | ----------------------- | -------- |
+| [`href`](#href-required)    | `href="/dashboard"`      | String or Object        | Yes      |
+| [`replace`](#replace)       | `replace={false}`        | Boolean                 | -        |
+| [`scroll`](#scroll)         | `scroll={false}`         | Boolean                 | -        |
+| [`prefetch`](#prefetch)     | `prefetch={false}`       | String, Boolean or null | -        |
+| [`onNavigate`](#onnavigate) | `onNavigate={(e) => {}}` | Function                | -        |
 
 </AppOnly>
 
@@ -295,13 +295,15 @@ export default function Home() {
 
 <AppOnly>
 
-Prefetching happens when a `<Link />` component enters the user's viewport (initially or through scroll). Next.js prefetches and loads the linked route (denoted by the `href`) and its data in the background to improve the performance of client-side navigations. If the prefetched data has expired by the time the user hovers over a `<Link />`, Next.js will attempt to prefetch it again. **Prefetching is only enabled in production**.
+Next.js prefetches and loads the linked route (denoted by the `href`) and its data in the background to improve the performance of client-side navigations. If the prefetched data has expired by the time the user hovers over a `<Link />`, Next.js will attempt to prefetch it again. **Prefetching is only enabled in production**.
 
-The following values can be passed to the `prefetch` prop:
+The following prefetch strategies can be passed to the `prefetch` prop:
 
-- **`null` (default)**: Prefetch behavior depends on whether the route is static or dynamic. For static routes, the full route will be prefetched (including all its data). For dynamic routes, the partial route down to the nearest segment with a [`loading.js`](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) boundary will be prefetched.
-- `true`: The full route will be prefetched for both static and dynamic routes.
-- `false`: Prefetching will never happen both on entering the viewport and on hover.
+- **`viewport` (default)**: Prefetching happens when a `<Link />` component enters the user's viewport (initially or through scroll).
+- `predict`: Prefetching happens when user's mouse is moving towards the link.
+- `intent`: Prefetching happens when user's mouse hovers the link.
+- `true`: Same as `viewport`, but with `prefetchScope` set to `full`.
+- `false`: Prefetching will never happen.
 
 ```tsx filename="app/page.tsx" switcher
 import Link from 'next/link'
@@ -321,6 +323,37 @@ import Link from 'next/link'
 export default function Page() {
   return (
     <Link href="/dashboard" prefetch={false}>
+      Dashboard
+    </Link>
+  )
+}
+```
+
+### `prefetchScope`
+
+Defines the scope of data to prefetch.
+
+- **`auto` (default)**: Prefetch behavior depends on whether the route is static or dynamic. For static routes, the full route will be prefetched (including all its data). For dynamic routes, the partial route down to the nearest segment with a [`loading.js`](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) boundary will be prefetched.
+- `full`: Always prefetch the full route and data.
+
+```tsx filename="app/page.tsx" switcher
+import Link from 'next/link'
+
+export default function Page() {
+  return (
+    <Link href="/dashboard/dynamic" prefetchScope="full">
+      Dashboard
+    </Link>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+import Link from 'next/link'
+
+export default function Page() {
+  return (
+    <Link href="/dashboard/dynamic" prefetchScope="full">
       Dashboard
     </Link>
   )
