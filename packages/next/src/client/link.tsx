@@ -452,7 +452,9 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             })
           }
         } else if (key === 'prefetchScope') {
-          throw new Error('This API is available only on App Router')
+          if (props[key] != null) {
+            throw new Error('`prefetchScope` API is available only on App Router')
+          }
         } else {
           // TypeScript trick for type-guarding:
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
