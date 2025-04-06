@@ -50,7 +50,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         let part = match &*reference_type {
             ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(
                 part,
-            )) => Some(*part),
+            )) => Some(part),
             _ => None,
         };
 
@@ -59,7 +59,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         let this = self.await?;
 
         let ident = match part {
-            Some(part) => source.ident().with_part(*part),
+            Some(part) => source.ident().with_part(part.clone()),
             None => source.ident(),
         };
         let ident_ref = ident.await?;
@@ -99,13 +99,13 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         };
 
         let Some(client_module) =
-            ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(client_module).await?
+            ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(client_module)
         else {
             bail!("client asset is not ecmascript chunk placeable");
         };
 
         let Some(ssr_module) =
-            ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module).await?
+            ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module)
         else {
             bail!("SSR asset is not ecmascript chunk placeable");
         };

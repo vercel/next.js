@@ -7,8 +7,9 @@ use turbopack_core::{
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, MinifyType},
     context::AssetContext,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, OptionStyleType, StyleType},
     module_graph::ModuleGraph,
+    output::OutputAssets,
     reference::{ModuleReference, ModuleReferences},
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
@@ -22,7 +23,9 @@ use crate::{
         finalize_css, parse_css, process_css_with_placeholder, CssWithPlaceholderResult,
         FinalCssResult, ParseCss, ParseCssResult, ProcessCss,
     },
-    references::{compose::CssModuleComposeReference, import::ImportAssetReference},
+    references::{
+        compose::CssModuleComposeReference, import::ImportAssetReference, url::ReferencedAsset,
+    },
     CssModuleAssetType,
 };
 
@@ -77,9 +80,7 @@ impl ParseCss for CssModuleAsset {
         Ok(parse_css(
             *this.source,
             Vc::upcast(self),
-            this.import_context
-                .map(|v| *v)
-                .unwrap_or_else(|| ImportContext::new(vec![], vec![], vec![])),
+            this.import_context.map(|v| *v),
             this.ty,
         ))
     }
@@ -97,13 +98,12 @@ impl ProcessCss for CssModuleAsset {
     #[turbo_tasks::function]
     fn finalize_css(
         self: Vc<Self>,
-        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         minify_type: MinifyType,
     ) -> Vc<FinalCssResult> {
         let process_result = self.get_css_with_placeholder();
 
-        finalize_css(process_result, module_graph, chunking_context, minify_type)
+        finalize_css(process_result, chunking_context, minify_type)
     }
 }
 
@@ -132,6 +132,15 @@ impl Module for CssModuleAsset {
             ParseCssResult::Unparseable => Ok(ModuleReferences::empty()),
             ParseCssResult::NotFound => Ok(ModuleReferences::empty()),
         }
+    }
+
+    #[turbo_tasks::function]
+    fn style_type(&self) -> Vc<OptionStyleType> {
+        let style_type = match self.ty {
+            CssModuleAssetType::Default => StyleType::GlobalStyle,
+            CssModuleAssetType::Module => StyleType::IsolatedStyle,
+        };
+        Vc::cell(Some(style_type))
     }
 }
 
@@ -203,6 +212,22 @@ impl ChunkItem for CssModuleChunkItem {
     fn module(&self) -> Vc<Box<dyn Module>> {
         Vc::upcast(*self.module)
     }
+
+    #[turbo_tasks::function]
+    async fn references(&self) -> Result<Vc<OutputAssets>> {
+        let mut references = Vec::new();
+        if let ParseCssResult::Ok { url_references, .. } = &*self.module.parse_css().await? {
+            for (_, reference) in url_references.await? {
+                if let ReferencedAsset::Some(asset) = *reference
+                    .get_referenced_asset(*self.chunking_context)
+                    .await?
+                {
+                    references.push(asset);
+                }
+            }
+        }
+        Ok(Vc::cell(references))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -215,7 +240,7 @@ impl CssChunkItem for CssModuleChunkItem {
 
         for reference in references.iter() {
             if let Some(import_ref) =
-                ResolvedVc::try_downcast_type::<ImportAssetReference>(*reference).await?
+                ResolvedVc::try_downcast_type::<ImportAssetReference>(*reference)
             {
                 for &module in import_ref
                     .resolve_reference()
@@ -226,7 +251,7 @@ impl CssChunkItem for CssModuleChunkItem {
                     .iter()
                 {
                     if let Some(placeable) =
-                        ResolvedVc::try_downcast::<Box<dyn CssChunkPlaceable>>(module).await?
+                        ResolvedVc::try_downcast::<Box<dyn CssChunkPlaceable>>(module)
                     {
                         let item = placeable.as_chunk_item(*self.module_graph, *chunking_context);
                         if let Some(css_item) =
@@ -240,7 +265,7 @@ impl CssChunkItem for CssModuleChunkItem {
                     }
                 }
             } else if let Some(compose_ref) =
-                ResolvedVc::try_downcast_type::<CssModuleComposeReference>(*reference).await?
+                ResolvedVc::try_downcast_type::<CssModuleComposeReference>(*reference)
             {
                 for &module in compose_ref
                     .resolve_reference()
@@ -251,7 +276,7 @@ impl CssChunkItem for CssModuleChunkItem {
                     .iter()
                 {
                     if let Some(placeable) =
-                        ResolvedVc::try_downcast::<Box<dyn CssChunkPlaceable>>(module).await?
+                        ResolvedVc::try_downcast::<Box<dyn CssChunkPlaceable>>(module)
                     {
                         let item = placeable.as_chunk_item(*self.module_graph, *chunking_context);
                         if let Some(css_item) =
@@ -266,9 +291,7 @@ impl CssChunkItem for CssModuleChunkItem {
 
         let mut code_gens = Vec::new();
         for r in references.iter() {
-            if let Some(code_gen) =
-                ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(*r).await?
-            {
+            if let Some(code_gen) = ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(*r) {
                 code_gens.push(code_gen.code_generation(*chunking_context));
             }
         }
@@ -284,11 +307,7 @@ impl CssChunkItem for CssModuleChunkItem {
 
         let result = self
             .module
-            .finalize_css(
-                *self.module_graph,
-                *chunking_context,
-                self.module.await?.minify_type,
-            )
+            .finalize_css(*chunking_context, self.module.await?.minify_type)
             .await?;
 
         if let FinalCssResult::Ok {
@@ -301,7 +320,7 @@ impl CssChunkItem for CssModuleChunkItem {
                 inner_code: output_code.to_owned().into(),
                 imports,
                 import_context: self.module.await?.import_context,
-                source_map: Some(*source_map),
+                source_map: source_map.owned().await?,
             }
             .into())
         } else {

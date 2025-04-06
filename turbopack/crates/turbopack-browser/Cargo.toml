@@ -2,7 +2,7 @@
 name = "turbopack-browser"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
+license = "MIT"
 edition = "2021"
 autobenches = false
 
@@ -20,6 +20,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+either = { workspace = true }
 indexmap = { workspace = true }
 indoc = { workspace = true }
 rustc-hash = { workspace = true }

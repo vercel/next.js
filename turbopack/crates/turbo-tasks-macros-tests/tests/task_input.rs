@@ -4,12 +4,12 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{Completion, ReadRef, TaskInput, Vc};
+use turbo_tasks::{trace::TraceRawVcs, Completion, ReadRef, TaskInput, Vc};
 use turbo_tasks_testing::{register, run, Registration};
 
 static REGISTRATION: Registration = register!();
 
-#[derive(Clone, TaskInput, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, TaskInput, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs)]
 struct OneUnnamedField(u32);
 
 #[turbo_tasks::function]

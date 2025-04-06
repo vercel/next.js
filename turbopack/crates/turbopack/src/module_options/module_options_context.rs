@@ -135,6 +135,11 @@ pub struct ModuleOptionsContext {
     /// runtime.
     pub enable_externals_tracing: Option<ResolvedVc<FileSystemPath>>,
 
+    /// If true, it stores the last successful parse result in state and keeps using it when
+    /// parsing fails. This is useful to keep the module graph structure intact when syntax errors
+    /// are temporarily introduced.
+    pub keep_last_successful_parse: bool,
+
     /// Custom rules to be applied after all default rules.
     pub module_rules: Vec<ModuleRule>,
     /// A list of rules to use a different module option context for certain

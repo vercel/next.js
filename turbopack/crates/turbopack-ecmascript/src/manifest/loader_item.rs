@@ -6,7 +6,8 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{
-        ChunkData, ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext, ChunksData,
+        ChunkData, ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ChunksData,
+        ModuleChunkItemIdExt,
     },
     ident::AssetIdent,
     module::Module,
@@ -20,7 +21,8 @@ use crate::{
         data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
         EcmascriptChunkPlaceable, EcmascriptChunkType,
     },
-    utils::StringifyJs,
+    runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_LOAD, TURBOPACK_REQUIRE},
+    utils::{StringifyJs, StringifyModuleId},
 };
 
 #[turbo_tasks::function]
@@ -130,11 +132,6 @@ impl ChunkItem for ManifestLoaderChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ManifestLoaderChunkItem {
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Result<Vc<Box<dyn ChunkingContext>>> {
-        Ok(*self.manifest.await?.chunking_context)
-    }
-
-    #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = &*self.await?;
         let mut code = Vec::new();
@@ -151,25 +148,16 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
         // exports a promise for all of the necessary chunk loads.
         let item_id = &*this
             .manifest
-            .as_chunk_item(
-                *this.module_graph,
-                *ResolvedVc::upcast(manifest.chunking_context),
-            )
-            .id()
+            .chunk_item_id(*ResolvedVc::upcast(manifest.chunking_context))
             .await?;
 
         // Finally, we need the id of the module that we're actually trying to
         // dynamically import.
         let placeable =
             ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(manifest.inner)
-                .await?
                 .ok_or_else(|| anyhow!("asset is not placeable in ecmascript chunk"))?;
         let dynamic_id = &*placeable
-            .as_chunk_item(
-                *this.module_graph,
-                *ResolvedVc::upcast(manifest.chunking_context),
-            )
-            .id()
+            .chunk_item_id(*ResolvedVc::upcast(manifest.chunking_context))
             .await?;
 
         // This is the code that will be executed when the dynamic import is reached.
@@ -181,13 +169,13 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
         writedoc!(
             code,
             r#"
-                __turbopack_export_value__((__turbopack_import__) => {{
-                    return Promise.all({chunks_server_data}.map((chunk) => __turbopack_load__(chunk))).then(() => {{
-                        return __turbopack_require__({item_id});
+                {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
+                    return Promise.all({chunks_server_data}.map((chunk) => {TURBOPACK_LOAD}(chunk))).then(() => {{
+                        return {TURBOPACK_REQUIRE}({item_id});
                     }}).then((chunks) => {{
-                        return Promise.all(chunks.map((chunk) => __turbopack_load__(chunk)));
+                        return Promise.all(chunks.map((chunk) => {TURBOPACK_LOAD}(chunk)));
                     }}).then(() => {{
-                        return __turbopack_import__({dynamic_id});
+                        return parentImport({dynamic_id});
                     }});
                 }});
             "#,
@@ -197,8 +185,8 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
                     .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
                     .collect::<Vec<_>>()
             ),
-            item_id = StringifyJs(item_id),
-            dynamic_id = StringifyJs(dynamic_id),
+            item_id = StringifyModuleId(item_id),
+            dynamic_id = StringifyModuleId(dynamic_id),
         )?;
 
         Ok(EcmascriptChunkItemContent {

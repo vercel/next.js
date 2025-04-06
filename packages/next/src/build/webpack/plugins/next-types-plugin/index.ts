@@ -754,13 +754,13 @@ function createCustomCacheLifeDefinitions(cacheLife: {
     /**
      * Cache this \`"use cache"\` using a custom timespan.
      * \`\`\`
-     *   stale: ... // seconds 
+     *   stale: ... // seconds
      *   revalidate: ... // seconds
      *   expire: ... // seconds
      * \`\`\`
-     * 
+     *
      * This is similar to Cache-Control: max-age=\`stale\`,s-max-age=\`revalidate\`,stale-while-revalidate=\`expire-revalidate\`
-     * 
+     *
      * If a value is left out, the lowest of other cacheLife() calls or the default, is used instead.
      */
     export function unstable_cacheLife(profile: {
@@ -898,7 +898,10 @@ export class NextTypesPlugin {
         ? '..'
         : '../..'
 
-    const handleModule = async (mod: webpack.NormalModule, assets: any) => {
+    const handleModule = async (
+      mod: webpack.NormalModule,
+      compilation: webpack.Compilation
+    ) => {
       if (!mod.resource) return
 
       const pageExtensionsRegex = new RegExp(
@@ -970,23 +973,32 @@ export class NextTypesPlugin {
         pluginState.collectedRootParams[rootLayoutPath] = foundParams
 
         const slots = await collectNamedSlots(mod.resource)
-        assets[assetPath] = new sources.RawSource(
-          createTypeGuardFile(mod.resource, relativeImportPath, {
-            type: 'layout',
-            slots,
-          })
+        compilation.emitAsset(
+          assetPath,
+          new sources.RawSource(
+            createTypeGuardFile(mod.resource, relativeImportPath, {
+              type: 'layout',
+              slots,
+            })
+          ) as unknown as webpack.sources.RawSource
         )
       } else if (IS_PAGE) {
-        assets[assetPath] = new sources.RawSource(
-          createTypeGuardFile(mod.resource, relativeImportPath, {
-            type: 'page',
-          })
+        compilation.emitAsset(
+          assetPath,
+          new sources.RawSource(
+            createTypeGuardFile(mod.resource, relativeImportPath, {
+              type: 'page',
+            })
+          ) as unknown as webpack.sources.RawSource
         )
       } else if (IS_ROUTE) {
-        assets[assetPath] = new sources.RawSource(
-          createTypeGuardFile(mod.resource, relativeImportPath, {
-            type: 'route',
-          })
+        compilation.emitAsset(
+          assetPath,
+          new sources.RawSource(
+            createTypeGuardFile(mod.resource, relativeImportPath, {
+              type: 'route',
+            })
+          ) as unknown as webpack.sources.RawSource
         )
       }
     }
@@ -997,7 +1009,7 @@ export class NextTypesPlugin {
           name: PLUGIN_NAME,
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
-        async (assets, callback) => {
+        async (_, callback) => {
           const promises: Promise<any>[] = []
 
           // Clear routes
@@ -1030,7 +1042,7 @@ export class NextTypesPlugin {
                   chunk
                 ) as Iterable<webpack.NormalModule>
               for (const mod of chunkModules) {
-                promises.push(handleModule(mod, assets))
+                promises.push(handleModule(mod, compilation))
 
                 // If this is a concatenation, register each child to the parent ID.
                 const anyModule = mod as unknown as {
@@ -1038,7 +1050,7 @@ export class NextTypesPlugin {
                 }
                 if (anyModule.modules) {
                   anyModule.modules.forEach((concatenatedMod) => {
-                    promises.push(handleModule(concatenatedMod, assets))
+                    promises.push(handleModule(concatenatedMod, compilation))
                   })
                 }
               }
@@ -1058,9 +1070,12 @@ export class NextTypesPlugin {
               'types/server.d.ts'
             )
 
-            assets[serverTypesPath] = new sources.RawSource(
-              createServerDefinitions(rootParams)
-            ) as unknown as webpack.sources.RawSource
+            compilation.emitAsset(
+              serverTypesPath,
+              new sources.RawSource(
+                createServerDefinitions(rootParams)
+              ) as unknown as webpack.sources.RawSource
+            )
           }
 
           // Support `"moduleResolution": "Node16" | "NodeNext"` with `"type": "module"`
@@ -1070,9 +1085,12 @@ export class NextTypesPlugin {
             'types/package.json'
           )
 
-          assets[packageJsonAssetPath] = new sources.RawSource(
-            '{"type": "module"}'
-          ) as unknown as webpack.sources.RawSource
+          compilation.emitAsset(
+            packageJsonAssetPath,
+            new sources.RawSource(
+              '{"type": "module"}'
+            ) as unknown as webpack.sources.RawSource
+          )
 
           if (this.typedRoutes) {
             if (this.dev && !this.isEdgeServer) {
@@ -1083,9 +1101,12 @@ export class NextTypesPlugin {
 
             const linkAssetPath = path.join(assetDirRelative, 'types/link.d.ts')
 
-            assets[linkAssetPath] = new sources.RawSource(
-              createRouteDefinitions()
-            ) as unknown as webpack.sources.RawSource
+            compilation.emitAsset(
+              linkAssetPath,
+              new sources.RawSource(
+                createRouteDefinitions()
+              ) as unknown as webpack.sources.RawSource
+            )
           }
 
           if (this.cacheLifeConfig) {
@@ -1094,9 +1115,12 @@ export class NextTypesPlugin {
               'types/cache-life.d.ts'
             )
 
-            assets[cacheLifeAssetPath] = new sources.RawSource(
-              createCustomCacheLifeDefinitions(this.cacheLifeConfig)
-            ) as unknown as webpack.sources.RawSource
+            compilation.emitAsset(
+              cacheLifeAssetPath,
+              new sources.RawSource(
+                createCustomCacheLifeDefinitions(this.cacheLifeConfig)
+              ) as unknown as webpack.sources.RawSource
+            )
           }
 
           callback()

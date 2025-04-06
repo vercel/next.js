@@ -1,11 +1,10 @@
 pub(crate) mod context_transition;
 pub(crate) mod full_context_transition;
 
-use std::collections::HashMap;
-
 use anyhow::Result;
 pub use context_transition::ContextTransition;
 pub use full_context_transition::FullContextTransition;
+use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, ValueDefault, Vc};
 use turbopack_core::{
@@ -121,7 +120,7 @@ pub trait Transition {
 #[turbo_tasks::value(shared)]
 #[derive(Default)]
 pub struct TransitionOptions {
-    pub named_transitions: HashMap<RcStr, ResolvedVc<Box<dyn Transition>>>,
+    pub named_transitions: FxHashMap<RcStr, ResolvedVc<Box<dyn Transition>>>,
     pub transition_rules: Vec<TransitionRule>,
     pub placeholder_for_future_extensions: (),
 }

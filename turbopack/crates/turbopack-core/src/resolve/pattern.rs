@@ -16,7 +16,8 @@ use turbo_tasks::{
     Vc,
 };
 use turbo_tasks_fs::{
-    util::normalize_path, DirectoryContent, DirectoryEntry, FileSystemPath, LinkContent, LinkType,
+    util::normalize_path, FileSystemPath, LinkContent, LinkType, RawDirectoryContent,
+    RawDirectoryEntry,
 };
 
 #[turbo_tasks::value(shared, serialization = "auto_for_input")]
@@ -1397,33 +1398,49 @@ pub async fn read_matches(
                                 lookup_dir.try_join(parent_path.into()).await?
                             };
                             if let Some(path) = path_option {
-                                Some(e.insert(path.read_dir().await?))
+                                Some(e.insert((path.raw_read_dir().await?, path)))
                             } else {
                                 None
                             }
                         }
                     };
-                    let Some(read_dir) = read_dir else {
+                    let Some((read_dir, parent_fs_path)) = read_dir else {
                         continue;
                     };
-                    let DirectoryContent::Entries(entries) = &**read_dir else {
+                    let RawDirectoryContent::Entries(entries) = &**read_dir else {
                         continue;
                     };
                     let Some(entry) = entries.get(last_segment) else {
                         continue;
                     };
                     match *entry {
-                        DirectoryEntry::File(fs_path) => {
+                        RawDirectoryEntry::File => {
                             results.push((
                                 index,
-                                PatternMatch::File(concat(&prefix, str).into(), fs_path),
+                                PatternMatch::File(
+                                    concat(&prefix, str).into(),
+                                    parent_fs_path
+                                        .join(last_segment.into())
+                                        .to_resolved()
+                                        .await?,
+                                ),
                             ));
                         }
-                        DirectoryEntry::Directory(fs_path) => results.push((
+                        RawDirectoryEntry::Directory => results.push((
                             index,
-                            PatternMatch::Directory(concat(&prefix, str).into(), fs_path),
+                            PatternMatch::Directory(
+                                concat(&prefix, str).into(),
+                                parent_fs_path
+                                    .join(last_segment.into())
+                                    .to_resolved()
+                                    .await?,
+                            ),
                         )),
-                        DirectoryEntry::Symlink(fs_path) => {
+                        RawDirectoryEntry::Symlink => {
+                            let fs_path = parent_fs_path
+                                .join(last_segment.into())
+                                .to_resolved()
+                                .await?;
                             let LinkContent::Link { link_type, .. } = &*fs_path.read_link().await?
                             else {
                                 continue;
@@ -1545,23 +1562,24 @@ pub async fn read_matches(
                 prefix.pop();
                 prefix.pop();
             }
-            match &*lookup_dir.read_dir().await? {
-                DirectoryContent::Entries(map) => {
+            match &*lookup_dir.raw_read_dir().await? {
+                RawDirectoryContent::Entries(map) => {
                     for (key, entry) in map.iter() {
                         match entry {
-                            DirectoryEntry::File(path) => {
+                            RawDirectoryEntry::File => {
                                 let len = prefix.len();
                                 prefix.push_str(key);
                                 // {prefix}{key}
                                 if let Some(pos) = pat.match_position(&prefix) {
+                                    let path = lookup_dir.join(key.clone()).to_resolved().await?;
                                     results.push((
                                         pos,
-                                        PatternMatch::File(prefix.clone().into(), *path),
+                                        PatternMatch::File(prefix.clone().into(), path),
                                     ));
                                 }
                                 prefix.truncate(len)
                             }
-                            DirectoryEntry::Directory(path) => {
+                            RawDirectoryEntry::Directory => {
                                 let len = prefix.len();
                                 prefix.push_str(key);
                                 // {prefix}{key}
@@ -1569,28 +1587,31 @@ pub async fn read_matches(
                                     prefix.pop();
                                 }
                                 if let Some(pos) = pat.match_position(&prefix) {
+                                    let path = lookup_dir.join(key.clone()).to_resolved().await?;
                                     results.push((
                                         pos,
-                                        PatternMatch::Directory(prefix.clone().into(), *path),
+                                        PatternMatch::Directory(prefix.clone().into(), path),
                                     ));
                                 }
                                 prefix.push('/');
                                 // {prefix}{key}/
                                 if let Some(pos) = pat.match_position(&prefix) {
+                                    let path = lookup_dir.join(key.clone()).to_resolved().await?;
                                     results.push((
                                         pos,
-                                        PatternMatch::Directory(prefix.clone().into(), *path),
+                                        PatternMatch::Directory(prefix.clone().into(), path),
                                     ));
                                 }
                                 if let Some(pos) = pat.could_match_position(&prefix) {
+                                    let path = lookup_dir.join(key.clone()).to_resolved().await?;
                                     nested.push((
                                         pos,
-                                        read_matches(**path, prefix.clone().into(), true, pattern),
+                                        read_matches(*path, prefix.clone().into(), true, pattern),
                                     ));
                                 }
                                 prefix.truncate(len)
                             }
-                            DirectoryEntry::Symlink(fs_path) => {
+                            RawDirectoryEntry::Symlink => {
                                 let len = prefix.len();
                                 prefix.push_str(key);
                                 // {prefix}{key}
@@ -1598,6 +1619,8 @@ pub async fn read_matches(
                                     prefix.pop();
                                 }
                                 if let Some(pos) = pat.match_position(&prefix) {
+                                    let fs_path =
+                                        lookup_dir.join(key.clone()).to_resolved().await?;
                                     if let LinkContent::Link { link_type, .. } =
                                         &*fs_path.read_link().await?
                                     {
@@ -1606,19 +1629,21 @@ pub async fn read_matches(
                                                 pos,
                                                 PatternMatch::Directory(
                                                     prefix.clone().into(),
-                                                    *fs_path,
+                                                    fs_path,
                                                 ),
                                             ));
                                         } else {
                                             results.push((
                                                 pos,
-                                                PatternMatch::File(prefix.clone().into(), *fs_path),
+                                                PatternMatch::File(prefix.clone().into(), fs_path),
                                             ));
                                         }
                                     }
                                 }
                                 prefix.push('/');
                                 if let Some(pos) = pat.match_position(&prefix) {
+                                    let fs_path =
+                                        lookup_dir.join(key.clone()).to_resolved().await?;
                                     if let LinkContent::Link { link_type, .. } =
                                         &*fs_path.read_link().await?
                                     {
@@ -1627,13 +1652,15 @@ pub async fn read_matches(
                                                 pos,
                                                 PatternMatch::Directory(
                                                     prefix.clone().into(),
-                                                    *fs_path,
+                                                    fs_path,
                                                 ),
                                             ));
                                         }
                                     }
                                 }
                                 if let Some(pos) = pat.could_match_position(&prefix) {
+                                    let fs_path =
+                                        lookup_dir.join(key.clone()).to_resolved().await?;
                                     if let LinkContent::Link { link_type, .. } =
                                         &*fs_path.read_link().await?
                                     {
@@ -1642,7 +1669,7 @@ pub async fn read_matches(
                                                 pos,
                                                 PatternMatch::Directory(
                                                     prefix.clone().into(),
-                                                    *fs_path,
+                                                    fs_path,
                                                 ),
                                             ));
                                         }
@@ -1650,12 +1677,12 @@ pub async fn read_matches(
                                 }
                                 prefix.truncate(len)
                             }
-                            DirectoryEntry::Other(_) => {}
-                            DirectoryEntry::Error => {}
+                            RawDirectoryEntry::Other => {}
+                            RawDirectoryEntry::Error => {}
                         }
                     }
                 }
-                DirectoryContent::NotFound => {}
+                RawDirectoryContent::NotFound => {}
             };
             anyhow::Ok(())
         }

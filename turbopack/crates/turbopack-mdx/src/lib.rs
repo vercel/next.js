@@ -202,28 +202,24 @@ impl MdxTransformedAsset {
                             // Both end positions point to the first character after the range
                             markdown::message::Place::Position(p) => (
                                 SourcePos {
-                                    line: p.start.line - 1,
-                                    column: p.start.column - 1,
+                                    line: (p.start.line - 1) as u32,
+                                    column: (p.start.column - 1) as u32,
                                 },
                                 SourcePos {
-                                    line: p.end.line - 1,
-                                    column: p.end.column - 1,
+                                    line: (p.end.line - 1) as u32,
+                                    column: (p.end.column - 1) as u32,
                                 },
                             ),
                             markdown::message::Place::Point(p) => {
                                 let p = SourcePos {
-                                    line: p.line - 1,
-                                    column: p.column - 1,
+                                    line: (p.line - 1) as u32,
+                                    column: (p.column - 1) as u32,
                                 };
                                 (p, p)
                             }
                         };
 
-                        Some(
-                            IssueSource::from_line_col(*self.source, start, end)
-                                .to_resolved()
-                                .await?,
-                        )
+                        Some(IssueSource::from_line_col(self.source, start, end))
                     }
                     None => None,
                 };
@@ -257,7 +253,7 @@ struct MdxTransformResult {
 struct MdxIssue {
     /// Place of message.
     path: ResolvedVc<FileSystemPath>,
-    loc: Option<ResolvedVc<IssueSource>>,
+    loc: Option<IssueSource>,
     /// Reason for message (should use markdown).
     reason: String,
     /// Category of message.
@@ -276,7 +272,7 @@ impl Issue for MdxIssue {
     #[turbo_tasks::function]
     async fn source(&self) -> Result<Vc<OptionIssueSource>> {
         Ok(Vc::cell(match &self.loc {
-            Some(loc) => Some(loc.resolve_source_map(*self.path).to_resolved().await?),
+            Some(loc) => Some(loc.resolve_source_map().await?.into_owned()),
             None => None,
         }))
     }

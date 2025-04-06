@@ -5,7 +5,7 @@ use std::{
 
 use clap::{Args, Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{NonLocalValue, TaskInput};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, TaskInput};
 use turbopack_cli_utils::issue::IssueSeverityCliOption;
 
 #[derive(Debug, Parser)]
@@ -37,6 +37,7 @@ impl Arguments {
     Hash,
     TaskInput,
     NonLocalValue,
+    TraceRawVcs,
 )]
 pub enum Target {
     Browser,
@@ -77,12 +78,11 @@ pub struct CommonArguments {
     #[clap(long)]
     pub full_stats: bool,
 
-    /// Enable experimental garbage collection with the provided memory limit in
-    /// MB.
-    #[clap(long)]
-    pub memory_limit: Option<usize>,
-
-    /// Target
+    // Enable experimental garbage collection with the provided memory limit in
+    // MB.
+    // #[clap(long)]
+    // pub memory_limit: Option<usize>,
+    /// Whether to build for the `browser` or `node``
     #[clap(long)]
     pub target: Option<Target>,
 }
@@ -128,7 +128,17 @@ pub struct BuildArguments {
     #[clap(flatten)]
     pub common: CommonArguments,
 
+    /// Don't generate sourcemaps.
+    #[clap(long)]
+    pub no_sourcemap: bool,
+
     /// Don't minify build output.
     #[clap(long)]
     pub no_minify: bool,
+
+    /// Drop the `TurboTasks` object upon exit. By default we intentionally leak this memory, as
+    /// we're about to exit the process anyways, but that can cause issues with valgrind or other
+    /// leak detectors.
+    #[clap(long, hide = true)]
+    pub force_memory_cleanup: bool,
 }

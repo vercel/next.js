@@ -497,12 +497,20 @@
 - *2* arguments[1]
   ⚠️  function calls are not analysed yet
 
-0 -> 144 conditional = ???*0*
+0 -> 144 conditional = ((???*0* !== {}) | (???*1* === ???*2*))
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
+- *1* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *2* ???*3*["length"]
+  ⚠️  unknown object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-144 -> 146 conditional = ???*0*
+144 -> 146 conditional = ((???*0* !== {}) | ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *1* unsupported expression
   ⚠️  This value might have side effects
 
 146 -> 147 call = (...) => {"type": "end"}()
@@ -518,7 +526,7 @@
 144 -> 153 call = (...) => {
     "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
     "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
-}(???*0*, ???*1*)
+}(???*0*, (???*1* + 1))
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 - *1* max number of linking steps reached
@@ -1145,8 +1153,10 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 342 conditional = ???*0*
+0 -> 342 conditional = (???*0* !== ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *1* unsupported expression
   ⚠️  This value might have side effects
 
 342 -> 343 call = (...) => {
@@ -1180,8 +1190,10 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 348 conditional = ???*0*
+0 -> 348 conditional = (???*0* !== ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *1* unsupported expression
   ⚠️  This value might have side effects
 
 348 -> 349 call = (...) => {
@@ -1315,13 +1327,13 @@
 
 0 -> 388 call = (...) => s0()
 
-0 -> 389 conditional = ???*0*
+0 -> 389 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 389 -> 390 call = (...) => s0()
 
-389 -> 391 conditional = ???*0*
+389 -> 391 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1341,7 +1353,7 @@
 
 0 -> 396 call = (...) => s0()
 
-0 -> 397 conditional = ???*0*
+0 -> 397 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1353,19 +1365,19 @@
 
 399 -> 400 call = (...) => s0()
 
-399 -> 401 conditional = ???*0*
+399 -> 401 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 401 -> 402 call = (...) => s0()
 
-401 -> 403 conditional = ???*0*
+401 -> 403 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 403 -> 404 call = (...) => s0()
 
-403 -> 405 conditional = ???*0*
+403 -> 405 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1373,43 +1385,43 @@
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-399 -> 407 conditional = ???*0*
+399 -> 407 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 407 -> 408 call = (...) => s0()
 
-407 -> 409 conditional = ???*0*
+407 -> 409 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 409 -> 410 call = (...) => s0()
 
-409 -> 411 conditional = ???*0*
+409 -> 411 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 411 -> 412 call = (...) => s0()
 
-411 -> 413 conditional = ???*0*
+411 -> 413 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 413 -> 414 call = (...) => s0()
 
-413 -> 415 conditional = ???*0*
+413 -> 415 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 415 -> 416 call = (...) => s0()
 
-415 -> 417 conditional = ???*0*
+415 -> 417 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 417 -> 418 call = (...) => s0()
 
-417 -> 419 conditional = ???*0*
+417 -> 419 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1421,31 +1433,31 @@
 - *2* max number of linking steps reached
   ⚠️  This value might have side effects
 
-413 -> 421 conditional = ???*0*
+413 -> 421 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 421 -> 422 call = (...) => s0()
 
-421 -> 423 conditional = ???*0*
+421 -> 423 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 423 -> 424 call = (...) => s0()
 
-423 -> 425 conditional = ???*0*
+423 -> 425 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 425 -> 426 call = (...) => s0()
 
-425 -> 427 conditional = ???*0*
+425 -> 427 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 427 -> 428 call = (...) => s0()
 
-427 -> 429 conditional = ???*0*
+427 -> 429 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1459,19 +1471,19 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 
-423 -> 431 conditional = ???*0*
+423 -> 431 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 431 -> 432 call = (...) => s0()
 
-431 -> 433 conditional = ???*0*
+431 -> 433 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 433 -> 434 call = (...) => s0()
 
-433 -> 435 conditional = ???*0*
+433 -> 435 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1483,7 +1495,7 @@
 
 437 -> 438 call = (...) => s0()
 
-437 -> 439 conditional = ???*0*
+437 -> 439 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1495,7 +1507,7 @@
 
 441 -> 442 call = (...) => s0()
 
-441 -> 443 conditional = ???*0*
+441 -> 443 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1511,7 +1523,7 @@
 - *4* max number of linking steps reached
   ⚠️  This value might have side effects
 
-433 -> 445 conditional = ???*0*
+433 -> 445 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1558,19 +1570,19 @@
     {"type": "literal", "text": "*", "ignoreCase": false}
 )
 
-0 -> 453 conditional = ???*0*
+0 -> 453 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 453 -> 454 call = (...) => {"type": "select_specification", "*": true}()
 
-0 -> 455 conditional = ???*0*
+0 -> 455 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 455 -> 456 call = (...) => s0()
 
-455 -> 457 conditional = ???*0*
+455 -> 457 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1578,13 +1590,13 @@
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-455 -> 459 conditional = ???*0*
+455 -> 459 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 459 -> 460 call = (...) => s0()
 
-459 -> 461 conditional = ???*0*
+459 -> 461 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1596,7 +1608,7 @@
 
 463 -> 464 call = (...) => s0()
 
-463 -> 465 conditional = ???*0*
+463 -> 465 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1610,13 +1622,13 @@
 
 0 -> 468 call = (...) => s0()
 
-0 -> 469 conditional = ???*0*
+0 -> 469 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 469 -> 470 call = (...) => s0()
 
-469 -> 471 conditional = ???*0*
+469 -> 471 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1652,7 +1664,7 @@
 
 479 -> 480 call = (...) => s0()
 
-479 -> 481 conditional = ???*0*
+479 -> 481 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1670,7 +1682,7 @@
 
 469 -> 485 call = (...) => s0()
 
-469 -> 486 conditional = ???*0*
+469 -> 486 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1706,7 +1718,7 @@
 
 494 -> 495 call = (...) => s0()
 
-494 -> 496 conditional = ???*0*
+494 -> 496 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1734,19 +1746,19 @@
 
 0 -> 501 call = (...) => s0()
 
-0 -> 502 conditional = ???*0*
+0 -> 502 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 502 -> 503 call = (...) => s0()
 
-502 -> 504 conditional = ???*0*
+502 -> 504 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 504 -> 505 call = (...) => s0()
 
-504 -> 506 conditional = ???*0*
+504 -> 506 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1758,7 +1770,7 @@
 
 508 -> 509 call = (...) => s0()
 
-508 -> 510 conditional = ???*0*
+508 -> 510 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1776,13 +1788,13 @@
 
 502 -> 514 call = (...) => s0()
 
-502 -> 515 conditional = ???*0*
+502 -> 515 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 515 -> 516 call = (...) => s0()
 
-515 -> 517 conditional = ???*0*
+515 -> 517 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1794,7 +1806,7 @@
 
 519 -> 520 call = (...) => s0()
 
-519 -> 521 conditional = ???*0*
+519 -> 521 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1820,31 +1832,31 @@
 
 0 -> 526 call = (...) => s0()
 
-0 -> 527 conditional = ???*0*
+0 -> 527 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 527 -> 528 call = (...) => s0()
 
-527 -> 529 conditional = ???*0*
+527 -> 529 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 529 -> 530 call = (...) => s0()
 
-529 -> 531 conditional = ???*0*
+529 -> 531 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 531 -> 532 call = (...) => s0()
 
-531 -> 533 conditional = ???*0*
+531 -> 533 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 533 -> 534 call = (...) => s0()
 
-533 -> 535 conditional = ???*0*
+533 -> 535 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1854,37 +1866,37 @@
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 537 conditional = ???*0*
+0 -> 537 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 537 -> 538 call = (...) => s0()
 
-537 -> 539 conditional = ???*0*
+537 -> 539 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 539 -> 540 call = (...) => s0()
 
-539 -> 541 conditional = ???*0*
+539 -> 541 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 541 -> 542 call = (...) => s0()
 
-539 -> 543 conditional = ???*0*
+539 -> 543 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 543 -> 544 call = (...) => s0()
 
-543 -> 545 conditional = ???*0*
+543 -> 545 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 545 -> 546 call = (...) => s0()
 
-545 -> 547 conditional = ???*0*
+545 -> 547 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1894,7 +1906,7 @@
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-539 -> 549 conditional = ???*0*
+539 -> 549 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1910,13 +1922,13 @@
 
 0 -> 552 call = (...) => s0()
 
-0 -> 553 conditional = ???*0*
+0 -> 553 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 553 -> 554 call = (...) => s0()
 
-553 -> 555 conditional = ???*0*
+553 -> 555 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1928,7 +1940,7 @@
 
 0 -> 558 call = (...) => s0()
 
-0 -> 559 conditional = ???*0*
+0 -> 559 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1942,13 +1954,13 @@
 
 0 -> 562 call = (...) => s0()
 
-0 -> 563 conditional = ???*0*
+0 -> 563 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 563 -> 564 call = (...) => s0()
 
-563 -> 565 conditional = ???*0*
+563 -> 565 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1984,7 +1996,7 @@
 
 573 -> 574 call = (...) => s0()
 
-573 -> 575 conditional = ???*0*
+573 -> 575 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2002,7 +2014,7 @@
 
 563 -> 579 call = (...) => s0()
 
-563 -> 580 conditional = ???*0*
+563 -> 580 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2038,7 +2050,7 @@
 
 588 -> 589 call = (...) => s0()
 
-588 -> 590 conditional = ???*0*
+588 -> 590 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2066,25 +2078,25 @@
 
 0 -> 595 call = (...) => s0()
 
-0 -> 596 conditional = ???*0*
+0 -> 596 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 596 -> 597 call = (...) => s0()
 
-596 -> 598 conditional = ???*0*
+596 -> 598 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 598 -> 599 call = (...) => s0()
 
-598 -> 600 conditional = ???*0*
+598 -> 600 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 600 -> 601 call = (...) => s0()
 
-598 -> 602 conditional = ???*0*
+598 -> 602 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2094,7 +2106,7 @@
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-596 -> 604 conditional = ???*0*
+596 -> 604 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2110,7 +2122,7 @@
 
 0 -> 607 call = (...) => s0()
 
-0 -> 608 conditional = ???*0*
+0 -> 608 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2152,7 +2164,7 @@
 
 618 -> 619 call = (...) => s0()
 
-618 -> 620 conditional = ???*0*
+618 -> 620 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2194,7 +2206,7 @@
 
 630 -> 631 call = (...) => s0()
 
-630 -> 632 conditional = ???*0*
+630 -> 632 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2234,13 +2246,13 @@
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 642 conditional = ???*0*
+0 -> 642 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 642 -> 643 call = (...) => s0()
 
-642 -> 644 conditional = ???*0*
+642 -> 644 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2282,7 +2294,7 @@
 
 654 -> 655 call = (...) => s0()
 
-654 -> 656 conditional = ???*0*
+654 -> 656 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2346,7 +2358,7 @@
     {"type": "literal", "text": "{", "ignoreCase": false}
 )
 
-0 -> 672 conditional = ???*0*
+0 -> 672 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2358,13 +2370,13 @@
 
 674 -> 675 call = (...) => s0()
 
-674 -> 676 conditional = ???*0*
+674 -> 676 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 676 -> 677 call = (...) => s0()
 
-676 -> 678 conditional = ???*0*
+676 -> 678 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2400,7 +2412,7 @@
 
 686 -> 687 call = (...) => s0()
 
-686 -> 688 conditional = ???*0*
+686 -> 688 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2418,7 +2430,7 @@
 
 676 -> 692 call = (...) => s0()
 
-676 -> 693 conditional = ???*0*
+676 -> 693 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2454,7 +2466,7 @@
 
 701 -> 702 call = (...) => s0()
 
-701 -> 703 conditional = ???*0*
+701 -> 703 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2470,7 +2482,7 @@
 
 705 -> 706 call = (...) => s0()
 
-705 -> 707 conditional = ???*0*
+705 -> 707 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2494,7 +2506,7 @@
     {"type": "literal", "text": "}", "ignoreCase": false}
 )
 
-707 -> 713 conditional = ???*0*
+707 -> 713 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2530,7 +2542,7 @@
     {"type": "literal", "text": "[", "ignoreCase": false}
 )
 
-0 -> 721 conditional = ???*0*
+0 -> 721 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2542,7 +2554,7 @@
 
 723 -> 724 call = (...) => s0()
 
-723 -> 725 conditional = ???*0*
+723 -> 725 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2586,37 +2598,37 @@
 
 0 -> 736 call = (...) => s0()
 
-0 -> 737 conditional = ???*0*
+0 -> 737 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 737 -> 738 call = (...) => s0()
 
-737 -> 739 conditional = ???*0*
+737 -> 739 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 739 -> 740 call = (...) => s0()
 
-739 -> 741 conditional = ???*0*
+739 -> 741 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 741 -> 742 call = (...) => s0()
 
-741 -> 743 conditional = ???*0*
+741 -> 743 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 743 -> 744 call = (...) => s0()
 
-743 -> 745 conditional = ???*0*
+743 -> 745 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 745 -> 746 call = (...) => s0()
 
-745 -> 747 conditional = ???*0*
+745 -> 747 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2658,7 +2670,7 @@
 
 0 -> 758 call = (...) => s0()
 
-0 -> 759 conditional = ???*0*
+0 -> 759 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2670,19 +2682,19 @@
 
 0 -> 762 call = (...) => s0()
 
-0 -> 763 conditional = ???*0*
+0 -> 763 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 763 -> 764 call = (...) => {"type": "boolean_constant", "value": false}()
 
-0 -> 765 conditional = ???*0*
+0 -> 765 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 765 -> 766 call = (...) => s0()
 
-765 -> 767 conditional = ???*0*
+765 -> 767 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2788,7 +2800,7 @@
     {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
 )
 
-781 -> 791 conditional = ???*0*
+781 -> 791 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2944,7 +2956,7 @@
     {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
 )
 
-803 -> 831 conditional = ???*0*
+803 -> 831 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3031,7 +3043,7 @@
     {"type": "literal", "text": "\"", "ignoreCase": false}
 )
 
-844 -> 850 conditional = ???*0*
+844 -> 850 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3039,7 +3051,7 @@
 - *0* s2
   ⚠️  pattern without value
 
-0 -> 852 conditional = ???*0*
+0 -> 852 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3115,7 +3127,7 @@
     {"type": "literal", "text": "'", "ignoreCase": false}
 )
 
-863 -> 869 conditional = ???*0*
+863 -> 869 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3147,7 +3159,7 @@
     {"type": "literal", "text": "[", "ignoreCase": false}
 )
 
-0 -> 877 conditional = ???*0*
+0 -> 877 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3159,13 +3171,13 @@
 
 879 -> 880 call = (...) => s0()
 
-879 -> 881 conditional = ???*0*
+879 -> 881 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 881 -> 882 call = (...) => s0()
 
-881 -> 883 conditional = ???*0*
+881 -> 883 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3201,7 +3213,7 @@
 
 891 -> 892 call = (...) => s0()
 
-891 -> 893 conditional = ???*0*
+891 -> 893 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3219,7 +3231,7 @@
 
 881 -> 897 call = (...) => s0()
 
-881 -> 898 conditional = ???*0*
+881 -> 898 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3255,7 +3267,7 @@
 
 906 -> 907 call = (...) => s0()
 
-906 -> 908 conditional = ???*0*
+906 -> 908 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3271,7 +3283,7 @@
 
 910 -> 911 call = (...) => s0()
 
-910 -> 912 conditional = ???*0*
+910 -> 912 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3295,7 +3307,7 @@
     {"type": "literal", "text": "]", "ignoreCase": false}
 )
 
-912 -> 918 conditional = ???*0*
+912 -> 918 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3331,7 +3343,7 @@
     {"type": "literal", "text": "{", "ignoreCase": false}
 )
 
-0 -> 926 conditional = ???*0*
+0 -> 926 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3343,13 +3355,13 @@
 
 928 -> 929 call = (...) => s0()
 
-928 -> 930 conditional = ???*0*
+928 -> 930 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 930 -> 931 call = (...) => s0()
 
-930 -> 932 conditional = ???*0*
+930 -> 932 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3385,7 +3397,7 @@
 
 940 -> 941 call = (...) => s0()
 
-940 -> 942 conditional = ???*0*
+940 -> 942 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3403,7 +3415,7 @@
 
 930 -> 946 call = (...) => s0()
 
-930 -> 947 conditional = ???*0*
+930 -> 947 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3439,7 +3451,7 @@
 
 955 -> 956 call = (...) => s0()
 
-955 -> 957 conditional = ???*0*
+955 -> 957 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3455,7 +3467,7 @@
 
 959 -> 960 call = (...) => s0()
 
-959 -> 961 conditional = ???*0*
+959 -> 961 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3479,7 +3491,7 @@
     {"type": "literal", "text": "}", "ignoreCase": false}
 )
 
-961 -> 967 conditional = ???*0*
+961 -> 967 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3497,7 +3509,7 @@
 
 0 -> 970 call = (...) => s0()
 
-0 -> 971 conditional = ???*0*
+0 -> 971 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3511,7 +3523,7 @@
 
 0 -> 975 call = (...) => s0()
 
-0 -> 976 conditional = ???*0*
+0 -> 976 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3617,7 +3629,7 @@
     {"type": "class", "parts": ["\n", "\r"], "inverted": false, "ignoreCase": false}
 )
 
-994 -> 1004 conditional = ???*0*
+994 -> 1004 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3661,7 +3673,7 @@
     {"type": "class", "parts": ["\n", "\r"], "inverted": false, "ignoreCase": false}
 )
 
-994 -> 1017 conditional = ???*0*
+994 -> 1017 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3707,7 +3719,7 @@
     {"type": "literal", "text": "SELECT", "ignoreCase": true}
 )
 
-0 -> 1029 conditional = ???*0*
+0 -> 1029 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3753,7 +3765,7 @@
     {"type": "literal", "text": "TOP", "ignoreCase": true}
 )
 
-0 -> 1041 conditional = ???*0*
+0 -> 1041 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3799,7 +3811,7 @@
     {"type": "literal", "text": "FROM", "ignoreCase": true}
 )
 
-0 -> 1053 conditional = ???*0*
+0 -> 1053 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3845,7 +3857,7 @@
     {"type": "literal", "text": "WHERE", "ignoreCase": true}
 )
 
-0 -> 1065 conditional = ???*0*
+0 -> 1065 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3891,7 +3903,7 @@
     {"type": "literal", "text": "ORDER", "ignoreCase": true}
 )
 
-0 -> 1077 conditional = ???*0*
+0 -> 1077 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3937,7 +3949,7 @@
     {"type": "literal", "text": "BY", "ignoreCase": true}
 )
 
-0 -> 1089 conditional = ???*0*
+0 -> 1089 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3983,7 +3995,7 @@
     {"type": "literal", "text": "AS", "ignoreCase": true}
 )
 
-0 -> 1101 conditional = ???*0*
+0 -> 1101 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4029,7 +4041,7 @@
     {"type": "literal", "text": "JOIN", "ignoreCase": true}
 )
 
-0 -> 1113 conditional = ???*0*
+0 -> 1113 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4075,7 +4087,7 @@
     {"type": "literal", "text": "IN", "ignoreCase": true}
 )
 
-0 -> 1125 conditional = ???*0*
+0 -> 1125 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4121,7 +4133,7 @@
     {"type": "literal", "text": "VALUE", "ignoreCase": true}
 )
 
-0 -> 1137 conditional = ???*0*
+0 -> 1137 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4177,7 +4189,7 @@
 
 1149 -> 1150 call = (...) => s0()
 
-1149 -> 1151 conditional = ???*0*
+1149 -> 1151 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4233,7 +4245,7 @@
 
 1163 -> 1164 call = (...) => s0()
 
-1163 -> 1165 conditional = ???*0*
+1163 -> 1165 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4289,7 +4301,7 @@
 
 1177 -> 1178 call = (...) => s0()
 
-1177 -> 1179 conditional = ???*0*
+1177 -> 1179 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4345,7 +4357,7 @@
 
 1191 -> 1192 call = (...) => s0()
 
-1191 -> 1193 conditional = ???*0*
+1191 -> 1193 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4401,7 +4413,7 @@
 
 1205 -> 1206 call = (...) => s0()
 
-1205 -> 1207 conditional = ???*0*
+1205 -> 1207 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4447,7 +4459,7 @@
     {"type": "literal", "text": "BETWEEN", "ignoreCase": true}
 )
 
-0 -> 1219 conditional = ???*0*
+0 -> 1219 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4493,7 +4505,7 @@
     {"type": "literal", "text": "EXISTS", "ignoreCase": true}
 )
 
-0 -> 1231 conditional = ???*0*
+0 -> 1231 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4539,7 +4551,7 @@
     {"type": "literal", "text": "ARRAY", "ignoreCase": true}
 )
 
-0 -> 1243 conditional = ???*0*
+0 -> 1243 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4569,7 +4581,7 @@
     {"type": "literal", "text": "null", "ignoreCase": false}
 )
 
-0 -> 1251 conditional = ???*0*
+0 -> 1251 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4599,7 +4611,7 @@
     {"type": "literal", "text": "true", "ignoreCase": false}
 )
 
-0 -> 1259 conditional = ???*0*
+0 -> 1259 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4629,7 +4641,7 @@
     {"type": "literal", "text": "false", "ignoreCase": false}
 )
 
-0 -> 1267 conditional = ???*0*
+0 -> 1267 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4659,7 +4671,7 @@
     {"type": "literal", "text": "udf", "ignoreCase": false}
 )
 
-0 -> 1275 conditional = ???*0*
+0 -> 1275 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4671,127 +4683,127 @@
 
 0 -> 1278 call = (...) => s0()
 
-0 -> 1279 conditional = ???*0*
+0 -> 1279 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1279 -> 1280 call = (...) => s0()
 
-1279 -> 1281 conditional = ???*0*
+1279 -> 1281 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1281 -> 1282 call = (...) => s0()
 
-1281 -> 1283 conditional = ???*0*
+1281 -> 1283 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1283 -> 1284 call = (...) => s0()
 
-1283 -> 1285 conditional = ???*0*
+1283 -> 1285 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1285 -> 1286 call = (...) => s0()
 
-1285 -> 1287 conditional = ???*0*
+1285 -> 1287 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1287 -> 1288 call = (...) => s0()
 
-1287 -> 1289 conditional = ???*0*
+1287 -> 1289 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1289 -> 1290 call = (...) => s0()
 
-1289 -> 1291 conditional = ???*0*
+1289 -> 1291 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1291 -> 1292 call = (...) => s0()
 
-1291 -> 1293 conditional = ???*0*
+1291 -> 1293 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1293 -> 1294 call = (...) => s0()
 
-1293 -> 1295 conditional = ???*0*
+1293 -> 1295 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1295 -> 1296 call = (...) => s0()
 
-1295 -> 1297 conditional = ???*0*
+1295 -> 1297 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1297 -> 1298 call = (...) => s0()
 
-1297 -> 1299 conditional = ???*0*
+1297 -> 1299 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1299 -> 1300 call = (...) => s0()
 
-1299 -> 1301 conditional = ???*0*
+1299 -> 1301 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1301 -> 1302 call = (...) => s0()
 
-1301 -> 1303 conditional = ???*0*
+1301 -> 1303 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1303 -> 1304 call = (...) => s0()
 
-1303 -> 1305 conditional = ???*0*
+1303 -> 1305 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1305 -> 1306 call = (...) => s0()
 
-1305 -> 1307 conditional = ???*0*
+1305 -> 1307 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1307 -> 1308 call = (...) => s0()
 
-1307 -> 1309 conditional = ???*0*
+1307 -> 1309 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1309 -> 1310 call = (...) => s0()
 
-1309 -> 1311 conditional = ???*0*
+1309 -> 1311 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1311 -> 1312 call = (...) => s0()
 
-1311 -> 1313 conditional = ???*0*
+1311 -> 1313 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1313 -> 1314 call = (...) => s0()
 
-1313 -> 1315 conditional = ???*0*
+1313 -> 1315 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1315 -> 1316 call = (...) => s0()
 
-1315 -> 1317 conditional = ???*0*
+1315 -> 1317 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1317 -> 1318 call = (...) => s0()
 
-1317 -> 1319 conditional = ???*0*
+1317 -> 1319 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4803,13 +4815,13 @@
 
 0 -> 1322 call = (...) => s0()
 
-0 -> 1323 conditional = ???*0*
+0 -> 1323 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1323 -> 1324 call = (...) => s0()
 
-1323 -> 1325 conditional = ???*0*
+1323 -> 1325 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5024,7 +5036,7 @@
 
 1368 -> 1369 call = (...) => s0()
 
-1368 -> 1370 conditional = ???*0*
+1368 -> 1370 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5054,7 +5066,7 @@
     {"type": "literal", "text": "+", "ignoreCase": false}
 )
 
-0 -> 1378 conditional = ???*0*
+0 -> 1378 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5078,7 +5090,7 @@
     {"type": "literal", "text": "-", "ignoreCase": false}
 )
 
-1378 -> 1384 conditional = ???*0*
+1378 -> 1384 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5102,7 +5114,7 @@
     {"type": "literal", "text": "~", "ignoreCase": false}
 )
 
-1384 -> 1390 conditional = ???*0*
+1384 -> 1390 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5132,7 +5144,7 @@
     {"type": "literal", "text": "\"", "ignoreCase": false}
 )
 
-0 -> 1398 conditional = ???*0*
+0 -> 1398 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5156,19 +5168,19 @@
     {"type": "literal", "text": "\\", "ignoreCase": false}
 )
 
-0 -> 1404 conditional = ???*0*
+0 -> 1404 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1404 -> 1405 call = (...) => s0()
 
-1404 -> 1406 conditional = ???*0*
+1404 -> 1406 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1406 -> 1407 call = (...) => text()()
 
-0 -> 1408 conditional = ???*0*
+0 -> 1408 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5192,13 +5204,13 @@
     {"type": "literal", "text": "\\", "ignoreCase": false}
 )
 
-1408 -> 1414 conditional = ???*0*
+1408 -> 1414 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1414 -> 1415 call = (...) => s0()
 
-1414 -> 1416 conditional = ???*0*
+1414 -> 1416 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5230,7 +5242,7 @@
     {"type": "literal", "text": "'", "ignoreCase": false}
 )
 
-0 -> 1424 conditional = ???*0*
+0 -> 1424 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5254,19 +5266,19 @@
     {"type": "literal", "text": "\\", "ignoreCase": false}
 )
 
-0 -> 1430 conditional = ???*0*
+0 -> 1430 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1430 -> 1431 call = (...) => s0()
 
-1430 -> 1432 conditional = ???*0*
+1430 -> 1432 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1432 -> 1433 call = (...) => text()()
 
-0 -> 1434 conditional = ???*0*
+0 -> 1434 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5290,13 +5302,13 @@
     {"type": "literal", "text": "\\", "ignoreCase": false}
 )
 
-1434 -> 1440 conditional = ???*0*
+1434 -> 1440 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1440 -> 1441 call = (...) => s0()
 
-1440 -> 1442 conditional = ???*0*
+1440 -> 1442 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5326,7 +5338,7 @@
 
 0 -> 1451 call = (...) => s0()
 
-0 -> 1452 conditional = ???*0*
+0 -> 1452 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5338,7 +5350,7 @@
 
 0 -> 1455 call = (...) => s0()
 
-0 -> 1456 conditional = ???*0*
+0 -> 1456 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5368,7 +5380,7 @@
     {"type": "literal", "text": "'", "ignoreCase": false}
 )
 
-0 -> 1464 conditional = ???*0*
+0 -> 1464 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5392,7 +5404,7 @@
     {"type": "literal", "text": "\"", "ignoreCase": false}
 )
 
-1464 -> 1470 conditional = ???*0*
+1464 -> 1470 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5416,7 +5428,7 @@
     {"type": "literal", "text": "\\", "ignoreCase": false}
 )
 
-1470 -> 1476 conditional = ???*0*
+1470 -> 1476 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5446,7 +5458,7 @@
 
 1482 -> 1483 call = (...) => "\b"()
 
-1476 -> 1484 conditional = ???*0*
+1476 -> 1484 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5476,7 +5488,7 @@
 
 1490 -> 1491 call = (...) => "\f"()
 
-1484 -> 1492 conditional = ???*0*
+1484 -> 1492 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5506,7 +5518,7 @@
 
 1498 -> 1499 call = (...) => "\n"()
 
-1492 -> 1500 conditional = ???*0*
+1492 -> 1500 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5536,7 +5548,7 @@
 
 1506 -> 1507 call = (...) => "\r"()
 
-1500 -> 1508 conditional = ???*0*
+1500 -> 1508 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5572,13 +5584,13 @@
 
 0 -> 1517 call = (...) => s0()
 
-0 -> 1518 conditional = ???*0*
+0 -> 1518 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1518 -> 1519 call = (...) => s0()
 
-1518 -> 1520 conditional = ???*0*
+1518 -> 1520 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5590,7 +5602,7 @@
 
 0 -> 1523 call = (...) => s0()
 
-0 -> 1524 conditional = ???*0*
+0 -> 1524 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5638,7 +5650,7 @@
     {"type": "literal", "text": "u", "ignoreCase": false}
 )
 
-0 -> 1536 conditional = ???*0*
+0 -> 1536 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5699,7 +5711,7 @@
 
 1542 -> 1543 call = (...) => s0()
 
-1536 -> 1544 conditional = ???*0*
+1536 -> 1544 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5711,7 +5723,7 @@
 - *2* max number of linking steps reached
   ⚠️  This value might have side effects
 
-1536 -> 1547 conditional = ???*0*
+1536 -> 1547 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5761,31 +5773,31 @@
 
 0 -> 1560 call = (...) => s0()
 
-0 -> 1561 conditional = ???*0*
+0 -> 1561 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1561 -> 1562 call = (...) => s0()
 
-1561 -> 1563 conditional = ???*0*
+1561 -> 1563 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1563 -> 1564 call = (...) => s0()
 
-1561 -> 1565 conditional = ???*0*
+1561 -> 1565 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1565 -> 1566 call = (...) => s0()
 
-1565 -> 1567 conditional = ???*0*
+1565 -> 1567 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1567 -> 1568 call = (...) => s0()
 
-1567 -> 1569 conditional = ???*0*
+1567 -> 1569 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5795,7 +5807,7 @@
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-1561 -> 1571 conditional = ???*0*
+1561 -> 1571 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5811,37 +5823,37 @@
 
 0 -> 1574 call = (...) => s0()
 
-0 -> 1575 conditional = ???*0*
+0 -> 1575 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1575 -> 1576 call = (...) => s0()
 
-1575 -> 1577 conditional = ???*0*
+1575 -> 1577 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1577 -> 1578 call = (...) => s0()
 
-1577 -> 1579 conditional = ???*0*
+1577 -> 1579 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1579 -> 1580 call = (...) => s0()
 
-1579 -> 1581 conditional = ???*0*
+1579 -> 1581 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1581 -> 1582 call = (...) => s0()
 
-1581 -> 1583 conditional = ???*0*
+1581 -> 1583 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1583 -> 1584 call = (...) => s0()
 
-1583 -> 1585 conditional = ???*0*
+1583 -> 1585 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5865,7 +5877,7 @@
     {"type": "literal", "text": "(", "ignoreCase": false}
 )
 
-1585 -> 1591 conditional = ???*0*
+1585 -> 1591 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5877,7 +5889,7 @@
 
 1593 -> 1594 call = (...) => s0()
 
-1593 -> 1595 conditional = ???*0*
+1593 -> 1595 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5921,13 +5933,13 @@
 
 0 -> 1606 call = (...) => s0()
 
-0 -> 1607 conditional = ???*0*
+0 -> 1607 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1607 -> 1608 call = (...) => s0()
 
-1607 -> 1609 conditional = ???*0*
+1607 -> 1609 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5939,7 +5951,7 @@
 
 0 -> 1612 call = (...) => s0()
 
-0 -> 1613 conditional = ???*0*
+0 -> 1613 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5951,7 +5963,7 @@
 
 1615 -> 1616 call = (...) => s0()
 
-1615 -> 1617 conditional = ???*0*
+1615 -> 1617 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5965,7 +5977,7 @@
 
 0 -> 1620 call = (...) => s0()
 
-0 -> 1621 conditional = ???*0*
+0 -> 1621 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5977,7 +5989,7 @@
 
 1623 -> 1624 call = (...) => s0()
 
-1623 -> 1625 conditional = ???*0*
+1623 -> 1625 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5991,7 +6003,7 @@
 
 0 -> 1628 call = (...) => s0()
 
-0 -> 1629 conditional = ???*0*
+0 -> 1629 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6005,13 +6017,13 @@
 
 0 -> 1632 call = (...) => s0()
 
-0 -> 1633 conditional = ???*0*
+0 -> 1633 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1633 -> 1634 call = (...) => s0()
 
-1633 -> 1635 conditional = ???*0*
+1633 -> 1635 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6047,7 +6059,7 @@
 
 1643 -> 1644 call = (...) => s0()
 
-1643 -> 1645 conditional = ???*0*
+1643 -> 1645 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6063,13 +6075,13 @@
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-1633 -> 1649 conditional = ???*0*
+1633 -> 1649 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1649 -> 1650 call = (...) => s0()
 
-1649 -> 1651 conditional = ???*0*
+1649 -> 1651 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6105,19 +6117,19 @@
 
 1659 -> 1660 call = (...) => s0()
 
-1659 -> 1661 conditional = ???*0*
+1659 -> 1661 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1661 -> 1662 call = (...) => s0()
 
-1661 -> 1663 conditional = ???*0*
+1661 -> 1663 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1663 -> 1664 call = (...) => s0()
 
-1659 -> 1665 conditional = ???*0*
+1659 -> 1665 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6165,7 +6177,7 @@
 
 1633 -> 1677 call = (...) => s0()
 
-1633 -> 1678 conditional = ???*0*
+1633 -> 1678 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6201,7 +6213,7 @@
 
 1686 -> 1687 call = (...) => s0()
 
-1686 -> 1688 conditional = ???*0*
+1686 -> 1688 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6217,13 +6229,13 @@
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-1633 -> 1692 conditional = ???*0*
+1633 -> 1692 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1692 -> 1693 call = (...) => s0()
 
-1692 -> 1694 conditional = ???*0*
+1692 -> 1694 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6259,19 +6271,19 @@
 
 1702 -> 1703 call = (...) => s0()
 
-1702 -> 1704 conditional = ???*0*
+1702 -> 1704 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1704 -> 1705 call = (...) => s0()
 
-1704 -> 1706 conditional = ???*0*
+1704 -> 1706 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1706 -> 1707 call = (...) => s0()
 
-1702 -> 1708 conditional = ???*0*
+1702 -> 1708 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6327,19 +6339,19 @@
 
 0 -> 1721 call = (...) => s0()
 
-0 -> 1722 conditional = ???*0*
+0 -> 1722 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1722 -> 1723 call = (...) => s0()
 
-1722 -> 1724 conditional = ???*0*
+1722 -> 1724 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1724 -> 1725 call = (...) => s0()
 
-1724 -> 1726 conditional = ???*0*
+1724 -> 1726 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6351,7 +6363,7 @@
 
 1728 -> 1729 call = (...) => s0()
 
-1728 -> 1730 conditional = ???*0*
+1728 -> 1730 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6367,7 +6379,7 @@
 
 0 -> 1733 call = (...) => s0()
 
-0 -> 1734 conditional = ???*0*
+0 -> 1734 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6409,7 +6421,7 @@
 
 1744 -> 1745 call = (...) => s0()
 
-1744 -> 1746 conditional = ???*0*
+1744 -> 1746 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6451,7 +6463,7 @@
 
 1756 -> 1757 call = (...) => s0()
 
-1756 -> 1758 conditional = ???*0*
+1756 -> 1758 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6468,7 +6480,7 @@
 - *2* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 1760 conditional = ???*0*
+0 -> 1760 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6480,19 +6492,19 @@
 
 0 -> 1763 call = (...) => s0()
 
-0 -> 1764 conditional = ???*0*
+0 -> 1764 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1764 -> 1765 call = (...) => s0()
 
-1764 -> 1766 conditional = ???*0*
+1764 -> 1766 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1766 -> 1767 call = (...) => s0()
 
-1766 -> 1768 conditional = ???*0*
+1766 -> 1768 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6516,7 +6528,7 @@
     {"type": "literal", "text": "??", "ignoreCase": false}
 )
 
-1766 -> 1774 conditional = ???*0*
+1766 -> 1774 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6536,13 +6548,13 @@
 
 1764 -> 1780 call = (...) => s0()
 
-1764 -> 1781 conditional = ???*0*
+1764 -> 1781 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1781 -> 1782 call = (...) => s0()
 
-1781 -> 1783 conditional = ???*0*
+1781 -> 1783 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6566,7 +6578,7 @@
     {"type": "literal", "text": "??", "ignoreCase": false}
 )
 
-1781 -> 1789 conditional = ???*0*
+1781 -> 1789 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6594,19 +6606,19 @@
 
 0 -> 1796 call = (...) => s0()
 
-0 -> 1797 conditional = ???*0*
+0 -> 1797 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1797 -> 1798 call = (...) => s0()
 
-1797 -> 1799 conditional = ???*0*
+1797 -> 1799 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1799 -> 1800 call = (...) => s0()
 
-1799 -> 1801 conditional = ???*0*
+1799 -> 1801 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6626,13 +6638,13 @@
 
 1797 -> 1807 call = (...) => s0()
 
-1797 -> 1808 conditional = ???*0*
+1797 -> 1808 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1808 -> 1809 call = (...) => s0()
 
-1808 -> 1810 conditional = ???*0*
+1808 -> 1810 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6660,13 +6672,13 @@
 
 0 -> 1817 call = (...) => s0()
 
-0 -> 1818 conditional = ???*0*
+0 -> 1818 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1818 -> 1819 call = (...) => s0()
 
-1818 -> 1820 conditional = ???*0*
+1818 -> 1820 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6758,7 +6770,7 @@
 
 1818 -> 1844 call = (...) => s0()
 
-1818 -> 1845 conditional = ???*0*
+1818 -> 1845 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6858,13 +6870,13 @@
 
 0 -> 1870 call = (...) => s0()
 
-0 -> 1871 conditional = ???*0*
+0 -> 1871 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1871 -> 1872 call = (...) => s0()
 
-1871 -> 1873 conditional = ???*0*
+1871 -> 1873 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6980,7 +6992,7 @@
 
 1871 -> 1903 call = (...) => s0()
 
-1871 -> 1904 conditional = ???*0*
+1871 -> 1904 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7104,7 +7116,7 @@
 
 0 -> 1935 call = (...) => s0()
 
-0 -> 1936 conditional = ???*0*
+0 -> 1936 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7116,7 +7128,7 @@
 
 1938 -> 1939 call = (...) => s0()
 
-1938 -> 1940 conditional = ???*0*
+1938 -> 1940 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7158,7 +7170,7 @@
 
 1950 -> 1951 call = (...) => s0()
 
-1950 -> 1952 conditional = ???*0*
+1950 -> 1952 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7198,7 +7210,7 @@
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 1962 conditional = ???*0*
+0 -> 1962 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7210,7 +7222,7 @@
 
 0 -> 1965 call = (...) => s0()
 
-0 -> 1966 conditional = ???*0*
+0 -> 1966 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7222,7 +7234,7 @@
 
 1968 -> 1969 call = (...) => s0()
 
-1968 -> 1970 conditional = ???*0*
+1968 -> 1970 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7234,7 +7246,7 @@
 
 1972 -> 1973 call = (...) => s0()
 
-1972 -> 1974 conditional = ???*0*
+1972 -> 1974 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7246,7 +7258,7 @@
 
 1976 -> 1977 call = (...) => s0()
 
-1976 -> 1978 conditional = ???*0*
+1976 -> 1978 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7258,7 +7270,7 @@
 
 1980 -> 1981 call = (...) => s0()
 
-1980 -> 1982 conditional = ???*0*
+1980 -> 1982 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7270,7 +7282,7 @@
 - *2* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 1984 conditional = ???*0*
+0 -> 1984 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7282,13 +7294,13 @@
 
 0 -> 1987 call = (...) => s0()
 
-0 -> 1988 conditional = ???*0*
+0 -> 1988 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 1988 -> 1989 call = (...) => s0()
 
-1988 -> 1990 conditional = ???*0*
+1988 -> 1990 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7332,7 +7344,7 @@
 
 1988 -> 2002 call = (...) => s0()
 
-1988 -> 2003 conditional = ???*0*
+1988 -> 2003 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7384,13 +7396,13 @@
 
 0 -> 2016 call = (...) => s0()
 
-0 -> 2017 conditional = ???*0*
+0 -> 2017 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 2017 -> 2018 call = (...) => s0()
 
-2017 -> 2019 conditional = ???*0*
+2017 -> 2019 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7434,7 +7446,7 @@
 
 2017 -> 2031 call = (...) => s0()
 
-2017 -> 2032 conditional = ???*0*
+2017 -> 2032 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7486,13 +7498,13 @@
 
 0 -> 2045 call = (...) => s0()
 
-0 -> 2046 conditional = ???*0*
+0 -> 2046 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 2046 -> 2047 call = (...) => s0()
 
-2046 -> 2048 conditional = ???*0*
+2046 -> 2048 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7536,7 +7548,7 @@
 
 2046 -> 2060 call = (...) => s0()
 
-2046 -> 2061 conditional = ???*0*
+2046 -> 2061 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7588,13 +7600,13 @@
 
 0 -> 2074 call = (...) => s0()
 
-0 -> 2075 conditional = ???*0*
+0 -> 2075 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 2075 -> 2076 call = (...) => s0()
 
-2075 -> 2077 conditional = ???*0*
+2075 -> 2077 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7686,7 +7698,7 @@
 
 2075 -> 2101 call = (...) => s0()
 
-2075 -> 2102 conditional = ???*0*
+2075 -> 2102 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7786,13 +7798,13 @@
 
 0 -> 2127 call = (...) => s0()
 
-0 -> 2128 conditional = ???*0*
+0 -> 2128 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 2128 -> 2129 call = (...) => s0()
 
-2128 -> 2130 conditional = ???*0*
+2128 -> 2130 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7884,7 +7896,7 @@
 
 2128 -> 2154 call = (...) => s0()
 
-2128 -> 2155 conditional = ???*0*
+2128 -> 2155 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7984,13 +7996,13 @@
 
 0 -> 2180 call = (...) => s0()
 
-0 -> 2181 conditional = ???*0*
+0 -> 2181 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 2181 -> 2182 call = (...) => s0()
 
-2181 -> 2183 conditional = ???*0*
+2181 -> 2183 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8082,7 +8094,7 @@
 
 2181 -> 2207 call = (...) => s0()
 
-2181 -> 2208 conditional = ???*0*
+2181 -> 2208 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8182,13 +8194,13 @@
 
 0 -> 2233 call = (...) => s0()
 
-0 -> 2234 conditional = ???*0*
+0 -> 2234 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 2234 -> 2235 call = (...) => s0()
 
-0 -> 2236 conditional = ???*0*
+0 -> 2236 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8230,7 +8242,7 @@
 
 2246 -> 2247 call = (...) => s0()
 
-2246 -> 2248 conditional = ???*0*
+2246 -> 2248 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8246,13 +8258,13 @@
 
 0 -> 2251 call = (...) => s0()
 
-0 -> 2252 conditional = ???*0*
+0 -> 2252 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 2252 -> 2253 call = (...) => s0()
 
-0 -> 2254 conditional = ???*0*
+0 -> 2254 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8294,7 +8306,7 @@
 
 2264 -> 2265 call = (...) => s0()
 
-2264 -> 2266 conditional = ???*0*
+2264 -> 2266 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8310,7 +8322,7 @@
 
 0 -> 2269 call = (...) => s0()
 
-0 -> 2270 conditional = ???*0*
+0 -> 2270 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8324,13 +8336,13 @@
 
 0 -> 2273 call = (...) => s0()
 
-0 -> 2274 conditional = ???*0*
+0 -> 2274 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 2274 -> 2275 call = (...) => s0()
 
-2274 -> 2276 conditional = ???*0*
+2274 -> 2276 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8366,7 +8378,7 @@
 
 2284 -> 2285 call = (...) => s0()
 
-2284 -> 2286 conditional = ???*0*
+2284 -> 2286 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8382,13 +8394,13 @@
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-2274 -> 2290 conditional = ???*0*
+2274 -> 2290 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 2290 -> 2291 call = (...) => s0()
 
-2290 -> 2292 conditional = ???*0*
+2290 -> 2292 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8424,19 +8436,19 @@
 
 2300 -> 2301 call = (...) => s0()
 
-2300 -> 2302 conditional = ???*0*
+2300 -> 2302 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 2302 -> 2303 call = (...) => s0()
 
-2302 -> 2304 conditional = ???*0*
+2302 -> 2304 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 2304 -> 2305 call = (...) => s0()
 
-2300 -> 2306 conditional = ???*0*
+2300 -> 2306 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8476,7 +8488,7 @@
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-2274 -> 2316 conditional = ???*0*
+2274 -> 2316 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8488,7 +8500,7 @@
 
 2316 -> 2319 call = (...) => s0()
 
-2316 -> 2320 conditional = ???*0*
+2316 -> 2320 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8524,7 +8536,7 @@
 
 2328 -> 2329 call = (...) => s0()
 
-2328 -> 2330 conditional = ???*0*
+2328 -> 2330 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8540,13 +8552,13 @@
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-2316 -> 2334 conditional = ???*0*
+2316 -> 2334 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 2334 -> 2335 call = (...) => s0()
 
-2334 -> 2336 conditional = ???*0*
+2334 -> 2336 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8582,19 +8594,19 @@
 
 2344 -> 2345 call = (...) => s0()
 
-2344 -> 2346 conditional = ???*0*
+2344 -> 2346 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 2346 -> 2347 call = (...) => s0()
 
-2346 -> 2348 conditional = ???*0*
+2346 -> 2348 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 2348 -> 2349 call = (...) => s0()
 
-2344 -> 2350 conditional = ???*0*
+2344 -> 2350 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8650,7 +8662,7 @@
 
 0 -> 2363 call = (...) => s0()
 
-0 -> 2364 conditional = ???*0*
+0 -> 2364 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8664,13 +8676,13 @@
 
 0 -> 2367 call = (...) => s0()
 
-0 -> 2368 conditional = ???*0*
+0 -> 2368 conditional = (???*0* === {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 2368 -> 2369 call = (...) => s0()
 
-0 -> 2370 conditional = ???*0*
+0 -> 2370 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8788,13 +8800,13 @@
 
 0 -> 2397 call = (...) => s0()
 
-0 -> 2398 conditional = ???*0*
+0 -> 2398 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
 2398 -> 2399 call = (...) => s0()
 
-2398 -> 2400 conditional = ???*0*
+2398 -> 2400 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8830,7 +8842,7 @@
 
 2408 -> 2409 call = (...) => s0()
 
-2408 -> 2410 conditional = ???*0*
+2408 -> 2410 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8848,7 +8860,7 @@
 
 2398 -> 2414 call = (...) => s0()
 
-2398 -> 2415 conditional = ???*0*
+2398 -> 2415 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8884,7 +8896,7 @@
 
 2423 -> 2424 call = (...) => s0()
 
-2423 -> 2425 conditional = ???*0*
+2423 -> 2425 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8930,7 +8942,7 @@
     {"type": "literal", "text": "(", "ignoreCase": false}
 )
 
-0 -> 2435 conditional = ???*0*
+0 -> 2435 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8942,7 +8954,7 @@
 
 2437 -> 2438 call = (...) => s0()
 
-2437 -> 2439 conditional = ???*0*
+2437 -> 2439 conditional = (???*0* !== {})
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 

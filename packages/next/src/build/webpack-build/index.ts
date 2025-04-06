@@ -11,6 +11,7 @@ import {
   getParsedNodeOptionsWithoutInspect,
 } from '../../server/lib/utils'
 import { mergeUseCacheTrackers } from '../webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
+import { durationToString } from '../duration-to-string'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -119,22 +120,36 @@ async function webpackBuildWithWorker(
   }
 
   if (compilerNames.length === 3) {
-    Log.event('Compiled successfully')
+    const durationString = durationToString(combinedResult.duration)
+    Log.event(`Compiled successfully in ${durationString}`)
   }
 
   return combinedResult
 }
 
-export function webpackBuild(
+export async function webpackBuild(
   withWorker: boolean,
   compilerNames: typeof ORDERED_COMPILER_NAMES | null
 ): ReturnType<typeof webpackBuildWithWorker> {
   if (withWorker) {
     debug('using separate compiler workers')
-    return webpackBuildWithWorker(compilerNames)
+    return await webpackBuildWithWorker(compilerNames)
   } else {
     debug('building all compilers in same process')
     const webpackBuildImpl = require('./impl').webpackBuildImpl
-    return webpackBuildImpl(null, null)
+    const curResult = await webpackBuildImpl(null, null)
+
+    // Mirror what happens in webpackBuildWithWorker
+    if (curResult.telemetryState) {
+      NextBuildContext.telemetryState = {
+        ...curResult.telemetryState,
+        useCacheTracker: mergeUseCacheTrackers(
+          NextBuildContext.telemetryState?.useCacheTracker,
+          curResult.telemetryState.useCacheTracker
+        ),
+      }
+    }
+
+    return curResult
   }
 }

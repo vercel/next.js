@@ -3,7 +3,7 @@
  */
 const nextConfig = {
   logging: {
-    incomingRequest: {
+    incomingRequests: {
       ignore: [/^\/hello/, /^\/non-existent/, /^\/_next\/static\//],
     },
   },

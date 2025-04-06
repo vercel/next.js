@@ -94,7 +94,7 @@ describe.each([
                       "mappings": "AAAA,iCAAiC",
                       "names": [],
                       "sources": [
-                        "turbopack://[project]/styles/global.scss.css",
+                        "turbopack:///[project]/styles/global.scss.css",
                       ],
                       "sourcesContent": [
                         ".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}",
@@ -103,18 +103,6 @@ describe.each([
                     },
                     "offset": {
                       "column": 0,
-                      "line": 1,
-                    },
-                  },
-                  {
-                    "map": {
-                      "mappings": "A",
-                      "names": [],
-                      "sources": [],
-                      "version": 3,
-                    },
-                    "offset": {
-                      "column": 91,
                       "line": 1,
                     },
                   },
@@ -131,7 +119,7 @@ describe.each([
                       "mappings": "AAAA,iCAAiC",
                       "names": [],
                       "sources": [
-                        "turbopack://[project]/styles/global.scss.css",
+                        "turbopack:///[project]/styles/global.scss.css",
                       ],
                       "sourcesContent": [
                         ".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}",
@@ -140,18 +128,6 @@ describe.each([
                     },
                     "offset": {
                       "column": 0,
-                      "line": 1,
-                    },
-                  },
-                  {
-                    "map": {
-                      "mappings": "A",
-                      "names": [],
-                      "sources": [],
-                      "version": 3,
-                    },
-                    "offset": {
-                      "column": 91,
                       "line": 1,
                     },
                   },

@@ -3,7 +3,7 @@ import {
   connectHMR,
   addMessageListener,
   sendMessage,
-} from "@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/websocket";
+} from "./websocket";
 
 export function initializeHMR(options: { assetPrefix: string }) {
   connect({

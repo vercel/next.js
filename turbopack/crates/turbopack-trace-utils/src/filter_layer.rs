@@ -1,18 +1,18 @@
-use std::{collections::HashMap, hash::BuildHasherDefault, str::FromStr};
+use std::str::FromStr;
 
 use anyhow::Result;
-use rustc_hash::FxHasher;
+use rustc_hash::FxHashMap;
 use tracing::{level_filters::LevelFilter, Subscriber};
 use tracing_subscriber::Layer;
 
 pub struct FilterLayer {
-    config: HashMap<String, LevelFilter, BuildHasherDefault<FxHasher>>,
+    config: FxHashMap<String, LevelFilter>,
     global_level: LevelFilter,
 }
 
 impl FilterLayer {
     pub fn try_new(input: &str) -> Result<Self> {
-        let mut config = HashMap::default();
+        let mut config = FxHashMap::default();
         let mut global_level = LevelFilter::OFF;
         for entry in input.split(',') {
             if entry.is_empty() {

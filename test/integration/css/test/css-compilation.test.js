@@ -125,7 +125,7 @@ module.exports = {
                           "mappings": "AAAA,4BACE,2BAKF,0DAIA,kDAIA,uCAIA",
                           "names": [],
                           "sources": [
-                            "turbopack://[project]/test/integration/css-fixtures/compilation-and-prefixing/styles/global.css",
+                            "turbopack:///[project]/test/integration/css-fixtures/compilation-and-prefixing/styles/global.css",
                           ],
                           "sourcesContent": [
                             "@media (480px <= width < 768px) {
@@ -155,18 +155,6 @@ module.exports = {
                         },
                         "offset": {
                           "column": 0,
-                          "line": 1,
-                        },
-                      },
-                      {
-                        "map": {
-                          "mappings": "A",
-                          "names": [],
-                          "sources": [],
-                          "version": 3,
-                        },
-                        "offset": {
-                          "column": 264,
                           "line": 1,
                         },
                       },
@@ -183,7 +171,7 @@ module.exports = {
                           "mappings": "AAAA,4BACE,2BAKF,0DAIA,kDAIA,uCAIA",
                           "names": [],
                           "sources": [
-                            "turbopack://[project]/test/integration/css-fixtures/compilation-and-prefixing/styles/global.css",
+                            "turbopack:///[project]/test/integration/css-fixtures/compilation-and-prefixing/styles/global.css",
                           ],
                           "sourcesContent": [
                             "@media (480px <= width < 768px) {
@@ -213,18 +201,6 @@ module.exports = {
                         },
                         "offset": {
                           "column": 0,
-                          "line": 1,
-                        },
-                      },
-                      {
-                        "map": {
-                          "mappings": "A",
-                          "names": [],
-                          "sources": [],
-                          "version": 3,
-                        },
-                        "offset": {
-                          "column": 264,
                           "line": 1,
                         },
                       },

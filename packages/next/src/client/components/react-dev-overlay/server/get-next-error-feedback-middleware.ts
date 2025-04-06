@@ -1,6 +1,5 @@
 import { eventErrorFeedback } from '../../../../telemetry/events/error-feedback'
-import { badRequest, internalServerError, noContent } from './shared'
-
+import { middlewareResponse } from './middleware-response'
 import type { ServerResponse, IncomingMessage } from 'http'
 import type { Telemetry } from '../../../../telemetry/storage'
 
@@ -22,7 +21,7 @@ export function getNextErrorFeedbackMiddleware(telemetry: Telemetry) {
       const wasHelpful = searchParams.get('wasHelpful')
 
       if (!errorCode || !wasHelpful) {
-        return badRequest(res)
+        return middlewareResponse.badRequest(res)
       }
 
       await telemetry.record(
@@ -32,9 +31,9 @@ export function getNextErrorFeedbackMiddleware(telemetry: Telemetry) {
         })
       )
 
-      return noContent(res)
+      return middlewareResponse.noContent(res)
     } catch (error) {
-      return internalServerError(res)
+      return middlewareResponse.internalServerError(res)
     }
   }
 }

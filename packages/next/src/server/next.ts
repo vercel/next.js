@@ -231,10 +231,10 @@ export class NextServer implements NextWrapperServer {
     )
 
     // check serialized build config when available
-    if (process.env.NODE_ENV === 'production') {
+    if (!this.options.dev) {
       try {
         const serializedConfig = require(
-          path.join(dir, '.next', SERVER_FILES_MANIFEST)
+          path.join(dir, config.distDir, SERVER_FILES_MANIFEST)
         ).config
 
         // @ts-expect-error internal field
@@ -466,7 +466,10 @@ function createServer(
     'typescript' in options &&
     'version' in (options as any).typescript
   ) {
-    return require('./next-typescript').createTSPlugin(options)
+    const pluginMod: typeof import('./next-typescript') = require('./next-typescript')
+    return pluginMod.createTSPlugin(
+      options as any
+    ) as unknown as NextWrapperServer
   }
 
   if (options == null) {

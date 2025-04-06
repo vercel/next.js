@@ -9,7 +9,6 @@ mod dynamic_imports;
 mod empty;
 pub mod entrypoints;
 mod font;
-pub mod global_module_id_strategy;
 mod instrumentation;
 mod loadable_manifest;
 mod middleware;
@@ -23,9 +22,6 @@ pub mod route;
 mod server_actions;
 mod versioned_content_map;
 mod webpack_stats;
-
-// Declare build-time information variables generated in build.rs
-shadow_rs::shadow!(build);
 
 pub fn register() {
     next_core::register();

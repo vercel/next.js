@@ -1,8 +1,9 @@
-use std::{borrow::Cow, collections::HashSet, future::Future, mem::replace, panic, pin::Pin};
+use std::{borrow::Cow, future::Future, mem::replace, panic, pin::Pin};
 
 use anyhow::{anyhow, Result};
 use auto_hash_map::AutoSet;
 use parking_lot::Mutex;
+use rustc_hash::FxHashSet;
 use tracing::{Instrument, Span};
 
 use crate::{
@@ -30,7 +31,6 @@ type EffectFuture = Pin<Box<dyn Future<Output = Result<()>> + Send + Sync + 'sta
 /// The inner state of an effect instance if it has not been applied yet.
 struct EffectInner {
     future: EffectFuture,
-    span: Span,
 }
 
 enum EffectState {
@@ -51,7 +51,6 @@ impl EffectInstance {
         Self {
             inner: Mutex::new(EffectState::NotStarted(EffectInner {
                 future: Box::pin(future),
-                span: Span::current(),
             })),
         }
     }
@@ -87,10 +86,10 @@ impl EffectInstance {
                 State::Started(listener) => {
                     listener.await;
                 }
-                State::NotStarted(EffectInner { future, span }) => {
+                State::NotStarted(EffectInner { future }) => {
                     let join_handle = tokio::spawn(
                         turbo_tasks_future_scope(turbo_tasks::turbo_tasks(), future)
-                            .instrument(span),
+                            .instrument(Span::current()),
                     );
                     let result = match join_handle.await {
                         Ok(Err(err)) => Err(SharedError::new(err)),
@@ -235,7 +234,7 @@ impl PartialEq for Effects {
             .effects
             .iter()
             .map(ReadRef::ptr)
-            .collect::<HashSet<_>>();
+            .collect::<FxHashSet<_>>();
         other
             .effects
             .iter()

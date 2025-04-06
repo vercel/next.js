@@ -27,7 +27,6 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../../shared/lib/constants'
 import {
-  getActionsFromBuildInfo,
   isClientComponentEntryModule,
   isCSSMod,
   regexCSS,
@@ -44,8 +43,13 @@ import { PAGE_TYPES } from '../../../lib/page-types'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getAssumedSourceType } from '../loaders/next-flight-loader'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
-import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import {
+  DEFAULT_METADATA_ROUTE_EXTENSIONS,
+  isMetadataRouteFile,
+} from '../../../lib/metadata/is-metadata-route'
 import type { MetadataRouteLoaderOptions } from '../loaders/next-metadata-route-loader'
+import type { FlightActionEntryLoaderActions } from '../loaders/next-flight-action-entry-loader'
+import getWebpackBundler from '../../../shared/lib/get-webpack-bundler'
 
 interface Options {
   dev: boolean
@@ -68,7 +72,7 @@ type Actions = {
   }
 }
 
-type ActionIdNamePair = [id: string, name: string]
+type ActionIdNamePair = { id: string; exportedName: string }
 
 export type ActionManifest = {
   // Assign a unique encryption key during production build.
@@ -263,7 +267,7 @@ export class FlightClientEntryPlugin {
           name: PLUGIN_NAME,
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
-        (assets) => this.createActionAssets(compilation, assets)
+        () => this.createActionAssets(compilation)
       )
     })
   }
@@ -346,13 +350,27 @@ export class FlightClientEntryPlugin {
           : entryRequest
 
         // Replace file suffix as `.js` will be added.
+        // bundlePath will have app/ prefix but not src/.
+        // e.g. src/app/foo/page.js -> app/foo/page
         let bundlePath = normalizePathSep(
           relativeRequest.replace(/\.[^.\\/]+$/, '').replace(/^src[\\/]/, '')
         )
 
         // For metadata routes, the entry name can be used as the bundle path,
         // as it has been normalized already.
-        if (isMetadataRoute(bundlePath)) {
+        // e.g.
+        // When `relativeRequest` is 'src/app/sitemap.js',
+        // `appDirRelativeRequest` will be '/sitemap.js'
+        // then `isMetadataEntryFile` will be `true`
+        const appDirRelativeRequest = relativeRequest
+          .replace(/^src[\\/]/, '')
+          .replace(/^app[\\/]/, '/')
+        const isMetadataEntryFile = isMetadataRouteFile(
+          appDirRelativeRequest,
+          DEFAULT_METADATA_ROUTE_EXTENSIONS,
+          true
+        )
+        if (isMetadataEntryFile) {
           bundlePath = name
         }
 
@@ -518,8 +536,7 @@ export class FlightClientEntryPlugin {
       for (const [dep, actions] of actionEntryImports) {
         const remainingActionNames = []
         for (const action of actions) {
-          // `action` is a [id, name] pair.
-          if (!createdActionIds.has(entryName + '@' + action[0])) {
+          if (!createdActionIds.has(entryName + '@' + action.id)) {
             remainingActionNames.push(action)
           }
         }
@@ -578,9 +595,15 @@ export class FlightClientEntryPlugin {
         if (visitedModule.has(modResource)) return
         visitedModule.add(modResource)
 
-        const actions = getActionsFromBuildInfo(mod)
-        if (actions) {
-          collectedActions.set(modResource, Object.entries(actions))
+        const actionIds = getModuleBuildInfo(mod).rsc?.actionIds
+        if (actionIds) {
+          collectedActions.set(
+            modResource,
+            Object.entries(actionIds).map(([id, exportedName]) => ({
+              id,
+              exportedName,
+            }))
+          )
         }
 
         // Collect used exported actions transversely.
@@ -672,9 +695,15 @@ export class FlightClientEntryPlugin {
       }
       visitedOfClientComponentsTraverse.add(modResource)
 
-      const actions = getActionsFromBuildInfo(mod)
-      if (actions) {
-        actionImports.push([modResource, Object.entries(actions)])
+      const actionIds = getModuleBuildInfo(mod).rsc?.actionIds
+      if (actionIds) {
+        actionImports.push([
+          modResource,
+          Object.entries(actionIds).map(([id, exportedName]) => ({
+            id,
+            exportedName,
+          })),
+        ])
       }
 
       if (isCSSMod(mod)) {
@@ -756,6 +785,7 @@ export class FlightClientEntryPlugin {
     addRSCEntryPromise: Promise<void>,
     ssrDep: ReturnType<typeof webpack.EntryPlugin.createDependency>,
   ] {
+    const bundler = getWebpackBundler()
     let shouldInvalidate = false
 
     const modules = Object.keys(clientImports)
@@ -825,12 +855,12 @@ export class FlightClientEntryPlugin {
       pluginState.injectedClientEntries[bundlePath] = clientBrowserLoader
     }
 
-    const clientComponentSSREntryDep = webpack.EntryPlugin.createDependency(
+    const clientComponentSSREntryDep = bundler.EntryPlugin.createDependency(
       clientServerLoader,
       { name: bundlePath }
     )
 
-    const clientComponentRSCEntryDep = webpack.EntryPlugin.createDependency(
+    const clientComponentRSCEntryDep = bundler.EntryPlugin.createDependency(
       clientServerLoader,
       { name: bundlePath }
     )
@@ -869,9 +899,10 @@ export class FlightClientEntryPlugin {
     createdActionIds: Set<string>
     fromClient?: boolean
   }) {
+    const bundler = getWebpackBundler()
     const actionsArray = Array.from(actions.entries())
     for (const [, actionsFromModule] of actions) {
-      for (const [id] of actionsFromModule) {
+      for (const { id } of actionsFromModule) {
         createdActionIds.add(entryName + '@' + id)
       }
     }
@@ -881,7 +912,9 @@ export class FlightClientEntryPlugin {
     }
 
     const actionLoader = `next-flight-action-entry-loader?${stringify({
-      actions: JSON.stringify(actionsArray),
+      actions: JSON.stringify(
+        actionsArray satisfies FlightActionEntryLoaderActions
+      ),
       __client_imported__: fromClient,
     })}!`
 
@@ -890,7 +923,7 @@ export class FlightClientEntryPlugin {
       : pluginState.serverActions
 
     for (const [, actionsFromModule] of actionsArray) {
-      for (const [id] of actionsFromModule) {
+      for (const { id } of actionsFromModule) {
         if (typeof currentCompilerServerActions[id] === 'undefined') {
           currentCompilerServerActions[id] = {
             workers: {},
@@ -909,7 +942,7 @@ export class FlightClientEntryPlugin {
     }
 
     // Inject the entry to the server compiler
-    const actionEntryDep = webpack.EntryPlugin.createDependency(actionLoader, {
+    const actionEntryDep = bundler.EntryPlugin.createDependency(actionLoader, {
       name: bundlePath,
     })
 
@@ -928,45 +961,59 @@ export class FlightClientEntryPlugin {
   }
 
   addEntry(
-    compilation: any,
+    compilation: webpack.Compilation,
     context: string,
     dependency: webpack.Dependency,
     options: webpack.EntryOptions
   ): Promise<any> /* Promise<module> */ {
     return new Promise((resolve, reject) => {
-      const entry = compilation.entries.get(options.name)
-      entry.includeDependencies.push(dependency)
-      compilation.hooks.addEntry.call(entry, options)
-      compilation.addModuleTree(
-        {
-          context,
-          dependency,
-          contextInfo: { issuerLayer: options.layer },
-        },
-        (err: Error | undefined, module: any) => {
+      if ('rspack' in compilation.compiler) {
+        compilation.addInclude(context, dependency, options, (err, module) => {
           if (err) {
-            compilation.hooks.failedEntry.call(dependency, options, err)
             return reject(err)
           }
 
-          compilation.hooks.succeedEntry.call(dependency, options, module)
-
           compilation.moduleGraph
-            .getExportsInfo(module)
+            .getExportsInfo(module!)
             .setUsedInUnknownWay(
               this.isEdgeServer ? EDGE_RUNTIME_WEBPACK : DEFAULT_RUNTIME_WEBPACK
             )
-
           return resolve(module)
-        }
-      )
+        })
+      } else {
+        const entry = compilation.entries.get(options.name!)!
+        entry.includeDependencies.push(dependency)
+        compilation.hooks.addEntry.call(entry as any, options)
+        compilation.addModuleTree(
+          {
+            context,
+            dependency,
+            contextInfo: { issuerLayer: options.layer },
+          },
+          (err: any, module: any) => {
+            if (err) {
+              compilation.hooks.failedEntry.call(dependency, options, err)
+              return reject(err)
+            }
+
+            compilation.hooks.succeedEntry.call(dependency, options, module)
+
+            compilation.moduleGraph
+              .getExportsInfo(module)
+              .setUsedInUnknownWay(
+                this.isEdgeServer
+                  ? EDGE_RUNTIME_WEBPACK
+                  : DEFAULT_RUNTIME_WEBPACK
+              )
+
+            return resolve(module)
+          }
+        )
+      }
     })
   }
 
-  async createActionAssets(
-    compilation: webpack.Compilation,
-    assets: webpack.Compilation['assets']
-  ) {
+  async createActionAssets(compilation: webpack.Compilation) {
     const serverActions: ActionManifest['node'] = {}
     const edgeServerActions: ActionManifest['edge'] = {}
 
@@ -1039,12 +1086,16 @@ export class FlightClientEntryPlugin {
       this.dev ? 2 : undefined
     )
 
-    assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.js`] =
+    compilation.emitAsset(
+      `${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.js`,
       new sources.RawSource(
         `self.__RSC_SERVER_MANIFEST=${JSON.stringify(edgeJson)}`
       ) as unknown as webpack.sources.RawSource
-    assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.json`] =
+    )
+    compilation.emitAsset(
+      `${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.json`,
       new sources.RawSource(json) as unknown as webpack.sources.RawSource
+    )
   }
 }
 

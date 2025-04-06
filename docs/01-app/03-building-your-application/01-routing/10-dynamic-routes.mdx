@@ -27,14 +27,14 @@ export default async function Page({
 }: {
   params: Promise<{ slug: string }>
 }) {
-  const slug = (await params).slug
+  const { slug } = await params
   return <div>My Post: {slug}</div>
 }
 ```
 
 ```jsx filename="app/blog/[slug]/page.js" switcher
 export default async function Page({ params }) {
-  const slug = (await params).slug
+  const { slug } = await params
   return <div>My Post: {slug}</div>
 }
 ```

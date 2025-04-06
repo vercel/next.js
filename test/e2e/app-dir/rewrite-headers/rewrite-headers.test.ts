@@ -308,29 +308,34 @@ const cases: {
       'x-nextjs-rewritten-query': null,
     },
   },
-  {
-    name: 'middleware rewrite external RSC',
-    pathname: '/hello/vercel',
-    headers: {
-      RSC: '1',
-    },
-    expected: {
-      'x-nextjs-rewritten-path': null,
-      'x-nextjs-rewritten-query': null,
-    },
-  },
-  {
-    name: 'middleware rewrite external Prefetch RSC',
-    pathname: '/hello/vercel',
-    headers: {
-      RSC: '1',
-      'Next-Router-Prefetch': '1',
-    },
-    expected: {
-      'x-nextjs-rewritten-path': null,
-      'x-nextjs-rewritten-query': null,
-    },
-  },
+  // TODO: These next two scenarios are dependent on how the Vercel site has
+  // configured its rewrites, and thus are prone to be flaky. Figure out what
+  // Next.js logic this is supposed to test.
+  // {
+  //   name: 'middleware rewrite external RSC',
+  //   pathname: '/hello/vercel',
+  //   headers: {
+  //     RSC: '1',
+  //   },
+  //   expected: {
+  //     // Vercel matches `/` to `/home`
+  //     'x-nextjs-rewritten-path': '/home',
+  //     'x-nextjs-rewritten-query': null,
+  //   },
+  // },
+  // {
+  //   name: 'middleware rewrite external Prefetch RSC',
+  //   pathname: '/hello/vercel',
+  //   headers: {
+  //     RSC: '1',
+  //     'Next-Router-Prefetch': '1',
+  //   },
+  //   expected: {
+  //     // Vercel matches `/` to `/home`
+  //     'x-nextjs-rewritten-path': '/home',
+  //     'x-nextjs-rewritten-query': null,
+  //   },
+  // },
   {
     name: 'next.config.js rewrites with query HTML',
     pathname: '/hello/fred',

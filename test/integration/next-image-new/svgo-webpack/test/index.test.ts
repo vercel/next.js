@@ -52,7 +52,7 @@ let devOutput
           await renderViaHTTP(appPort, '/', {})
           const errors = devOutput.stderr
             .split('\n')
-            .filter((line) => line && !line.trim().startsWith('⚠️'))
+            .filter((line) => line && !line.trim().startsWith('⚠'))
           expect(errors).toEqual([])
         })
       }

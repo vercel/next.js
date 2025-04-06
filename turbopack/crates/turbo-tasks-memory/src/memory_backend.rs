@@ -23,8 +23,9 @@ use turbo_tasks::{
         TransientTaskType, TypedCellContent,
     },
     event::EventListener,
+    task_statistics::TaskStatisticsApi,
     util::{IdFactoryWithReuse, NoMoveVec},
-    CellId, FunctionId, RawVc, ReadConsistency, TaskId, TaskIdSet, TraitTypeId,
+    CellId, FunctionId, RawVc, ReadCellOptions, ReadConsistency, TaskId, TaskIdSet, TraitTypeId,
     TurboTasksBackendApi, Unused, ValueTypeId, TRANSIENT_TASK_BIT,
 };
 
@@ -36,7 +37,6 @@ use crate::{
     },
     output::Output,
     task::{ReadCellError, Task, TaskType},
-    task_statistics::TaskStatisticsApi,
 };
 
 fn prehash_task_type(task_type: CachedTaskType) -> PreHashed<CachedTaskType> {
@@ -333,76 +333,14 @@ impl MemoryBackend {
         }
     }
 
-    pub fn task_statistics(&self) -> &TaskStatisticsApi {
-        &self.task_statistics
+    fn track_cache_hit(&self, task_type: &CachedTaskType) {
+        self.task_statistics()
+            .map(|stats| stats.increment_cache_hit(task_type.fn_type));
     }
 
-    fn track_cache_hit(
-        &self,
-        task_type: &PreHashed<CachedTaskType>,
-        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
-    ) {
-        self.task_statistics().map(|stats| match &**task_type {
-            CachedTaskType::ResolveNative {
-                fn_type: function_id,
-                this: _,
-                arg: _,
-            }
-            | CachedTaskType::Native {
-                fn_type: function_id,
-                this: _,
-                arg: _,
-            } => {
-                stats.increment_cache_hit(*function_id);
-            }
-            CachedTaskType::ResolveTrait {
-                trait_type,
-                method_name: name,
-                this,
-                arg: _,
-            } => {
-                // HACK: Resolve the this argument (`self`) in order to attribute the cache hit
-                // to the concrete trait implementation, rather than the dynamic trait method.
-                // This ensures cache hits and misses are both attributed to the same thing.
-                //
-                // Because this task already resolved, in most cases `self` should either be
-                // resolved, or already in the process of being resolved.
-                //
-                // However, `self` could become unloaded due to cache eviction, and this might
-                // trigger an otherwise unnecessary re-evalutation.
-                //
-                // This is a potentially okay trade-off as long as we don't log statistics by
-                // default. The alternative would be to store function ids on completed
-                // ResolveTrait tasks.
-                let trait_type = *trait_type;
-                let name = name.clone();
-                let this = *this;
-                let stats = Arc::clone(stats);
-                turbo_tasks.run_once(Box::pin(async move {
-                    let function_id =
-                        CachedTaskType::resolve_trait_method(trait_type, name, this).await?;
-                    stats.increment_cache_hit(function_id);
-                    Ok(())
-                }));
-            }
-        });
-    }
-
-    fn track_cache_miss(&self, task_type: &PreHashed<CachedTaskType>) {
-        self.task_statistics().map(|stats| match &**task_type {
-            CachedTaskType::Native {
-                fn_type: function_id,
-                this: _,
-                arg: _,
-            } => {
-                stats.increment_cache_miss(*function_id);
-            }
-            CachedTaskType::ResolveTrait { .. } | CachedTaskType::ResolveNative { .. } => {
-                // these types re-execute themselves as `Native` after
-                // resolving their arguments, skip counting their
-                // executions here to avoid double-counting
-            }
-        });
+    fn track_cache_miss(&self, task_type: &CachedTaskType) {
+        self.task_statistics()
+            .map(|stats| stats.increment_cache_miss(task_type.fn_type));
     }
 }
 
@@ -455,6 +393,14 @@ impl Backend for MemoryBackend {
         TaskState {
             dependencies_to_track: TaskEdgesSet::new(),
         }
+    }
+
+    fn task_execution_canceled(
+        &self,
+        _task: TaskId,
+        _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+        todo!()
     }
 
     fn try_start_task_execution<'a>(
@@ -566,6 +512,7 @@ impl Backend for MemoryBackend {
         task_id: TaskId,
         index: CellId,
         reader: TaskId,
+        _options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
         if task_id == reader {
@@ -597,6 +544,7 @@ impl Backend for MemoryBackend {
         &self,
         current_task: TaskId,
         index: CellId,
+        _options: ReadCellOptions,
         _turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Result<TypedCellContent> {
         Ok(self.with_task(current_task, |task| {
@@ -609,6 +557,7 @@ impl Backend for MemoryBackend {
         &self,
         task_id: TaskId,
         index: CellId,
+        _options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
         self.with_task(task_id, |task| {
@@ -711,7 +660,7 @@ impl Backend for MemoryBackend {
             self.lookup_and_connect_task(parent_task, &self.task_cache, &task_type, turbo_tasks)
         {
             // fast pass without creating a new task
-            self.track_cache_hit(&task_type, turbo_tasks);
+            self.track_cache_hit(&task_type);
             task
         } else {
             self.track_cache_miss(&task_type);
@@ -754,7 +703,7 @@ impl Backend for MemoryBackend {
             turbo_tasks,
         ) {
             // fast pass without creating a new task
-            self.track_cache_hit(&task_type, turbo_tasks);
+            self.track_cache_hit(&task_type);
             task
         } else {
             self.track_cache_miss(&task_type);
@@ -785,7 +734,7 @@ impl Backend for MemoryBackend {
 
     fn try_get_function_id(&self, task_id: TaskId) -> Option<FunctionId> {
         self.with_task(task_id, |task| match &task.ty {
-            TaskType::Persistent { ty } => ty.try_get_function_id(),
+            TaskType::Persistent { ty } => Some(ty.fn_type),
             _ => None,
         })
     }
@@ -834,6 +783,10 @@ impl Backend for MemoryBackend {
 
     fn dispose_root_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
         Task::unset_root(task, self, turbo_tasks);
+    }
+
+    fn task_statistics(&self) -> &TaskStatisticsApi {
+        &self.task_statistics
     }
 }
 

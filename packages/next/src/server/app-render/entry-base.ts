@@ -20,11 +20,9 @@ import { ClientSegmentRoot } from '../../client/components/client-segment'
 import {
   createServerSearchParamsForServerPage,
   createPrerenderSearchParamsForClientPage,
-  createServerSearchParamsForMetadata,
 } from '../request/search-params'
 import {
   createServerParamsForServerSegment,
-  createServerParamsForMetadata,
   createPrerenderParamsForClientSegment,
 } from '../request/params'
 import * as serverHooks from '../../client/components/hooks-server-context'
@@ -37,7 +35,7 @@ import {
   MetadataBoundary,
   ViewportBoundary,
   OutletBoundary,
-} from '../../lib/metadata/metadata-boundary'
+} from '../../client/components/metadata/metadata-boundary'
 
 import { preloadStyle, preloadFont, preconnect } from './rsc/preloads'
 import { Postpone } from './rsc/postpone'
@@ -60,10 +58,8 @@ export {
   workUnitAsyncStorage,
   actionAsyncStorage,
   createServerSearchParamsForServerPage,
-  createServerSearchParamsForMetadata,
   createPrerenderSearchParamsForClientPage,
   createServerParamsForServerSegment,
-  createServerParamsForMetadata,
   createPrerenderParamsForClientSegment,
   serverHooks,
   preloadStyle,

@@ -1,5 +1,5 @@
 export default function Page() {
-  return <p>index</p>
+  return <p>index page</p>
 }
 
 export async function generateMetadata() {

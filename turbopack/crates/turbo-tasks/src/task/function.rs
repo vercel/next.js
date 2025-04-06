@@ -166,15 +166,6 @@ macro_rules! task_inputs_impl {
     }
 }
 
-#[cfg(debug_assertions)]
-#[inline(never)]
-fn get_debug_downcast_error_msg(expected: &str, actual: &dyn MagicAny) -> String {
-    format!(
-        "Invalid argument type, expected {expected} got {}",
-        (*actual).magic_type_name()
-    )
-}
-
 /// Downcast, and clone all the arguments in the singular `arg` tuple.
 ///
 /// This helper function for `task_fn_impl!()` reduces the amount of code inside the macro, and
@@ -184,7 +175,7 @@ fn get_args<T: MagicAny + Clone>(arg: &dyn MagicAny) -> Result<T> {
     let value = arg.downcast_ref::<T>().cloned();
     #[cfg(debug_assertions)]
     return anyhow::Context::with_context(value, || {
-        get_debug_downcast_error_msg(std::any::type_name::<T>(), arg)
+        crate::native_function::debug_downcast_args_error_msg(std::any::type_name::<T>(), arg)
     });
     #[cfg(not(debug_assertions))]
     return anyhow::Context::context(value, "Invalid argument type");

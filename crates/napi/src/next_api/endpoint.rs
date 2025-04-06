@@ -6,20 +6,16 @@ use next_api::{
     paths::ServerPath,
     route::{
         endpoint_server_changed_operation, endpoint_write_to_disk_operation, Endpoint,
-        WrittenEndpoint,
+        EndpointOutputPaths,
     },
 };
 use tracing::Instrument;
-use turbo_tasks::{get_effects, Completion, Effects, OperationVc, ReadRef, Vc, VcValueType};
-use turbopack_core::{
-    diagnostics::PlainDiagnostic,
-    error::PrettyPrintError,
-    issue::{IssueSeverity, PlainIssue},
-};
+use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc};
+use turbopack_core::{diagnostics::PlainDiagnostic, error::PrettyPrintError, issue::PlainIssue};
 
 use super::utils::{
-    get_diagnostics, get_issues, subscribe, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult,
-    VcArc,
+    strongly_consistent_catch_collectables, subscribe, NapiDiagnostic, NapiIssue, RootTask,
+    TurbopackResult, VcArc,
 };
 
 #[napi(object)]
@@ -52,10 +48,10 @@ pub struct NapiWrittenEndpoint {
     pub config: NapiEndpointConfig,
 }
 
-impl From<Option<WrittenEndpoint>> for NapiWrittenEndpoint {
-    fn from(written_endpoint: Option<WrittenEndpoint>) -> Self {
+impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
+    fn from(written_endpoint: Option<EndpointOutputPaths>) -> Self {
         match written_endpoint {
-            Some(WrittenEndpoint::NodeJs {
+            Some(EndpointOutputPaths::NodeJs {
                 server_entry_path,
                 server_paths,
                 client_paths,
@@ -66,7 +62,7 @@ impl From<Option<WrittenEndpoint>> for NapiWrittenEndpoint {
                 server_paths: server_paths.into_iter().map(From::from).collect(),
                 ..Default::default()
             },
-            Some(WrittenEndpoint::Edge {
+            Some(EndpointOutputPaths::Edge {
                 server_paths,
                 client_paths,
             }) => Self {
@@ -99,33 +95,9 @@ impl Deref for ExternalEndpoint {
     }
 }
 
-// Await the source and return fatal issues if there are any, otherwise
-// propagate any actual error results.
-async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
-    source_op: OperationVc<R>,
-) -> Result<(
-    Option<ReadRef<R>>,
-    Arc<Vec<ReadRef<PlainIssue>>>,
-    Arc<Vec<ReadRef<PlainDiagnostic>>>,
-    Arc<Effects>,
-)> {
-    let result = source_op.read_strongly_consistent().await;
-    let issues = get_issues(source_op).await?;
-    let diagnostics = get_diagnostics(source_op).await?;
-    let effects = Arc::new(get_effects(source_op).await?);
-
-    let result = if result.is_err() && issues.iter().any(|i| i.severity <= IssueSeverity::Error) {
-        None
-    } else {
-        Some(result?)
-    };
-
-    Ok((result, issues, diagnostics, effects))
-}
-
 #[turbo_tasks::value(serialization = "none")]
 struct WrittenEndpointWithIssues {
-    written: Option<ReadRef<WrittenEndpoint>>,
+    written: Option<ReadRef<EndpointOutputPaths>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
@@ -173,7 +145,7 @@ pub async fn endpoint_write_to_disk(
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
     Ok(TurbopackResult {
-        result: NapiWrittenEndpoint::from(written.map(|v| v.clone_value())),
+        result: NapiWrittenEndpoint::from(written.map(ReadRef::into_owned)),
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
         diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
     })

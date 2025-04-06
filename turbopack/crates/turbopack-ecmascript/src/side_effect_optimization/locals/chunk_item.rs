@@ -13,7 +13,7 @@ use crate::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType,
     },
-    EcmascriptModuleContent,
+    EcmascriptModuleContent, EcmascriptModuleContentOptions,
 };
 
 /// The chunk item for [EcmascriptModuleLocalsModule].
@@ -34,38 +34,41 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
     #[turbo_tasks::function]
     async fn content_with_async_module_info(
         &self,
-        async_module_info: Option<Vc<AsyncModuleInfo>>,
+        async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let module = self.module.await?;
         let chunking_context = self.chunking_context;
         let module_graph = self.module_graph;
-        let exports = self.module.get_exports();
+        let exports = self.module.get_exports().to_resolved().await?;
         let original_module = module.module;
-        let parsed = original_module.parse().resolve().await?;
+        let parsed = original_module.parse().to_resolved().await?;
 
-        let analyze_result = original_module.analyze().await?;
+        let analyze = original_module.analyze();
+        let analyze_result = analyze.await?;
         let async_module_options = analyze_result
             .async_module
-            .module_options(async_module_info);
+            .module_options(async_module_info.map(|info| *info));
 
         let module_type_result = *original_module.determine_module_type().await?;
-        let generate_source_map =
-            chunking_context.reference_module_source_maps(*ResolvedVc::upcast(self.module));
+        let generate_source_map = *chunking_context
+            .reference_module_source_maps(*ResolvedVc::upcast(self.module))
+            .await?;
 
-        let content = EcmascriptModuleContent::new(
+        let content = EcmascriptModuleContent::new(EcmascriptModuleContentOptions {
             parsed,
-            self.module.ident(),
-            module_type_result.module_type,
-            *module_graph,
-            *chunking_context,
-            *analyze_result.local_references,
-            *analyze_result.code_generation,
-            *analyze_result.async_module,
+            ident: self.module.ident().to_resolved().await?,
+            specified_module_type: module_type_result.module_type,
+            module_graph,
+            chunking_context,
+            references: analyze.local_references().to_resolved().await?,
+            esm_references: analyze_result.esm_local_references,
+            code_generation: analyze_result.code_generation,
+            async_module: analyze_result.async_module,
             generate_source_map,
-            *analyze_result.source_map,
+            original_source_map: analyze_result.source_map,
             exports,
             async_module_info,
-        );
+        });
 
         Ok(EcmascriptChunkItemContent::new(
             content,
@@ -73,11 +76,6 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
             *original_module.await?.options,
             async_module_options,
         ))
-    }
-
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
     }
 }
 

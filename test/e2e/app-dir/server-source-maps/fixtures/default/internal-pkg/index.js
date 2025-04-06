@@ -1,3 +1,3 @@
-export function run(fn) {
+export function runInternal(fn) {
   return fn()
 }

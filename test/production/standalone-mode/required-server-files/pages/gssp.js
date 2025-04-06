@@ -5,7 +5,7 @@ import next from 'next' // force a warning during `next build`
 import { useRouter } from 'next/router'
 
 export async function getServerSideProps({ res }) {
-  res.setHeader('cache-control', 's-maxage=1, stale-while-revalidate')
+  res.setHeader('cache-control', 's-maxage=1, stale-while-revalidate=31535999')
 
   const data = await fs.promises.readFile(
     path.join(process.cwd(), 'data.txt'),

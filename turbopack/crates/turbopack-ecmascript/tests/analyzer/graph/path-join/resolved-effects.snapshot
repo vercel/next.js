@@ -27,3 +27,11 @@
 - *1* FreeVar(global)
   ⚠️  unknown global
   ⚠️  This value might have side effects
+
+0 -> 16 free var = FreeVar(require)
+
+0 -> 17 call = require*0*("path")
+- *0* require: The require method from CommonJS
+
+0 -> 22 call = import*0*("path")
+- *0* import: The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports

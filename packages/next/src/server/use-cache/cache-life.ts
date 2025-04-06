@@ -53,8 +53,8 @@ function validateCacheLife(profile: CacheLife) {
   if (profile.expire !== undefined) {
     if ((profile.expire as any) === false) {
       throw new Error(
-        'Pass `Infinity` instead of `false` if you want to cache on the client forever ' +
-          'without checking with the server.'
+        'Pass `Infinity` instead of `false` if you want to cache on the server forever ' +
+          'without checking with the origin.'
       )
     } else if (typeof profile.expire !== 'number') {
       throw new Error('The expire option must be a number of seconds.')
@@ -65,7 +65,7 @@ function validateCacheLife(profile: CacheLife) {
     if (profile.revalidate > profile.expire) {
       throw new Error(
         'If providing both the revalidate and expire options, ' +
-          'the expire option must be greater than the revalidate option.' +
+          'the expire option must be greater than the revalidate option. ' +
           'The expire option indicates how many seconds from the start ' +
           'until it can no longer be used.'
       )
@@ -76,7 +76,7 @@ function validateCacheLife(profile: CacheLife) {
     if (profile.stale > profile.expire) {
       throw new Error(
         'If providing both the stale and expire options, ' +
-          'the expire option must be greater than the stale option.' +
+          'the expire option must be greater than the stale option. ' +
           'The expire option indicates how many seconds from the start ' +
           'until it can no longer be used.'
       )
@@ -85,9 +85,9 @@ function validateCacheLife(profile: CacheLife) {
 }
 
 export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
-  if (!process.env.__NEXT_DYNAMIC_IO) {
+  if (!process.env.__NEXT_USE_CACHE) {
     throw new Error(
-      'cacheLife() is only available with the experimental.dynamicIO config.'
+      'cacheLife() is only available with the experimental.useCache config.'
     )
   }
 

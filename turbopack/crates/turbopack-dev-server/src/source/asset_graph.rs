@@ -1,9 +1,7 @@
-use std::{
-    collections::{HashSet, VecDeque},
-    iter::once,
-};
+use std::{collections::VecDeque, iter::once};
 
 use anyhow::Result;
+use rustc_hash::FxHashSet;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     fxindexset, Completion, FxIndexMap, FxIndexSet, ResolvedVc, State, TryJoinIterExt, Value,
@@ -25,7 +23,7 @@ use super::{
 #[turbo_tasks::value(transparent)]
 struct OutputAssetsMap(FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>);
 
-type ExpandedState = State<HashSet<RcStr>>;
+type ExpandedState = State<FxHashSet<RcStr>>;
 
 #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new")]
 pub struct AssetGraphContentSource {
@@ -59,7 +57,7 @@ impl AssetGraphContentSource {
         Self::cell(AssetGraphContentSource {
             root_path,
             root_assets: ResolvedVc::cell(fxindexset! { root_asset }),
-            expanded: Some(State::new(HashSet::new())),
+            expanded: Some(State::new(FxHashSet::default())),
         })
     }
 
@@ -86,7 +84,7 @@ impl AssetGraphContentSource {
         Self::cell(AssetGraphContentSource {
             root_path,
             root_assets,
-            expanded: Some(State::new(HashSet::new())),
+            expanded: Some(State::new(FxHashSet::default())),
         })
     }
 
@@ -111,11 +109,11 @@ async fn expand(
     let mut map = FxIndexMap::default();
     let mut assets = Vec::new();
     let mut queue = VecDeque::with_capacity(32);
-    let mut assets_set = HashSet::new();
+    let mut assets_set = FxHashSet::default();
     let root_assets_with_path = root_assets
         .iter()
         .map(|&asset| async move {
-            let path = asset.ident().path().await?;
+            let path = asset.path().await?;
             Ok((path, asset))
         })
         .try_join()
@@ -155,7 +153,7 @@ async fn expand(
     while let Some(references) = queue.pop_front() {
         for asset in references.await?.iter() {
             if assets_set.insert(*asset) {
-                let path = asset.ident().path().await?;
+                let path = asset.path().await?;
                 if let Some(sub_path) = root_path.get_path_to(&path) {
                     let (sub_paths_buffer, sub_paths) = get_sub_paths(sub_path);
                     let expanded = if let Some(expanded) = &expanded {

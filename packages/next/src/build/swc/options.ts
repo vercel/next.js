@@ -65,12 +65,14 @@ function getBaseSWCOptions({
   compilerOptions,
   resolvedBaseUrl,
   jsConfig,
+  supportedBrowsers,
   swcCacheDir,
   serverComponents,
   serverReferenceHashSalt,
   bundleLayer,
   isDynamicIo,
   cacheHandlers,
+  useCacheEnabled,
 }: {
   filename: string
   jest?: boolean
@@ -83,12 +85,14 @@ function getBaseSWCOptions({
   swcPlugins: ExperimentalConfig['swcPlugins']
   resolvedBaseUrl?: ResolvedBaseUrl
   jsConfig: any
+  supportedBrowsers: string[] | undefined
   swcCacheDir?: string
   serverComponents?: boolean
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
   isDynamicIo?: boolean
   cacheHandlers?: ExperimentalConfig['cacheHandlers']
+  useCacheEnabled?: boolean
 }) {
   const isReactServerLayer = isWebpackServerOnlyLayer(bundleLayer)
   const isAppRouterPagesLayer = isWebpackAppPagesLayer(bundleLayer)
@@ -194,7 +198,9 @@ function getBaseSWCOptions({
       : undefined,
     relay: compilerOptions?.relay,
     // Always transform styled-jsx and error when `client-only` condition is triggered
-    styledJsx: {},
+    styledJsx: compilerOptions?.styledJsx ?? {
+      useLightningcss: jsConfig?.experimental?.useLightningcss ?? false,
+    },
     // Disable css-in-js libs (without client-only integration) transform on server layer for server components
     ...(!isReactServerLayer && {
       // eslint-disable-next-line @typescript-eslint/no-use-before-define
@@ -210,15 +216,19 @@ function getBaseSWCOptions({
         ? {
             isReactServerLayer,
             dynamicIoEnabled: isDynamicIo,
+            useCacheEnabled,
           }
         : undefined,
     serverActions:
       isAppRouterPagesLayer && !jest
         ? {
             isReactServerLayer,
-            dynamicIoEnabled: isDynamicIo,
+            isDevelopment: development,
+            useCacheEnabled,
             hashSalt: serverReferenceHashSalt,
-            cacheKinds: cacheHandlers ? Object.keys(cacheHandlers) : [],
+            cacheKinds: ['default', 'remote'].concat(
+              cacheHandlers ? Object.keys(cacheHandlers) : []
+            ),
           }
         : undefined,
     // For app router we prefer to bundle ESM,
@@ -226,6 +236,14 @@ function getBaseSWCOptions({
     preferEsm: esm,
     lintCodemodComments: true,
     debugFunctionName: development,
+
+    ...(supportedBrowsers && supportedBrowsers.length > 0
+      ? {
+          cssEnv: {
+            targets: supportedBrowsers,
+          },
+        }
+      : {}),
   }
 }
 
@@ -313,6 +331,7 @@ export function getJestSWCOptions({
     compilerOptions,
     jsConfig,
     resolvedBaseUrl,
+    supportedBrowsers: undefined,
     esm,
     // Don't apply server layer transformations for Jest
     // Disable server / client graph assertions for Jest
@@ -364,6 +383,7 @@ export function getLoaderSWCOptions({
   bundleLayer,
   esm,
   cacheHandlers,
+  useCacheEnabled,
 }: {
   filename: string
   development: boolean
@@ -389,6 +409,7 @@ export function getLoaderSWCOptions({
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
   cacheHandlers: ExperimentalConfig['cacheHandlers']
+  useCacheEnabled?: boolean
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -400,6 +421,7 @@ export function getLoaderSWCOptions({
     compilerOptions,
     jsConfig,
     // resolvedBaseUrl,
+    supportedBrowsers,
     swcCacheDir,
     bundleLayer,
     serverComponents,
@@ -407,6 +429,7 @@ export function getLoaderSWCOptions({
     esm: !!esm,
     isDynamicIo,
     cacheHandlers,
+    useCacheEnabled,
   })
   baseOptions.fontLoaders = {
     fontLoaders: ['next/font/local', 'next/font/google'],
@@ -504,7 +527,10 @@ export function getLoaderSWCOptions({
     options.cjsRequireOptimizer = undefined
     // Disable optimizer for node_modules in app browser layer, to avoid unnecessary replacement.
     // e.g. typeof window could result differently in js worker or browser.
-    if (options.jsc.transform.optimizer.globals?.typeofs) {
+    if (
+      options.jsc.transform.optimizer.globals?.typeofs &&
+      !filename.includes(nextDirname)
+    ) {
       delete options.jsc.transform.optimizer.globals.typeofs.window
     }
   }

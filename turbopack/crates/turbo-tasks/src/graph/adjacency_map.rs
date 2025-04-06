@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashSet, VecDeque},
-    hash::Hash,
-};
+use std::{collections::VecDeque, hash::Hash};
 
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -68,7 +65,7 @@ where
 
 impl<T> GraphStore for AdjacencyMap<T>
 where
-    T: Eq + Hash + Clone,
+    T: Eq + Hash + Clone + Send,
 {
     type Node = T;
     type Handle = T;
@@ -91,10 +88,10 @@ impl<T> AdjacencyMap<T>
 where
     T: Eq + Hash + Clone,
 {
-    /// Returns an owned iterator over the nodes in reverse topological order,
+    /// Returns an owned iterator over the nodes in postorder topological order,
     /// starting from the roots.
-    pub fn into_reverse_topological(self) -> IntoReverseTopologicalIter<T> {
-        IntoReverseTopologicalIter {
+    pub fn into_postorder_topological(self) -> IntoPostorderTopologicalIter<T> {
+        IntoPostorderTopologicalIter {
             adjacency_map: self.adjacency_map,
             stack: self
                 .roots
@@ -102,7 +99,7 @@ where
                 .rev()
                 .map(|root| (ReverseTopologicalPass::Pre, root))
                 .collect(),
-            visited: HashSet::new(),
+            visited: FxHashSet::default(),
         }
     }
 
@@ -111,7 +108,7 @@ where
     pub fn into_breadth_first_edges(self) -> IntoBreadthFirstEdges<T> {
         IntoBreadthFirstEdges {
             adjacency_map: self.adjacency_map,
-            stack: self
+            queue: self
                 .roots
                 .into_iter()
                 .rev()
@@ -121,10 +118,10 @@ where
         }
     }
 
-    /// Returns an iterator over the nodes in reverse topological order,
+    /// Returns an iterator over the nodes in postorder topological order,
     /// starting from the roots.
-    pub fn reverse_topological(&self) -> ReverseTopologicalIter<T> {
-        ReverseTopologicalIter {
+    pub fn postorder_topological(&self) -> PostorderTopologicalIter<T> {
+        PostorderTopologicalIter {
             adjacency_map: &self.adjacency_map,
             stack: self
                 .roots
@@ -136,13 +133,13 @@ where
         }
     }
 
-    /// Returns an iterator over the nodes in reverse topological order,
+    /// Returns an iterator over the nodes in postorder topological order,
     /// starting from the given node.
-    pub fn reverse_topological_from_node<'graph>(
+    pub fn postorder_topological_from_node<'graph>(
         &'graph self,
         node: &'graph T,
-    ) -> ReverseTopologicalIter<'graph, T> {
-        ReverseTopologicalIter {
+    ) -> PostorderTopologicalIter<'graph, T> {
+        PostorderTopologicalIter {
             adjacency_map: &self.adjacency_map,
             stack: vec![(ReverseTopologicalPass::Pre, node)],
             visited: FxHashSet::default(),
@@ -156,18 +153,18 @@ enum ReverseTopologicalPass {
     Post,
 }
 
-/// An iterator over the nodes of a graph in reverse topological order, starting
+/// An iterator over the nodes of a graph in postorder topological order, starting
 /// from the roots.
-pub struct IntoReverseTopologicalIter<T>
+pub struct IntoPostorderTopologicalIter<T>
 where
     T: Eq + Hash + Clone,
 {
     adjacency_map: FxHashMap<T, Vec<T>>,
     stack: Vec<(ReverseTopologicalPass, T)>,
-    visited: HashSet<T>,
+    visited: FxHashSet<T>,
 }
 
-impl<T> Iterator for IntoReverseTopologicalIter<T>
+impl<T> Iterator for IntoPostorderTopologicalIter<T>
 where
     T: Eq + Hash + Clone,
 {
@@ -212,7 +209,7 @@ where
     T: Eq + std::hash::Hash + Clone,
 {
     adjacency_map: FxHashMap<T, Vec<T>>,
-    stack: VecDeque<(Option<T>, T)>,
+    queue: VecDeque<(Option<T>, T)>,
     expanded: FxHashSet<T>,
 }
 
@@ -223,14 +220,14 @@ where
     type Item = (Option<T>, T);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (parent, current) = self.stack.pop_front()?;
+        let (parent, current) = self.queue.pop_front()?;
 
         let Some(neighbors) = self.adjacency_map.get(&current) else {
             return Some((parent, current));
         };
 
         if self.expanded.insert(current.clone()) {
-            self.stack.extend(
+            self.queue.extend(
                 neighbors
                     .iter()
                     .map(|neighbor| (Some(current.clone()), neighbor.clone())),
@@ -241,9 +238,9 @@ where
     }
 }
 
-/// An iterator over the nodes of a graph in reverse topological order, starting
+/// An iterator over the nodes of a graph in postorder topological order, starting
 /// from the roots.
-pub struct ReverseTopologicalIter<'graph, T>
+pub struct PostorderTopologicalIter<'graph, T>
 where
     T: Eq + Hash + Clone,
 {
@@ -252,7 +249,7 @@ where
     visited: FxHashSet<&'graph T>,
 }
 
-impl<'graph, T> Iterator for ReverseTopologicalIter<'graph, T>
+impl<'graph, T> Iterator for PostorderTopologicalIter<'graph, T>
 where
     T: Eq + Hash + Clone,
 {

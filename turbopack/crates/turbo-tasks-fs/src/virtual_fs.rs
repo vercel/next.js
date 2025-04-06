@@ -2,7 +2,8 @@ use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{Completion, ValueDefault, ValueToString, Vc};
 
-use super::{DirectoryContent, FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent};
+use super::{FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent};
+use crate::RawDirectoryContent;
 
 #[turbo_tasks::value]
 pub struct VirtualFileSystem {
@@ -56,7 +57,7 @@ impl FileSystem for VirtualFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn read_dir(&self, _fs_path: Vc<FileSystemPath>) -> Result<Vc<DirectoryContent>> {
+    fn raw_read_dir(&self, _fs_path: Vc<FileSystemPath>) -> Result<Vc<RawDirectoryContent>> {
         bail!("Reading is not possible on the virtual file system")
     }
 

@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{Completion, ValueToString, Vc};
 use turbo_tasks_fs::{
-    DirectoryContent, FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent,
+    FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent,
 };
 
 #[turbo_tasks::value]
@@ -29,7 +29,7 @@ impl FileSystem for ServerFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn read_dir(&self, _fs_path: Vc<FileSystemPath>) -> Result<Vc<DirectoryContent>> {
+    fn raw_read_dir(&self, _fs_path: Vc<FileSystemPath>) -> Result<Vc<RawDirectoryContent>> {
         bail!("Reading is not possible from the marker filesystem for the server")
     }
 
@@ -58,6 +58,6 @@ impl FileSystem for ServerFileSystem {
 impl ValueToString for ServerFileSystem {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("root of the server".into())
+        Vc::cell("root-of-the-server".into())
     }
 }

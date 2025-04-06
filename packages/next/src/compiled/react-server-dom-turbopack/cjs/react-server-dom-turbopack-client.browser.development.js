@@ -12,6 +12,16 @@
 "production" !== process.env.NODE_ENV &&
   (function () {
     function _defineProperty(obj, key, value) {
+      a: if ("object" == typeof key && key) {
+        var e = key[Symbol.toPrimitive];
+        if (void 0 !== e) {
+          key = e.call(key, "string");
+          if ("object" != typeof key) break a;
+          throw new TypeError("@@toPrimitive must return a primitive value.");
+        }
+        key = String(key);
+      }
+      key = "symbol" == typeof key ? key : key + "";
       key in obj
         ? Object.defineProperty(obj, key, {
             value: value,
@@ -87,7 +97,7 @@
         var chunkFilename = chunks[i],
           entry = chunkCache.get(chunkFilename);
         if (void 0 === entry) {
-          entry = __turbopack_load__(chunkFilename);
+          entry = __turbopack_load_by_url__(chunkFilename);
           promises.push(entry);
           var resolve = chunkCache.set.bind(chunkCache, chunkFilename, null);
           entry.then(resolve, ignoreReject);
@@ -670,7 +680,10 @@
           parentReference = knownServerReferences.get(value);
           if (void 0 !== parentReference)
             return (
-              (key = JSON.stringify(parentReference, resolveToJSON)),
+              (key = JSON.stringify(
+                { id: parentReference.id, bound: parentReference.bound },
+                resolveToJSON
+              )),
               null === formData && (formData = new FormData()),
               (parentReference = nextPartId++),
               formData.set(formFieldPrefix + parentReference, key),
@@ -779,8 +792,13 @@
         return innerFunction;
       }
     }
-    function registerServerReference(proxy, reference) {
-      knownServerReferences.set(proxy, reference);
+    function registerBoundServerReference(reference, id, bound) {
+      knownServerReferences.has(reference) ||
+        knownServerReferences.set(reference, {
+          id: id,
+          originalBind: reference.bind,
+          bound: bound
+        });
     }
     function createBoundServerReference(
       metaData,
@@ -821,7 +839,7 @@
           action
         );
       }
-      registerServerReference(action, { id: id, bound: bound });
+      registerBoundServerReference(action, id, bound);
       return action;
     }
     function parseStackLocation(error) {
@@ -863,8 +881,6 @@
       switch (type) {
         case REACT_FRAGMENT_TYPE:
           return "Fragment";
-        case REACT_PORTAL_TYPE:
-          return "Portal";
         case REACT_PROFILER_TYPE:
           return "Profiler";
         case REACT_STRICT_MODE_TYPE:
@@ -873,6 +889,8 @@
           return "Suspense";
         case REACT_SUSPENSE_LIST_TYPE:
           return "SuspenseList";
+        case REACT_ACTIVITY_TYPE:
+          return "Activity";
       }
       if ("object" === typeof type)
         switch (
@@ -882,6 +900,8 @@
             ),
           type.$$typeof)
         ) {
+          case REACT_PORTAL_TYPE:
+            return "Portal";
           case REACT_CONTEXT_TYPE:
             return (type.displayName || "Context") + ".Provider";
           case REACT_CONSUMER_TYPE:
@@ -1065,6 +1085,22 @@
     function nullRefGetter() {
       return null;
     }
+    function getTaskName(type) {
+      if (type === REACT_FRAGMENT_TYPE) return "<>";
+      if ("function" === typeof type) return '"use client"';
+      if (
+        "object" === typeof type &&
+        null !== type &&
+        type.$$typeof === REACT_LAZY_TYPE
+      )
+        return type._init === readChunk ? '"use client"' : "<...>";
+      try {
+        var name = getComponentNameFromType(type);
+        return name ? "<" + name + ">" : "<...>";
+      } catch (x) {
+        return "<...>";
+      }
+    }
     function createLazyChunkWrapper(chunk) {
       var lazyType = {
         $$typeof: REACT_LAZY_TYPE,
@@ -1138,17 +1174,25 @@
           handler.errored = !0;
           handler.value = error;
           var chunk = handler.chunk;
-          null !== chunk &&
-            "blocked" === chunk.status &&
-            ("object" === typeof blockedValue &&
+          if (null !== chunk && "blocked" === chunk.status) {
+            if (
+              "object" === typeof blockedValue &&
               null !== blockedValue &&
-              blockedValue.$$typeof === REACT_ELEMENT_TYPE &&
-              ((blockedValue = {
+              blockedValue.$$typeof === REACT_ELEMENT_TYPE
+            ) {
+              var erroredComponent = {
                 name: getComponentNameFromType(blockedValue.type) || "",
                 owner: blockedValue._owner
-              }),
-              (chunk._debugInfo || (chunk._debugInfo = [])).push(blockedValue)),
-            triggerErrorOnChunk(chunk, error));
+              };
+              erroredComponent.debugStack = blockedValue._debugStack;
+              supportsCreateTask &&
+                (erroredComponent.debugTask = blockedValue._debugTask);
+              (chunk._debugInfo || (chunk._debugInfo = [])).push(
+                erroredComponent
+              );
+            }
+            triggerErrorOnChunk(chunk, error);
+          }
         }
       }
       if (initializingHandler) {
@@ -1180,7 +1224,12 @@
       if ((response = preloadModule(serverReference)))
         metaData.bound && (response = Promise.all([response, metaData.bound]));
       else if (metaData.bound) response = Promise.resolve(metaData.bound);
-      else return requireModule(serverReference);
+      else
+        return (
+          (response = requireModule(serverReference)),
+          registerBoundServerReference(response, metaData.id, metaData.bound),
+          response
+        );
       if (initializingHandler) {
         var handler = initializingHandler;
         handler.deps++;
@@ -1200,6 +1249,11 @@
             boundArgs.unshift(null);
             resolvedValue = resolvedValue.bind.apply(resolvedValue, boundArgs);
           }
+          registerBoundServerReference(
+            resolvedValue,
+            metaData.id,
+            metaData.bound
+          );
           parentObject[key] = resolvedValue;
           "" === key &&
             null === handler.value &&
@@ -1233,19 +1287,25 @@
             handler.errored = !0;
             handler.value = error;
             var chunk = handler.chunk;
-            null !== chunk &&
-              "blocked" === chunk.status &&
-              ("object" === typeof blockedValue &&
+            if (null !== chunk && "blocked" === chunk.status) {
+              if (
+                "object" === typeof blockedValue &&
                 null !== blockedValue &&
-                blockedValue.$$typeof === REACT_ELEMENT_TYPE &&
-                ((blockedValue = {
+                blockedValue.$$typeof === REACT_ELEMENT_TYPE
+              ) {
+                var erroredComponent = {
                   name: getComponentNameFromType(blockedValue.type) || "",
                   owner: blockedValue._owner
-                }),
+                };
+                erroredComponent.debugStack = blockedValue._debugStack;
+                supportsCreateTask &&
+                  (erroredComponent.debugTask = blockedValue._debugTask);
                 (chunk._debugInfo || (chunk._debugInfo = [])).push(
-                  blockedValue
-                )),
-              triggerErrorOnChunk(chunk, error));
+                  erroredComponent
+                );
+              }
+              triggerErrorOnChunk(chunk, error);
+            }
           }
         }
       );
@@ -1515,10 +1575,14 @@
           : ReactSharedInteralsServer.A.getOwner();
       this._debugRootStack =
         null !== bundlerConfig ? Error("react-stack-top-frame") : null;
+      environmentName = void 0 === environmentName ? "Server" : environmentName;
+      supportsCreateTask &&
+        (this._debugRootTask = console.createTask(
+          '"use ' + environmentName.toLowerCase() + '"'
+        ));
       this._debugFindSourceMapURL = findSourceMapURL;
       this._replayConsole = replayConsole;
-      this._rootEnvironmentName =
-        void 0 === environmentName ? "Server" : environmentName;
+      this._rootEnvironmentName = environmentName;
       this._fromJSON = createFromJSONCallback(this);
     }
     function resolveModel(response, id, model) {
@@ -1928,6 +1992,47 @@
           : rootTask
         : null;
     }
+    function initializeFakeTask(response, debugInfo, childEnvironmentName) {
+      if (!supportsCreateTask || null == debugInfo.stack) return null;
+      var stack = debugInfo.stack,
+        env =
+          null == debugInfo.env ? response._rootEnvironmentName : debugInfo.env;
+      if (env !== childEnvironmentName)
+        return (
+          (debugInfo =
+            null == debugInfo.owner
+              ? null
+              : initializeFakeTask(response, debugInfo.owner, env)),
+          buildFakeTask(
+            response,
+            debugInfo,
+            stack,
+            '"use ' + childEnvironmentName.toLowerCase() + '"',
+            env
+          )
+        );
+      childEnvironmentName = debugInfo.debugTask;
+      if (void 0 !== childEnvironmentName) return childEnvironmentName;
+      childEnvironmentName =
+        null == debugInfo.owner
+          ? null
+          : initializeFakeTask(response, debugInfo.owner, env);
+      return (debugInfo.debugTask = buildFakeTask(
+        response,
+        childEnvironmentName,
+        stack,
+        "<" + (debugInfo.name || "...") + ">",
+        env
+      ));
+    }
+    function buildFakeTask(response, ownerTask, stack, taskName, env) {
+      taskName = console.createTask.bind(console, taskName);
+      stack = buildFakeCallStack(response, stack, env, taskName);
+      return null === ownerTask
+        ? ((response = getRootTask(response, env)),
+          null != response ? response.run(stack) : stack())
+        : ownerTask.run(stack);
+    }
     function fakeJSXCallSite() {
       return Error("react-stack-top-frame");
     }
@@ -1943,6 +2048,12 @@
           initializeFakeStack(response, debugInfo.owner));
     }
     function resolveDebugInfo(response, id, debugInfo) {
+      var env =
+        void 0 === debugInfo.env
+          ? response._rootEnvironmentName
+          : debugInfo.env;
+      void 0 !== debugInfo.stack &&
+        initializeFakeTask(response, debugInfo, env);
       null === debugInfo.owner && null != response._debugRootOwner
         ? ((debugInfo.owner = response._debugRootOwner),
           (debugInfo.debugStack = response._debugRootStack))
@@ -1952,7 +2063,59 @@
       (response._debugInfo || (response._debugInfo = [])).push(debugInfo);
     }
     function getCurrentStackInDEV() {
-      return "";
+      var owner = currentOwnerInDEV;
+      if (null === owner) return "";
+      try {
+        var info = "";
+        if (owner.owner || "string" !== typeof owner.name) {
+          for (; owner; ) {
+            var ownerStack = owner.debugStack;
+            if (null != ownerStack) {
+              if ((owner = owner.owner)) {
+                var JSCompiler_temp_const = info;
+                var error = ownerStack,
+                  prevPrepareStackTrace = Error.prepareStackTrace;
+                Error.prepareStackTrace = void 0;
+                var stack = error.stack;
+                Error.prepareStackTrace = prevPrepareStackTrace;
+                stack.startsWith("Error: react-stack-top-frame\n") &&
+                  (stack = stack.slice(29));
+                var idx = stack.indexOf("\n");
+                -1 !== idx && (stack = stack.slice(idx + 1));
+                idx = stack.indexOf("react-stack-bottom-frame");
+                -1 !== idx && (idx = stack.lastIndexOf("\n", idx));
+                var JSCompiler_inline_result =
+                  -1 !== idx ? (stack = stack.slice(0, idx)) : "";
+                info =
+                  JSCompiler_temp_const + ("\n" + JSCompiler_inline_result);
+              }
+            } else break;
+          }
+          var JSCompiler_inline_result$jscomp$0 = info;
+        } else {
+          JSCompiler_temp_const = owner.name;
+          if (void 0 === prefix)
+            try {
+              throw Error();
+            } catch (x) {
+              (prefix =
+                ((error = x.stack.trim().match(/\n( *(at )?)/)) && error[1]) ||
+                ""),
+                (suffix =
+                  -1 < x.stack.indexOf("\n    at")
+                    ? " (<anonymous>)"
+                    : -1 < x.stack.indexOf("@")
+                      ? "@unknown:0:0"
+                      : "");
+            }
+          JSCompiler_inline_result$jscomp$0 =
+            "\n" + prefix + JSCompiler_temp_const + suffix;
+        }
+      } catch (x) {
+        JSCompiler_inline_result$jscomp$0 =
+          "\nError generating stack: " + x.message + "\n" + x.stack;
+      }
+      return JSCompiler_inline_result$jscomp$0;
     }
     function resolveConsoleEntry(response, value) {
       if (response._replayConsole) {
@@ -2123,58 +2286,100 @@
         if ("string" === typeof value)
           return parseModelString(response, this, key, value);
         if ("object" === typeof value && null !== value) {
-          if (value[0] === REACT_ELEMENT_TYPE)
-            if (
-              ((key = value[4]),
-              (value = {
-                $$typeof: REACT_ELEMENT_TYPE,
-                type: value[1],
-                key: value[2],
-                props: value[3],
-                _owner: null === key ? response._debugRootOwner : key
-              }),
-              Object.defineProperty(value, "ref", {
-                enumerable: !1,
-                get: nullRefGetter
-              }),
-              (value._store = {}),
-              Object.defineProperty(value._store, "validated", {
-                configurable: !1,
-                enumerable: !1,
-                writable: !0,
-                value: 1
-              }),
-              Object.defineProperty(value, "_debugInfo", {
-                configurable: !1,
-                enumerable: !1,
-                writable: !0,
-                value: null
-              }),
-              null !== initializingHandler)
-            ) {
-              var handler = initializingHandler;
-              initializingHandler = handler.parent;
-              handler.errored
-                ? ((key = new ReactPromise(
-                    "rejected",
-                    null,
-                    handler.value,
-                    response
-                  )),
-                  (value = {
-                    name: getComponentNameFromType(value.type) || "",
-                    owner: value._owner
-                  }),
-                  (key._debugInfo = [value]),
-                  (value = createLazyChunkWrapper(key)))
-                : 0 < handler.deps &&
-                  ((key = new ReactPromise("blocked", null, null, response)),
-                  (handler.value = value),
-                  (handler.chunk = key),
-                  (value = Object.freeze.bind(Object, value.props)),
-                  key.then(value, value),
-                  (value = createLazyChunkWrapper(key)));
-            } else Object.freeze(value.props);
+          if (value[0] === REACT_ELEMENT_TYPE) {
+            var type = value[1];
+            key = value[4];
+            var stack = value[5],
+              validated = value[6];
+            value = {
+              $$typeof: REACT_ELEMENT_TYPE,
+              type: type,
+              key: value[2],
+              props: value[3],
+              _owner: null === key ? response._debugRootOwner : key
+            };
+            Object.defineProperty(value, "ref", {
+              enumerable: !1,
+              get: nullRefGetter
+            });
+            value._store = {};
+            Object.defineProperty(value._store, "validated", {
+              configurable: !1,
+              enumerable: !1,
+              writable: !0,
+              value: validated
+            });
+            Object.defineProperty(value, "_debugInfo", {
+              configurable: !1,
+              enumerable: !1,
+              writable: !0,
+              value: null
+            });
+            validated = response._rootEnvironmentName;
+            null !== key && null != key.env && (validated = key.env);
+            var normalizedStackTrace = null;
+            null === key && null != response._debugRootStack
+              ? (normalizedStackTrace = response._debugRootStack)
+              : null !== stack &&
+                (normalizedStackTrace = createFakeJSXCallStackInDEV(
+                  response,
+                  stack,
+                  validated
+                ));
+            Object.defineProperty(value, "_debugStack", {
+              configurable: !1,
+              enumerable: !1,
+              writable: !0,
+              value: normalizedStackTrace
+            });
+            normalizedStackTrace = null;
+            supportsCreateTask &&
+              null !== stack &&
+              ((type = console.createTask.bind(console, getTaskName(type))),
+              (stack = buildFakeCallStack(response, stack, validated, type)),
+              (type =
+                null === key
+                  ? null
+                  : initializeFakeTask(response, key, validated)),
+              null === type
+                ? ((type = response._debugRootTask),
+                  (normalizedStackTrace =
+                    null != type ? type.run(stack) : stack()))
+                : (normalizedStackTrace = type.run(stack)));
+            Object.defineProperty(value, "_debugTask", {
+              configurable: !1,
+              enumerable: !1,
+              writable: !0,
+              value: normalizedStackTrace
+            });
+            null !== key && initializeFakeStack(response, key);
+            null !== initializingHandler
+              ? ((stack = initializingHandler),
+                (initializingHandler = stack.parent),
+                stack.errored
+                  ? ((key = new ReactPromise(
+                      "rejected",
+                      null,
+                      stack.value,
+                      response
+                    )),
+                    (stack = {
+                      name: getComponentNameFromType(value.type) || "",
+                      owner: value._owner
+                    }),
+                    (stack.debugStack = value._debugStack),
+                    supportsCreateTask && (stack.debugTask = value._debugTask),
+                    (key._debugInfo = [stack]),
+                    (value = createLazyChunkWrapper(key)))
+                  : 0 < stack.deps &&
+                    ((key = new ReactPromise("blocked", null, null, response)),
+                    (stack.value = value),
+                    (stack.chunk = key),
+                    (value = Object.freeze.bind(Object, value.props)),
+                    key.then(value, value),
+                    (value = createLazyChunkWrapper(key))))
+              : Object.freeze(value.props);
+          }
           return value;
         }
         return value;
@@ -2313,6 +2518,7 @@
       REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"),
       REACT_MEMO_TYPE = Symbol.for("react.memo"),
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
+      REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
       isArrayImpl = Array.isArray,
@@ -2326,7 +2532,9 @@
       v8FrameRegExp =
         /^ {3} at (?:(.+) \((.+):(\d+):(\d+)\)|(?:async )?(.+):(\d+):(\d+))$/,
       jscSpiderMonkeyFrameRegExp = /(?:(.*)@)?(.*):(\d+):(\d+)/,
-      REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
+      REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"),
+      prefix,
+      suffix;
     new ("function" === typeof WeakMap ? WeakMap : Map)();
     var ReactSharedInteralsServer =
         React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
@@ -2360,6 +2568,7 @@
       }
     };
     var initializingHandler = null,
+      supportsCreateTask = !!console.createTask,
       fakeFunctionCache = new Map(),
       fakeFunctionIdx = 0,
       createFakeJSXCallStack = {
@@ -2438,7 +2647,14 @@
               env,
               JSCompiler_inline_result
             );
-            null != owner && initializeFakeStack(response, owner);
+            if (null != owner) {
+              var task = initializeFakeTask(response, owner, env);
+              initializeFakeStack(response, owner);
+              if (null !== task) {
+                task.run(callStack);
+                return;
+              }
+            }
             var rootTask = getRootTask(response, env);
             null != rootTask ? rootTask.run(callStack) : callStack();
           } finally {
@@ -2462,10 +2678,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.1.0-canary-9b62ee71-20250122",
+      version: "19.2.0-canary-040f8286-20250402",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.1.0-canary-9b62ee71-20250122",
+      reconcilerVersion: "19.2.0-canary-040f8286-20250402",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
@@ -2517,7 +2733,7 @@
           action
         );
       }
-      registerServerReference(action, { id: id, bound: null });
+      registerBoundServerReference(action, id, null);
       return action;
     };
     exports.createTemporaryReferenceSet = function () {
@@ -2546,5 +2762,9 @@
           }
         }
       });
+    };
+    exports.registerServerReference = function (reference, id) {
+      registerBoundServerReference(reference, id, null);
+      return reference;
     };
   })();

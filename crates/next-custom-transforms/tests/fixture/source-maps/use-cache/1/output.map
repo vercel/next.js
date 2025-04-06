@@ -1,1 +1,0 @@
-{"version":3,"sources":["input.js"],"sourcesContent":["'use cache'\n\nconst foo = async () => {\n  'use cache'\n}\n\nexport async function bar() {\n  return foo()\n}\n"],"names":[],"mappings":";;;0HAIA;;;;;AAFA,MAAM,MAAM,uCACC,GADD;wGAIL,uCACO,GADP,eAAe;IACpB,OAAO;AACT;;;;;AAFA,WAAsB,MAAf"}

@@ -55,11 +55,7 @@ export const installTemplate = async ({
   const templatePath = path.join(__dirname, template, mode);
   const copySource = ["**"];
   if (!eslint) copySource.push("!eslint.config.mjs");
-  if (!tailwind)
-    copySource.push(
-      mode == "ts" ? "tailwind.config.ts" : "!tailwind.config.mjs",
-      "!postcss.config.mjs",
-    );
+  if (!tailwind) copySource.push("!postcss.config.mjs");
 
   await copy(copySource, root, {
     parents: true,
@@ -164,20 +160,6 @@ export const installTemplate = async ({
           isAppTemplate ? "src/app/page" : "src/pages/index",
         ),
       );
-
-      if (tailwind) {
-        const tailwindConfigFile = path.join(
-          root,
-          mode === "ts" ? "tailwind.config.ts" : "tailwind.config.mjs",
-        );
-        await fs.writeFile(
-          tailwindConfigFile,
-          (await fs.readFile(tailwindConfigFile, "utf8")).replace(
-            /\.\/(\w+)\/\*\*\/\*\.\{js,ts,jsx,tsx,mdx\}/g,
-            "./src/$1/**/*.{js,ts,jsx,tsx,mdx}",
-          ),
-        );
-      }
     }
   }
 
@@ -223,8 +205,8 @@ export const installTemplate = async ({
   if (tailwind) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      postcss: "^8",
-      tailwindcss: "^3.4.1",
+      "@tailwindcss/postcss": "^4",
+      tailwindcss: "^4",
     };
   }
 

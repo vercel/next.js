@@ -1,7 +1,8 @@
 use anyhow::Result;
 use turbo_tasks::{FxIndexSet, ResolvedVc, Vc};
+use turbo_tasks_fs::FileSystemPath;
 
-use crate::{asset::Asset, ident::AssetIdent};
+use crate::asset::Asset;
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionOutputAsset(Option<ResolvedVc<Box<dyn OutputAsset>>>);
@@ -10,10 +11,9 @@ pub struct OptionOutputAsset(Option<ResolvedVc<Box<dyn OutputAsset>>>);
 /// server.
 #[turbo_tasks::value_trait]
 pub trait OutputAsset: Asset {
-    // TODO change this to path() -> Vc<FileSystemPath>
     /// The identifier of the [OutputAsset]. It's expected to be unique and
-    /// capture all properties of the [OutputAsset]. Only path must be used.
-    fn ident(&self) -> Vc<AssetIdent>;
+    /// capture all properties of the [OutputAsset].
+    fn path(&self) -> Vc<FileSystemPath>;
 
     /// Other references [OutputAsset]s from this [OutputAsset].
     fn references(self: Vc<Self>) -> Vc<OutputAssets> {

@@ -45,7 +45,11 @@
         "jest/no-conditional-expect": "off",
         "jest/valid-title": "off",
         "jest/no-interpolation-in-snapshots": "off",
-        "jest/no-export": "off"
+        "jest/no-export": "off",
+        "jest/no-standalone-expect": [
+          "error",
+          { "additionalTestBlockFunctions": ["retry"] }
+        ]
       }
     },
     { "files": ["**/__tests__/**"], "env": { "jest": true } },
