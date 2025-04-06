@@ -85,6 +85,15 @@ export const reschedulePrefetchTask: typeof import('./segment-cache-impl/schedul
       }
     : notEnabled
 
+export const isPrefetchTaskDirty: typeof import('./segment-cache-impl/scheduler').isPrefetchTaskDirty =
+  process.env.__NEXT_CLIENT_SEGMENT_CACHE
+    ? function (...args) {
+        return require('./segment-cache-impl/scheduler').isPrefetchTaskDirty(
+          ...args
+        )
+      }
+    : notEnabled
+
 export const createCacheKey: typeof import('./segment-cache-impl/cache-key').createCacheKey =
   process.env.__NEXT_CLIENT_SEGMENT_CACHE
     ? function (...args) {

@@ -3,7 +3,7 @@ import type { AppRouterInstance } from '../../shared/lib/app-router-context.shar
 import { getCurrentAppRouterState } from './app-router-instance'
 import { createPrefetchURL } from './app-router'
 import { PrefetchKind } from './router-reducer/router-reducer-types'
-import { getCurrentCacheVersion } from './segment-cache'
+import { isPrefetchTaskDirty } from './segment-cache'
 import { createCacheKey } from './segment-cache'
 import {
   type PrefetchTask,
@@ -28,13 +28,9 @@ type LinkOrFormInstanceShared = {
   wasHoveredOrTouched: boolean
 
   // The most recently initiated prefetch task. It may or may not have
-  // already completed.  The same prefetch task object can be reused across
+  // already completed. The same prefetch task object can be reused across
   // multiple prefetches of the same link.
   prefetchTask: PrefetchTask | null
-
-  // The cache version at the time the task was initiated. This is used to
-  // determine if the cache was invalidated since the task was initiated.
-  cacheVersion: number
 }
 
 export type FormInstance = LinkOrFormInstanceShared & {
@@ -158,7 +154,6 @@ export function mountLinkInstance(
         isVisible: false,
         wasHoveredOrTouched: false,
         prefetchTask: null,
-        cacheVersion: -1,
         prefetchHref: prefetchURL.href,
         setOptimisticLinkStatus,
       }
@@ -176,7 +171,6 @@ export function mountLinkInstance(
     isVisible: false,
     wasHoveredOrTouched: false,
     prefetchTask: null,
-    cacheVersion: -1,
     prefetchHref: null,
     setOptimisticLinkStatus,
   }
@@ -203,7 +197,6 @@ export function mountFormInstance(
     isVisible: false,
     wasHoveredOrTouched: false,
     prefetchTask: null,
-    cacheVersion: -1,
     prefetchHref: prefetchURL.href,
     setOptimisticLinkStatus: null,
   }
@@ -322,7 +315,8 @@ function rescheduleLinkPrefetch(instance: PrefetchableInstance) {
         cacheKey,
         treeAtTimeOfPrefetch,
         instance.kind === PrefetchKind.FULL,
-        priority
+        priority,
+        null
       )
     } else {
       // We already have an old task object that we can reschedule. This is
@@ -334,10 +328,6 @@ function rescheduleLinkPrefetch(instance: PrefetchableInstance) {
         priority
       )
     }
-
-    // Keep track of the cache version at the time the prefetch was requested.
-    // This is used to check if the prefetch is stale.
-    instance.cacheVersion = getCurrentCacheVersion()
   }
 }
 
@@ -352,15 +342,9 @@ export function pingVisibleLinks(
   // This is called when the Next-Url or the base tree changes, since those
   // may affect the result of a prefetch task. It's also called after a
   // cache invalidation.
-  const currentCacheVersion = getCurrentCacheVersion()
   for (const instance of prefetchableAndVisible) {
     const task = instance.prefetchTask
-    if (
-      task !== null &&
-      instance.cacheVersion === currentCacheVersion &&
-      task.key.nextUrl === nextUrl &&
-      task.treeAtTimeOfPrefetch === tree
-    ) {
+    if (task !== null && !isPrefetchTaskDirty(task, nextUrl, tree)) {
       // The cache has not been invalidated, and none of the inputs have
       // changed. Bail out.
       continue
@@ -378,9 +362,9 @@ export function pingVisibleLinks(
       cacheKey,
       tree,
       instance.kind === PrefetchKind.FULL,
-      priority
+      priority,
+      null
     )
-    instance.cacheVersion = getCurrentCacheVersion()
   }
 }
 
