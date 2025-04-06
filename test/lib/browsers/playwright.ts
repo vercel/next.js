@@ -165,7 +165,16 @@ export class Playwright extends BrowserInterface {
 
   async close(): Promise<void> {
     await teardown(this.teardownTracing.bind(this))
-    await page?.close()
+    if (page) {
+      await this.closePage(page)
+    }
+  }
+
+  private async closePage(page: Page) {
+    // wait for all pending listeners attached to the page to resolve
+    await page.removeAllListeners(undefined, { behavior: 'wait' })
+
+    await page.close()
   }
 
   async launchBrowser(browserName: string, launchOptions: Record<string, any>) {
@@ -209,9 +218,9 @@ export class Playwright extends BrowserInterface {
     await this.close()
 
     // clean-up existing pages
-    for (const oldPage of context.pages()) {
-      await oldPage.close()
-    }
+    await Promise.all([
+      context.pages().map((oldPage) => this.closePage(oldPage)),
+    ])
 
     await this.initContextTracing(url, context)
     page = await context.newPage()
