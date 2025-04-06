@@ -8,7 +8,7 @@
   "types": "index.d.ts",
   "dependencies": {
     "@rspack/core": "1.3.2",
-    "@rspack/plugin-react-refresh": "1.1.0",
+    "@rspack/plugin-react-refresh": "1.1.1",
     "react-refresh": "0.12.0"
   }
 }
