@@ -32,6 +32,8 @@ type OptionalKeys<T> = {
 
 type OnNavigateEventHandler = (event: { preventDefault: () => void }) => void
 
+type PrefetchStrategy = 'viewport' | 'predict' | false
+
 type InternalLinkProps = {
   /**
    * **Required**. The path or URL to navigate to. It can also be an object (similar to `URL`).
@@ -133,10 +135,9 @@ type InternalLinkProps = {
    * Prefetching is only enabled in production.
    *
    * - In the **App Router**:
-   *   - `null` (default): Prefetch behavior depends on static vs dynamic routes:
-   *     - Static routes: fully prefetched
-   *     - Dynamic routes: partial prefetch to the nearest segment with a `loading.js`
-   *   - `true`: Always prefetch the full route and data.
+   *   - `viewport` (default): prefetch when link appears in viewport.
+   *   - `predict`: prefetch based on prediction of user's cursor.
+   *   - `true`: same as `viewport`, but also set `prefetchScope` to `full`.
    *   - `false`: Disable prefetching on both viewport and hover.
    * - In the **Pages Router**:
    *   - `true` (default): Prefetches the route and data in the background on viewport or hover.
@@ -151,7 +152,17 @@ type InternalLinkProps = {
    * </Link>
    * ```
    */
-  prefetch?: boolean | null
+  prefetch?: PrefetchStrategy | boolean | null
+
+  /**
+   * The scope of data to prefetch.
+   *
+   * - `full`: Always prefetch the full route and data.
+   * - `auto` (default): Prefetch behavior depends on static vs dynamic routes:
+   *   - Static routes: fully prefetched
+   *   - Dynamic routes: partial prefetch to the nearest segment with a `loading.js`
+   */
+  prefetchScope?: 'full' | 'auto'
 
   /**
    * (unstable) Switch to a dynamic prefetch on hover. Effectively the same as
@@ -331,7 +342,9 @@ export default function LinkComponent(
     href: hrefProp,
     as: asProp,
     children: childrenProp,
-    prefetch: prefetchProp = null,
+    prefetch: prefetchProp = 'viewport',
+    unstable_dynamicOnHover = false,
+    prefetchScope = prefetchProp === true ? 'full' : 'auto',
     passHref,
     replace,
     shallow,
@@ -342,7 +355,6 @@ export default function LinkComponent(
     legacyBehavior = false,
     onNavigate,
     ref: forwardedRef,
-    unstable_dynamicOnHover,
     ...restProps
   } = props
 
@@ -355,18 +367,16 @@ export default function LinkComponent(
     children = <a>{children}</a>
   }
 
+  const appPrefetchKind = (
+    {
+      full: PrefetchKind.FULL,
+      auto: PrefetchKind.AUTO,
+    } as const
+  )[prefetchScope]
   const router = React.useContext(AppRouterContext)
 
-  const prefetchEnabled = prefetchProp !== false
-  /**
-   * The possible states for prefetch are:
-   * - null: this is the default "auto" mode, where we will prefetch partially if the link is in the viewport
-   * - true: we will prefetch if the link is visible and prefetch the full page, not just partially
-   * - false: we will not prefetch if in the viewport at all
-   * - 'unstable_dynamicOnHover': this starts in "auto" mode, but switches to "full" when the link is hovered
-   */
-  const appPrefetchKind =
-    prefetchProp === null ? PrefetchKind.AUTO : PrefetchKind.FULL
+  const prefetchStrategy: PrefetchStrategy =
+    prefetchProp === true || prefetchProp === null ? 'viewport' : prefetchProp
 
   if (process.env.NODE_ENV !== 'production') {
     function createPropError(args: {
@@ -383,21 +393,33 @@ export default function LinkComponent(
     }
 
     // TypeScript trick for type-guarding:
-    const requiredPropsGuard: Record<LinkPropsRequired, true> = {
-      href: true,
+    const requiredPropsGuard: Record<LinkPropsRequired, string[]> = {
+      href: ['string'],
     } as const
-    const requiredProps: LinkPropsRequired[] = Object.keys(
-      requiredPropsGuard
-    ) as LinkPropsRequired[]
-    requiredProps.forEach((key: LinkPropsRequired) => {
+    const optionalPropsGuard: Record<LinkPropsOptional, string[]> = {
+      as: ['string', 'object'],
+      replace: ['boolean'],
+      scroll: ['boolean'],
+      shallow: ['boolean'],
+      passHref: ['boolean'],
+      prefetch: ['boolean', 'string'],
+      unstable_dynamicOnHover: ['boolean'],
+      onClick: ['function'],
+      onMouseEnter: ['function'],
+      onTouchStart: ['function'],
+      legacyBehavior: ['boolean'],
+      onNavigate: ['function'],
+      prefetchScope: ['string'],
+    } as const
+
+    Object.entries(requiredPropsGuard).forEach((entry) => {
+      const [key, types] = entry as [LinkPropsRequired, string[]]
+
       if (key === 'href') {
-        if (
-          props[key] == null ||
-          (typeof props[key] !== 'string' && typeof props[key] !== 'object')
-        ) {
+        if (props[key] == null || !types.includes(typeof props[key])) {
           throw createPropError({
             key,
-            expected: '`string` or `object`',
+            expected: types.map((v) => `\`${v}\``).join(' or '),
             actual: props[key] === null ? 'null' : typeof props[key],
           })
         }
@@ -408,68 +430,16 @@ export default function LinkComponent(
       }
     })
 
-    // TypeScript trick for type-guarding:
-    const optionalPropsGuard: Record<LinkPropsOptional, true> = {
-      as: true,
-      replace: true,
-      scroll: true,
-      shallow: true,
-      passHref: true,
-      prefetch: true,
-      unstable_dynamicOnHover: true,
-      onClick: true,
-      onMouseEnter: true,
-      onTouchStart: true,
-      legacyBehavior: true,
-      onNavigate: true,
-    } as const
-    const optionalProps: LinkPropsOptional[] = Object.keys(
-      optionalPropsGuard
-    ) as LinkPropsOptional[]
-    optionalProps.forEach((key: LinkPropsOptional) => {
+    Object.entries(optionalPropsGuard).forEach((entry) => {
+      const [key, types] = entry as [LinkPropsOptional, string[]]
       const valType = typeof props[key]
 
-      if (key === 'as') {
-        if (props[key] && valType !== 'string' && valType !== 'object') {
-          throw createPropError({
-            key,
-            expected: '`string` or `object`',
-            actual: valType,
-          })
-        }
-      } else if (
-        key === 'onClick' ||
-        key === 'onMouseEnter' ||
-        key === 'onTouchStart' ||
-        key === 'onNavigate'
-      ) {
-        if (props[key] && valType !== 'function') {
-          throw createPropError({
-            key,
-            expected: '`function`',
-            actual: valType,
-          })
-        }
-      } else if (
-        key === 'replace' ||
-        key === 'scroll' ||
-        key === 'shallow' ||
-        key === 'passHref' ||
-        key === 'prefetch' ||
-        key === 'legacyBehavior' ||
-        key === 'unstable_dynamicOnHover'
-      ) {
-        if (props[key] != null && valType !== 'boolean') {
-          throw createPropError({
-            key,
-            expected: '`boolean`',
-            actual: valType,
-          })
-        }
-      } else {
-        // TypeScript trick for type-guarding:
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const _: never = key
+      if (props[key] && !types.includes(typeof props[key])) {
+        throw createPropError({
+          key,
+          expected: types.map((v) => `\`${v}\``).join(' or '),
+          actual: valType,
+        })
       }
     })
   }
@@ -565,15 +535,38 @@ export default function LinkComponent(
   // a revalidation or refresh.
   const observeLinkVisibilityOnMount = React.useCallback(
     (element: HTMLAnchorElement | SVGAElement) => {
-      if (router !== null) {
-        linkInstanceRef.current = mountLinkInstance(
-          element,
-          href,
-          router,
-          appPrefetchKind,
-          prefetchEnabled,
-          setOptimisticLinkStatus
-        )
+      if (router === null) return
+
+      linkInstanceRef.current = mountLinkInstance(
+        element,
+        href,
+        router,
+        appPrefetchKind,
+        prefetchStrategy,
+        setOptimisticLinkStatus
+      )
+
+      function onMouseMove(e: MouseEvent) {
+        const rect = element.getBoundingClientRect()
+
+        function distance(x1: number, y1: number, x2: number, y2: number) {
+          return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2))
+        }
+
+        if (
+          distance(
+            e.clientX + e.movementX * 10,
+            e.clientY + e.movementY * 10,
+            rect.x + rect.width / 2,
+            rect.y + rect.height / 2
+          ) <= 80
+        ) {
+          onNavigationIntent(element, false)
+        }
+      }
+
+      if (prefetchStrategy === 'predict') {
+        window.addEventListener('mousemove', onMouseMove)
       }
 
       return () => {
@@ -581,10 +574,15 @@ export default function LinkComponent(
           unmountLinkForCurrentNavigation(linkInstanceRef.current)
           linkInstanceRef.current = null
         }
+
+        if (prefetchStrategy === 'predict') {
+          window.removeEventListener('mousemove', onMouseMove)
+        }
+
         unmountPrefetchableInstance(element)
       }
     },
-    [prefetchEnabled, href, router, appPrefetchKind, setOptimisticLinkStatus]
+    [prefetchStrategy, href, router, appPrefetchKind, setOptimisticLinkStatus]
   )
 
   const mergedRef = useMergedRef(observeLinkVisibilityOnMount, childRef)
@@ -645,14 +643,13 @@ export default function LinkComponent(
         return
       }
 
-      if (!prefetchEnabled || process.env.NODE_ENV === 'development') {
+      if (!prefetchStrategy || process.env.NODE_ENV === 'development') {
         return
       }
 
-      const upgradeToDynamicPrefetch = unstable_dynamicOnHover === true
       onNavigationIntent(
         e.currentTarget as HTMLAnchorElement | SVGAElement,
-        upgradeToDynamicPrefetch
+        unstable_dynamicOnHover
       )
     },
     onTouchStart: process.env.__NEXT_LINK_NO_TOUCH_START
@@ -674,14 +671,13 @@ export default function LinkComponent(
             return
           }
 
-          if (!prefetchEnabled) {
+          if (!prefetchStrategy) {
             return
           }
 
-          const upgradeToDynamicPrefetch = unstable_dynamicOnHover === true
           onNavigationIntent(
             e.currentTarget as HTMLAnchorElement | SVGAElement,
-            upgradeToDynamicPrefetch
+            unstable_dynamicOnHover
           )
         },
   }

@@ -70,19 +70,40 @@ type InternalLinkProps = {
   /**
    * Prefetch the page in the background.
    * Any `<Link />` that is in the viewport (initially or through scroll) will be prefetched.
-   * Prefetch can be disabled by passing `prefetch={false}`. Prefetching is only enabled in production.
+   * Prefetch can be disabled by passing `prefetch={false}`.
    *
-   * In App Router:
-   * - `null` (default): For statically generated pages, this will prefetch the full React Server Component data. For dynamic pages, this will prefetch up to the nearest route segment with a [`loading.js`](https://nextjs.org/docs/app/api-reference/file-conventions/loading) file. If there is no loading file, it will not fetch the full tree to avoid fetching too much data.
-   * - `true`: This will prefetch the full React Server Component data for all route segments, regardless of whether they contain a segment with `loading.js`.
-   * - `false`: This will not prefetch any data, even on hover.
+   * @remarks
+   * Prefetching is only enabled in production.
    *
-   * In Pages Router:
-   * - `true` (default): The full route & its data will be prefetched.
-   * - `false`: Prefetching will not happen when entering the viewport, but will still happen on hover.
-   * @defaultValue `true` (pages router) or `null` (app router)
+   * - In the **App Router**:
+   *   - `viewport` (default): prefetch when link appears in viewport.
+   *   - `predict`: prefetch based on prediction of user's cursor.
+   *   - `true`: same as `viewport`, but also set `prefetchScope` to `full`.
+   *   - `false`: Disable prefetching on both viewport and hover.
+   * - In the **Pages Router**:
+   *   - `true` (default): Prefetches the route and data in the background on viewport or hover.
+   *   - `false`: Prefetch only on hover, not on viewport.
+   *
+   * @defaultValue `true` (Pages Router) or `null` (App Router)
+   *
+   * @example
+   * ```tsx
+   * <Link href="/dashboard" prefetch={false}>
+   *   Dashboard
+   * </Link>
+   * ```
    */
-  prefetch?: boolean | null
+  prefetch?: 'viewport' | 'intent' | 'predict' | boolean | null
+
+  /**
+   * The scope of data to prefetch (App Router Only).
+   *
+   * - `full`: Always prefetch the full route and data.
+   * - `auto` (default): Prefetch behavior depends on static vs dynamic routes:
+   *   - Static routes: fully prefetched
+   *   - Dynamic routes: partial prefetch to the nearest segment with a `loading.js`
+   */
+  prefetchScope?: 'full' | 'auto'
   /**
    * The active locale is automatically prepended. `locale` allows for providing a different locale.
    * When `false` `href` has to include the locale as the default behavior is disabled.
@@ -378,6 +399,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         onTouchStart: true,
         legacyBehavior: true,
         onNavigate: true,
+        prefetchScope: true,
       } as const
       const optionalProps: LinkPropsOptional[] = Object.keys(
         optionalPropsGuard
@@ -429,6 +451,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
               actual: valType,
             })
           }
+        } else if (key === 'prefetchScope') {
+          throw new Error('This API is available only on App Router')
         } else {
           // TypeScript trick for type-guarding:
           // eslint-disable-next-line @typescript-eslint/no-unused-vars

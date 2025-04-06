@@ -24,7 +24,6 @@ type LinkOrFormInstanceShared = {
   router: AppRouterInstance
   kind: PrefetchKind.AUTO | PrefetchKind.FULL
 
-  isVisible: boolean
   wasHoveredOrTouched: boolean
 
   // The most recently initiated prefetch task. It may or may not have
@@ -36,6 +35,8 @@ type LinkOrFormInstanceShared = {
   // determine if the cache was invalidated since the task was initiated.
   cacheVersion: number
 }
+
+type PrefetchStrategy = 'viewport' | 'predict' | 'intent'
 
 export type FormInstance = LinkOrFormInstanceShared & {
   prefetchHref: string
@@ -101,14 +102,12 @@ const prefetchable:
 const prefetchableAndVisible: Set<PrefetchableInstance> = new Set()
 
 // A single IntersectionObserver instance shared by all <Link> components.
-const observer: IntersectionObserver | null =
-  typeof IntersectionObserver === 'function'
-    ? new IntersectionObserver(handleIntersect, {
-        rootMargin: '200px',
-      })
-    : null
-
-function observeVisibility(element: Element, instance: PrefetchableInstance) {
+let observer: IntersectionObserver | null = null
+function detectPrefetch(
+  element: Element,
+  instance: PrefetchableInstance,
+  strategy: PrefetchStrategy
+) {
   const existingInstance = prefetchable.get(element)
   if (existingInstance !== undefined) {
     // This shouldn't happen because each <Link> component should have its own
@@ -118,7 +117,12 @@ function observeVisibility(element: Element, instance: PrefetchableInstance) {
   }
   // Only track prefetchable links that have a valid prefetch URL
   prefetchable.set(element, instance)
-  if (observer !== null) {
+
+  if (strategy === 'viewport') {
+    observer ??= new IntersectionObserver(handleIntersect, {
+      rootMargin: '200px',
+    })
+
     observer.observe(element)
   }
 }
@@ -146,40 +150,30 @@ export function mountLinkInstance(
   href: string,
   router: AppRouterInstance,
   kind: PrefetchKind.AUTO | PrefetchKind.FULL,
-  prefetchEnabled: boolean,
+  strategy: PrefetchStrategy | false,
   setOptimisticLinkStatus: (status: { pending: boolean }) => void
 ): LinkInstance {
-  if (prefetchEnabled) {
-    const prefetchURL = coercePrefetchableUrl(href)
-    if (prefetchURL !== null) {
-      const instance: PrefetchableLinkInstance = {
-        router,
-        kind,
-        isVisible: false,
-        wasHoveredOrTouched: false,
-        prefetchTask: null,
-        cacheVersion: -1,
-        prefetchHref: prefetchURL.href,
-        setOptimisticLinkStatus,
-      }
-      // We only observe the link's visibility if it's prefetchable. For
-      // example, this excludes links to external URLs.
-      observeVisibility(element, instance)
-      return instance
-    }
-  }
-  // If the link is not prefetchable, we still create an instance so we can
-  // track its optimistic state (i.e. useLinkStatus).
-  const instance: NonPrefetchableLinkInstance = {
+  const prefetchURL = strategy ? coercePrefetchableUrl(href) : null
+  const instance: PrefetchableLinkInstance | NonPrefetchableLinkInstance = {
     router,
     kind,
-    isVisible: false,
     wasHoveredOrTouched: false,
     prefetchTask: null,
     cacheVersion: -1,
-    prefetchHref: null,
+    prefetchHref: prefetchURL?.href ?? null,
     setOptimisticLinkStatus,
   }
+
+  if (instance.prefetchHref !== null && strategy) {
+    // We only detect the link if it's prefetchable. For
+    // example, this excludes links to external URLs.
+    detectPrefetch(element, instance, strategy)
+
+    return instance
+  }
+
+  // If the link is not prefetchable, we still create an instance so we can
+  // track its optimistic state (i.e. useLinkStatus).
   return instance
 }
 
@@ -200,14 +194,13 @@ export function mountFormInstance(
   const instance: FormInstance = {
     router,
     kind,
-    isVisible: false,
     wasHoveredOrTouched: false,
     prefetchTask: null,
     cacheVersion: -1,
     prefetchHref: prefetchURL.href,
     setOptimisticLinkStatus: null,
   }
-  observeVisibility(element, instance)
+  detectPrefetch(element, instance, 'viewport')
 }
 
 export function unmountPrefetchableInstance(element: Element) {
@@ -248,13 +241,22 @@ export function onLinkVisibilityChanged(element: Element, isVisible: boolean) {
     return
   }
 
-  instance.isVisible = isVisible
   if (isVisible) {
     prefetchableAndVisible.add(instance)
+    rescheduleLinkPrefetch(instance)
   } else {
     prefetchableAndVisible.delete(instance)
+
+    // Cancel any in-progress prefetch task. (If it already finished then this
+    // is a no-op.)
+    if (instance.prefetchTask !== null) {
+      cancelPrefetchTask(instance.prefetchTask)
+      // We don't need to reset the prefetchTask to null upon cancellation; an
+      // old task object can be rescheduled with reschedulePrefetchTask. This is a
+      // micro-optimization but also makes the code simpler (don't need to
+      // worry about whether an old task object is stale).
+    }
   }
-  rescheduleLinkPrefetch(instance)
 }
 
 export function onNavigationIntent(
@@ -266,34 +268,19 @@ export function onNavigationIntent(
     return
   }
   // Prefetch the link on hover/touchstart.
-  if (instance !== undefined) {
-    instance.wasHoveredOrTouched = true
-    if (
-      process.env.__NEXT_DYNAMIC_ON_HOVER &&
-      unstable_upgradeToDynamicPrefetch
-    ) {
-      // Switch to a full, dynamic prefetch
-      instance.kind = PrefetchKind.FULL
-    }
-    rescheduleLinkPrefetch(instance)
+  instance.wasHoveredOrTouched = true
+  if (
+    process.env.__NEXT_DYNAMIC_ON_HOVER &&
+    unstable_upgradeToDynamicPrefetch
+  ) {
+    // Switch to a full, dynamic prefetch
+    instance.kind = PrefetchKind.FULL
   }
+  rescheduleLinkPrefetch(instance)
 }
 
 function rescheduleLinkPrefetch(instance: PrefetchableInstance) {
   const existingPrefetchTask = instance.prefetchTask
-
-  if (!instance.isVisible) {
-    // Cancel any in-progress prefetch task. (If it already finished then this
-    // is a no-op.)
-    if (existingPrefetchTask !== null) {
-      cancelPrefetchTask(existingPrefetchTask)
-    }
-    // We don't need to reset the prefetchTask to null upon cancellation; an
-    // old task object can be rescheduled with reschedulePrefetchTask. This is a
-    // micro-optimization but also makes the code simpler (don't need to
-    // worry about whether an old task object is stale).
-    return
-  }
 
   if (!process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
     // The old prefetch implementation does not have different priority levels.
