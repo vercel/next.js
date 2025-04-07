@@ -602,7 +602,7 @@ export function getResolveRoutes(
               const destination = getRelativeURL(value, initUrl)
               resHeaders['x-middleware-rewrite'] = destination
 
-              const query = parsedUrl.query
+              // const query = parsedUrl.query
               parsedUrl = url.parse(destination, true)
 
               if (parsedUrl.protocol) {
@@ -614,11 +614,11 @@ export function getResolveRoutes(
               }
 
               // keep internal query state
-              for (const key of Object.keys(query)) {
-                if (key.startsWith('_next') || key.startsWith('__next')) {
-                  parsedUrl.query[key] = query[key]
-                }
-              }
+              // for (const key of Object.keys(query)) {
+              //   if (key.startsWith('_next') || key.startsWith('__next')) {
+              //     parsedUrl.query[key] = query[key]
+              //   }
+              // }
 
               if (config.i18n) {
                 const curLocaleResult = normalizeLocalePath(
