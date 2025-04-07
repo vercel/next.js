@@ -1205,8 +1205,6 @@
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should provide query for getStaticProps page correctly",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
-      "app dir - basic should return the `vary` header from edge runtime",
-      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should run generate command correctly",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
@@ -1327,8 +1325,6 @@
       "app dir - basic should not share edge workers",
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
-      "app dir - basic should return the `vary` header from edge runtime",
-      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
       "app dir - basic should serve dynamic route from pages",
@@ -3549,10 +3545,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/next-image/next-image-https.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app dir - next-image (with https) only runs on CI as it requires administrator privileges"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5253,6 +5249,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/dynamic-on-hover/dynamic-on-hover.test.ts": {
+    "passed": [
+      "dynamic on hover prefetches the dynamic data for a Link on hover"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/export/segment-cache-output-export.test.ts": {
     "passed": [
       "segment cache (output: \"export\") basic prefetch in output: \"export\" mode",
@@ -5644,12 +5649,22 @@
   },
   "test/e2e/app-dir/use-cache-custom-handler/use-cache-custom-handler.test.ts": {
     "passed": [
+      "use-cache-custom-handler calls neither refreshTags nor getExpiration if \"use cache\" is not used",
       "use-cache-custom-handler should not call expireTags for a normal invocation",
-      "use-cache-custom-handler should not call getExpiration again after an action",
+      "use-cache-custom-handler should not call getExpiration after an action",
       "use-cache-custom-handler should revalidate after redirect using a legacy custom cache handler",
       "use-cache-custom-handler should revalidate after redirect using a modern custom cache handler",
       "use-cache-custom-handler should use a legacy custom cache handler if provided",
       "use-cache-custom-handler should use a modern custom cache handler if provided"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/use-cache-dev/use-cache-dev.test.ts": {
+    "passed": [
+      "use-cache-dev should ignore an existing HMR refresh hash cookie with \"next start\""
     ],
     "failed": [],
     "pending": [],
@@ -6715,7 +6730,9 @@
       "Instrumentation Client Hook App Router should execute instrumentation-client from app router before hydration",
       "Instrumentation Client Hook HMR in development mode skips tests in non-dev mode",
       "Instrumentation Client Hook Pages Router should execute instrumentation-client from pages router before hydration",
-      "Instrumentation Client Hook With src folder should execute instrumentation-client from with src folder before hydration"
+      "Instrumentation Client Hook With src folder should execute instrumentation-client from with src folder before hydration",
+      "Instrumentation Client Hook onRouterTransitionStart onRouterTransitionStart fires at the start of a back/forward navigation",
+      "Instrumentation Client Hook onRouterTransitionStart onRouterTransitionStart fires at the start of a navigation"
     ],
     "failed": [],
     "pending": [],
@@ -8298,9 +8315,9 @@
   },
   "test/e2e/vary-header/test/index.test.ts": {
     "passed": [
-      "Vary Header Tests should preserve custom vary header and append RSC headers in app route handlers",
+      "Vary Header Tests should preserve custom vary header",
       "Vary Header Tests should preserve custom vary header in API routes",
-      "Vary Header Tests should preserve middleware vary header in combination with route handlers"
+      "Vary Header Tests should preserve middleware vary header"
     ],
     "failed": [],
     "pending": [],
@@ -8743,10 +8760,10 @@
     "runtimeError": false
   },
   "test/integration/app-config-asset-prefix/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "App assetPrefix config should render correctly with assetPrefix: \"/\""
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8763,10 +8780,10 @@
     "runtimeError": false
   },
   "test/integration/app-dir-export/test/dev-custom-dist-dir.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app dir - with output export and custom distDir (next dev) should render properly"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9006,8 +9023,8 @@
     "runtimeError": false
   },
   "test/integration/babel-next-image/babel-next-image.test.js": {
-    "passed": ["babel-next-image should work with babel and next/image"],
-    "failed": [],
+    "passed": [],
+    "failed": ["babel-next-image should work with babel and next/image"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9055,13 +9072,14 @@
   },
   "test/integration/build-indicator/test/index.test.js": {
     "passed": [
+      "Build Activity Indicator should validate buildActivityPosition config"
+    ],
+    "failed": [
       "Build Activity Indicator Enabled - (app) Shows build indicator when page is built from modifying",
       "Build Activity Indicator Enabled - (app) webpack only Shows the build indicator when a page is built during navigation",
       "Build Activity Indicator Enabled - (pages) Shows build indicator when page is built from modifying",
-      "Build Activity Indicator Enabled - (pages) webpack only Shows the build indicator when a page is built during navigation",
-      "Build Activity Indicator should validate buildActivityPosition config"
+      "Build Activity Indicator Enabled - (pages) webpack only Shows the build indicator when a page is built during navigation"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9757,21 +9775,21 @@
   "test/integration/css/test/basic-global-support.test.js": {
     "passed": [
       "Basic Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
+      "Basic Global Support production mode useLightnincsss(true) should've emitted a single CSS file",
       "Basic Global Support with special characters in path production mode useLightnincsss(false) should've emitted a single CSS file",
-      "Basic Global Support with src/ dir production mode useLightnincsss(false) should've emitted a single CSS file"
+      "Basic Global Support with special characters in path production mode useLightnincsss(true) should've emitted a single CSS file",
+      "Basic Global Support with src/ dir production mode useLightnincsss(false) should've emitted a single CSS file",
+      "Basic Global Support with src/ dir production mode useLightnincsss(true) should've emitted a single CSS file",
+      "Multi Global Support (reversed) production mode useLightnincsss(true) should've emitted a single CSS file",
+      "Multi Global Support production mode useLightnincsss(true) should've emitted a single CSS file"
     ],
     "failed": [
-      "Basic Global Support production mode useLightnincsss(true) should've emitted a single CSS file",
-      "Basic Global Support with special characters in path production mode useLightnincsss(true) should've emitted a single CSS file",
-      "Basic Global Support with src/ dir production mode useLightnincsss(true) should've emitted a single CSS file",
       "CSS URL via `file-loader` and asset prefix (1) production mode should've emitted expected files",
       "CSS URL via `file-loader` and asset prefix (2) production mode should've emitted expected files",
       "CSS URL via `file-loader` production mode useLightnincsss(false) should've emitted expected files",
       "CSS URL via `file-loader` production mode useLightnincsss(true) should've emitted expected files",
       "Multi Global Support (reversed) production mode useLightnincsss(false) should've emitted a single CSS file",
-      "Multi Global Support (reversed) production mode useLightnincsss(true) should've emitted a single CSS file",
       "Multi Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
-      "Multi Global Support production mode useLightnincsss(true) should've emitted a single CSS file",
       "Nested @import() Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
       "Nested @import() Global Support production mode useLightnincsss(true) should've emitted a single CSS file"
     ],
@@ -10231,6 +10249,7 @@
     "passed": [
       "Custom Server using HTTP Error when rendering without starting slash production mode should warn in production mode",
       "Custom Server using HTTP Error when rendering without starting slash should warn in development mode",
+      "Custom Server using HTTP HMR with custom server Should support HMR when rendering with /index pathname",
       "Custom Server using HTTP compression handling should handle compression for route /",
       "Custom Server using HTTP compression handling should handle compression for route /no-query",
       "Custom Server using HTTP legacy NextCustomServer methods - production mode NextCustomServer.render404",
@@ -10270,9 +10289,7 @@
       "Custom Server using HTTPS with generateEtags enabled production mode response includes etag header",
       "Custom Server using HTTPS with middleware $title should read the expected url protocol in middleware"
     ],
-    "failed": [
-      "Custom Server using HTTP HMR with custom server Should support HMR when rendering with /index pathname"
-    ],
+    "failed": [],
     "pending": [
       "Custom Server using HTTP with dynamic assetPrefix should contain customServer in NEXT_DATA",
       "Custom Server using HTTPS with dynamic assetPrefix should contain customServer in NEXT_DATA"
@@ -15494,10 +15511,11 @@
   },
   "test/integration/next-image-new/app-dir-image-from-node-modules/test/index.test.ts": {
     "passed": [
-      "Image Component from node_modules development mode should apply image config for node_modules",
       "Image Component from node_modules prod mode production mode should apply image config for node_modules"
     ],
-    "failed": [],
+    "failed": [
+      "Image Component from node_modules development mode should apply image config for node_modules"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -16258,13 +16276,13 @@
     "runtimeError": false
   },
   "test/integration/plugin-mdx-rs/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "MDX-rs Configuration MDX-rs Plugin support should render an MDX page correctly",
       "MDX-rs Configuration MDX-rs Plugin support should render an MDX page with component correctly",
       "MDX-rs Configuration MDX-rs Plugin support should render an MDX page with globally provided components (from `mdx-components.js`) correctly",
       "MDX-rs Configuration MDX-rs Plugin support with mdx transform options should render an MDX page correctly"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -16608,11 +16626,12 @@
     "runtimeError": false
   },
   "test/integration/read-only-source-hmr/test/index.test.js": {
-    "passed": ["Read-only source HMR should detect a new page"],
-    "failed": [
+    "passed": [
+      "Read-only source HMR should detect a new page",
       "Read-only source HMR should detect changes to a page",
       "Read-only source HMR should handle page deletion and subsequent recreation"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -17219,7 +17238,6 @@
   },
   "test/integration/telemetry/test/config.test.js": {
     "passed": [
-      "config telemetry production mode detects i18n and image configs for session start",
       "config telemetry production mode detects output config for session start",
       "config telemetry production mode detects rewrites, headers, and redirects for next build",
       "config telemetry production mode emits telemery for usage of image, script & dynamic",
@@ -17232,7 +17250,6 @@
       "config telemetry production mode emits telemetry for lint during build when 'ignoreDuringBuilds' is specified",
       "config telemetry production mode emits telemetry for middleware related options",
       "config telemetry production mode emits telemetry for persistent cache in build mode",
-      "config telemetry production mode emits telemetry for persistent cache in dev mode",
       "config telemetry production mode emits telemetry for transpilePackages",
       "config telemetry production mode emits telemetry for usage of @vercel/og",
       "config telemetry production mode emits telemetry for usage of `experimental/dynamicIO`",
@@ -17244,7 +17261,10 @@
       "config telemetry production mode emits telemetry for usage of swc plugins",
       "config telemetry production mode emits telemetry for useCache directive"
     ],
-    "failed": [],
+    "failed": [
+      "config telemetry production mode detects i18n and image configs for session start",
+      "config telemetry production mode emits telemetry for persistent cache in dev mode"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -17259,7 +17279,6 @@
       "Telemetry CLI can print telemetry status",
       "Telemetry CLI can re-disable telemetry",
       "Telemetry CLI can re-enable telemetry",
-      "Telemetry CLI detects isSrcDir dir correctly for `next dev`",
       "Telemetry CLI production mode cli session: babel tooling config",
       "Telemetry CLI production mode cli session: custom babel config (plugin)",
       "Telemetry CLI production mode cli session: custom babel config (preset)",
@@ -17273,6 +17292,7 @@
       "Telemetry CLI production mode logs completed `next build` with warnings"
     ],
     "failed": [
+      "Telemetry CLI detects isSrcDir dir correctly for `next dev`",
       "Telemetry CLI production mode emits event when swc fails to load"
     ],
     "pending": [],
@@ -17281,13 +17301,14 @@
   },
   "test/integration/telemetry/test/page-features.test.js": {
     "passed": [
-      "page features telemetry detects correctly for `next dev` stopped (no turbo)",
       "page features telemetry production mode detect with reportWebVitals correctly for `next build`",
       "page features telemetry production mode detect without reportWebVitals correctly for `next build`",
       "page features telemetry production mode detects reportWebVitals with no _app correctly for `next build`",
       "page features telemetry production mode should detect app page counts"
     ],
-    "failed": [],
+    "failed": [
+      "page features telemetry detects correctly for `next dev` stopped (no turbo)"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -17667,14 +17688,13 @@
     "runtimeError": false
   },
   "test/integration/typescript-workspaces-paths/packages/www/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "TypeScript Features default behavior should alias components",
+      "TypeScript Features default behavior should not resolve to .d.ts files",
       "TypeScript Features default behavior should resolve a single matching alias",
       "TypeScript Features default behavior should resolve the first item in the array first",
       "TypeScript Features default behavior should resolve the second item in as a fallback"
-    ],
-    "failed": [
-      "TypeScript Features default behavior should not resolve to .d.ts files"
     ],
     "pending": [],
     "flakey": [],
@@ -17727,17 +17747,16 @@
       "Handle url imports with next build should render the /static page",
       "Handle url imports with next build should respond on value api",
       "Handle url imports with next dev should allow url import in css",
-      "Handle url imports with next dev should respond on value api"
-    ],
-    "failed": [
       "Handle url imports with next dev should client-render the /ssg page",
       "Handle url imports with next dev should client-render the /ssr page",
       "Handle url imports with next dev should client-render the /static page",
       "Handle url imports with next dev should render a static url image import",
       "Handle url imports with next dev should render the /ssg page",
       "Handle url imports with next dev should render the /ssr page",
-      "Handle url imports with next dev should render the /static page"
+      "Handle url imports with next dev should render the /static page",
+      "Handle url imports with next dev should respond on value api"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18322,13 +18341,6 @@
       "symbolic-file-links should work using browser",
       "symbolic-file-links should work with html"
     ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/production/app-dir/turbopack-build-marker/turbopack-build-marker.test.ts": {
-    "passed": ["turbopack-build-marker should have Turbopack build marker"],
     "failed": [],
     "pending": [],
     "flakey": [],
