@@ -207,7 +207,7 @@ export function createMutableActionQueue(
     state: initialState,
     dispatch: (payload: ReducerActions, setState: DispatchStatePromise) =>
       dispatchAction(actionQueue, payload, setState),
-    action: (state: AppRouterState, action: ReducerActions) => {
+    action: async (state: AppRouterState, action: ReducerActions) => {
       const result = reducer(state, action)
       return result
     },
