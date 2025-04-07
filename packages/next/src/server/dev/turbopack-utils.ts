@@ -663,11 +663,21 @@ export async function handleEntrypoints({
       name: string,
       prop: 'nodeJs' | 'edge'
     ) => {
+      const prettyName = {
+        nodeJs: 'Node.js',
+        edge: 'Edge',
+      }
+      const finishBuilding = dev.hooks.startBuilding(
+        `instrumentation ${prettyName[prop]}`,
+        undefined,
+        true
+      )
       const key = getEntryKey('root', 'server', name)
 
       const writtenEndpoint = await instrumentation[prop].writeToDisk()
       dev.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
       processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+      finishBuilding()
     }
     await processInstrumentation('instrumentation.nodeJs', 'nodeJs')
     await processInstrumentation('instrumentation.edge', 'edge')
@@ -700,6 +710,11 @@ export async function handleEntrypoints({
     const endpoint = middleware.endpoint
 
     async function processMiddleware() {
+      const finishBuilding = dev.hooks.startBuilding(
+        'middleware',
+        undefined,
+        true
+      )
       const writtenEndpoint = await endpoint.writeToDisk()
       dev.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
       processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
@@ -714,6 +729,7 @@ export async function handleEntrypoints({
           matchers: middlewareConfig.matchers,
         }
       }
+      finishBuilding()
     }
     await processMiddleware()
 

@@ -214,6 +214,7 @@ export interface RenderOptsPartial {
     clientTraceMetadata: string[] | undefined
     dynamicIO: boolean
     clientSegmentCache: boolean | 'client-only'
+    dynamicOnHover: boolean
     inlineCss: boolean
     authInterrupts: boolean
   }

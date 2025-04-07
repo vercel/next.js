@@ -77,11 +77,11 @@ module.exports = {
                 .replace(/\/\*.*?\*\//g, '')
                 .trim()
 
-              if (process.env.TURBOPACK && useLightningcss) {
+              if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
                 expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
                   `"@media (480px<=width<768px){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0px,0px)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
                 )
-              } else if (process.env.TURBOPACK && !useLightningcss) {
+              } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
                 expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
                   `"@media (480px<=width<768px){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0px,0px)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
                 )
@@ -116,7 +116,7 @@ module.exports = {
               delete sourceMapContentParsed.file
               delete sourceMapContentParsed.sources
 
-              if (process.env.TURBOPACK && useLightningcss) {
+              if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
                 expect(sourceMapContentParsed).toMatchInlineSnapshot(`
                   {
                     "sections": [
@@ -155,18 +155,6 @@ module.exports = {
                         },
                         "offset": {
                           "column": 0,
-                          "line": 1,
-                        },
-                      },
-                      {
-                        "map": {
-                          "mappings": "A",
-                          "names": [],
-                          "sources": [],
-                          "version": 3,
-                        },
-                        "offset": {
-                          "column": 264,
                           "line": 1,
                         },
                       },
@@ -174,7 +162,7 @@ module.exports = {
                     "version": 3,
                   }
                 `)
-              } else if (process.env.TURBOPACK && !useLightningcss) {
+              } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
                 expect(sourceMapContentParsed).toMatchInlineSnapshot(`
                   {
                     "sections": [
@@ -213,18 +201,6 @@ module.exports = {
                         },
                         "offset": {
                           "column": 0,
-                          "line": 1,
-                        },
-                      },
-                      {
-                        "map": {
-                          "mappings": "A",
-                          "names": [],
-                          "sources": [],
-                          "version": 3,
-                        },
-                        "offset": {
-                          "column": 264,
                           "line": 1,
                         },
                       },
@@ -546,7 +522,7 @@ module.exports = {
                 .replace(/\/\*.*?\*\//g, '')
                 .trim()
 
-              if (process.env.TURBOPACK && useLightningcss) {
+              if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
                 expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
                   .toMatchInlineSnapshot(`
                  ".other{color:#00f}
@@ -554,7 +530,7 @@ module.exports = {
 
                  .test{color:red}"
                 `)
-              } else if (process.env.TURBOPACK && !useLightningcss) {
+              } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
                 expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
                   .toMatchInlineSnapshot(`
                  ".other{color:#00f}

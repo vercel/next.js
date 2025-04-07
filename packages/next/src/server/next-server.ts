@@ -192,20 +192,6 @@ export default class NextNodeServer extends BaseServer<
     this.isDev = isDev
     this.sriEnabled = Boolean(options.conf.experimental?.sri?.algorithm)
 
-    // @ts-expect-error internal field not publicly exposed
-    const isTurbopackBuild = this.nextConfig.experimental?.isTurbopackBuild
-    if (!isDev && typeof isTurbopackBuild !== 'undefined') {
-      if (process.env.TURBOPACK && !isTurbopackBuild) {
-        throw new Error(
-          `Invariant: --turbopack is set but the build used Webpack`
-        )
-      } else if (!process.env.TURBOPACK && isTurbopackBuild) {
-        throw new Error(
-          `Invariant: --turbopack is not set but the build used Turbopack. Add --turbopack to "next start".`
-        )
-      }
-    }
-
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.
      * Using this from process.env allows targeting SSR by calling

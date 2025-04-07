@@ -14,7 +14,7 @@ describe('Mixed getStaticProps and getServerSideProps error', () => {
     'production mode',
     () => {
       // Uses Babel, not supported in Turbopack.
-      ;(process.env.TURBOPACK ? it.skip : it)(
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'should error with getStaticProps but no default export',
         async () => {
           // TODO: remove after investigating why dev swc build fails here
@@ -45,7 +45,7 @@ describe('Mixed getStaticProps and getServerSideProps error', () => {
       )
 
       // Uses Babel, not supported in Turbopack.
-      ;(process.env.TURBOPACK ? it.skip : it)(
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'should error when exporting both getStaticProps and getServerSideProps',
         async () => {
           // TODO: remove after investigating why dev swc build fails here
@@ -61,7 +61,7 @@ describe('Mixed getStaticProps and getServerSideProps error', () => {
       )
 
       // Uses Babel, not supported in Turbopack.
-      ;(process.env.TURBOPACK ? it.skip : it)(
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'should error when exporting both getStaticPaths and getServerSideProps',
         async () => {
           // TODO: remove after investigating why dev swc build fails here

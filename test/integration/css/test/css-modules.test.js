@@ -93,7 +93,7 @@ useLightningcss: ${useLightningcss}
       })
     }
 
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
       'Development Mode',
       () => {
         // TODO(PACK-2308): Fix the ordering issue of CSS Modules in turbopack
@@ -111,7 +111,7 @@ useLightningcss: ${useLightningcss}
         tests()
       }
     )
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
       'production mode',
       () => {
         beforeAll(async () => {
@@ -354,7 +354,7 @@ module.exports = {
 
 // https://github.com/vercel/next.js/issues/12445
 // This feature is not supported in Turbopack
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'CSS Modules Composes Ordering',
   () => {
     const appDir = join(fixturesDir, 'composes-ordering')

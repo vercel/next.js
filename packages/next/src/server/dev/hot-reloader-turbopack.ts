@@ -37,7 +37,7 @@ import {
 } from '../../client/components/react-dev-overlay/server/middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
-import { deleteAppClientCache, deleteCache } from './require-cache'
+import { deleteCache, deleteFromRequireCache } from './require-cache'
 import {
   clearAllModuleContexts,
   clearModuleContext,
@@ -170,7 +170,7 @@ export async function createHotReloaderTurbopack(
 
   // For the debugging purpose, check if createNext or equivalent next instance setup in test cases
   // works correctly. Normally `run-test` hides output so only will be visible when `--debug` flag is used.
-  if (process.env.TURBOPACK && isTestMode) {
+  if (isTestMode) {
     require('console').log('Creating turbopack project', {
       dir: projectPath,
       testMode: isTestMode,
@@ -339,7 +339,16 @@ export async function createHotReloaderTurbopack(
     )
 
     if (hasAppPaths) {
-      deleteAppClientCache()
+      deleteFromRequireCache(
+        require.resolve(
+          'next/dist/compiled/next-server/app-page-turbo.runtime.dev.js'
+        )
+      )
+      deleteFromRequireCache(
+        require.resolve(
+          'next/dist/compiled/next-server/app-page-turbo-experimental.runtime.dev.js'
+        )
+      )
     }
 
     const serverPaths = writtenEndpoint.serverPaths.map(({ path: p }) =>
@@ -939,6 +948,15 @@ export async function createHotReloaderTurbopack(
       isApp,
       url: requestUrl,
     }) {
+      // When there is no route definition this is an internal file not a route the user added.
+      // Middleware and instrumentation are handled in turbpack-utils.ts handleEntrypoints instead.
+      if (!definition) {
+        if (inputPage === '/middleware') return
+        if (inputPage === '/src/middleware') return
+        if (inputPage === '/instrumentation') return
+        if (inputPage === '/src/instrumentation') return
+      }
+
       return hotReloaderSpan
         .traceChild('ensure-page', {
           inputPage,

@@ -3,7 +3,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { assertNoRedbox } from 'next-test-utils'
 
 // Skipped in Turbopack, will be added later.
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Skipped in Turbopack',
   () => {
     describe('optimizePackageImports - mui', () => {

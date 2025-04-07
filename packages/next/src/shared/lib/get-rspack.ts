@@ -8,7 +8,7 @@ export function getRspackCore() {
   } catch (e) {
     if (e instanceof Error && 'code' in e && e.code === 'MODULE_NOT_FOUND') {
       throw new Error(
-        '@rspack/core is not available. Please make sure `@next/plugin-rspack` is correctly installed.'
+        '@rspack/core is not available. Please make sure `next-rspack` is correctly installed.'
       )
     }
 
@@ -20,11 +20,16 @@ export function getRspackReactRefresh() {
   gateCanary()
   try {
     // eslint-disable-next-line import/no-extraneous-dependencies
-    return require('@rspack/plugin-react-refresh')
+    const plugin = require('@rspack/plugin-react-refresh')
+    const entry = require.resolve(
+      '@rspack/plugin-react-refresh/react-refresh-entry'
+    )
+    plugin.entry = entry
+    return plugin
   } catch (e) {
     if (e instanceof Error && 'code' in e && e.code === 'MODULE_NOT_FOUND') {
       throw new Error(
-        '@rspack/plugin-react-refresh is not available. Please make sure `@next/plugin-rspack` is correctly installed.'
+        '@rspack/plugin-react-refresh is not available. Please make sure `next-rspack` is correctly installed.'
       )
     }
 

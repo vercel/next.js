@@ -345,7 +345,7 @@ describe('Error overlay - RSC build errors', () => {
     await expect(session.getRedboxSource()).resolves.toMatch(
       /must be a Client \n| Component/
     )
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
        "./app/server-with-errors/error-file/error.js (1:1)

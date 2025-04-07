@@ -133,6 +133,11 @@ export function getDefineEnv({
         }),
     'process.turbopack': isTurbopack,
     'process.env.TURBOPACK': isTurbopack,
+    'process.env.__NEXT_BUNDLER': isTurbopack
+      ? 'Turbopack'
+      : process.env.NEXT_RSPACK
+        ? 'Rspack'
+        : 'Webpack',
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
     'process.env.NODE_ENV':
       dev || config.experimental.allowDevelopmentBuild
@@ -181,6 +186,9 @@ export function getDefineEnv({
       clientRouterFilters?.dynamicFilter ?? false,
     'process.env.__NEXT_CLIENT_SEGMENT_CACHE': Boolean(
       config.experimental.clientSegmentCache
+    ),
+    'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
+      config.experimental.dynamicOnHover
     ),
     'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE':
       config.experimental.optimisticClientCache ?? true,

@@ -51,7 +51,7 @@ import {
   type ActionStore,
 } from '../../app-render/action-async-storage.external'
 import * as sharedModules from './shared-modules'
-import { getIsServerAction } from '../../lib/server-action-request-meta'
+import { getIsPossibleServerAction } from '../../lib/server-action-request-meta'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
 import { cleanURL } from './helpers/clean-url'
 import { StaticGenBailoutError } from '../../../client/components/static-generation-bailout'
@@ -393,6 +393,7 @@ export class AppRouteRouteModule extends RouteModule<
               stale: INFINITE_CACHE,
               tags: [...implicitTags.tags],
               prerenderResumeDataCache: null,
+              hmrRefreshHash: undefined,
             })
 
           let prospectiveResult
@@ -478,6 +479,7 @@ export class AppRouteRouteModule extends RouteModule<
             stale: INFINITE_CACHE,
             tags: [...implicitTags.tags],
             prerenderResumeDataCache: null,
+            hmrRefreshHash: undefined,
           })
 
           let responseHandled = false
@@ -667,7 +669,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     const actionStore: ActionStore = {
       isAppRoute: true,
-      isAction: getIsServerAction(req),
+      isAction: getIsPossibleServerAction(req),
     }
 
     const implicitTags = await getImplicitTags(
