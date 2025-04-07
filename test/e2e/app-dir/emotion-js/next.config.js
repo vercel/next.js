@@ -6,8 +6,8 @@ module.exports = {
       emotion: {
         importMap: {
           'import-map-test': {
-            styledCss: {
-              canonicalImport: ['@emotion/react', 'css'],
+            styledJsx: {
+              canonicalImport: ['@emotion/react', 'jsx'],
             },
           },
         },

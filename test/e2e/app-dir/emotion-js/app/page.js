@@ -1,7 +1,7 @@
 'use client'
-import { styledCss } from 'import-map-test'
+import { styledJsx } from 'import-map-test'
 
-const red = styledCss({ color: 'red' })
+const red = styledJsx.p({ color: 'red' })
 
 export default function Page() {
   return (
