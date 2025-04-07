@@ -12,7 +12,7 @@ describe('app-dir - missing required html tags', () => {
 
   it('should display correct error count in dev indicator', async () => {
     const browser = await next.browser('/')
-
+    await assertHasRedbox(browser)
     retry(async () => {
       expect(await hasErrorToast(browser)).toBe(true)
     })
