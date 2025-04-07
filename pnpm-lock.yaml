@@ -124,8 +124,8 @@ importers:
         specifier: 1.3.2
         version: 1.3.2(@swc/helpers@0.5.15)
       '@rspack/plugin-react-refresh':
-        specifier: 1.1.0
-        version: 1.1.0(react-refresh@0.12.0)(webpack-hot-middleware@2.26.1)
+        specifier: 1.2.0
+        version: 1.2.0(react-refresh@0.12.0)(webpack-hot-middleware@2.26.1)
       '@svgr/webpack':
         specifier: 5.5.0
         version: 5.5.0
@@ -1678,8 +1678,8 @@ importers:
         specifier: 1.3.2
         version: 1.3.2(@swc/helpers@0.5.15)
       '@rspack/plugin-react-refresh':
-        specifier: 1.1.0
-        version: 1.1.0(react-refresh@0.12.0)(webpack-hot-middleware@2.26.1)
+        specifier: 1.2.0
+        version: 1.2.0(react-refresh@0.12.0)(webpack-hot-middleware@2.26.1)
       react-refresh:
         specifier: 0.12.0
         version: 0.12.0
@@ -5319,8 +5319,8 @@ packages:
     resolution: {integrity: sha512-VynGOEsVw2s8TAlLf/uESfrgfrq2+rcXB1muPJYBWbsm1Oa6r5qVQhjA5ggM6z/coYPrsVMgovl3Ff7Q7OCp1w==}
     engines: {node: '>=16.0.0'}
 
-  '@rspack/plugin-react-refresh@1.1.0':
-    resolution: {integrity: sha512-Aaqoa8VnpGjBMUrjE4+SeHaEKYZ/bvaPV20MBk/SLvivug4oRzIGbUn7QFROBSdxx0Sw0yPjK5cSZLTxySatCQ==}
+  '@rspack/plugin-react-refresh@1.2.0':
+    resolution: {integrity: sha512-DTsbtggCfsiXE5QQtYMS8rKfEF8GIjwPDbgIT6Kg8BlAjpJY4jT5IisyhfIi7YOT3d5RIvu60iFB6Kr9sSMsnA==}
     peerDependencies:
       react-refresh: '>=0.10.0 <1.0.0'
       webpack-hot-middleware: 2.x
@@ -21671,7 +21671,7 @@ snapshots:
 
   '@rspack/lite-tapable@1.0.1': {}
 
-  '@rspack/plugin-react-refresh@1.1.0(react-refresh@0.12.0)(webpack-hot-middleware@2.26.1)':
+  '@rspack/plugin-react-refresh@1.2.0(react-refresh@0.12.0)(webpack-hot-middleware@2.26.1)':
     dependencies:
       error-stack-parser: 2.1.4
       html-entities: 2.6.0

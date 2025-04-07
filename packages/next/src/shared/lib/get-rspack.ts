@@ -20,7 +20,12 @@ export function getRspackReactRefresh() {
   gateCanary()
   try {
     // eslint-disable-next-line import/no-extraneous-dependencies
-    return require('@rspack/plugin-react-refresh')
+    const plugin = require('@rspack/plugin-react-refresh')
+    const entry = require.resolve(
+      '@rspack/plugin-react-refresh/react-refresh-entry'
+    )
+    plugin.entry = entry
+    return plugin
   } catch (e) {
     if (e instanceof Error && 'code' in e && e.code === 'MODULE_NOT_FOUND') {
       throw new Error(
