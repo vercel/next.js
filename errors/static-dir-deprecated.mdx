@@ -15,24 +15,22 @@ You can move your `static` directory inside of the `public` directory and all UR
 **Before**
 
 ```
-static/
-  my-image.jpg
-pages/
-  index.js
-components/
-  my-image.js
+.
+├── pages/
+│   └── index.js
+└── static/
+    └── my-image.jpg
 ```
 
 **After**
 
 ```
-public/
-  static/
-    my-image.jpg
-pages/
-  index.js
-components/
-  my-image.js
+.
+├── pages/
+│   └── index.js
+└── public/
+    └── static/
+        └── my-image.jpg
 ```
 
 ## Useful Links
