@@ -38,7 +38,7 @@ describe('Error test if the loader file export a named function', () => {
 
     // next build doesn't support turbopack yet
     // see https://nextjs.org/docs/app/api-reference/turbopack#unsupported-features
-    ;(isNextStart && !process.env.TURBOPACK ? describe : describe.skip)(
+    ;(isNextStart && !process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
       'build and start only',
       () => {
         it('should show the build error', async () => {

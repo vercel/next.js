@@ -44,7 +44,7 @@ const unsupportedClasses = [
   'WritableStreamDefaultController',
 ]
 
-const isTurbopack = process.env.TURBOPACK
+const isTurbopack = process.env.IS_TURBOPACK_TEST
 
 describe.each([
   {

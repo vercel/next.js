@@ -59,14 +59,14 @@ module.exports = {
           const cssSheet = $('link[rel="stylesheet"]')
           const cssContent = await getStylesheetContents($, appPort, cssSheet)
 
-          if (process.env.TURBOPACK && useLightningcss) {
+          if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
              [
                "/_next/static/chunks/HASH.css:
              .red-text{color:red}",
              ]
             `)
-          } else if (process.env.TURBOPACK && !useLightningcss) {
+          } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
              [
                "/_next/static/chunks/HASH.css:
@@ -143,14 +143,14 @@ module.exports = {
           const cssSheet = $('link[rel="stylesheet"]')
           const cssContent = await getStylesheetContents($, appPort, cssSheet)
 
-          if (process.env.TURBOPACK && useLightningcss) {
+          if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
              [
                "/_next/static/chunks/HASH.css:
              .red-text{color:red}",
              ]
             `)
-          } else if (process.env.TURBOPACK && !useLightningcss) {
+          } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
              [
                "/_next/static/chunks/HASH.css:
@@ -222,14 +222,14 @@ module.exports = {
           const cssSheet = $('link[rel="stylesheet"]')
           const cssContent = await getStylesheetContents($, appPort, cssSheet)
 
-          if (process.env.TURBOPACK && useLightningcss) {
+          if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
              [
                "/_next/static/chunks/HASH.css:
              .red-text{color:red}",
              ]
             `)
-          } else if (process.env.TURBOPACK && !useLightningcss) {
+          } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
              [
                "/_next/static/chunks/HASH.css:
@@ -302,7 +302,7 @@ module.exports = {
           const cssSheet = $('link[rel="stylesheet"]')
           const cssContent = await getStylesheetContents($, appPort, cssSheet)
 
-          if (process.env.TURBOPACK && useLightningcss) {
+          if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
              [
                "/_next/static/chunks/HASH.css:
@@ -312,7 +312,7 @@ module.exports = {
              .blue-text{color:#00f}",
              ]
             `)
-          } else if (process.env.TURBOPACK && !useLightningcss) {
+          } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
              [
                "/_next/static/chunks/HASH.css:
@@ -388,7 +388,7 @@ module.exports = {
           const cssSheet = $('link[rel="stylesheet"]')
           const cssContent = await getStylesheetContents($, appPort, cssSheet)
 
-          if (process.env.TURBOPACK && useLightningcss) {
+          if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
              [
                "/_next/static/chunks/HASH.css:
@@ -404,7 +404,7 @@ module.exports = {
              .blue-text{color:#00f}",
              ]
             `)
-          } else if (process.env.TURBOPACK && !useLightningcss) {
+          } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
              [
                "/_next/static/chunks/HASH.css:
@@ -487,7 +487,7 @@ module.exports = {
           const cssSheet = $('link[rel="stylesheet"]')
           const cssContent = await getStylesheetContents($, appPort, cssSheet)
 
-          if (process.env.TURBOPACK && useLightningcss) {
+          if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
              [
                "/_next/static/chunks/HASH.css:
@@ -497,7 +497,7 @@ module.exports = {
              .red-text{color:red}",
              ]
             `)
-          } else if (process.env.TURBOPACK && !useLightningcss) {
+          } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
              [
                "/_next/static/chunks/HASH.css:
@@ -573,7 +573,7 @@ module.exports = {
           const cssSheet = $('link[rel="stylesheet"]')
           const cssContent = await getStylesheetContents($, appPort, cssSheet)
 
-          if (process.env.TURBOPACK && useLightningcss) {
+          if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
              [
                "/_next/static/chunks/HASH.css:
@@ -586,7 +586,7 @@ module.exports = {
              .blue-text{color:#00f}",
              ]
             `)
-          } else if (process.env.TURBOPACK && !useLightningcss) {
+          } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
              [
                "/_next/static/chunks/HASH.css:
@@ -650,7 +650,7 @@ describe('CSS URL via `file-loader` and asset prefix (1)', () => {
         const cssSheet = $('link[rel="stylesheet"]')
         const cssContent = await getStylesheetContents($, appPort, cssSheet)
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(cssContent).toMatchInlineSnapshot(`
            [
              "/_next/static/chunks/HASH.css:
@@ -706,7 +706,7 @@ describe('CSS URL via `file-loader` and asset prefix (2)', () => {
         const cssSheet = $('link[rel="stylesheet"]')
         const cssContent = await getStylesheetContents($, appPort, cssSheet)
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(cssContent).toMatchInlineSnapshot(`
            [
              "/_next/static/chunks/HASH.css:
