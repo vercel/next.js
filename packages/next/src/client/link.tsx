@@ -77,7 +77,8 @@ type InternalLinkProps = {
    *
    * - In the **App Router**:
    *   - `viewport` (default): prefetch when link appears in viewport.
-   *   - `predict`: prefetch based on prediction of user's cursor.
+   *   - `predict`: prefetch when user's mouse move towards the link.
+   *   - `intent`: prefetch when user hovers the link.
    *   - `true`: same as `viewport`, but also set `prefetchScope` to `full`.
    *   - `false`: Disable prefetching on both viewport and hover.
    * - In the **Pages Router**:
@@ -453,7 +454,9 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           }
         } else if (key === 'prefetchScope') {
           if (props[key] != null) {
-            throw new Error('`prefetchScope` API is available only on App Router')
+            throw new Error(
+              '`prefetchScope` API is available only on App Router'
+            )
           }
         } else {
           // TypeScript trick for type-guarding:
