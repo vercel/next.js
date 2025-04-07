@@ -1187,7 +1187,7 @@ export default async function getBaseWebpackConfig(
                 },
                 mangle: !noMangling && {
                   reserved: ['AbortSignal'],
-                  disableCharFreq: true,
+                  disableCharFreq: !isClient,
                 },
               },
             }),
