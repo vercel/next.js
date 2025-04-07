@@ -9,19 +9,6 @@ describe('app dir - emotion-js', () => {
       '@emotion/react': 'latest',
       '@emotion/cache': 'latest',
     },
-    nextConfig: {
-      compiler: {
-        emotion: {
-          importMap: {
-            'import-map-test': {
-              styledCss: {
-                canonicalImport: ['@emotion/react', 'css'],
-              },
-            },
-          },
-        },
-      },
-    },
   })
 
   if (skipped) {
