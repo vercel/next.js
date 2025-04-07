@@ -35,6 +35,7 @@ pub enum EmotionLabelKind {
 #[derive(
     Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue, OperationValue,
 )]
+#[serde(rename_all = "camelCase")]
 pub struct EmotionImportItemConfig {
     pub canonical_import: EmotionItemSpecifier,
     pub styled_base_import: Option<EmotionItemSpecifier>,
