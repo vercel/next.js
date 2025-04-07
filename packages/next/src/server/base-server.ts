@@ -1520,9 +1520,7 @@ export default abstract class Server<
         parsedUrl.pathname = normalizeResult.pathname
 
         for (const key of Object.keys(parsedUrl.query)) {
-          if (!key.startsWith('__next') && !key.startsWith('_next')) {
-            delete parsedUrl.query[key]
-          }
+          delete parsedUrl.query[key]
         }
         const invokeQuery = getRequestMeta(req, 'invokeQuery')
 

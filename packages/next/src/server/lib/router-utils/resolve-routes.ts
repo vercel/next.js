@@ -618,14 +618,6 @@ export function getResolveRoutes(
                 }
               }
 
-              const query = parsedUrl.query
-              // keep internal query state
-              for (const key of Object.keys(query)) {
-                if (key.startsWith('_next') || key.startsWith('__next')) {
-                  parsedUrl.query[key] = query[key]
-                }
-              }
-
               if (config.i18n) {
                 const curLocaleResult = normalizeLocalePath(
                   parsedUrl.pathname || '',
