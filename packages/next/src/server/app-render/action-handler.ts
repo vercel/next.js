@@ -501,20 +501,6 @@ export async function handleAction({
 
   let temporaryReferences: TemporaryReferenceSet | undefined
 
-  const finalizeAndGenerateFlight: GenerateFlight = (...args) => {
-    // When we switch to the render phase, cookies() will return
-    // `workUnitStore.cookies` instead of `workUnitStore.userspaceMutableCookies`.
-    // We want the render to see any cookie writes that we performed during the action,
-    // so we need to update the immutable cookies to reflect the changes.
-    synchronizeMutableCookies(requestStore)
-
-    // The server action might have toggled draft mode, so we need to reflect
-    // that in the work store to be up-to-date for subsequent rendering.
-    workStore.isDraftMode = requestStore.draftMode.isEnabled
-
-    return generateFlight(...args)
-  }
-
   // When running actions the default is no-store, you can still `cache: 'force-cache'`
   workStore.fetchCache = 'default-no-store'
 
@@ -566,7 +552,6 @@ export async function handleAction({
 
       if (isFetchAction) {
         res.statusCode = 500
-        await executeRevalidates(workStore)
 
         const promise = Promise.reject(error)
         try {
@@ -581,10 +566,10 @@ export async function handleAction({
 
         return {
           type: 'done',
-          result: await finalizeAndGenerateFlight(req, ctx, requestStore, {
+          result: await generateFlight(req, ctx, requestStore, {
             actionResult: promise,
-            // if the page was not revalidated, we can skip the rendering the flight tree
-            skipFlight: !workStore.pathWasRevalidated,
+            // We didn't execute an action, so no revalidations could have occurred. We can skip rendering the page.
+            skipFlight: true,
             temporaryReferences,
           }),
         }
@@ -672,16 +657,13 @@ export async function handleAction({
               // Only warn if it's a server action, otherwise skip for other post requests
               warnBadServerActionRequest()
 
-              let actionReturnedState: unknown
-              requestStore.phase = 'action'
-              try {
-                actionReturnedState = await workUnitAsyncStorage.run(
-                  requestStore,
-                  action
+              const actionReturnedState =
+                await executeActionAndPrepareForRender(
+                  action as () => Promise<unknown>,
+                  [],
+                  workStore,
+                  requestStore
                 )
-              } finally {
-                requestStore.phase = 'render'
-              }
 
               formState = await decodeFormState(
                 actionReturnedState,
@@ -846,16 +828,13 @@ export async function handleAction({
               // Only warn if it's a server action, otherwise skip for other post requests
               warnBadServerActionRequest()
 
-              let actionReturnedState: unknown
-              requestStore.phase = 'action'
-              try {
-                actionReturnedState = await workUnitAsyncStorage.run(
-                  requestStore,
-                  action
+              const actionReturnedState =
+                await executeActionAndPrepareForRender(
+                  action as () => Promise<unknown>,
+                  [],
+                  workStore,
+                  requestStore
                 )
-              } finally {
-                requestStore.phase = 'render'
-              }
 
               formState = await decodeFormState(
                 actionReturnedState,
@@ -938,22 +917,18 @@ export async function handleAction({
           actionId!
         ]
 
-      let returnVal: unknown
-      requestStore.phase = 'action'
-      try {
-        returnVal = await workUnitAsyncStorage.run(requestStore, () =>
-          actionHandler.apply(null, boundActionArguments)
-        )
-      } finally {
-        requestStore.phase = 'render'
-      }
+      const returnVal = await executeActionAndPrepareForRender(
+        actionHandler,
+        boundActionArguments,
+        workStore,
+        requestStore
+      )
 
       // For form actions, we need to continue rendering the page.
       if (isFetchAction) {
-        await executeRevalidates(workStore)
         addRevalidationHeader(res, { workStore, requestStore })
 
-        actionResult = await finalizeAndGenerateFlight(req, ctx, requestStore, {
+        actionResult = await generateFlight(req, ctx, requestStore, {
           actionResult: Promise.resolve(returnVal),
           // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
           skipFlight: !workStore.pathWasRevalidated || actionWasForwarded,
@@ -972,7 +947,6 @@ export async function handleAction({
       const redirectUrl = getURLFromRedirectError(err)
       const redirectType = getRedirectTypeFromError(err)
 
-      await executeRevalidates(workStore)
       addRevalidationHeader(res, { workStore, requestStore })
 
       // if it's a fetch action, we'll set the status code for logging/debugging purposes
@@ -1002,7 +976,6 @@ export async function handleAction({
     } else if (isHTTPAccessFallbackError(err)) {
       res.statusCode = getAccessFallbackHTTPStatus(err)
 
-      await executeRevalidates(workStore)
       addRevalidationHeader(res, { workStore, requestStore })
 
       if (isFetchAction) {
@@ -1018,7 +991,7 @@ export async function handleAction({
         }
         return {
           type: 'done',
-          result: await finalizeAndGenerateFlight(req, ctx, requestStore, {
+          result: await generateFlight(req, ctx, requestStore, {
             skipFlight: false,
             actionResult: promise,
             temporaryReferences,
@@ -1035,7 +1008,6 @@ export async function handleAction({
       // so that we can respond with a 413 to requests that break the body size limit
       // (but if we do that, we also need to make sure that whatever handles the non-fetch error path below does the same)
       res.statusCode = 500
-      await executeRevalidates(workStore)
       const promise = Promise.reject(err)
       try {
         // we need to await the promise to trigger the rejection early
@@ -1059,6 +1031,38 @@ export async function handleAction({
     }
 
     throw err
+  }
+}
+
+async function executeActionAndPrepareForRender<
+  TFn extends (...args: any[]) => Promise<any>,
+>(
+  action: TFn,
+  args: Parameters<TFn>,
+  workStore: WorkStore,
+  requestStore: RequestStore
+): Promise<Awaited<ReturnType<TFn>>> {
+  requestStore.phase = 'action'
+  try {
+    return await workUnitAsyncStorage.run(requestStore, () =>
+      action.apply(null, args)
+    )
+  } finally {
+    requestStore.phase = 'render'
+
+    // When we switch to the render phase, cookies() will return
+    // `workUnitStore.cookies` instead of `workUnitStore.userspaceMutableCookies`.
+    // We want the render to see any cookie writes that we performed during the action,
+    // so we need to update the immutable cookies to reflect the changes.
+    synchronizeMutableCookies(requestStore)
+
+    // The server action might have toggled draft mode, so we need to reflect
+    // that in the work store to be up-to-date for subsequent rendering.
+    workStore.isDraftMode = requestStore.draftMode.isEnabled
+
+    // If the action called revalidateTag/revalidatePath, then that might affect data used by the subsequent render,
+    // so we need to make sure all revalidations are applied before that
+    await executeRevalidates(workStore)
   }
 }
 
