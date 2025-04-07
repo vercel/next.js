@@ -3,7 +3,6 @@ module.exports = {
   reactStrictMode: true,
   compiler: {
     emotion: {
-      enabled: true,
       importMap: {
         'import-map-test': {
           styledCss: {
