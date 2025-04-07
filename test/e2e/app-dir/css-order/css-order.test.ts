@@ -217,7 +217,7 @@ const options = (mode: string) => ({
   files: {
     app: new FileRef(path.join(__dirname, 'app')),
     pages: new FileRef(path.join(__dirname, 'pages')),
-    'next.config.js': process.env.TURBOPACK
+    'next.config.js': process.env.IS_TURBOPACK_TEST
       ? `
             module.exports = {}`
       : `
@@ -232,7 +232,7 @@ const options = (mode: string) => ({
   },
   skipDeployment: true,
 })
-describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', true])(
+describe.each(process.env.IS_TURBOPACK_TEST ? ['turbo'] : ['strict', true])(
   'css-order %s',
   (mode: string) => {
     const { next, isNextDev, skipped } = nextTestSetup(options(mode))
@@ -294,7 +294,7 @@ describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', true])(
     }
   }
 )
-describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])(
+describe.each(process.env.IS_TURBOPACK_TEST ? ['turbo'] : ['strict', 'loose'])(
   'css-order %s',
   (mode: string) => {
     const { next, isNextDev } = nextTestSetup(options(mode))
@@ -347,7 +347,7 @@ describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])(
     }
   }
 )
-describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])(
+describe.each(process.env.IS_TURBOPACK_TEST ? ['turbo'] : ['strict', 'loose'])(
   'css-order %s',
   (mode: string) => {
     const { next } = nextTestSetup(options(mode))

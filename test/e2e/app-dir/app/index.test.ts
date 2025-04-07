@@ -174,7 +174,7 @@ describe('app dir - basic', () => {
   }
 
   // Turbopack has different chunking in dev/production which results in the entrypoint name not being included in the outputs.
-  if (!process.env.TURBOPACK) {
+  if (!process.env.IS_TURBOPACK_TEST) {
     it('should encode chunk path correctly', async () => {
       await next.fetch('/dynamic-client/first/second')
       const browser = await next.browser('/')

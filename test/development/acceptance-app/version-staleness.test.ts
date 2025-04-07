@@ -47,7 +47,7 @@ describe('Error Overlay version staleness', () => {
 
     await session.openRedbox()
 
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       expect(await getStaleness(browser)).toMatchInlineSnapshot(`
          "Next.js 1.0.0 (outdated)
          Turbopack"
@@ -89,7 +89,7 @@ describe('Error Overlay version staleness', () => {
       `
     )
 
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       expect(await getStaleness(browser)).toMatchInlineSnapshot(`
          "Next.js 2.0.0 (outdated)
          Turbopack"
@@ -128,7 +128,7 @@ describe('Error Overlay version staleness', () => {
       `
     )
 
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       expect(await getStaleness(browser)).toMatchInlineSnapshot(`
          "Next.js 3.0.0 (outdated)
          Turbopack"

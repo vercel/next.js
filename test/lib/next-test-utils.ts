@@ -1214,7 +1214,7 @@ export function getPageFileFromBuildManifest(dir: string, page: string) {
 
   const pageFile = pageFiles[pageFiles.length - 1]
   expect(pageFile).toEndWith('.js')
-  if (!process.env.TURBOPACK) {
+  if (!process.env.IS_TURBOPACK_TEST) {
     expect(pageFile).toInclude(`pages${page === '' ? '/index' : page}`)
   }
   if (!pageFile) {
