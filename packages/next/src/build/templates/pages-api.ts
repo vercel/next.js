@@ -1,4 +1,3 @@
-import './set-turbopack-global'
 import { PagesAPIRouteModule } from '../../server/route-modules/pages-api/module.compiled'
 import { RouteKind } from '../../server/route-kind'
 

@@ -1,4 +1,3 @@
-import './set-turbopack-global'
 import { createServerModuleMap } from '../../server/app-render/action-utils'
 import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
 import type { NextConfigComplete } from '../../server/config-shared'

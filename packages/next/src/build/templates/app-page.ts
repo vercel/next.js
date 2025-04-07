@@ -1,4 +1,3 @@
-import './set-turbopack-global'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import { AppPageRouteModule } from '../../server/route-modules/app-page/module.compiled' with { 'turbopack-transition': 'next-ssr' }
 import { RouteKind } from '../../server/route-kind' with { 'turbopack-transition': 'next-server-utility' }

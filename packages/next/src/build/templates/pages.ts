@@ -1,4 +1,3 @@
-import './set-turbopack-global'
 import { PagesRouteModule } from '../../server/route-modules/pages/module.compiled'
 import { RouteKind } from '../../server/route-kind'
 import { hoist } from './helpers'

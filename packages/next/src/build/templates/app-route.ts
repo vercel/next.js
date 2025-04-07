@@ -1,4 +1,3 @@
-import './set-turbopack-global'
 import {
   AppRouteRouteModule,
   type AppRouteRouteModuleOptions,

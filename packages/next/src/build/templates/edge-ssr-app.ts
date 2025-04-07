@@ -1,4 +1,3 @@
-import './set-turbopack-global'
 import '../../server/web/globals'
 import { adapter } from '../../server/web/adapter'
 import { getRender } from '../webpack/loaders/next-edge-ssr-loader/render'
