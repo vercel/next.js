@@ -1,3 +1,5 @@
+import './set-turbopack-global'
+
 import type { AdapterOptions } from '../../server/web/adapter'
 
 import '../../server/web/globals'
