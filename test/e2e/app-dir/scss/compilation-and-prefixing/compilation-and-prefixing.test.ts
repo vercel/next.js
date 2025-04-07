@@ -45,7 +45,7 @@ describe.each([
           .replace(/\/\*.*?\*\//g, '')
           .trim()
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           if (dependencies.sass) {
             expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
               `".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
@@ -84,7 +84,7 @@ describe.each([
         delete sourceMapContentParsed.file
         delete sourceMapContentParsed.sources
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           if (dependencies.sass) {
             expect(sourceMapContentParsed).toMatchInlineSnapshot(`
               {
@@ -103,18 +103,6 @@ describe.each([
                     },
                     "offset": {
                       "column": 0,
-                      "line": 1,
-                    },
-                  },
-                  {
-                    "map": {
-                      "mappings": "A",
-                      "names": [],
-                      "sources": [],
-                      "version": 3,
-                    },
-                    "offset": {
-                      "column": 91,
                       "line": 1,
                     },
                   },
@@ -140,18 +128,6 @@ describe.each([
                     },
                     "offset": {
                       "column": 0,
-                      "line": 1,
-                    },
-                  },
-                  {
-                    "map": {
-                      "mappings": "A",
-                      "names": [],
-                      "sources": [],
-                      "version": 3,
-                    },
-                    "offset": {
-                      "column": 91,
                       "line": 1,
                     },
                   },

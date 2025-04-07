@@ -7,8 +7,11 @@
  * specific to the runtime context.
  */
 
+type CurrentScript = { getAttribute: (name: string) => string | null };
 type ChunkListPath = string & { readonly brand: unique symbol };
+type ChunkListScript = CurrentScript & { readonly brand: unique symbol };
 type ChunkPath = string & { readonly brand: unique symbol };
+type ChunkScript = CurrentScript & { readonly brand: unique symbol };
 type ChunkUrl = string & { readonly brand: unique symbol };
 type ModuleId = string;
 

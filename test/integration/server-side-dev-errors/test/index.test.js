@@ -25,7 +25,7 @@ let stderr = ''
 let appPort
 let app
 
-const isTurbopack = process.env.TURBOPACK
+const isTurbopack = process.env.IS_TURBOPACK_TEST
 
 describe('server-side dev errors', () => {
   beforeAll(async () => {

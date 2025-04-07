@@ -39,7 +39,7 @@ function createExpectError(cliOutput: string) {
 }
 
 function runTests(options: { withMinification: boolean }) {
-  const isTurbopack = !!process.env.TURBOPACK
+  const isTurbopack = !!process.env.IS_TURBOPACK_TEST
   const { withMinification } = options
   describe(`Dynamic IO Errors - ${withMinification ? 'With Minification' : 'Without Minification'}`, () => {
     describe('Dynamic Metadata - Static Route', () => {

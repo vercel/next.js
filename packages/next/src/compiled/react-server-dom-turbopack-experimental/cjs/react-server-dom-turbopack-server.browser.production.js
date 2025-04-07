@@ -543,7 +543,6 @@ var HooksDispatcher = {
   }
 };
 HooksDispatcher.useEffectEvent = unsupportedHook;
-HooksDispatcher.useSwipeTransition = unsupportedHook;
 function unsupportedHook() {
   throw Error("This Hook is not supported in Server Components.");
 }

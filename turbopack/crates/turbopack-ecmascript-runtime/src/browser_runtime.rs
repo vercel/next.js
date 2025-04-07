@@ -149,7 +149,7 @@ pub async fn get_browser_runtime_code(
         );
     }
 
-    // Registering chunks depends on the BACKEND variable, which is set by the
+    // Registering chunks and chunk lists depends on the BACKEND variable, which is set by the
     // specific runtime code, hence it must be appended after it.
     writedoc!(
         code,
@@ -157,6 +157,21 @@ pub async fn get_browser_runtime_code(
             const chunksToRegister = globalThis.TURBOPACK;
             globalThis.TURBOPACK = {{ push: registerChunk }};
             chunksToRegister.forEach(registerChunk);
+        "#
+    )?;
+    if matches!(*runtime_type, RuntimeType::Development) {
+        writedoc!(
+            code,
+            r#"
+            const chunkListsToRegister = globalThis.TURBOPACK_CHUNK_LISTS || [];
+            chunkListsToRegister.forEach(registerChunkList);
+            globalThis.TURBOPACK_CHUNK_LISTS = {{ push: registerChunkList }};
+        "#
+        )?;
+    }
+    writedoc!(
+        code,
+        r#"
             }})();
         "#
     )?;

@@ -23,7 +23,7 @@ describe('app-dir - error-on-next-codemod-comment', () => {
 
       await assertHasRedbox(browser)
 
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
            "./app/page.tsx (2:2)
            Ecmascript file had an error

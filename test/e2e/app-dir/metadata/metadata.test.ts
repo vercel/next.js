@@ -833,7 +833,7 @@ describe('app dir - metadata', () => {
     if (isNextDev) {
       // This test frequently causes a compilation error when run in Turbopack
       // which also causes all subsequent tests to fail. Disabled while we investigate to reduce flakes.
-      ;(process.env.TURBOPACK ? it.skip : it)(
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'should handle updates to the file icon name and order',
         async () => {
           await next.renameFile(

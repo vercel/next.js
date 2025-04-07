@@ -24,7 +24,7 @@ exports = {}
 
 handler = (...) => undefined
 
-hello = promises_namespaceObject["readFile"]("./hello.txt", "utf-8")
+hello = await(promises_namespaceObject["readFile"]("./hello.txt", "utf-8"))
 
 moduleId = arguments[0]
 

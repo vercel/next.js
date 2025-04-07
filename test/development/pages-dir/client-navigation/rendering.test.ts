@@ -324,7 +324,7 @@ describe('Client Navigation rendering', () => {
 
       const buildManifest = await next.readJSON(`.next/${BUILD_MANIFEST}`)
       const reactLoadableManifest = await next.readJSON(
-        process.env.TURBOPACK
+        process.env.IS_TURBOPACK_TEST
           ? `.next/server/pages/dynamic/ssr/${REACT_LOADABLE_MANIFEST}`
           : `.next/${REACT_LOADABLE_MANIFEST}`
       )
@@ -334,7 +334,7 @@ describe('Client Navigation rendering', () => {
         return item
           .replace(/\\/g, '/')
           .endsWith(
-            process.env.TURBOPACK
+            process.env.IS_TURBOPACK_TEST
               ? 'components/hello1.js [client] (ecmascript, next/dynamic entry)'
               : 'ssr.js -> ../../components/hello1'
           )

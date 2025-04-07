@@ -21,7 +21,7 @@ use turbopack::{
     css::chunk::CssChunkType, ecmascript::chunk::EcmascriptChunkType,
     global_module_ids::get_global_module_id_strategy,
 };
-use turbopack_browser::BrowserChunkingContext;
+use turbopack_browser::{BrowserChunkingContext, ContentHashing};
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
@@ -354,6 +354,7 @@ async fn build_internal(
                             ..Default::default()
                         },
                     );
+                    builder = builder.use_content_hashing(ContentHashing::Direct { length: 16 })
                 }
             }
 

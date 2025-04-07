@@ -7,7 +7,7 @@ describe('css-chunking', () => {
   // do not contain styles for the `/other` page, which can happen
   // when the CSSChunkingPlugin is enabled and styles are shared across
   // both routes.
-  ;(process.env.TURBOPACK ? it.skip : it)(
+  ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
     'should be possible to disable the chunking plugin',
     async () => {
       const $ = await next.render$('/')

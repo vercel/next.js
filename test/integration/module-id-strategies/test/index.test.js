@@ -16,7 +16,7 @@ let appPort
 let app
 
 describe('minified module ids', () => {
-  ;(!process.env.TURBOPACK || process.env.TURBOPACK_DEV
+  ;(!process.env.IS_TURBOPACK_TEST || process.env.TURBOPACK_DEV
     ? describe.skip
     : describe)('production mode', () => {
     let ssrBundles = ''
@@ -65,7 +65,7 @@ describe('minified module ids', () => {
       expect(staticBundles).not.toContain('next/dist/client/next-turbopack')
     })
   })
-  ;(!process.env.TURBOPACK || process.env.TURBOPACK_BUILD
+  ;(!process.env.IS_TURBOPACK_TEST || process.env.TURBOPACK_BUILD
     ? describe.skip
     : describe)('development mode', () => {
     let ssrBundles = ''

@@ -5,7 +5,7 @@ describe('Edge config validations', () => {
   let next: NextInstance
 
   afterAll(() => next.destroy())
-  ;(process.env.TURBOPACK ? it.skip : it)(
+  ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
     'fails to build when unstable_allowDynamic is not a string',
     async () => {
       next = await createNext({

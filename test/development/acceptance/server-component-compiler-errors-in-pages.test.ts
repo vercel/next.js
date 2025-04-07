@@ -51,7 +51,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       /That only works in a Server Component/
     )
 
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
        "./components/Comp.js (1:1)
@@ -128,7 +128,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       /That only works in a Server Component/
     )
 
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
        "./components/Comp.js (1:1)
@@ -207,7 +207,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       /That only works in a Server Component/
     )
 
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
        "./components/Comp.js (1:10)
