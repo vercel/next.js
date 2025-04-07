@@ -87,6 +87,7 @@ pub fn minify(code: &Code, source_maps: bool, mangle: bool) -> Result<Code> {
                         mangle: if mangle {
                             Some(MangleOptions {
                                 reserved: vec!["AbortSignal".into()],
+                                disable_char_freq: true,
                                 ..Default::default()
                             })
                         } else {
