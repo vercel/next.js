@@ -905,11 +905,12 @@ pub async fn get_server_module_options_context(
                 ));
             }
 
+            foreign_next_server_rules.extend(custom_source_transform_rules.iter().cloned());
+            foreign_next_server_rules.extend(internal_custom_rules);
+
             custom_source_transform_rules.push(
                 get_next_react_server_components_transform_rule(next_config, true, app_dir).await?,
             );
-
-            internal_custom_rules.extend(custom_source_transform_rules.iter().cloned());
 
             next_server_rules.extend(custom_source_transform_rules);
             next_server_rules.extend(source_transform_rules);
@@ -922,7 +923,7 @@ pub async fn get_server_module_options_context(
                 ..module_options_context
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
-                module_rules: internal_custom_rules.clone(),
+                module_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
@@ -936,7 +937,7 @@ pub async fn get_server_module_options_context(
                     ),
                     ..module_options_context.ecmascript.clone()
                 },
-                module_rules: internal_custom_rules,
+                module_rules: foreign_next_server_rules,
                 ..module_options_context.clone()
             };
             ModuleOptionsContext {
