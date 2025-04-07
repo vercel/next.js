@@ -33,6 +33,7 @@ export function Base({ scale = 1 }: { scale?: DevToolsScale }) {
             'Source Sans Pro', sans-serif;
 
           font-family: var(--font-stack-sans);
+          font-variant-ligatures: none;
 
           /* TODO: Remove replaced ones. */
           --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
