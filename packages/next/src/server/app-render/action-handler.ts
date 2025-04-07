@@ -922,12 +922,12 @@ export async function handleAction({
         boundActionArguments,
         workStore,
         requestStore
-      )
+      ).finally(() => {
+        addRevalidationHeader(res, { workStore, requestStore })
+      })
 
       // For form actions, we need to continue rendering the page.
       if (isFetchAction) {
-        addRevalidationHeader(res, { workStore, requestStore })
-
         actionResult = await generateFlight(req, ctx, requestStore, {
           actionResult: Promise.resolve(returnVal),
           // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
@@ -946,8 +946,6 @@ export async function handleAction({
     if (isRedirectError(err)) {
       const redirectUrl = getURLFromRedirectError(err)
       const redirectType = getRedirectTypeFromError(err)
-
-      addRevalidationHeader(res, { workStore, requestStore })
 
       // if it's a fetch action, we'll set the status code for logging/debugging purposes
       // but we won't set a Location header, as the redirect will be handled by the client router
@@ -975,8 +973,6 @@ export async function handleAction({
       }
     } else if (isHTTPAccessFallbackError(err)) {
       res.statusCode = getAccessFallbackHTTPStatus(err)
-
-      addRevalidationHeader(res, { workStore, requestStore })
 
       if (isFetchAction) {
         const promise = Promise.reject(err)
