@@ -214,32 +214,35 @@ export type AppSharedContext = {
 }
 
 export type AppRenderContext = {
-  sharedContext: AppSharedContext
-  workStore: WorkStore
-  url: ReturnType<typeof parseRelativeUrl>
-  componentMod: AppPageModule
-  renderOpts: RenderOpts
-  parsedRequestHeaders: ParsedRequestHeaders
-  getDynamicParamFromSegment: GetDynamicParamFromSegment
-  query: NextParsedUrlQuery
-  isPrefetch: boolean
-  isPossibleServerAction: boolean
-  requestTimestamp: number
-  appUsingSizeAdjustment: boolean
-  flightRouterState?: FlightRouterState
-  requestId: string
-  pagePath: string
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
-  assetPrefix: string
-  isNotFoundPath: boolean
-  nonce: string | undefined
-  res: BaseNextResponse
+  readonly sharedContext: AppSharedContext
+  readonly workStore: WorkStore
+  readonly url: ReturnType<typeof parseRelativeUrl>
+  readonly componentMod: AppPageModule
+  readonly renderOpts: RenderOpts
+  readonly parsedRequestHeaders: ParsedRequestHeaders
+  readonly getDynamicParamFromSegment: GetDynamicParamFromSegment
+  readonly query: NextParsedUrlQuery
+  readonly isPrefetch: boolean
+  readonly requestTimestamp: number
+  readonly appUsingSizeAdjustment: boolean
+  readonly flightRouterState?: FlightRouterState
+  readonly requestId: string
+  readonly pagePath: string
+  readonly clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
+  readonly assetPrefix: string
+  readonly isNotFoundPath: boolean
+  readonly nonce: string | undefined
+  readonly res: BaseNextResponse
   /**
    * For now, the implicit tags are common for the whole route. If we ever start
    * rendering/revalidating segments independently, they need to move to the
    * work unit store.
    */
-  implicitTags: ImplicitTags
+  readonly implicitTags: ImplicitTags
+  /** Defaults to false, possibly set to true when we handle a possible action request
+   * and determine whether it's actually an action
+   */
+  isAction: boolean
 }
 
 interface ParseRequestHeadersOptions {
@@ -428,18 +431,17 @@ function makeGetDynamicParamFromSegment(
 function NonIndex({
   pagePath,
   statusCode,
-  isPossibleServerAction,
+  isAction,
 }: {
   pagePath: string
   statusCode: number | undefined
-  isPossibleServerAction: boolean
+  isAction: boolean
 }) {
   const is404Page = pagePath === '/404'
   const isInvalidStatusCode = typeof statusCode === 'number' && statusCode > 400
 
   // Only render noindex for page request, skip for server actions
-  // TODO: is this correct if `isPossibleServerAction` is a false positive?
-  if (!isPossibleServerAction && (is404Page || isInvalidStatusCode)) {
+  if (!isAction && (is404Page || isInvalidStatusCode)) {
     return <meta name="robots" content="noindex" />
   }
   return null
@@ -522,7 +524,7 @@ async function generateDynamicRSCPayload(
             <NonIndex
               pagePath={ctx.pagePath}
               statusCode={ctx.res.statusCode}
-              isPossibleServerAction={ctx.isPossibleServerAction}
+              isAction={ctx.isAction}
             />
             {/* Adding requestId as react key to make metadata remount for each render */}
             <ViewportTree key={getFlightViewportKey(requestId)} />
@@ -569,7 +571,7 @@ function createErrorContext(
     routerKind: 'App Router',
     routePath: ctx.pagePath,
     // TODO: is this correct if `isPossibleServerAction` is a false positive?
-    routeType: ctx.isPossibleServerAction ? 'action' : 'render',
+    routeType: ctx.isAction ? 'action' : 'render',
     renderSource,
     revalidateReason: getRevalidateReason(ctx.workStore),
   }
@@ -861,7 +863,7 @@ async function getRSCPayload(
       <NonIndex
         pagePath={ctx.pagePath}
         statusCode={ctx.res.statusCode}
-        isPossibleServerAction={ctx.isPossibleServerAction}
+        isAction={ctx.isAction}
       />
       <ViewportTree key={getFlightViewportKey(ctx.requestId)} />
       {/* Not add requestId as react key to ensure segment prefetch could result consistently if nothing changed */}
@@ -960,7 +962,7 @@ async function getErrorRSCPayload(
       <NonIndex
         pagePath={ctx.pagePath}
         statusCode={ctx.res.statusCode}
-        isPossibleServerAction={ctx.isPossibleServerAction}
+        isAction={ctx.isAction}
       />
       {/* Adding requestId as react key to make metadata remount for each render */}
       <ViewportTree key={getFlightViewportKey(requestId)} />
@@ -1348,7 +1350,6 @@ async function renderToHTMLOrFlightImpl(
     getDynamicParamFromSegment,
     query,
     isPrefetch: isPrefetchRequest,
-    isPossibleServerAction: isPossibleActionRequest,
     requestTimestamp,
     appUsingSizeAdjustment,
     flightRouterState,
@@ -1361,6 +1362,9 @@ async function renderToHTMLOrFlightImpl(
     res,
     sharedContext,
     implicitTags,
+    // Initialize to false, because we can't know this before running `handleAction`.
+    // If appropriate, `handleAction` will set it to true so that the subsequent render has the correct value.
+    isAction: false,
   }
 
   getTracer().setRootSpanAttribute('next.route', pagePath)
