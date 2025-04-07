@@ -55,7 +55,6 @@ describe('app-dir - owner-stack', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 1,
        "description": "Error: browser error",
        "environmentLabel": null,
        "label": "Runtime Error",
@@ -92,7 +91,6 @@ describe('app-dir - owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "count": 1,
        "description": "Error: browser error",
        "environmentLabel": null,
        "label": "Runtime Error",
@@ -141,7 +139,6 @@ describe('app-dir - owner-stack', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 1,
        "description": "Error: ssr error",
        "environmentLabel": null,
        "label": "Runtime Error",
@@ -171,7 +168,6 @@ describe('app-dir - owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "count": 1,
        "description": "Error: string in rejected promise",
        "environmentLabel": null,
        "label": "Runtime Error",
