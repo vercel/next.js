@@ -2,13 +2,12 @@
 module.exports = {
   reactStrictMode: true,
   compiler: {
-    compiler: {
-      emotion: {
-        importMap: {
-          'import-map-test': {
-            styledJsx: {
-              canonicalImport: ['@emotion/react', 'jsx'],
-            },
+    emotion: {
+      enabled: true,
+      importMap: {
+        'import-map-test': {
+          styledCss: {
+            canonicalImport: ['@emotion/react', 'css'],
           },
         },
       },
