@@ -457,7 +457,10 @@ function createServer(
     turbopack?: boolean
   }
 ): NextWrapperServer {
-  if (options && (options.turbo || options.turbopack)) {
+  if (
+    options &&
+    (options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST)
+  ) {
     process.env.TURBOPACK = '1'
   }
   // The package is used as a TypeScript plugin.

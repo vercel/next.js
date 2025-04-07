@@ -7,7 +7,7 @@
     "dev-webpack": "next dev",
     "build-turbopack": "next build --turbopack",
     "build-webpack": "next build",
-    "start-turbopack": "TURBOPACK=1 next start",
+    "start-turbopack": "next start",
     "start-webpack": "next start",
     "build-application": "next build",
     "start-application": "next start"
