@@ -49,14 +49,6 @@ export const base = curry(function base(
       (ctx.productionBrowserSourceMaps && ctx.isClient)
     ) {
       config.devtool = 'source-map'
-      config.plugins ??= []
-      config.plugins.push(
-        new DevToolsIgnorePlugin({
-          // TODO: eval-source-map has different module paths than source-map.
-          // We're currently not actually ignore listing anything.
-          shouldIgnorePath,
-        })
-      )
     } else {
       config.devtool = false
     }
@@ -67,7 +59,7 @@ export const base = curry(function base(
   }
 
   config.plugins ??= []
-  if (config.devtool === 'source-map') {
+  if (config.devtool === 'source-map' && !process.env.NEXT_RSPACK) {
     config.plugins.push(
       new DevToolsIgnorePlugin({
         shouldIgnorePath,
