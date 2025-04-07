@@ -245,7 +245,9 @@ export async function startServer(
       port = typeof addr === 'object' ? addr?.port || port : port
 
       if (portRetryCount) {
-        Log.warn(`Port ${originalPort} is in use, using ${port} instead.`)
+        Log.warn(
+          `Port ${originalPort} is in use, using available port ${port} instead.`
+        )
       }
 
       const networkHostname =
