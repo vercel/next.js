@@ -33,15 +33,15 @@ import { addRequestMeta } from '../../request-meta'
 import {
   compileNonPath,
   matchHas,
-  parseDestination,
+  // parseDestination,
   prepareDestination,
 } from '../../../shared/lib/router/utils/prepare-destination'
 import type { TLSSocket } from 'tls'
 import {
-  NEXT_REWRITTEN_PATH_HEADER,
-  NEXT_REWRITTEN_QUERY_HEADER,
+  // NEXT_REWRITTEN_PATH_HEADER,
+  // NEXT_REWRITTEN_QUERY_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
-  RSC_HEADER,
+  // RSC_HEADER,
 } from '../../../client/components/app-router-headers'
 import { getSelectedParams } from '../../../client/components/router-reducer/compute-changed-path'
 import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
@@ -741,15 +741,15 @@ export function getResolveRoutes(
             // so we'll just use the params from the route matcher
           }
 
-          // We extract the search params of the destination so we can set it on
-          // the response headers. We don't want to use the following
-          // `parsedDestination` as the query object is mutated.
-          const { search: destinationSearch, pathname: destinationPathname } =
-            parseDestination({
-              destination: route.destination,
-              params: rewriteParams,
-              query: parsedUrl.query,
-            })
+          // // We extract the search params of the destination so we can set it on
+          // // the response headers. We don't want to use the following
+          // // `parsedDestination` as the query object is mutated.
+          // const { search: destinationSearch, pathname: destinationPathname } =
+          //   parseDestination({
+          //     destination: route.destination,
+          //     params: rewriteParams,
+          //     query: parsedUrl.query,
+          //   })
 
           const { parsedDestination } = prepareDestination({
             appendParamsToQuery: true,
@@ -766,21 +766,21 @@ export function getResolveRoutes(
             }
           }
 
-          // Set the rewrite headers only if this is a RSC request.
-          if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
-            // We set the rewritten path and query headers on the response now
-            // that we know that the it's not an external rewrite.
-            if (parsedUrl.pathname !== destinationPathname) {
-              res.setHeader(NEXT_REWRITTEN_PATH_HEADER, destinationPathname)
-            }
-            if (destinationSearch) {
-              res.setHeader(
-                NEXT_REWRITTEN_QUERY_HEADER,
-                // remove the leading ? from the search
-                destinationSearch.slice(1)
-              )
-            }
-          }
+          // // Set the rewrite headers only if this is a RSC request.
+          // if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
+          //   // We set the rewritten path and query headers on the response now
+          //   // that we know that the it's not an external rewrite.
+          //   if (parsedUrl.pathname !== destinationPathname) {
+          //     res.setHeader(NEXT_REWRITTEN_PATH_HEADER, destinationPathname)
+          //   }
+          //   if (destinationSearch) {
+          //     res.setHeader(
+          //       NEXT_REWRITTEN_QUERY_HEADER,
+          //       // remove the leading ? from the search
+          //       destinationSearch.slice(1)
+          //     )
+          //   }
+          // }
 
           if (config.i18n) {
             const curLocaleResult = normalizeLocalePath(
