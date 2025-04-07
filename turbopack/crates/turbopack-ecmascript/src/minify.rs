@@ -28,7 +28,7 @@ use turbopack_core::code_builder::{Code, CodeBuilder};
 use crate::parse::generate_js_source_map;
 
 #[instrument(level = Level::INFO, skip_all)]
-pub fn minify(code: &Code, source_maps: bool, mangle: bool) -> Result<Code> {
+pub fn minify(code: &Code, source_maps: bool, is_server_side: bool, mangle: bool) -> Result<Code> {
     let source_maps = source_maps
         .then(|| code.generate_source_map_ref())
         .transpose()?;
@@ -87,7 +87,7 @@ pub fn minify(code: &Code, source_maps: bool, mangle: bool) -> Result<Code> {
                         mangle: if mangle {
                             Some(MangleOptions {
                                 reserved: vec!["AbortSignal".into()],
-                                disable_char_freq: true,
+                                disable_char_freq: is_server_side,
                                 ..Default::default()
                             })
                         } else {
