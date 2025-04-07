@@ -2097,10 +2097,6 @@ const runTests = (isDev = false) => {
             source: '/has-header-4',
           },
         ],
-        rewriteHeaders: {
-          pathHeader: 'x-nextjs-rewritten-path',
-          queryHeader: 'x-nextjs-rewritten-query',
-        },
         rewrites: {
           beforeFiles: [
             {
