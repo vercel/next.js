@@ -34,7 +34,6 @@ use turbopack_core::{
     chunk::SourceMapsType,
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
-    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     issue::{module::ModuleIssue, IssueExt, StyledString},
     module::Module,
     output::OutputAsset,
@@ -660,15 +659,12 @@ async fn process_default_internal(
 }
 
 #[turbo_tasks::function]
-async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleAssetContext>> {
-    let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
-        NodeJsEnvironment::default().resolved_cell(),
-    )))
-    .to_resolved()
-    .await?;
-
+async fn externals_tracing_module_context(
+    ty: ExternalType,
+    compile_time_info: Vc<CompileTimeInfo>,
+) -> Result<Vc<ModuleAssetContext>> {
     let resolve_options = ResolveOptionsContext {
-        emulate_environment: Some(env),
+        emulate_environment: Some(compile_time_info.await?.environment),
         loose_errors: true,
         custom_conditions: match ty {
             ExternalType::CommonJs => vec!["require".into()],
@@ -680,7 +676,7 @@ async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleA
 
     Ok(ModuleAssetContext::new_without_replace_externals(
         Default::default(),
-        CompileTimeInfo::builder(env).cell().await?,
+        compile_time_info,
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
                 source_maps: SourceMapsType::None,
@@ -799,15 +795,19 @@ impl AssetContext for ModuleAssetContext {
                             let replacement = if replace_externals {
                                 let additional_refs: Vec<Vc<Box<dyn ModuleReference>>> = if let (
                                     ExternalTraced::Traced,
-                                    Some(tracing_root),
+                                    Some(tracing_options),
                                 ) = (
                                     traced,
                                     self.module_options_context()
                                         .await?
                                         .enable_externals_tracing,
                                 ) {
-                                    let externals_context = externals_tracing_module_context(ty);
-                                    let root_origin = tracing_root.join("_".into());
+                                    let tracing_options = tracing_options.await?;
+                                    let externals_context = externals_tracing_module_context(
+                                        ty,
+                                        *tracing_options.compile_time_info,
+                                    );
+                                    let root_origin = tracing_options.tracing_root.join("_".into());
 
                                     let external_result = externals_context
                                         .resolve_asset(
