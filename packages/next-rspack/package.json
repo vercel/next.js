@@ -3,7 +3,7 @@
   "version": "15.3.0-canary.42",
   "repository": {
     "url": "vercel/next.js",
-    "directory": "packages/next-plugin-rspack"
+    "directory": "packages/next-rspack"
   },
   "types": "index.d.ts",
   "dependencies": {
