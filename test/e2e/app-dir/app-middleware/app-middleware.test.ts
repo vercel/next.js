@@ -23,6 +23,10 @@ createNextDescribe(
       }, /app-dir/)
     })
 
+    it('should not include any warnings about using Node.js APIs', async () => {
+      expect(next.cliOutput).not.toContain('A Node.js module is loaded')
+    })
+
     describe.each([
       {
         title: 'Serverless Functions',
