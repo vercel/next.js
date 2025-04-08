@@ -33,8 +33,8 @@ use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt, EvaluatableAsset,
-        EvaluatableAssetExt, EvaluatableAssets, MinifyType,
+        availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt, ContextSide,
+        EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets, MinifyType,
     },
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
