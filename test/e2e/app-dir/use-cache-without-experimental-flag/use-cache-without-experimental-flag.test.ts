@@ -54,9 +54,9 @@ describe('use-cache-without-experimental-flag', () => {
          "
          ./app/page.tsx
          Error:   x To use "use cache", please enable the experimental feature flag "useCache" in your Next.js config.
-           | 
+           |
            | Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
-           | 
+
             ,-[1:1]
           1 | 'use cache'
             : ^^^^^^^^^^^

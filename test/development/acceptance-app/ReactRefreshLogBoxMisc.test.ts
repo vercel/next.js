@@ -55,7 +55,6 @@ describe('ReactRefreshLogBox app', () => {
          "source": "./app/page.js
        Error:   x "getStaticProps" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching
          |
-         |
           ,-[3:1]
         1 | 'use client'
         2 | import myLibrary from 'my-non-existent-library'
