@@ -14,6 +14,7 @@ use swc_core::{
     ecma::{
         ast::{EsVersion, Id, ObjectPatProp, Pat, Program, VarDecl},
         lints::{config::LintConfig, rules::LintParams},
+        minifier::option::{CompressOptions, ExtraOptions, MinifyOptions},
         parser::{lexer::Lexer, EsSyntax, Parser, Syntax, TsSyntax},
         transforms::base::{
             helpers::{Helpers, HELPERS},
@@ -380,6 +381,7 @@ async fn parse_file_content(
             parsed_program.mutate(swc_core::ecma::lints::rules::lint_pass(rules));
             drop(span);
 
+
             parsed_program.mutate(swc_core::ecma::transforms::proposal::explicit_resource_management::explicit_resource_management());
 
             let var_with_ts_declare = if is_typescript {
@@ -410,6 +412,25 @@ async fn parse_file_content(
             }
             .instrument(span)
             .await?;
+
+
+            let span = tracing::trace_span!("eager_swc_minifier").entered();
+            let mut parsed_program = swc_core::ecma::minifier::optimize(
+                parsed_program,
+                source_map.clone(),
+                Some(&comments),
+                None,
+                &MinifyOptions {
+                    compress: Some(CompressOptions {
+                        inline:1,
+                        ..Default::default()
+                    }),
+                    mangle:None,
+                    ..Default::default()
+                },
+                &ExtraOptions{ unresolved_mark, top_level_mark, mangle_name_cache: None },
+            );
+            drop(span);
 
             if parser_handler.has_errors() {
                 let messages = if let Some(error) = collector_parse.last_emitted_issue() {
