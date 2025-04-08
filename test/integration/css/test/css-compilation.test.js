@@ -74,7 +74,7 @@ module.exports = {
               ).then((res) => res.text())
 
               const cssContentWithoutSourceMap = cssContent
-                .replace(/\/\*.*?\*\//g, '')
+                .replace(/\/\*.*?\*\/\n?/g, '')
                 .trim()
 
               if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
@@ -431,10 +431,10 @@ module.exports = {
                   res.text()
                 )
               )
-                .replace(/\/\*.*?\*\//g, '')
+                .replace(/\/\*.*?\*\/\n?/g, '')
                 .trim()
 
-              expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
+              expect(cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim()).toMatch(
                 /nprogress/
               )
             })
@@ -491,32 +491,30 @@ module.exports = {
                   res.text()
                 )
               )
-                .replace(/\/\*.*?\*\//g, '')
+                .replace(/\/\*.*?\*\/\n?/g, '')
                 .trim()
 
               if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
-                expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
+                expect(cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim())
                   .toMatchInlineSnapshot(`
                  ".other{color:#00f}
-
 
                  .test{color:red}"
                 `)
               } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
-                expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
+                expect(cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim())
                   .toMatchInlineSnapshot(`
                  ".other{color:#00f}
-
 
                  .test{color:red}"
                 `)
               } else if (useLightningcss) {
                 expect(
-                  cssContent.replace(/\/\*.*?\*\//g, '').trim()
+                  cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim()
                 ).toMatchInlineSnapshot(`".other{color:#00f}.test{color:red}"`)
               } else {
                 expect(
-                  cssContent.replace(/\/\*.*?\*\//g, '').trim()
+                  cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim()
                 ).toMatchInlineSnapshot(`".other{color:blue}.test{color:red}"`)
               }
             })
