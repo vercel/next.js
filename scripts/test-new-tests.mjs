@@ -151,7 +151,7 @@ async function main() {
           ...process.env,
           NEXT_TEST_MODE: testMode,
           NEXT_TEST_VERSION: nextTestVersion,
-          TURBOPACK: '1',
+          IS_TURBOPACK_TEST: '1',
           TURBOPACK_BUILD: testMode === 'start' ? '1' : undefined,
           NEXT_EXTERNAL_TESTS_FILTERS:
             testMode === 'dev'

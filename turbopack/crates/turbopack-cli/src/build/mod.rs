@@ -27,7 +27,7 @@ use turbopack_core::{
     asset::Asset,
     chunk::{
         availability_info::AvailabilityInfo, ChunkingConfig, ChunkingContext, EvaluatableAsset,
-        EvaluatableAssets, MinifyType, SourceMapsType,
+        EvaluatableAssets, MangleType, MinifyType, SourceMapsType,
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::AssetIdent,
@@ -93,7 +93,9 @@ impl TurbopackBuildBuilder {
             show_all: false,
             log_detail: false,
             source_maps_type: SourceMapsType::Full,
-            minify_type: MinifyType::Minify { mangle: true },
+            minify_type: MinifyType::Minify {
+                mangle: Some(MangleType::OptimalSize),
+            },
             target: Target::Node,
         }
     }
@@ -522,7 +524,9 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
         .minify_type(if args.no_minify {
             MinifyType::NoMinify
         } else {
-            MinifyType::Minify { mangle: true }
+            MinifyType::Minify {
+                mangle: Some(MangleType::OptimalSize),
+            }
         })
         .target(args.common.target.unwrap_or(Target::Node))
         .show_all(args.common.show_all);

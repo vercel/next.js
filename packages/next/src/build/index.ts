@@ -3709,6 +3709,10 @@ export default async function build(
     // Ensure we wait for lockfile patching if present
     await lockfilePatchPromise.cur
 
+    if (isTurbopack && !process.env.__NEXT_TEST_MODE) {
+      warnAboutTurbopackBuilds(loadedConfig)
+    }
+
     // Ensure all traces are flushed before finishing the command
     await flushAllTraces()
     teardownTraceSubscriber()
@@ -3724,4 +3728,26 @@ export default async function build(
       })
     }
   }
+}
+
+function warnAboutTurbopackBuilds(config?: NextConfigComplete) {
+  let warningStr =
+    `Support for Turbopack builds is experimental. ` +
+    bold(
+      `We don't recommend deploying mission-critical applications to production.`
+    )
+  warningStr +=
+    '\n\n- It is expected that your bundle size might be different from `next build` with webpack. This will be improved as we work towards stability.'
+
+  if (!config?.experimental.turbo?.unstablePersistentCaching) {
+    warningStr +=
+      '\n- This build is without disk caching; subsequent builds will become faster when disk caching becomes available.'
+  }
+
+  warningStr +=
+    '\n- When comparing output to webpack builds, make sure to first clear the Next.js cache by deleting the `.next` directory.'
+  warningStr +=
+    '\n\nProvide feedback for Turbopack builds at https://github.com/vercel/next.js/discussions/77721'
+
+  Log.warn(warningStr)
 }

@@ -203,6 +203,7 @@ export async function startServer(
   })
 
   let portRetryCount = 0
+  const originalPort = port
 
   server.on('error', (err: NodeJS.ErrnoException) => {
     if (
@@ -212,7 +213,6 @@ export async function startServer(
       err.code === 'EADDRINUSE' &&
       portRetryCount < 10
     ) {
-      Log.warn(`Port ${port} is in use, trying ${port + 1} instead.`)
       port += 1
       portRetryCount += 1
       server.listen(port, hostname)
@@ -243,6 +243,12 @@ export async function startServer(
             : formatHostname(hostname)
 
       port = typeof addr === 'object' ? addr?.port || port : port
+
+      if (portRetryCount) {
+        Log.warn(
+          `Port ${originalPort} is in use, using available port ${port} instead.`
+        )
+      }
 
       const networkHostname =
         hostname ?? getNetworkHost(isIPv6(actualHostname) ? 'IPv6' : 'IPv4')
