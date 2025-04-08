@@ -15,7 +15,10 @@ use turbopack::{
     transition::Transition,
 };
 use turbopack_core::{
-    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingConfig, MinifyType, SourceMapsType},
+    chunk::{
+        module_id_strategies::ModuleIdStrategy, ChunkingConfig, MangleType, MinifyType,
+        SourceMapsType,
+    },
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
         FreeVarReferences,
@@ -1015,7 +1018,8 @@ pub async fn get_server_chunking_context_with_client_assets(
     .asset_prefix(asset_prefix)
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
-            mangle: !*no_mangling.await?,
+            // React needs deterministic function names to work correctly.
+            mangle: (!*no_mangling.await?).then_some(MangleType::Deterministic),
         }
     } else {
         MinifyType::NoMinify
@@ -1080,7 +1084,7 @@ pub async fn get_server_chunking_context(
     )
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
-            mangle: !*no_mangling.await?,
+            mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
         }
     } else {
         MinifyType::NoMinify

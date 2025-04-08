@@ -19,8 +19,8 @@ use turbopack_browser::{
 };
 use turbopack_core::{
     chunk::{
-        module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, MinifyType,
-        SourceMapsType,
+        module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, MangleType,
+        MinifyType, SourceMapsType,
     },
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
@@ -397,7 +397,7 @@ pub async fn get_client_module_options_context(
         css: CssOptionsContext {
             minify_type: if *next_config.turbo_minify(mode).await? {
                 MinifyType::Minify {
-                    mangle: !*no_mangling.await?,
+                    mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
                 }
             } else {
                 MinifyType::NoMinify
@@ -454,7 +454,7 @@ pub async fn get_client_chunking_context(
     .chunk_suffix_path(chunk_suffix_path)
     .minify_type(if *minify.await? {
         MinifyType::Minify {
-            mangle: !*no_mangling.await?,
+            mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
         }
     } else {
         MinifyType::NoMinify

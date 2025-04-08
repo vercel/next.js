@@ -7,8 +7,8 @@ use turbopack::{css::chunk::CssChunkType, resolve_options_context::ResolveOption
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     chunk::{
-        module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, MinifyType,
-        SourceMapsType,
+        module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, MangleType,
+        MinifyType, SourceMapsType,
     },
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
@@ -241,7 +241,8 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .asset_base_path(asset_prefix)
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
-            mangle: !*no_mangling.await?,
+            // React needs deterministic function names to work correctly.
+            mangle: (!*no_mangling.await?).then_some(MangleType::Deterministic),
         }
     } else {
         MinifyType::NoMinify
@@ -304,7 +305,7 @@ pub async fn get_edge_chunking_context(
     .asset_base_path(ResolvedVc::cell(Some("blob:server/edge/".into())))
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
-            mangle: !*no_mangling.await?,
+            mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
         }
     } else {
         MinifyType::NoMinify

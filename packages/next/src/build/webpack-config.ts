@@ -1187,7 +1187,10 @@ export default async function getBaseWebpackConfig(
                     'process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE': false,
                   },
                 },
-                mangle: !noMangling && { reserved: ['AbortSignal'] },
+                mangle: !noMangling && {
+                  reserved: ['AbortSignal'],
+                  disableCharFreq: !isClient,
+                },
               },
             }),
             new (getRspackCore().LightningCssMinimizerRspackPlugin)({

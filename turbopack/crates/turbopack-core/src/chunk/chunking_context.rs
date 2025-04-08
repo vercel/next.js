@@ -31,14 +31,38 @@ use crate::{
     DeterministicHash,
     NonLocalValue,
 )]
+#[serde(rename_all = "kebab-case")]
+pub enum MangleType {
+    OptimalSize,
+    Deterministic,
+}
+
+#[derive(
+    Debug,
+    TaskInput,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    DeterministicHash,
+    NonLocalValue,
+)]
 pub enum MinifyType {
-    Minify { mangle: bool },
+    // TODO instead of adding a new property here,
+    // refactor that to Minify(MinifyOptions) to allow defaults on MinifyOptions
+    Minify { mangle: Option<MangleType> },
     NoMinify,
 }
 
 impl Default for MinifyType {
     fn default() -> Self {
-        Self::Minify { mangle: true }
+        Self::Minify {
+            mangle: Some(MangleType::OptimalSize),
+        }
     }
 }
 
