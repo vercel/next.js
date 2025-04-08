@@ -19,7 +19,7 @@ use turbopack_core::{
     chunk::{
         round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup,
         ChunkItemExt, ChunkItemOrBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
-        ChunkableModule, ChunkingContext, ModuleId, OutputChunk, OutputChunkRuntimeInfo,
+        ChunkableModule, ChunkingContext, MinifyType, OutputChunk, OutputChunkRuntimeInfo,
     },
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
@@ -78,8 +78,6 @@ impl CssChunk {
         let mut body = CodeBuilder::new(source_maps);
         let mut external_imports = FxIndexSet::default();
         for css_item in &this.content.await?.chunk_items {
-            let id = &*css_item.id().await?;
-
             let content = &css_item.content().await?;
             for import in &content.imports {
                 if let CssImport::External(external_import) = import {
@@ -87,7 +85,14 @@ impl CssChunk {
                 }
             }
 
-            writeln!(body, "/* {} */", id)?;
+            if matches!(
+                &*this.chunking_context.minify_type().await?,
+                MinifyType::NoMinify
+            ) {
+                let id = &*css_item.id().await?;
+                writeln!(body, "/* {} */", id)?;
+            }
+
             let close = write_import_context(&mut body, content.import_context).await?;
 
             let source_map = if *self
