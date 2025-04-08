@@ -1,5 +1,5 @@
 import run from './module';
 
-it('should evaluate IIFE correctly', () => {
+it('should handle undefined variables', () => {
   expect(run()).toEqual('should run');
 });
