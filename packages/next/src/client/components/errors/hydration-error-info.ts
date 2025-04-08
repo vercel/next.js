@@ -55,10 +55,12 @@ const isHtmlTagsWarning = (message: string) => htmlTagsWarnings.has(message)
 const isTextInTagsMismatchWarning = (msg: string) =>
   textAndTagsMismatchWarnings.has(msg)
 
-export const getReactHydrationDiffSegments = (msg: NullableText) => {
+export const getReactHydrationDiffSegments = (
+  msg: NullableText
+): [message: string, diff: string | undefined] | undefined => {
   if (msg) {
     const { message, diff } = getHydrationErrorStackInfo(msg)
-    if (message) return [message, diff]
+    if (message) return [message, diff] as const
   }
   return undefined
 }
