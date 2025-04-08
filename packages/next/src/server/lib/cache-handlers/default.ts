@@ -1,10 +1,5 @@
 /**
  * This is the default "use cache" handler it defaults to an in-memory store.
- * In-memory caches are fragile and should not use stale-while-revalidate
- * semantics on the caches because it's not worth warming up an entry that's
- * likely going to get evicted before we get to use it anyway. However, we also
- * don't want to reuse a stale entry for too long so stale entries should be
- * considered expired/missing in such cache handlers.
  */
 
 import { LRUCache } from '../lru-cache'
@@ -62,17 +57,6 @@ const DefaultCacheHandler: CacheHandlerV2 = {
     }
 
     const entry = privateEntry.entry
-    if (
-      performance.timeOrigin + performance.now() >
-      entry.timestamp + entry.revalidate * 1000
-    ) {
-      // In-memory caches should expire after revalidate time because it is
-      // unlikely that a new entry will be able to be used before it is dropped
-      // from the cache.
-      debug?.('get', cacheKey, 'expired')
-
-      return undefined
-    }
 
     if (isStale(entry.tags, entry.timestamp)) {
       debug?.('get', cacheKey, 'had stale tag')

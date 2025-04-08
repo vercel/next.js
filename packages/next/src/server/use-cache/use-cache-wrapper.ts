@@ -36,7 +36,10 @@ import {
   getClientReferenceManifestForRsc,
   getServerModuleMap,
 } from '../app-render/encryption-utils'
-import type { CacheEntry } from '../lib/cache-handlers/types'
+import type {
+  CacheEntry,
+  CacheHandlerCompat,
+} from '../lib/cache-handlers/types'
 import type { CacheSignal } from '../app-render/cache-signal'
 import { decryptActionBoundArgs } from '../app-render/encryption'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -52,6 +55,7 @@ import {
 import type { Params } from '../request/params'
 import React from 'react'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
+import type { PrerenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
 
 type CacheKeyParts =
   | [buildId: string, id: string, args: unknown[]]
@@ -864,38 +868,19 @@ export function cache(
           if (currentTime > entry.timestamp + entry.revalidate * 1000) {
             // If this is stale, and we're not in a prerender (i.e. this is dynamic render),
             // then we should warm up the cache with a fresh revalidated entry.
-            const [ignoredStream, pendingCacheEntry] = await generateCacheEntry(
+            const promise = generateCacheEntryInBackground(
               workStore,
-              undefined, // This is not running within the context of this unit.
               clientReferenceManifest,
               encodedCacheKeyParts,
               fn,
+              serializedCacheKey,
+              cacheHandler,
+              prerenderResumeDataCache,
               timeoutError
             )
 
-            let savedCacheEntry: Promise<CacheEntry>
-            if (prerenderResumeDataCache) {
-              const split = clonePendingCacheEntry(pendingCacheEntry)
-              savedCacheEntry = getNthCacheEntry(split, 0)
-              prerenderResumeDataCache.cache.set(
-                serializedCacheKey,
-                getNthCacheEntry(split, 1)
-              )
-            } else {
-              savedCacheEntry = pendingCacheEntry
-            }
-
-            const promise = cacheHandler.set(
-              serializedCacheKey,
-              savedCacheEntry
-            )
-
-            if (!workStore.pendingRevalidateWrites) {
-              workStore.pendingRevalidateWrites = []
-            }
+            workStore.pendingRevalidateWrites ??= []
             workStore.pendingRevalidateWrites.push(promise)
-
-            await ignoredStream.cancel()
           }
         }
       }
@@ -930,6 +915,41 @@ export function cache(
   }[name]
 
   return React.cache(cachedFn)
+}
+
+async function generateCacheEntryInBackground(
+  workStore: WorkStore,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
+  encodedCacheKeyParts: string | FormData,
+  fn: (...args: unknown[]) => Promise<unknown>,
+  serializedCacheKey: string,
+  cacheHandler: CacheHandlerCompat,
+  prerenderResumeDataCache: PrerenderResumeDataCache | null,
+  timeoutError: UseCacheTimeoutError
+) {
+  const [ignoredStream, pendingCacheEntry] = await generateCacheEntry(
+    workStore,
+    undefined, // This is not running within the context of this unit.
+    clientReferenceManifest,
+    encodedCacheKeyParts,
+    fn,
+    timeoutError
+  )
+
+  let savedCacheEntry: Promise<CacheEntry>
+  if (prerenderResumeDataCache) {
+    const split = clonePendingCacheEntry(pendingCacheEntry)
+    savedCacheEntry = getNthCacheEntry(split, 0)
+    prerenderResumeDataCache.cache.set(
+      serializedCacheKey,
+      getNthCacheEntry(split, 1)
+    )
+  } else {
+    savedCacheEntry = pendingCacheEntry
+  }
+
+  await ignoredStream.cancel()
+  await cacheHandler.set(serializedCacheKey, savedCacheEntry)
 }
 
 function isPageComponent(

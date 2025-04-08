@@ -85,7 +85,9 @@ export abstract class BrowserInterface<TCurrent = any> {
    * Use browsers `go forward` functionality. Inverse of back.
    */
   abstract forward(options?: any): BrowserInterface<any> & Promise<any>
-  abstract refresh(): BrowserInterface<any> & Promise<any>
+  abstract refresh(options?: {
+    waitUntil?: 'domcontentloaded' | 'load' | 'networkidle' | 'commit'
+  }): BrowserInterface<any> & Promise<any>
   abstract setDimensions(opts: {
     height: number
     width: number
@@ -109,6 +111,7 @@ export abstract class BrowserInterface<TCurrent = any> {
       cpuThrottleRate?: number
       beforePageLoad?: Function
       pushErrorAsConsoleLog?: boolean
+      waitUntil?: 'domcontentloaded' | 'load' | 'networkidle' | 'commit'
     }
   ): Promise<void>
   abstract get(url: string): Promise<void>

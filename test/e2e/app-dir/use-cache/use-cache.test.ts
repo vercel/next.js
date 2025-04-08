@@ -913,6 +913,40 @@ describe('use-cache', () => {
       ])
     })
   }
+
+  it('should not block a dynamic render when revalidating a stale cache entry', async () => {
+    const browser = await next.browser('/dynamic-background-revalidation', {
+      // We want to assert that the loading boundary is shown. So we don't wait
+      // for the full dynamic page content to finish loading.
+      waitUntil: 'commit',
+      waitHydration: false,
+    })
+
+    let initial = await browser.elementByCss('p').text()
+
+    expect(initial).toBe('Loading...')
+
+    // Wait for the newly cached data to be streamed in.
+    await retry(async () => {
+      initial = await browser.elementByCss('p').text()
+      expect(initial).not.toBe('Loading...')
+    })
+
+    // Wait for the specified revalidate period of the cached data to pass
+    // before refreshing.
+    await waitFor(3000)
+    await browser.refresh({ waitUntil: 'commit' })
+
+    // Expect the stale data (and not the loading boundary) to be shown while
+    // new data is created in the background.
+    expect(await browser.elementByCss('p').text()).toBe(initial)
+
+    // Finally, the revalidated data should be shown.
+    await retry(async () => {
+      await browser.refresh({ waitUntil: 'commit' })
+      expect(await browser.elementByCss('p').text()).not.toBe(initial)
+    })
+  })
 })
 
 async function getSanitizedLogs(browser: BrowserInterface): Promise<string[]> {
