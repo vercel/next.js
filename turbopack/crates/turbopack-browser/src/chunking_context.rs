@@ -220,6 +220,8 @@ pub struct BrowserChunkingContext {
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     /// The chunking configs
     chunking_configs: Vec<(ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig)>,
+    /// Whether the chunking context is server side
+    is_server_side: bool,
 }
 
 impl BrowserChunkingContext {
@@ -232,6 +234,7 @@ impl BrowserChunkingContext {
         asset_root_path: ResolvedVc<FileSystemPath>,
         environment: ResolvedVc<Environment>,
         runtime_type: RuntimeType,
+        is_server_side: bool,
     ) -> BrowserChunkingContextBuilder {
         BrowserChunkingContextBuilder {
             chunking_context: BrowserChunkingContext {
@@ -257,6 +260,7 @@ impl BrowserChunkingContext {
                 manifest_chunks: false,
                 module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
                 chunking_configs: Default::default(),
+                is_server_side,
             },
         }
     }
