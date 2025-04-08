@@ -706,12 +706,11 @@ describe('Catch-all Route CSS Module Usage', () => {
         )
 
         if (process.env.IS_TURBOPACK_TEST) {
-          expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
+          expect(cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim())
             .toMatchInlineSnapshot(`
-            ".index-module___rV4CG__home{background:red}
+           ".index-module___rV4CG__home{background:red}
 
-
-            .\\35 5css-module__qe774W__home{color:green}"
+           .\\35 5css-module__qe774W__home{color:green}"
           `)
         } else {
           expect(
