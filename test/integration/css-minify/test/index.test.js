@@ -21,12 +21,9 @@ function runTests() {
     const href = $('link').attr('href')
     const css = await renderViaHTTP(appPort, href)
     if (process.env.IS_TURBOPACK_TEST) {
-      expect(css).toMatchInlineSnapshot(`
-       "/* [project]/test/integration/css-minify/styles/global.css [client] (css) */
-       .a{--var-1:-50%;--var-2:-50%}.b{--var-1:0;--var-2:-50%}
-
-       /*# sourceMappingURL=5c046e82fcc94f24.css.map*/"
-      `)
+      expect(css).toContain(
+        '.a{--var-1:-50%;--var-2:-50%}.b{--var-1:0;--var-2:-50%}'
+      )
     } else {
       expect(css).toMatchInlineSnapshot(
         `".a{--var-1:0;--var-2:0;--var-1:-50%;--var-2:-50%}.b{--var-1:0;--var-2:0;--var-2:-50%}"`

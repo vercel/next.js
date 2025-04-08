@@ -37,20 +37,8 @@ pub enum MangleType {
     Deterministic,
 }
 
-#[derive(
-    Debug,
-    TaskInput,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    DeterministicHash,
-    NonLocalValue,
-)]
+#[turbo_tasks::value(shared)]
+#[derive(Debug, TaskInput, Clone, Copy, Hash, DeterministicHash)]
 pub enum MinifyType {
     // TODO instead of adding a new property here,
     // refactor that to Minify(MinifyOptions) to allow defaults on MinifyOptions
@@ -207,6 +195,10 @@ pub trait ChunkingContext {
 
     fn is_tracing_enabled(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
+    }
+
+    fn minify_type(self: Vc<Self>) -> Vc<MinifyType> {
+        MinifyType::NoMinify.cell()
     }
 
     fn async_loader_chunk_item(
