@@ -1650,6 +1650,15 @@ impl VisitAstPath for Analyzer<'_> {
     ) {
         if self.var_decl_kind.is_some() {
             if let Some(init) = &n.init {
+                // For case like
+                //
+                // if (shouldRun()) {
+                //   var x = true;
+                // }
+                // if (x) {
+                // }
+                //
+                // The variable `x` is undefined
                 self.current_value = Some(self.eval_context.eval(init));
             }
         }
