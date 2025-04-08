@@ -15,7 +15,7 @@ describe('app dir - css', () => {
   }
 
   describe('sass support', () => {
-    ;(process.env.TURBOPACK ? describe : describe.skip)(
+    ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
       'error handling',
       () => {
         it('should use original source points for sass errors', async () => {

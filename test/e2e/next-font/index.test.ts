@@ -14,7 +14,7 @@ function getClassNameRegex(className: string): RegExp {
 }
 
 function hrefMatchesFontWithSizeAdjust(href: string) {
-  if (process.env.TURBOPACK) {
+  if (process.env.IS_TURBOPACK_TEST) {
     expect(href).toMatch(
       // Turbopack includes the file hash
       /\/_next\/static\/media\/(.*)-s\.p\.(.*)\.woff2/
@@ -25,7 +25,7 @@ function hrefMatchesFontWithSizeAdjust(href: string) {
 }
 
 function hrefMatchesFontWithoutSizeAdjust(href: string) {
-  if (process.env.TURBOPACK) {
+  if (process.env.IS_TURBOPACK_TEST) {
     expect(href).toMatch(
       // Turbopack includes the file hash
       /\/_next\/static\/media\/(.*)\.p\.(.*)\.woff2/

@@ -249,6 +249,11 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
+    pub fn minify_type(&self) -> Vc<MinifyType> {
+        self.minify_type.cell()
+    }
+
+    #[turbo_tasks::function]
     async fn asset_url(&self, ident: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
         let asset_path = ident.await?.to_string();
         let asset_path = asset_path
