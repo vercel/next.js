@@ -3545,10 +3545,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/next-image/next-image-https.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app dir - next-image (with https) only runs on CI as it requires administrator privileges"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8760,10 +8760,10 @@
     "runtimeError": false
   },
   "test/integration/app-config-asset-prefix/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "App assetPrefix config should render correctly with assetPrefix: \"/\""
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8780,10 +8780,10 @@
     "runtimeError": false
   },
   "test/integration/app-dir-export/test/dev-custom-dist-dir.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app dir - with output export and custom distDir (next dev) should render properly"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9023,8 +9023,8 @@
     "runtimeError": false
   },
   "test/integration/babel-next-image/babel-next-image.test.js": {
-    "passed": [],
-    "failed": ["babel-next-image should work with babel and next/image"],
+    "passed": ["babel-next-image should work with babel and next/image"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9072,14 +9072,13 @@
   },
   "test/integration/build-indicator/test/index.test.js": {
     "passed": [
-      "Build Activity Indicator should validate buildActivityPosition config"
-    ],
-    "failed": [
       "Build Activity Indicator Enabled - (app) Shows build indicator when page is built from modifying",
       "Build Activity Indicator Enabled - (app) webpack only Shows the build indicator when a page is built during navigation",
       "Build Activity Indicator Enabled - (pages) Shows build indicator when page is built from modifying",
-      "Build Activity Indicator Enabled - (pages) webpack only Shows the build indicator when a page is built during navigation"
+      "Build Activity Indicator Enabled - (pages) webpack only Shows the build indicator when a page is built during navigation",
+      "Build Activity Indicator should validate buildActivityPosition config"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9193,8 +9192,6 @@
       "CLI Usage dev -p reserved",
       "CLI Usage dev Allow retry if default port is already in use",
       "CLI Usage dev NODE_OPTIONS='--inspect'",
-      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to --require.js'",
-      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to-require-with-node-require-option.js'",
       "CLI Usage dev PORT=0",
       "CLI Usage dev custom directory",
       "CLI Usage dev invalid directory",
@@ -9241,6 +9238,8 @@
       "CLI Usage production mode telemetry should warn when unknown argument provided"
     ],
     "failed": [
+      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to --require.js'",
+      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to-require-with-node-require-option.js'",
       "CLI Usage info should print output",
       "CLI Usage info should print output with next.config.mjs"
     ],
@@ -9297,10 +9296,10 @@
     "runtimeError": false
   },
   "test/integration/config-devtool-dev/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "devtool set in development mode in next config should warn and revert when a devtool is set in development mode"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9346,10 +9345,8 @@
       "config-output-export should error with getStaticPaths and fallback true",
       "config-output-export should error with getStaticProps and revalidate 10 seconds (ISR)",
       "config-output-export should error with middleware function",
-      "config-output-export should work with getStaticPaths and fallback false",
       "config-output-export should work with getStaticProps and revalidate false",
       "config-output-export should work with getStaticProps and without revalidate",
-      "config-output-export should work with static homepage",
       "config-output-export when hasNextSupport = false should error with \"headers\" config",
       "config-output-export when hasNextSupport = false should error with \"redirects\" config",
       "config-output-export when hasNextSupport = false should error with \"rewrites\" config",
@@ -9357,7 +9354,10 @@
       "config-output-export when hasNextSupport = true should error with \"redirects\" config",
       "config-output-export when hasNextSupport = true should error with \"rewrites\" config"
     ],
-    "failed": [],
+    "failed": [
+      "config-output-export should work with getStaticPaths and fallback false",
+      "config-output-export should work with static homepage"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10363,10 +10363,9 @@
       "distDir With basic usage production mode should build the app within the given `dist` directory",
       "distDir With basic usage production mode should not build the app within the default `.next` directory",
       "distDir With basic usage production mode should render the page",
-      "distDir production mode should handle undefined distDir",
       "distDir production mode should throw error with invalid distDir"
     ],
-    "failed": [],
+    "failed": ["distDir production mode should handle undefined distDir"],
     "pending": [
       "distDir development mode should build the app within the given `dist` directory",
       "distDir development mode should not build the app within the default `.next` directory",
@@ -15511,11 +15510,10 @@
   },
   "test/integration/next-image-new/app-dir-image-from-node-modules/test/index.test.ts": {
     "passed": [
+      "Image Component from node_modules development mode should apply image config for node_modules",
       "Image Component from node_modules prod mode production mode should apply image config for node_modules"
     ],
-    "failed": [
-      "Image Component from node_modules development mode should apply image config for node_modules"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -16276,13 +16274,13 @@
     "runtimeError": false
   },
   "test/integration/plugin-mdx-rs/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "MDX-rs Configuration MDX-rs Plugin support should render an MDX page correctly",
       "MDX-rs Configuration MDX-rs Plugin support should render an MDX page with component correctly",
       "MDX-rs Configuration MDX-rs Plugin support should render an MDX page with globally provided components (from `mdx-components.js`) correctly",
       "MDX-rs Configuration MDX-rs Plugin support with mdx transform options should render an MDX page correctly"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -16510,10 +16508,10 @@
     "runtimeError": false
   },
   "test/integration/production-build-dir/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Production Custom Build Directory production mode With basic usage should render the page"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -17119,7 +17117,8 @@
     "runtimeError": false
   },
   "test/integration/server-side-dev-errors/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "server-side dev errors should show server-side error for api route correctly",
       "server-side dev errors should show server-side error for dynamic api route correctly",
       "server-side dev errors should show server-side error for dynamic gssp page correctly",
@@ -17130,7 +17129,6 @@
       "server-side dev errors should show server-side error for uncaught exception correctly",
       "server-side dev errors should show server-side error for uncaught rejection correctly"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -17238,6 +17236,7 @@
   },
   "test/integration/telemetry/test/config.test.js": {
     "passed": [
+      "config telemetry production mode detects i18n and image configs for session start",
       "config telemetry production mode detects output config for session start",
       "config telemetry production mode detects rewrites, headers, and redirects for next build",
       "config telemetry production mode emits telemery for usage of image, script & dynamic",
@@ -17250,6 +17249,7 @@
       "config telemetry production mode emits telemetry for lint during build when 'ignoreDuringBuilds' is specified",
       "config telemetry production mode emits telemetry for middleware related options",
       "config telemetry production mode emits telemetry for persistent cache in build mode",
+      "config telemetry production mode emits telemetry for persistent cache in dev mode",
       "config telemetry production mode emits telemetry for transpilePackages",
       "config telemetry production mode emits telemetry for usage of @vercel/og",
       "config telemetry production mode emits telemetry for usage of `experimental/dynamicIO`",
@@ -17261,10 +17261,7 @@
       "config telemetry production mode emits telemetry for usage of swc plugins",
       "config telemetry production mode emits telemetry for useCache directive"
     ],
-    "failed": [
-      "config telemetry production mode detects i18n and image configs for session start",
-      "config telemetry production mode emits telemetry for persistent cache in dev mode"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -17279,6 +17276,7 @@
       "Telemetry CLI can print telemetry status",
       "Telemetry CLI can re-disable telemetry",
       "Telemetry CLI can re-enable telemetry",
+      "Telemetry CLI detects isSrcDir dir correctly for `next dev`",
       "Telemetry CLI production mode cli session: babel tooling config",
       "Telemetry CLI production mode cli session: custom babel config (plugin)",
       "Telemetry CLI production mode cli session: custom babel config (preset)",
@@ -17292,7 +17290,6 @@
       "Telemetry CLI production mode logs completed `next build` with warnings"
     ],
     "failed": [
-      "Telemetry CLI detects isSrcDir dir correctly for `next dev`",
       "Telemetry CLI production mode emits event when swc fails to load"
     ],
     "pending": [],
@@ -17301,14 +17298,13 @@
   },
   "test/integration/telemetry/test/page-features.test.js": {
     "passed": [
+      "page features telemetry detects correctly for `next dev` stopped (no turbo)",
       "page features telemetry production mode detect with reportWebVitals correctly for `next build`",
       "page features telemetry production mode detect without reportWebVitals correctly for `next build`",
       "page features telemetry production mode detects reportWebVitals with no _app correctly for `next build`",
       "page features telemetry production mode should detect app page counts"
     ],
-    "failed": [
-      "page features telemetry detects correctly for `next dev` stopped (no turbo)"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -17688,13 +17684,14 @@
     "runtimeError": false
   },
   "test/integration/typescript-workspaces-paths/packages/www/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "TypeScript Features default behavior should alias components",
-      "TypeScript Features default behavior should not resolve to .d.ts files",
       "TypeScript Features default behavior should resolve a single matching alias",
       "TypeScript Features default behavior should resolve the first item in the array first",
       "TypeScript Features default behavior should resolve the second item in as a fallback"
+    ],
+    "failed": [
+      "TypeScript Features default behavior should not resolve to .d.ts files"
     ],
     "pending": [],
     "flakey": [],
