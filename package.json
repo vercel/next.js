@@ -74,6 +74,7 @@
     "sweep": "tsx scripts/sweep.cjs",
     "check-error-codes": "node packages/next/check-error-codes.js",
     "update-error-codes": "cd packages/next && pnpm taskr compile check_error_codes",
+    "build-error-code-plugin": "crates/next-error-code-swc-plugin/build-and-move.sh",
     "storybook": "turbo run storybook",
     "build-storybook": "turbo run build-storybook",
     "test-storybook": "turbo run test-storybook",
