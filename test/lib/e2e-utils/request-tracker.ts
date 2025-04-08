@@ -92,25 +92,58 @@ export function createRequestTracker(browser: BrowserInterface) {
       }
 
       // We found a request that matches our criteria. Now we'll wait for a response.
+
       capturedRequest = request
+
       console.log(
         `[request-tracker] request: ${request.method()} ${request.url()}` +
           (['POST', 'PUT', 'PATCH'].includes(request.method())
             ? ` (content-type: ${request.headers()['content-type']})`
             : '')
       )
+
       const onResponse = (response: PlaywrightResponse) => {
         if (isSettled) {
           return
         }
-        if (response.request() === request) {
-          // We found a response to our request. We're done.
-          console.log(`[request-tracker] response: ${response.status()}`)
-          return responseCtrl.resolve(response)
+        if (response.request() !== request) {
+          return
         }
+
+        // We found a response to our request. We're done.
+        console.log(`[request-tracker] response: ${response.status()}`)
+        removeResultListeners()
+        return responseCtrl.resolve(response)
       }
+
+      const onRequestFailed = (failedRequest: PlaywrightRequest) => {
+        if (isSettled) {
+          return
+        }
+        if (failedRequest !== request) {
+          return
+        }
+
+        // The request failed. Error.
+        console.log(`[request-tracker] request failed`)
+        removeResultListeners()
+        const reason = failedRequest.failure()
+        return responseCtrl.reject(
+          new Error(
+            `Request for ${request.url()} failed: ${reason ? reason.errorText : 'Unknown error'}`
+          )
+        )
+      }
+
       browser.on('response', onResponse)
-      cleanups.push(() => browser.off('response', onResponse))
+      browser.on('requestfailed', onRequestFailed)
+
+      const removeResultListeners = () => {
+        browser.off('response', onResponse)
+        browser.off('requestfailed', onRequestFailed)
+      }
+
+      cleanups.push(removeResultListeners)
     }
 
     // Install the handler before running the action callback to avoid races.
