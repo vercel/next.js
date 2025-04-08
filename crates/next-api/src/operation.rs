@@ -139,9 +139,9 @@ enum EndpointSelector {
 #[turbo_tasks::value(transparent)]
 pub struct OptionEndpoint(Option<ResolvedVc<Box<dyn Endpoint>>>);
 
-/// Given a resolved `Endpoint` and the `Entrypoints` operation that it comes from, connect the
-/// operation and return a `OperationVc` of the `Entrypoint`. This `Endpoint` operation will keep
-/// the entire `Entrypoints` operation alive.
+/// Given a selector and the `Entrypoints` operation that it comes from, connect the operation and
+/// return an `OperationVc` containing the selected value. The returned operation will keep the
+/// entire `Entrypoints` operation alive.
 #[turbo_tasks::function(operation)]
 async fn pick_endpoint(
     op: OperationVc<Entrypoints>,
