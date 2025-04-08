@@ -109,19 +109,19 @@ describe('use-cache-without-experimental-flag', () => {
           `)
       } else {
         expect(errorSource).toMatchInlineSnapshot(`
-           "./app/page.tsx
-           Error:   x To use "use cache", please enable the experimental feature flag "useCache" in your Next.js config.
-             | 
-             | Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
-             | 
-              ,-[1:1]
-            1 | 'use cache'
-              : ^^^^^^^^^^^
-            2 | 
-            3 | export default async function Page() {
-            4 |   return <p>hello world</p>
-              \`----"
-          `)
+         "./app/page.tsx
+         Error:   x To use "use cache", please enable the experimental feature flag "useCache" in your Next.js config.
+           |
+           | Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
+
+            ,-[1:1]
+          1 | 'use cache'
+            : ^^^^^^^^^^^
+          2 | 
+          3 | export default async function Page() {
+          4 |   return <p>hello world</p>
+            \`----"
+        `)
       }
     })
 
