@@ -730,6 +730,7 @@ pub struct ExperimentalConfig {
     ppr: Option<ExperimentalPartialPrerendering>,
     taint: Option<bool>,
     react_owner_stack: Option<bool>,
+    router_bfcache: Option<bool>,
     proxy_timeout: Option<f64>,
     /// enables the minification of server code.
     server_minification: Option<bool>,
@@ -1426,6 +1427,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_react_owner_stack(&self) -> Vc<bool> {
         Vc::cell(self.experimental.react_owner_stack.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_router_bfcache(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.router_bfcache.unwrap_or(false))
     }
 
     #[turbo_tasks::function]

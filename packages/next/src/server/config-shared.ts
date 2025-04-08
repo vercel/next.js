@@ -471,6 +471,11 @@ export interface ExperimentalConfig {
    */
   taint?: boolean
 
+  /**
+   * Enables the Back/Forward Cache for the router.
+   */
+  routerBFCache?: boolean
+
   serverActions?: {
     /**
      * Allows adjusting body parser size limit for server actions.
@@ -1258,6 +1263,7 @@ export const defaultConfig: NextConfig = {
     optimizeServerReact: true,
     useEarlyImport: false,
     viewTransition: false,
+    routerBFCache: false,
     staleTimes: {
       dynamic: 0,
       static: 300,
