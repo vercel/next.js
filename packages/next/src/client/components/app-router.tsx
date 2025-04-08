@@ -28,6 +28,7 @@ import {
   ErrorBoundary,
   type GlobalErrorComponent,
 } from './error-boundary'
+import { GracefullyDegradingErrorBoundary } from './gracefully-degrade-error-boundary'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
@@ -198,10 +199,12 @@ function Router({
   actionQueue,
   assetPrefix,
   globalError,
+  gracefullyDegrade,
 }: {
   actionQueue: AppRouterActionQueue
   assetPrefix: string
   globalError: [GlobalErrorComponent, React.ReactNode]
+  gracefullyDegrade: boolean
 }) {
   const state = useActionQueue(actionQueue)
   const { canonicalUrl } = state
@@ -512,6 +515,16 @@ function Router({
       </HotReloader>
     )
   } else {
+    // If gracefully degrading is applied, wrap with the graceful error boundary first,
+    // ensure it can catch error first
+    if (gracefullyDegrade) {
+      content = (
+        <GracefullyDegradingErrorBoundary>
+          {content}
+        </GracefullyDegradingErrorBoundary>
+      )
+    }
+
     // In production, we only apply the user-customized global error boundary.
     content = (
       <ErrorBoundary
@@ -555,10 +568,12 @@ export default function AppRouter({
   actionQueue,
   globalErrorComponentAndStyles: [globalErrorComponent, globalErrorStyles],
   assetPrefix,
+  gracefullyDegrade,
 }: {
   actionQueue: AppRouterActionQueue
   globalErrorComponentAndStyles: [GlobalErrorComponent, React.ReactNode]
   assetPrefix: string
+  gracefullyDegrade: boolean
 }) {
   useNavFailureHandler()
 
@@ -572,6 +587,7 @@ export default function AppRouter({
         actionQueue={actionQueue}
         assetPrefix={assetPrefix}
         globalError={[globalErrorComponent, globalErrorStyles]}
+        gracefullyDegrade={gracefullyDegrade}
       />
     </ErrorBoundary>
   )

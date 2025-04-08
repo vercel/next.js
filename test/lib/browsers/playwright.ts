@@ -125,7 +125,8 @@ export class Playwright extends BrowserInterface {
     locale: string,
     javaScriptEnabled: boolean,
     ignoreHTTPSErrors: boolean,
-    headless: boolean
+    headless: boolean,
+    userAgent: string | undefined
   ) {
     let device
 
@@ -148,6 +149,7 @@ export class Playwright extends BrowserInterface {
           locale,
           javaScriptEnabled,
           ignoreHTTPSErrors,
+          ...(userAgent ? { userAgent } : {}),
           ...device,
         })
         contextHasJSEnabled = javaScriptEnabled
@@ -160,6 +162,7 @@ export class Playwright extends BrowserInterface {
       locale,
       javaScriptEnabled,
       ignoreHTTPSErrors,
+      ...(userAgent ? { userAgent } : {}),
       ...device,
     })
     contextHasJSEnabled = javaScriptEnabled
