@@ -320,6 +320,50 @@ describe('AfterContext', () => {
     ])
   })
 
+  it('waits for promises added via after(promise)', async () => {
+    const waitUntilPromises: Promise<unknown>[] = []
+    const waitUntil = jest.fn((promise) => waitUntilPromises.push(promise))
+
+    let onCloseCallback: (() => void) | undefined = undefined
+    const onClose = jest.fn((cb) => {
+      onCloseCallback = cb
+    })
+
+    const afterContext = new AfterContext({
+      waitUntil,
+      onClose,
+      onTaskError: undefined,
+    })
+
+    const workStore = createMockWorkStore(afterContext)
+    const workUnitStore = createMockWorkUnitStore()
+    const run = createRun(afterContext, workStore, workUnitStore)
+
+    // ==================================
+
+    const promise = new DetachedPromise<void>()
+    let promiseDidResolve = false
+    promise.promise.then(() => {
+      promiseDidResolve = true
+    })
+
+    await run(() => {
+      afterContext.after(promise.promise)
+      expect(onClose).toHaveBeenCalledTimes(1)
+      expect(waitUntil).toHaveBeenCalledTimes(1) // just runCallbacksOnClose
+    })
+
+    // the response is done.
+    onCloseCallback!()
+    await Promise.resolve(null)
+
+    expect(workUnitStore.phase).toBe('after')
+
+    setTimeout(() => promise.resolve(), 50)
+    await Promise.all(waitUntilPromises)
+    expect(promiseDidResolve).toBe(true)
+  })
+
   it('runs after() callbacks added from after(promise) after onClose', async () => {
     const waitUntilPromises: Promise<unknown>[] = []
     const waitUntil = jest.fn((promise) => waitUntilPromises.push(promise))
