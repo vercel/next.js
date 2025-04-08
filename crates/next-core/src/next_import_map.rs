@@ -249,37 +249,6 @@ pub async fn get_next_client_import_map(
     Ok(import_map.cell())
 }
 
-/// Computes the Next-specific client import map.
-#[turbo_tasks::function]
-pub async fn get_next_build_import_map() -> Result<Vc<ImportMap>> {
-    let mut import_map = ImportMap::empty();
-
-    insert_package_alias(
-        &mut import_map,
-        &format!("{VIRTUAL_PACKAGE_NAME}/"),
-        next_js_fs().root().to_resolved().await?,
-    );
-
-    let external = ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Traced)
-        .resolved_cell();
-
-    import_map.insert_exact_alias("next", external);
-    import_map.insert_wildcard_alias("next/", external);
-    import_map.insert_exact_alias("styled-jsx", external);
-    import_map.insert_exact_alias(
-        "styled-jsx/style",
-        ImportMapping::External(
-            Some("styled-jsx/style.js".into()),
-            ExternalType::CommonJs,
-            ExternalTraced::Traced,
-        )
-        .resolved_cell(),
-    );
-    import_map.insert_wildcard_alias("styled-jsx/", external);
-
-    Ok(import_map.cell())
-}
-
 /// Computes the Next-specific client fallback import map, which provides
 /// polyfills to Node.js externals.
 #[turbo_tasks::function]
