@@ -516,7 +516,7 @@ function Router({
     )
   } else {
     // If gracefully degrading is applied in production,
-    // wrap app with the graceful error boundary, let it can catch errors rather than GlobalError
+    // wrap app with the graceful error boundary, so it can catch errors rather than GlobalError
     if (gracefullyDegrade && process.env.NODE_ENV === 'production') {
       content = (
         <GracefullyDegradingErrorBoundary>
@@ -524,7 +524,7 @@ function Router({
         </GracefullyDegradingErrorBoundary>
       )
     } else {
-      // In production, we only apply the user-customized global error boundary.
+      // Apply the user-customized global error boundary if not gracefully degrading.
       content = (
         <ErrorBoundary
           errorComponent={globalError[0]}
