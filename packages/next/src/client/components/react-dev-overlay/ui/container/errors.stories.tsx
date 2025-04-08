@@ -134,17 +134,17 @@ const runtimeErrors: ReadyRuntimeError[] = [
   {
     id: 4,
     runtime: true,
-    error: new Error('Fourth error message'),
+    error: new Error('typeof window !== undefined'),
     frames: () =>
       Promise.resolve([
         {
           error: true,
-          reason: 'Fourth error message',
+          reason: 'typeof window !== undefined',
           external: false,
           ignored: false,
           sourceStackFrame,
           originalStackFrame,
-          originalCodeFrame: originalCodeFrame('Fourth error message'),
+          originalCodeFrame: originalCodeFrame('typeof window !== undefined'),
         },
       ]),
   },

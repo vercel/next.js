@@ -20,7 +20,7 @@ function runTests() {
     const $ = cheerio.load(html)
     const href = $('link').attr('href')
     const css = await renderViaHTTP(appPort, href)
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       expect(css).toMatchInlineSnapshot(`
        "/* [project]/test/integration/css-minify/styles/global.css [client] (css) */
        .a{--var-1:-50%;--var-2:-50%}.b{--var-1:0;--var-2:-50%}

@@ -671,15 +671,19 @@ export default async function getBaseWebpackConfig(
     '...',
   ]
 
+  const reactRefreshEntry = isRspack
+    ? getRspackReactRefresh().entry
+    : require.resolve(
+        `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
+      )
+
   const clientEntries = isClient
     ? ({
         // Backwards compatibility
         'main.js': [],
         ...(dev
           ? {
-              [CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]: require.resolve(
-                `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
-              ),
+              [CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]: reactRefreshEntry,
               [CLIENT_STATIC_FILES_RUNTIME_AMP]:
                 `./` +
                 path
@@ -705,9 +709,7 @@ export default async function getBaseWebpackConfig(
           ? {
               [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP]: dev
                 ? [
-                    require.resolve(
-                      `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
-                    ),
+                    reactRefreshEntry,
                     `./` +
                       path
                         .relative(
@@ -1905,7 +1907,11 @@ export default async function getBaseWebpackConfig(
         isClient &&
         (isRspack
           ? // eslint-disable-next-line
-            new (getRspackReactRefresh() as any)({ injectLoader: false })
+            new (getRspackReactRefresh() as any)({
+              injectLoader: false,
+              injectEntry: false,
+              overlay: false,
+            })
           : new ReactRefreshWebpackPlugin(webpack)),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       (isClient || isEdgeServer) &&

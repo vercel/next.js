@@ -124,7 +124,7 @@ const runTests = (isDev) => {
   it('should add a blur placeholder a statically imported jpg', async () => {
     const style = $('#basic-static').attr('style')
     if (isDev) {
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(style).toContain(
           `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml`
         )
@@ -134,7 +134,7 @@ const runTests = (isDev) => {
         )
       }
     } else {
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(style).toContain(
           `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml`
         )
@@ -149,7 +149,7 @@ const runTests = (isDev) => {
   it('should add a blur placeholder a statically imported png', async () => {
     const style = $('#blur-png').attr('style')
     if (isDev) {
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(style).toContain(
           `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml`
         )
@@ -159,7 +159,7 @@ const runTests = (isDev) => {
         )
       }
     } else {
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(style).toContain(
           `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml`
         )
@@ -174,7 +174,7 @@ const runTests = (isDev) => {
   it('should add a blur placeholder a statically imported png with fill', async () => {
     const style = $('#blur-png-fill').attr('style')
     if (isDev) {
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(style).toContain(
           `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml`
         )
@@ -184,7 +184,7 @@ const runTests = (isDev) => {
         )
       }
     } else {
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(style).toContain(
           `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml`
         )
@@ -238,7 +238,7 @@ describe('Build Error Tests', () => {
           "Module not found: Can't resolve '../../public/foo/test-rect-broken.jpg"
         )
         // should contain the importing module
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           // For this test with Turbopack the root of the project is the root of the Next.js repository because it's not isolated.
           expect(stderr).toContain('app/static-img/page.js')
         } else {

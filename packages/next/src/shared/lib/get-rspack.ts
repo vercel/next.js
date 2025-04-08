@@ -1,7 +1,7 @@
-import { CanaryOnlyError, isStableBuild } from './canary-only'
+import { warnOnce } from '../../build/output/log'
 
 export function getRspackCore() {
-  gateCanary()
+  warnRspack()
   try {
     // eslint-disable-next-line import/no-extraneous-dependencies
     return require('@rspack/core')
@@ -17,10 +17,15 @@ export function getRspackCore() {
 }
 
 export function getRspackReactRefresh() {
-  gateCanary()
+  warnRspack()
   try {
     // eslint-disable-next-line import/no-extraneous-dependencies
-    return require('@rspack/plugin-react-refresh')
+    const plugin = require('@rspack/plugin-react-refresh')
+    const entry = require.resolve(
+      '@rspack/plugin-react-refresh/react-refresh-entry'
+    )
+    plugin.entry = entry
+    return plugin
   } catch (e) {
     if (e instanceof Error && 'code' in e && e.code === 'MODULE_NOT_FOUND') {
       throw new Error(
@@ -32,10 +37,8 @@ export function getRspackReactRefresh() {
   }
 }
 
-function gateCanary() {
-  if (isStableBuild()) {
-    throw new CanaryOnlyError(
-      'Rspack support is only available in Next.js canary.'
-    )
-  }
+function warnRspack() {
+  warnOnce(
+    `\`next-rspack\` is currently experimental. It's not an official Next.js plugin, and is supported by the Rspack team in partnership with Next.js. Help improve Next.js and Rspack by providing feedback at https://github.com/vercel/next.js/discussions/77800`
+  )
 }

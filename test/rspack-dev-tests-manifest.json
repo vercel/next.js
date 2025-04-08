@@ -1732,11 +1732,11 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/ReactRefresh.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "ReactRefresh app can edit a component without losing state",
       "ReactRefresh app cyclic dependencies"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1765,7 +1765,7 @@
   },
   "test/development/acceptance-app/ReactRefreshLogBox.test.ts": {
     "passed": [
-      "ReactRefreshLogBox app Should show error location for server actions in server component",
+      "ReactRefreshLogBox app boundaries",
       "ReactRefreshLogBox app should strip whitespace correctly with newline"
     ],
     "failed": [
@@ -1776,8 +1776,8 @@
       "ReactRefreshLogBox app Server component errors should open up in fullscreen",
       "ReactRefreshLogBox app Should not show __webpack_exports__ when exporting anonymous arrow function",
       "ReactRefreshLogBox app Should show error location for server actions in client component",
+      "ReactRefreshLogBox app Should show error location for server actions in server component",
       "ReactRefreshLogBox app Unhandled errors and rejections opens up in the minimized state",
-      "ReactRefreshLogBox app boundaries",
       "ReactRefreshLogBox app conversion to class component (1)",
       "ReactRefreshLogBox app css syntax errors",
       "ReactRefreshLogBox app logbox: anchors links in error messages",
@@ -1812,14 +1812,14 @@
   "test/development/acceptance-app/ReactRefreshRegression.test.ts": {
     "passed": [
       "ReactRefreshRegression app can fast refresh a page with config",
-      "ReactRefreshRegression app shows an overlay for anonymous function server-side error",
-      "ReactRefreshRegression app shows an overlay for server-side error in client component",
-      "ReactRefreshRegression app shows an overlay for server-side error in server component"
-    ],
-    "failed": [
       "ReactRefreshRegression app can fast refresh a page with dynamic rendering",
       "ReactRefreshRegression app can fast refresh a page with static generation",
       "ReactRefreshRegression app custom loader mdx should have Fast Refresh enabled"
+    ],
+    "failed": [
+      "ReactRefreshRegression app shows an overlay for anonymous function server-side error",
+      "ReactRefreshRegression app shows an overlay for server-side error in client component",
+      "ReactRefreshRegression app shows an overlay for server-side error in server component"
     ],
     "pending": [
       "ReactRefreshRegression app styled-components hydration mismatch"
@@ -1895,9 +1895,7 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/error-recovery.test.ts": {
-    "passed": [
-      "Error recovery app server component can recover from a component error"
-    ],
+    "passed": [],
     "failed": [
       "Error recovery app can recover from a event handler error",
       "Error recovery app can recover from a syntax error without losing state",
@@ -1905,6 +1903,7 @@
       "Error recovery app client component can recover from syntax error",
       "Error recovery app displays build error on initial page load",
       "Error recovery app render error not shown right after syntax error",
+      "Error recovery app server component can recover from a component error",
       "Error recovery app server component can recover from syntax error",
       "Error recovery app stuck error",
       "Error recovery app syntax > runtime error"
@@ -2059,11 +2058,11 @@
     "runtimeError": false
   },
   "test/development/acceptance/ReactRefresh.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "ReactRefresh can edit a component without losing state",
       "ReactRefresh cyclic dependencies"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2104,19 +2103,17 @@
     "runtimeError": false
   },
   "test/development/acceptance/ReactRefreshLogBox.test.ts": {
-    "passed": [
-      "ReactRefreshLogBox Call stack count is correct for pages error",
-      "ReactRefreshLogBox non-Error errors are handled properly",
-      "ReactRefreshLogBox should collapse nodejs internal stack frames from stack trace",
-      "ReactRefreshLogBox should strip whitespace correctly with newline"
-    ],
+    "passed": ["ReactRefreshLogBox non-Error errors are handled properly"],
     "failed": [
+      "ReactRefreshLogBox Call stack count is correct for pages error",
       "ReactRefreshLogBox boundaries",
       "ReactRefreshLogBox conversion to class component (1)",
       "ReactRefreshLogBox css syntax errors",
       "ReactRefreshLogBox logbox: anchors links in error messages",
       "ReactRefreshLogBox module init error not shown",
+      "ReactRefreshLogBox should collapse nodejs internal stack frames from stack trace",
       "ReactRefreshLogBox should show anonymous frames from stack trace",
+      "ReactRefreshLogBox should strip whitespace correctly with newline",
       "ReactRefreshLogBox unterminated JSX"
     ],
     "pending": ["ReactRefreshLogBox internal package errors"],
@@ -2132,14 +2129,14 @@
   },
   "test/development/acceptance/ReactRefreshRegression.test.ts": {
     "passed": [
-      "ReactRefreshRegression shows an overlay for a server-side error",
+      "ReactRefreshRegression custom loader mdx should have Fast Refresh enabled",
       "ReactRefreshRegression styled-components hydration mismatch"
     ],
     "failed": [
       "ReactRefreshRegression can fast refresh a page with config",
       "ReactRefreshRegression can fast refresh a page with getServerSideProps",
       "ReactRefreshRegression can fast refresh a page with getStaticProps",
-      "ReactRefreshRegression custom loader mdx should have Fast Refresh enabled"
+      "ReactRefreshRegression shows an overlay for a server-side error"
     ],
     "pending": [],
     "flakey": [],
@@ -2187,9 +2184,13 @@
     "passed": [
       "Error overlay for hydration errors in Pages router includes a React docs link when hydration error does occur",
       "Error overlay for hydration errors in Pages router should not show a hydration error when using `useId` in a client component",
+      "Error overlay for hydration errors in Pages router should show error if script is directly placed under html instead of body"
+    ],
+    "failed": [
       "Error overlay for hydration errors in Pages router should only show one hydration error when bad nesting happened - div > tr",
       "Error overlay for hydration errors in Pages router should only show one hydration error when bad nesting happened - div under p",
       "Error overlay for hydration errors in Pages router should only show one hydration error when bad nesting happened - p under p",
+      "Error overlay for hydration errors in Pages router should show correct hydration error when client and server render different text",
       "Error overlay for hydration errors in Pages router should show correct hydration error when client renders an extra element",
       "Error overlay for hydration errors in Pages router should show correct hydration error when client renders an extra node inside Suspense content",
       "Error overlay for hydration errors in Pages router should show correct hydration error when client renders an extra text node",
@@ -2197,11 +2198,7 @@
       "Error overlay for hydration errors in Pages router should show correct hydration error when server renders an extra text node",
       "Error overlay for hydration errors in Pages router should show correct hydration error when server renders an extra text node in an invalid place",
       "Error overlay for hydration errors in Pages router should show correct hydration error when server renders an extra whitespace in an invalid place",
-      "Error overlay for hydration errors in Pages router should show error if script is directly placed under html instead of body",
       "Error overlay for hydration errors in Pages router should show the highlighted bad nesting html snippet when bad nesting happened"
-    ],
-    "failed": [
-      "Error overlay for hydration errors in Pages router should show correct hydration error when client and server render different text"
     ],
     "pending": [],
     "flakey": [],
@@ -2281,10 +2278,10 @@
   },
   "test/development/app-dir/capture-console-error-owner-stack/capture-console-error-owner-stack.test.ts": {
     "passed": [
-      "app-dir - capture-console-error-owner-stack should be able to capture rsc logged error",
       "app-dir - capture-console-error-owner-stack should display the error message in error event when event.error is not present"
     ],
     "failed": [
+      "app-dir - capture-console-error-owner-stack should be able to capture rsc logged error",
       "app-dir - capture-console-error-owner-stack should capture browser console error and format the error message",
       "app-dir - capture-console-error-owner-stack should capture browser console error in render and dedupe if necessary",
       "app-dir - capture-console-error-owner-stack should capture browser console error in render and dedupe when multi same errors logged",
@@ -2353,13 +2350,13 @@
   },
   "test/development/app-dir/dynamic-io-dev-errors/dynamic-io-dev-errors.test.ts": {
     "passed": [
-      "Dynamic IO Dev Errors should not log unhandled rejections for persistently thrown top-level errors",
-      "Dynamic IO Dev Errors should show a red box error on client navigations",
-      "Dynamic IO Dev Errors should show a red box error on the SSR render"
+      "Dynamic IO Dev Errors should not log unhandled rejections for persistently thrown top-level errors"
     ],
     "failed": [
       "Dynamic IO Dev Errors should clear segment errors after correcting them",
-      "Dynamic IO Dev Errors should display error when component accessed data without suspense boundary"
+      "Dynamic IO Dev Errors should display error when component accessed data without suspense boundary",
+      "Dynamic IO Dev Errors should show a red box error on client navigations",
+      "Dynamic IO Dev Errors should show a red box error on the SSR render"
     ],
     "pending": [],
     "flakey": [],
@@ -2399,23 +2396,21 @@
   },
   "test/development/app-dir/error-overlay/async-client-component/async-client-component.test.ts": {
     "passed": [
+      "app-dir - async-client-component app router client component async module",
       "app-dir - async-client-component app router server component async module"
     ],
-    "failed": [
-      "app-dir - async-client-component app router client component async module"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/development/app-dir/error-overlay/error-ignored-frames/error-ignored-frames.test.ts": {
-    "passed": [
-      "error-ignored-frames should be able to collapse pages router ignored frames"
-    ],
+    "passed": [],
     "failed": [
       "error-ignored-frames should be able to collapse ignored frames in client component",
       "error-ignored-frames should be able to collapse ignored frames in interleaved call stack",
-      "error-ignored-frames should be able to collapse ignored frames in server component"
+      "error-ignored-frames should be able to collapse ignored frames in server component",
+      "error-ignored-frames should be able to collapse pages router ignored frames"
     ],
     "pending": [],
     "flakey": [],
@@ -2524,12 +2519,11 @@
   },
   "test/development/app-dir/missing-required-html-tags/index.test.ts": {
     "passed": [
-      "app-dir - missing required html tags should display correct error count in dev indicator"
-    ],
-    "failed": [
+      "app-dir - missing required html tags should display correct error count in dev indicator",
       "app-dir - missing required html tags should hmr when you fix the error",
       "app-dir - missing required html tags should show error overlay"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2553,11 +2547,10 @@
     "runtimeError": false
   },
   "test/development/app-dir/owner-stack-invalid-element-type/owner-stack-invalid-element-type.test.ts": {
-    "passed": [
-      "app-dir - owner-stack-invalid-element-type should catch invalid element from a rsc component"
-    ],
+    "passed": [],
     "failed": [
       "app-dir - owner-stack-invalid-element-type should catch invalid element from a browser only component",
+      "app-dir - owner-stack-invalid-element-type should catch invalid element from a rsc component",
       "app-dir - owner-stack-invalid-element-type should catch invalid element from on ssr client component"
     ],
     "pending": [],
@@ -2575,9 +2568,10 @@
     "runtimeError": false
   },
   "test/development/app-dir/owner-stack/owner-stack.test.ts": {
-    "passed": [],
+    "passed": [
+      "app-dir - owner-stack should capture unhandled promise rejections"
+    ],
     "failed": [
-      "app-dir - owner-stack should capture unhandled promise rejections",
       "app-dir - owner-stack should log stitched error for SSR errors",
       "app-dir - owner-stack should log stitched error for browser caught errors",
       "app-dir - owner-stack should log stitched error for browser uncaught errors"
@@ -2695,17 +2689,6 @@
       "typed-env should rewrite env types if .env is modified"
     ],
     "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/development/app-dir/use-cache-dev/use-cache-dev.test.ts": {
-    "passed": [
-      "use-cache-dev should return cached data after reload",
-      "use-cache-dev should return fresh data after hard reload",
-      "use-cache-dev should successfully finish compilation when \"use cache\" directive is added/removed"
-    ],
-    "failed": ["use-cache-dev should update cached data after editing a file"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2936,36 +2919,35 @@
   "test/development/basic/hmr/hot-module-reload.test.ts": {
     "passed": [
       "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } delete a page and add it back should load the page properly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should not reload unrelated pages",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } delete a page and add it back should load the page properly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should not reload unrelated pages",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } delete a page and add it back should load the page properly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should not reload unrelated pages",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } delete a page and add it back should load the page properly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should not reload unrelated pages"
-    ],
-    "failed": [
       "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should detect the changes and display it",
       "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should not full reload when nonlatin characters are used",
+      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should not reload unrelated pages",
       "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should update styles correctly",
       "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should update styles in a dynamic component correctly",
       "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should update styles in a stateful component correctly",
+      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } delete a page and add it back should load the page properly",
       "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should detect the changes and display it",
       "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should not full reload when nonlatin characters are used",
+      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should not reload unrelated pages",
       "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should update styles correctly",
       "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should update styles in a dynamic component correctly",
       "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should update styles in a stateful component correctly",
+      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } delete a page and add it back should load the page properly",
       "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should detect the changes and display it",
       "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should not full reload when nonlatin characters are used",
+      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should not reload unrelated pages",
       "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should update styles correctly",
       "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should update styles in a dynamic component correctly",
       "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should update styles in a stateful component correctly",
+      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } delete a page and add it back should load the page properly",
       "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should detect the changes and display it",
       "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should not full reload when nonlatin characters are used",
+      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should not reload unrelated pages",
       "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should update styles correctly",
       "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should update styles in a dynamic component correctly",
       "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should update styles in a stateful component correctly"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3206,8 +3188,8 @@
     "runtimeError": false
   },
   "test/development/basic/tailwind-jit.test.ts": {
-    "passed": [],
-    "failed": ["TailwindCSS JIT works with JIT enabled"],
+    "passed": ["TailwindCSS JIT works with JIT enabled"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3320,23 +3302,23 @@
     "runtimeError": false
   },
   "test/development/internal-traces/internal-traces.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "internal traces should not write long internal traces to stdio"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/development/jsconfig-path-reloading/index.test.ts": {
     "passed": [
+      "jsconfig-path-reloading jsconfig should automatically fast refresh content when path is added without error",
       "jsconfig-path-reloading jsconfig should load with initial paths config correctly"
     ],
     "failed": [
       "jsconfig-path-reloading jsconfig added after starting dev should automatically fast refresh content when path is added without error",
       "jsconfig-path-reloading jsconfig added after starting dev should load with initial paths config correctly",
       "jsconfig-path-reloading jsconfig added after starting dev should recover from module not found when paths is updated",
-      "jsconfig-path-reloading jsconfig should automatically fast refresh content when path is added without error",
       "jsconfig-path-reloading jsconfig should recover from module not found when paths is updated"
     ],
     "pending": [],
@@ -3443,7 +3425,6 @@
       "Client Navigation resets scroll at the correct time should intentionally not reset scroll before the new page runs its lifecycles (Router#push)",
       "Client Navigation resets scroll at the correct time should reset scroll before the new page runs its lifecycles (<Link />)",
       "Client Navigation resets scroll at the correct time should reset scroll before the new page runs its lifecycles (Router#push)",
-      "Client Navigation runtime errors should show redbox when a client side error is thrown inside a component",
       "Client Navigation should emit routeChangeError on hash change cancel",
       "Client Navigation should handle boolean async prop in next/script client-side: false",
       "Client Navigation should handle boolean async prop in next/script client-side: true",
@@ -3491,6 +3472,7 @@
       "Client Navigation with different types of urls should work with / page",
       "Client Navigation with different types of urls should work with dir/ page",
       "Client Navigation with different types of urls should work with normal page",
+      "Client Navigation with empty getInitialProps() should render a redbox",
       "Client Navigation with getInitialProp redirect should redirect the page via client side",
       "Client Navigation with getInitialProp redirect should redirect the page when loading",
       "Client Navigation with hash changes check hydration mis-match should not have hydration mis-match for hash link",
@@ -3545,8 +3527,8 @@
       "updating <Head /> with strictNextHead=true while client routing should warn when stylesheets or scripts are in head"
     ],
     "failed": [
-      "Client Navigation runtime errors should show redbox when a client side error is thrown outside a component",
-      "Client Navigation with empty getInitialProps() should render a redbox"
+      "Client Navigation runtime errors should show redbox when a client side error is thrown inside a component",
+      "Client Navigation runtime errors should show redbox when a client side error is thrown outside a component"
     ],
     "pending": [],
     "flakey": [],
@@ -3584,7 +3566,9 @@
       "Client Navigation rendering Rendering via HTTP asPath",
       "Client Navigation rendering Rendering via HTTP default Content-Type",
       "Client Navigation rendering Rendering via HTTP default export is not a React Component",
-      "Client Navigation rendering Rendering via HTTP error-inside-page",
+      "Client Navigation rendering Rendering via HTTP getInitialProps circular structure",
+      "Client Navigation rendering Rendering via HTTP getInitialProps resolves to null",
+      "Client Navigation rendering Rendering via HTTP getInitialProps should be class method",
       "Client Navigation rendering Rendering via HTTP renders a link component",
       "Client Navigation rendering Rendering via HTTP renders a stateless component",
       "Client Navigation rendering Rendering via HTTP renders properties populated asynchronously",
@@ -3608,19 +3592,17 @@
     ],
     "failed": [
       "Client Navigation rendering Rendering via HTTP error-in-the-global-scope",
-      "Client Navigation rendering Rendering via HTTP getInitialProps circular structure",
-      "Client Navigation rendering Rendering via HTTP getInitialProps resolves to null",
-      "Client Navigation rendering Rendering via HTTP getInitialProps should be class method"
+      "Client Navigation rendering Rendering via HTTP error-inside-page"
     ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/development/pages-dir/custom-app-hmr/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "custom-app-hmr should not do full reload when simply editing _app.js"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3633,8 +3615,8 @@
     "runtimeError": false
   },
   "test/development/repeated-dev-edits/repeated-dev-edits.test.ts": {
-    "passed": [],
-    "failed": ["repeated-dev-edits should not break the hydration "],
+    "passed": ["repeated-dev-edits should not break the hydration "],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3678,13 +3660,13 @@
   },
   "test/development/tsconfig-path-reloading/index.test.ts": {
     "passed": [
+      "tsconfig-path-reloading tsconfig added after starting dev should automatically fast refresh content when path is added without error",
       "tsconfig-path-reloading tsconfig added after starting dev should load with initial paths config correctly",
+      "tsconfig-path-reloading tsconfig should automatically fast refresh content when path is added without error",
       "tsconfig-path-reloading tsconfig should load with initial paths config correctly"
     ],
     "failed": [
-      "tsconfig-path-reloading tsconfig added after starting dev should automatically fast refresh content when path is added without error",
       "tsconfig-path-reloading tsconfig added after starting dev should recover from module not found when paths is updated",
-      "tsconfig-path-reloading tsconfig should automatically fast refresh content when path is added without error",
       "tsconfig-path-reloading tsconfig should recover from module not found when paths is updated"
     ],
     "pending": [],
@@ -3692,10 +3674,11 @@
     "runtimeError": false
   },
   "test/development/typescript-auto-install/index.test.ts": {
-    "passed": ["typescript-auto-install should work"],
-    "failed": [
-      "typescript-auto-install should detect TypeScript being added and auto setup"
+    "passed": [
+      "typescript-auto-install should detect TypeScript being added and auto setup",
+      "typescript-auto-install should work"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3862,6 +3845,7 @@
       "app-dir action handling fetch actions should revalidate when cookies.set is called",
       "app-dir action handling fetch actions should revalidate when cookies.set is called in a client action",
       "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
+      "app-dir action handling redirects displays searchParams correctly when redirecting with SearchParams",
       "app-dir action handling redirects merges cookies correctly when redirecting",
       "app-dir action handling redirects redirects properly when server action handler redirects with a 307 status code",
       "app-dir action handling redirects redirects properly when server action handler redirects with a 308 status code",
@@ -3885,6 +3869,7 @@
       "app-dir action handling should not block navigation events while a server action is in flight",
       "app-dir action handling should not block router.back() while a server action is in flight",
       "app-dir action handling should not error when a forwarded action triggers a redirect (edge)",
+      "app-dir action handling should not error when a forwarded action triggers a redirect (node)",
       "app-dir action handling should not log errors for non-action form POSTs",
       "app-dir action handling should only submit action once when resubmitting an action after navigation",
       "app-dir action handling should propagate errors from a `text/plain` response to an error boundary",
@@ -3917,9 +3902,7 @@
     "failed": [
       "app-dir action handling Edge SSR should handle unicode search params",
       "app-dir action handling HMR should support updating the action",
-      "app-dir action handling redirects displays searchParams correctly when redirecting with SearchParams",
-      "app-dir action handling should forward action request to a worker that contains the action handler (node)",
-      "app-dir action handling should not error when a forwarded action triggers a redirect (node)"
+      "app-dir action handling should forward action request to a worker that contains the action handler (node)"
     ],
     "pending": [
       "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
@@ -4758,7 +4741,9 @@
       "app dir - basic <Link /> should replace to external url",
       "app dir - basic <Link /> should soft push",
       "app dir - basic <Link /> should soft replace",
+      "app dir - basic HMR should HMR correctly for client component",
       "app dir - basic HMR should HMR correctly for server component",
+      "app dir - basic bootstrap scripts should fail to bootstrap when using CSP in Dev due to eval",
       "app dir - basic bootstrap scripts should only bootstrap with one script, prinitializing the rest",
       "app dir - basic data fetch with response over 16KB with chunked encoding should load page when fetching a large amount of data",
       "app dir - basic known bugs should handle as on next/link",
@@ -4829,8 +4814,6 @@
       "app dir - basic should not share edge workers",
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
-      "app dir - basic should return the `vary` header from edge runtime",
-      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
       "app dir - basic should serve dynamic route from pages",
@@ -4847,8 +4830,6 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic HMR should HMR correctly for client component",
-      "app dir - basic bootstrap scripts should fail to bootstrap when using CSP in Dev due to eval",
       "app dir - basic next/script should pass on extra props for beforeInteractive scripts without a src prop",
       "app dir - basic should serve polyfills for browsers that do not support modules"
     ],
@@ -8028,7 +8009,6 @@
       "app dir - rsc basics next internal shared context should not error if just load next/router module in app page",
       "app dir - rsc basics react@experimental should opt into the react@experimental when enabling ppr",
       "app dir - rsc basics react@experimental should opt into the react@experimental when enabling taint",
-      "app dir - rsc basics should be able to navigate between rsc routes",
       "app dir - rsc basics should correctly render component returning null",
       "app dir - rsc basics should correctly render component returning undefined",
       "app dir - rsc basics should correctly render layout returning null",
@@ -8061,7 +8041,8 @@
       "app dir - rsc basics should use canary react for app"
     ],
     "failed": [
-      "app dir - rsc basics should be able to call legacy react-dom/server APIs in client components"
+      "app dir - rsc basics should be able to call legacy react-dom/server APIs in client components",
+      "app dir - rsc basics should be able to navigate between rsc routes"
     ],
     "pending": [
       "app dir - rsc basics should support partial hydration with inlined server data in browser"
@@ -8540,6 +8521,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/dynamic-on-hover/dynamic-on-hover.test.ts": {
+    "passed": ["dynamic on hover prefetching is disabled"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/export/segment-cache-output-export.test.ts": {
     "passed": [
       "segment cache (output: \"export\") build test should not run during dev test run"
@@ -8669,15 +8657,15 @@
   },
   "test/e2e/app-dir/server-source-maps/server-source-maps.test.ts": {
     "passed": [
-      "app-dir - server source maps logged errors have a sourcemapped `cause`",
-      "app-dir - server source maps logged errors have a sourcemapped stack with a codeframe",
-      "app-dir - server source maps logged errors preserve their name",
-      "app-dir - server source maps thrown SSR errors"
+      "app-dir - server source maps logged errors preserve their name"
     ],
     "failed": [
       "app-dir - server source maps handles invalid sourcemaps gracefully",
+      "app-dir - server source maps logged errors have a sourcemapped `cause`",
+      "app-dir - server source maps logged errors have a sourcemapped stack with a codeframe",
       "app-dir - server source maps stack frames are ignore-listed in rsc",
-      "app-dir - server source maps stack frames are ignore-listed in ssr"
+      "app-dir - server source maps stack frames are ignore-listed in ssr",
+      "app-dir - server source maps thrown SSR errors"
     ],
     "pending": [],
     "flakey": [],
@@ -8893,10 +8881,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-close-over-function/use-cache-close-over-function.test.ts": {
-    "passed": [
-      "use-cache-close-over-function should show an error toast for client-side usage"
-    ],
+    "passed": [],
     "failed": [
+      "use-cache-close-over-function should show an error toast for client-side usage",
       "use-cache-close-over-function should show the error overlay for server-side usage"
     ],
     "pending": [],
@@ -8905,14 +8892,26 @@
   },
   "test/e2e/app-dir/use-cache-custom-handler/use-cache-custom-handler.test.ts": {
     "passed": [
+      "use-cache-custom-handler calls neither refreshTags nor getExpiration if \"use cache\" is not used",
       "use-cache-custom-handler should not call expireTags for a normal invocation",
-      "use-cache-custom-handler should not call getExpiration again after an action",
+      "use-cache-custom-handler should not call getExpiration after an action",
       "use-cache-custom-handler should revalidate after redirect using a legacy custom cache handler",
       "use-cache-custom-handler should revalidate after redirect using a modern custom cache handler",
       "use-cache-custom-handler should use a legacy custom cache handler if provided",
       "use-cache-custom-handler should use a modern custom cache handler if provided"
     ],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/use-cache-dev/use-cache-dev.test.ts": {
+    "passed": [
+      "use-cache-dev should return cached data after reload",
+      "use-cache-dev should return fresh data after hard reload",
+      "use-cache-dev should successfully finish compilation when \"use cache\" directive is added/removed"
+    ],
+    "failed": ["use-cache-dev should update cached data after editing a file"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8973,9 +8972,11 @@
   },
   "test/e2e/app-dir/use-cache-standalone-search-params/use-cache-standalone-search-params.test.ts": {
     "passed": [
+      "use-cache-standalone-search-params when searchParams are caught inside of \"use cache\" should also show an error after the second reload",
       "use-cache-standalone-search-params when searchParams are unused inside of \"use cache\" should not show an error"
     ],
     "failed": [
+      "use-cache-standalone-search-params when searchParams are caught inside of \"use cache\" should show an error",
       "use-cache-standalone-search-params when searchParams are used inside of \"use cache\" should show an error"
     ],
     "pending": [],
@@ -9146,13 +9147,12 @@
   },
   "test/e2e/app-document/client.test.ts": {
     "passed": [
+      "Document and App - Client side should detect the changes to pages/_app.js and display it",
       "Document and App - Client side should detect the changes to pages/_document.js and display it",
       "Document and App - Client side should keep state between page navigations",
       "Document and App - Client side should share module state with pages"
     ],
-    "failed": [
-      "Document and App - Client side should detect the changes to pages/_app.js and display it"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9986,7 +9986,9 @@
       "Instrumentation Client Hook App Router should execute instrumentation-client from app router before hydration",
       "Instrumentation Client Hook HMR in development mode should reload instrumentation-client when modified",
       "Instrumentation Client Hook Pages Router should execute instrumentation-client from pages router before hydration",
-      "Instrumentation Client Hook With src folder should execute instrumentation-client from with src folder before hydration"
+      "Instrumentation Client Hook With src folder should execute instrumentation-client from with src folder before hydration",
+      "Instrumentation Client Hook onRouterTransitionStart onRouterTransitionStart fires at the start of a back/forward navigation",
+      "Instrumentation Client Hook onRouterTransitionStart onRouterTransitionStart fires at the start of a navigation"
     ],
     "failed": [],
     "pending": [],
@@ -10611,9 +10613,10 @@
       "multi-zone should correctly respond for /blog/post-1",
       "multi-zone should correctly respond for /guest",
       "multi-zone should correctly respond for /guest/another/post-1",
-      "multi-zone should correctly respond for /guest/blog/post-1"
+      "multi-zone should correctly respond for /guest/blog/post-1",
+      "multi-zone should support HMR in both apps"
     ],
-    "failed": ["multi-zone should support HMR in both apps"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11530,9 +11533,9 @@
   },
   "test/e2e/vary-header/test/index.test.ts": {
     "passed": [
-      "Vary Header Tests should preserve custom vary header and append RSC headers in app route handlers",
+      "Vary Header Tests should preserve custom vary header",
       "Vary Header Tests should preserve custom vary header in API routes",
-      "Vary Header Tests should preserve middleware vary header in combination with route handlers"
+      "Vary Header Tests should preserve middleware vary header"
     ],
     "failed": [],
     "pending": [],
@@ -12407,8 +12410,6 @@
       "CLI Usage dev -p reserved",
       "CLI Usage dev Allow retry if default port is already in use",
       "CLI Usage dev NODE_OPTIONS='--inspect'",
-      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to --require.js'",
-      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to-require-with-node-require-option.js'",
       "CLI Usage dev PORT=0",
       "CLI Usage dev custom directory",
       "CLI Usage dev invalid directory",
@@ -12429,6 +12430,8 @@
       "CLI Usage no command invalid directory"
     ],
     "failed": [
+      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to --require.js'",
+      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to-require-with-node-require-option.js'",
       "CLI Usage info should print output",
       "CLI Usage info should print output with next.config.mjs"
     ],
@@ -12512,10 +12515,10 @@
     "runtimeError": false
   },
   "test/integration/config-devtool-dev/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "devtool set in development mode in next config should warn and revert when a devtool is set in development mode"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12562,10 +12565,8 @@
       "config-output-export should error with getStaticPaths and fallback true",
       "config-output-export should error with getStaticProps and revalidate 10 seconds (ISR)",
       "config-output-export should error with middleware function",
-      "config-output-export should work with getStaticPaths and fallback false",
       "config-output-export should work with getStaticProps and revalidate false",
       "config-output-export should work with getStaticProps and without revalidate",
-      "config-output-export should work with static homepage",
       "config-output-export when hasNextSupport = false should error with \"headers\" config",
       "config-output-export when hasNextSupport = false should error with \"redirects\" config",
       "config-output-export when hasNextSupport = false should error with \"rewrites\" config",
@@ -12573,7 +12574,10 @@
       "config-output-export when hasNextSupport = true should error with \"redirects\" config",
       "config-output-export when hasNextSupport = true should error with \"rewrites\" config"
     ],
-    "failed": [],
+    "failed": [
+      "config-output-export should work with getStaticPaths and fallback false",
+      "config-output-export should work with static homepage"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -13459,6 +13463,7 @@
   "test/integration/custom-server/test/index.test.js": {
     "passed": [
       "Custom Server using HTTP Error when rendering without starting slash should warn in development mode",
+      "Custom Server using HTTP HMR with custom server Should support HMR when rendering with /index pathname",
       "Custom Server using HTTP compression handling should handle compression for route /",
       "Custom Server using HTTP compression handling should handle compression for route /no-query",
       "Custom Server using HTTP legacy NextCustomServer methods - development mode NextCustomServer.render404",
@@ -13495,9 +13500,7 @@
       "Custom Server using HTTPS with generateEtags disabled response does not include etag header",
       "Custom Server using HTTPS with middleware $title should read the expected url protocol in middleware"
     ],
-    "failed": [
-      "Custom Server using HTTP HMR with custom server Should support HMR when rendering with /index pathname"
-    ],
+    "failed": [],
     "pending": [
       "Custom Server using HTTP Error when rendering without starting slash production mode should warn in production mode",
       "Custom Server using HTTP with dynamic assetPrefix should contain customServer in NEXT_DATA",
@@ -18655,10 +18658,10 @@
     "runtimeError": false
   },
   "test/integration/next-image-legacy/svgo-webpack/test/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "svgo-webpack with Image Component development mode should print error when invalid Image usage"
     ],
-    "failed": [],
     "pending": [
       "svgo-webpack with Image Component production mode should not fail to build invalid usage of the Image component"
     ],
@@ -19840,11 +19843,12 @@
     "runtimeError": false
   },
   "test/integration/read-only-source-hmr/test/index.test.js": {
-    "passed": ["Read-only source HMR should detect a new page"],
-    "failed": [
+    "passed": [
+      "Read-only source HMR should detect a new page",
       "Read-only source HMR should detect changes to a page",
       "Read-only source HMR should handle page deletion and subsequent recreation"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -20336,7 +20340,8 @@
     "runtimeError": false
   },
   "test/integration/server-side-dev-errors/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "server-side dev errors should show server-side error for api route correctly",
       "server-side dev errors should show server-side error for dynamic api route correctly",
       "server-side dev errors should show server-side error for dynamic gssp page correctly",
@@ -20347,7 +20352,6 @@
       "server-side dev errors should show server-side error for uncaught exception correctly",
       "server-side dev errors should show server-side error for uncaught rejection correctly"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -20964,17 +20968,16 @@
       "Handle url imports with next build should render the /static page",
       "Handle url imports with next build should respond on value api",
       "Handle url imports with next dev should allow url import in css",
-      "Handle url imports with next dev should respond on value api"
-    ],
-    "failed": [
       "Handle url imports with next dev should client-render the /ssg page",
       "Handle url imports with next dev should client-render the /ssr page",
       "Handle url imports with next dev should client-render the /static page",
       "Handle url imports with next dev should render a static url image import",
       "Handle url imports with next dev should render the /ssg page",
       "Handle url imports with next dev should render the /ssr page",
-      "Handle url imports with next dev should render the /static page"
+      "Handle url imports with next dev should render the /static page",
+      "Handle url imports with next dev should respond on value api"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

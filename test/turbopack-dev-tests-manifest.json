@@ -2682,18 +2682,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/app-dir/use-cache-dev/use-cache-dev.test.ts": {
-    "passed": [
-      "use-cache-dev should return cached data after reload",
-      "use-cache-dev should return fresh data after hard reload",
-      "use-cache-dev should successfully finish compilation when \"use cache\" directive is added/removed",
-      "use-cache-dev should update cached data after editing a file"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/development/app-hmr/hmr.test.ts": {
     "passed": [
       "app-dir-hmr filesystem changes can navigate cleanly to a page that requires a change in the Webpack runtime",
@@ -4796,8 +4784,6 @@
       "app dir - basic should not share edge workers",
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
-      "app dir - basic should return the `vary` header from edge runtime",
-      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
       "app dir - basic should serve dynamic route from pages",
@@ -8384,6 +8370,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/dynamic-on-hover/dynamic-on-hover.test.ts": {
+    "passed": ["dynamic on hover prefetching is disabled"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/export/segment-cache-output-export.test.ts": {
     "passed": [
       "segment cache (output: \"export\") build test should not run during dev test run"
@@ -8746,12 +8739,25 @@
   },
   "test/e2e/app-dir/use-cache-custom-handler/use-cache-custom-handler.test.ts": {
     "passed": [
+      "use-cache-custom-handler calls neither refreshTags nor getExpiration if \"use cache\" is not used",
       "use-cache-custom-handler should not call expireTags for a normal invocation",
-      "use-cache-custom-handler should not call getExpiration again after an action",
+      "use-cache-custom-handler should not call getExpiration after an action",
       "use-cache-custom-handler should revalidate after redirect using a legacy custom cache handler",
       "use-cache-custom-handler should revalidate after redirect using a modern custom cache handler",
       "use-cache-custom-handler should use a legacy custom cache handler if provided",
       "use-cache-custom-handler should use a modern custom cache handler if provided"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/use-cache-dev/use-cache-dev.test.ts": {
+    "passed": [
+      "use-cache-dev should return cached data after reload",
+      "use-cache-dev should return fresh data after hard reload",
+      "use-cache-dev should successfully finish compilation when \"use cache\" directive is added/removed",
+      "use-cache-dev should update cached data after editing a file"
     ],
     "failed": [],
     "pending": [],
@@ -8813,6 +8819,8 @@
   },
   "test/e2e/app-dir/use-cache-standalone-search-params/use-cache-standalone-search-params.test.ts": {
     "passed": [
+      "use-cache-standalone-search-params when searchParams are caught inside of \"use cache\" should also show an error after the second reload",
+      "use-cache-standalone-search-params when searchParams are caught inside of \"use cache\" should show an error",
       "use-cache-standalone-search-params when searchParams are unused inside of \"use cache\" should not show an error",
       "use-cache-standalone-search-params when searchParams are used inside of \"use cache\" should show an error"
     ],
@@ -9828,7 +9836,9 @@
       "Instrumentation Client Hook App Router should execute instrumentation-client from app router before hydration",
       "Instrumentation Client Hook HMR in development mode should reload instrumentation-client when modified",
       "Instrumentation Client Hook Pages Router should execute instrumentation-client from pages router before hydration",
-      "Instrumentation Client Hook With src folder should execute instrumentation-client from with src folder before hydration"
+      "Instrumentation Client Hook With src folder should execute instrumentation-client from with src folder before hydration",
+      "Instrumentation Client Hook onRouterTransitionStart onRouterTransitionStart fires at the start of a back/forward navigation",
+      "Instrumentation Client Hook onRouterTransitionStart onRouterTransitionStart fires at the start of a navigation"
     ],
     "failed": [],
     "pending": [],
@@ -11370,9 +11380,9 @@
   },
   "test/e2e/vary-header/test/index.test.ts": {
     "passed": [
-      "Vary Header Tests should preserve custom vary header and append RSC headers in app route handlers",
+      "Vary Header Tests should preserve custom vary header",
       "Vary Header Tests should preserve custom vary header in API routes",
-      "Vary Header Tests should preserve middleware vary header in combination with route handlers"
+      "Vary Header Tests should preserve middleware vary header"
     ],
     "failed": [],
     "pending": [],
