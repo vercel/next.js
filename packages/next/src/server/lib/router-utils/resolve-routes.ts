@@ -463,7 +463,13 @@ export function getResolveRoutes(
           const match = fsChecker.getMiddlewareMatchers()
           if (
             // @ts-expect-error BaseNextRequest stuff
-            match?.(parsedUrl.pathname, req, parsedUrl.query)
+            match?.(parsedUrl.pathname, req, parsedUrl.query) ||
+            match?.(
+              decodeURIComponent(parsedUrl.pathname || '/'),
+              // @ts-expect-error BaseNextRequest stuff
+              req,
+              parsedUrl.query
+            )
           ) {
             if (ensureMiddleware) {
               await ensureMiddleware(req.url)
