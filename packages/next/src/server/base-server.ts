@@ -72,7 +72,7 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import * as Log from '../build/output/log'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
-import { getUtils, normalizeNextQueryParam } from './server-utils'
+import { getUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
 import {
   addRequestMeta,
@@ -111,6 +111,7 @@ import { sendResponse } from './send-response'
 import { handleInternalServerErrorResponse } from './future/route-modules/helpers/response-handlers'
 import {
   fromNodeOutgoingHttpHeaders,
+  normalizeNextQueryParam,
   toNodeOutgoingHttpHeaders,
 } from './web/utils'
 import { CACHE_ONE_YEAR, NEXT_CACHE_TAGS_HEADER } from '../lib/constants'
