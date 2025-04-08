@@ -656,7 +656,7 @@ importers:
         version: link:../../packages/next
       tailwindcss:
         specifier: 3.2.7
-        version: 3.2.7(postcss@8.4.49)
+        version: 3.2.7(postcss@8.5.3)
 
   bench/nested-deps:
     devDependencies:
@@ -829,7 +829,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 15.3.0-canary.42
+        specifier: 15.3.0-canary.43
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.10.3
@@ -893,7 +893,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 15.3.0-canary.42
+        specifier: 15.3.0-canary.43
         version: link:../next-env
       '@swc/counter':
         specifier: 0.1.3
@@ -1018,19 +1018,19 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/font':
-        specifier: 15.3.0-canary.42
+        specifier: 15.3.0-canary.43
         version: link:../font
       '@next/polyfill-module':
-        specifier: 15.3.0-canary.42
+        specifier: 15.3.0-canary.43
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 15.3.0-canary.42
+        specifier: 15.3.0-canary.43
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 15.3.0-canary.42
+        specifier: 15.3.0-canary.43
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 15.3.0-canary.42
+        specifier: 15.3.0-canary.43
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1715,7 +1715,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 15.3.0-canary.42
+        specifier: 15.3.0-canary.43
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -17621,7 +17621,7 @@ snapshots:
     dependencies:
       '@babel/helper-validator-identifier': 7.25.9
       js-tokens: 4.0.0
-      picocolors: 1.0.0
+      picocolors: 1.0.1
     optional: true
 
   '@babel/compat-data@7.22.20': {}
@@ -17841,7 +17841,7 @@ snapshots:
       '@babel/core': 7.22.5
       '@babel/helper-compilation-targets': 7.27.0
       '@babel/helper-plugin-utils': 7.26.5
-      debug: 4.4.0
+      debug: 4.1.1
       lodash.debounce: 4.0.8
       resolve: 1.22.10
     transitivePeerDependencies:
@@ -23274,7 +23274,7 @@ snapshots:
       fast-glob: 3.3.3
       is-glob: 4.0.3
       minimatch: 9.0.5
-      semver: 7.7.1
+      semver: 7.6.3
       ts-api-utils: 2.1.0(typescript@5.6.3)
       typescript: 5.6.3
     transitivePeerDependencies:
@@ -26723,7 +26723,7 @@ snapshots:
       get-tsconfig: 4.10.0
       is-glob: 4.0.3
       minimatch: 9.0.5
-      semver: 7.7.1
+      semver: 7.6.3
       stable-hash: 0.0.4
       tslib: 2.8.1
     transitivePeerDependencies:
@@ -31545,8 +31545,7 @@ snapshots:
 
   nanoid@3.1.32: {}
 
-  nanoid@3.3.11:
-    optional: true
+  nanoid@3.3.11: {}
 
   nanoid@3.3.7: {}
 
@@ -32668,9 +32667,9 @@ snapshots:
       read-cache: 1.0.0
       resolve: 1.22.8
 
-  postcss-import@14.1.0(postcss@8.4.49):
+  postcss-import@14.1.0(postcss@8.5.3):
     dependencies:
-      postcss: 8.4.49
+      postcss: 8.5.3
       postcss-value-parser: 4.2.0
       read-cache: 1.0.0
       resolve: 1.22.8
@@ -32684,10 +32683,10 @@ snapshots:
       camelcase-css: 2.0.1
       postcss: 8.4.31
 
-  postcss-js@4.0.1(postcss@8.4.49):
+  postcss-js@4.0.1(postcss@8.5.3):
     dependencies:
       camelcase-css: 2.0.1
-      postcss: 8.4.49
+      postcss: 8.5.3
 
   postcss-lab-function@4.2.0(postcss@8.4.31):
     dependencies:
@@ -32702,12 +32701,12 @@ snapshots:
     optionalDependencies:
       postcss: 8.4.31
 
-  postcss-load-config@3.1.4(postcss@8.4.49):
+  postcss-load-config@3.1.4(postcss@8.5.3):
     dependencies:
       lilconfig: 2.1.0
       yaml: 1.10.2
     optionalDependencies:
-      postcss: 8.4.49
+      postcss: 8.5.3
 
   postcss-load-plugins@2.3.0:
     dependencies:
@@ -32869,9 +32868,9 @@ snapshots:
       postcss: 8.4.31
       postcss-selector-parser: 6.0.11
 
-  postcss-nested@6.0.0(postcss@8.4.49):
+  postcss-nested@6.0.0(postcss@8.5.3):
     dependencies:
-      postcss: 8.4.49
+      postcss: 8.5.3
       postcss-selector-parser: 6.0.11
 
   postcss-nesting@10.1.4(postcss@8.4.31):
@@ -33224,7 +33223,6 @@ snapshots:
       nanoid: 3.3.11
       picocolors: 1.1.1
       source-map-js: 1.2.1
-    optional: true
 
   pprof-format@2.0.7: {}
 
@@ -35399,7 +35397,7 @@ snapshots:
     transitivePeerDependencies:
       - ts-node
 
-  tailwindcss@3.2.7(postcss@8.4.49):
+  tailwindcss@3.2.7(postcss@8.5.3):
     dependencies:
       arg: 5.0.2
       chokidar: 3.6.0
@@ -35415,11 +35413,11 @@ snapshots:
       normalize-path: 3.0.0
       object-hash: 3.0.0
       picocolors: 1.0.1
-      postcss: 8.4.49
-      postcss-import: 14.1.0(postcss@8.4.49)
-      postcss-js: 4.0.1(postcss@8.4.49)
-      postcss-load-config: 3.1.4(postcss@8.4.49)
-      postcss-nested: 6.0.0(postcss@8.4.49)
+      postcss: 8.5.3
+      postcss-import: 14.1.0(postcss@8.5.3)
+      postcss-js: 4.0.1(postcss@8.5.3)
+      postcss-load-config: 3.1.4(postcss@8.5.3)
+      postcss-nested: 6.0.0(postcss@8.5.3)
       postcss-selector-parser: 6.0.11
       postcss-value-parser: 4.2.0
       quick-lru: 5.1.1
