@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('rewrite-with-search-params', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -25,6 +25,11 @@ describe('rewrite-with-search-params', () => {
 
     expect(searchParams).toEqual({
       param: 'value',
+    })
+
+    expect(params).toEqual({
+      domain: expect.stringMatching(/[\w-]+/),
+      section: ['galleries', '123'],
     })
   })
 })
