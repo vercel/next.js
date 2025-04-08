@@ -73,18 +73,17 @@ describe('AfterContext', () => {
 
     await run(async () => {
       after(promise0.promise)
-      expect(onClose).not.toHaveBeenCalled() // we don't need onClose for bare promises
-      expect(waitUntil).toHaveBeenCalledTimes(1)
+      expect(waitUntil).toHaveBeenCalledTimes(1) // schedule runCallbacksOnClose
 
       await Promise.resolve(null)
 
       after(afterCallback1)
-      expect(waitUntil).toHaveBeenCalledTimes(2) // just runCallbacksOnClose
+      expect(waitUntil).toHaveBeenCalledTimes(1) // no change, runCallbacksOnClose is already scheduled
 
       await Promise.resolve(null)
 
       after(afterCallback2)
-      expect(waitUntil).toHaveBeenCalledTimes(2) // should only `waitUntil(this.runCallbacksOnClose())` once for all callbacks
+      expect(waitUntil).toHaveBeenCalledTimes(1)
     })
 
     expect(onClose).toHaveBeenCalledTimes(1)
@@ -97,7 +96,7 @@ describe('AfterContext', () => {
 
     expect(afterCallback1).toHaveBeenCalledTimes(1)
     expect(afterCallback2).toHaveBeenCalledTimes(1)
-    expect(waitUntil).toHaveBeenCalledTimes(2)
+    expect(waitUntil).toHaveBeenCalledTimes(1)
 
     promise0.resolve('0')
     promise1.resolve('1')
@@ -105,8 +104,7 @@ describe('AfterContext', () => {
 
     const results = await Promise.all(waitUntilPromises)
     expect(results).toEqual([
-      '0', // promises are passed to waitUntil as is
-      undefined, // callbacks all get collected into a big void promise
+      undefined, // callbacks all get collected into a big void promise (and promises are wrapped with callbacks)
     ])
   })
 
@@ -310,6 +308,69 @@ describe('AfterContext', () => {
     ])
   })
 
+  it('runs after() callbacks added from after(promise) after onClose', async () => {
+    const waitUntilPromises: Promise<unknown>[] = []
+    const waitUntil = jest.fn((promise) => waitUntilPromises.push(promise))
+
+    let onCloseCallback: (() => void) | undefined = undefined
+    const onClose = jest.fn((cb) => {
+      onCloseCallback = cb
+    })
+
+    const afterContext = new AfterContext({
+      waitUntil,
+      onClose,
+      onTaskError: undefined,
+    })
+
+    const workStore = createMockWorkStore(afterContext)
+    const run = createRun(afterContext, workStore)
+
+    // ==================================
+
+    const promise1 = new DetachedPromise<void>()
+    const promise2 = new DetachedPromise<void>()
+
+    let afterCallback2DidFinish = false
+    const afterCallback2 = jest.fn(async () => {
+      await promise2.promise
+      afterCallback2DidFinish = true
+    })
+
+    await run(async () => {
+      const afterPromise1 = (async () => {
+        await promise1.promise
+
+        after(afterCallback2)
+        expect(afterCallback2).toHaveBeenCalledTimes(1) // if the queue is already running, callbacks are executed immediately
+      })()
+
+      // only `after()` a promise, no callbacks
+      after(afterPromise1)
+    })
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(waitUntil).toHaveBeenCalledTimes(1) // just runCallbacksOnClose
+
+    // the response is done.
+    onCloseCallback!()
+    await Promise.resolve(null)
+
+    promise1.resolve() // unblock the promise
+    await Promise.resolve(null)
+    expect(afterCallback2).toHaveBeenCalledTimes(1)
+    promise2.resolve() // unblock the callback
+
+    const results = await Promise.all(waitUntilPromises)
+    await Promise.resolve(null)
+
+    expect(afterCallback2DidFinish).toBe(true)
+    expect(waitUntil).toHaveBeenCalledTimes(1)
+    expect(results).toEqual([
+      undefined, // callbacks all get collected into a big void promise
+    ])
+  })
+
   it('does not hang forever if onClose failed', async () => {
     const waitUntilPromises: Promise<unknown>[] = []
     const waitUntil = jest.fn((promise) => waitUntilPromises.push(promise))
@@ -394,7 +455,7 @@ describe('AfterContext', () => {
     expect(afterCallback1).not.toHaveBeenCalled()
     expect(afterCallback2).not.toHaveBeenCalled()
     expect(afterCallback3).not.toHaveBeenCalled()
-    expect(waitUntil).toHaveBeenCalledTimes(1 + 1) // once for callbacks, once for the promise
+    expect(waitUntil).toHaveBeenCalledTimes(1) // once for callbacks (and promises, which are wrapped in callbacks)
 
     // the response is done.
     onCloseCallback!()
@@ -403,7 +464,7 @@ describe('AfterContext', () => {
     expect(afterCallback1).toHaveBeenCalledTimes(1)
     expect(afterCallback2).toHaveBeenCalledTimes(1)
     expect(afterCallback3).toHaveBeenCalledTimes(1)
-    expect(waitUntil).toHaveBeenCalledTimes(1 + 1) // once for callbacks, once for the promise
+    expect(waitUntil).toHaveBeenCalledTimes(1) // once for callbacks (and promises, which are wrapped in callbacks)
 
     // resolve any pending promises we have
     const thrownFromCallback1 = new Error('1')

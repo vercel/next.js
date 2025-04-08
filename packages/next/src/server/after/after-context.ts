@@ -37,13 +37,14 @@ export class AfterContext {
   }
 
   public after(task: AfterTask): void {
+    // if we're missing `waitUntil` we can't reliably execute.
+    // Throw synchronously, bubbling the error up to the `after` callsite.
+    if (!this.waitUntil) {
+      errorWaitUntilNotAvailable()
+    }
+
     if (isThenable(task)) {
-      if (!this.waitUntil) {
-        errorWaitUntilNotAvailable()
-      }
-      this.waitUntil(
-        task.catch((error) => this.reportTaskError('promise', error))
-      )
+      this.addPromise(task)
     } else if (typeof task === 'function') {
       // TODO(after): implement tracing
       this.addCallback(task)
@@ -52,17 +53,44 @@ export class AfterContext {
     }
   }
 
+  private addPromise(promise: Promise<unknown>) {
+    // Catch rejections immediately so they don't become unhandled.
+    // Also, drop the return value so that we're not preventing it from being GC'd.
+    let safePromise: Promise<void> | undefined = promise.then(NOOP, (err) => {
+      this.reportTaskError('promise', err)
+    })
+
+    // Something inside the promise might call `after(callback)` sometime in the future:
+    //
+    //   const promise = (async () => {
+    //     await slow()
+    //     after(callback)
+    //   })();
+    //   after(promise);
+    //
+    // If this call happens after the response closed, and no other callbacks were scheduled before,
+    // we would never start the callback queue, so the callback would never be executed.
+    // To avoid this, we wrap the promise in a callback and queue it.
+    //
+    // This also has the fortunate side effects of making sure that we
+    // - execute revalidates issued from promises, (because `runCallbacks` runs all the callbacks in `withExecuteRevalidates`).
+    // - switch the workUnitStore phase after `onClose`
+    // (TODO: that's a bit convoluted, we should find a clearer solution)
+    this.queueCallback(() => safePromise)
+
+    // If the promise finishes before the queue starts running, we can release our references related to it --
+    // they're no longer needed for anything, at least by us.
+    // We do it this way partially because `p-queue` doesn't have an API for removing a queued callback.
+    // But even if it did, we wouldn't want to remove it, because we're currently relying on side-effects
+    // from running the callbacks as outlined above.
+    safePromise.finally(() => {
+      promise = undefined!
+      safePromise = undefined
+    })
+  }
+
   private addCallback(callback: AfterCallback) {
-    // if something is wrong, throw synchronously, bubbling up to the `after` callsite.
-    if (!this.waitUntil) {
-      errorWaitUntilNotAvailable()
-    }
-
     const workUnitStore = workUnitAsyncStorage.getStore()
-    if (workUnitStore) {
-      this.workUnitStores.add(workUnitStore)
-    }
-
     const afterTaskStore = afterTaskAsyncStorage.getStore()
 
     // This is used for checking if request APIs can be called inside `after`.
@@ -72,12 +100,6 @@ export class AfterContext {
     const rootTaskSpawnPhase = afterTaskStore
       ? afterTaskStore.rootTaskSpawnPhase // nested after
       : workUnitStore?.phase // topmost after
-
-    // this should only happen once.
-    if (!this.runCallbacksOnClosePromise) {
-      this.runCallbacksOnClosePromise = this.runCallbacksOnClose()
-      this.waitUntil(this.runCallbacksOnClosePromise)
-    }
 
     // Bind the callback to the current execution context (i.e. preserve all currently available ALS-es).
     // We do this because we want all of these to be equivalent in every regard except timing:
@@ -94,11 +116,31 @@ export class AfterContext {
       }
     })
 
-    this.callbackQueue.add(wrappedCallback)
+    this.queueCallback(wrappedCallback)
+  }
+
+  private queueCallback(callback: () => void | Promise<void>) {
+    if (!this.waitUntil) {
+      errorWaitUntilNotAvailable()
+    }
+
+    // Save the workUnitStore so we can switch its phase when we run the callbacks.
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    if (workUnitStore) {
+      this.workUnitStores.add(workUnitStore)
+    }
+
+    this.callbackQueue.add(callback)
+
+    // This should only happen once.
+    if (!this.runCallbacksOnClosePromise) {
+      this.runCallbacksOnClosePromise = this.runCallbacksOnClose()
+      this.waitUntil(this.runCallbacksOnClosePromise)
+    }
   }
 
   private async runCallbacksOnClose() {
-    await new Promise<void>((resolve) => this.onClose!(resolve))
+    await new Promise<void>((resolve) => this.onClose(resolve))
     return this.runCallbacks()
   }
 
@@ -114,6 +156,9 @@ export class AfterContext {
       throw new InvariantError('Missing workStore in AfterContext.runCallbacks')
     }
 
+    // TODO: This unnecessarily delays running revalidates until all callbacks are finished.
+    // We should be able to execute them incrementally, without waiting for all the callbacks.
+    // (especially because one of them my might hang forever and prevent us from executing the revalidates at all)
     return withExecuteRevalidates(workStore, () => {
       this.callbackQueue.start()
       return this.callbackQueue.onIdle()
@@ -146,6 +191,8 @@ export class AfterContext {
     }
   }
 }
+
+const NOOP = () => {}
 
 function errorWaitUntilNotAvailable(): never {
   throw new Error(
