@@ -397,7 +397,7 @@ pub async fn get_client_module_options_context(
         css: CssOptionsContext {
             minify_type: if *next_config.turbo_minify(mode).await? {
                 MinifyType::Minify {
-                    mangle: (!*no_mangling.await?).then(|| MangleType::OptimalSize),
+                    mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
                 }
             } else {
                 MinifyType::NoMinify
@@ -454,7 +454,7 @@ pub async fn get_client_chunking_context(
     .chunk_suffix_path(chunk_suffix_path)
     .minify_type(if *minify.await? {
         MinifyType::Minify {
-            mangle: (!*no_mangling.await?).then(|| MangleType::OptimalSize),
+            mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
         }
     } else {
         MinifyType::NoMinify

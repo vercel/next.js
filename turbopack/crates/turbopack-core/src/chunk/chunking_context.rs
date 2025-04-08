@@ -31,6 +31,7 @@ use crate::{
     DeterministicHash,
     NonLocalValue,
 )]
+#[serde(rename_all = "kebab-case")]
 pub enum MangleType {
     OptimalSize,
     Deterministic,

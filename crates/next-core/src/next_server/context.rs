@@ -1019,7 +1019,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
             // React needs deterministic function names to work correctly.
-            mangle: (!*no_mangling.await?).then(|| MangleType::Deterministic),
+            mangle: (!*no_mangling.await?).then_some(MangleType::Deterministic),
         }
     } else {
         MinifyType::NoMinify
@@ -1084,7 +1084,7 @@ pub async fn get_server_chunking_context(
     )
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
-            mangle: (!*no_mangling.await?).then(|| MangleType::OptimalSize),
+            mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
         }
     } else {
         MinifyType::NoMinify
