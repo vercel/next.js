@@ -36,10 +36,14 @@ describe('AfterContext', () => {
   })
 
   const createRun =
-    (_afterContext: AfterContext, workStore: WorkStore) =>
+    (
+      _afterContext: AfterContext,
+      workStore: WorkStore,
+      workUnitStore: WorkUnitStore
+    ) =>
     <T>(cb: () => T): T => {
       return workAsyncStorage.run(workStore, () =>
-        workUnitAsyncStorage.run(createMockWorkUnitStore(), cb)
+        workUnitAsyncStorage.run(workUnitStore, cb)
       )
     }
 
@@ -58,7 +62,8 @@ describe('AfterContext', () => {
     expect(onClose).toHaveBeenCalledTimes(1) // called once when initializing
 
     const workStore = createMockWorkStore(afterContext)
-    const run = createRun(afterContext, workStore)
+    const workUnitStore = createMockWorkUnitStore()
+    const run = createRun(afterContext, workStore, workUnitStore)
 
     // ==================================
 
@@ -96,6 +101,7 @@ describe('AfterContext', () => {
     triggerOnClose()
     await waitForCallbackQueue()
 
+    expect(workUnitStore.phase).toBe('after')
     expect(afterCallback1).toHaveBeenCalledTimes(1)
     expect(afterCallback2).toHaveBeenCalledTimes(1)
     expect(waitUntil).toHaveBeenCalledTimes(2)
@@ -126,8 +132,9 @@ describe('AfterContext', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
 
     const workStore = createMockWorkStore(afterContext)
+    const workUnitStore = createMockWorkUnitStore()
 
-    const run = createRun(afterContext, workStore)
+    const run = createRun(afterContext, workStore, workUnitStore)
 
     // ==================================
 
@@ -149,6 +156,7 @@ describe('AfterContext', () => {
     triggerOnClose()
     await waitForCallbackQueue()
 
+    expect(workUnitStore.phase).toBe('after')
     expect(afterCallback1).toHaveBeenCalledTimes(1)
     expect(waitUntil).toHaveBeenCalledTimes(1)
 
@@ -173,8 +181,9 @@ describe('AfterContext', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
 
     const workStore = createMockWorkStore(afterContext)
+    const workUnitStore = createMockWorkUnitStore()
 
-    const run = createRun(afterContext, workStore)
+    const run = createRun(afterContext, workStore, workUnitStore)
 
     // ==================================
 
@@ -237,6 +246,7 @@ describe('AfterContext', () => {
     triggerOnClose()
     await waitForCallbackQueue()
 
+    expect(workUnitStore.phase).toBe('after')
     expect(afterCallback1).toHaveBeenCalledTimes(1)
     expect(afterCallback2).toHaveBeenCalledTimes(1)
     expect(waitUntil).toHaveBeenCalledTimes(1)
@@ -263,7 +273,8 @@ describe('AfterContext', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
 
     const workStore = createMockWorkStore(afterContext)
-    const run = createRun(afterContext, workStore)
+    const workUnitStore = createMockWorkUnitStore()
+    const run = createRun(afterContext, workStore, workUnitStore)
 
     // ==================================
 
@@ -290,6 +301,7 @@ describe('AfterContext', () => {
     triggerOnClose()
     await waitForCallbackQueue()
 
+    expect(workUnitStore.phase).toBe('after')
     expect(afterCallback1).toHaveBeenCalledTimes(1)
     expect(afterCallback2).toHaveBeenCalledTimes(0)
     expect(waitUntil).toHaveBeenCalledTimes(1)
@@ -322,7 +334,8 @@ describe('AfterContext', () => {
     })
 
     const workStore = createMockWorkStore(afterContext)
-    const run = createRun(afterContext, workStore)
+    const workUnitStore = createMockWorkUnitStore()
+    const run = createRun(afterContext, workStore, workUnitStore)
 
     // ==================================
 
@@ -353,6 +366,8 @@ describe('AfterContext', () => {
 
     // the response is done.
     triggerOnClose()
+
+    expect(workUnitStore.phase).toBe('after')
 
     promise1.resolve() // unblock the promise, leading to an `after(callback)`
 
@@ -390,8 +405,9 @@ describe('AfterContext', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
 
     const workStore = createMockWorkStore(afterContext)
+    const workUnitStore = createMockWorkUnitStore()
 
-    const run = createRun(afterContext, workStore)
+    const run = createRun(afterContext, workStore, workUnitStore)
 
     // ==================================
 
@@ -428,6 +444,8 @@ describe('AfterContext', () => {
     })
 
     const workStore = createMockWorkStore(afterContext)
+    const workUnitStore = createMockWorkUnitStore()
+    const run = createRun(afterContext, workStore, workUnitStore)
 
     // ==================================
 
@@ -445,14 +463,12 @@ describe('AfterContext', () => {
     const thrownFromPromise4 = new Error('4')
     const promise4 = Promise.reject(thrownFromPromise4)
 
-    workAsyncStorage.run(workStore, () =>
-      workUnitAsyncStorage.run(createMockWorkUnitStore(), () => {
-        after(afterCallback1)
-        after(afterCallback2)
-        after(afterCallback3)
-        after(promise4)
-      })
-    )
+    run(() => {
+      after(afterCallback1)
+      after(afterCallback2)
+      after(afterCallback3)
+      after(promise4)
+    })
 
     expect(afterCallback1).not.toHaveBeenCalled()
     expect(afterCallback2).not.toHaveBeenCalled()
@@ -463,6 +479,7 @@ describe('AfterContext', () => {
     triggerOnClose()
     await waitForCallbackQueue()
 
+    expect(workUnitStore.phase).toBe('after')
     expect(afterCallback1).toHaveBeenCalledTimes(1)
     expect(afterCallback2).toHaveBeenCalledTimes(1)
     expect(afterCallback3).toHaveBeenCalledTimes(1)
@@ -494,8 +511,9 @@ describe('AfterContext', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
 
     const workStore = createMockWorkStore(afterContext)
+    const workUnitStore = createMockWorkUnitStore()
 
-    const run = createRun(afterContext, workStore)
+    const run = createRun(afterContext, workStore, workUnitStore)
 
     // ==================================
 
@@ -512,7 +530,7 @@ describe('AfterContext', () => {
     expect(taskErrors).toEqual([])
   })
 
-  it('does NOT shadow workAsyncStorage within after callbacks', async () => {
+  it('does NOT shadow workAsyncStorage or workUnitAsyncStorage within after callbacks', async () => {
     const waitUntil = jest.fn()
     const taskErrors: unknown[] = []
     const { onClose, triggerOnClose } = createOnClose()
@@ -524,31 +542,48 @@ describe('AfterContext', () => {
     })
 
     const workStore = createMockWorkStore(afterContext)
-    const run = createRun(afterContext, workStore)
+    const workUnitStore = createMockWorkUnitStore()
+    const run = createRun(afterContext, workStore, workUnitStore)
 
     // ==================================
 
-    const stores = new DetachedPromise<
-      [WorkStore | undefined, WorkStore | undefined]
-    >()
+    type Stores = {
+      workStore: WorkStore | undefined
+      workUnitStore: WorkUnitStore | undefined
+    }
+    const stores = new DetachedPromise<[Stores, Stores]>()
 
     await run(async () => {
-      const store1 = workAsyncStorage.getStore()
+      const stores1 = {
+        workStore: workAsyncStorage.getStore(),
+        workUnitStore: workUnitAsyncStorage.getStore(),
+      }
       after(() => {
-        const store2 = workAsyncStorage.getStore()
-        stores.resolve([store1, store2])
+        const stores2 = {
+          workStore: workAsyncStorage.getStore(),
+          workUnitStore: workUnitAsyncStorage.getStore(),
+        }
+        stores.resolve([stores1, stores2])
       })
     })
 
     // the response is done.
     triggerOnClose()
 
-    const [store1, store2] = await stores.promise
+    await Promise.resolve(null)
+    expect(workUnitStore.phase).toBe('after')
+
+    const [stores1, stores2] = await stores.promise
+    expect(stores1.workStore).toBeTruthy()
+    expect(stores1.workUnitStore).toBeTruthy()
+    expect(stores2.workStore).toBeTruthy()
+    expect(stores2.workUnitStore).toBeTruthy()
     // if we use .toBe, the proxy from createMockWorkStore throws because jest checks '$$typeof'
-    expect(store1).toBeTruthy()
-    expect(store2).toBeTruthy()
-    expect(store1 === workStore).toBe(true)
-    expect(store2 === store1).toBe(true)
+    expect(stores1.workStore === workStore).toBe(true)
+    expect(stores1.workUnitStore === workUnitStore).toBe(true)
+    expect(stores2.workStore === workStore).toBe(true)
+    expect(stores2.workUnitStore === workUnitStore).toBe(true)
+
     expect(taskErrors).toEqual([])
   })
 
@@ -566,7 +601,8 @@ describe('AfterContext', () => {
     })
 
     const workStore = createMockWorkStore(afterContext)
-    const run = createRun(afterContext, workStore)
+    const workUnitStore = createMockWorkUnitStore()
+    const run = createRun(afterContext, workStore, workUnitStore)
 
     // ==================================
 
@@ -586,6 +622,9 @@ describe('AfterContext', () => {
 
     // the response is done.
     triggerOnClose()
+
+    await Promise.resolve(null)
+    expect(workUnitStore.phase).toBe('after')
 
     const [store1, store2] = await stores.promise
     // if we use .toBe, the proxy from createMockWorkStore throws because jest checks '$$typeof'
