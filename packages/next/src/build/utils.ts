@@ -1544,8 +1544,19 @@ export async function copyTracedFiles(
   }
   try {
     const packageJsonPath = path.join(distDir, '../package.json')
-    const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'))
+    const packageJsonContent = await fs.readFile(packageJsonPath, 'utf8')
+    const packageJson = JSON.parse(packageJsonContent)
     moduleType = packageJson.type === 'module'
+
+    // we always copy the package.json to the standalone
+    // folder to ensure any resolving logic is maintained
+    const packageJsonOutputPath = path.join(
+      outputPath,
+      path.relative(tracingRoot, dir),
+      'package.json'
+    )
+    await fs.mkdir(path.dirname(packageJsonOutputPath), { recursive: true })
+    await fs.writeFile(packageJsonOutputPath, packageJsonContent)
   } catch {}
   const copiedFiles = new Set()
   await fs.rm(outputPath, { recursive: true, force: true })
@@ -1676,7 +1687,7 @@ export async function copyTracedFiles(
   const serverOutputPath = path.join(
     outputPath,
     path.relative(tracingRoot, dir),
-    'server.js'
+    moduleType ? 'server.mjs' : 'server.js'
   )
   await fs.mkdir(path.dirname(serverOutputPath), { recursive: true })
 
