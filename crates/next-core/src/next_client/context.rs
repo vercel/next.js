@@ -19,8 +19,8 @@ use turbopack_browser::{
 };
 use turbopack_core::{
     chunk::{
-        module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, MinifyType,
-        SourceMapsType,
+        module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, ContextSide,
+        MinifyType, SourceMapsType,
     },
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
@@ -449,6 +449,7 @@ pub async fn get_client_chunking_context(
         get_client_assets_path(*client_root).to_resolved().await?,
         environment,
         next_mode.runtime_type(),
+        ContextSide::Client,
     )
     .chunk_base_path(asset_prefix)
     .chunk_suffix_path(chunk_suffix_path)

@@ -26,8 +26,8 @@ use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkingConfig, ChunkingContext, EvaluatableAsset,
-        EvaluatableAssets, MinifyType, SourceMapsType,
+        availability_info::AvailabilityInfo, ChunkingConfig, ChunkingContext, ContextSide,
+        EvaluatableAsset, EvaluatableAssets, MinifyType, SourceMapsType,
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::AssetIdent,
@@ -330,6 +330,7 @@ async fn build_internal(
                 .to_resolved()
                 .await?,
                 runtime_type,
+                ContextSide::Client,
             )
             .source_maps(source_maps_type)
             .module_id_strategy(module_id_strategy)

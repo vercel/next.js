@@ -356,6 +356,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 static_root_path,
                 env,
                 options.runtime_type,
+                ContextSide::Client,
             )
             .build(),
         ),

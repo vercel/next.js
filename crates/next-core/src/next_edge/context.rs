@@ -7,8 +7,8 @@ use turbopack::{css::chunk::CssChunkType, resolve_options_context::ResolveOption
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     chunk::{
-        module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, MinifyType,
-        SourceMapsType,
+        module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, ContextSide,
+        MinifyType, SourceMapsType,
     },
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
@@ -237,6 +237,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
             .await?,
         environment,
         next_mode.runtime_type(),
+        ContextSide::Server,
     )
     .asset_base_path(asset_prefix)
     .minify_type(if *turbo_minify.await? {
@@ -296,6 +297,7 @@ pub async fn get_edge_chunking_context(
         output_root.join("assets".into()).to_resolved().await?,
         environment,
         next_mode.runtime_type(),
+        ContextSide::Server,
     )
     // Since one can't read files in edge directly, any asset need to be fetched
     // instead. This special blob url is handled by the custom fetch

@@ -15,7 +15,7 @@ use turbopack_core::{
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
         Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule, ChunkingConfig,
-        ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAsset,
+        ChunkingConfigs, ChunkingContext, ContextSide, EntryChunkGroupResult, EvaluatableAsset,
         EvaluatableAssets, MinifyType, ModuleId, SourceMapsType,
     },
     environment::Environment,
@@ -221,7 +221,7 @@ pub struct BrowserChunkingContext {
     /// The chunking configs
     chunking_configs: Vec<(ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig)>,
     /// Whether the chunking context is server side
-    is_server_side: bool,
+    side: ContextSide,
 }
 
 impl BrowserChunkingContext {
@@ -234,7 +234,7 @@ impl BrowserChunkingContext {
         asset_root_path: ResolvedVc<FileSystemPath>,
         environment: ResolvedVc<Environment>,
         runtime_type: RuntimeType,
-        is_server_side: bool,
+        side: ContextSide,
     ) -> BrowserChunkingContextBuilder {
         BrowserChunkingContextBuilder {
             chunking_context: BrowserChunkingContext {
@@ -260,7 +260,7 @@ impl BrowserChunkingContext {
                 manifest_chunks: false,
                 module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
                 chunking_configs: Default::default(),
-                is_server_side,
+                side,
             },
         }
     }
@@ -293,6 +293,10 @@ impl BrowserChunkingContext {
     /// Returns the minify type.
     pub fn minify_type(&self) -> MinifyType {
         self.minify_type
+    }
+
+    pub fn side(&self) -> ContextSide {
+        self.side
     }
 }
 
