@@ -8,7 +8,7 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{rope::RopeBuilder, File};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkingContext, ContextSide, MinifyType, ModuleId},
+    chunk::{ChunkingContext, MinifyType, ModuleId},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
@@ -128,12 +128,7 @@ impl EcmascriptBrowserChunkContent {
         let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
-            code = minify(
-                &code,
-                source_maps,
-                this.chunking_context.await?.side() == ContextSide::Server,
-                mangle,
-            )?;
+            code = minify(&code, source_maps, mangle)?;
         }
 
         Ok(code.cell())

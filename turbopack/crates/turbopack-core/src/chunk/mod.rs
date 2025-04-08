@@ -29,7 +29,7 @@ pub use self::{
     },
     chunking_context::{
         ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs, ChunkingContext,
-        ChunkingContextExt, ContextSide, EntryChunkGroupResult, MinifyType, SourceMapsType,
+        ChunkingContextExt, EntryChunkGroupResult, MangleType, MinifyType, SourceMapsType,
     },
     data::{ChunkData, ChunkDataOption, ChunksData},
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},

@@ -31,15 +31,9 @@ use crate::{
     DeterministicHash,
     NonLocalValue,
 )]
-pub enum MinifyType {
-    Minify { mangle: bool },
-    NoMinify,
-}
-
-impl Default for MinifyType {
-    fn default() -> Self {
-        Self::Minify { mangle: true }
-    }
+pub enum MangleType {
+    OptimalSize,
+    Deterministic,
 }
 
 #[derive(
@@ -56,9 +50,19 @@ impl Default for MinifyType {
     DeterministicHash,
     NonLocalValue,
 )]
-pub enum ContextSide {
-    Client,
-    Server,
+pub enum MinifyType {
+    // TODO instead of adding a new property here,
+    // refactor that to Minify(MinifyOptions) to allow defaults on MinifyOptions
+    Minify { mangle: Option<MangleType> },
+    NoMinify,
+}
+
+impl Default for MinifyType {
+    fn default() -> Self {
+        Self::Minify {
+            mangle: Some(MangleType::OptimalSize),
+        }
+    }
 }
 
 #[derive(

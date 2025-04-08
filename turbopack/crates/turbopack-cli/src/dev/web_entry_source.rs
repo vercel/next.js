@@ -6,7 +6,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
 use turbopack_cli_utils::runtime_entry::{RuntimeEntries, RuntimeEntry};
 use turbopack_core::{
-    chunk::{ChunkableModule, ChunkingContext, ContextSide, EvaluatableAsset, SourceMapsType},
+    chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset, SourceMapsType},
     environment::Environment,
     file_source::FileSource,
     module::Module,
@@ -49,7 +49,6 @@ pub async fn get_client_chunking_context(
             server_root.join("/_assets".into()).to_resolved().await?,
             environment,
             RuntimeType::Development,
-            ContextSide::Client,
         )
         .hot_module_replacement()
         .use_file_source_map_uris()

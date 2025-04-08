@@ -23,12 +23,15 @@ use swc_core::{
     },
 };
 use tracing::{instrument, Level};
-use turbopack_core::code_builder::{Code, CodeBuilder};
+use turbopack_core::{
+    chunk::MangleType,
+    code_builder::{Code, CodeBuilder},
+};
 
 use crate::parse::generate_js_source_map;
 
 #[instrument(level = Level::INFO, skip_all)]
-pub fn minify(code: &Code, source_maps: bool, is_server_side: bool, mangle: bool) -> Result<Code> {
+pub fn minify(code: &Code, source_maps: bool, mangle: Option<MangleType>) -> Result<Code> {
     let source_maps = source_maps
         .then(|| code.generate_source_map_ref())
         .transpose()?;
@@ -84,15 +87,20 @@ pub fn minify(code: &Code, source_maps: bool, is_server_side: bool, mangle: bool
                             passes: 2,
                             ..Default::default()
                         }),
-                        mangle: if mangle {
-                            Some(MangleOptions {
-                                reserved: vec!["AbortSignal".into()],
-                                disable_char_freq: is_server_side,
-                                ..Default::default()
-                            })
-                        } else {
-                            None
-                        },
+                        mangle: mangle.map(|mangle| {
+                            let reserved = vec!["AbortSignal".into()];
+                            match mangle {
+                                MangleType::OptimalSize => MangleOptions {
+                                    reserved,
+                                    ..Default::default()
+                                },
+                                MangleType::Deterministic => MangleOptions {
+                                    reserved,
+                                    disable_char_freq: true,
+                                    ..Default::default()
+                                },
+                            }
+                        }),
                         ..Default::default()
                     },
                     &ExtraOptions {
@@ -102,7 +110,7 @@ pub fn minify(code: &Code, source_maps: bool, is_server_side: bool, mangle: bool
                     },
                 );
 
-                if !mangle {
+                if mangle.is_none() {
                     program.mutate(hygiene_with_config(hygiene::Config {
                         top_level_mark,
                         ..Default::default()
