@@ -44,6 +44,25 @@ impl Default for MinifyType {
 
 #[derive(
     Debug,
+    TaskInput,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    DeterministicHash,
+    NonLocalValue,
+)]
+pub enum ContextSide {
+    Client,
+    Server,
+}
+
+#[derive(
+    Debug,
     Default,
     TaskInput,
     Clone,
