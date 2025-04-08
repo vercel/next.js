@@ -34,7 +34,7 @@ export function resolveHref(
 
   // repeated slashes and backslashes in the URL are considered
   // invalid and will never match a Next.js page/file
-  const urlProtoMatch = urlAsString.match(/^[a-zA-Z]{1,}:\/\//)
+  const urlProtoMatch = urlAsString.match(/^[a-zA-Z+]{1,}:\/\//)
   const urlAsStringNoProto = urlProtoMatch
     ? urlAsString.slice(urlProtoMatch[0].length)
     : urlAsString
