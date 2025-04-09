@@ -312,8 +312,20 @@ var isArrayImpl = Array.isArray,
     data: null,
     method: null,
     action: null
-  },
-  valueStack = [],
+  };
+function setSrcObject(domElement, tag, value) {
+  function cleanUp() {
+    URL.revokeObjectURL(url);
+    domElement.removeEventListener(loadEvent, cleanUp);
+    domElement.removeEventListener("error", cleanUp);
+  }
+  var url = URL.createObjectURL(value),
+    loadEvent = "img" === tag ? "load" : "loadstart";
+  domElement.addEventListener(loadEvent, cleanUp);
+  domElement.addEventListener("error", cleanUp);
+  domElement.setAttribute("src", url);
+}
+var valueStack = [],
   index = -1;
 function createCursor(defaultValue) {
   return { current: defaultValue };
@@ -2669,7 +2681,8 @@ function createFiberFromTypeAndProps(
       case REACT_LEGACY_HIDDEN_TYPE:
       case REACT_VIEW_TRANSITION_TYPE:
         return (
-          (type = createFiberImplClass(30, pendingProps, key, mode)),
+          (type = mode | 32),
+          (type = createFiberImplClass(30, pendingProps, key, type)),
           (type.elementType = REACT_VIEW_TRANSITION_TYPE),
           (type.lanes = lanes),
           (type.stateNode = {
@@ -8662,12 +8675,15 @@ function preloadInstanceAndSuspendIfNeeded(
   newProps,
   renderLanes
 ) {
-  if (
-    null === oldProps
-      ? maySuspendCommit(type, newProps)
-      : maySuspendCommit(type, newProps) &&
-        (newProps.src !== oldProps.src || newProps.srcSet !== oldProps.srcSet)
-  ) {
+  var JSCompiler_temp;
+  if ((JSCompiler_temp = 0 !== (workInProgress.mode & 32)))
+    JSCompiler_temp =
+      null === oldProps
+        ? maySuspendCommit(type, newProps)
+        : maySuspendCommit(type, newProps) &&
+          (newProps.src !== oldProps.src ||
+            newProps.srcSet !== oldProps.srcSet);
+  if (JSCompiler_temp) {
     if (
       ((workInProgress.flags |= 16777216),
       (renderLanes & 335544128) === renderLanes)
@@ -9654,9 +9670,15 @@ function commitHostMount(finishedWork) {
         props.autoFocus && instance.focus();
         break a;
       case "img":
-        props.src
-          ? (instance.src = props.src)
-          : props.srcSet && (instance.srcset = props.srcSet);
+        if (props.src) {
+          var src = props.src;
+          if ("object" === typeof src)
+            try {
+              setSrcObject(instance, type, src);
+              break a;
+            } catch (x) {}
+          instance.src = src;
+        } else props.srcSet && (instance.srcset = props.srcSet);
     }
   } catch (error) {
     captureCommitPhaseError(finishedWork, finishedWork.return, error);
@@ -15580,20 +15602,20 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_1873 = 0;
-  i$jscomp$inline_1873 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1873++
+  var i$jscomp$inline_1876 = 0;
+  i$jscomp$inline_1876 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1876++
 ) {
-  var eventName$jscomp$inline_1874 =
-      simpleEventPluginEvents[i$jscomp$inline_1873],
-    domEventName$jscomp$inline_1875 =
-      eventName$jscomp$inline_1874.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1876 =
-      eventName$jscomp$inline_1874[0].toUpperCase() +
-      eventName$jscomp$inline_1874.slice(1);
+  var eventName$jscomp$inline_1877 =
+      simpleEventPluginEvents[i$jscomp$inline_1876],
+    domEventName$jscomp$inline_1878 =
+      eventName$jscomp$inline_1877.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1879 =
+      eventName$jscomp$inline_1877[0].toUpperCase() +
+      eventName$jscomp$inline_1877.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1875,
-    "on" + capitalizedEvent$jscomp$inline_1876
+    domEventName$jscomp$inline_1878,
+    "on" + capitalizedEvent$jscomp$inline_1879
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -16430,6 +16452,15 @@ function setProp(domElement, tag, key, value, props, prevValue) {
         break;
       }
     case "src":
+      if (
+        "object" === typeof value &&
+        null !== value &&
+        ("img" === tag || "video" === tag || "audio" === tag)
+      )
+        try {
+          setSrcObject(domElement, tag, value);
+          break;
+        } catch (x) {}
     case "href":
       if ("" === value && ("a" !== tag || "href" !== key)) {
         domElement.removeAttribute(key);
@@ -19987,16 +20018,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2190 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2193 = React.version;
 if (
-  "19.2.0-experimental-33661467-20250407" !==
-  isomorphicReactPackageVersion$jscomp$inline_2190
+  "19.2.0-experimental-3fbfb9ba-20250409" !==
+  isomorphicReactPackageVersion$jscomp$inline_2193
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2190,
-      "19.2.0-experimental-33661467-20250407"
+      isomorphicReactPackageVersion$jscomp$inline_2193,
+      "19.2.0-experimental-3fbfb9ba-20250409"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20016,24 +20047,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2814 = {
+var internals$jscomp$inline_2817 = {
   bundleType: 0,
-  version: "19.2.0-experimental-33661467-20250407",
+  version: "19.2.0-experimental-3fbfb9ba-20250409",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-experimental-33661467-20250407"
+  reconcilerVersion: "19.2.0-experimental-3fbfb9ba-20250409"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2815 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2818 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2815.isDisabled &&
-    hook$jscomp$inline_2815.supportsFiber
+    !hook$jscomp$inline_2818.isDisabled &&
+    hook$jscomp$inline_2818.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2815.inject(
-        internals$jscomp$inline_2814
+      (rendererID = hook$jscomp$inline_2818.inject(
+        internals$jscomp$inline_2817
       )),
-        (injectedHook = hook$jscomp$inline_2815);
+        (injectedHook = hook$jscomp$inline_2818);
     } catch (err) {}
 }
 function noop() {}
@@ -20286,7 +20317,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.2.0-experimental-33661467-20250407";
+exports.version = "19.2.0-experimental-3fbfb9ba-20250409";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
