@@ -401,6 +401,7 @@ export async function initialize(opts: {
 
       // handle redirect
       if (!bodyStream && statusCode && statusCode > 300 && statusCode < 400) {
+        console.log('handle redirect', statusCode, parsedUrl)
         const destination = url.format(parsedUrl)
         res.statusCode = statusCode
         res.setHeader('location', destination)
