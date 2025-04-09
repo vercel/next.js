@@ -2160,6 +2160,8 @@ impl VisitAstPath for Analyzer<'_> {
 
         stmt.visit_children_with_ast_path(self, ast_path);
 
+        self.end_early_return_block();
+
         let effects = take(&mut self.effects);
 
         prev_effects.push(Effect::Conditional {
@@ -2177,7 +2179,7 @@ impl VisitAstPath for Analyzer<'_> {
             span: stmt.span,
             in_try: is_in_try(ast_path),
         });
-        self.end_early_return_block();
+
         self.effects = prev_effects;
         self.early_return_stack = prev_early_return_stack;
     }
