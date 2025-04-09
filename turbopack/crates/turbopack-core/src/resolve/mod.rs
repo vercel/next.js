@@ -2200,14 +2200,16 @@ async fn resolve_relative_request(
     }
 
     let mut new_path = path_pattern.clone();
+    let mut need_normalize = false;
 
     let fragment_val = fragment.await?;
     if !fragment_val.is_empty() {
         new_path.push(Pattern::Alternatives(
             once(Pattern::Constant("".into()))
-                .chain(once(Pattern::Constant(format!("#{fragment_val}").into())))
+                .chain(once(Pattern::Constant(format!("{fragment_val}").into())))
                 .collect(),
         ));
+        need_normalize = true;
     }
 
     if !options_value.fully_specified {
@@ -2223,7 +2225,7 @@ async fn resolve_relative_request(
                 )
                 .collect(),
         ));
-        new_path.normalize();
+        need_normalize = true;
     };
 
     if options_value.enable_typescript_with_output_extension {
@@ -2264,6 +2266,10 @@ async fn resolve_relative_request(
                 ]))
             }
         });
+        need_normalize = true;
+    }
+
+    if need_normalize {
         new_path.normalize();
     }
 
