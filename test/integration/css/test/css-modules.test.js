@@ -14,6 +14,7 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
+import nodeFs from 'fs'
 
 const fixturesDir = join(__dirname, '../..', 'css-fixtures')
 
@@ -184,14 +185,18 @@ describe('Data URLs', () => {
       })
 
       it('should have emitted expected files', async () => {
-        const cssFolder = join(workDir, '.next/static/css')
-        const files = await readdir(cssFolder)
-        const cssFiles = files.filter((f) => /\.css$/.test(f))
+        const cssFolder = join(workDir, '.next', 'static')
+        const cssFiles = nodeFs
+          .readdirSync(cssFolder, {
+            recursive: true,
+            encoding: 'utf8',
+          })
+          .filter((f) => f.endsWith('.css'))
 
         expect(cssFiles.length).toBe(1)
         const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-        expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-          /background:url\("data:[^"]+"\)/
+        expect(cssContent.replace(/\/\*.*?\*\/n/g, '').trim()).toMatch(
+          /background:url\("?data:[^"]+"?\)/
         )
       })
     }
