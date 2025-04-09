@@ -1,7 +1,13 @@
-use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
+use std::{
+    cell::RefCell,
+    path::{Component, Path, PathBuf},
+    rc::Rc,
+    sync::Arc,
+};
 
 use either::Either;
 use modularize_imports;
+use pathdiff::diff_paths;
 use preset_env_base::query::targets_to_versions;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
@@ -18,6 +24,7 @@ use swc_core::{
         visit::visit_mut_pass,
     },
 };
+use turbo_rcstr::RcStr;
 
 use crate::{
     linter::linter,
@@ -324,6 +331,7 @@ where
             match &opts.server_actions {
                 Some(config) => Either::Left(crate::transforms::server_actions::server_actions(
                     &file.name,
+                    relative_file_name(&opts.app_dir, &file.name),
                     None,
                     config.clone(),
                     comments.clone(),
@@ -448,5 +456,34 @@ where
                 Ok(BoolOr::Data(T::deserialize(d)?))
             }
         }
+    }
+}
+
+pub fn relative_file_name(app_dir: &Option<PathBuf>, file: &FileName) -> RcStr {
+    let project_dir = match app_dir.as_deref() {
+        Some(app_dir) => app_dir.parent(),
+        _ => None,
+    };
+
+    let base = match project_dir {
+        Some(path) => path,
+        None => return file.to_string().into(),
+    };
+
+    let file = match file {
+        FileName::Real(path) => path,
+        _ => {
+            return file.to_string().into();
+        }
+    };
+
+    let rel_path = diff_paths(file, base);
+
+    match rel_path {
+        Some(relative) => match relative.components().next() {
+            Some(Component::ParentDir) => relative.display().to_string().into(),
+            _ => Path::new(".").join(relative).display().to_string().into(),
+        },
+        None => file.display().to_string().into(),
     }
 }

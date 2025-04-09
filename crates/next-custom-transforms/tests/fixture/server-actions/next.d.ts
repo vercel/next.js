@@ -43,6 +43,7 @@ declare module 'private-next-rsc-cache-wrapper' {
   export function cache<TFn extends (...args: any[]) => Promise<any>>(
     kind: string,
     id: string,
+    location: string,
     boundArgsLength: number,
     fn: TFn
   ): TFn

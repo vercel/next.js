@@ -554,6 +554,7 @@ fn server_actions_fixture(input: PathBuf) {
                 resolver(Mark::new(), Mark::new(), false),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
+                    "./app/item.js".into(),
                     None,
                     server_actions::Config {
                         is_react_server_layer,
@@ -592,6 +593,7 @@ fn next_font_with_directive_fixture(input: PathBuf) {
                 }),
                 server_actions(
                     &FileName::Real("/app/test.tsx".into()),
+                    "./app/test.tsx".into(),
                     None,
                     server_actions::Config {
                         is_react_server_layer: true,
@@ -905,6 +907,7 @@ fn test_source_maps(input: PathBuf) {
                 resolver(Mark::new(), Mark::new(), false),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
+                    "./app/item.js".into(),
                     None,
                     server_actions::Config {
                         is_react_server_layer,

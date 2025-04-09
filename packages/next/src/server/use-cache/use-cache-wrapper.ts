@@ -512,6 +512,7 @@ function createTrackedReadableStream(
 export function cache(
   kind: string,
   id: string,
+  displayName: string,
   boundArgsLength: number,
   originalFn: (...args: unknown[]) => Promise<unknown>
 ) {
@@ -710,7 +711,7 @@ export function cache(
         let entry = shouldForceRevalidate(workStore, workUnitStore)
           ? undefined
           : 'getExpiration' in cacheHandler
-            ? await cacheHandler.get(serializedCacheKey)
+            ? await cacheHandler.get(serializedCacheKey, { displayName })
             : // Legacy cache handlers require implicit tags to be passed in,
               // instead of checking their staleness here, as we do for modern
               // cache handlers (see below).
@@ -826,7 +827,8 @@ export function cache(
 
             const promise = cacheHandler.set(
               serializedCacheKey,
-              savedCacheEntry
+              savedCacheEntry,
+              { displayName }
             )
 
             workStore.pendingRevalidateWrites ??= []
@@ -887,7 +889,8 @@ export function cache(
 
             const promise = cacheHandler.set(
               serializedCacheKey,
-              savedCacheEntry
+              savedCacheEntry,
+              { displayName }
             )
 
             if (!workStore.pendingRevalidateWrites) {

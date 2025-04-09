@@ -22,7 +22,7 @@ use swc_core::{
         errors::HANDLER,
         source_map::{SourceMapGenConfig, PURE_SP},
         util::take::Take,
-        BytePos, FileName, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP,
+        BytePos, FileName, Loc, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP,
     },
     ecma::{
         ast::*,
@@ -137,6 +137,7 @@ pub type ActionsMap = BTreeMap<Atom, Atom>;
 #[tracing::instrument(level = tracing::Level::TRACE, skip_all)]
 pub fn server_actions<C: Comments>(
     file_name: &FileName,
+    relative_file_name: RcStr,
     file_query: Option<RcStr>,
     config: Config,
     comments: C,
@@ -150,6 +151,7 @@ pub fn server_actions<C: Comments>(
         comments,
         cm,
         file_name: file_name.to_string(),
+        relative_file_name,
         file_query,
         start_pos: BytePos(0),
         file_directive: None,
@@ -210,6 +212,7 @@ struct ServerActions<C: Comments> {
     #[allow(unused)]
     config: Config,
     file_name: String,
+    relative_file_name: RcStr,
     file_query: Option<RcStr>,
     comments: C,
     cm: Arc<SourceMap>,
@@ -738,6 +741,16 @@ impl<C: Comments> ServerActions<C> {
             });
         }
 
+        let name = if let Some(Ident { sym, .. }) = &self.arrow_or_fn_expr_ident {
+            Some(sym.as_str())
+        } else if self.in_default_export_decl {
+            Some("default")
+        } else {
+            None
+        };
+
+        let loc = self.cm.lookup_char_pos(arrow.span.lo);
+
         // Create the action export decl from the arrow function
         // export var cache_ident = async function() {}
         self.hoisted_extra_items
@@ -774,6 +787,9 @@ impl<C: Comments> ServerActions<C> {
                             })),
                             &cache_kind,
                             &reference_id,
+                            name,
+                            &self.relative_file_name,
+                            loc,
                             ids_from_closure.len(),
                         )),
                         definite: false,
@@ -783,8 +799,8 @@ impl<C: Comments> ServerActions<C> {
                 .into(),
             })));
 
-        if let Some(Ident { sym, .. }) = &self.arrow_or_fn_expr_ident {
-            assign_name_to_ident(&cache_ident, sym.as_str(), &mut self.hoisted_extra_items);
+        if let Some(name) = name {
+            assign_name_to_ident(&cache_ident, name, &mut self.hoisted_extra_items);
         }
 
         let bound_args: Vec<_> = ids_from_closure
@@ -875,6 +891,16 @@ impl<C: Comments> ServerActions<C> {
             private_ctxt: self.private_ctxt,
         });
 
+        let name = if let Some(Ident { sym, .. }) = &fn_name {
+            Some(sym.as_str())
+        } else if self.in_default_export_decl {
+            Some("default")
+        } else {
+            None
+        };
+
+        let loc = self.cm.lookup_char_pos(function.span.lo);
+
         // export var cache_ident = async function() {}
         self.hoisted_extra_items
             .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
@@ -895,6 +921,9 @@ impl<C: Comments> ServerActions<C> {
                             })),
                             &cache_kind,
                             &reference_id,
+                            name,
+                            &self.relative_file_name,
+                            loc,
                             ids_from_closure.len(),
                         )),
                         definite: false,
@@ -904,11 +933,9 @@ impl<C: Comments> ServerActions<C> {
                 .into(),
             })));
 
-        if let Some(Ident { sym, .. }) = fn_name {
-            assign_name_to_ident(&cache_ident, sym.as_str(), &mut self.hoisted_extra_items);
-        } else if self.in_default_export_decl {
-            assign_name_to_ident(&cache_ident, "default", &mut self.hoisted_extra_items);
-        }
+        if let Some(name) = name {
+            assign_name_to_ident(&cache_ident, name, &mut self.hoisted_extra_items);
+        };
 
         let bound_args: Vec<_> = ids_from_closure
             .iter()
@@ -2368,19 +2395,40 @@ fn retain_names_from_declared_idents(
     *child_names = retained_names;
 }
 
-fn wrap_cache_expr(expr: Box<Expr>, name: &str, id: &str, bound_args_len: usize) -> Box<Expr> {
-    // expr -> $$cache__("name", "id", 0, expr)
+fn wrap_cache_expr(
+    expr: Box<Expr>,
+    cache_kind: &str,
+    id: &str,
+    name: Option<&str>,
+    file_name: &str,
+    loc: Loc,
+    bound_args_len: usize,
+) -> Box<Expr> {
+    let display_name = format!(
+        "{} ({}:{}:{})",
+        name.unwrap_or("<anonymous>"),
+        file_name,
+        loc.line,
+        // Note: V8 stack frame columns are 1-based, whereas col_display is 0-based.
+        loc.col_display + 1
+    );
+
+    // expr -> $$cache__("default", "id", "myFn (filename:47:11)", 0, expr)
     Box::new(Expr::Call(CallExpr {
         span: DUMMY_SP,
         callee: quote_ident!("$$cache__").as_callee(),
         args: vec![
             ExprOrSpread {
                 spread: None,
-                expr: Box::new(name.into()),
+                expr: Box::new(cache_kind.into()),
             },
             ExprOrSpread {
                 spread: None,
                 expr: Box::new(id.into()),
+            },
+            ExprOrSpread {
+                spread: None,
+                expr: Box::new(display_name.into()),
             },
             Number::from(bound_args_len).as_arg(),
             expr.as_arg(),

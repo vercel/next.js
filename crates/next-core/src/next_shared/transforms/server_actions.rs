@@ -6,6 +6,7 @@ use next_custom_transforms::transforms::server_actions::{
 use swc_core::{common::FileName, ecma::ast::Program};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
@@ -28,6 +29,7 @@ pub async fn get_server_actions_transform_rule(
     enable_mdx_rs: bool,
     use_cache_enabled: bool,
     cache_kinds: ResolvedVc<CacheKinds>,
+    app_dir: ResolvedVc<FileSystemPath>,
 ) -> Result<ModuleRule> {
     let transformer =
         EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextServerActions {
@@ -36,6 +38,7 @@ pub async fn get_server_actions_transform_rule(
             encryption_key,
             use_cache_enabled,
             cache_kinds,
+            app_dir,
         }) as _));
     Ok(ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
@@ -53,14 +56,23 @@ struct NextServerActions {
     use_cache_enabled: bool,
     cache_kinds: ResolvedVc<CacheKinds>,
     mode: NextMode,
+    app_dir: ResolvedVc<FileSystemPath>,
 }
 
 #[async_trait]
 impl CustomTransformer for NextServerActions {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "server_actions", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        let relative_file_name = self
+            .app_dir
+            .parent()
+            .await?
+            .get_relative_path_to(&*ctx.file_path.await?)
+            .unwrap_or(ctx.file_path.await?.path.clone());
+
         let actions = server_actions(
             &FileName::Real(ctx.file_path_str.into()),
+            relative_file_name,
             Some(ctx.query_str.clone()),
             Config {
                 is_react_server_layer: matches!(self.transform, ActionsTransform::Server),
