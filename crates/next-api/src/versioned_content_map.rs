@@ -260,6 +260,7 @@ impl VersionedContentMap {
 }
 
 #[turbo_tasks::value(transparent)]
+#[allow(clippy::type_complexity)]
 struct GetEntriesResult(Vec<(ResolvedVc<FileSystemPath>, ResolvedVc<Box<dyn OutputAsset>>)>);
 
 #[turbo_tasks::function(operation)]
