@@ -85,7 +85,7 @@ export interface CacheHandlerV2 {
    */
   get(
     cacheKey: string,
-    metaData: CacheHandlerMetaData
+    metaData?: CacheHandlerMetaData
   ): Promise<undefined | CacheEntry>
 
   /**
@@ -99,7 +99,7 @@ export interface CacheHandlerV2 {
   set(
     cacheKey: string,
     pendingEntry: Promise<CacheEntry>,
-    metaData: CacheHandlerMetaData
+    metaData?: CacheHandlerMetaData
   ): Promise<void>
 
   /**
