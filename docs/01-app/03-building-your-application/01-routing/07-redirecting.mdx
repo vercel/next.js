@@ -447,13 +447,15 @@ const bloomFilter = ScalableBloomFilter.fromJSON(GeneratedBloomFilter as any)
 export async function middleware(request: NextRequest) {
   // Get the path for the incoming request
   const pathname = request.nextUrl.pathname
+  const origin = request.nextUrl.origin
+
 
   // Check if the path is in the bloom filter
   if (bloomFilter.has(pathname)) {
     // Forward the pathname to the Route Handler
     const api = new URL(
-      `/api/redirects?pathname=${encodeURIComponent(request.nextUrl.pathname)}`,
-      request.nextUrl.origin
+      `/api/redirects?pathname=${encodeURIComponent(pathname)}`,
+      origin
     )
 
     try {
