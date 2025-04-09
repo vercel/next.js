@@ -312,7 +312,7 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
  */
 export function getMiddlewareMatchers(
   matcherOrMatchers: MiddlewareConfigMatcherInput,
-  nextConfig: Pick<NextConfig, 'basePath' | 'i18n'>
+  nextConfig: Pick<NextConfig, 'basePath' | 'assetPrefix' | 'i18n'>
 ): MiddlewareMatcher[] {
   const matchers = Array.isArray(matcherOrMatchers)
     ? matcherOrMatchers
@@ -329,11 +329,21 @@ export function getMiddlewareMatchers(
 
     const isRoot = source === '/'
 
+    console.log('============================================')
+
+    if (nextConfig.basePath || nextConfig.assetPrefix) {
+      source = `${source.replace(/^\//, '{/}?')}`
+    }
+
+    console.log('🟢', { source, regex: tryToParsePath(source).regexStr })
+
     if (i18n?.locales && matcher.locale !== false) {
       source = `/:nextInternalLocale((?!_next/)[^/.]{1,})${
         isRoot ? '' : source
       }`
     }
+
+    console.log('🟡', { source, regex: tryToParsePath(source).regexStr })
 
     source = `/:nextData(_next/data/[^/]{1,})?${source}${
       isRoot
@@ -341,8 +351,23 @@ export function getMiddlewareMatchers(
         : '{(\\.json)}?'
     }`
 
-    if (nextConfig.basePath) {
-      source = `${nextConfig.basePath}${source}`
+    console.log('🔴', { source, regex: tryToParsePath(source).regexStr })
+
+    const assetPrefix =
+      nextConfig.assetPrefix && nextConfig.assetPrefix?.startsWith('http')
+        ? new URL(nextConfig.assetPrefix).pathname
+        : nextConfig.assetPrefix
+
+    if (assetPrefix) {
+      if (nextConfig.basePath) {
+        if (nextConfig.basePath === assetPrefix) {
+          source = `${nextConfig.basePath}${source}`
+        } else {
+          source = `/{(${assetPrefix.replace(/^\//, '')}|${nextConfig.basePath.replace(/^\//, '')})}${source}`
+        }
+      } else {
+        source = `/{${assetPrefix.replace(/^\//, '')}}?${source}`
+      }
     }
 
     // Validate that the source is still.
@@ -355,6 +380,13 @@ export function getMiddlewareMatchers(
       // that we don't hang.
       process.exit(1)
     }
+
+    console.log('💡', {
+      b: nextConfig.basePath,
+      a: assetPrefix,
+      s: source,
+      r: tryToParsePath(result.data).regexStr!,
+    })
 
     return {
       ...rest,

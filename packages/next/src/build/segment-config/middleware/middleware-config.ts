@@ -35,14 +35,8 @@ export const SourceSchema = z
     required_error: 'source is required',
   })
   .max(4096, 'exceeds max built length of 4096 for route')
+  .startsWith('/', 'source must start with /')
   .superRefine((val, ctx) => {
-    if (!val.startsWith('/')) {
-      return ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `source must start with /`,
-      })
-    }
-
     const { error, regexStr } = tryToParsePath(val)
 
     if (error || !regexStr) {
