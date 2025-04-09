@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import cheerio from 'cheerio'
-import { readdir, readFile, remove } from 'fs-extra'
+import { readFile, remove } from 'fs-extra'
 import {
   check,
   File,
@@ -146,16 +146,18 @@ describe('should handle unresolved files gracefully', () => {
       })
 
       it('should have correct file references in CSS output', async () => {
-        const cssFiles = await readdir(join(workDir, '.next/static/css'))
+        const cssFolder = join(workDir, '.next', 'static')
+        const cssFiles = nodeFs
+          .readdirSync(cssFolder, {
+            recursive: true,
+            encoding: 'utf8',
+          })
+          .filter((f) => f.endsWith('.css'))
+
+        expect(cssFiles).not.toBeEmpty()
 
         for (const file of cssFiles) {
-          if (file.endsWith('.css.map')) continue
-
-          const content = await readFile(
-            join(workDir, '.next/static/css', file),
-            'utf8'
-          )
-          console.log(file, content)
+          const content = await readFile(join(cssFolder, file), 'utf8')
 
           // if it is the combined global CSS file there are double the expected
           // results
@@ -163,7 +165,6 @@ describe('should handle unresolved files gracefully', () => {
             content.includes('p{') || content.includes('p,') ? 2 : 1
 
           expect(content.match(/\(\/vercel\.svg/g).length).toBe(howMany)
-          // expect(content.match(/\(vercel\.svg/g).length).toBe(howMany)
           expect(content.match(/\(\/_next\/static\/media/g).length).toBe(1)
           expect(content.match(/\(https:\/\//g).length).toBe(howMany)
         }
