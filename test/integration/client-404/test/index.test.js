@@ -31,7 +31,6 @@ const clientNavigation = (context, isProd = false) => {
           serverCode: '404',
           clientCode: '404',
         })
-        await browser.close()
       })
     })
 

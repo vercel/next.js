@@ -39,13 +39,9 @@ describe('Export Dynamic Pages', () => {
       it('should hydrate with correct asPath', async () => {
         expect.assertions(1)
         const browser = await webdriver(port, '/regression/jeff-is-cool')
-        try {
-          expect(await browser.eval(`window.__AS_PATHS`)).toEqual([
-            '/regression/jeff-is-cool',
-          ])
-        } finally {
-          await browser.close()
-        }
+        expect(await browser.eval(`window.__AS_PATHS`)).toEqual([
+          '/regression/jeff-is-cool',
+        ])
       })
     }
   )

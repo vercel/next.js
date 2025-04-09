@@ -71,45 +71,30 @@ const appDir = join(__dirname, '../')
           })
 
           it(`should client-render the ${page} page`, async () => {
-            let browser
-            try {
-              browser = await webdriver(appPort, page)
-              await check(() => getBrowserBodyText(browser), expectedClient)
-            } finally {
-              await browser.close()
-            }
+            const browser = await webdriver(appPort, page)
+            await check(() => getBrowserBodyText(browser), expectedClient)
           })
         }
 
         it(`should render a static url image import`, async () => {
-          let browser
-          try {
-            browser = await webdriver(appPort, '/image')
-            await browser.waitForElementByCss('#static-image')
-            await check(
-              () => browser.elementByCss('#static-image').getAttribute('src'),
-              /^\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Fvercel\.[0-9a-f]{8}\.png&/
-            )
-          } finally {
-            await browser.close()
-          }
+          const browser = await webdriver(appPort, '/image')
+          await browser.waitForElementByCss('#static-image')
+          await check(
+            () => browser.elementByCss('#static-image').getAttribute('src'),
+            /^\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Fvercel\.[0-9a-f]{8}\.png&/
+          )
         })
 
         it(`should allow url import in css`, async () => {
-          let browser
-          try {
-            browser = await webdriver(appPort, '/css')
-            await browser.waitForElementByCss('#static-css')
-            await check(
-              () =>
-                browser
-                  .elementByCss('#static-css')
-                  .getComputedCss('background-image'),
-              /^url\("http:\/\/localhost:\d+\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png"\)$/
-            )
-          } finally {
-            await browser.close()
-          }
+          const browser = await webdriver(appPort, '/css')
+          await browser.waitForElementByCss('#static-css')
+          await check(
+            () =>
+              browser
+                .elementByCss('#static-css')
+                .getComputedCss('background-image'),
+            /^url\("http:\/\/localhost:\d+\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png"\)$/
+          )
         })
 
         it('should respond on value api', async () => {

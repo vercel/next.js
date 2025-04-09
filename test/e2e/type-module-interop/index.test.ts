@@ -96,7 +96,6 @@ describe('Type module interop', () => {
   it('should render client-side', async () => {
     const browser = await webdriver(next.url, '/')
     await assertNoRedbox(browser)
-    await browser.close()
   })
 
   it('should render server-side with modules', async () => {
@@ -108,6 +107,5 @@ describe('Type module interop', () => {
   it('should render client-side with modules', async () => {
     const browser = await webdriver(next.url, '/modules')
     await assertNoRedbox(browser)
-    await browser.close()
   })
 })

@@ -79,7 +79,6 @@ describe('Build Activity Indicator', () => {
           await waitFor(500)
           const wasVisible = await browser.eval('window.showedBuilder')
           expect(wasVisible).toBe(true)
-          await browser.close()
         })
       }
     )
@@ -103,7 +102,6 @@ describe('Build Activity Indicator', () => {
 
       expect(wasVisible).toBe(true)
       await fs.writeFile(pagePath, origContent, 'utf8')
-      await browser.close()
     })
   })
 })

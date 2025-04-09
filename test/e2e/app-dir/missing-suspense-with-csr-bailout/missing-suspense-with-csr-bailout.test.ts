@@ -63,17 +63,13 @@ describe('missing-suspense-with-csr-bailout', () => {
         pushErrorAsConsoleLog: true,
       })
 
-      try {
-        await browser.waitForElementByCss('#dynamic')
+      await browser.waitForElementByCss('#dynamic')
 
-        expect(await browser.log()).not.toContainEqual(
-          expect.objectContaining({
-            source: 'error',
-          })
-        )
-      } finally {
-        await browser.close()
-      }
+      expect(await browser.log()).not.toContainEqual(
+        expect.objectContaining({
+          source: 'error',
+        })
+      )
     })
   })
 })

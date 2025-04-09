@@ -65,12 +65,8 @@ describe('ppr-full', () => {
     it('should set the right metadata when generateMetadata uses dynamic APIs', async () => {
       const browser = await next.browser('/metadata')
 
-      try {
-        const title = await browser.elementByCss('title').text()
-        expect(title).toEqual('Metadata')
-      } finally {
-        await browser.close()
-      }
+      const title = await browser.elementByCss('title').text()
+      expect(title).toEqual('Metadata')
     })
   })
 
@@ -89,33 +85,29 @@ describe('ppr-full', () => {
         it('should allow navigations to and from a pages/ page', async () => {
           const browser = await next.browser(pathname)
 
-          try {
-            await browser.waitForElementByCss(`[data-pathname="${pathname}"]`)
+          await browser.waitForElementByCss(`[data-pathname="${pathname}"]`)
 
-            // Add a window var so we can detect if there was a full navigation.
-            const now = Date.now()
-            await browser.eval(`window.beforeNav = ${now.toString()}`)
+          // Add a window var so we can detect if there was a full navigation.
+          const now = Date.now()
+          await browser.eval(`window.beforeNav = ${now.toString()}`)
 
-            // Navigate to the pages page and wait for the page to load.
-            await browser.elementByCss(`a[href="/pages"]`).click()
-            await browser.waitForElementByCss('[data-pathname="/pages"]')
+          // Navigate to the pages page and wait for the page to load.
+          await browser.elementByCss(`a[href="/pages"]`).click()
+          await browser.waitForElementByCss('[data-pathname="/pages"]')
 
-            // Ensure we did a full page navigation, and not a client navigation.
-            let beforeNav = await browser.eval('window.beforeNav')
-            expect(beforeNav).not.toBe(now)
+          // Ensure we did a full page navigation, and not a client navigation.
+          let beforeNav = await browser.eval('window.beforeNav')
+          expect(beforeNav).not.toBe(now)
 
-            await browser.eval(`window.beforeNav = ${now.toString()}`)
+          await browser.eval(`window.beforeNav = ${now.toString()}`)
 
-            // Navigate back and wait for the page to load.
-            await browser.elementByCss(`a[href="${pathname}"]`).click()
-            await browser.waitForElementByCss(`[data-pathname="${pathname}"]`)
+          // Navigate back and wait for the page to load.
+          await browser.elementByCss(`a[href="${pathname}"]`).click()
+          await browser.waitForElementByCss(`[data-pathname="${pathname}"]`)
 
-            // Ensure we did a full page navigation, and not a client navigation.
-            beforeNav = await browser.eval('window.beforeNav')
-            expect(beforeNav).not.toBe(now)
-          } finally {
-            await browser.close()
-          }
+          // Ensure we did a full page navigation, and not a client navigation.
+          beforeNav = await browser.eval('window.beforeNav')
+          expect(beforeNav).not.toBe(now)
         })
 
         it('should have correct headers', async () => {
@@ -316,14 +308,10 @@ describe('ppr-full', () => {
 
             if (client) {
               const browser = await next.browser(pathname)
-              try {
-                await browser.waitForElementByCss('[data-slug]')
-                expect(
-                  await browser.elementByCss('[data-slug]').text()
-                ).toContain(slug)
-              } finally {
-                await browser.close()
-              }
+              await browser.waitForElementByCss('[data-slug]')
+              expect(
+                await browser.elementByCss('[data-slug]').text()
+              ).toContain(slug)
             } else {
               // The static part should not contain the dynamic parameter.
               let $ = cheerio.load(chunks.static)
@@ -763,16 +751,12 @@ describe('ppr-full', () => {
           // We expect hydration to patch up the render with dynamic data
           // from the resume
           const browser = await next.browser('/dynamic-data?foo=bar')
-          try {
-            await browser.waitForElementByCss('#foosearch')
-            expect(
-              await browser.eval(
-                'document.getElementById("foosearch").textContent'
-              )
-            ).toEqual('foo search: bar')
-          } finally {
-            await browser.close()
-          }
+          await browser.waitForElementByCss('#foosearch')
+          expect(
+            await browser.eval(
+              'document.getElementById("foosearch").textContent'
+            )
+          ).toEqual('foo search: bar')
         })
         it('should render entirely statically with force-static', async () => {
           const $ = await next.render$('/dynamic-data/force-static?foo=bar')
@@ -793,16 +777,12 @@ describe('ppr-full', () => {
           const browser = await next.browser(
             '/dynamic-data/force-static?foo=bar'
           )
-          try {
-            await browser.waitForElementByCss('#foosearch')
-            expect(
-              await browser.eval(
-                'document.getElementById("foosearch").textContent'
-              )
-            ).toEqual('foo search: ')
-          } finally {
-            await browser.close()
-          }
+          await browser.waitForElementByCss('#foosearch')
+          expect(
+            await browser.eval(
+              'document.getElementById("foosearch").textContent'
+            )
+          ).toEqual('foo search: ')
         })
         it('should render entirely dynamically when force-dynamic', async () => {
           const $ = await next.render$('/dynamic-data/force-dynamic?foo=bar')
@@ -840,16 +820,12 @@ describe('ppr-full', () => {
           const browser = await next.browser(
             '/dynamic-data/incidental-postpone?foo=bar'
           )
-          try {
-            await browser.waitForElementByCss('#foosearch')
-            expect(
-              await browser.eval(
-                'document.getElementById("foosearch").textContent'
-              )
-            ).toEqual('foo search: bar')
-          } finally {
-            await browser.close()
-          }
+          await browser.waitForElementByCss('#foosearch')
+          expect(
+            await browser.eval(
+              'document.getElementById("foosearch").textContent'
+            )
+          ).toEqual('foo search: bar')
         })
         it('should render entirely statically with force-static', async () => {
           const $ = await next.render$(
@@ -872,16 +848,12 @@ describe('ppr-full', () => {
           const browser = await next.browser(
             '/dynamic-data/incidental-postpone/force-static?foo=bar'
           )
-          try {
-            await browser.waitForElementByCss('#foosearch')
-            expect(
-              await browser.eval(
-                'document.getElementById("foosearch").textContent'
-              )
-            ).toEqual('foo search: ')
-          } finally {
-            await browser.close()
-          }
+          await browser.waitForElementByCss('#foosearch')
+          expect(
+            await browser.eval(
+              'document.getElementById("foosearch").textContent'
+            )
+          ).toEqual('foo search: ')
         })
         it('should render entirely dynamically when force-dynamic', async () => {
           const $ = await next.render$(

@@ -48,20 +48,15 @@ function testShouldResolve(expectations) {
   it.each(expectations)(
     '%s should client side render %s, with router path %s',
     async (route, expectedPage, expectedRouterPath) => {
-      let browser
-      try {
-        browser = await webdriver(appPort, route)
+      const browser = await webdriver(appPort, route)
 
-        await browser.waitForElementByCss('#hydration-marker')
-        const text = await browser.elementByCss('#page-marker').text()
-        expect(text).toBe(expectedPage)
-        const routerPathname = await browser
-          .elementByCss('#router-pathname')
-          .text()
-        expect(routerPathname).toBe(expectedRouterPath)
-      } finally {
-        if (browser) await browser.close()
-      }
+      await browser.waitForElementByCss('#hydration-marker')
+      const text = await browser.elementByCss('#page-marker').text()
+      expect(text).toBe(expectedPage)
+      const routerPathname = await browser
+        .elementByCss('#router-pathname')
+        .text()
+      expect(routerPathname).toBe(expectedRouterPath)
     }
   )
 }
@@ -90,36 +85,26 @@ function testLinkShouldRewriteTo(expectations) {
   it.each(expectations)(
     '%s should navigate to %s',
     async (linkPage, expectedHref) => {
-      let browser
-      try {
-        browser = await webdriver(appPort, linkPage)
-        await browser.elementByCss('#link').click()
+      const browser = await webdriver(appPort, linkPage)
+      await browser.elementByCss('#link').click()
 
-        await browser.waitForElementByCss('#hydration-marker')
-        const url = new URL(await browser.eval('window.location.href'))
-        const pathname = url.href.slice(url.origin.length)
-        expect(pathname).toBe(expectedHref)
-      } finally {
-        if (browser) await browser.close()
-      }
+      await browser.waitForElementByCss('#hydration-marker')
+      const url = new URL(await browser.eval('window.location.href'))
+      const pathname = url.href.slice(url.origin.length)
+      expect(pathname).toBe(expectedHref)
     }
   )
 
   it.each(expectations)(
     '%s should push route to %s',
     async (linkPage, expectedHref) => {
-      let browser
-      try {
-        browser = await webdriver(appPort, linkPage)
-        await browser.elementByCss('#route-pusher').click()
+      const browser = await webdriver(appPort, linkPage)
+      await browser.elementByCss('#route-pusher').click()
 
-        await browser.waitForElementByCss('#hydration-marker')
-        const url = new URL(await browser.eval('window.location.href'))
-        const pathname = url.href.slice(url.origin.length)
-        expect(pathname).toBe(expectedHref)
-      } finally {
-        if (browser) await browser.close()
-      }
+      await browser.waitForElementByCss('#hydration-marker')
+      const url = new URL(await browser.eval('window.location.href'))
+      const pathname = url.href.slice(url.origin.length)
+      expect(pathname).toBe(expectedHref)
     }
   )
 }

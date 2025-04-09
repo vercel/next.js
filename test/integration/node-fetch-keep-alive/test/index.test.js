@@ -79,7 +79,6 @@ describe('node-fetch-keep-alive', () => {
       const props = await browser.elementById('props').text()
       const obj = JSON.parse(props)
       expect(obj).toEqual({ connection: 'keep-alive' })
-      await browser.close()
     })
 
     it('should send keep-alive for getStaticPaths', async () => {
@@ -87,7 +86,6 @@ describe('node-fetch-keep-alive', () => {
       const props = await browser.elementById('props').text()
       const obj = JSON.parse(props)
       expect(obj).toEqual({ slug: 'first' })
-      await browser.close()
     })
 
     it('should send keep-alive for getServerSideProps', async () => {
@@ -95,7 +93,6 @@ describe('node-fetch-keep-alive', () => {
       const props = await browser.elementById('props').text()
       const obj = JSON.parse(props)
       expect(obj).toEqual({ connection: 'keep-alive' })
-      await browser.close()
     })
   }
 })

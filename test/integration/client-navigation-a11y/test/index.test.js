@@ -61,7 +61,6 @@ describe('Client Navigation accessibility', () => {
 
       expect(ariaLiveValue).toBe('assertive')
       expect(roleValue).toBe('alert')
-      await browser.close()
     })
 
     describe('There is a title but no h1 tag', () => {
@@ -73,7 +72,6 @@ describe('Client Navigation accessibility', () => {
         const title = await getDocumentTitle(browser)
 
         expect(routeAnnouncerValue).toBe(title)
-        await browser.close()
       })
     })
 
@@ -86,7 +84,6 @@ describe('Client Navigation accessibility', () => {
         const h1Value = await getMainHeadingTitle(browser)
 
         expect(routeAnnouncerValue).toBe(h1Value)
-        await browser.close()
       })
     })
 
@@ -99,7 +96,6 @@ describe('Client Navigation accessibility', () => {
         const title = await getDocumentTitle(browser)
 
         expect(routeAnnouncerValue).toBe(title)
-        await browser.close()
       })
     })
 
@@ -112,7 +108,6 @@ describe('Client Navigation accessibility', () => {
         const pathname = '/page-without-h1-or-title'
 
         expect(routeAnnouncerValue).toBe(pathname)
-        await browser.close()
       })
     })
   })

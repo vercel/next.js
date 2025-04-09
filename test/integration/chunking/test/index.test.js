@@ -117,8 +117,6 @@ const existsChunkNamed = (name) => {
           const text = await browser.elementByCss('#padded-str').text()
 
           expect(text).toBe('__rad__')
-
-          await browser.close()
         })
 
         it('should load chunks when navigating', async () => {
@@ -131,8 +129,6 @@ const existsChunkNamed = (name) => {
             .text()
 
           expect(text).toBe('__rad__')
-
-          await browser.close()
         })
       })
     }

@@ -135,7 +135,6 @@ export default (next: NextInstance) => {
         '/\',document.body.innerHTML="INJECTED",\''
       )
       await checkInjected(browser)
-      await browser.close()
     })
 
     it('should prevent URI based XSS attacks using single quotes', async () => {
@@ -144,7 +143,6 @@ export default (next: NextInstance) => {
         `/'-(document.body.innerHTML='INJECTED')-'`
       )
       await checkInjected(browser)
-      await browser.close()
     })
 
     it('should prevent URI based XSS attacks using double quotes', async () => {
@@ -153,8 +151,6 @@ export default (next: NextInstance) => {
         `/"-(document.body.innerHTML='INJECTED')-"`
       )
       await checkInjected(browser)
-
-      await browser.close()
     })
 
     it('should prevent URI based XSS attacks using semicolons and double quotes', async () => {
@@ -163,8 +159,6 @@ export default (next: NextInstance) => {
         `/;"-(document.body.innerHTML='INJECTED')-"`
       )
       await checkInjected(browser)
-
-      await browser.close()
     })
 
     it('should prevent URI based XSS attacks using semicolons and single quotes', async () => {
@@ -173,8 +167,6 @@ export default (next: NextInstance) => {
         `/;'-(document.body.innerHTML='INJECTED')-'`
       )
       await checkInjected(browser)
-
-      await browser.close()
     })
 
     it('should prevent URI based XSS attacks using src', async () => {
@@ -183,8 +175,6 @@ export default (next: NextInstance) => {
         `/javascript:(document.body.innerHTML='INJECTED')`
       )
       await checkInjected(browser)
-
-      await browser.close()
     })
 
     it('should prevent URI based XSS attacks using querystring', async () => {
@@ -193,8 +183,6 @@ export default (next: NextInstance) => {
         `/?javascript=(document.body.innerHTML='INJECTED')`
       )
       await checkInjected(browser)
-
-      await browser.close()
     })
 
     it('should prevent URI based XSS attacks using querystring and quotes', async () => {
@@ -203,7 +191,6 @@ export default (next: NextInstance) => {
         `/?javascript="(document.body.innerHTML='INJECTED')"`
       )
       await checkInjected(browser)
-      await browser.close()
     })
 
     it('should handle encoded value in the pathname correctly \\', async () => {
@@ -319,19 +306,14 @@ export default (next: NextInstance) => {
 
     if (global.browserName !== 'internet explorer') {
       it('should not execute script embedded inside svg image, even if dangerouslyAllowSVG=true', async () => {
-        let browser
-        try {
-          browser = await webdriver(next.appPort, '/svg-image')
-          await browser.eval(`document.getElementById("img").scrollIntoView()`)
-          const src = await browser.elementById('img').getAttribute('src')
-          expect(src).toMatch(/_next\/image\?.*xss\.svg/)
-          expect(await browser.elementById('msg').text()).toBe('safe')
-          await browser.eval(`document.getElementById("btn").click()`)
-          await browser.waitForIdleNetwork()
-          expect(await browser.elementById('msg').text()).toBe('safe')
-        } finally {
-          if (browser) await browser.close()
-        }
+        const browser = await webdriver(next.appPort, '/svg-image')
+        await browser.eval(`document.getElementById("img").scrollIntoView()`)
+        const src = await browser.elementById('img').getAttribute('src')
+        expect(src).toMatch(/_next\/image\?.*xss\.svg/)
+        expect(await browser.elementById('msg').text()).toBe('safe')
+        await browser.eval(`document.getElementById("btn").click()`)
+        await browser.waitForIdleNetwork()
+        expect(await browser.elementById('msg').text()).toBe('safe')
       })
     }
   })

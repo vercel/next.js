@@ -98,23 +98,18 @@ describe('Prefetching Links in viewport', () => {
       })
 
       it('should prefetch with link in viewport onload', async () => {
-        let browser
-        try {
-          browser = await webdriver(appPort, '/')
+        const browser = await webdriver(appPort, '/')
 
-          await retry(async () => {
-            const links = await browser.elementsByCss('link[rel=prefetch]')
+        await retry(async () => {
+          const links = await browser.elementsByCss('link[rel=prefetch]')
 
-            const hrefs = await Promise.all(
-              links.map((link) => link.getAttribute('href'))
-            )
-            expect(hrefs).toEqual(
-              expect.arrayContaining([expect.stringContaining('first')])
-            )
-          })
-        } finally {
-          if (browser) await browser.close()
-        }
+          const hrefs = await Promise.all(
+            links.map((link) => link.getAttribute('href'))
+          )
+          expect(hrefs).toEqual(
+            expect.arrayContaining([expect.stringContaining('first')])
+          )
+        })
       })
 
       it('should prefetch with non-bot UA', async () => {
@@ -140,213 +135,172 @@ describe('Prefetching Links in viewport', () => {
       })
 
       it('should prefetch rewritten href with link in viewport onload', async () => {
-        let browser
-        try {
-          browser = await webdriver(appPort, '/rewrite-prefetch')
+        const browser = await webdriver(appPort, '/rewrite-prefetch')
 
-          await retry(async () => {
-            const links = await browser.elementsByCss('link[rel=prefetch]')
+        await retry(async () => {
+          const links = await browser.elementsByCss('link[rel=prefetch]')
 
-            const hrefs = await Promise.all(
-              links.map((link) => link.getAttribute('href'))
-            )
-
-            expect(hrefs).toEqual(
-              expect.arrayContaining([expect.stringContaining('%5Bslug%5D')])
-            )
-          })
-          const hrefs = await browser.eval(
-            `Object.keys(window.next.router.sdc)`
+          const hrefs = await Promise.all(
+            links.map((link) => link.getAttribute('href'))
           )
-          expect(hrefs.map((href) => new URL(href).pathname)).toEqual([
-            '/_next/data/test-build/ssg/dynamic/one.json',
-          ])
-        } finally {
-          if (browser) await browser.close()
-        }
+
+          expect(hrefs).toEqual(
+            expect.arrayContaining([expect.stringContaining('%5Bslug%5D')])
+          )
+        })
+        const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
+        expect(hrefs.map((href) => new URL(href).pathname)).toEqual([
+          '/_next/data/test-build/ssg/dynamic/one.json',
+        ])
       })
 
       it('should prefetch with link in viewport when href changes', async () => {
-        let browser
-        try {
-          browser = await webdriver(appPort, '/')
-          await browser.elementByCss('button').click()
-          await waitFor(2 * 1000)
+        const browser = await webdriver(appPort, '/')
+        await browser.elementByCss('button').click()
+        await waitFor(2 * 1000)
 
-          const links = await browser.elementsByCss('link[rel=prefetch]')
-          let foundFirst = false
-          let foundAnother = false
+        const links = await browser.elementsByCss('link[rel=prefetch]')
+        let foundFirst = false
+        let foundAnother = false
 
-          for (const link of links) {
-            const href = await link.getAttribute('href')
-            if (href.includes('another')) foundAnother = true
-            if (href.includes('first')) foundFirst = true
-          }
-          expect(foundFirst).toBe(true)
-          expect(foundAnother).toBe(true)
-        } finally {
-          if (browser) await browser.close()
+        for (const link of links) {
+          const href = await link.getAttribute('href')
+          if (href.includes('another')) foundAnother = true
+          if (href.includes('first')) foundFirst = true
         }
+        expect(foundFirst).toBe(true)
+        expect(foundAnother).toBe(true)
       })
 
       it('should prefetch with link in viewport on scroll', async () => {
-        let browser
-        try {
-          browser = await webdriver(appPort, '/')
-          await browser.elementByCss('#scroll-to-another').click()
+        const browser = await webdriver(appPort, '/')
+        await browser.elementByCss('#scroll-to-another').click()
 
-          await retry(async () => {
-            const links = await browser.elementsByCss('link[rel=prefetch]')
+        await retry(async () => {
+          const links = await browser.elementsByCss('link[rel=prefetch]')
 
-            const hrefs = await Promise.all(
-              links.map((link) => link.getAttribute('href'))
-            )
-            expect(hrefs).toEqual(
-              expect.arrayContaining([expect.stringContaining('another')])
-            )
-          })
-        } finally {
-          if (browser) await browser.close()
-        }
+          const hrefs = await Promise.all(
+            links.map((link) => link.getAttribute('href'))
+          )
+          expect(hrefs).toEqual(
+            expect.arrayContaining([expect.stringContaining('another')])
+          )
+        })
       })
 
       it('should prefetch with link in viewport and inject script on hover', async () => {
-        let browser
-        try {
-          browser = await webdriver(appPort, '/')
-          await browser.elementByCss('#scroll-to-another').click()
+        const browser = await webdriver(appPort, '/')
+        await browser.elementByCss('#scroll-to-another').click()
 
-          await retry(async () => {
-            const links = await browser.elementsByCss('link[rel=prefetch]')
+        await retry(async () => {
+          const links = await browser.elementsByCss('link[rel=prefetch]')
 
-            const hrefs = await Promise.all(
-              links.map((link) => link.getAttribute('href'))
-            )
-            expect(hrefs).toEqual(
-              expect.arrayContaining([expect.stringContaining('another')])
-            )
-          })
+          const hrefs = await Promise.all(
+            links.map((link) => link.getAttribute('href'))
+          )
+          expect(hrefs).toEqual(
+            expect.arrayContaining([expect.stringContaining('another')])
+          )
+        })
 
-          await browser.elementByCss('#link-another').moveTo()
+        await browser.elementByCss('#link-another').moveTo()
 
-          await retry(async () => {
-            // Mouse hover is a high-priority fetch
-            const scripts = await browser.elementsByCss('script:not([async])')
+        await retry(async () => {
+          // Mouse hover is a high-priority fetch
+          const scripts = await browser.elementsByCss('script:not([async])')
 
-            const srcProps = await Promise.all(
-              scripts.map((script) => script.getAttribute('src'))
-            )
-            expect(srcProps).toEqual(
-              expect.arrayContaining([expect.stringContaining('another')])
-            )
-          })
-        } finally {
-          if (browser) await browser.close()
-        }
+          const srcProps = await Promise.all(
+            scripts.map((script) => script.getAttribute('src'))
+          )
+          expect(srcProps).toEqual(
+            expect.arrayContaining([expect.stringContaining('another')])
+          )
+        })
       })
 
       it('should inject script on hover with prefetching disabled', async () => {
-        let browser
-        try {
-          browser = await webdriver(appPort, '/prefetch-disabled')
+        const browser = await webdriver(appPort, '/prefetch-disabled')
 
-          await retry(async () => {
-            const links = await browser.elementsByCss('link[rel=prefetch]')
+        await retry(async () => {
+          const links = await browser.elementsByCss('link[rel=prefetch]')
 
-            const hrefs = await Promise.all(
-              links.map((link) => link.getAttribute('href'))
-            )
-            expect(hrefs).toEqual(
-              expect.not.arrayContaining([expect.stringContaining('another')])
-            )
-          })
+          const hrefs = await Promise.all(
+            links.map((link) => link.getAttribute('href'))
+          )
+          expect(hrefs).toEqual(
+            expect.not.arrayContaining([expect.stringContaining('another')])
+          )
+        })
 
-          async function hasAnotherScript() {
-            const scripts = await browser.elementsByCss(
-              // Mouse hover is a high-priority fetch
-              'script:not([async])'
-            )
-            let scriptFound = false
-            for (const aScript of scripts) {
-              const href = await aScript.getAttribute('src')
-              if (href.includes('another')) {
-                scriptFound = true
-                break
-              }
+        async function hasAnotherScript() {
+          const scripts = await browser.elementsByCss(
+            // Mouse hover is a high-priority fetch
+            'script:not([async])'
+          )
+          let scriptFound = false
+          for (const aScript of scripts) {
+            const href = await aScript.getAttribute('src')
+            if (href.includes('another')) {
+              scriptFound = true
+              break
             }
-            return scriptFound
           }
-
-          expect(await hasAnotherScript()).toBe(false)
-          await browser.elementByCss('#link-another').moveTo()
-          await waitFor(2 * 1000)
-          expect(await hasAnotherScript()).toBe(true)
-        } finally {
-          if (browser) await browser.close()
+          return scriptFound
         }
+
+        expect(await hasAnotherScript()).toBe(false)
+        await browser.elementByCss('#link-another').moveTo()
+        await waitFor(2 * 1000)
+        expect(await hasAnotherScript()).toBe(true)
       })
 
       it('should inject script on hover with prefetching disabled and fetch data', async () => {
-        let browser
-        try {
-          browser = await webdriver(appPort, '/prefetch-disabled-ssg')
+        const browser = await webdriver(appPort, '/prefetch-disabled-ssg')
 
-          async function hasSsgScript() {
-            const scripts = await browser.elementsByCss(
-              // Mouse hover is a high-priority fetch
-              'script:not([async])'
-            )
-            let scriptFound = false
-            for (const aScript of scripts) {
-              const href = await aScript.getAttribute('src')
-              if (href.includes('basic')) {
-                scriptFound = true
-                break
-              }
+        async function hasSsgScript() {
+          const scripts = await browser.elementsByCss(
+            // Mouse hover is a high-priority fetch
+            'script:not([async])'
+          )
+          let scriptFound = false
+          for (const aScript of scripts) {
+            const href = await aScript.getAttribute('src')
+            if (href.includes('basic')) {
+              scriptFound = true
+              break
             }
-            return scriptFound
           }
-
-          await waitFor(2 * 1000)
-          expect(await hasSsgScript()).toBe(false)
-          const hrefs = await browser.eval(
-            `Object.keys(window.next.router.sdc)`
-          )
-          expect(hrefs.map((href) => new URL(href).pathname)).toEqual([])
-          await browser.elementByCss('#link-ssg').moveTo()
-          await waitFor(2 * 1000)
-          expect(await hasSsgScript()).toBe(true)
-          const hrefs2 = await browser.eval(
-            `Object.keys(window.next.router.sdc)`
-          )
-          expect(hrefs2.map((href) => new URL(href).pathname)).toEqual([
-            '/_next/data/test-build/ssg/basic.json',
-          ])
-        } finally {
-          if (browser) await browser.close()
+          return scriptFound
         }
+
+        await waitFor(2 * 1000)
+        expect(await hasSsgScript()).toBe(false)
+        const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
+        expect(hrefs.map((href) => new URL(href).pathname)).toEqual([])
+        await browser.elementByCss('#link-ssg').moveTo()
+        await waitFor(2 * 1000)
+        expect(await hasSsgScript()).toBe(true)
+        const hrefs2 = await browser.eval(`Object.keys(window.next.router.sdc)`)
+        expect(hrefs2.map((href) => new URL(href).pathname)).toEqual([
+          '/_next/data/test-build/ssg/basic.json',
+        ])
       })
 
       it('should inject a <script> tag when onMouseEnter (even with invalid ref)', async () => {
-        let browser
-        try {
-          browser = await webdriver(appPort, '/invalid-ref')
-          await browser.elementByCss('#btn-link').moveTo()
+        const browser = await webdriver(appPort, '/invalid-ref')
+        await browser.elementByCss('#btn-link').moveTo()
 
-          await retry(async () => {
-            // Mouse hover is a high-priority fetch
-            const scripts = await browser.elementsByCss('script:not([async])')
+        await retry(async () => {
+          // Mouse hover is a high-priority fetch
+          const scripts = await browser.elementsByCss('script:not([async])')
 
-            const srcProps = await Promise.all(
-              scripts.map((script) => script.getAttribute('src'))
-            )
-            expect(srcProps).toEqual(
-              expect.arrayContaining([expect.stringContaining('another')])
-            )
-          })
-        } finally {
-          if (browser) await browser.close()
-        }
+          const srcProps = await Promise.all(
+            scripts.map((script) => script.getAttribute('src'))
+          )
+          expect(srcProps).toEqual(
+            expect.arrayContaining([expect.stringContaining('another')])
+          )
+        })
       })
 
       it('should not have unhandledRejection when failing to prefetch on link', async () => {

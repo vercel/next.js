@@ -692,12 +692,8 @@ describe('basePath', () => {
 
     it('should show the hello page under the /docs prefix', async () => {
       const browser = await webdriver(next.url, `${basePath}/hello`)
-      try {
-        const text = await browser.elementByCss('h1').text()
-        expect(text).toBe('Hello World')
-      } finally {
-        await browser.close()
-      }
+      const text = await browser.elementByCss('h1').text()
+      expect(text).toBe('Hello World')
     })
 
     it('should have correct router paths on first load of /', async () => {
@@ -772,12 +768,8 @@ describe('basePath', () => {
 
     it('should show the other-page page under the /docs prefix', async () => {
       const browser = await webdriver(next.url, `${basePath}/other-page`)
-      try {
-        const text = await browser.elementByCss('h1').text()
-        expect(text).toBe('Hello Other')
-      } finally {
-        await browser.close()
-      }
+      const text = await browser.elementByCss('h1').text()
+      expect(text).toBe('Hello Other')
     })
 
     it('should have basePath field on Router', async () => {
@@ -788,204 +780,168 @@ describe('basePath', () => {
 
     it('should navigate to the page without refresh', async () => {
       const browser = await webdriver(next.url, `${basePath}/hello`)
-      try {
-        await browser.eval('window.itdidnotrefresh = "hello"')
-        const text = await browser
-          .elementByCss('#other-page-link')
-          .click()
-          .waitForElementByCss('#other-page-title')
-          .elementByCss('h1')
-          .text()
+      await browser.eval('window.itdidnotrefresh = "hello"')
+      const text = await browser
+        .elementByCss('#other-page-link')
+        .click()
+        .waitForElementByCss('#other-page-title')
+        .elementByCss('h1')
+        .text()
 
-        expect(text).toBe('Hello Other')
-        expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
-      } finally {
-        await browser.close()
-      }
+      expect(text).toBe('Hello Other')
+      expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
     })
 
     it('should use urls with basepath in router events', async () => {
       const browser = await webdriver(next.url, `${basePath}/hello`)
-      try {
-        await check(
-          () => browser.eval('window.next.router.isReady ? "ready" : "no"'),
-          'ready'
-        )
-        await browser.eval('window._clearEventLog()')
-        await browser
-          .elementByCss('#other-page-link')
-          .click()
-          .waitForElementByCss('#other-page-title')
+      await check(
+        () => browser.eval('window.next.router.isReady ? "ready" : "no"'),
+        'ready'
+      )
+      await browser.eval('window._clearEventLog()')
+      await browser
+        .elementByCss('#other-page-link')
+        .click()
+        .waitForElementByCss('#other-page-title')
 
-        const eventLog = await browser.eval('window._getEventLog()')
-        expect(
-          eventLog.filter((item) => item[1]?.endsWith('/other-page'))
-        ).toEqual([
-          ['routeChangeStart', `${basePath}/other-page`, { shallow: false }],
-          ['beforeHistoryChange', `${basePath}/other-page`, { shallow: false }],
-          ['routeChangeComplete', `${basePath}/other-page`, { shallow: false }],
-        ])
-      } finally {
-        await browser.close()
-      }
+      const eventLog = await browser.eval('window._getEventLog()')
+      expect(
+        eventLog.filter((item) => item[1]?.endsWith('/other-page'))
+      ).toEqual([
+        ['routeChangeStart', `${basePath}/other-page`, { shallow: false }],
+        ['beforeHistoryChange', `${basePath}/other-page`, { shallow: false }],
+        ['routeChangeComplete', `${basePath}/other-page`, { shallow: false }],
+      ])
     })
 
     it('should use urls with basepath in router events for hash changes', async () => {
       const browser = await webdriver(next.url, `${basePath}/hello`)
-      try {
-        await check(
-          () => browser.eval('window.next.router.isReady ? "ready" : "no"'),
-          'ready'
-        )
-        await browser.eval('window._clearEventLog()')
-        await browser.elementByCss('#hash-change').click()
+      await check(
+        () => browser.eval('window.next.router.isReady ? "ready" : "no"'),
+        'ready'
+      )
+      await browser.eval('window._clearEventLog()')
+      await browser.elementByCss('#hash-change').click()
 
-        const eventLog = await browser.eval('window._getEventLog()')
-        expect(eventLog).toEqual([
-          [
-            'hashChangeStart',
-            `${basePath}/hello#some-hash`,
-            { shallow: false },
-          ],
-          [
-            'hashChangeComplete',
-            `${basePath}/hello#some-hash`,
-            { shallow: false },
-          ],
-        ])
-      } finally {
-        await browser.close()
-      }
+      const eventLog = await browser.eval('window._getEventLog()')
+      expect(eventLog).toEqual([
+        ['hashChangeStart', `${basePath}/hello#some-hash`, { shallow: false }],
+        [
+          'hashChangeComplete',
+          `${basePath}/hello#some-hash`,
+          { shallow: false },
+        ],
+      ])
     })
 
     it('should use urls with basepath in router events for cancelled routes', async () => {
       const browser = await webdriver(next.url, `${basePath}/hello`)
-      try {
-        await check(
-          () => browser.eval('window.next.router.isReady ? "ready" : "no"'),
-          'ready'
-        )
-        await browser.eval('window._clearEventLog()')
+      await check(
+        () => browser.eval('window.next.router.isReady ? "ready" : "no"'),
+        'ready'
+      )
+      await browser.eval('window._clearEventLog()')
 
-        await browser
-          .elementByCss('#slow-route')
-          .click()
-          .elementByCss('#other-page-link')
-          .click()
-          .waitForElementByCss('#other-page-title')
+      await browser
+        .elementByCss('#slow-route')
+        .click()
+        .elementByCss('#other-page-link')
+        .click()
+        .waitForElementByCss('#other-page-title')
 
-        const eventLog = await browser.eval('window._getEventLog()')
-        expect(eventLog).toEqual([
-          ['routeChangeStart', `${basePath}/slow-route`, { shallow: false }],
-          [
-            'routeChangeError',
-            'Route Cancelled',
-            true,
-            `${basePath}/slow-route`,
-            { shallow: false },
-          ],
-          ['routeChangeStart', `${basePath}/other-page`, { shallow: false }],
-          ['beforeHistoryChange', `${basePath}/other-page`, { shallow: false }],
-          ['routeChangeComplete', `${basePath}/other-page`, { shallow: false }],
-        ])
-      } finally {
-        await browser.close()
-      }
+      const eventLog = await browser.eval('window._getEventLog()')
+      expect(eventLog).toEqual([
+        ['routeChangeStart', `${basePath}/slow-route`, { shallow: false }],
+        [
+          'routeChangeError',
+          'Route Cancelled',
+          true,
+          `${basePath}/slow-route`,
+          { shallow: false },
+        ],
+        ['routeChangeStart', `${basePath}/other-page`, { shallow: false }],
+        ['beforeHistoryChange', `${basePath}/other-page`, { shallow: false }],
+        ['routeChangeComplete', `${basePath}/other-page`, { shallow: false }],
+      ])
     })
 
     it('should use urls with basepath in router events for failed route change', async () => {
       const browser = await webdriver(next.url, `${basePath}/hello`)
-      try {
-        await check(
-          () => browser.eval('window.next.router.isReady ? "ready" : "no"'),
-          'ready'
-        )
-        await browser.eval('window._clearEventLog()')
-        await browser.elementByCss('#error-route').click()
+      await check(
+        () => browser.eval('window.next.router.isReady ? "ready" : "no"'),
+        'ready'
+      )
+      await browser.eval('window._clearEventLog()')
+      await browser.elementByCss('#error-route').click()
 
-        await check(async () => {
-          const eventLog = await browser.eval('window._getEventLog()')
-          assert.deepEqual(eventLog, [
-            ['routeChangeStart', `${basePath}/error-route`, { shallow: false }],
-            [
-              'routeChangeError',
-              'Failed to load static props',
-              null,
-              `${basePath}/error-route`,
-              { shallow: false },
-            ],
-          ])
-          return 'success'
-        }, 'success')
-      } finally {
-        await browser.close()
-      }
+      await check(async () => {
+        const eventLog = await browser.eval('window._getEventLog()')
+        assert.deepEqual(eventLog, [
+          ['routeChangeStart', `${basePath}/error-route`, { shallow: false }],
+          [
+            'routeChangeError',
+            'Failed to load static props',
+            null,
+            `${basePath}/error-route`,
+            { shallow: false },
+          ],
+        ])
+        return 'success'
+      }, 'success')
     })
 
     it('should allow URL query strings without refresh', async () => {
       const browser = await webdriver(next.url, `${basePath}/hello?query=true`)
-      try {
-        await browser.eval('window.itdidnotrefresh = "hello"')
-        await new Promise((resolve, reject) => {
-          // Timeout of EventSource created in setupPing()
-          // (on-demand-entries-utils.js) is 5000 ms (see #13132, #13560)
-          setTimeout(resolve, isDev ? 10000 : 1000)
-        })
-        expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
+      await browser.eval('window.itdidnotrefresh = "hello"')
+      await new Promise((resolve, reject) => {
+        // Timeout of EventSource created in setupPing()
+        // (on-demand-entries-utils.js) is 5000 ms (see #13132, #13560)
+        setTimeout(resolve, isDev ? 10000 : 1000)
+      })
+      expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
 
-        const pathname = await browser.elementByCss('#pathname').text()
-        expect(pathname).toBe('/hello')
-        expect(await browser.eval('window.location.pathname')).toBe(
-          `${basePath}/hello`
-        )
-        expect(await browser.eval('window.location.search')).toBe('?query=true')
+      const pathname = await browser.elementByCss('#pathname').text()
+      expect(pathname).toBe('/hello')
+      expect(await browser.eval('window.location.pathname')).toBe(
+        `${basePath}/hello`
+      )
+      expect(await browser.eval('window.location.search')).toBe('?query=true')
 
-        if (isDev) {
-          await assertNoRedbox(browser)
-        }
-      } finally {
-        await browser.close()
+      if (isDev) {
+        await assertNoRedbox(browser)
       }
     })
 
     it('should allow URL query strings on index without refresh', async () => {
       const browser = await webdriver(next.url, `${basePath}?query=true`)
-      try {
-        await browser.eval('window.itdidnotrefresh = "hello"')
-        await new Promise((resolve, reject) => {
-          // Timeout of EventSource created in setupPing()
-          // (on-demand-entries-utils.js) is 5000 ms (see #13132, #13560)
-          setTimeout(resolve, isDev ? 10000 : 1000)
-        })
-        expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
+      await browser.eval('window.itdidnotrefresh = "hello"')
+      await new Promise((resolve, reject) => {
+        // Timeout of EventSource created in setupPing()
+        // (on-demand-entries-utils.js) is 5000 ms (see #13132, #13560)
+        setTimeout(resolve, isDev ? 10000 : 1000)
+      })
+      expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
 
-        const pathname = await browser.elementByCss('#pathname').text()
-        expect(pathname).toBe('/')
-        expect(await browser.eval('window.location.pathname')).toBe(basePath)
-        expect(await browser.eval('window.location.search')).toBe('?query=true')
+      const pathname = await browser.elementByCss('#pathname').text()
+      expect(pathname).toBe('/')
+      expect(await browser.eval('window.location.pathname')).toBe(basePath)
+      expect(await browser.eval('window.location.search')).toBe('?query=true')
 
-        if (isDev) {
-          await assertNoRedbox(browser)
-        }
-      } finally {
-        await browser.close()
+      if (isDev) {
+        await assertNoRedbox(browser)
       }
     })
 
     it('should correctly replace state when same asPath but different url', async () => {
       const browser = await webdriver(next.url, `${basePath}`)
-      try {
-        await browser.elementByCss('#hello-link').click()
-        await browser.waitForElementByCss('#something-else-link')
-        await browser.elementByCss('#something-else-link').click()
-        await browser.waitForElementByCss('#something-else-page')
-        await browser.back()
-        await browser.waitForElementByCss('#index-page')
-        await browser.forward()
-        await browser.waitForElementByCss('#something-else-page')
-      } finally {
-        await browser.close()
-      }
+      await browser.elementByCss('#hello-link').click()
+      await browser.waitForElementByCss('#something-else-link')
+      await browser.elementByCss('#something-else-link').click()
+      await browser.waitForElementByCss('#something-else-page')
+      await browser.back()
+      await browser.waitForElementByCss('#index-page')
+      await browser.forward()
+      await browser.waitForElementByCss('#something-else-page')
     })
   }
   runTests((global as any).isNextDev, (global as any).isNextDeploy)

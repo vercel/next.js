@@ -1,4 +1,4 @@
-import webdriver, { Playwright } from 'next-webdriver'
+import webdriver from 'next-webdriver'
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import { check } from 'next-test-utils'
@@ -45,18 +45,12 @@ describe('beforeInteractive in document Head', () => {
   afterAll(() => next.destroy())
 
   it('Script is injected server-side', async () => {
-    let browser: Playwright
+    const browser = await webdriver(next.url, '/')
 
-    try {
-      browser = await webdriver(next.url, '/')
-
-      const script = await browser.eval(
-        `document.querySelector('script[data-nscript="beforeInteractive"]')`
-      )
-      expect(script).not.toBeNull()
-    } finally {
-      if (browser) await browser.close()
-    }
+    const script = await browser.eval(
+      `document.querySelector('script[data-nscript="beforeInteractive"]')`
+    )
+    expect(script).not.toBeNull()
   })
 })
 
@@ -101,19 +95,13 @@ describe('beforeInteractive in document body', () => {
   afterAll(() => next.destroy())
 
   it('Script is injected server-side', async () => {
-    let browser: Playwright
+    const browser = await webdriver(next.url, '/')
 
-    try {
-      browser = await webdriver(next.url, '/')
+    const script = await browser.eval(
+      `document.querySelector('script[data-nscript="beforeInteractive"]')`
+    )
 
-      const script = await browser.eval(
-        `document.querySelector('script[data-nscript="beforeInteractive"]')`
-      )
-
-      expect(script).not.toBeNull()
-    } finally {
-      if (browser) await browser.close()
-    }
+    expect(script).not.toBeNull()
   })
 })
 
@@ -158,18 +146,12 @@ describe('empty strategy in document Head', () => {
   afterAll(() => next.destroy())
 
   it('Script is injected server-side', async () => {
-    let browser: Playwright
+    const browser = await webdriver(next.url, '/')
 
-    try {
-      browser = await webdriver(next.url, '/')
-
-      const script = await browser.eval(
-        `document.querySelector('script[data-nscript="afterInteractive"]')`
-      )
-      expect(script).not.toBeNull()
-    } finally {
-      if (browser) await browser.close()
-    }
+    const script = await browser.eval(
+      `document.querySelector('script[data-nscript="afterInteractive"]')`
+    )
+    expect(script).not.toBeNull()
   })
 })
 
@@ -213,18 +195,12 @@ describe('empty strategy in document body', () => {
   afterAll(() => next.destroy())
 
   it('Script is injected server-side', async () => {
-    let browser: Playwright
+    const browser = await webdriver(next.url, '/')
 
-    try {
-      browser = await webdriver(next.url, '/')
-
-      const script = await browser.eval(
-        `document.querySelector('script[data-nscript="afterInteractive"]')`
-      )
-      expect(script).not.toBeNull()
-    } finally {
-      if (browser) await browser.close()
-    }
+    const script = await browser.eval(
+      `document.querySelector('script[data-nscript="afterInteractive"]')`
+    )
+    expect(script).not.toBeNull()
   })
 })
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
@@ -256,19 +232,13 @@ describe('empty strategy in document body', () => {
       afterAll(() => next.destroy())
 
       it('Partytown snippet is not injected to head if not enabled in configuration', async () => {
-        let browser: Playwright
+        const browser = await webdriver(next.url, '/')
 
-        try {
-          browser = await webdriver(next.url, '/')
+        const snippetScript = await browser.eval(
+          `document.querySelector('script[data-partytown]')`
+        )
 
-          const snippetScript = await browser.eval(
-            `document.querySelector('script[data-partytown]')`
-          )
-
-          expect(snippetScript).toEqual(null)
-        } finally {
-          if (browser) await browser.close()
-        }
+        expect(snippetScript).toEqual(null)
       })
     })
 
@@ -306,48 +276,34 @@ describe('empty strategy in document body', () => {
       afterAll(() => next.destroy())
 
       it('Partytown snippets are injected to head if enabled in configuration', async () => {
-        let browser: Playwright
+        const browser = await webdriver(next.url, '/')
 
-        try {
-          browser = await webdriver(next.url, '/')
+        const snippetScript = await browser.eval(
+          `document.querySelector('script[data-partytown]').innerHTML`
+        )
+        const configScript = await browser.eval(
+          `document.querySelector('script[data-partytown-config]').innerHTML`
+        )
 
-          const snippetScript = await browser.eval(
-            `document.querySelector('script[data-partytown]').innerHTML`
-          )
-          const configScript = await browser.eval(
-            `document.querySelector('script[data-partytown-config]').innerHTML`
-          )
+        expect(snippetScript).not.toEqual(null)
 
-          expect(snippetScript).not.toEqual(null)
-
-          // A default config is included that points to the correct folder that hosts partytown's static files
-          expect(configScript).not.toEqual(null)
-          expect(configScript.replace(/(?: *[\n\r])+ */g, '')).toEqual(
-            'partytown = {lib: "/_next/static/~partytown/"};'
-          )
-        } finally {
-          if (browser) await browser.close()
-        }
+        // A default config is included that points to the correct folder that hosts partytown's static files
+        expect(configScript).not.toEqual(null)
+        expect(configScript.replace(/(?: *[\n\r])+ */g, '')).toEqual(
+          'partytown = {lib: "/_next/static/~partytown/"};'
+        )
       })
 
       it('Worker scripts are modified by Partytown to execute on a worker thread', async () => {
-        let browser: Playwright
+        const browser = await webdriver(next.url, '/')
 
-        try {
-          browser = await webdriver(next.url, '/')
-
-          // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
-          await check(async () => {
-            const processedWorkerScripts = await browser.eval(
-              `document.querySelectorAll('script[type="text/partytown-x"]').length`
-            )
-            return processedWorkerScripts > 0
-              ? 'success'
-              : processedWorkerScripts
-          }, 'success')
-        } finally {
-          if (browser) await browser.close()
-        }
+        // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
+        await check(async () => {
+          const processedWorkerScripts = await browser.eval(
+            `document.querySelectorAll('script[type="text/partytown-x"]').length`
+          )
+          return processedWorkerScripts > 0 ? 'success' : processedWorkerScripts
+        }, 'success')
       })
     })
 
@@ -391,53 +347,41 @@ describe('empty strategy in document body', () => {
         })
 
       it('Inline worker script through children is modified by Partytown to execute on a worker thread', async () => {
-        let browser: Playwright
-
         next = await createNextApp(
           `<Script id="inline-script" strategy="worker">{"document.getElementById('text').textContent += 'abc'"}</Script>`
         )
 
-        try {
-          browser = await webdriver(next.url, '/')
+        const browser = await webdriver(next.url, '/')
 
-          // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
-          await check(async () => {
-            const processedWorkerScripts = await browser.eval(
-              `document.querySelectorAll('script[type="text/partytown-x"]').length`
-            )
-            return processedWorkerScripts + ''
-          }, '1')
+        // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
+        await check(async () => {
+          const processedWorkerScripts = await browser.eval(
+            `document.querySelectorAll('script[type="text/partytown-x"]').length`
+          )
+          return processedWorkerScripts + ''
+        }, '1')
 
-          const text = await browser.elementById('text').text()
-          expect(text).toBe('abc')
-        } finally {
-          if (browser) await browser.close()
-        }
+        const text = await browser.elementById('text').text()
+        expect(text).toBe('abc')
       })
 
       it('Inline worker script through dangerouslySetInnerHtml is modified by Partytown to execute on a worker thread', async () => {
-        let browser: Playwright
-
         next = await createNextApp(
           `<Script id="inline-script" strategy="worker" dangerouslySetInnerHTML={{__html: "document.getElementById('text').textContent += 'abcd'"}}/>`
         )
 
-        try {
-          browser = await webdriver(next.url, '/')
+        const browser = await webdriver(next.url, '/')
 
-          // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
-          await check(async () => {
-            const processedWorkerScripts = await browser.eval(
-              `document.querySelectorAll('script[type="text/partytown-x"]').length`
-            )
-            return processedWorkerScripts + ''
-          }, '1')
+        // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
+        await check(async () => {
+          const processedWorkerScripts = await browser.eval(
+            `document.querySelectorAll('script[type="text/partytown-x"]').length`
+          )
+          return processedWorkerScripts + ''
+        }, '1')
 
-          const text = await browser.elementById('text').text()
-          expect(text).toBe('abcd')
-        } finally {
-          if (browser) await browser.close()
-        }
+        const text = await browser.elementById('text').text()
+        expect(text).toBe('abcd')
       })
     })
 
@@ -506,22 +450,16 @@ describe('empty strategy in document body', () => {
       afterAll(() => next.destroy())
 
       it('Partytown config script is overwritten', async () => {
-        let browser: Playwright
+        const browser = await webdriver(next.url, '/')
 
-        try {
-          browser = await webdriver(next.url, '/')
+        const configScript = await browser.eval(
+          `document.querySelector('script[data-partytown-config]').innerHTML`
+        )
 
-          const configScript = await browser.eval(
-            `document.querySelector('script[data-partytown-config]').innerHTML`
-          )
-
-          expect(configScript).not.toEqual(null)
-          expect(configScript.replace(/(?: *[\n\r])+ */g, '')).toEqual(
-            'partytown = {lib: "/_next/static/~partytown/",debug: true};'
-          )
-        } finally {
-          if (browser) await browser.close()
-        }
+        expect(configScript).not.toEqual(null)
+        expect(configScript.replace(/(?: *[\n\r])+ */g, '')).toEqual(
+          'partytown = {lib: "/_next/static/~partytown/",debug: true};'
+        )
       })
     })
   }

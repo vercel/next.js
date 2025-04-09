@@ -81,130 +81,106 @@ module.exports = {
 
       it('should have correct color on index page (on load)', async () => {
         const browser = await webdriver(appPort, '/')
-        try {
-          await checkGreenTitle(browser)
-        } finally {
-          await browser.close()
-        }
+        await checkGreenTitle(browser)
       })
 
       it('should have correct color on index page (on hover)', async () => {
         const browser = await webdriver(appPort, '/')
-        try {
-          await checkGreenTitle(browser)
-          await browser.waitForElementByCss('#link-other').moveTo()
-          await waitFor(2000)
-          await checkGreenTitle(browser)
-        } finally {
-          await browser.close()
-        }
+        await checkGreenTitle(browser)
+        await browser.waitForElementByCss('#link-other').moveTo()
+        await waitFor(2000)
+        await checkGreenTitle(browser)
       })
 
       it('should not change color on hover', async () => {
         const browser = await webdriver(appPort, '/')
-        try {
-          await checkGreenTitle(browser)
-          await browser.waitForElementByCss('#link-other').moveTo()
-          await waitFor(2000)
-          await checkGreenTitle(browser)
-        } finally {
-          await browser.close()
-        }
+        await checkGreenTitle(browser)
+        await browser.waitForElementByCss('#link-other').moveTo()
+        await waitFor(2000)
+        await checkGreenTitle(browser)
       })
 
       it('should have correct CSS injection order', async () => {
         const browser = await webdriver(appPort, '/')
-        try {
-          // There's a better test for CSS order in test/e2e/app-dir/css-order, this test in particular should check the UI, not the implementation detail of the ordering.
-          if (process.env.IS_TURBOPACK_TEST) {
-            await checkGreenTitle(browser)
+        // There's a better test for CSS order in test/e2e/app-dir/css-order, this test in particular should check the UI, not the implementation detail of the ordering.
+        if (process.env.IS_TURBOPACK_TEST) {
+          await checkGreenTitle(browser)
 
-            // Navigate to other:
-            await browser.waitForElementByCss('#link-other').click()
-            await checkBlueTitle(browser)
+          // Navigate to other:
+          await browser.waitForElementByCss('#link-other').click()
+          await checkBlueTitle(browser)
 
-            // Navigate to home:
-            await browser.waitForElementByCss('#link-index').click()
-            await checkGreenTitle(browser)
-          } else {
-            await checkGreenTitle(browser)
+          // Navigate to home:
+          await browser.waitForElementByCss('#link-index').click()
+          await checkGreenTitle(browser)
+        } else {
+          await checkGreenTitle(browser)
 
-            const prevSiblingHref = await browser.eval(
-              `document.querySelector('link[rel=stylesheet][data-n-p]').previousSibling.getAttribute('href')`
-            )
-            const currentPageHref = await browser.eval(
-              `document.querySelector('link[rel=stylesheet][data-n-p]').getAttribute('href')`
-            )
-            expect(prevSiblingHref).toBeDefined()
-            expect(prevSiblingHref).toBe(currentPageHref)
+          const prevSiblingHref = await browser.eval(
+            `document.querySelector('link[rel=stylesheet][data-n-p]').previousSibling.getAttribute('href')`
+          )
+          const currentPageHref = await browser.eval(
+            `document.querySelector('link[rel=stylesheet][data-n-p]').getAttribute('href')`
+          )
+          expect(prevSiblingHref).toBeDefined()
+          expect(prevSiblingHref).toBe(currentPageHref)
 
-            // Navigate to other:
-            await browser.waitForElementByCss('#link-other').click()
-            await checkBlueTitle(browser)
+          // Navigate to other:
+          await browser.waitForElementByCss('#link-other').click()
+          await checkBlueTitle(browser)
 
-            const newPrevSibling = await browser.eval(
-              `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
-            )
-            const newPageHref = await browser.eval(
-              `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
-            )
-            expect(newPrevSibling).toBe('VmVyY2Vs')
-            expect(newPageHref).toBeDefined()
-            expect(newPageHref).not.toBe(currentPageHref)
+          const newPrevSibling = await browser.eval(
+            `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
+          )
+          const newPageHref = await browser.eval(
+            `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
+          )
+          expect(newPrevSibling).toBe('VmVyY2Vs')
+          expect(newPageHref).toBeDefined()
+          expect(newPageHref).not.toBe(currentPageHref)
 
-            // Navigate to home:
-            await browser.waitForElementByCss('#link-index').click()
-            await checkGreenTitle(browser)
+          // Navigate to home:
+          await browser.waitForElementByCss('#link-index').click()
+          await checkGreenTitle(browser)
 
-            const newPrevSibling2 = await browser.eval(
-              `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
-            )
-            const newPageHref2 = await browser.eval(
-              `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
-            )
-            expect(newPrevSibling2).toBeTruthy()
-            expect(newPageHref2).toBeDefined()
-            expect(newPageHref2).toBe(currentPageHref)
-          }
-        } finally {
-          await browser.close()
+          const newPrevSibling2 = await browser.eval(
+            `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
+          )
+          const newPageHref2 = await browser.eval(
+            `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
+          )
+          expect(newPrevSibling2).toBeTruthy()
+          expect(newPageHref2).toBeDefined()
+          expect(newPageHref2).toBe(currentPageHref)
         }
       })
 
       it('should have correct color on index page (on nav from index)', async () => {
         const browser = await webdriver(appPort, '/')
-        try {
-          await checkGreenTitle(browser)
-          await browser.waitForElementByCss('#link-other').click()
+        await checkGreenTitle(browser)
+        await browser.waitForElementByCss('#link-other').click()
 
-          // Wait for navigation:
-          await browser.waitForElementByCss('#link-index')
-          await checkBlueTitle(browser)
+        // Wait for navigation:
+        await browser.waitForElementByCss('#link-index')
+        await checkBlueTitle(browser)
 
-          // Navigate back to index:
-          await browser.waitForElementByCss('#link-index').click()
-          await checkGreenTitle(browser)
-        } finally {
-          await browser.close()
-        }
+        // Navigate back to index:
+        await browser.waitForElementByCss('#link-index').click()
+        await checkGreenTitle(browser)
       })
 
       it('should have correct color on index page (on nav from other)', async () => {
         const browser = await webdriver(appPort, '/other')
-        try {
-          await checkBlueTitle(browser)
-          await browser.waitForElementByCss('#link-index').click()
+        await checkBlueTitle(browser)
+        await browser.waitForElementByCss('#link-index').click()
 
-          // Wait for navigation:
-          await browser.waitForElementByCss('#link-other')
-          await checkGreenTitle(browser)
+        // Wait for navigation:
+        await browser.waitForElementByCss('#link-other')
+        await checkGreenTitle(browser)
 
-          // Navigate back to other:
-          await browser.waitForElementByCss('#link-other').click()
-          await checkBlueTitle(browser)
-        } finally {
-          await browser.close()
-        }
+        // Navigate back to other:
+        await browser.waitForElementByCss('#link-other').click()
+        await checkBlueTitle(browser)
       })
     }
 
@@ -262,34 +238,30 @@ module.exports = {
 
           it('not have intermediary page styles on error rendering', async () => {
             const browser = await webdriver(appPort, '/')
-            try {
-              await checkBlackTitle(browser)
+            await checkBlackTitle(browser)
 
-              const currentPageStyles = await browser.eval(
-                `document.querySelector('link[rel=stylesheet][data-n-p]')`
-              )
-              expect(currentPageStyles).toBeDefined()
+            const currentPageStyles = await browser.eval(
+              `document.querySelector('link[rel=stylesheet][data-n-p]')`
+            )
+            expect(currentPageStyles).toBeDefined()
 
-              // Navigate to other:
-              await browser.waitForElementByCss('#link-other').click()
-              await check(
-                () => browser.eval(`document.body.innerText`),
-                'Application error: a client-side exception has occurred while loading localhost (see the browser console for more information).',
-                true
-              )
+            // Navigate to other:
+            await browser.waitForElementByCss('#link-other').click()
+            await check(
+              () => browser.eval(`document.body.innerText`),
+              'Application error: a client-side exception has occurred while loading localhost (see the browser console for more information).',
+              true
+            )
 
-              const newPageStyles = await browser.eval(
-                `document.querySelector('link[rel=stylesheet][data-n-p]')`
-              )
-              expect(newPageStyles).toBeFalsy()
+            const newPageStyles = await browser.eval(
+              `document.querySelector('link[rel=stylesheet][data-n-p]')`
+            )
+            expect(newPageStyles).toBeFalsy()
 
-              const allPageStyles = await browser.eval(
-                `document.querySelector('link[rel=stylesheet]')`
-              )
-              expect(allPageStyles).toBeFalsy()
-            } finally {
-              await browser.close()
-            }
+            const allPageStyles = await browser.eval(
+              `document.querySelector('link[rel=stylesheet]')`
+            )
+            expect(allPageStyles).toBeFalsy()
           })
         }
 
@@ -345,20 +317,16 @@ module.exports = {
 
         it('should fall back to server-side transition on missing CSS', async () => {
           const browser = await webdriver(appPort, '/')
-          try {
-            await checkBlackTitle(browser)
-            await browser.eval(`window.__priorNavigatePageState = 'OOF';`)
+          await checkBlackTitle(browser)
+          await browser.eval(`window.__priorNavigatePageState = 'OOF';`)
 
-            // Navigate to other:
-            await browser.waitForElementByCss('#link-other').click()
-            // Wait for navigation:
-            await browser.waitForElementByCss('#link-index')
+          // Navigate to other:
+          await browser.waitForElementByCss('#link-other').click()
+          // Wait for navigation:
+          await browser.waitForElementByCss('#link-index')
 
-            const state = await browser.eval(`window.__priorNavigatePageState`)
-            expect(state).toBeFalsy()
-          } finally {
-            await browser.close()
-          }
+          const state = await browser.eval(`window.__priorNavigatePageState`)
+          expect(state).toBeFalsy()
         })
       }
 
@@ -434,47 +402,35 @@ module.exports = {
 
         it('should hydrate black without dependencies manifest', async () => {
           const browser = await webdriver(appPort, '/')
-          try {
-            await checkBlackTitle(browser)
-            await check(
-              () => browser.eval(`document.querySelector('p').innerText`),
-              'mounted'
-            )
-          } finally {
-            await browser.close()
-          }
+          await checkBlackTitle(browser)
+          await check(
+            () => browser.eval(`document.querySelector('p').innerText`),
+            'mounted'
+          )
         })
 
         it('should hydrate red without dependencies manifest', async () => {
           const browser = await webdriver(appPort, '/client')
-          try {
-            await checkRedTitle(browser)
-            await check(
-              () => browser.eval(`document.querySelector('p').innerText`),
-              'mounted'
-            )
-          } finally {
-            await browser.close()
-          }
+          await checkRedTitle(browser)
+          await check(
+            () => browser.eval(`document.querySelector('p').innerText`),
+            'mounted'
+          )
         })
 
         it('should route from black to red without dependencies', async () => {
           const browser = await webdriver(appPort, '/')
-          try {
-            await checkBlackTitle(browser)
-            await check(
-              () => browser.eval(`document.querySelector('p').innerText`),
-              'mounted'
-            )
-            await browser.eval(`document.querySelector('#link-client').click()`)
-            await checkRedTitle(browser)
-            await check(
-              () => browser.eval(`document.querySelector('p').innerText`),
-              'mounted'
-            )
-          } finally {
-            await browser.close()
-          }
+          await checkBlackTitle(browser)
+          await check(
+            () => browser.eval(`document.querySelector('p').innerText`),
+            'mounted'
+          )
+          await browser.eval(`document.querySelector('#link-client').click()`)
+          await checkRedTitle(browser)
+          await check(
+            () => browser.eval(`document.querySelector('p').innerText`),
+            'mounted'
+          )
         })
       }
 

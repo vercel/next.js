@@ -34,7 +34,6 @@ describe('Production Config Usage', () => {
 
           const html = await browser.eval('document.documentElement.innerHTML')
           expect(html).toMatch('custom-buildid')
-          await browser.close()
         })
       })
 

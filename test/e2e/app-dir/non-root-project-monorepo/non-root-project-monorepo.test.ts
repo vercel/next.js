@@ -44,7 +44,6 @@ describe('non-root-project-monorepo', () => {
       expect(await browser.elementByCss('p').text()).toBe('Hello Typescript')
       await assertNoRedbox(browser)
       expect(await browser.elementByCss('p').text()).toBe('Hello Typescript')
-      await browser.close()
     })
   })
 
@@ -76,7 +75,6 @@ describe('non-root-project-monorepo', () => {
           /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-ssr\/page.tsx$/
         )
       }
-      await browser.close()
     })
   })
 
@@ -135,7 +133,6 @@ describe('non-root-project-monorepo', () => {
            Page app/source-maps-rsc/page.tsx (4:5)"
           `)
         }
-        await browser.close()
       })
 
       it('should work on SSR', async () => {
@@ -180,7 +177,6 @@ describe('non-root-project-monorepo', () => {
            Page app/source-maps-ssr/page.tsx (6:5)"
           `)
         }
-        await browser.close()
       })
 
       it('should work on client-side', async () => {
@@ -225,7 +221,6 @@ describe('non-root-project-monorepo', () => {
            effectCallback app/source-maps-client/page.tsx (7:5)"
           `)
         }
-        await browser.close()
       })
     })
   }

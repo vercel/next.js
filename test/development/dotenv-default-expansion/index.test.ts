@@ -26,7 +26,5 @@ describe('Dotenv default expansion', () => {
     const browser = await webdriver(next.url, '/')
     const text = await browser.elementByCss('p').text()
     expect(text).toBe('default')
-
-    await browser.close()
   })
 })

@@ -54,77 +54,56 @@ function getRatio(width, height) {
 
 function runTests(mode) {
   it('should load the images', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/docs')
+    const browser = await webdriver(appPort, '/docs')
 
-      await check(async () => {
-        const result = await browser.eval(
-          `document.getElementById('basic-image').naturalWidth`
-        )
+    await check(async () => {
+      const result = await browser.eval(
+        `document.getElementById('basic-image').naturalWidth`
+      )
 
-        if (result === 0) {
-          throw new Error('Incorrectly loaded image')
-        }
-
-        return 'result-correct'
-      }, /result-correct/)
-
-      expect(
-        await hasImageMatchingUrl(
-          browser,
-          `http://localhost:${appPort}/docs/_next/image?url=%2Fdocs%2Ftest.jpg&w=828&q=75`
-        )
-      ).toBe(true)
-    } finally {
-      if (browser) {
-        await browser.close()
+      if (result === 0) {
+        throw new Error('Incorrectly loaded image')
       }
-    }
+
+      return 'result-correct'
+    }, /result-correct/)
+
+    expect(
+      await hasImageMatchingUrl(
+        browser,
+        `http://localhost:${appPort}/docs/_next/image?url=%2Fdocs%2Ftest.jpg&w=828&q=75`
+      )
+    ).toBe(true)
   })
 
   it('should update the image on src change', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/docs/update')
+    const browser = await webdriver(appPort, '/docs/update')
 
-      await check(
-        () => browser.eval(`document.getElementById("update-image").src`),
-        /test\.jpg/
-      )
+    await check(
+      () => browser.eval(`document.getElementById("update-image").src`),
+      /test\.jpg/
+    )
 
-      await browser.eval(`document.getElementById("toggle").click()`)
+    await browser.eval(`document.getElementById("toggle").click()`)
 
-      await check(
-        () => browser.eval(`document.getElementById("update-image").src`),
-        /test\.png/
-      )
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
+    await check(
+      () => browser.eval(`document.getElementById("update-image").src`),
+      /test\.png/
+    )
   })
 
   it('should work when using flexbox', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/docs/flex')
-      await check(async () => {
-        const result = await browser.eval(
-          `document.getElementById('basic-image').width`
-        )
-        if (result === 0) {
-          throw new Error('Incorrectly loaded image')
-        }
-
-        return 'result-correct'
-      }, /result-correct/)
-    } finally {
-      if (browser) {
-        await browser.close()
+    const browser = await webdriver(appPort, '/docs/flex')
+    await check(async () => {
+      const result = await browser.eval(
+        `document.getElementById('basic-image').width`
+      )
+      if (result === 0) {
+        throw new Error('Incorrectly loaded image')
       }
-    }
+
+      return 'result-correct'
+    }, /result-correct/)
   })
 
   if (mode === 'dev') {
@@ -161,35 +140,28 @@ function runTests(mode) {
   }
 
   it('should correctly ignore prose styles', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/docs/prose')
+    const browser = await webdriver(appPort, '/docs/prose')
 
-      const id = 'prose-image'
+    const id = 'prose-image'
 
-      // Wait for image to load:
-      await check(async () => {
-        const result = await browser.eval(
-          `document.getElementById(${JSON.stringify(id)}).naturalWidth`
-        )
+    // Wait for image to load:
+    await check(async () => {
+      const result = await browser.eval(
+        `document.getElementById(${JSON.stringify(id)}).naturalWidth`
+      )
 
-        if (result < 1) {
-          throw new Error('Image not ready')
-        }
-
-        return 'result-correct'
-      }, /result-correct/)
-
-      await waitFor(1000)
-
-      const computedWidth = await getComputed(browser, id, 'width')
-      const computedHeight = await getComputed(browser, id, 'height')
-      expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(1, 1)
-    } finally {
-      if (browser) {
-        await browser.close()
+      if (result < 1) {
+        throw new Error('Image not ready')
       }
-    }
+
+      return 'result-correct'
+    }, /result-correct/)
+
+    await waitFor(1000)
+
+    const computedWidth = await getComputed(browser, id, 'width')
+    const computedHeight = await getComputed(browser, id, 'height')
+    expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(1, 1)
   })
 }
 

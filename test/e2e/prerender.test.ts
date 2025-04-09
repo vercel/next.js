@@ -546,8 +546,6 @@ describe('Prerender', () => {
       text = await browser.elementByCss('#catchall').text()
       expect(text).toMatch(/Hi.*?first/)
       expect(await browser.eval('window.didTransition')).toBe(1)
-
-      await browser.close()
     })
   }
 

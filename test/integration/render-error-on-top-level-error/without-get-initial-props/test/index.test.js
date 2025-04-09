@@ -30,12 +30,8 @@ describe('Top Level Error', () => {
 
       it('should render error page', async () => {
         const browser = await webdriver(appPort, '/')
-        try {
-          const text = await browser.waitForElementByCss('#error-p').text()
-          expect(text).toBe('Error Rendered')
-        } finally {
-          await browser.close()
-        }
+        const text = await browser.waitForElementByCss('#error-p').text()
+        expect(text).toBe('Error Rendered')
       })
     }
   )

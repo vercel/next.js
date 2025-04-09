@@ -21,7 +21,6 @@ const runTests = () => {
     const html = await browser.eval('document.body.innerHTML')
     expect(html).toMatch(/test1/)
     expect(html).toMatch(/nextExport/)
-    await browser.close()
   })
 
   it('Supports commonjs 2', async () => {
@@ -29,7 +28,6 @@ const runTests = () => {
     const html = await browser.eval('document.body.innerHTML')
     expect(html).toMatch(/test2/)
     expect(html).toMatch(/nextExport/)
-    await browser.close()
   })
 
   it('Refreshes query on mount', async () => {

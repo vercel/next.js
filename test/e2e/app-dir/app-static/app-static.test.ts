@@ -4268,18 +4268,14 @@ describe('app-dir static/dynamic handling', () => {
       async (cache) => {
         const browser = await next.browser(`/unstable-cache/fetch/${cache}`)
 
-        try {
-          const first = await browser.waitForElementByCss('#data').text()
-          expect(first).not.toBe('')
+        const first = await browser.waitForElementByCss('#data').text()
+        expect(first).not.toBe('')
 
-          // Ensure the data is the same after 3 refreshes.
-          for (let i = 0; i < 3; i++) {
-            await browser.refresh()
-            const refreshed = await browser.waitForElementByCss('#data').text()
-            expect(refreshed).toEqual(first)
-          }
-        } finally {
-          await browser.close()
+        // Ensure the data is the same after 3 refreshes.
+        for (let i = 0; i < 3; i++) {
+          await browser.refresh()
+          const refreshed = await browser.waitForElementByCss('#data').text()
+          expect(refreshed).toEqual(first)
         }
       }
     )

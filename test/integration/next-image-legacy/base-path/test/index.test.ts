@@ -62,314 +62,287 @@ function getRatio(width, height) {
 
 function runTests(mode) {
   it('should load the images', async () => {
-    let browser = await webdriver(appPort, '/docs')
-    try {
-      await check(async () => {
-        const result = await browser.eval(
-          `document.getElementById('basic-image').naturalWidth`
-        )
+    const browser = await webdriver(appPort, '/docs')
 
-        if (result === 0) {
-          throw new Error('Incorrectly loaded image')
-        }
+    await check(async () => {
+      const result = await browser.eval(
+        `document.getElementById('basic-image').naturalWidth`
+      )
 
-        return 'result-correct'
-      }, /result-correct/)
+      if (result === 0) {
+        throw new Error('Incorrectly loaded image')
+      }
 
-      expect(
-        await hasImageMatchingUrl(
-          browser,
-          `http://localhost:${appPort}/docs/_next/image?url=%2Fdocs%2Ftest.jpg&w=828&q=75`
-        )
-      ).toBe(true)
-    } finally {
-      await browser.close()
-    }
+      return 'result-correct'
+    }, /result-correct/)
+
+    expect(
+      await hasImageMatchingUrl(
+        browser,
+        `http://localhost:${appPort}/docs/_next/image?url=%2Fdocs%2Ftest.jpg&w=828&q=75`
+      )
+    ).toBe(true)
   })
 
   it('should update the image on src change', async () => {
-    let browser = await webdriver(appPort, '/docs/update')
-    try {
-      await check(
-        () => browser.eval(`document.getElementById("update-image").src`),
-        /test\.jpg/
-      )
+    const browser = await webdriver(appPort, '/docs/update')
 
-      await browser.eval(`document.getElementById("toggle").click()`)
+    await check(
+      () => browser.eval(`document.getElementById("update-image").src`),
+      /test\.jpg/
+    )
 
-      await check(
-        () => browser.eval(`document.getElementById("update-image").src`),
-        /test\.png/
-      )
-    } finally {
-      await browser.close()
-    }
+    await browser.eval(`document.getElementById("toggle").click()`)
+
+    await check(
+      () => browser.eval(`document.getElementById("update-image").src`),
+      /test\.png/
+    )
   })
 
   it('should work when using flexbox', async () => {
-    let browser = await webdriver(appPort, '/docs/flex')
-    try {
-      await check(async () => {
-        const result = await browser.eval(
-          `document.getElementById('basic-image').width`
-        )
-        if (result === 0) {
-          throw new Error('Incorrectly loaded image')
-        }
+    const browser = await webdriver(appPort, '/docs/flex')
 
-        return 'result-correct'
-      }, /result-correct/)
-    } finally {
-      await browser.close()
-    }
+    await check(async () => {
+      const result = await browser.eval(
+        `document.getElementById('basic-image').width`
+      )
+      if (result === 0) {
+        throw new Error('Incorrectly loaded image')
+      }
+
+      return 'result-correct'
+    }, /result-correct/)
   })
 
   it('should work with layout-fixed so resizing window does not resize image', async () => {
-    let browser = await webdriver(appPort, '/docs/layout-fixed')
-    try {
-      const width = 1200
-      const height = 700
-      const delta = 250
-      const id = 'fixed1'
-      expect(await getSrc(browser, id)).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
-      )
-      expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1x, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 2x'
-      )
-      expect(await browser.elementById(id).getAttribute('sizes')).toBeFalsy()
-      await browser.setDimensions({
-        width: width + delta,
-        height: height + delta,
-      })
-      expect(await getComputed(browser, id, 'width')).toBe(width)
-      expect(await getComputed(browser, id, 'height')).toBe(height)
-      await browser.setDimensions({
-        width: width - delta,
-        height: height - delta,
-      })
-      expect(await getComputed(browser, id, 'width')).toBe(width)
-      expect(await getComputed(browser, id, 'height')).toBe(height)
-    } finally {
-      await browser.close()
-    }
+    const browser = await webdriver(appPort, '/docs/layout-fixed')
+
+    const width = 1200
+    const height = 700
+    const delta = 250
+    const id = 'fixed1'
+    expect(await getSrc(browser, id)).toBe(
+      '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
+    )
+    expect(await browser.elementById(id).getAttribute('srcset')).toBe(
+      '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1x, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 2x'
+    )
+    expect(await browser.elementById(id).getAttribute('sizes')).toBeFalsy()
+    await browser.setDimensions({
+      width: width + delta,
+      height: height + delta,
+    })
+    expect(await getComputed(browser, id, 'width')).toBe(width)
+    expect(await getComputed(browser, id, 'height')).toBe(height)
+    await browser.setDimensions({
+      width: width - delta,
+      height: height - delta,
+    })
+    expect(await getComputed(browser, id, 'width')).toBe(width)
+    expect(await getComputed(browser, id, 'height')).toBe(height)
   })
 
   it('should work with layout-intrinsic so resizing window maintains image aspect ratio', async () => {
-    let browser = await webdriver(appPort, '/docs/layout-intrinsic')
-    try {
-      const width = 1200
-      const height = 700
-      const delta = 250
-      const id = 'intrinsic1'
+    const browser = await webdriver(appPort, '/docs/layout-intrinsic')
 
-      await check(async () => {
-        expect(await getSrc(browser, id)).toBe(
-          '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
-        )
-        return 'success'
-      }, 'success')
-      expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1x, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 2x'
+    const width = 1200
+    const height = 700
+    const delta = 250
+    const id = 'intrinsic1'
+
+    await check(async () => {
+      expect(await getSrc(browser, id)).toBe(
+        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
       )
-      expect(await browser.elementById(id).getAttribute('sizes')).toBeFalsy()
-      await browser.setDimensions({
-        width: width + delta,
-        height: height + delta,
-      })
-      expect(await getComputed(browser, id, 'width')).toBe(width)
-      expect(await getComputed(browser, id, 'height')).toBe(height)
-      await browser.setDimensions({
-        width: width - delta,
-        height: height - delta,
-      })
-      const newWidth = await getComputed(browser, id, 'width')
-      const newHeight = await getComputed(browser, id, 'height')
-      expect(newWidth).toBeLessThan(width)
-      expect(newHeight).toBeLessThan(height)
-      expect(getRatio(newWidth, newHeight)).toBeCloseTo(
-        getRatio(width, height),
-        1
-      )
-    } finally {
-      await browser.close()
-    }
+      return 'success'
+    }, 'success')
+    expect(await browser.elementById(id).getAttribute('srcset')).toBe(
+      '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1x, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 2x'
+    )
+    expect(await browser.elementById(id).getAttribute('sizes')).toBeFalsy()
+    await browser.setDimensions({
+      width: width + delta,
+      height: height + delta,
+    })
+    expect(await getComputed(browser, id, 'width')).toBe(width)
+    expect(await getComputed(browser, id, 'height')).toBe(height)
+    await browser.setDimensions({
+      width: width - delta,
+      height: height - delta,
+    })
+    const newWidth = await getComputed(browser, id, 'width')
+    const newHeight = await getComputed(browser, id, 'height')
+    expect(newWidth).toBeLessThan(width)
+    expect(newHeight).toBeLessThan(height)
+    expect(getRatio(newWidth, newHeight)).toBeCloseTo(
+      getRatio(width, height),
+      1
+    )
   })
 
   it('should work with layout-responsive so resizing window maintains image aspect ratio', async () => {
-    let browser = await webdriver(appPort, '/docs/layout-responsive')
-    try {
-      const width = 1200
-      const height = 700
-      const delta = 250
-      const id = 'responsive1'
+    const browser = await webdriver(appPort, '/docs/layout-responsive')
 
-      await check(async () => {
-        expect(await getSrc(browser, id)).toBe(
-          '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
-        )
-        return 'success'
-      }, 'success')
-      expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
+    const width = 1200
+    const height = 700
+    const delta = 250
+    const id = 'responsive1'
+
+    await check(async () => {
+      expect(await getSrc(browser, id)).toBe(
+        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
       )
-      expect(await browser.elementById(id).getAttribute('sizes')).toBe('100vw')
-      await browser.setDimensions({
-        width: width + delta,
-        height: height + delta,
-      })
-      expect(await getComputed(browser, id, 'width')).toBeGreaterThan(width)
-      expect(await getComputed(browser, id, 'height')).toBeGreaterThan(height)
-      await browser.setDimensions({
-        width: width - delta,
-        height: height - delta,
-      })
-      const newWidth = await getComputed(browser, id, 'width')
-      const newHeight = await getComputed(browser, id, 'height')
-      expect(newWidth).toBeLessThan(width)
-      expect(newHeight).toBeLessThan(height)
-      expect(getRatio(newWidth, newHeight)).toBeCloseTo(
-        getRatio(width, height),
-        1
-      )
-    } finally {
-      await browser.close()
-    }
+      return 'success'
+    }, 'success')
+    expect(await browser.elementById(id).getAttribute('srcset')).toBe(
+      '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
+    )
+    expect(await browser.elementById(id).getAttribute('sizes')).toBe('100vw')
+    await browser.setDimensions({
+      width: width + delta,
+      height: height + delta,
+    })
+    expect(await getComputed(browser, id, 'width')).toBeGreaterThan(width)
+    expect(await getComputed(browser, id, 'height')).toBeGreaterThan(height)
+    await browser.setDimensions({
+      width: width - delta,
+      height: height - delta,
+    })
+    const newWidth = await getComputed(browser, id, 'width')
+    const newHeight = await getComputed(browser, id, 'height')
+    expect(newWidth).toBeLessThan(width)
+    expect(newHeight).toBeLessThan(height)
+    expect(getRatio(newWidth, newHeight)).toBeCloseTo(
+      getRatio(width, height),
+      1
+    )
   })
 
   it('should work with layout-fill to fill the parent but NOT stretch with viewport', async () => {
-    let browser = await webdriver(appPort, '/docs/layout-fill')
-    try {
-      const width = 600
-      const height = 350
-      const delta = 150
-      const id = 'fill1'
+    const browser = await webdriver(appPort, '/docs/layout-fill')
 
-      await check(async () => {
-        expect(await getSrc(browser, id)).toBe(
-          '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
-        )
-        return 'success'
-      }, 'success')
-      expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
+    const width = 600
+    const height = 350
+    const delta = 150
+    const id = 'fill1'
+
+    await check(async () => {
+      expect(await getSrc(browser, id)).toBe(
+        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
       )
-      expect(await browser.elementById(id).getAttribute('sizes')).toBe('100vw')
-      await browser.setDimensions({
-        width: width + delta,
-        height: height + delta,
-      })
-      expect(await getComputed(browser, id, 'width')).toBe(width)
-      expect(await getComputed(browser, id, 'height')).toBe(height)
-      await browser.setDimensions({
-        width: width - delta,
-        height: height - delta,
-      })
-      const newWidth = await getComputed(browser, id, 'width')
-      const newHeight = await getComputed(browser, id, 'height')
-      expect(newWidth).toBe(width)
-      expect(newHeight).toBe(height)
-      expect(getRatio(newWidth, newHeight)).toBeCloseTo(
-        getRatio(width, height),
-        1
-      )
-    } finally {
-      await browser.close()
-    }
+      return 'success'
+    }, 'success')
+    expect(await browser.elementById(id).getAttribute('srcset')).toBe(
+      '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
+    )
+    expect(await browser.elementById(id).getAttribute('sizes')).toBe('100vw')
+    await browser.setDimensions({
+      width: width + delta,
+      height: height + delta,
+    })
+    expect(await getComputed(browser, id, 'width')).toBe(width)
+    expect(await getComputed(browser, id, 'height')).toBe(height)
+    await browser.setDimensions({
+      width: width - delta,
+      height: height - delta,
+    })
+    const newWidth = await getComputed(browser, id, 'width')
+    const newHeight = await getComputed(browser, id, 'height')
+    expect(newWidth).toBe(width)
+    expect(newHeight).toBe(height)
+    expect(getRatio(newWidth, newHeight)).toBeCloseTo(
+      getRatio(width, height),
+      1
+    )
   })
 
   it('should work with layout-fill to fill the parent and stretch with viewport', async () => {
-    let browser = await webdriver(appPort, '/docs/layout-fill')
-    try {
-      const id = 'fill2'
-      const width = await getComputed(browser, id, 'width')
-      const height = await getComputed(browser, id, 'height')
-      await browser.eval(`document.getElementById("${id}").scrollIntoView()`)
+    const browser = await webdriver(appPort, '/docs/layout-fill')
 
-      await check(async () => {
-        expect(await getSrc(browser, id)).toBe(
-          '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
-        )
-        return 'success'
-      }, 'success')
-      expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
-      )
-      expect(await browser.elementById(id).getAttribute('sizes')).toBe('100vw')
-      expect(await getComputed(browser, id, 'width')).toBe(width)
-      expect(await getComputed(browser, id, 'height')).toBe(height)
-      const delta = 150
-      const largeWidth = Number(width) + delta
-      const largeHeight = Number(height) + delta
-      await browser.setDimensions({
-        width: largeWidth,
-        height: largeHeight,
-      })
-      expect(await getComputed(browser, id, 'width')).toBe(largeWidth)
-      expect(await getComputed(browser, id, 'height')).toBe(largeHeight)
-      const smallWidth = Number(width) - delta
-      const smallHeight = Number(height) - delta
-      await browser.setDimensions({
-        width: smallWidth,
-        height: smallHeight,
-      })
-      expect(await getComputed(browser, id, 'width')).toBe(smallWidth)
-      expect(await getComputed(browser, id, 'height')).toBe(smallHeight)
+    const id = 'fill2'
+    const width = await getComputed(browser, id, 'width')
+    const height = await getComputed(browser, id, 'height')
+    await browser.eval(`document.getElementById("${id}").scrollIntoView()`)
 
-      const objectFit = await browser.eval(
-        `document.getElementById("${id}").style.objectFit`
+    await check(async () => {
+      expect(await getSrc(browser, id)).toBe(
+        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
       )
-      const objectPosition = await browser.eval(
-        `document.getElementById("${id}").style.objectPosition`
-      )
-      expect(objectFit).toBe('cover')
-      expect(objectPosition).toBe('left center')
-    } finally {
-      await browser.close()
-    }
+      return 'success'
+    }, 'success')
+    expect(await browser.elementById(id).getAttribute('srcset')).toBe(
+      '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
+    )
+    expect(await browser.elementById(id).getAttribute('sizes')).toBe('100vw')
+    expect(await getComputed(browser, id, 'width')).toBe(width)
+    expect(await getComputed(browser, id, 'height')).toBe(height)
+    const delta = 150
+    const largeWidth = Number(width) + delta
+    const largeHeight = Number(height) + delta
+    await browser.setDimensions({
+      width: largeWidth,
+      height: largeHeight,
+    })
+    expect(await getComputed(browser, id, 'width')).toBe(largeWidth)
+    expect(await getComputed(browser, id, 'height')).toBe(largeHeight)
+    const smallWidth = Number(width) - delta
+    const smallHeight = Number(height) - delta
+    await browser.setDimensions({
+      width: smallWidth,
+      height: smallHeight,
+    })
+    expect(await getComputed(browser, id, 'width')).toBe(smallWidth)
+    expect(await getComputed(browser, id, 'height')).toBe(smallHeight)
+
+    const objectFit = await browser.eval(
+      `document.getElementById("${id}").style.objectFit`
+    )
+    const objectPosition = await browser.eval(
+      `document.getElementById("${id}").style.objectPosition`
+    )
+    expect(objectFit).toBe('cover')
+    expect(objectPosition).toBe('left center')
   })
 
   it('should work with sizes and automatically use layout-responsive', async () => {
-    let browser = await webdriver(appPort, '/docs/sizes')
-    try {
-      const width = 1200
-      const height = 700
-      const delta = 250
-      const id = 'sizes1'
+    const browser = await webdriver(appPort, '/docs/sizes')
 
-      await check(async () => {
-        expect(await getSrc(browser, id)).toBe(
-          '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
-        )
-        return 'success'
-      }, 'success')
-      expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=16&q=75 16w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=32&q=75 32w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=48&q=75 48w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=64&q=75 64w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=96&q=75 96w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=128&q=75 128w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=256&q=75 256w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=384&q=75 384w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
+    const width = 1200
+    const height = 700
+    const delta = 250
+    const id = 'sizes1'
+
+    await check(async () => {
+      expect(await getSrc(browser, id)).toBe(
+        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
       )
-      expect(await browser.elementById(id).getAttribute('sizes')).toBe(
-        '(max-width: 2048px) 1200px, 3840px'
-      )
-      await browser.setDimensions({
-        width: width + delta,
-        height: height + delta,
-      })
-      expect(await getComputed(browser, id, 'width')).toBeGreaterThan(width)
-      expect(await getComputed(browser, id, 'height')).toBeGreaterThan(height)
-      await browser.setDimensions({
-        width: width - delta,
-        height: height - delta,
-      })
-      const newWidth = await getComputed(browser, id, 'width')
-      const newHeight = await getComputed(browser, id, 'height')
-      expect(newWidth).toBeLessThan(width)
-      expect(newHeight).toBeLessThan(height)
-      expect(getRatio(newWidth, newHeight)).toBeCloseTo(
-        getRatio(width, height),
-        1
-      )
-    } finally {
-      await browser.close()
-    }
+      return 'success'
+    }, 'success')
+    expect(await browser.elementById(id).getAttribute('srcset')).toBe(
+      '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=16&q=75 16w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=32&q=75 32w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=48&q=75 48w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=64&q=75 64w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=96&q=75 96w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=128&q=75 128w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=256&q=75 256w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=384&q=75 384w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
+    )
+    expect(await browser.elementById(id).getAttribute('sizes')).toBe(
+      '(max-width: 2048px) 1200px, 3840px'
+    )
+    await browser.setDimensions({
+      width: width + delta,
+      height: height + delta,
+    })
+    expect(await getComputed(browser, id, 'width')).toBeGreaterThan(width)
+    expect(await getComputed(browser, id, 'height')).toBeGreaterThan(height)
+    await browser.setDimensions({
+      width: width - delta,
+      height: height - delta,
+    })
+    const newWidth = await getComputed(browser, id, 'width')
+    const newHeight = await getComputed(browser, id, 'height')
+    expect(newWidth).toBeLessThan(width)
+    expect(newHeight).toBeLessThan(height)
+    expect(getRatio(newWidth, newHeight)).toBeCloseTo(
+      getRatio(width, height),
+      1
+    )
   })
 
   if (mode === 'dev') {
@@ -406,9 +379,35 @@ function runTests(mode) {
   }
 
   it('should correctly ignore prose styles', async () => {
-    let browser = await webdriver(appPort, '/docs/prose')
-    try {
-      const id = 'prose-image'
+    const browser = await webdriver(appPort, '/docs/prose')
+
+    const id = 'prose-image'
+
+    // Wait for image to load:
+    await check(async () => {
+      const result = await browser.eval(
+        `document.getElementById(${JSON.stringify(id)}).naturalWidth`
+      )
+
+      if (result < 1) {
+        throw new Error('Image not ready')
+      }
+
+      return 'result-correct'
+    }, /result-correct/)
+
+    await waitFor(1000)
+
+    const computedWidth = await getComputed(browser, id, 'width')
+    const computedHeight = await getComputed(browser, id, 'height')
+    expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(1, 1)
+  })
+
+  // Tests that use the `unsized` attribute:
+  if (mode !== 'dev') {
+    it('should correctly rotate image', async () => {
+      const browser = await webdriver(appPort, '/docs/rotated')
+      const id = 'exif-rotation-image'
 
       // Wait for image to load:
       await check(async () => {
@@ -427,40 +426,7 @@ function runTests(mode) {
 
       const computedWidth = await getComputed(browser, id, 'width')
       const computedHeight = await getComputed(browser, id, 'height')
-      expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(1, 1)
-    } finally {
-      await browser.close()
-    }
-  })
-
-  // Tests that use the `unsized` attribute:
-  if (mode !== 'dev') {
-    it('should correctly rotate image', async () => {
-      let browser = await webdriver(appPort, '/docs/rotated')
-      try {
-        const id = 'exif-rotation-image'
-
-        // Wait for image to load:
-        await check(async () => {
-          const result = await browser.eval(
-            `document.getElementById(${JSON.stringify(id)}).naturalWidth`
-          )
-
-          if (result < 1) {
-            throw new Error('Image not ready')
-          }
-
-          return 'result-correct'
-        }, /result-correct/)
-
-        await waitFor(1000)
-
-        const computedWidth = await getComputed(browser, id, 'width')
-        const computedHeight = await getComputed(browser, id, 'height')
-        expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(0.5625, 1)
-      } finally {
-        await browser.close()
-      }
+      expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(0.5625, 1)
     })
   }
 }

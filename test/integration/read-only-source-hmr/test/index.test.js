@@ -56,60 +56,42 @@ describe('Read-only source HMR', () => {
   })
 
   it('should detect changes to a page', async () => {
-    let browser
+    const browser = await webdriver(appPort, '/hello')
+    await check(() => getBrowserBodyText(browser), /Hello World/)
 
-    try {
-      browser = await webdriver(appPort, '/hello')
-      await check(() => getBrowserBodyText(browser), /Hello World/)
+    const originalContent = await fs.readFile(pagePath, 'utf8')
+    const editedContent = originalContent.replace('Hello World', 'COOL page')
 
-      const originalContent = await fs.readFile(pagePath, 'utf8')
-      const editedContent = originalContent.replace('Hello World', 'COOL page')
-
-      if (process.env.IS_TURBOPACK_TEST) {
-        // TODO Turbopack needs a bit to start watching
-        await new Promise((resolve) => setTimeout(resolve, 500))
-      }
-
-      await writeReadOnlyFile(pagePath, editedContent)
-      await check(() => getBrowserBodyText(browser), /COOL page/)
-
-      await writeReadOnlyFile(pagePath, originalContent)
-      await check(() => getBrowserBodyText(browser), /Hello World/)
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
+    if (process.env.IS_TURBOPACK_TEST) {
+      // TODO Turbopack needs a bit to start watching
+      await new Promise((resolve) => setTimeout(resolve, 500))
     }
+
+    await writeReadOnlyFile(pagePath, editedContent)
+    await check(() => getBrowserBodyText(browser), /COOL page/)
+
+    await writeReadOnlyFile(pagePath, originalContent)
+    await check(() => getBrowserBodyText(browser), /Hello World/)
   })
 
   it('should handle page deletion and subsequent recreation', async () => {
-    let browser
+    const browser = await webdriver(appPort, '/hello')
+    await check(() => getBrowserBodyText(browser), /Hello World/)
 
-    try {
-      browser = await webdriver(appPort, '/hello')
-      await check(() => getBrowserBodyText(browser), /Hello World/)
+    const originalContent = await fs.readFile(pagePath, 'utf8')
 
-      const originalContent = await fs.readFile(pagePath, 'utf8')
-
-      if (process.env.IS_TURBOPACK_TEST) {
-        // TODO Turbopack needs a bit to start watching
-        await new Promise((resolve) => setTimeout(resolve, 500))
-      }
-
-      await fs.remove(pagePath)
-      await writeReadOnlyFile(pagePath, originalContent)
-      await check(() => getBrowserBodyText(browser), /Hello World/)
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
+    if (process.env.IS_TURBOPACK_TEST) {
+      // TODO Turbopack needs a bit to start watching
+      await new Promise((resolve) => setTimeout(resolve, 500))
     }
+
+    await fs.remove(pagePath)
+    await writeReadOnlyFile(pagePath, originalContent)
+    await check(() => getBrowserBodyText(browser), /Hello World/)
   })
 
   it('should detect a new page', async () => {
-    let browser
     const newPagePath = join(appDir, 'pages/new.js')
-
     try {
       await writeReadOnlyFile(
         newPagePath,
@@ -119,13 +101,10 @@ describe('Read-only source HMR', () => {
         export default New
       `
       )
+      const browser = await webdriver(appPort, '/new')
 
-      browser = await webdriver(appPort, '/new')
       await check(() => getBrowserBodyText(browser), /New page/)
     } finally {
-      if (browser) {
-        await browser.close()
-      }
       await fs.remove(newPagePath)
     }
   })

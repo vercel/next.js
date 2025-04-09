@@ -22,13 +22,9 @@ describe('Middleware base tests', () => {
 
   it('should execute from absolute paths', async () => {
     const browser = await webdriver(next.url, '/redirect-with-basepath')
-    try {
-      expect(await browser.eval(`window.location.pathname`)).toBe(
-        '/root/redirect-with-basepath'
-      )
-    } finally {
-      await browser.close()
-    }
+    expect(await browser.eval(`window.location.pathname`)).toBe(
+      '/root/redirect-with-basepath'
+    )
 
     const res = await fetchViaHTTP(next.url, '/root/redirect-with-basepath')
     const html = await res.text()
@@ -37,12 +33,8 @@ describe('Middleware base tests', () => {
   })
   it('router.query must exist when Link clicked page routing', async () => {
     const browser = await webdriver(next.url, '/root')
-    try {
-      await browser.elementById('go-to-hello-world-anchor').click()
-      const routeName = await browser.elementById('route-name').text()
-      expect(routeName).toMatch('hello-world')
-    } finally {
-      await browser.close()
-    }
+    await browser.elementById('go-to-hello-world-anchor').click()
+    const routeName = await browser.elementById('route-name').text()
+    expect(routeName).toMatch('hello-world')
   })
 })

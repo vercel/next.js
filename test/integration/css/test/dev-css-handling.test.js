@@ -31,44 +31,35 @@ describe('Can hot reload CSS without losing state', () => {
   })
 
   it('should update CSS color without remounting <input>', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/page1')
+    const browser = await webdriver(appPort, '/page1')
 
-      const desiredText = 'hello world'
-      await browser.elementById('text-input').type(desiredText)
+    const desiredText = 'hello world'
+    await browser.elementById('text-input').type(desiredText)
+    expect(await browser.elementById('text-input').getValue()).toBe(desiredText)
+
+    const currentColor = await browser.eval(
+      `window.getComputedStyle(document.querySelector('.red-text')).color`
+    )
+    expect(currentColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+
+    const cssFile = new File(join(appDir, 'styles/global1.css'))
+    try {
+      cssFile.replace('color: red', 'color: purple')
+
+      await check(
+        () =>
+          browser.eval(
+            `window.getComputedStyle(document.querySelector('.red-text')).color`
+          ),
+        'rgb(128, 0, 128)'
+      )
+
+      // ensure text remained
       expect(await browser.elementById('text-input').getValue()).toBe(
         desiredText
       )
-
-      const currentColor = await browser.eval(
-        `window.getComputedStyle(document.querySelector('.red-text')).color`
-      )
-      expect(currentColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
-
-      const cssFile = new File(join(appDir, 'styles/global1.css'))
-      try {
-        cssFile.replace('color: red', 'color: purple')
-
-        await check(
-          () =>
-            browser.eval(
-              `window.getComputedStyle(document.querySelector('.red-text')).color`
-            ),
-          'rgb(128, 0, 128)'
-        )
-
-        // ensure text remained
-        expect(await browser.elementById('text-input').getValue()).toBe(
-          desiredText
-        )
-      } finally {
-        cssFile.restore()
-      }
     } finally {
-      if (browser) {
-        await browser.close()
-      }
+      cssFile.restore()
     }
   })
 })
@@ -91,19 +82,12 @@ describe('Has CSS in computed styles in Development', () => {
   })
 
   it('should have CSS for page', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/page2')
+    const browser = await webdriver(appPort, '/page2')
 
-      const currentColor = await browser.eval(
-        `window.getComputedStyle(document.querySelector('.blue-text')).color`
-      )
-      expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
+    const currentColor = await browser.eval(
+      `window.getComputedStyle(document.querySelector('.blue-text')).color`
+    )
+    expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
   })
 })
 
@@ -125,18 +109,11 @@ describe('Body is not hidden when unused in Development', () => {
   })
 
   it('should have body visible', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/')
-      const currentDisplay = await browser.eval(
-        `window.getComputedStyle(document.querySelector('body')).display`
-      )
-      expect(currentDisplay).toBe('block')
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
+    const browser = await webdriver(appPort, '/')
+    const currentDisplay = await browser.eval(
+      `window.getComputedStyle(document.querySelector('body')).display`
+    )
+    expect(currentDisplay).toBe('block')
   })
 })
 
@@ -156,22 +133,14 @@ describe('Body is not hidden when broken in Development', () => {
 
   it('should have body visible', async () => {
     const pageFile = new File(join(appDir, 'pages/index.js'))
-    let browser
-    try {
-      pageFile.replace('<div />', '<div>')
-      await waitFor(2000) // wait for recompile
+    pageFile.replace('<div />', '<div>')
+    await waitFor(2000) // wait for recompile
 
-      browser = await webdriver(appPort, '/')
-      const currentDisplay = await browser.eval(
-        `window.getComputedStyle(document.querySelector('body')).display`
-      )
-      expect(currentDisplay).toBe('block')
-    } finally {
-      pageFile.restore()
-      if (browser) {
-        await browser.close()
-      }
-    }
+    const browser = await webdriver(appPort, '/')
+    const currentDisplay = await browser.eval(
+      `window.getComputedStyle(document.querySelector('body')).display`
+    )
+    expect(currentDisplay).toBe('block')
   })
 })
 
@@ -192,18 +161,11 @@ describe('React Lifecyce Order (dev)', () => {
   })
 
   it('should have the correct color on mount after navigation', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/')
+    const browser = await webdriver(appPort, '/')
 
-      // Navigate to other:
-      await browser.waitForElementByCss('#link-other').click()
-      const text = await browser.waitForElementByCss('#red-title').text()
-      expect(text).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
+    // Navigate to other:
+    await browser.waitForElementByCss('#link-other').click()
+    const text = await browser.waitForElementByCss('#red-title').text()
+    expect(text).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
   })
 })

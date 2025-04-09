@@ -29,7 +29,6 @@ const collectErrors = async (pathname) => {
   })()`)
   await waitFor(1000)
   const errors = await browser.eval(`window.caughtErrors`)
-  await browser.close()
   return errors
 }
 
@@ -60,8 +59,6 @@ const didPrefetch = async (pathname) => {
       expect.arrayContaining([expect.stringContaining('/')])
     )
   })
-
-  await browser.close()
 }
 
 function runCommonTests() {

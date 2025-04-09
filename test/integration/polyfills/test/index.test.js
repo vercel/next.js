@@ -35,8 +35,6 @@ describe('Polyfills', () => {
         const text = await browser.elementByCss('#test-status').text()
 
         expect(text).toBe('pass')
-
-        await browser.close()
       })
 
       it('should allow using process.env when there is an element with `id` of `process`', async () => {
@@ -44,8 +42,6 @@ describe('Polyfills', () => {
         const text = await browser.elementByCss('#process').text()
 
         expect(text).toBe('Hello, stranger')
-
-        await browser.close()
       })
 
       it('should contain generated page count in output', async () => {

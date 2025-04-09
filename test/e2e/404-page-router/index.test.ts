@@ -125,19 +125,13 @@ describe('404-page-router', () => {
           const query = url.split('?', 2)[1] ?? ''
           const browser = await webdriver(next.url, url)
 
-          try {
-            await check(
-              () => browser.eval('next.router.isReady ? "yes" : "no"'),
-              'yes'
-            )
-            expect(await browser.elementById('pathname').text()).toEqual(
-              pathname
-            )
-            expect(await browser.elementById('asPath').text()).toEqual(asPath)
-            expect(await browser.elementById('query').text()).toEqual(query)
-          } finally {
-            await browser.close()
-          }
+          await check(
+            () => browser.eval('next.router.isReady ? "yes" : "no"'),
+            'yes'
+          )
+          expect(await browser.elementById('pathname').text()).toEqual(pathname)
+          expect(await browser.elementById('asPath').text()).toEqual(asPath)
+          expect(await browser.elementById('query').text()).toEqual(query)
         })
       })
 
