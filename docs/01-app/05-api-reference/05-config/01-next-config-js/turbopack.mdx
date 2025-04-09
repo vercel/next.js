@@ -42,6 +42,7 @@ The following options are available for the `turbo` configuration:
 
 | Option              | Description                                                             |
 | ------------------- | ----------------------------------------------------------------------- |
+| `root`              | Sets the application root directory. Should be an absolute path.        |
 | `rules`             | List of supported webpack loaders to apply when running with Turbopack. |
 | `resolveAlias`      | Map aliased imports to modules to load in their place.                  |
 | `resolveExtensions` | List of extensions to resolve when importing files.                     |
@@ -59,18 +60,30 @@ The following loaders have been tested to work with Turbopack's webpack loader i
 - [`raw-loader`](https://www.npmjs.com/package/raw-loader)
 - [`sass-loader`](https://www.npmjs.com/package/sass-loader)
 
-### Experimental options
-
-Experimental options for Turbopack are available under the top-level `experimental` key in `next.config.js`:
-
-| Option                 | Description                                                               |
-| ---------------------- | ------------------------------------------------------------------------- |
-| `turbopackTreeShaking` | Enable tree shaking for the turbopack dev server and build.               |
-| `turbopackMemoryLimit` | A target memory limit for turbo, in bytes.                                |
-| `turbopackSourceMaps`  | Write sourcemaps (defaults to true)                                       |
-| `turbopackMinify`      | Minify output code (fefaults to true in build mode and false in dev mode) |
-
 ## Examples
+
+### Root directory
+
+Turbopack uses the root directory to resolve modules. Files outside of the project root are not resolved.
+
+Next.js automatically detects the root directory of your project. It does so by looking for one of these files:
+
+- `pnpm-lock.yaml`
+- `package-lock.json`
+- `yarn.lock`
+- `bun.lock`
+- `bun.lockb`
+
+If you have a different project structure, for example if you don't use workspaces, you can manually set the `root` option:
+
+```js filename="next.config.js"
+const path = require('path')
+module.exports = {
+  turbopack: {
+    root: path.join(__dirname, '..'),
+  },
+}
+```
 
 ### Configuring webpack loaders
 
