@@ -607,7 +607,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let (item, listener) =
             CachedDataItem::new_scheduled_with_listener(self.get_task_desc_fn(task_id), note);
         // It's not possible that the task is InProgress at this point. If it is InProgress {
-        // completed: true } it must have Output and would early return.
+        // done: true } it must have Output and would early return.
         task.add_new(item);
         turbo_tasks.schedule(task_id);
 
