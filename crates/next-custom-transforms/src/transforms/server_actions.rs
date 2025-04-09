@@ -2404,7 +2404,7 @@ fn wrap_cache_expr(
     loc: Loc,
     bound_args_len: usize,
 ) -> Box<Expr> {
-    let display_name = format!(
+    let location = format!(
         "{} ({}:{}:{})",
         name.unwrap_or("<anonymous>"),
         file_name,
@@ -2428,7 +2428,7 @@ fn wrap_cache_expr(
             },
             ExprOrSpread {
                 spread: None,
-                expr: Box::new(display_name.into()),
+                expr: Box::new(location.into()),
             },
             Number::from(bound_args_len).as_arg(),
             expr.as_arg(),

@@ -509,10 +509,13 @@ function createTrackedReadableStream(
   })
 }
 
+/**
+ * @param location Similar to a V8 stack frame location e.g. `"myFn (./app/page.tsx:47:11)"`
+ */
 export function cache(
   kind: string,
   id: string,
-  displayName: string,
+  location: string,
   boundArgsLength: number,
   originalFn: (...args: unknown[]) => Promise<unknown>
 ) {
@@ -526,6 +529,8 @@ export function cache(
   Error.captureStackTrace(timeoutError, cache)
 
   const name = originalFn.name
+  const displayName = `use-cache ${location}`
+
   const cachedFn = {
     [name]: async function (...args: any[]) {
       const workStore = workAsyncStorage.getStore()
