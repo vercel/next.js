@@ -508,9 +508,11 @@ View the [Font API Reference](/docs/app/api-reference/components/font) for more 
 
 ## With Tailwind CSS
 
-`next/font` can be used with [Tailwind CSS](https://tailwindcss.com/) through a [CSS variable](/docs/app/api-reference/components/font#css-variables).
+`next/font` integrates seamlessly with [Tailwind CSS](https://tailwindcss.com/) using [CSS variables](/docs/app/api-reference/components/font#css-variables).
 
-In the example below, we use the font `Inter` from `next/font/google` (you can use any font from Google or Local Fonts). Load your font with the `variable` option to define your CSS variable name and assign it to `inter`. Then, use `inter.variable` to add the CSS variable to your HTML document.
+In the example below, we use the `Inter` and `Roboto_Mono` fonts from `next/font/google` (you can use any Google Font or Local Font). Use the `variable` option to define a CSS variable name, such as `inter` and `roboto_mono` for these fonts, respectively. Then, apply `inter.variable` and `roboto_mono.variable` to include the CSS variables in your HTML document.
+
+You can add these variables to the `<html>` or `<body>` tag, depending on your preference, styling needs or project requirements.
 
 <AppOnly>
 
@@ -535,7 +537,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${roboto_mono.variable}`}>
+    <html lang="en" className={`${inter.variable} ${roboto_mono.variable} antialiased`}>
       <body>{children}</body>
     </html>
   )
@@ -559,7 +561,7 @@ const roboto_mono = Roboto_Mono({
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${inter.variable} ${roboto_mono.variable}`}>
+    <html lang="en" className={`${inter.variable} ${roboto_mono.variable} antialiased`}>
       <body>{children}</body>
     </html>
   )
@@ -578,9 +580,15 @@ const inter = Inter({
   variable: '--font-inter',
 })
 
+const roboto_mono = Roboto_Mono({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-roboto-mono',
+})
+
 export default function MyApp({ Component, pageProps }) {
   return (
-    <main className={`${inter.variable} font-sans`}>
+    <main className={`${inter.variable} ${roboto_mono.variable} font-sans`}>
       <Component {...pageProps} />
     </main>
   )
@@ -590,6 +598,21 @@ export default function MyApp({ Component, pageProps }) {
 </PagesOnly>
 
 Finally, add the CSS variable to your [Tailwind CSS config](/docs/app/building-your-application/styling/tailwind-css#configuring-tailwind):
+
+### Tailwind CSS v4
+
+As of [Tailwind v4](https://tailwindcss.com/blog/tailwindcss-v4), there is zero configuration required by default. If you do need to configure Tailwind, you can follow the [official documentation](https://tailwindcss.com/blog/tailwindcss-v4#css-first-configuration) for configuring the global CSS file.
+
+```js filename="global.css"
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-roboto-mono);
+}
+```
+
+### Tailwind CSS v3
 
 ```js filename="tailwind.config.js"
 /** @type {import('tailwindcss').Config} */
@@ -612,6 +635,12 @@ module.exports = {
 ```
 
 You can now use the `font-sans` and `font-mono` utility classes to apply the font to your elements.
+
+```
+<p class="font-sans ...">The quick brown fox ...</p>
+<p class="font-mono ...">The quick brown fox ...</p>
+```
+
 
 ## Preloading
 
