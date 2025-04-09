@@ -5867,13 +5867,13 @@ function abort(request, reason) {
 }
 var isomorphicReactPackageVersion$jscomp$inline_761 = React.version;
 if (
-  "19.2.0-canary-33661467-20250407" !==
+  "19.2.0-canary-ea05b750-20250408" !==
   isomorphicReactPackageVersion$jscomp$inline_761
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
       (isomorphicReactPackageVersion$jscomp$inline_761 +
-        "\n  - react-dom:  19.2.0-canary-33661467-20250407\nLearn more: https://react.dev/warnings/version-mismatch")
+        "\n  - react-dom:  19.2.0-canary-ea05b750-20250408\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -5964,4 +5964,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-canary-33661467-20250407";
+exports.version = "19.2.0-canary-ea05b750-20250408";

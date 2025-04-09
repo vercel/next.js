@@ -248,8 +248,20 @@ var isArrayImpl = Array.isArray,
     data: null,
     method: null,
     action: null
-  },
-  valueStack = [],
+  };
+function setSrcObject(domElement, tag, value) {
+  function cleanUp() {
+    URL.revokeObjectURL(url);
+    domElement.removeEventListener(loadEvent, cleanUp);
+    domElement.removeEventListener("error", cleanUp);
+  }
+  var url = URL.createObjectURL(value),
+    loadEvent = "img" === tag ? "load" : "loadstart";
+  domElement.addEventListener(loadEvent, cleanUp);
+  domElement.addEventListener("error", cleanUp);
+  domElement.setAttribute("src", url);
+}
+var valueStack = [],
   index = -1;
 function createCursor(defaultValue) {
   return { current: defaultValue };
@@ -9042,9 +9054,15 @@ function commitHostMount(finishedWork) {
         props.autoFocus && instance.focus();
         break a;
       case "img":
-        props.src
-          ? (instance.src = props.src)
-          : props.srcSet && (instance.srcset = props.srcSet);
+        if (props.src) {
+          var src = props.src;
+          if ("object" === typeof src)
+            try {
+              setSrcObject(instance, type, src);
+              break a;
+            } catch (x) {}
+          instance.src = src;
+        } else props.srcSet && (instance.srcset = props.srcSet);
     }
   } catch (error) {
     captureCommitPhaseError(finishedWork, finishedWork.return, error);
@@ -14233,20 +14251,20 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_1716 = 0;
-  i$jscomp$inline_1716 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1716++
+  var i$jscomp$inline_1718 = 0;
+  i$jscomp$inline_1718 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1718++
 ) {
-  var eventName$jscomp$inline_1717 =
-      simpleEventPluginEvents[i$jscomp$inline_1716],
-    domEventName$jscomp$inline_1718 =
-      eventName$jscomp$inline_1717.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1719 =
-      eventName$jscomp$inline_1717[0].toUpperCase() +
-      eventName$jscomp$inline_1717.slice(1);
+  var eventName$jscomp$inline_1719 =
+      simpleEventPluginEvents[i$jscomp$inline_1718],
+    domEventName$jscomp$inline_1720 =
+      eventName$jscomp$inline_1719.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1721 =
+      eventName$jscomp$inline_1719[0].toUpperCase() +
+      eventName$jscomp$inline_1719.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1718,
-    "on" + capitalizedEvent$jscomp$inline_1719
+    domEventName$jscomp$inline_1720,
+    "on" + capitalizedEvent$jscomp$inline_1721
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -15083,6 +15101,15 @@ function setProp(domElement, tag, key, value, props, prevValue) {
         break;
       }
     case "src":
+      if (
+        "object" === typeof value &&
+        null !== value &&
+        ("img" === tag || "video" === tag || "audio" === tag)
+      )
+        try {
+          setSrcObject(domElement, tag, value);
+          break;
+        } catch (x) {}
     case "href":
       if ("" === value && ("a" !== tag || "href" !== key)) {
         domElement.removeAttribute(key);
@@ -18658,16 +18685,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2033 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2035 = React.version;
 if (
-  "19.2.0-experimental-33661467-20250407" !==
-  isomorphicReactPackageVersion$jscomp$inline_2033
+  "19.2.0-experimental-ea05b750-20250408" !==
+  isomorphicReactPackageVersion$jscomp$inline_2035
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2033,
-      "19.2.0-experimental-33661467-20250407"
+      isomorphicReactPackageVersion$jscomp$inline_2035,
+      "19.2.0-experimental-ea05b750-20250408"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -18687,24 +18714,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2652 = {
+var internals$jscomp$inline_2654 = {
   bundleType: 0,
-  version: "19.2.0-experimental-33661467-20250407",
+  version: "19.2.0-experimental-ea05b750-20250408",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-experimental-33661467-20250407"
+  reconcilerVersion: "19.2.0-experimental-ea05b750-20250408"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2653 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2655 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2653.isDisabled &&
-    hook$jscomp$inline_2653.supportsFiber
+    !hook$jscomp$inline_2655.isDisabled &&
+    hook$jscomp$inline_2655.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2653.inject(
-        internals$jscomp$inline_2652
+      (rendererID = hook$jscomp$inline_2655.inject(
+        internals$jscomp$inline_2654
       )),
-        (injectedHook = hook$jscomp$inline_2653);
+        (injectedHook = hook$jscomp$inline_2655);
     } catch (err) {}
 }
 exports.createComponentSelector = function (component) {
@@ -18947,4 +18974,4 @@ exports.observeVisibleRects = function (
     }
   };
 };
-exports.version = "19.2.0-experimental-33661467-20250407";
+exports.version = "19.2.0-experimental-ea05b750-20250408";

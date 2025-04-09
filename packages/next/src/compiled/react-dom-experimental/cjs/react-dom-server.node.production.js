@@ -125,6 +125,17 @@ var textEncoder = new util.TextEncoder();
 function stringToPrecomputedChunk(content) {
   return textEncoder.encode(content);
 }
+function readAsDataURL(blob) {
+  return blob.arrayBuffer().then(function (arrayBuffer) {
+    arrayBuffer = Buffer.from(arrayBuffer).toString("base64");
+    return (
+      "data:" +
+      (blob.type || "application/octet-stream") +
+      ";base64," +
+      arrayBuffer
+    );
+  });
+}
 var assign = Object.assign,
   hasOwnProperty = Object.prototype.hasOwnProperty,
   VALID_ATTRIBUTE_NAME_REGEX = RegExp(
@@ -768,6 +779,34 @@ function pushFormActionAttribute(
   null != formTarget && pushAttribute(target, "formTarget", formTarget);
   return formData;
 }
+var blobCache = null;
+function pushSrcObjectAttribute(target, blob) {
+  null === blobCache && (blobCache = new WeakMap());
+  var suspenseCache = blobCache,
+    thenable = suspenseCache.get(blob);
+  void 0 === thenable &&
+    ((thenable = readAsDataURL(blob)),
+    thenable.then(
+      function (result) {
+        thenable.status = "fulfilled";
+        thenable.value = result;
+      },
+      function (error) {
+        thenable.status = "rejected";
+        thenable.reason = error;
+      }
+    ),
+    suspenseCache.set(blob, thenable));
+  if ("rejected" === thenable.status) throw thenable.reason;
+  if ("fulfilled" !== thenable.status) throw thenable;
+  target.push(
+    attributeSeparator,
+    "src",
+    attributeAssign,
+    escapeTextForBrowser(thenable.value),
+    attributeEnd
+  );
+}
 function pushAttribute(target, name, value) {
   switch (name) {
     case "className":
@@ -787,6 +826,15 @@ function pushAttribute(target, name, value) {
       pushStyleAttribute(target, value);
       break;
     case "src":
+      if (
+        "object" === typeof value &&
+        null !== value &&
+        "function" === typeof Blob &&
+        value instanceof Blob
+      ) {
+        pushSrcObjectAttribute(target, value);
+        break;
+      }
     case "href":
       if ("" === value) break;
     case "action":
@@ -6880,11 +6928,11 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-experimental-33661467-20250407" !== isomorphicReactPackageVersion)
+  if ("19.2.0-experimental-ea05b750-20250408" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.2.0-experimental-33661467-20250407\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.2.0-experimental-ea05b750-20250408\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -7135,4 +7183,4 @@ exports.resumeToPipeableStream = function (children, postponedState, options) {
     }
   };
 };
-exports.version = "19.2.0-experimental-33661467-20250407";
+exports.version = "19.2.0-experimental-ea05b750-20250408";

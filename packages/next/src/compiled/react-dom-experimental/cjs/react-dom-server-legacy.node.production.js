@@ -110,6 +110,20 @@ function murmurhash3_32_gc(key, seed) {
     4294967295;
   return (h1 ^ (h1 >>> 16)) >>> 0;
 }
+function readAsDataURL(blob) {
+  return blob.arrayBuffer().then(function (arrayBuffer) {
+    arrayBuffer =
+      "function" === typeof Buffer && "function" === typeof Buffer.from
+        ? Buffer.from(arrayBuffer).toString("base64")
+        : btoa(String.fromCharCode.apply(String, new Uint8Array(arrayBuffer)));
+    return (
+      "data:" +
+      (blob.type || "application/octet-stream") +
+      ";base64," +
+      arrayBuffer
+    );
+  });
+}
 var assign = Object.assign,
   hasOwnProperty = Object.prototype.hasOwnProperty,
   VALID_ATTRIBUTE_NAME_REGEX = RegExp(
@@ -493,6 +507,28 @@ function pushFormActionAttribute(
   null != formTarget && pushAttribute(target, "formTarget", formTarget);
   return formData;
 }
+var blobCache = null;
+function pushSrcObjectAttribute(target, blob) {
+  null === blobCache && (blobCache = new WeakMap());
+  var suspenseCache = blobCache,
+    thenable = suspenseCache.get(blob);
+  void 0 === thenable &&
+    ((thenable = readAsDataURL(blob)),
+    thenable.then(
+      function (result) {
+        thenable.status = "fulfilled";
+        thenable.value = result;
+      },
+      function (error) {
+        thenable.status = "rejected";
+        thenable.reason = error;
+      }
+    ),
+    suspenseCache.set(blob, thenable));
+  if ("rejected" === thenable.status) throw thenable.reason;
+  if ("fulfilled" !== thenable.status) throw thenable;
+  target.push(" ", "src", '="', escapeTextForBrowser(thenable.value), '"');
+}
 function pushAttribute(target, name, value) {
   switch (name) {
     case "className":
@@ -512,6 +548,15 @@ function pushAttribute(target, name, value) {
       pushStyleAttribute(target, value);
       break;
     case "src":
+      if (
+        "object" === typeof value &&
+        null !== value &&
+        "function" === typeof Blob &&
+        value instanceof Blob
+      ) {
+        pushSrcObjectAttribute(target, value);
+        break;
+      }
     case "href":
       if ("" === value) break;
     case "action":
@@ -6445,4 +6490,4 @@ exports.renderToString = function (children, options) {
     'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
   );
 };
-exports.version = "19.2.0-experimental-33661467-20250407";
+exports.version = "19.2.0-experimental-ea05b750-20250408";

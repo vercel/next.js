@@ -248,8 +248,20 @@ var isArrayImpl = Array.isArray,
     data: null,
     method: null,
     action: null
-  },
-  valueStack = [],
+  };
+function setSrcObject(domElement, tag, value) {
+  function cleanUp() {
+    URL.revokeObjectURL(url);
+    domElement.removeEventListener(loadEvent, cleanUp);
+    domElement.removeEventListener("error", cleanUp);
+  }
+  var url = URL.createObjectURL(value),
+    loadEvent = "img" === tag ? "load" : "loadstart";
+  domElement.addEventListener(loadEvent, cleanUp);
+  domElement.addEventListener("error", cleanUp);
+  domElement.setAttribute("src", url);
+}
+var valueStack = [],
   index = -1;
 function createCursor(defaultValue) {
   return { current: defaultValue };
@@ -8956,9 +8968,15 @@ function commitHostMount(finishedWork) {
         props.autoFocus && instance.focus();
         break a;
       case "img":
-        props.src
-          ? (instance.src = props.src)
-          : props.srcSet && (instance.srcset = props.srcSet);
+        if (props.src) {
+          var src = props.src;
+          if ("object" === typeof src)
+            try {
+              setSrcObject(instance, type, src);
+              break a;
+            } catch (x) {}
+          instance.src = src;
+        } else props.srcSet && (instance.srcset = props.srcSet);
     }
   } catch (error) {
     captureCommitPhaseError(finishedWork, finishedWork.return, error);
@@ -13961,20 +13979,20 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_1687 = 0;
-  i$jscomp$inline_1687 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1687++
+  var i$jscomp$inline_1689 = 0;
+  i$jscomp$inline_1689 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1689++
 ) {
-  var eventName$jscomp$inline_1688 =
-      simpleEventPluginEvents[i$jscomp$inline_1687],
-    domEventName$jscomp$inline_1689 =
-      eventName$jscomp$inline_1688.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1690 =
-      eventName$jscomp$inline_1688[0].toUpperCase() +
-      eventName$jscomp$inline_1688.slice(1);
+  var eventName$jscomp$inline_1690 =
+      simpleEventPluginEvents[i$jscomp$inline_1689],
+    domEventName$jscomp$inline_1691 =
+      eventName$jscomp$inline_1690.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1692 =
+      eventName$jscomp$inline_1690[0].toUpperCase() +
+      eventName$jscomp$inline_1690.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1689,
-    "on" + capitalizedEvent$jscomp$inline_1690
+    domEventName$jscomp$inline_1691,
+    "on" + capitalizedEvent$jscomp$inline_1692
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -14811,6 +14829,15 @@ function setProp(domElement, tag, key, value, props, prevValue) {
         break;
       }
     case "src":
+      if (
+        "object" === typeof value &&
+        null !== value &&
+        ("img" === tag || "video" === tag || "audio" === tag)
+      )
+        try {
+          setSrcObject(domElement, tag, value);
+          break;
+        } catch (x) {}
     case "href":
       if ("" === value && ("a" !== tag || "href" !== key)) {
         domElement.removeAttribute(key);
@@ -18342,16 +18369,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2004 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2006 = React.version;
 if (
-  "19.2.0-experimental-33661467-20250407" !==
-  isomorphicReactPackageVersion$jscomp$inline_2004
+  "19.2.0-experimental-ea05b750-20250408" !==
+  isomorphicReactPackageVersion$jscomp$inline_2006
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2004,
-      "19.2.0-experimental-33661467-20250407"
+      isomorphicReactPackageVersion$jscomp$inline_2006,
+      "19.2.0-experimental-ea05b750-20250408"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -18371,24 +18398,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2618 = {
+var internals$jscomp$inline_2620 = {
   bundleType: 0,
-  version: "19.2.0-experimental-33661467-20250407",
+  version: "19.2.0-experimental-ea05b750-20250408",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-experimental-33661467-20250407"
+  reconcilerVersion: "19.2.0-experimental-ea05b750-20250408"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2619 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2621 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2619.isDisabled &&
-    hook$jscomp$inline_2619.supportsFiber
+    !hook$jscomp$inline_2621.isDisabled &&
+    hook$jscomp$inline_2621.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2619.inject(
-        internals$jscomp$inline_2618
+      (rendererID = hook$jscomp$inline_2621.inject(
+        internals$jscomp$inline_2620
       )),
-        (injectedHook = hook$jscomp$inline_2619);
+        (injectedHook = hook$jscomp$inline_2621);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -18480,4 +18507,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.2.0-experimental-33661467-20250407";
+exports.version = "19.2.0-experimental-ea05b750-20250408";
