@@ -2084,6 +2084,10 @@ impl VisitAstPath for Analyzer<'_> {
                     AstParentNodeRef::TryStmt(_, TryStmtField::Handler),
                     AstParentNodeRef::CatchClause(_, CatchClauseField::Body)
                 ]
+                | [
+                    AstParentNodeRef::LabeledStmt(_, LabeledStmtField::Body),
+                    AstParentNodeRef::Stmt(_, StmtField::Block)
+                ]
         ) {
             None
         } else if matches!(
