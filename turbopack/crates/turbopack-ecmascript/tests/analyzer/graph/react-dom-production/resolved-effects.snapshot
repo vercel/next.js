@@ -17093,7 +17093,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* unreachable
   ⚠️  This value might have side effects
 
-2372 -> 2376 conditional = (???*0* | ???*1*)
+0 -> 2376 conditional = (???*0* | ???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["return"]
@@ -17101,7 +17101,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* a
   ⚠️  circular variable reference
 
-2372 -> 2377 unreachable = ???*0*
+0 -> 2377 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
