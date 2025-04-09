@@ -16,14 +16,9 @@ import path from 'path'
 
 type EventType = 'request' | 'response'
 
-type PageLog = { source: string; message: string; args: unknown[] }
-
-let page: Page
 let browser: Browser | undefined
 let context: BrowserContext | undefined
 let contextHasJSEnabled: boolean = true
-let pageLogs: Array<Promise<PageLog> | PageLog> = []
-let websocketFrames: Array<{ payload: string | Buffer }> = []
 
 const tracePlaywright = process.env.TRACE_PLAYWRIGHT
 
@@ -72,8 +67,30 @@ export type NavigationOptions = {
   retryWaitHydration?: boolean
 }
 
+type PageLog = { source: string; message: string; args: unknown[] }
+
+type PageState = {
+  page: Page
+  logs: Array<Promise<PageLog> | PageLog>
+  websocketFrames: Array<{ payload: string | Buffer }>
+}
+
 export class Playwright<TCurrent = undefined> {
   constructor(private baseUrl: string) {}
+
+  private _pageState: PageState | null = null
+
+  private getReadyState(): PageState {
+    if (this._pageState === null) {
+      throw new Error('No page available')
+    }
+    return this._pageState
+  }
+
+  get page(): Page {
+    const state = this.getReadyState()
+    return state.page
+  }
 
   private activeTrace?: string
   private eventCallbacks: Record<EventType, Set<(...args: any[]) => void>> = {
@@ -206,14 +223,23 @@ export class Playwright<TCurrent = undefined> {
   }
 
   async close(): Promise<void> {
+    if (!this._pageState) {
+      return
+    }
     await teardown(this.teardownTracing.bind(this))
     await this.reset()
   }
 
   async reset() {
-    if (page && !page.isClosed()) {
+    const state = this._pageState
+    if (!state) {
+      return
+    }
+    const { page } = state
+    if (!page.isClosed()) {
       await page.close()
     }
+    this._pageState = null
 
     // clean-up existing pages
     await Promise.all(
@@ -252,7 +278,7 @@ export class Playwright<TCurrent = undefined> {
 
   async get(url: string, opts?: NavigationOptions): Promise<void> {
     url = this.resolveUrl(url)
-    await page.goto(url, { waitUntil: 'load' })
+    await this.page.goto(url, { waitUntil: 'load' })
 
     const waitHydration = opts?.waitHydration ?? true
     if (waitHydration && contextHasJSEnabled) {
@@ -270,86 +296,99 @@ export class Playwright<TCurrent = undefined> {
     } & NavigationOptions
   ) {
     url = this.resolveUrl(url)
-    await this.reset()
-
-    if (!this.activeTrace) {
+    if (this._pageState) {
+      // loadPage may be called multiple times within a single test.
+      // in that case, we need to reset.
+      await this.reset()
+    } else {
       // if this is the first time loadPage is called in this test, start a trace.
       // otherwise, we should already have a trace running.
       await this.initContextTracing(url, context!)
     }
 
-    page = await context!.newPage()
+    const setupPage = async (pageState: PageState) => {
+      const { page, logs: pageLogs, websocketFrames } = pageState
 
-    page.setDefaultTimeout(defaultTimeout)
-    page.setDefaultNavigationTimeout(defaultTimeout)
+      page.setDefaultTimeout(defaultTimeout)
+      page.setDefaultNavigationTimeout(defaultTimeout)
 
-    pageLogs = []
-    websocketFrames = []
-
-    page.on('console', (msg) => {
-      console.log('browser log:', msg)
-
-      pageLogs.push(
-        Promise.all(
-          msg.args().map((handle) => handle.jsonValue().catch(() => {}))
-        ).then((args) => ({ source: msg.type(), message: msg.text(), args }))
-      )
-    })
-    page.on('crash', () => {
-      console.error('page crashed')
-    })
-    page.on('pageerror', (error) => {
-      console.error('page error', error)
-
-      if (opts?.pushErrorAsConsoleLog) {
-        pageLogs.push({ source: 'error', message: error.message, args: [] })
-      }
-    })
-    page.on('request', (req) => {
-      this.eventCallbacks.request.forEach((cb) => cb(req))
-    })
-    page.on('response', (res) => {
-      this.eventCallbacks.response.forEach((cb) => cb(res))
-    })
-
-    if (opts?.disableCache) {
-      // TODO: this doesn't seem to work (dev tools does not check the box as expected)
-      const session = await context!.newCDPSession(page)
-      session.send('Network.setCacheDisabled', { cacheDisabled: true })
-    }
-
-    if (opts?.cpuThrottleRate) {
-      const session = await context!.newCDPSession(page)
-      // https://chromedevtools.github.io/devtools-protocol/tot/Emulation/#method-setCPUThrottlingRate
-      session.send('Emulation.setCPUThrottlingRate', {
-        rate: opts.cpuThrottleRate,
-      })
-    }
-
-    page.on('websocket', (ws) => {
-      if (tracePlaywright) {
-        page
-          .evaluate(`console.log('connected to ws at ${ws.url()}')`)
-          .catch(() => {})
-
-        ws.on('close', () =>
-          page
-            .evaluate(`console.log('closed websocket ${ws.url()}')`)
-            .catch(() => {})
+      page.on('console', (msg) => {
+        console.log('browser log:', msg)
+        pageLogs.push(
+          Promise.all(
+            msg.args().map((handle) => handle.jsonValue().catch(() => {}))
+          ).then((args) => ({ source: msg.type(), message: msg.text(), args }))
         )
-      }
-      ws.on('framereceived', (frame) => {
-        websocketFrames.push({ payload: frame.payload })
+      })
+      page.on('crash', () => {
+        console.error('page crashed')
+      })
+      page.on('pageerror', (error) => {
+        console.error('page error', error)
 
-        if (tracePlaywright) {
-          page
-            .evaluate(`console.log('received ws message ${frame.payload}')`)
-            .catch(() => {})
+        if (opts?.pushErrorAsConsoleLog) {
+          pageLogs.push({
+            source: 'error',
+            message: error.message,
+            args: [],
+          })
         }
       })
-    })
+      page.on('request', (req) => {
+        this.eventCallbacks.request.forEach((cb) => cb(req))
+      })
+      page.on('response', (res) => {
+        this.eventCallbacks.response.forEach((cb) => cb(res))
+      })
 
-    opts?.beforePageLoad?.(page)
+      if (opts?.disableCache) {
+        // TODO: this doesn't seem to work (dev tools does not check the box as expected)
+        const session = await context!.newCDPSession(page)
+        session.send('Network.setCacheDisabled', { cacheDisabled: true })
+      }
+
+      if (opts?.cpuThrottleRate) {
+        const session = await context!.newCDPSession(page)
+        // https://chromedevtools.github.io/devtools-protocol/tot/Emulation/#method-setCPUThrottlingRate
+        session.send('Emulation.setCPUThrottlingRate', {
+          rate: opts.cpuThrottleRate,
+        })
+      }
+
+      page.on('websocket', (ws) => {
+        if (tracePlaywright) {
+          page
+            .evaluate(`console.log('connected to ws at ${ws.url()}')`)
+            .catch(() => {})
+
+          ws.on('close', () =>
+            page
+              .evaluate(`console.log('closed websocket ${ws.url()}')`)
+              .catch(() => {})
+          )
+        }
+        ws.on('framereceived', (frame) => {
+          websocketFrames.push({ payload: frame.payload })
+
+          if (tracePlaywright) {
+            page
+              .evaluate(`console.log('received ws message ${frame.payload}')`)
+              .catch(() => {})
+          }
+        })
+      })
+
+      opts?.beforePageLoad?.(page)
+    }
+
+    const newPageState: PageState = {
+      page: await context!.newPage(),
+      logs: [],
+      websocketFrames: [],
+    }
+
+    await setupPage(newPageState)
+    this._pageState = newPageState
 
     await this.get(url, {
       waitHydration: opts?.waitHydration,
@@ -380,10 +419,10 @@ export class Playwright<TCurrent = undefined> {
 
   async waitForHydration(retry = false) {
     // Wait for application to hydrate
-    console.log(`\n> Waiting hydration for ${page.url()}\n`)
+    console.log(`\n> Waiting hydration for ${this.page.url()}\n`)
 
     const checkHydrated = async () => {
-      await page.evaluate(() => {
+      await this.page.evaluate(() => {
         return new Promise<void>((callback) => {
           // if it's not a Next.js app return
           if (
@@ -426,30 +465,30 @@ export class Playwright<TCurrent = undefined> {
       }
     }
 
-    console.log(`\n> Hydration complete for ${page.url()}\n`)
+    console.log(`\n> Hydration complete for ${this.page.url()}\n`)
   }
 
   back(options?: Parameters<Page['goBack']>[0]) {
     // do not preserve the previous chained value, it might be invalid after a navigation.
     return this.startChain(async () => {
-      await page.goBack(options)
+      await this.page.goBack(options)
     })
   }
   forward(options?: Parameters<Page['goForward']>[0]) {
     // do not preserve the previous chained value, it might be invalid after a navigation.
     return this.startChain(async () => {
-      await page.goForward(options)
+      await this.page.goForward(options)
     })
   }
   refresh() {
     // do not preserve the previous chained value, it's likely to be invalid after a reload.
     return this.startChain(async () => {
-      await page.reload()
+      await this.page.reload()
     })
   }
   setDimensions({ width, height }: { height: number; width: number }) {
     return this.startOrPreserveChain(() =>
-      page.setViewportSize({ width, height })
+      this.page.setViewportSize({ width, height })
     )
   }
   addCookie(opts: { name: string; value: string }) {
@@ -457,7 +496,7 @@ export class Playwright<TCurrent = undefined> {
       context!.addCookies([
         {
           path: '/',
-          domain: await page.evaluate('window.location.hostname'),
+          domain: await this.page.evaluate('window.location.hostname'),
           ...opts,
         },
       ])
@@ -469,7 +508,7 @@ export class Playwright<TCurrent = undefined> {
 
   private wrapElement(el: ElementHandle, selector: string): ElementHandleExt {
     function getComputedCss(prop: string) {
-      return page.evaluate(
+      return this.page.evaluate(
         function (args) {
           const style = getComputedStyle(document.querySelector(args.selector)!)
           return style[args.prop] || null
@@ -528,11 +567,11 @@ export class Playwright<TCurrent = undefined> {
   }
 
   keydown(key: string) {
-    return this.startOrPreserveChain(() => page.keyboard.down(key))
+    return this.startOrPreserveChain(() => this.page.keyboard.down(key))
   }
 
   keyup(key: string) {
-    return this.startOrPreserveChain(() => page.keyboard.up(key))
+    return this.startOrPreserveChain(() => this.page.keyboard.up(key))
   }
 
   click(this: Playwright<ElementHandleExt>) {
@@ -551,7 +590,7 @@ export class Playwright<TCurrent = undefined> {
 
   elementsByCss(selector: string) {
     return this.startChain(() =>
-      page.$$(selector).then((els) => {
+      this.page.$$(selector).then((els) => {
         return els.map((el) => {
           const origGetAttribute = el.getAttribute.bind(el)
           el.getAttribute = (name) => {
@@ -567,20 +606,20 @@ export class Playwright<TCurrent = undefined> {
 
   waitForElementByCss(selector: string, timeout = 10_000) {
     return this.startChain(async () => {
-      const el = await page.waitForSelector(selector, {
+      const el = await this.page.waitForSelector(selector, {
         timeout,
         state: 'attached',
       })
       // it seems selenium waits longer and tests rely on this behavior
       // so we wait for the load event fire before returning
-      await page.waitForLoadState()
+      await this.page.waitForLoadState()
       return this.wrapElement(el, selector)
     })
   }
 
   waitForCondition(snippet: string, timeout?: number) {
     return this.startOrPreserveChain(async () => {
-      await page.waitForFunction(snippet, { timeout })
+      await this.page.waitForFunction(snippet, { timeout })
     })
   }
 
@@ -600,7 +639,7 @@ export class Playwright<TCurrent = undefined> {
     ...args: any[]
   ): Playwright<any> & Promise<any> {
     return this.startChain(async () =>
-      page.evaluate(fn, ...args).catch((err) => {
+      this.page.evaluate(fn, ...args).catch((err) => {
         throw new Error(
           `Error while evaluating \`${typeof fn === 'string' ? fn : fn.toString()}\``,
           { cause: err }
@@ -610,43 +649,45 @@ export class Playwright<TCurrent = undefined> {
   }
 
   async log<T extends boolean = false>(options?: { includeArgs?: T }) {
-    return this.startChain(
-      () =>
+    return this.startChain(() => {
+      const state = this.getReadyState()
+      return (
         options?.includeArgs
-          ? Promise.all(pageLogs)
-          : Promise.all(pageLogs).then((logs) =>
+          ? Promise.all(state.logs)
+          : Promise.all(state.logs).then((logs) =>
               logs.map(({ source, message }) => ({ source, message }))
             )
+      ) as Promise<
+        T extends true
+          ? { source: string; message: string; args: unknown[] }[]
+          : { source: string; message: string }[]
+      >
       // TODO: Starting with TypeScript 5.8 we might not need this type cast.
-    ) as Promise<
-      T extends true
-        ? { source: string; message: string; args: unknown[] }[]
-        : { source: string; message: string }[]
-    >
-  }
-
-  async websocketFrames() {
-    return this.startChain(() => websocketFrames)
-  }
-
-  async url() {
-    return this.startChain(() => page.url())
-  }
-
-  async waitForIdleNetwork() {
-    return this.startOrPreserveChain(() => {
-      return page.waitForLoadState('networkidle')
     })
   }
 
+  async websocketFrames() {
+    return this.startChain(() => this.getReadyState().websocketFrames)
+  }
+
+  async url() {
+    return this.startChain(() => this.page.url())
+  }
+
+  async waitForIdleNetwork() {
+    return this.startOrPreserveChain(() =>
+      this.page.waitForLoadState('networkidle')
+    )
+  }
+
   locateRedbox(): Locator {
-    return page.locator(
+    return this.page.locator(
       'nextjs-portal [aria-labelledby="nextjs__container_errors_label"]'
     )
   }
 
   locateDevToolsIndicator(): Locator {
-    return page.locator('nextjs-portal [data-nextjs-dev-tools-button]')
+    return this.page.locator('nextjs-portal [data-nextjs-dev-tools-button]')
   }
 
   /** A call that expects to be chained after a previous call, because it needs its value. */
