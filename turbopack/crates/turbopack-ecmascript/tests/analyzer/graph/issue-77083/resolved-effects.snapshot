@@ -1,0 +1,11 @@
+0 -> 1 conditional = ???*0*
+- *0* labeled statement
+  ⚠️  This value might have side effects
+
+0 -> 3 call = module<./assert, {}>["assert"](2, 2)
+
+0 -> 5 call = module<./assert, {}>["assert"](3, 3)
+
+0 -> 6 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
