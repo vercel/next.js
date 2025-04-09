@@ -1507,7 +1507,8 @@ impl NextConfig {
         // Temporarily always enable client source maps as tests regress.
         // TODO: Respect both `self.experimental.turbopack_source_maps` and
         //       `self.production_browser_source_maps`
-        Ok(Vc::cell(true))
+        let source_maps = self.experimental.turbopack_source_maps;
+        Ok(Vc::cell(source_maps.unwrap_or(true)))
     }
 
     #[turbo_tasks::function]
