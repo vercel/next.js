@@ -1703,6 +1703,12 @@ impl VisitAstPath for Analyzer<'_> {
             self.visit_expr(test, &mut ast_path);
         }
 
+        if let Some(update) = &n.update {
+            let mut ast_path =
+                ast_path.with_guard(AstParentNodeRef::ForStmt(n, ForStmtField::Update));
+            self.visit_expr(update, &mut ast_path);
+        }
+
         let mut ast_path = ast_path.with_guard(AstParentNodeRef::ForStmt(n, ForStmtField::Body));
         self.visit_stmt(&n.body, &mut ast_path);
         self.end_early_return_block();
@@ -1727,7 +1733,7 @@ impl VisitAstPath for Analyzer<'_> {
             // `Some(JsValue::iteratedKeys(Box::new(self.eval_context.eval(&n.right))))`
             self.current_value = Some(JsValue::unknown_empty(
                 false,
-                "for-in currently not analyzed",
+                "for-in variable currently not analyzed",
             ));
             self.visit_for_head(&n.left, &mut ast_path);
         }
