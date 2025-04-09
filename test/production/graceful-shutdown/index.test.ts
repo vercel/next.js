@@ -33,7 +33,7 @@ describe('Graceful Shutdown', () => {
 
     runTests(true)
   })
-  ;(process.env.TURBOPACK && !process.env.TURBOPACK_BUILD
+  ;(process.env.IS_TURBOPACK_TEST && !process.env.TURBOPACK_BUILD
     ? describe.skip
     : describe)('production (next start)', () => {
     beforeAll(async () => {
@@ -47,7 +47,7 @@ describe('Graceful Shutdown', () => {
 
     runTests()
   })
-  ;(process.env.TURBOPACK && !process.env.TURBOPACK_BUILD
+  ;(process.env.IS_TURBOPACK_TEST && !process.env.TURBOPACK_BUILD
     ? describe.skip
     : describe)('production (standalone mode)', () => {
     let next: NextInstance

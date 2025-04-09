@@ -12,6 +12,7 @@ function runTests() {
     const jsFiles = browserFiles.filter(
       (file) => file.endsWith('.js') && file.includes('/pages/')
     )
+    expect(jsFiles).not.toBeEmpty()
 
     jsFiles.forEach((file) => {
       expect(browserFiles.includes(`${file}.map`)).toBe(true)

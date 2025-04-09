@@ -115,7 +115,7 @@ const runTests = (isDev) => {
 
       // Script is inserted before NextScripts
       let scriptCount
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         // Turbopack generates different script names
         if (isDev) {
           scriptCount = $(
@@ -152,7 +152,7 @@ const runTests = (isDev) => {
 
       // Script is inserted before NextScripts
       let scriptCount
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         // Turbopack generates different script names
         if (isDev) {
           scriptCount = $(

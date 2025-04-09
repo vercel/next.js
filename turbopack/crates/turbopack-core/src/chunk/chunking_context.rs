@@ -31,14 +31,26 @@ use crate::{
     DeterministicHash,
     NonLocalValue,
 )]
+#[serde(rename_all = "kebab-case")]
+pub enum MangleType {
+    OptimalSize,
+    Deterministic,
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Debug, TaskInput, Clone, Copy, Hash, DeterministicHash)]
 pub enum MinifyType {
-    Minify { mangle: bool },
+    // TODO instead of adding a new property here,
+    // refactor that to Minify(MinifyOptions) to allow defaults on MinifyOptions
+    Minify { mangle: Option<MangleType> },
     NoMinify,
 }
 
 impl Default for MinifyType {
     fn default() -> Self {
-        Self::Minify { mangle: true }
+        Self::Minify {
+            mangle: Some(MangleType::OptimalSize),
+        }
     }
 }
 
@@ -183,6 +195,10 @@ pub trait ChunkingContext {
 
     fn is_tracing_enabled(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
+    }
+
+    fn minify_type(self: Vc<Self>) -> Vc<MinifyType> {
+        MinifyType::NoMinify.cell()
     }
 
     fn async_loader_chunk_item(

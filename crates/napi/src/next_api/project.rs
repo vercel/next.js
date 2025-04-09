@@ -9,7 +9,8 @@ use napi::{
 use next_api::{
     entrypoints::Entrypoints,
     operation::{
-        EntrypointsOperation, InstrumentationOperation, MiddlewareOperation, RouteOperation,
+        EntrypointsOperation, InstrumentationOperation, MiddlewareOperation, OptionEndpoint,
+        RouteOperation,
     },
     project::{
         DefineEnv, DraftModeOptions, PartialProjectOptions, Project, ProjectContainer,
@@ -580,7 +581,7 @@ pub struct NapiRoute {
 
 impl NapiRoute {
     fn from_route(pathname: String, value: RouteOperation, turbo_tasks: &NextTurboTasks) -> Self {
-        let convert_endpoint = |endpoint: OperationVc<Box<dyn Endpoint>>| {
+        let convert_endpoint = |endpoint: OperationVc<OptionEndpoint>| {
             Some(External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
                 endpoint,

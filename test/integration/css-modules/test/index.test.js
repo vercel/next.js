@@ -58,7 +58,7 @@ describe('Basic CSS Module Support', () => {
           res.text()
         )
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(`".index-module__VJHdSq__redText{color:red}"`)
@@ -81,7 +81,7 @@ describe('Basic CSS Module Support', () => {
         expect(cssSheet.length).toBe(1)
         expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/.*\.css$/)
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect($('#verify-red').attr('class')).toMatchInlineSnapshot(
             `"index-module__VJHdSq__redText"`
           )
@@ -133,7 +133,7 @@ describe('3rd Party CSS Module Support', () => {
         const cssContent = await fetchViaHTTP(appPort, stylesheet).then((res) =>
           res.text()
         )
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
@@ -160,7 +160,7 @@ describe('3rd Party CSS Module Support', () => {
         expect(cssSheet.length).toBe(1)
         expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/.*\.css$/)
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect($('#verify-div').attr('class')).toMatchInlineSnapshot(
             `"index-module__jAE1EW__foo"`
           )
@@ -375,7 +375,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
         const $ = cheerio.load(content)
 
         const cssPreload = $('#nm-div')
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(cssPreload.text()).toMatchInlineSnapshot(
             `"{"message":"Why hello there","default":{"message":"Why hello there"}} {"redText":"index-module__kwuKnq__redText","default":{"redText":"index-module__kwuKnq__redText"}}"`
           )
@@ -398,7 +398,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
           res.text()
         )
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(`".index-module__kwuKnq__redText{color:red}"`)
@@ -460,7 +460,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
           res.text()
         )
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
@@ -518,7 +518,7 @@ describe('CSS Module Composes Usage (Basic)', () => {
           res.text()
         )
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
@@ -574,7 +574,7 @@ describe('CSS Module Composes Usage (External)', () => {
           res.text()
         )
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
@@ -639,7 +639,7 @@ describe('Dynamic Route CSS Module Usage', () => {
         const cssContent = await fetchViaHTTP(appPort, stylesheet).then((res) =>
           res.text()
         )
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
@@ -705,13 +705,12 @@ describe('Catch-all Route CSS Module Usage', () => {
           res.text()
         )
 
-        if (process.env.TURBOPACK) {
-          expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
+        if (process.env.IS_TURBOPACK_TEST) {
+          expect(cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim())
             .toMatchInlineSnapshot(`
-            ".index-module___rV4CG__home{background:red}
+           ".index-module___rV4CG__home{background:red}
 
-
-            .\\35 5css-module__qe774W__home{color:green}"
+           .\\35 5css-module__qe774W__home{color:green}"
           `)
         } else {
           expect(

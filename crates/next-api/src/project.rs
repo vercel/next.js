@@ -11,7 +11,7 @@ use next_core::{
     middleware::middleware_files,
     mode::NextMode,
     next_client::{get_client_chunking_context, get_client_compile_time_info},
-    next_config::{JsConfig, ModuleIdStrategy as ModuleIdStrategyConfig, NextConfig},
+    next_config::{JsConfig, ModuleIds as ModuleIdStrategyConfig, NextConfig},
     next_server::{
         get_server_chunking_context, get_server_chunking_context_with_client_assets,
         get_server_compile_time_info, get_server_module_options_context,
@@ -773,7 +773,7 @@ impl Project {
                 node_build_environment().to_resolved().await?,
                 next_mode.runtime_type(),
             )
-            .source_maps(if *self.next_config().turbo_source_maps().await? {
+            .source_maps(if *self.next_config().server_source_maps().await? {
                 SourceMapsType::Full
             } else {
                 SourceMapsType::None
@@ -987,9 +987,9 @@ impl Project {
             self.next_config().chunk_suffix_path(),
             self.client_compile_time_info().environment(),
             self.next_mode(),
-            self.module_id_strategy(),
+            self.module_ids(),
             self.next_config().turbo_minify(self.next_mode()),
-            self.next_config().turbo_source_maps(),
+            self.next_config().client_source_maps(self.next_mode()),
             self.no_mangling(),
         )
     }
@@ -1008,9 +1008,9 @@ impl Project {
                 self.client_relative_path(),
                 self.next_config().computed_asset_prefix(),
                 self.server_compile_time_info().environment(),
-                self.module_id_strategy(),
+                self.module_ids(),
                 self.next_config().turbo_minify(self.next_mode()),
-                self.next_config().turbo_source_maps(),
+                self.next_config().server_source_maps(),
                 self.no_mangling(),
             )
         } else {
@@ -1020,9 +1020,9 @@ impl Project {
                 self.node_root(),
                 self.node_root_to_root_path(),
                 self.server_compile_time_info().environment(),
-                self.module_id_strategy(),
+                self.module_ids(),
                 self.next_config().turbo_minify(self.next_mode()),
-                self.next_config().turbo_source_maps(),
+                self.next_config().server_source_maps(),
                 self.no_mangling(),
             )
         }
@@ -1042,9 +1042,9 @@ impl Project {
                 self.client_relative_path(),
                 self.next_config().computed_asset_prefix(),
                 self.edge_compile_time_info().environment(),
-                self.module_id_strategy(),
+                self.module_ids(),
                 self.next_config().turbo_minify(self.next_mode()),
-                self.next_config().turbo_source_maps(),
+                self.next_config().server_source_maps(),
                 self.no_mangling(),
             )
         } else {
@@ -1054,9 +1054,9 @@ impl Project {
                 self.node_root(),
                 self.node_root_to_root_path(),
                 self.edge_compile_time_info().environment(),
-                self.module_id_strategy(),
+                self.module_ids(),
                 self.next_config().turbo_minify(self.next_mode()),
-                self.next_config().turbo_source_maps(),
+                self.next_config().server_source_maps(),
                 self.no_mangling(),
             )
         }
@@ -1709,17 +1709,16 @@ impl Project {
 
     /// Gets the module id strategy for the project.
     #[turbo_tasks::function]
-    pub async fn module_id_strategy(self: Vc<Self>) -> Result<Vc<Box<dyn ModuleIdStrategy>>> {
-        let module_id_strategy = if let Some(module_id_strategy) =
-            &*self.next_config().module_id_strategy_config().await?
-        {
-            *module_id_strategy
-        } else {
-            match *self.next_mode().await? {
-                NextMode::Development => ModuleIdStrategyConfig::Named,
-                NextMode::Build => ModuleIdStrategyConfig::Deterministic,
-            }
-        };
+    pub async fn module_ids(self: Vc<Self>) -> Result<Vc<Box<dyn ModuleIdStrategy>>> {
+        let module_id_strategy =
+            if let Some(module_id_strategy) = &*self.next_config().module_ids().await? {
+                *module_id_strategy
+            } else {
+                match *self.next_mode().await? {
+                    NextMode::Development => ModuleIdStrategyConfig::Named,
+                    NextMode::Build => ModuleIdStrategyConfig::Deterministic,
+                }
+            };
 
         match module_id_strategy {
             ModuleIdStrategyConfig::Named => Ok(Vc::upcast(DevModuleIdStrategy::new())),

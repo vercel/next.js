@@ -13,7 +13,15 @@ Add the protocol, hostname, port, and pathname to the `images.remotePatterns` co
 ```js filename="next.config.js"
 module.exports = {
   images: {
-    remotePatterns: [new URL('https://assets.example.com/account123/**')],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'assets.example.com',
+        port: '',
+        pathname: '/account123/**',
+        search: '',
+      },
+    ],
   },
 }
 ```

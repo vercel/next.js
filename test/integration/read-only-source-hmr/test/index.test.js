@@ -65,7 +65,7 @@ describe('Read-only source HMR', () => {
       const originalContent = await fs.readFile(pagePath, 'utf8')
       const editedContent = originalContent.replace('Hello World', 'COOL page')
 
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         // TODO Turbopack needs a bit to start watching
         await new Promise((resolve) => setTimeout(resolve, 500))
       }
@@ -91,7 +91,7 @@ describe('Read-only source HMR', () => {
 
       const originalContent = await fs.readFile(pagePath, 'utf8')
 
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         // TODO Turbopack needs a bit to start watching
         await new Promise((resolve) => setTimeout(resolve, 500))
       }
