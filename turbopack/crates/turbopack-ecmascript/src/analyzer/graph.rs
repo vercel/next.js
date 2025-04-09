@@ -2162,7 +2162,7 @@ impl VisitAstPath for Analyzer<'_> {
             kind: Box::new(ConditionalKind::Labeled {
                 body: Box::new(EffectsBlock {
                     effects,
-                    range: AstPathRange::StartAfter(as_parent_path(ast_path)),
+                    range: AstPathRange::Exact(as_parent_path(ast_path)),
                 }),
             }),
             ast_path: as_parent_path(ast_path),
