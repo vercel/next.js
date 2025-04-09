@@ -179,7 +179,9 @@ export class BrowserContextWrapper {
   }
 
   async reset() {
-    // TODO: clean up context before reusing it
+    const { context } = this
+    await closeBrowserContextPages(context)
+    await cleanupBrowserContext(context)
   }
 
   async close() {
@@ -474,28 +476,15 @@ export class Playwright<TCurrent = undefined> {
     }
     await this.context.tracer?.endTrace()
     await this.reset()
+    await this.context.reset()
   }
 
   async reset() {
-    const state = this._pageState
-    if (!state) {
+    if (!this._pageState) {
       return
     }
-    const { page } = state
-    if (!page.isClosed()) {
-      await page.close()
-    }
     this._pageState = null
-
-    // clean-up existing pages
-    const { context } = this
-    await Promise.all(
-      context.context.pages().map(async (oldPage) => {
-        if (!oldPage.isClosed()) {
-          await oldPage.close()
-        }
-      })
-    )
+    await closeBrowserContextPages(this.context.context)
   }
 
   async get(url: string, opts?: NavigationOptions): Promise<void> {
@@ -1013,4 +1002,31 @@ export class Playwright<TCurrent = undefined> {
       get,
     })
   }
+}
+
+async function cleanupBrowserContext(context: BrowserContext) {
+  // Clean up the existing browser context as best we can.
+  await Promise.all([
+    // NOTE: this uses the patched version installed in patchBrowserContextRemoveAllListeners
+    context.removeAllListeners(undefined, { behavior: 'wait' }),
+    context.unrouteAll({ behavior: 'wait' }),
+    context.clearCookies(),
+    context.clearPermissions(),
+  ])
+}
+
+async function closeBrowserContextPages(context: BrowserContext) {
+  const pages = context.pages()
+  await Promise.all(pages.map((page) => closePage(page)))
+}
+
+async function closePage(page: Page) {
+  if (page.isClosed()) {
+    return
+  }
+  await Promise.all([
+    page.removeAllListeners(undefined, { behavior: 'wait' }),
+    page.unrouteAll({ behavior: 'wait' }),
+  ])
+  await page.close()
 }
