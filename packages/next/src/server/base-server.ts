@@ -1131,6 +1131,8 @@ export default abstract class Server<
           matchedPath = this.normalize(matchedPath)
           const normalizedUrlPath = this.stripNextDataPath(urlPathname)
 
+          matchedPath = denormalizePagePath(matchedPath)
+
           // Perform locale detection and normalization.
           const localeAnalysisResult = this.i18nProvider?.analyze(matchedPath, {
             defaultLocale,
@@ -1150,9 +1152,6 @@ export default abstract class Server<
               removeRequestMeta(req, 'localeInferredFromDefault')
             }
           }
-
-          // TODO: check if this is needed any more?
-          matchedPath = denormalizePagePath(matchedPath)
 
           let srcPathname = matchedPath
           let pageIsDynamic = isDynamicRoute(srcPathname)
