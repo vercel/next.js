@@ -421,12 +421,16 @@ export class Playwright<TCurrent = undefined> {
   ) {}
 
   private _pageState: PageState | null = null
+  private state: 'uninitialized' | 'loading' | 'ready' | 'closing' | 'closed' =
+    'uninitialized'
+
+  isClosed() {
+    return this.state === 'closed'
+  }
 
   private getReadyState(): PageState {
-    if (this._pageState === null) {
-      throw new Error('No page available')
-    }
-    return this._pageState
+    this.assertReady()
+    return this._pageState!
   }
 
   get page(): Page {
@@ -434,9 +438,15 @@ export class Playwright<TCurrent = undefined> {
     return state.page
   }
 
-  private eventCallbacks: Record<EventType, Set<(...args: any[]) => void>> = {
-    request: new Set(),
-    response: new Set(),
+  private assertReady() {
+    if (this.state !== 'ready') {
+      throw new Error('Cannot call method while playwright is ' + this.state)
+    }
+    if (!this._pageState) {
+      throw new Error(
+        'Invariant: page state is unset despite being in a ready state'
+      )
+    }
   }
 
   on(
@@ -448,14 +458,13 @@ export class Playwright<TCurrent = undefined> {
     cb: (request: PlaywrightResponse) => void | Promise<void>
   ): void
   on(event: EventType, cb: (...args: any[]) => void) {
-    if (!this.eventCallbacks[event]) {
-      throw new Error(
-        `Invalid event passed to browser.on, received ${event}. Valid events are ${Object.keys(
-          this.eventCallbacks
-        )}`
-      )
-    }
-    this.eventCallbacks[event]?.add(cb)
+    this.assertReady()
+    const { context } = this
+    context.context.on(
+      // @ts-expect-error `context.on` is an overloaded function https://github.com/microsoft/TypeScript/issues/14107
+      event,
+      cb
+    )
   }
 
   off(
@@ -467,16 +476,34 @@ export class Playwright<TCurrent = undefined> {
     cb: (request: PlaywrightResponse) => void | Promise<void>
   ): void
   off(event: EventType, cb: (...args: any[]) => void) {
-    this.eventCallbacks[event]?.delete(cb)
+    this.assertReady()
+    const { context } = this
+    context.context.off(
+      // @ts-expect-error `context.on` is an overloaded function https://github.com/microsoft/TypeScript/issues/14107
+      event,
+      cb
+    )
   }
 
   async close(): Promise<void> {
-    if (!this._pageState) {
+    if (this.state === 'uninitialized') {
+      // Somehow, we got closed before we were initialized.
+      return
+    } else if (this.state === 'loading') {
+      throw new Error('Cannot close Playwright while it is still loading')
+    } else if (this.state === 'closing' || this.state === 'closed') {
+      console.error('Playwright is already ' + this.state)
       return
     }
-    await this.context.tracer?.endTrace()
-    await this.reset()
-    await this.context.reset()
+
+    this.state = 'closing'
+    try {
+      await this.context.tracer?.endTrace()
+      await this.reset()
+      await this.context.reset()
+    } finally {
+      this.state = 'closed'
+    }
   }
 
   async reset() {
@@ -485,6 +512,7 @@ export class Playwright<TCurrent = undefined> {
     }
     this._pageState = null
     await closeBrowserContextPages(this.context.context)
+    this.state = 'uninitialized'
   }
 
   async get(url: string, opts?: NavigationOptions): Promise<void> {
@@ -507,7 +535,8 @@ export class Playwright<TCurrent = undefined> {
     } & NavigationOptions
   ) {
     url = this.resolveUrl(url)
-    if (this._pageState) {
+
+    if (this.state !== 'uninitialized') {
       // loadPage may be called multiple times within a single test.
       // in that case, we need to reset.
       await this.reset()
@@ -554,12 +583,6 @@ export class Playwright<TCurrent = undefined> {
             args: [],
           })
         }
-      })
-      page.on('request', (req) => {
-        this.eventCallbacks.request.forEach((cb) => cb(req))
-      })
-      page.on('response', (res) => {
-        this.eventCallbacks.response.forEach((cb) => cb(res))
       })
 
       if (opts?.disableCache) {
@@ -608,8 +631,17 @@ export class Playwright<TCurrent = undefined> {
       websocketFrames: [],
     }
 
-    await setupPage(newPageState)
+    this.state = 'loading'
+
+    try {
+      await setupPage(newPageState)
+    } catch (err) {
+      this.state = 'uninitialized'
+      throw err
+    }
+
     this._pageState = newPageState
+    this.state = 'ready'
 
     await this.get(url, {
       waitHydration: opts?.waitHydration,
@@ -722,20 +754,22 @@ export class Playwright<TCurrent = undefined> {
     )
   }
   addCookie(opts: { name: string; value: string }) {
-    return this.startOrPreserveChain(async () =>
-      this.context.context.addCookies([
+    return this.startOrPreserveChain(async () => {
+      this.assertReady()
+      await this.context.context.addCookies([
         {
           path: '/',
           domain: await this.page.evaluate('window.location.hostname'),
           ...opts,
         },
       ])
-    )
+    })
   }
   deleteCookies() {
-    return this.startOrPreserveChain(async () =>
-      this.context.context.clearCookies()
-    )
+    return this.startOrPreserveChain(async () => {
+      this.assertReady()
+      await this.context.context.clearCookies()
+    })
   }
 
   private wrapElement(el: ElementHandle, selector: string): ElementHandleExt {
@@ -948,6 +982,8 @@ export class Playwright<TCurrent = undefined> {
     mustBeChained: boolean,
     nextCall: (current: TCurrent) => TNext | Promise<TNext>
   ): Playwright<TNext> & Promise<TNext> {
+    this.assertReady()
+
     const syncError = new Error('next-browser-base-chain-error')
 
     // If `this` is actually a proxy created by a previous chained call, it'll act like it has a `promise` property.
@@ -973,14 +1009,19 @@ export class Playwright<TCurrent = undefined> {
       }
     }
 
-    const promise = currentPromise.then(nextCall).catch((reason: unknown) => {
-      // TODO: only patch the stacktrace if the sync callstack is missing from it
-      if (reason && typeof reason === 'object' && 'stack' in reason) {
-        const syncCallStack = syncError.stack!.split(syncError.message)[1]
-        reason.stack += `\n${syncCallStack}`
-      }
-      throw reason
-    })
+    const promise = currentPromise
+      .then((value) => {
+        this.assertReady()
+        return nextCall(value)
+      })
+      .catch((reason: unknown) => {
+        // TODO: only patch the stacktrace if the sync callstack is missing from it
+        if (reason && typeof reason === 'object' && 'stack' in reason) {
+          const syncCallStack = syncError.stack!.split(syncError.message)[1]
+          reason.stack += `\n${syncCallStack}`
+        }
+        throw reason
+      })
 
     function get(target: Playwright<TCurrent>, p: string | symbol): any {
       switch (p) {
