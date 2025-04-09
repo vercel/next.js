@@ -1,21 +1,18 @@
 ---
-title: turbo
+title: turbopack
 description: Configure Next.js with Turbopack-specific options
-version: experimental
 ---
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-The `turbo` option lets you customize [Turbopack](/docs/app/api-reference/turbopack) to transform different files and change how modules are resolved.
+The `turbopack` option lets you customize [Turbopack](/docs/app/api-reference/turbopack) to transform different files and change how modules are resolved.
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  experimental: {
-    turbo: {
-      // ...
-    },
+  turbopack: {
+    // ...
   },
 }
 
@@ -25,10 +22,8 @@ export default nextConfig
 ```js filename="next.config.js" switcher
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    turbo: {
-      // ...
-    },
+  turbopack: {
+    // ...
   },
 }
 
@@ -47,12 +42,10 @@ The following options are available for the `turbo` configuration:
 
 | Option              | Description                                                             |
 | ------------------- | ----------------------------------------------------------------------- |
+| `root`              | Sets the application root directory. Should be an absolute path.        |
 | `rules`             | List of supported webpack loaders to apply when running with Turbopack. |
 | `resolveAlias`      | Map aliased imports to modules to load in their place.                  |
 | `resolveExtensions` | List of extensions to resolve when importing files.                     |
-| `moduleIds`         | Assign module IDs                                                       |
-| `treeShaking`       | Enable tree shaking for the turbopack dev server and build.             |
-| `memoryLimit`       | A target memory limit for turbo, in bytes.                              |
 
 ### Supported loaders
 
@@ -68,6 +61,29 @@ The following loaders have been tested to work with Turbopack's webpack loader i
 
 ## Examples
 
+### Root directory
+
+Turbopack uses the root directory to resolve modules. Files outside of the project root are not resolved.
+
+Next.js automatically detects the root directory of your project. It does so by looking for one of these files:
+
+- `pnpm-lock.yaml`
+- `package-lock.json`
+- `yarn.lock`
+- `bun.lock`
+- `bun.lockb`
+
+If you have a different project structure, for example if you don't use workspaces, you can manually set the `root` option:
+
+```js filename="next.config.js"
+const path = require('path')
+module.exports = {
+  turbopack: {
+    root: path.join(__dirname, '..'),
+  },
+}
+```
+
 ### Configuring webpack loaders
 
 If you need loader support beyond what's built in, many webpack loaders already work with Turbopack. There are currently some limitations:
@@ -82,13 +98,11 @@ Here is an example below using the [`@svgr/webpack`](https://www.npmjs.com/packa
 
 ```js filename="next.config.js"
 module.exports = {
-  experimental: {
-    turbo: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
+  turbopack: {
+    rules: {
+      '*.svg': {
+        loaders: ['@svgr/webpack'],
+        as: '*.js',
       },
     },
   },
@@ -105,12 +119,10 @@ To configure resolve aliases, map imported patterns to their new destination in 
 
 ```js filename="next.config.js"
 module.exports = {
-  experimental: {
-    turbo: {
-      resolveAlias: {
-        underscore: 'lodash',
-        mocha: { browser: 'mocha/browser-entry.js' },
-      },
+  turbopack: {
+    resolveAlias: {
+      underscore: 'lodash',
+      mocha: { browser: 'mocha/browser-entry.js' },
     },
   },
 }
@@ -128,18 +140,8 @@ To configure resolve extensions, use the `resolveExtensions` field in `next.conf
 
 ```js filename="next.config.js"
 module.exports = {
-  experimental: {
-    turbo: {
-      resolveExtensions: [
-        '.mdx',
-        '.tsx',
-        '.ts',
-        '.jsx',
-        '.js',
-        '.mjs',
-        '.json',
-      ],
-    },
+  turbopack: {
+    resolveExtensions: ['.mdx', '.tsx', '.ts', '.jsx', '.js', '.mjs', '.json'],
   },
 }
 ```
@@ -148,27 +150,9 @@ This overwrites the original resolve extensions with the provided list. Make sur
 
 For more information and guidance for how to migrate your app to Turbopack from webpack, see [Turbopack's documentation on webpack compatibility](https://turbo.build/pack/docs/migrating-from-webpack).
 
-### Assigning module IDs
-
-Turbopack currently supports two strategies for assigning module IDs:
-
-- `'named'` assigns readable module IDs based on the module's path and functionality.
-- `'deterministic'` assigns small hashed numeric module IDs, which are mostly consistent between builds and therefore help with long-term caching.
-
-If not set, Turbopack will use `'named'` for development builds and `'deterministic'` for production builds.
-
-To configure the module IDs strategy, use the `moduleIds` field in `next.config.js`:
-
-```js filename="next.config.js"
-module.exports = {
-  turbo: {
-    moduleIds: 'deterministic',
-  },
-}
-```
-
 ## Version History
 
-| Version  | Changes                          |
-| -------- | -------------------------------- |
-| `13.0.0` | `experimental.turbo` introduced. |
+| Version  | Changes                                         |
+| -------- | ----------------------------------------------- |
+| `15.3.0` | `experimental.turbo` is changed to `turbopack`. |
+| `13.0.0` | `experimental.turbo` introduced.                |
