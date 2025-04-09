@@ -329,16 +329,11 @@ describe('Prerender Preview Mode', () => {
         expect(cookies.length).toBe(2)
       })
 
-      /** @type {import('next-webdriver').Chain} */
-      let browser
-      it('should start the client-side browser', async () => {
-        browser = await webdriver(
+      it('should fetch preview data on SSR', async () => {
+        const browser = await webdriver(
           appPort,
           '/api/preview?' + qs.stringify({ client: 'mode' })
         )
-      })
-
-      it('should fetch preview data on SSR', async () => {
         await browser.get('/')
         await browser.waitForElementByCss('#props-pre')
         // expect(await browser.elementById('props-pre').text()).toBe('Has No Props')
@@ -349,6 +344,10 @@ describe('Prerender Preview Mode', () => {
       })
 
       it('should fetch preview data on CST', async () => {
+        const browser = await webdriver(
+          appPort,
+          '/api/preview?' + qs.stringify({ client: 'mode' })
+        )
         await browser.get('/to-index')
         await browser.waitForElementByCss('#to-index')
         await browser.eval('window.itdidnotrefresh = "hello"')
@@ -361,6 +360,10 @@ describe('Prerender Preview Mode', () => {
       })
 
       it('should fetch prerendered data', async () => {
+        const browser = await webdriver(
+          appPort,
+          '/api/preview?' + qs.stringify({ client: 'mode' })
+        )
         await browser.get('/api/reset')
 
         await browser.get('/')
@@ -371,6 +374,10 @@ describe('Prerender Preview Mode', () => {
       })
 
       it('should fetch live static props with preview active', async () => {
+        const browser = await webdriver(
+          appPort,
+          '/api/preview?' + qs.stringify({ client: 'mode' })
+        )
         await browser.get('/')
 
         await browser.waitForElementByCss('#ssg-random')
@@ -389,7 +396,6 @@ describe('Prerender Preview Mode', () => {
       })
 
       afterAll(async () => {
-        await browser.close()
         await killApp(app)
       })
     }

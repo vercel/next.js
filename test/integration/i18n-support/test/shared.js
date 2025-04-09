@@ -2592,7 +2592,7 @@ export function runTests(ctx) {
       )
 
       // wait for the fallback to be generated/stored to ISR cache
-      browser.waitForElementByCss('#gsp')
+      await browser.waitForElementByCss('#gsp')
 
       // now make sure we're serving the previously generated file from the cache
       const html = await renderViaHTTP(

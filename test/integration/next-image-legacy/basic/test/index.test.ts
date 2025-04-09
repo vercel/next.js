@@ -8,22 +8,34 @@ import {
   nextStart,
   waitFor,
 } from 'next-test-utils'
-import webdriver from 'next-webdriver'
+import webdriver, { Playwright } from 'next-webdriver'
 import { join } from 'path'
 
 const appDir = join(__dirname, '../')
 let appPort
 let app
-let browser
 const emptyImage =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
-function runTests() {
+function runTests(
+  href: string,
+  setupPage?: (browser: Playwright) => Promise<void>
+) {
+  const setupBrowser = async () => {
+    const browser = await webdriver(appPort, href)
+    if (setupPage) {
+      await setupPage(browser)
+    }
+    return browser
+  }
+
   it('should render an image tag', async () => {
+    const browser = await setupBrowser()
     await waitFor(1000)
     expect(await browser.hasElementByCssSelector('img')).toBeTruthy()
   })
   it('should support passing through arbitrary attributes', async () => {
+    const browser = await setupBrowser()
     expect(
       await browser.hasElementByCssSelector('img#attribute-test')
     ).toBeTruthy()
@@ -32,11 +44,13 @@ function runTests() {
     ).toBe('demo-value')
   })
   it('should modify src with the loader', async () => {
+    const browser = await setupBrowser()
     expect(await browser.elementById('basic-image').getAttribute('src')).toBe(
       'https://example.com/myaccount/foo.jpg?auto=format&fit=max&w=1024&q=60'
     )
   })
   it('should correctly generate src even if preceding slash is included in prop', async () => {
+    const browser = await setupBrowser()
     expect(
       await browser.elementById('preceding-slash-image').getAttribute('src')
     ).toBe(
@@ -44,6 +58,7 @@ function runTests() {
     )
   })
   it('should add a srcset based on the loader', async () => {
+    const browser = await setupBrowser()
     expect(
       await browser.elementById('basic-image').getAttribute('srcset')
     ).toBe(
@@ -51,6 +66,7 @@ function runTests() {
     )
   })
   it('should add a srcset even with preceding slash in prop', async () => {
+    const browser = await setupBrowser()
     expect(
       await browser.elementById('preceding-slash-image').getAttribute('srcset')
     ).toBe(
@@ -58,6 +74,7 @@ function runTests() {
     )
   })
   it('should use imageSizes when width matches, not deviceSizes from next.config.js', async () => {
+    const browser = await setupBrowser()
     expect(await browser.elementById('icon-image-16').getAttribute('src')).toBe(
       'https://example.com/myaccount/icon.png?auto=format&fit=max&w=32'
     )
@@ -76,26 +93,31 @@ function runTests() {
     )
   })
   it('should support the unoptimized attribute', async () => {
+    const browser = await setupBrowser()
     expect(
       await browser.elementById('unoptimized-image').getAttribute('src')
     ).toBe('https://arbitraryurl.com/foo.jpg')
   })
   it('should not add a srcset if unoptimized attribute present', async () => {
+    const browser = await setupBrowser()
     expect(
       await browser.elementById('unoptimized-image').getAttribute('srcset')
     ).toBeFalsy()
   })
   it('should keep auto parameter if already set', async () => {
+    const browser = await setupBrowser()
     expect(
       await browser.elementById('image-with-param-auto').getAttribute('src')
     ).toBe('https://example.com/myaccount/foo.png?auto=compress&fit=max&w=1024')
   })
   it('should keep width parameter if already set', async () => {
+    const browser = await setupBrowser()
     expect(
       await browser.elementById('image-with-param-width').getAttribute('src')
     ).toBe('https://example.com/myaccount/foo.png?auto=format&w=500&fit=max')
   })
   it('should keep fit parameter if already set', async () => {
+    const browser = await setupBrowser()
     expect(
       await browser.elementById('image-with-param-fit').getAttribute('src')
     ).toBe(
@@ -104,8 +126,20 @@ function runTests() {
   })
 }
 
-function lazyLoadingTests() {
+function lazyLoadingTests(
+  href: string,
+  setupPage?: (browser: Playwright) => Promise<void>
+) {
+  const setupBrowser = async () => {
+    const browser = await webdriver(appPort, href)
+    if (setupPage) {
+      await setupPage(browser)
+    }
+    return browser
+  }
+
   it('should have loaded the first image immediately', async () => {
+    const browser = await setupBrowser()
     expect(await browser.elementById('lazy-top').getAttribute('src')).toBe(
       'https://example.com/myaccount/lazy1.jpg?auto=format&fit=max&w=2000'
     )
@@ -114,6 +148,7 @@ function lazyLoadingTests() {
     )
   })
   it('should not have loaded the second image immediately', async () => {
+    const browser = await setupBrowser()
     expect(await browser.elementById('lazy-mid').getAttribute('src')).toBe(
       emptyImage
     )
@@ -122,11 +157,13 @@ function lazyLoadingTests() {
     ).toBeFalsy()
   })
   it('should pass through classes on a lazy loaded image', async () => {
+    const browser = await setupBrowser()
     expect(await browser.elementById('lazy-mid').getAttribute('class')).toBe(
       'exampleclass'
     )
   })
   it('should load the second image after scrolling down', async () => {
+    const browser = await setupBrowser()
     let viewportHeight = await browser.eval(`window.innerHeight`)
     let topOfMidImage = await browser.eval(
       `document.getElementById('lazy-mid').parentElement.offsetTop`
@@ -145,6 +182,7 @@ function lazyLoadingTests() {
     }, 'https://example.com/myaccount/lazy2.jpg?auto=format&fit=max&w=480 1x, https://example.com/myaccount/lazy2.jpg?auto=format&fit=max&w=1024 2x')
   })
   it('should not have loaded the third image after scrolling down', async () => {
+    const browser = await setupBrowser()
     expect(await browser.elementById('lazy-bottom').getAttribute('src')).toBe(
       emptyImage
     )
@@ -153,6 +191,7 @@ function lazyLoadingTests() {
     ).toBeFalsy()
   })
   it('should load the third image, which is unoptimized, after scrolling further down', async () => {
+    const browser = await setupBrowser()
     let viewportHeight = await browser.eval(`window.innerHeight`)
     let topOfBottomImage = await browser.eval(
       `document.getElementById('lazy-bottom').parentElement.offsetTop`
@@ -170,6 +209,7 @@ function lazyLoadingTests() {
     ).toBeFalsy()
   })
   it('should load the fourth image lazily after scrolling down', async () => {
+    const browser = await setupBrowser()
     expect(
       await browser.elementById('lazy-without-attribute').getAttribute('src')
     ).toBe(emptyImage)
@@ -196,6 +236,7 @@ function lazyLoadingTests() {
   })
 
   it('should load the fifth image eagerly, without scrolling', async () => {
+    const browser = await setupBrowser()
     expect(await browser.elementById('eager-loading').getAttribute('src')).toBe(
       'https://example.com/myaccount/lazy5.jpg?auto=format&fit=max&w=2000'
     )
@@ -205,6 +246,7 @@ function lazyLoadingTests() {
   })
 
   it('should load the sixth image, which has lazyBoundary property after scrolling down', async () => {
+    const browser = await setupBrowser()
     expect(await browser.elementById('lazy-boundary').getAttribute('src')).toBe(
       emptyImage
     )
@@ -234,7 +276,7 @@ function lazyLoadingTests() {
   })
 }
 
-async function hasPreloadLinkMatchingUrl(url) {
+async function hasPreloadLinkMatchingUrl(browser: Playwright, url: string) {
   const links = await browser.elementsByCss('link[rel=preload][as=image]')
   for (const link of links) {
     const imagesrcset = await link.getAttribute('imagesrcset')
@@ -246,7 +288,7 @@ async function hasPreloadLinkMatchingUrl(url) {
   return false
 }
 
-async function hasImagePreloadBeforeCSSPreload() {
+async function hasImagePreloadBeforeCSSPreload(browser: Playwright) {
   const links = await browser.elementsByCss('link')
   let foundImage = false
   for (const link of links) {
@@ -274,45 +316,50 @@ describe('Image Component Tests', () => {
       })
       afterAll(() => killApp(app))
       describe('SSR Image Component Tests', () => {
-        beforeAll(async () => {
-          browser = await webdriver(appPort, '/')
-        })
-        afterAll(async () => {
-          browser = null
-        })
-        runTests()
+        runTests('/')
+
         it('should add a preload tag for a priority image', async () => {
+          const browser = await webdriver(appPort, '/')
           expect(
             await hasPreloadLinkMatchingUrl(
+              browser,
               'https://example.com/myaccount/withpriority.png?auto=format&fit=max&w=1024&q=60'
             )
           ).toBe(true)
         })
         it('should add a preload tag for a priority image with preceding slash', async () => {
+          const browser = await webdriver(appPort, '/')
           expect(
             await hasPreloadLinkMatchingUrl(
+              browser,
               'https://example.com/myaccount/fooslash.jpg?auto=format&fit=max&w=1024'
             )
           ).toBe(true)
         })
         it('should add a preload tag for a priority image, with arbitrary host', async () => {
+          const browser = await webdriver(appPort, '/')
           expect(
             await hasPreloadLinkMatchingUrl(
+              browser,
               'https://arbitraryurl.com/withpriority3.png'
             )
           ).toBe(true)
         })
         it('should add a preload tag for a priority image, with quality', async () => {
+          const browser = await webdriver(appPort, '/')
           expect(
             await hasPreloadLinkMatchingUrl(
+              browser,
               'https://example.com/myaccount/withpriority.png?auto=format&fit=max&w=1024&q=60'
             )
           ).toBe(true)
         })
         it('should not create any preload tags higher up the page than CSS preload tags', async () => {
-          expect(await hasImagePreloadBeforeCSSPreload()).toBe(false)
+          const browser = await webdriver(appPort, '/')
+          expect(await hasImagePreloadBeforeCSSPreload(browser)).toBe(false)
         })
         it('should add data-nimg data attribute based on layout', async () => {
+          const browser = await webdriver(appPort, '/')
           expect(
             await browser
               .elementById('image-with-sizes')
@@ -323,7 +370,7 @@ describe('Image Component Tests', () => {
           ).toBe('intrinsic')
         })
         it('should not pass config to custom loader prop', async () => {
-          browser = await webdriver(appPort, '/loader-prop')
+          const browser = await webdriver(appPort, '/loader-prop')
           expect(
             await browser.elementById('loader-prop-img').getAttribute('src')
           ).toBe('https://example.vercel.sh/success/foo.jpg?width=1024')
@@ -335,23 +382,26 @@ describe('Image Component Tests', () => {
         })
       })
       describe('Client-side Image Component Tests', () => {
-        beforeAll(async () => {
-          browser = await webdriver(appPort, '/')
+        const setupPage = async (browser: Playwright) => {
           await browser.waitForElementByCss('#clientlink').click()
-        })
-        afterAll(async () => {
-          browser = null
-        })
-        runTests()
+        }
+
+        runTests('/', setupPage)
+
         // FIXME: this test
         it.skip('should NOT add a preload tag for a priority image', async () => {
+          const browser = await webdriver(appPort, '/')
+          await setupPage(browser)
           expect(
             await hasPreloadLinkMatchingUrl(
+              browser,
               'https://example.com/myaccount/withpriorityclient.png?auto=format&fit=max'
             )
           ).toBe(false)
         })
         it('should only be loaded once if `sizes` is set', async () => {
+          const browser = await webdriver(appPort, '/')
+          await setupPage(browser)
           const numRequests = await browser.eval(`(function() {
         const entries = window.performance.getEntries()
         return entries.filter(function(entry) {
@@ -362,7 +412,9 @@ describe('Image Component Tests', () => {
           expect(numRequests).toBe(1)
         })
         describe('Client-side Errors', () => {
-          beforeAll(async () => {
+          it('Should not log an error when an unregistered host is used in production', async () => {
+            const browser = await webdriver(appPort, '/')
+            await setupPage(browser)
             await browser.eval(`(function() {
           window.gotHostError = false
           const origError = console.error
@@ -374,32 +426,19 @@ describe('Image Component Tests', () => {
           }
         })()`)
             await browser.waitForElementByCss('#errorslink').click()
-          })
-          it('Should not log an error when an unregistered host is used in production', async () => {
             const foundError = await browser.eval('window.gotHostError')
             expect(foundError).toBe(false)
           })
         })
       })
       describe('SSR Lazy Loading Tests', () => {
-        beforeAll(async () => {
-          browser = await webdriver(appPort, '/lazy')
-        })
-        afterAll(async () => {
-          browser = null
-        })
-        lazyLoadingTests()
+        lazyLoadingTests('/lazy')
       })
       describe('Client-side Lazy Loading Tests', () => {
-        beforeAll(async () => {
-          browser = await webdriver(appPort, '/')
+        lazyLoadingTests('/', async (browser) => {
           await browser.waitForElementByCss('#lazylink').click()
           await waitFor(500)
         })
-        afterAll(async () => {
-          browser = null
-        })
-        lazyLoadingTests()
       })
     }
   )

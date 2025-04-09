@@ -15,10 +15,10 @@ const appDir = join(__dirname, '../')
 
 let appPort
 let app
-let browser
 
 function runTests() {
   it('should load static unicode image', async () => {
+    const browser = await webdriver(appPort, '/')
     const src = await browser.elementById('static').getAttribute('src')
     expect(src).toMatch(
       /_next%2Fstatic%2Fmedia%2F%C3%A4%C3%B6%C3%BC%C5%A1%C4%8D%C5%99%C3%AD(.+)png/
@@ -29,6 +29,7 @@ function runTests() {
   })
 
   it('should load internal unicode image', async () => {
+    const browser = await webdriver(appPort, '/')
     const src = await browser.elementById('internal').getAttribute('src')
     expect(src).toMatch(
       '/_next/image?url=%2F%C3%A4%C3%B6%C3%BC%C5%A1%C4%8D%C5%99%C3%AD.png'
@@ -39,6 +40,7 @@ function runTests() {
   })
 
   it('should load external unicode image', async () => {
+    const browser = await webdriver(appPort, '/')
     const src = await browser.elementById('external').getAttribute('src')
     expect(src).toMatch(
       '/_next/image?url=https%3A%2F%2Fimage-optimization-test.vercel.app%2F%C3%A4%C3%B6%C3%BC%C5%A1%C4%8D%C5%99%C3%AD.png'
@@ -49,6 +51,7 @@ function runTests() {
   })
 
   it('should load internal image with space', async () => {
+    const browser = await webdriver(appPort, '/')
     const src = await browser.elementById('internal-space').getAttribute('src')
     expect(src).toMatch('/_next/image?url=%2Fhello%2520world.jpg')
     const fullSrc = new URL(src, `http://localhost:${appPort}`)
@@ -57,6 +60,7 @@ function runTests() {
   })
 
   it('should load external image with space', async () => {
+    const browser = await webdriver(appPort, '/')
     const src = await browser.elementById('external-space').getAttribute('src')
     expect(src).toMatch(
       '/_next/image?url=https%3A%2F%2Fimage-optimization-test.vercel.app%2Fhello%2520world.jpg'
@@ -74,13 +78,9 @@ describe('Image Component Unicode Image URL', () => {
       beforeAll(async () => {
         appPort = await findPort()
         app = await launchApp(appDir, appPort)
-        browser = await webdriver(appPort, '/')
       })
       afterAll(async () => {
         await killApp(app)
-        if (browser) {
-          browser.close()
-        }
       })
       runTests()
     }
@@ -92,13 +92,9 @@ describe('Image Component Unicode Image URL', () => {
         await nextBuild(appDir)
         appPort = await findPort()
         app = await nextStart(appDir, appPort)
-        browser = await webdriver(appPort, '/')
       })
       afterAll(async () => {
         await killApp(app)
-        if (browser) {
-          browser.close()
-        }
       })
       runTests()
     }
