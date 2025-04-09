@@ -1,0 +1,86 @@
+import { nextTestSetup } from 'e2e-utils'
+
+describe('swcPlugins', () => {
+  describe('support swcPlugins', () => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+      dependencies: {
+        '@swc/plugin-react-remove-properties': '7.0.2',
+      },
+    })
+
+    it('basic case', async () => {
+      const html = await next.render('/')
+      expect(html).toContain('Hello World')
+      expect(html).not.toContain('data-custom-attribute')
+    })
+  })
+
+  describe('shown an error for invalid plugin names', () => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+      dependencies: {
+        '@swc/plugin-react-remove-properties': '7.0.2',
+      },
+      overrideFiles: {
+        'next.config.js': `
+        module.exports = {
+  experimental: {
+    swcPlugins: [['@swc/plugin-nonexistent', {}]],
+  },
+}`,
+      },
+    })
+
+    it('basic case', async () => {
+      const browser = await next.browser('/')
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Module not found: Can't resolve '@swc/plugin-nonexistent'",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./
+       Module not found: Can't resolve '@swc/plugin-nonexistent'
+       https://nextjs.org/docs/messages/module-not-found",
+         "stack": [],
+       }
+      `)
+    })
+  })
+
+  describe('shown an error for invalid plugin config', () => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+      dependencies: {
+        '@swc/plugin-react-remove-properties': '7.0.2',
+      },
+      overrideFiles: {
+        'next.config.js': `
+        module.exports = {
+  experimental: {
+    swcPlugins: ['@swc/plugin-nonexistent'],
+  },
+}`,
+      },
+    })
+
+    it('basic case', async () => {
+      const browser = await next.browser('/')
+      await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "Error: this is a test",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "app/global-error-boundary/client/page.js (8:11) @ Page
+         >  8 |     throw new Error('this is a test')
+              |           ^",
+           "stack": [
+             "Page app/global-error-boundary/client/page.js (8:11)",
+           ],
+         }
+        `)
+    })
+  })
+})
