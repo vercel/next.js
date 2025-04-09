@@ -22,7 +22,7 @@ const context = {
   appDir: join(__dirname, '../'),
 }
 
-const isTurbopack = process.env.TURBOPACK
+const isTurbopack = process.env.IS_TURBOPACK_TEST
 
 describe('Page using eval in development mode', () => {
   let output = ''
@@ -297,7 +297,7 @@ describe.each([
         })
 
         it('should have middleware warning during build', () => {
-          if (process.env.TURBOPACK) {
+          if (process.env.IS_TURBOPACK_TEST) {
             expect(buildResult.stderr).toContain(`Ecmascript file had an error`)
           } else {
             expect(buildResult.stderr).toContain(`Failed to compile`)

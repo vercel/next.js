@@ -367,7 +367,7 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       await expect(browser).toDisplayRedbox(`
        {
          "count": 1,

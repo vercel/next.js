@@ -33,12 +33,12 @@ export const expectedWhenTrailingSlashTrue = [
   '404/index.html',
   // Turbopack and plain next.js have different hash output for the file name
   // Turbopack will output favicon in the _next/static/media folder
-  ...(process.env.TURBOPACK
+  ...(process.env.IS_TURBOPACK_TEST
     ? [expect.stringMatching(/_next\/static\/media\/favicon\.[0-9a-f]+\.ico/)]
     : []),
   expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
   '_next/static/test-build-id/_buildManifest.js',
-  ...(process.env.TURBOPACK
+  ...(process.env.IS_TURBOPACK_TEST
     ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
     : []),
   '_next/static/test-build-id/_ssgManifest.js',
@@ -63,12 +63,12 @@ export const expectedWhenTrailingSlashTrue = [
 const expectedWhenTrailingSlashFalse = [
   '404.html',
   // Turbopack will output favicon in the _next/static/media folder
-  ...(process.env.TURBOPACK
+  ...(process.env.IS_TURBOPACK_TEST
     ? [expect.stringMatching(/_next\/static\/media\/favicon\.[0-9a-f]+\.ico/)]
     : []),
   expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
   '_next/static/test-build-id/_buildManifest.js',
-  ...(process.env.TURBOPACK
+  ...(process.env.IS_TURBOPACK_TEST
     ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
     : []),
   '_next/static/test-build-id/_ssgManifest.js',

@@ -122,6 +122,7 @@ pub async fn get_next_client_import_map(
                 || *next_config.enable_taint().await?
                 || *next_config.enable_react_owner_stack().await?
                 || *next_config.enable_view_transition().await?
+                || *next_config.enable_router_bfcache().await?
             {
                 "-experimental"
             } else {
@@ -245,37 +246,6 @@ pub async fn get_next_client_import_map(
 
     insert_turbopack_dev_alias(&mut import_map).await?;
     insert_instrumentation_client_alias(&mut import_map, project_path).await?;
-
-    Ok(import_map.cell())
-}
-
-/// Computes the Next-specific client import map.
-#[turbo_tasks::function]
-pub async fn get_next_build_import_map() -> Result<Vc<ImportMap>> {
-    let mut import_map = ImportMap::empty();
-
-    insert_package_alias(
-        &mut import_map,
-        &format!("{VIRTUAL_PACKAGE_NAME}/"),
-        next_js_fs().root().to_resolved().await?,
-    );
-
-    let external = ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Traced)
-        .resolved_cell();
-
-    import_map.insert_exact_alias("next", external);
-    import_map.insert_wildcard_alias("next/", external);
-    import_map.insert_exact_alias("styled-jsx", external);
-    import_map.insert_exact_alias(
-        "styled-jsx/style",
-        ImportMapping::External(
-            Some("styled-jsx/style.js".into()),
-            ExternalType::CommonJs,
-            ExternalTraced::Traced,
-        )
-        .resolved_cell(),
-    );
-    import_map.insert_wildcard_alias("styled-jsx/", external);
 
     Ok(import_map.cell())
 }
@@ -731,8 +701,9 @@ async fn rsc_aliases(
     let ppr = *next_config.enable_ppr().await?;
     let taint = *next_config.enable_taint().await?;
     let react_owner_stack = *next_config.enable_react_owner_stack().await?;
+    let router_bfcache = *next_config.enable_router_bfcache().await?;
     let view_transition = *next_config.enable_view_transition().await?;
-    let react_channel = if ppr || taint || react_owner_stack || view_transition {
+    let react_channel = if ppr || taint || react_owner_stack || view_transition || router_bfcache {
         "-experimental"
     } else {
         ""

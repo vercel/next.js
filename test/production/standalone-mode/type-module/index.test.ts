@@ -39,7 +39,9 @@ describe('type-module', () => {
 
     await fs.move(staticSrc, staticDest)
 
-    const serverFile = join(standalonePath, 'server.js')
+    expect(fs.existsSync(join(standalonePath, 'package.json'))).toBe(true)
+
+    const serverFile = join(standalonePath, 'server.mjs')
     const appPort = await findPort()
     const server = await initNextServerScript(
       serverFile,

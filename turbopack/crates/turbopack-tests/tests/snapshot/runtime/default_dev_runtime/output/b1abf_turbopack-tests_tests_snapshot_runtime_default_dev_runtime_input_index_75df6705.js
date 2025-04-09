@@ -354,6 +354,7 @@ relativeURL.prototype = URL.prototype;
  * shared runtime utils.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../base/globals.d.ts" />
 /// <reference path="../../../shared/runtime-utils.ts" />
+// Used in WebWorkers to tell the runtime about the chunk base path
 var SourceType = /*#__PURE__*/ function(SourceType) {
     /**
    * The module was instantiated because it was included in an evaluated chunk's
@@ -493,7 +494,9 @@ async function loadChunkPath(source, chunkPath) {
     return `/ROOT/${modulePath ?? ""}`;
 }
 function getWorkerBlobURL(chunks) {
-    let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};importScripts(${chunks.map((c)=>`self.TURBOPACK_WORKER_LOCATION + ${JSON.stringify(getChunkRelativeUrl(c))}`).join(", ")});`;
+    let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};
+self.TURBOPACK_NEXT_CHUNK_URLS = ${JSON.stringify(chunks.reverse().map(getChunkRelativeUrl), null, 2)};
+importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_LOCATION + c).reverse());`;
     let blob = new Blob([
         bootstrap
     ], {
@@ -547,6 +550,15 @@ function getWorkerBlobURL(chunks) {
  */ function getChunkRelativeUrl(chunkPath) {
     return `${CHUNK_BASE_PATH}${chunkPath.split("/").map((p)=>encodeURIComponent(p)).join("/")}${CHUNK_SUFFIX_PATH}`;
 }
+function getPathFromScript(chunkScript) {
+    if (typeof chunkScript === "string") {
+        return chunkScript;
+    }
+    const chunkUrl = typeof TURBOPACK_NEXT_CHUNK_URLS !== "undefined" ? TURBOPACK_NEXT_CHUNK_URLS.pop() : chunkScript.getAttribute("src");
+    const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ""));
+    const path = src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
+    return path;
+}
 /**
  * Marks a chunk list as a runtime chunk list. There can be more than one
  * runtime chunk list. For instance, integration tests can have multiple chunk
@@ -554,7 +566,8 @@ function getWorkerBlobURL(chunks) {
  */ function markChunkListAsRuntime(chunkListPath) {
     runtimeChunkLists.add(chunkListPath);
 }
-function registerChunk([chunkPath, chunkModules, runtimeParams]) {
+function registerChunk([chunkScript, chunkModules, runtimeParams]) {
+    const chunkPath = getPathFromScript(chunkScript);
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
         if (!moduleFactories[moduleId]) {
             moduleFactories[moduleId] = moduleFactory;
@@ -1375,9 +1388,12 @@ function createModuleHot(moduleId, hotData) {
 }
 /**
  * Subscribes to chunk list updates from the update server and applies them.
- */ function registerChunkList(chunkUpdateProvider, chunkList) {
-    const chunkListPath = chunkList.path;
-    chunkUpdateProvider.push([
+ */ function registerChunkList(chunkList) {
+    const chunkListScript = chunkList.script;
+    const chunkListPath = getPathFromScript(chunkListScript);
+    // The "chunk" is also registered to finish the loading in the backend
+    BACKEND.registerChunk(chunkListPath);
+    globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS.push([
         chunkListPath,
         handleApply.bind(null, chunkListPath)
     ]);
@@ -1400,17 +1416,6 @@ function createModuleHot(moduleId, hotData) {
     }
 }
 globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS ??= [];
-const chunkListsToRegister = globalThis.TURBOPACK_CHUNK_LISTS;
-if (Array.isArray(chunkListsToRegister)) {
-    for (const chunkList of chunkListsToRegister){
-        registerChunkList(globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS, chunkList);
-    }
-}
-globalThis.TURBOPACK_CHUNK_LISTS = {
-    push: (chunkList)=>{
-        registerChunkList(globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS, chunkList);
-    }
-};
 /**
  * This file contains the runtime code specific to the Turbopack development
  * ECMAScript DOM runtime.
@@ -1518,6 +1523,7 @@ async function loadWebAssemblyModule(_source, wasmChunkPath) {
             if (isCss(chunkUrl)) {
             // ignore
             } else if (isJs(chunkUrl)) {
+                self.TURBOPACK_NEXT_CHUNK_URLS.push(chunkUrl);
                 importScripts(TURBOPACK_WORKER_LOCATION + chunkUrl);
             } else {
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
@@ -1669,6 +1675,9 @@ function _eval({ code, url, map }) {
 const chunksToRegister = globalThis.TURBOPACK;
 globalThis.TURBOPACK = { push: registerChunk };
 chunksToRegister.forEach(registerChunk);
+const chunkListsToRegister = globalThis.TURBOPACK_CHUNK_LISTS || [];
+chunkListsToRegister.forEach(registerChunkList);
+globalThis.TURBOPACK_CHUNK_LISTS = { push: registerChunkList };
 })();
 
 

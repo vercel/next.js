@@ -46,6 +46,7 @@ import type { GlobalErrorComponent } from '../../error-boundary'
 import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
 import reportHmrLatency from '../utils/report-hmr-latency'
 import { TurbopackHmr } from '../utils/turbopack-hot-reloader-common'
+import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../app-router-headers'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -412,7 +413,7 @@ function processMessage(
 
       // Store the latest hash in a session cookie so that it's sent back to the
       // server with any subsequent requests.
-      document.cookie = `__next_hmr_refresh_hash__=${obj.hash}`
+      document.cookie = `${NEXT_HMR_REFRESH_HASH_COOKIE}=${obj.hash}`
 
       if (RuntimeErrorHandler.hadRuntimeError) {
         if (reloading) return

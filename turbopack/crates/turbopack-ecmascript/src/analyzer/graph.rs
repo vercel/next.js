@@ -69,6 +69,8 @@ pub enum ConditionalKind {
     Or { expr: Box<EffectsBlock> },
     /// The expression on the right side of the `??` operator.
     NullishCoalescing { expr: Box<EffectsBlock> },
+    /// The expression on the right side of a labeled statement.
+    Labeled { body: Box<EffectsBlock> },
 }
 
 impl ConditionalKind {
@@ -98,6 +100,11 @@ impl ConditionalKind {
                     for effect in &mut block.effects {
                         effect.normalize();
                     }
+                }
+            }
+            ConditionalKind::Labeled { body } => {
+                for effect in &mut body.effects {
+                    effect.normalize();
                 }
             }
         }
@@ -543,7 +550,7 @@ impl EvalContext {
                 SyntaxContext::empty(),
             )),
 
-            Expr::Await(AwaitExpr { arg, .. }) => self.eval(arg),
+            Expr::Await(AwaitExpr { arg, .. }) => JsValue::awaited(Box::new(self.eval(arg))),
 
             Expr::Seq(e) => {
                 let mut seq = e.exprs.iter().map(|e| self.eval(e)).peekable();
@@ -2077,6 +2084,10 @@ impl VisitAstPath for Analyzer<'_> {
                     AstParentNodeRef::TryStmt(_, TryStmtField::Handler),
                     AstParentNodeRef::CatchClause(_, CatchClauseField::Body)
                 ]
+                | [
+                    AstParentNodeRef::LabeledStmt(_, LabeledStmtField::Body),
+                    AstParentNodeRef::Stmt(_, StmtField::Block)
+                ]
         ) {
             None
         } else if matches!(
@@ -2137,6 +2148,40 @@ impl VisitAstPath for Analyzer<'_> {
         }
 
         n.visit_children_with_ast_path(self, ast_path);
+    }
+
+    fn visit_labeled_stmt<'ast: 'r, 'r>(
+        &mut self,
+        stmt: &'ast LabeledStmt,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        let mut prev_effects = take(&mut self.effects);
+        let prev_early_return_stack = take(&mut self.early_return_stack);
+
+        stmt.visit_children_with_ast_path(self, ast_path);
+
+        self.end_early_return_block();
+
+        let effects = take(&mut self.effects);
+
+        prev_effects.push(Effect::Conditional {
+            condition: Box::new(JsValue::unknown_empty(true, "labeled statement")),
+            kind: Box::new(ConditionalKind::Labeled {
+                body: Box::new(EffectsBlock {
+                    effects,
+                    range: AstPathRange::Exact(as_parent_path_with(
+                        ast_path,
+                        AstParentKind::LabeledStmt(LabeledStmtField::Body),
+                    )),
+                }),
+            }),
+            ast_path: as_parent_path(ast_path),
+            span: stmt.span,
+            in_try: is_in_try(ast_path),
+        });
+
+        self.effects = prev_effects;
+        self.early_return_stack = prev_early_return_stack;
     }
 }
 
@@ -2251,6 +2296,9 @@ impl Analyzer<'_> {
                 | ConditionalKind::Or { expr }
                 | ConditionalKind::NullishCoalescing { expr } => {
                     self.effects.append(&mut expr.effects);
+                }
+                ConditionalKind::Labeled { body } => {
+                    self.effects.append(&mut body.effects);
                 }
             }
         } else {

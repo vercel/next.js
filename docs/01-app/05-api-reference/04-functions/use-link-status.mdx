@@ -8,7 +8,7 @@ description: API Reference for the useLinkStatus hook.
 ```tsx filename="app/loading-indicator.tsx" switcher
 'use client'
 
-import { useLinkStatus } from 'next/navigation'
+import { useLinkStatus } from 'next/link'
 
 export default function LoadingIndicator() {
   const { pending } = useLinkStatus()
@@ -19,7 +19,7 @@ export default function LoadingIndicator() {
 ```jsx filename="app/loading-indicator.js" switcher
 'use client'
 
-import { useLinkStatus } from 'next/navigation'
+import { useLinkStatus } from 'next/link'
 
 export default function LoadingIndicator() {
   const { pending } = useLinkStatus()
@@ -92,7 +92,7 @@ You can use the `useLinkStatus` hook to render a lightweight loading indicator n
 ```tsx filename="app/components/loading-indicator.tsx" switcher
 'use client'
 
-import { useLinkStatus } from 'next/navigation'
+import { useLinkStatus } from 'next/link'
 
 export default function LoadingIndicator() {
   const { pending } = useLinkStatus()
@@ -103,7 +103,7 @@ export default function LoadingIndicator() {
 ```jsx filename="app/components/loading-indicator.js" switcher
 'use client'
 
-import { useLinkStatus } from 'next/navigation'
+import { useLinkStatus } from 'next/link'
 
 export default function LoadingIndicator() {
   const { pending } = useLinkStatus()

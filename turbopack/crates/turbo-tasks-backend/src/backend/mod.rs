@@ -1332,10 +1332,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         // handle cell counters: update max index and remove cells that are no longer used
-        let mut old_counters: FxHashMap<_, _> =
+        let old_counters: FxHashMap<_, _> =
             get_many!(task, CellTypeMaxIndex { cell_type } max_index => (cell_type, *max_index));
+        let mut counters_to_remove = old_counters.clone();
         for (&cell_type, &max_index) in cell_counters.iter() {
-            if let Some(old_max_index) = old_counters.remove(&cell_type) {
+            if let Some(old_max_index) = counters_to_remove.remove(&cell_type) {
                 if old_max_index != max_index {
                     task.insert(CachedDataItem::CellTypeMaxIndex {
                         cell_type,
@@ -1349,7 +1350,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 });
             }
         }
-        for (cell_type, _) in old_counters {
+        for (cell_type, _) in counters_to_remove {
             task.remove(&CachedDataItemKey::CellTypeMaxIndex { cell_type });
         }
 
@@ -1404,14 +1405,17 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             .get(&cell.type_id)
                             .is_none_or(|start_index| cell.index >= *start_index)
                         {
-                            Some(OutdatedEdge::RemovedCellDependent {
-                                task_id: task,
-                                #[cfg(feature = "trace_task_dirty")]
-                                value_type_id: cell.type_id,
-                            })
-                        } else {
-                            None
+                            if let Some(old_counter) = old_counters.get(&cell.type_id) {
+                                if cell.index < *old_counter {
+                                    return Some(OutdatedEdge::RemovedCellDependent {
+                                        task_id: task,
+                                        #[cfg(feature = "trace_task_dirty")]
+                                        value_type_id: cell.type_id,
+                                    });
+                                }
+                            }
                         }
+                        None
                     },
                 ),
             );

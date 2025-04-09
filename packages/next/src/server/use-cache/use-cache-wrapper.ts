@@ -51,7 +51,7 @@ import {
 } from '../request/search-params'
 import type { Params } from '../request/params'
 import React from 'react'
-import type { ImplicitTags } from '../lib/implicit-tags'
+import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
 
 type CacheKeyParts =
   | [buildId: string, id: string, args: unknown[]]
@@ -64,6 +64,10 @@ export interface UseCachePageComponentProps {
 }
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+
+const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
+  ? console.debug.bind(console, 'use-cache:')
+  : undefined
 
 function generateCacheEntry(
   workStore: WorkStore,
@@ -172,6 +176,7 @@ function generateCacheEntryWithCacheContext(
   return workUnitAsyncStorage.run(
     cacheStore,
     generateCacheEntryImpl,
+    workStore,
     outerWorkUnitStore,
     cacheStore,
     clientReferenceManifest,
@@ -215,6 +220,7 @@ function propagateCacheLifeAndTags(
 
 async function collectResult(
   savedStream: ReadableStream,
+  workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   innerCacheStore: UseCacheStore,
   startTime: number,
@@ -243,7 +249,9 @@ async function collectResult(
   let idx = 0
   const bufferStream = new ReadableStream({
     pull(controller) {
-      if (idx < buffer.length) {
+      if (workStore.invalidUsageError) {
+        controller.error(workStore.invalidUsageError)
+      } else if (idx < buffer.length) {
         controller.enqueue(buffer[idx++])
       } else if (errors.length > 0) {
         // TODO: Should we use AggregateError here?
@@ -298,6 +306,7 @@ async function collectResult(
 }
 
 async function generateCacheEntryImpl(
+  workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   innerCacheStore: UseCacheStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
@@ -406,6 +415,7 @@ async function generateCacheEntryImpl(
 
   const promiseOfCacheEntry = collectResult(
     savedStream,
+    workStore,
     outerWorkUnitStore,
     innerCacheStore,
     startTime,
@@ -503,7 +513,7 @@ export function cache(
   kind: string,
   id: string,
   boundArgsLength: number,
-  fn: (...args: unknown[]) => Promise<unknown>
+  originalFn: (...args: unknown[]) => Promise<unknown>
 ) {
   const cacheHandler = getCacheHandler(kind)
   if (cacheHandler === undefined) {
@@ -514,7 +524,7 @@ export function cache(
   const timeoutError = new UseCacheTimeoutError()
   Error.captureStackTrace(timeoutError, cache)
 
-  const name = fn.name
+  const name = originalFn.name
   const cachedFn = {
     [name]: async function (...args: any[]) {
       const workStore = workAsyncStorage.getStore()
@@ -523,6 +533,8 @@ export function cache(
           '"use cache" cannot be used outside of App Router. Expected a WorkStore.'
         )
       }
+
+      let fn = originalFn
 
       const workUnitStore = workUnitAsyncStorage.getStore()
 
@@ -561,8 +573,6 @@ export function cache(
         const [{ params, searchParams }] = args
         // Overwrite the props to omit $$isPageComponent.
         args = [{ params, searchParams }]
-
-        const originalFn = fn
 
         fn = {
           [name]: async ({
@@ -691,10 +701,13 @@ export function cache(
           cacheSignal.beginRead()
         }
 
-        const implicitTags = workUnitStore?.implicitTags
-        const forceRevalidate = shouldForceRevalidate(workStore, workUnitStore)
+        const lazyRefreshTags = workStore.refreshTagsByCacheKind.get(kind)
 
-        let entry = forceRevalidate
+        if (lazyRefreshTags && !isResolvedLazyResult(lazyRefreshTags)) {
+          await lazyRefreshTags
+        }
+
+        let entry = shouldForceRevalidate(workStore, workUnitStore)
           ? undefined
           : 'getExpiration' in cacheHandler
             ? await cacheHandler.get(serializedCacheKey)
@@ -703,11 +716,37 @@ export function cache(
               // cache handlers (see below).
               await cacheHandler.get(
                 serializedCacheKey,
-                implicitTags?.tags ?? []
+                workUnitStore?.implicitTags?.tags ?? []
               )
 
-        if (entry && shouldDiscardCacheEntry(entry, workStore, implicitTags)) {
-          entry = undefined
+        if (entry) {
+          const implicitTags = workUnitStore?.implicitTags?.tags ?? []
+          let implicitTagsExpiration = 0
+
+          if (workUnitStore?.implicitTags) {
+            const lazyExpiration =
+              workUnitStore.implicitTags.expirationsByCacheKind.get(kind)
+
+            if (lazyExpiration) {
+              if (isResolvedLazyResult(lazyExpiration)) {
+                implicitTagsExpiration = lazyExpiration.value
+              } else {
+                implicitTagsExpiration = await lazyExpiration
+              }
+            }
+          }
+
+          if (
+            shouldDiscardCacheEntry(
+              entry,
+              workStore,
+              implicitTags,
+              implicitTagsExpiration
+            )
+          ) {
+            debug?.('discarding stale entry', serializedCacheKey)
+            entry = undefined
+          }
         }
 
         const currentTime = performance.timeOrigin + performance.now()
@@ -746,6 +785,19 @@ export function cache(
           // might include request specific things like cookies() inside a React.cache().
           // Note: It is important that we await at least once before this because it lets us
           // pop out of any stack specific contexts as well - aka "Sync" Local Storage.
+
+          if (entry) {
+            if (currentTime > entry.timestamp + entry.expire * 1000) {
+              debug?.('entry is expired', serializedCacheKey)
+            }
+
+            if (
+              workStore.isStaticGeneration &&
+              currentTime > entry.timestamp + entry.revalidate * 1000
+            ) {
+              debug?.('static generation, entry is stale', serializedCacheKey)
+            }
+          }
 
           const [newStream, pendingCacheEntry] = await generateCacheEntry(
             workStore,
@@ -880,25 +932,6 @@ export function cache(
   return React.cache(cachedFn)
 }
 
-/**
- * Calls the given function only when the returned promise is awaited.
- */
-function createLazyResult<TResult>(
-  fn: () => Promise<TResult>
-): PromiseLike<TResult> {
-  let pendingResult: Promise<TResult> | undefined
-
-  return {
-    then(onfulfilled, onrejected) {
-      if (!pendingResult) {
-        pendingResult = fn()
-      }
-
-      return pendingResult.then(onfulfilled, onrejected)
-    },
-  }
-}
-
 function isPageComponent(
   args: any[]
 ): args is [UseCachePageComponentProps, undefined] {
@@ -940,7 +973,8 @@ function shouldForceRevalidate(
 function shouldDiscardCacheEntry(
   entry: CacheEntry,
   workStore: WorkStore,
-  implicitTags: ImplicitTags | undefined
+  implicitTags: string[],
+  implicitTagsExpiration: number
 ): boolean {
   // If the cache entry contains revalidated tags that the cache handler might
   // not know about yet, we need to discard it.
@@ -948,20 +982,23 @@ function shouldDiscardCacheEntry(
     return true
   }
 
-  if (implicitTags) {
-    // If the cache entry was created before any of the implicit tags were
-    // revalidated last, we also need to discard it.
-    if (entry.timestamp <= implicitTags.expiration) {
-      return true
-    }
+  // If the cache entry was created before any of the implicit tags were
+  // revalidated last, we also need to discard it.
+  if (entry.timestamp <= implicitTagsExpiration) {
+    debug?.(
+      'entry was created at',
+      entry.timestamp,
+      'before implicit tags were revalidated at',
+      implicitTagsExpiration
+    )
 
-    // Finally, if any of the implicit tags have been revalidated recently, we
-    // also need to discard the cache entry.
-    if (
-      implicitTags.tags.some((tag) => isRecentlyRevalidatedTag(tag, workStore))
-    ) {
-      return true
-    }
+    return true
+  }
+
+  // Finally, if any of the implicit tags have been revalidated recently, we
+  // also need to discard the cache entry.
+  if (implicitTags.some((tag) => isRecentlyRevalidatedTag(tag, workStore))) {
+    return true
   }
 
   return false
@@ -972,6 +1009,8 @@ function isRecentlyRevalidatedTag(tag: string, workStore: WorkStore): boolean {
 
   // Was the tag previously revalidated (e.g. by a redirecting server action)?
   if (previouslyRevalidatedTags.includes(tag)) {
+    debug?.('tag', tag, 'was previously revalidated')
+
     return true
   }
 
@@ -979,6 +1018,8 @@ function isRecentlyRevalidatedTag(tag: string, workStore: WorkStore): boolean {
   // In this case the revalidation might not have been propagated to the cache
   // handler yet, so we read it from the pending tags in the work store.
   if (pendingRevalidatedTags?.includes(tag)) {
+    debug?.('tag', tag, 'was just revalidated')
+
     return true
   }
 

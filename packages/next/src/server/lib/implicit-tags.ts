@@ -1,6 +1,7 @@
 import { NEXT_CACHE_IMPLICIT_TAG_ID } from '../../lib/constants'
 import type { FallbackRouteParams } from '../request/fallback-params'
-import { getCacheHandlers } from '../use-cache/handlers'
+import { getCacheHandlerEntries } from '../use-cache/handlers'
+import { createLazyResult, type LazyResult } from './lazy-result'
 
 export interface ImplicitTags {
   /**
@@ -8,12 +9,17 @@ export interface ImplicitTags {
    * handler in `get` calls.
    */
   readonly tags: string[]
+
   /**
-   * Modern cache handlers don't receive implicit tags. Instead, the
-   * implicit tags' expiration is stored in the work unit store, and used to
-   * compare with a cache entry's timestamp.
+   * Modern cache handlers don't receive implicit tags. Instead, the implicit
+   * tags' expirations are stored in the work unit store, and used to compare
+   * with a cache entry's timestamp.
+   *
+   * Note: This map contains lazy results so that we can evaluate them when the
+   * first cache entry is read. It allows us to skip fetching the expiration
+   * values if no caches are read at all.
    */
-  readonly expiration: number
+  readonly expirationsByCacheKind: Map<string, LazyResult<number>>
 }
 
 const getDerivedTags = (pathname: string): string[] => {
@@ -41,34 +47,28 @@ const getDerivedTags = (pathname: string): string[] => {
   return derivedTags
 }
 
-async function getImplicitTagsExpiration(tags: string[]): Promise<number> {
-  // We're starting off with assuming that implicit tags are not expired, so we
-  // use an artificial timestamp of 0.
-  let expiration = 0
-
-  const cacheHandlers = getCacheHandlers()
+/**
+ * Creates a map with lazy results that fetch the expiration value for the given
+ * tags and respective cache kind when they're awaited for the first time.
+ */
+function createTagsExpirationsByCacheKind(
+  tags: string[]
+): Map<string, LazyResult<number>> {
+  const expirationsByCacheKind = new Map<string, LazyResult<number>>()
+  const cacheHandlers = getCacheHandlerEntries()
 
   if (cacheHandlers) {
-    const expirations = await Promise.all(
-      [...cacheHandlers].map(async (handler) => {
-        if ('getExpiration' in handler) {
-          return handler.getExpiration(...tags)
-        }
-
-        // Use 0 as fallback of legacy cache handlers. We don't need to track
-        // the expiration of implicit tags for those, because they're passed
-        // into the `get()` method and are checked internally by the cache
-        // handler.
-        return 0
-      })
-    )
-
-    // We use the most recent expiration from all cache handlers, i.e. the
-    // largest timestamp. Semantically, they should all be the same though.
-    expiration = Math.max(...expirations)
+    for (const [kind, cacheHandler] of cacheHandlers) {
+      if ('getExpiration' in cacheHandler) {
+        expirationsByCacheKind.set(
+          kind,
+          createLazyResult(async () => cacheHandler.getExpiration(...tags))
+        )
+      }
+    }
   }
 
-  return expiration
+  return expirationsByCacheKind
 }
 
 export async function getImplicitTags(
@@ -79,7 +79,6 @@ export async function getImplicitTags(
   },
   fallbackRouteParams: null | FallbackRouteParams
 ): Promise<ImplicitTags> {
-  // TODO: Cache the result
   const tags: string[] = []
   const hasFallbackRouteParams =
     fallbackRouteParams && fallbackRouteParams.size > 0
@@ -98,7 +97,8 @@ export async function getImplicitTags(
     tags.push(tag)
   }
 
-  const expiration = await getImplicitTagsExpiration(tags)
-
-  return { tags, expiration }
+  return {
+    tags,
+    expirationsByCacheKind: createTagsExpirationsByCacheKind(tags),
+  }
 }
