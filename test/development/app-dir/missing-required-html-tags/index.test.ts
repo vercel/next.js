@@ -8,7 +8,7 @@ import {
 } from 'next-test-utils'
 
 describe('app-dir - missing required html tags', () => {
-  const { next, isTurbopack } = nextTestSetup({ files: __dirname })
+  const { next } = nextTestSetup({ files: __dirname })
 
   it('should display correct error count in dev indicator', async () => {
     const browser = await next.browser('/')
@@ -75,22 +75,7 @@ describe('app-dir - missing required html tags', () => {
       )
     )
 
-    if (isTurbopack) {
-      await assertHasRedbox(browser)
-      await expect(browser).toDisplayRedbox(`
-       {
-         "count": 1,
-         "description": "Error: Missing <html> and <body> tags in the root layout.
-       Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": null,
-         "stack": [],
-       }
-      `)
-    } else {
-      // TODO(NDX-768): Should show "missing tags" error
-      await assertNoRedbox(browser)
-    }
+    // TODO(NDX-768): Should show "missing tags" error
+    await assertNoRedbox(browser)
   })
 })

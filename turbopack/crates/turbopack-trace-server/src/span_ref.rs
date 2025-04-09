@@ -434,14 +434,14 @@ impl<'a> SpanRef<'a> {
                             .raw_entry_mut()
                             .from_key(name)
                             .and_modify(|_, v| v.push(span.index()))
-                            .or_insert_with(|| (name.to_string(), vec![span.index()]));
+                            .or_insert_with(|| (format!("name={name}"), vec![span.index()]));
                     }
-                    for (_, value) in span.span.args.iter() {
+                    for (name, value) in span.span.args.iter() {
                         index
                             .raw_entry_mut()
                             .from_key(value)
                             .and_modify(|_, v| v.push(span.index()))
-                            .or_insert_with(|| (value.to_string(), vec![span.index()]));
+                            .or_insert_with(|| (format!("{name}={value}"), vec![span.index()]));
                     }
                     if !span.is_complete() && !span.time_data().ignore_self_time {
                         let name = "incomplete_span";
