@@ -14,7 +14,6 @@ use swc_core::{
     ecma::{
         ast::{EsVersion, Id, ObjectPatProp, Pat, Program, VarDecl},
         lints::{config::LintConfig, rules::LintParams},
-        minifier::option::{CompressOptions, ExtraOptions, MinifyOptions},
         parser::{lexer::Lexer, EsSyntax, Parser, Syntax, TsSyntax},
         transforms::base::{
             helpers::{Helpers, HELPERS},
@@ -415,21 +414,14 @@ async fn parse_file_content(
 
 
             let span = tracing::trace_span!("eager_swc_minifier").entered();
-            let mut parsed_program = swc_core::ecma::minifier::optimize(
-                parsed_program,
-                source_map.clone(),
-                Some(&comments),
-                None,
-                &MinifyOptions {
-                    compress: Some(CompressOptions {
-                        inline:1,
-                        ..Default::default()
-                    }),
-                    mangle:None,
+            parsed_program.mutate(swc_core::ecma::transforms::optimization::simplify::dce::dce(
+                swc_core::ecma::transforms::optimization::simplify::dce::Config {
+                    preserve_imports_with_side_effects: true,
                     ..Default::default()
                 },
-                &ExtraOptions{ unresolved_mark, top_level_mark, mangle_name_cache: None },
-            );
+                unresolved_mark,
+            ));
+
             drop(span);
 
             if parser_handler.has_errors() {
