@@ -2177,7 +2177,7 @@ impl VisitAstPath for Analyzer<'_> {
             span: stmt.span,
             in_try: is_in_try(ast_path),
         });
-
+        self.end_early_return_block();
         self.effects = prev_effects;
         self.early_return_stack = prev_early_return_stack;
     }
