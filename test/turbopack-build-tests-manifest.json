@@ -9713,6 +9713,7 @@
   "test/integration/css/test/css-modules.test.js": {
     "passed": [
       "Data URLs production mode should compile successfully",
+      "Data URLs production mode should have emitted expected files",
       "Ordering with Global CSS and Modules (dev) useLightnincsss(false) should have the correct color (css ordering)",
       "Ordering with Global CSS and Modules (dev) useLightnincsss(false) should have the correct color (css ordering) during hot reloads",
       "Ordering with Global CSS and Modules (dev) useLightnincsss(false) should not execute scripts in any order",
@@ -9726,7 +9727,6 @@
       "should handle unresolved files gracefully production mode should build correctly"
     ],
     "failed": [
-      "Data URLs production mode should have emitted expected files",
       "should handle unresolved files gracefully production mode should have correct file references in CSS output"
     ],
     "pending": [
