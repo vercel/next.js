@@ -1,5 +1,0 @@
-src = ???*0*
-- *0* arguments[0]
-  ⚠️  function calls are not analysed yet
-
-test = (...) => (undefined | 1)

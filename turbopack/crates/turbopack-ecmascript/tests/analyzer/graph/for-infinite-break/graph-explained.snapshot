@@ -1,3 +1,0 @@
-src = arguments[0]
-
-test = (...) => (undefined | 1)

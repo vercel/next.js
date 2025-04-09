@@ -1,0 +1,66 @@
+[
+    (
+        "A",
+        Function(
+            4,
+            174,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Undefined,
+                    ),
+                    FreeVar(
+                        "undefined",
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "B",
+        Function(
+            4,
+            304,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Undefined,
+                    ),
+                    FreeVar(
+                        "undefined",
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "C",
+        Function(
+            4,
+            416,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Undefined,
+                    ),
+                    FreeVar(
+                        "undefined",
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "v",
+        Argument(
+            416,
+            0,
+        ),
+    ),
+]
