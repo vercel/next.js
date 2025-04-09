@@ -2157,12 +2157,16 @@ impl VisitAstPath for Analyzer<'_> {
         stmt.visit_children_with_ast_path(self, ast_path);
 
         let effects = take(&mut self.effects);
+
         prev_effects.push(Effect::Conditional {
             condition: Box::new(JsValue::unknown_empty(true, "labeled statement")),
             kind: Box::new(ConditionalKind::Labeled {
                 body: Box::new(EffectsBlock {
                     effects,
-                    range: AstPathRange::Exact(as_parent_path(ast_path)),
+                    range: AstPathRange::Exact(as_parent_path_with(
+                        ast_path,
+                        AstParentKind::LabeledStmt(LabeledStmtField::Body),
+                    )),
                 }),
             }),
             ast_path: as_parent_path(ast_path),
