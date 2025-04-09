@@ -8,7 +8,7 @@
         kind: Labeled {
             body: EffectsBlock {
                 effects: [],
-                range: StartAfter(
+                range: Exact(
                     [
                         Program(
                             Module,
@@ -40,6 +40,9 @@
                         ),
                         Stmt(
                             Labeled,
+                        ),
+                        LabeledStmt(
+                            Body,
                         ),
                     ],
                 ),
