@@ -524,6 +524,20 @@ impl Pattern {
         Some(new)
     }
 
+    pub fn is_normalized(&self) -> bool {
+        match self {
+            Pattern::Constant(_) => true,
+            Pattern::Dynamic => true,
+            Pattern::Alternatives(list) => list
+                .iter()
+                .all(|alt| !matches!(alt, Pattern::Alternatives(_)) && alt.is_normalized()),
+            Pattern::Concatenation(list) => list.iter().all(|alt| {
+                !matches!(alt, Pattern::Alternatives(_) | Pattern::Concatenation(_))
+                    && alt.is_normalized()
+            }),
+        }
+    }
+
     /// Order into Alternatives -> Concatenation -> Constant/Dynamic
     /// Merge when possible
     pub fn normalize(&mut self) {
@@ -669,6 +683,7 @@ impl Pattern {
                 }
             }
         }
+        debug_assert!(self.is_normalized());
     }
 
     pub fn filter_could_match(&self, value: &str) -> Option<Pattern> {
@@ -1366,6 +1381,10 @@ pub async fn read_matches(
     force_in_lookup_dir: bool,
     pattern: Vc<Pattern>,
 ) -> Result<Vc<PatternMatches>> {
+    #[cfg(debug_assertions)]
+    if !pattern.await?.is_normalized() {
+        panic!("Pattern must be normalized {:?}", pattern.await?);
+    }
     let mut prefix = prefix.to_string();
     let pat = pattern.await?;
     let mut results = Vec::new();
