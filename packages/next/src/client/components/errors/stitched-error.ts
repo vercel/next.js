@@ -1,48 +1,34 @@
 import React from 'react'
 import isError from '../../../lib/is-error'
-import { copyNextErrorCode } from '../../../lib/error-telemetry-utils'
 
-const REACT_ERROR_STACK_BOTTOM_FRAME = 'react-stack-bottom-frame'
-const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX = new RegExp(
-  `(at ${REACT_ERROR_STACK_BOTTOM_FRAME} )|(${REACT_ERROR_STACK_BOTTOM_FRAME}\\@)`
-)
+const ownerStacks = new WeakMap<Error, string | null>()
+const componentStacks = new WeakMap<Error, string>()
 
-export function getReactStitchedError<T = unknown>(err: T): Error | T {
-  const isErrorInstance = isError(err)
-  const originStack = isErrorInstance ? err.stack || '' : ''
-  const originMessage = isErrorInstance ? err.message : ''
-  const stackLines = originStack.split('\n')
-  const indexOfSplit = stackLines.findIndex((line) =>
-    REACT_ERROR_STACK_BOTTOM_FRAME_REGEX.test(line)
-  )
-  const isOriginalReactError = indexOfSplit >= 0 // has the react-stack-bottom-frame
-  let newStack = isOriginalReactError
-    ? stackLines.slice(0, indexOfSplit).join('\n')
-    : originStack
-
-  const newError = new Error(originMessage)
-  // Copy all enumerable properties, e.g. digest
-  Object.assign(newError, err)
-  copyNextErrorCode(err, newError)
-  newError.stack = newStack
-
-  // Avoid duplicate overriding stack frames
-  appendOwnerStack(newError)
-
-  return newError
+export function getComponentStack(error: Error): string | undefined {
+  return componentStacks.get(error)
+}
+export function setComponentStack(error: Error, stack: string) {
+  componentStacks.set(error, stack)
 }
 
-function appendOwnerStack(error: Error) {
-  if (!React.captureOwnerStack) {
-    return
+export function getOwnerStack(error: Error): string | null | undefined {
+  return ownerStacks.get(error)
+}
+export function setOwnerStack(error: Error, stack: string | null) {
+  ownerStacks.set(error, stack)
+}
+
+export function getReactStitchedError(err: unknown): Error {
+  const newError = isError(err)
+    ? err
+    : // TODO: stringify thrown value
+      new Error('Thrown value was ignored. This is a bug in Next.js.')
+
+  // React 18 and prod does not have `captureOwnerStack`
+  if ('captureOwnerStack' in React) {
+    // TODO: Hoist these to callsites to ensure we set the correct Owner Stack.
+    setOwnerStack(newError, React.captureOwnerStack())
   }
-  let stack = error.stack || ''
-  // This module is only bundled in development mode so this is safe.
-  const ownerStack = React.captureOwnerStack()
-  // Avoid duplicate overriding stack frames
-  if (ownerStack && stack.endsWith(ownerStack) === false) {
-    stack += ownerStack
-    // Override stack
-    error.stack = stack
-  }
+
+  return newError
 }

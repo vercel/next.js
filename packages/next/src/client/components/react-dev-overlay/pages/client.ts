@@ -15,6 +15,7 @@ import {
 } from '../shared'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import { attachHydrationErrorState } from '../../errors/attach-hydration-error-state'
+import { getComponentStack, getOwnerStack } from '../../errors/stitched-error'
 import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
 
 let isRegistered = false
@@ -27,7 +28,8 @@ function handleError(error: unknown) {
 
   attachHydrationErrorState(error)
 
-  const componentStackTrace = (error as any)._componentStack
+  const componentStackTrace = getComponentStack(error)
+  const ownerStack = getOwnerStack(error)
   const componentStackFrames =
     typeof componentStackTrace === 'string'
       ? parseComponentStack(componentStackTrace)
@@ -42,7 +44,7 @@ function handleError(error: unknown) {
     Bus.emit({
       type: ACTION_UNHANDLED_ERROR,
       reason: error,
-      frames: parseStack(error.stack),
+      frames: parseStack((error.stack || '') + (ownerStack || '')),
       componentStackFrames,
     })
   }
@@ -73,11 +75,12 @@ function onUnhandledRejection(ev: PromiseRejectionEvent) {
     return
   }
 
-  const e = reason
+  const error = reason
+  const ownerStack = getOwnerStack(error)
   Bus.emit({
     type: ACTION_UNHANDLED_REJECTION,
     reason: reason,
-    frames: parseStack(e.stack!),
+    frames: parseStack((error.stack || '') + (ownerStack || '')),
   })
 }
 
