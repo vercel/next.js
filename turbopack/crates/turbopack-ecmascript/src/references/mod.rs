@@ -1216,6 +1216,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                                 }
                             }
                         }
+                        ConditionalKind::Labeled { body } => {
+                            active!(body);
+                        }
                     }
                 }
                 Effect::Call {
