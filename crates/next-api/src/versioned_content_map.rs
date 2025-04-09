@@ -259,9 +259,10 @@ impl VersionedContentMap {
     }
 }
 
+type GetEntriesResultT = Vec<(ResolvedVc<FileSystemPath>, ResolvedVc<Box<dyn OutputAsset>>)>;
+
 #[turbo_tasks::value(transparent)]
-#[allow(clippy::type_complexity)]
-struct GetEntriesResult(Vec<(ResolvedVc<FileSystemPath>, ResolvedVc<Box<dyn OutputAsset>>)>);
+struct GetEntriesResult(GetEntriesResultT);
 
 #[turbo_tasks::function(operation)]
 async fn get_entries(assets: OperationVc<OutputAssets>) -> Result<Vc<GetEntriesResult>> {
