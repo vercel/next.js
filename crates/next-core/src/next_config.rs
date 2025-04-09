@@ -730,6 +730,7 @@ pub struct ExperimentalConfig {
     ppr: Option<ExperimentalPartialPrerendering>,
     taint: Option<bool>,
     react_owner_stack: Option<bool>,
+    #[serde(rename = "routerBFCache")]
     router_bfcache: Option<bool>,
     proxy_timeout: Option<f64>,
     /// enables the minification of server code.

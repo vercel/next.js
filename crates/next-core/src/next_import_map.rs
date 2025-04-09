@@ -122,6 +122,7 @@ pub async fn get_next_client_import_map(
                 || *next_config.enable_taint().await?
                 || *next_config.enable_react_owner_stack().await?
                 || *next_config.enable_view_transition().await?
+                || *next_config.enable_router_bfcache().await?
             {
                 "-experimental"
             } else {
