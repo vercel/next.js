@@ -142,6 +142,14 @@ impl Pattern {
         }
     }
 
+    pub fn is_empty_constant(&self) -> bool {
+        if let Pattern::Constant(c) = self {
+            c.is_empty()
+        } else {
+            false
+        }
+    }
+
     pub fn constant_prefix(&self) -> &str {
         // The normalized pattern is an Alternative of maximally merged
         // Concatenations, so extracting the first/only Concatenation child
@@ -367,6 +375,9 @@ impl Pattern {
 
     /// Appends something to end the pattern.
     pub fn push(&mut self, pat: Pattern) {
+        if pat.is_empty_constant() {
+            return;
+        }
         match (self, pat) {
             (Pattern::Concatenation(list), Pattern::Concatenation(more)) => {
                 concatenation_extend_or_merge_items(list, more.into_iter());
@@ -391,6 +402,9 @@ impl Pattern {
 
     /// Prepends something to front of the pattern.
     pub fn push_front(&mut self, pat: Pattern) {
+        if pat.is_empty_constant() {
+            return;
+        }
         match (self, pat) {
             (Pattern::Concatenation(list), Pattern::Concatenation(mut more)) => {
                 concatenation_extend_or_merge_items(&mut more, take(list).into_iter());
