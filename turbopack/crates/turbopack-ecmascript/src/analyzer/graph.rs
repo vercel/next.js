@@ -1686,34 +1686,6 @@ impl VisitAstPath for Analyzer<'_> {
         }
     }
 
-    fn visit_for_stmt<'ast: 'r, 'r>(
-        &mut self,
-        n: &'ast ForStmt,
-        ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
-    ) {
-        if let Some(init) = &n.init {
-            let mut ast_path =
-                ast_path.with_guard(AstParentNodeRef::ForStmt(n, ForStmtField::Init));
-            self.visit_var_decl_or_expr(init, &mut ast_path);
-        }
-
-        if let Some(test) = &n.test {
-            let mut ast_path =
-                ast_path.with_guard(AstParentNodeRef::ForStmt(n, ForStmtField::Test));
-            self.visit_expr(test, &mut ast_path);
-        }
-
-        if let Some(update) = &n.update {
-            let mut ast_path =
-                ast_path.with_guard(AstParentNodeRef::ForStmt(n, ForStmtField::Update));
-            self.visit_expr(update, &mut ast_path);
-        }
-
-        let mut ast_path = ast_path.with_guard(AstParentNodeRef::ForStmt(n, ForStmtField::Body));
-        self.visit_stmt(&n.body, &mut ast_path);
-        self.end_early_return_block();
-    }
-
     fn visit_for_in_stmt<'ast: 'r, 'r>(
         &mut self,
         n: &'ast ForInStmt,
@@ -1770,6 +1742,33 @@ impl VisitAstPath for Analyzer<'_> {
             ast_path.with_guard(AstParentNodeRef::ForOfStmt(n, ForOfStmtField::Body));
 
         self.visit_stmt(&n.body, &mut ast_path);
+        self.end_early_return_block();
+    }
+
+    fn visit_for_stmt<'ast: 'r, 'r>(
+        &mut self,
+        n: &'ast ForStmt,
+        ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
+    ) {
+        n.visit_children_with_ast_path(self, ast_path);
+        self.end_early_return_block();
+    }
+
+    fn visit_while_stmt<'ast: 'r, 'r>(
+        &mut self,
+        n: &'ast WhileStmt,
+        ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
+    ) {
+        n.visit_children_with_ast_path(self, ast_path);
+        self.end_early_return_block();
+    }
+
+    fn visit_do_while_stmt<'ast: 'r, 'r>(
+        &mut self,
+        n: &'ast DoWhileStmt,
+        ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
+    ) {
+        n.visit_children_with_ast_path(self, ast_path);
         self.end_early_return_block();
     }
 
