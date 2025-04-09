@@ -88,6 +88,9 @@ export async function turbopackBuild(): Promise<{
     }
   )
 
+  // Write an empty file in a known location to signal this was built with Turbopack
+  await fs.writeFile(path.join(distDir, 'turbopack'), '')
+
   await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
   await fs.mkdir(path.join(distDir, 'static', buildId), {
     recursive: true,
