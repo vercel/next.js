@@ -43,18 +43,7 @@ describe('graceful-degrade-error', () => {
       .map((x) => x.message)
       .join('\n')
 
-    if (process.env.IS_TURBOPACK_TEST) {
-      expect(errors).toMatch(/Failed to load chunk/)
-    } else {
-      expect(errors).toMatch(/Loading chunk \d+ failed./)
-    }
-
-    // Should show error banner
-    const errorBanner = await browser.elementByCss('#next-graceful-error')
-    expect(await errorBanner.text()).toBe(
-      'An error occurred during page rendering'
-    )
-
+    expect(errors).toMatch(/Failed to load resource./)
     // Should show the original content
     const originHtml = await browser.elementByCss('html')
     const originBody = await browser.elementByCss('body')

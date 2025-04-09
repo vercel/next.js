@@ -28,7 +28,6 @@ import {
   ErrorBoundary,
   type GlobalErrorComponent,
 } from './error-boundary'
-import { GracefullyDegradingErrorBoundary } from './gracefully-degrade-error-boundary'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
@@ -516,15 +515,8 @@ function Router({
     )
   } else {
     // If gracefully degrading is applied in production,
-    // wrap app with the graceful error boundary, so it can catch errors rather than GlobalError
-    if (gracefullyDegrade && process.env.NODE_ENV === 'production') {
-      content = (
-        <GracefullyDegradingErrorBoundary>
-          {content}
-        </GracefullyDegradingErrorBoundary>
-      )
-    } else {
-      // Apply the user-customized global error boundary if not gracefully degrading.
+    // leave the app as it is rather than caught by GlobalError boundary.
+    if (!gracefullyDegrade) {
       content = (
         <ErrorBoundary
           errorComponent={globalError[0]}
