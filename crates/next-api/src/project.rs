@@ -1460,7 +1460,7 @@ impl Project {
                 self.next_config(),
                 self.execution_context(),
             ),
-            Vc::cell("instrumentation-edge".into()),
+            Vc::cell("instrumentation".into()),
         )))
     }
 
@@ -1515,7 +1515,7 @@ impl Project {
                 self.next_config(),
                 self.execution_context(),
             ),
-            Vc::cell("instrumentation".into()),
+            Vc::cell("instrumentation-edge".into()),
         )))
     }
 
