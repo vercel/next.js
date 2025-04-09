@@ -5,6 +5,9 @@
   "[javascript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
   // Formatting using Rust-Analyzer for Rust.
   "[rust]": {
     "editor.defaultFormatter": "rust-lang.rust-analyzer"
