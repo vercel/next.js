@@ -179,15 +179,8 @@
     (
         "x#10",
         Unknown {
-            original_value: Some(
-                Variable(
-                    (
-                        "x",
-                        #10,
-                    ),
-                ),
-            ),
-            reason: "pattern without value",
+            original_value: None,
+            reason: "for-in variable currently not analyzed",
             has_side_effects: false,
         },
     ),

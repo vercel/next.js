@@ -1,17 +1,9 @@
-0 -> 1 conditional = (???*0* === ".")
-- *0* arguments[0]
-  ⚠️  function calls are not analysed yet
-
-1 -> 2 unreachable = ???*0*
+0 -> 1 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-1 -> 3 unreachable = ???*0*
+0 -> 2 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 4 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
-
-0 -> 6 call = module<./assert, {}>["assert"](1, 1)
+0 -> 4 call = module<./assert, {}>["assert"](1, 1)

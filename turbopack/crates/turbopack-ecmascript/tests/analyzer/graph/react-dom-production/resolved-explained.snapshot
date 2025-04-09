@@ -9879,8 +9879,7 @@ c#1019 = ???*0*
   ⚠️  function calls are not analysed yet
 
 c#102 = (???*0* | "cssFloat")
-- *0* c
-  ⚠️  pattern without value
+- *0* for-in variable currently not analyzed
 
 c#1023 = ???*0*
 - *0* arguments[2]
@@ -10147,8 +10146,7 @@ c#207 = (
   ⚠️  This value might have side effects
 
 c#212 = ???*0*
-- *0* c
-  ⚠️  pattern without value
+- *0* for-in variable currently not analyzed
 
 c#236 = (
   | ???*0*
@@ -10271,9 +10269,10 @@ c#269 = ???*0*
 
 c#270 = {}
 
-c#271 = ???*0*
+c#271 = (???*0* | ???*1*)
 - *0* c
   ⚠️  pattern without value
+- *1* for-in variable currently not analyzed
 
 c#274 = ???*0*
 - *0* arguments[2]
@@ -10475,8 +10474,7 @@ c#370 = (???*0* | (???*2* ? ???*4* : null)["data"] | undefined)
   ⚠️  circular variable reference
 
 c#381 = ???*0*
-- *0* c
-  ⚠️  pattern without value
+- *0* for-in variable currently not analyzed
 
 c#385 = ???*0*
 - *0* arguments[2]
@@ -11747,8 +11745,7 @@ c#639 = (???*0* | null | {} | ???*1* | ???*5* | undefined | (???*22* ? ???*23* :
   ⚠️  unknown object
 - *2* arguments[3]
   ⚠️  function calls are not analysed yet
-- *3* l
-  ⚠️  pattern without value
+- *3* for-in variable currently not analyzed
 - *4* f
   ⚠️  circular variable reference
 - *5* ???*6*[(???*20* | null | undefined | [] | ???*21*)]
@@ -11791,8 +11788,7 @@ c#639 = (???*0* | null | {} | ???*1* | ???*5* | undefined | (???*22* ? ???*23* :
   ⚠️  unknown object
 - *19* arguments[0]
   ⚠️  function calls are not analysed yet
-- *20* l
-  ⚠️  pattern without value
+- *20* for-in variable currently not analyzed
 - *21* f
   ⚠️  circular variable reference
 - *22* k
@@ -12558,8 +12554,7 @@ d#1018 = ((null != (???*0* | ???*1*)) | ???*3* | null)
 d#102 = ((0 === (???*0* | ???*2*)) | undefined)
 - *0* ???*1*["indexOf"]("--")
   ⚠️  unknown callee object
-- *1* c
-  ⚠️  pattern without value
+- *1* for-in variable currently not analyzed
 - *2* "cssFloat"["indexOf"]("--")
   ⚠️  nested operation
 
@@ -15091,8 +15086,7 @@ e#102 = ((???*0* ? "" : ???*3*) | undefined)
   ⚠️  nested operation
 - *5* ???*6*["indexOf"]("--")
   ⚠️  unknown callee object
-- *6* c
-  ⚠️  pattern without value
+- *6* for-in variable currently not analyzed
 - *7* "cssFloat"["indexOf"]("--")
   ⚠️  nested operation
 - *8* (???*9* | ???*10*)((???*11* | "cssFloat"))
@@ -15102,8 +15096,7 @@ e#102 = ((???*0* ? "" : ???*3*) | undefined)
   ⚠️  This value might have side effects
 - *10* unknown mutation
   ⚠️  This value might have side effects
-- *11* c
-  ⚠️  pattern without value
+- *11* for-in variable currently not analyzed
 - *12* node limit reached
   ⚠️  This value might have side effects
 - *13* ???*14*()
@@ -15588,8 +15581,7 @@ e#320 = (???*0* | undefined)
 e#341 = {}
 
 e#345 = ???*0*
-- *0* e
-  ⚠️  pattern without value
+- *0* for-in variable currently not analyzed
 
 e#354 = ???*0*
 - *0* e
@@ -17508,9 +17500,10 @@ f#311 = ???*0*
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
 
-f#341 = ???*0*
+f#341 = (???*0* | ???*1*)
 - *0* f
   ⚠️  pattern without value
+- *1* for-in variable currently not analyzed
 
 f#357 = ((???*0* + (???*1* | ???*2*)) | ???*3*)
 - *0* unsupported expression
@@ -18998,9 +18991,10 @@ g#614 = ???*0*
 - *0* arguments[6]
   ⚠️  function calls are not analysed yet
 
-g#639 = ???*0*
+g#639 = (???*0* | ???*1*)
 - *0* g
   ⚠️  pattern without value
+- *1* for-in variable currently not analyzed
 
 g#647 = ???*0*
 - *0* max number of linking steps reached
@@ -19515,8 +19509,7 @@ h#639 = (
   ⚠️  unknown object
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
-- *3* l
-  ⚠️  pattern without value
+- *3* for-in variable currently not analyzed
 - *4* f
   ⚠️  circular variable reference
 - *5* ???*6*[(???*20* | null | undefined | [] | ???*21*)]
@@ -19559,8 +19552,7 @@ h#639 = (
   ⚠️  unknown object
 - *19* arguments[0]
   ⚠️  function calls are not analysed yet
-- *20* l
-  ⚠️  pattern without value
+- *20* for-in variable currently not analyzed
 - *21* f
   ⚠️  circular variable reference
 - *22* (null != (???*23* | ???*25*))
@@ -19612,8 +19604,7 @@ h#639 = (
   ⚠️  unknown object
 - *41* arguments[0]
   ⚠️  function calls are not analysed yet
-- *42* l
-  ⚠️  pattern without value
+- *42* for-in variable currently not analyzed
 - *43* f
   ⚠️  circular variable reference
 - *44* ???*45*[(???*59* | null | undefined | [] | ???*60*)]
@@ -19656,8 +19647,7 @@ h#639 = (
   ⚠️  unknown object
 - *58* arguments[0]
   ⚠️  function calls are not analysed yet
-- *59* l
-  ⚠️  pattern without value
+- *59* for-in variable currently not analyzed
 - *60* f
   ⚠️  circular variable reference
 - *61* unsupported expression
@@ -20257,8 +20247,7 @@ k#639 = (???*0* | ???*4* | undefined | (???*21* ? ???*22* : ???*24*))
   ⚠️  unknown object
 - *1* arguments[3]
   ⚠️  function calls are not analysed yet
-- *2* l
-  ⚠️  pattern without value
+- *2* for-in variable currently not analyzed
 - *3* f
   ⚠️  circular variable reference
 - *4* ???*5*[(???*19* | null | undefined | [] | ???*20*)]
@@ -20301,8 +20290,7 @@ k#639 = (???*0* | ???*4* | undefined | (???*21* ? ???*22* : ???*24*))
   ⚠️  unknown object
 - *18* arguments[0]
   ⚠️  function calls are not analysed yet
-- *19* l
-  ⚠️  pattern without value
+- *19* for-in variable currently not analyzed
 - *20* f
   ⚠️  circular variable reference
 - *21* k
@@ -20647,8 +20635,7 @@ l#601 = ???*0*
   ⚠️  This value might have side effects
 
 l#639 = (???*0* | null | undefined | [] | ???*1*)
-- *0* l
-  ⚠️  pattern without value
+- *0* for-in variable currently not analyzed
 - *1* f
   ⚠️  circular variable reference
 
