@@ -313,7 +313,7 @@ pub struct InProgressStateInner {
     /// task completion of the task for strongly consistent reads.
     pub marked_as_completed: bool,
     /// Task execution has completed and the output is available.
-    pub completed: bool,
+    pub done: bool,
     /// Event that is triggered when the task output is available (completed flag set).
     /// This is used to wait for completion when reading the task output before it's available.
     pub done_event: Event,

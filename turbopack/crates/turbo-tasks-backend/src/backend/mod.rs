@@ -455,11 +455,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     Some(Ok(Err(listen_to_done_event(this, reader, done_event))))
                 }
                 Some(InProgressState::InProgress(box InProgressStateInner {
-                    completed,
+                    done,
                     done_event,
                     ..
                 })) => {
-                    if !*completed {
+                    if !*done {
                         Some(Ok(Err(listen_to_done_event(this, reader, done_event))))
                     } else {
                         None
@@ -1137,7 +1137,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     done_event,
                     session_dependent: false,
                     marked_as_completed: false,
-                    completed: false,
+                    done: false,
                     new_children: Default::default(),
                 })),
             });
@@ -1280,7 +1280,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
         let &mut InProgressState::InProgress(box InProgressStateInner {
             stale,
-            ref mut completed,
+            ref mut done,
             ref done_event,
             ref mut new_children,
             ..
@@ -1321,7 +1321,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         // mark the task as completed, so dependent tasks can continue working
-        *completed = true;
+        *done = true;
         done_event.notify(usize::MAX);
 
         // take the children from the task to process them
@@ -1503,7 +1503,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             once_task: _,
             stale,
             session_dependent,
-            completed: _,
+            done: _,
             marked_as_completed: _,
             new_children,
         }) = in_progress
