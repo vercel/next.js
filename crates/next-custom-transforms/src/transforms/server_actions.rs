@@ -2395,6 +2395,7 @@ fn retain_names_from_declared_idents(
     *child_names = retained_names;
 }
 
+/// `$$cache__("default", "id", "myFn (filename:47:11)", 0, expr)`
 fn wrap_cache_expr(
     expr: Box<Expr>,
     cache_kind: &str,
@@ -2413,7 +2414,6 @@ fn wrap_cache_expr(
         loc.col_display + 1
     );
 
-    // expr -> $$cache__("default", "id", "myFn (filename:47:11)", 0, expr)
     Box::new(Expr::Call(CallExpr {
         span: DUMMY_SP,
         callee: quote_ident!("$$cache__").as_callee(),
@@ -2452,8 +2452,8 @@ fn create_var_declarator(ident: &Ident, extra_items: &mut Vec<ModuleItem>) {
     })))));
 }
 
+/// Assign a name with `Object.defineProperty($$ACTION_0, 'name', {value: 'default'})`
 fn assign_name_to_ident(ident: &Ident, name: &str, extra_items: &mut Vec<ModuleItem>) {
-    // Assign a name with `Object.defineProperty($$ACTION_0, 'name', {value: 'default'})`
     extra_items.push(quote!(
         // WORKAROUND for https://github.com/microsoft/TypeScript/issues/61165
         // This should just be
@@ -2486,8 +2486,8 @@ fn assign_arrow_expr(ident: &Ident, expr: Expr) -> Expr {
     }
 }
 
+/// `registerServerReference(ident, id, null)`
 fn annotate_ident_as_server_reference(ident: Ident, action_id: Atom, original_span: Span) -> Expr {
-    // registerServerReference(reference, id, null)
     Expr::Call(CallExpr {
         span: original_span,
         callee: quote_ident!("registerServerReference").as_callee(),
@@ -2509,11 +2509,11 @@ fn annotate_ident_as_server_reference(ident: Ident, action_id: Atom, original_sp
     })
 }
 
+/// `expr.bind(null, [encryptActionBoundArgs("id", arg1, arg2, ...)])`
 fn bind_args_to_ref_expr(expr: Expr, bound: Vec<Option<ExprOrSpread>>, action_id: Atom) -> Expr {
     if bound.is_empty() {
         expr
     } else {
-        // expr.bind(null, [encryptActionBoundArgs("id", arg1, arg2, ...)])
         Expr::Call(CallExpr {
             span: DUMMY_SP,
             callee: Expr::Member(MemberExpr {
