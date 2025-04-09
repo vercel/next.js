@@ -22,6 +22,9 @@ overrides:
   scheduler: 0.27.0-canary-33661467-20250407
 
 patchedDependencies:
+  path-to-regexp@6.1.0:
+    hash: x2ec3addkqui5yvheacnj5tt3m
+    path: patches/path-to-regexp@6.1.0.patch
   stacktrace-parser@0.1.10:
     hash: misknddihoqkqinipod62zbcj4
     path: patches/stacktrace-parser@0.1.10.patch
@@ -1397,7 +1400,7 @@ importers:
         version: 1.0.1
       path-to-regexp:
         specifier: 6.1.0
-        version: 6.1.0
+        version: 6.1.0(patch_hash=x2ec3addkqui5yvheacnj5tt3m)
       picomatch:
         specifier: 4.0.1
         version: 4.0.1
@@ -22948,7 +22951,7 @@ snapshots:
 
   '@types/path-to-regexp@1.7.0':
     dependencies:
-      path-to-regexp: 6.1.0
+      path-to-regexp: 6.1.0(patch_hash=x2ec3addkqui5yvheacnj5tt3m)
 
   '@types/picomatch@2.3.3': {}
 
@@ -32375,7 +32378,7 @@ snapshots:
 
   path-to-regexp@0.1.7: {}
 
-  path-to-regexp@6.1.0: {}
+  path-to-regexp@6.1.0(patch_hash=x2ec3addkqui5yvheacnj5tt3m): {}
 
   path-to-regexp@6.2.1: {}
 

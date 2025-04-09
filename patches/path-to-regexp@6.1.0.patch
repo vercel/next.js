@@ -1,0 +1,25 @@
+diff --git a/History.md b/History.md
+deleted file mode 100755
+index 830506f6d611e86f3af48f4b9e3034a1d4d4ce6b..0000000000000000000000000000000000000000
+diff --git a/dist/index.js b/dist/index.js
+index 8b9a4edb552bdba7b82ca9df279a06138cbcd72e..95f2392b6092b272ac681eee6c3fcac1f36bc86f 100755
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -234,7 +234,16 @@ function tokensToFunction(tokens, options) {
+             if (optional)
+                 continue;
+             var typeOfMessage = repeat ? "an array" : "a string";
+-            throw new TypeError("Expected \"" + token.name + "\" to be " + typeOfMessage);
++            throw new TypeError("Expected \"" + token.name + "\" to be " + typeOfMessage + JSON.stringify({
++                name: token.name,
++                type: typeof value,
++                value,
++                modifier: token.modifier,
++                pattern: token.pattern,
++                token,
++                data,  
++                typeOfMessage,
++            }));
+         }
+         return path;
+     };
