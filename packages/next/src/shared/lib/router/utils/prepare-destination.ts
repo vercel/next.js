@@ -11,7 +11,6 @@ import {
   INTERCEPTION_ROUTE_MARKERS,
   isInterceptionRouteAppPath,
 } from './interception-routes'
-import { NEXT_RSC_UNION_QUERY } from '../../../../client/components/app-router-headers'
 import { getCookieParser } from '../../../../server/api-utils/get-cookie-parser'
 import type { Params } from '../../../../server/request/params'
 
@@ -210,8 +209,6 @@ export function prepareDestination(args: {
   query: NextParsedUrlQuery
 }) {
   const query = Object.assign({}, args.query)
-  delete query[NEXT_RSC_UNION_QUERY]
-
   const parsedDestination = parseDestination(args)
 
   const { hostname: destHostname, query: destQuery } = parsedDestination
