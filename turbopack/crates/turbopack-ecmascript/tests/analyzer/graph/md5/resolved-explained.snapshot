@@ -131,8 +131,11 @@ hex = (???*0* | ???*1*)
 
 hexTab = "0123456789abcdef"
 
-i#3 = (0 | ???*0*)
-- *0* updated with update expression
+i#3 = (0 | ???*0* | ???*1*)
+- *0* FreeVar(undefined)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *1* updated with update expression
   ⚠️  This value might have side effects
 
 i#5 = (???*0* | 0 | (???*1* + 8))
@@ -208,11 +211,14 @@ md5ii = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-msg = ???*0*
+msg = (???*0* | ???*2*)
 - *0* ???*1*(FreeVar(encodeURIComponent)(bytes))
   ⚠️  unknown callee
   ⚠️  This value might have side effects
 - *1* FreeVar(unescape)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *2* FreeVar(undefined)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 

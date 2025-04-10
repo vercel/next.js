@@ -86,14 +86,20 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-4 -> 15 member call = ???*0*["charCodeAt"]((0 | ???*2*))
+4 -> 15 member call = (???*0* | ???*2*)["charCodeAt"]((0 | ???*3* | ???*4*))
 - *0* ???*1*(FreeVar(encodeURIComponent)(bytes))
   ⚠️  unknown callee
   ⚠️  This value might have side effects
 - *1* FreeVar(unescape)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *2* updated with update expression
+- *2* FreeVar(undefined)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *3* FreeVar(undefined)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *4* updated with update expression
   ⚠️  This value might have side effects
 
 0 -> 16 call = (...) => output((???*0* | new ???*1*(???*2*)))

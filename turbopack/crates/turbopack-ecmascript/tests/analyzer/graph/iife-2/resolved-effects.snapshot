@@ -24,14 +24,14 @@
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-0 -> 14 call = (...) => parent(???*0*, (???*2* ? ???*3* : ???*10*), (???*15* | {}){truthy})
+0 -> 14 call = (...) => parent(???*0*, (???*2* ? ???*3* : (???*11* | ???*16*)), (???*17* | {}){truthy})
 - *0* ???*1*[key]
   ⚠️  unknown object
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 - *2* arguments[1]
   ⚠️  function calls are not analysed yet
-- *3* `${???*4*}.${???*5*}`
+- *3* `${???*4*}.${(???*5* | ???*10*)}`
   ⚠️  nested operation
 - *4* arguments[1]
   ⚠️  function calls are not analysed yet
@@ -47,21 +47,27 @@
 - *8* Object: The global Object variable
 - *9* arguments[0]
   ⚠️  function calls are not analysed yet
-- *10* ???*11*[i]
+- *10* FreeVar(undefined)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *11* ???*12*[i]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *11* ???*12*(???*14*)
+- *12* ???*13*(???*15*)
   ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *12* Object*13*["keys"]
+- *13* Object*14*["keys"]
   ⚠️  unsupported property on global Object
   ⚠️  This value might have side effects
-- *13* Object: The global Object variable
-- *14* arguments[0]
+- *14* Object: The global Object variable
+- *15* arguments[0]
   ⚠️  function calls are not analysed yet
-- *15* ???*16*[key]
+- *16* FreeVar(undefined)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *17* ???*18*[key]
   ⚠️  unknown object
-- *16* arguments[2]
+- *18* arguments[2]
   ⚠️  function calls are not analysed yet
 
 0 -> 15 unreachable = ???*0*
