@@ -253,7 +253,6 @@
     "semver": "7.3.7",
     "shell-quote": "1.7.3",
     "strip-ansi": "6.0.0",
-    "styled-components": "6.0.0-rc.3",
     "styled-jsx": "5.1.6",
     "styled-jsx-plugin-postcss": "3.0.2",
     "swr": "^2.2.4",
