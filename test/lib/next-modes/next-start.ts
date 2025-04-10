@@ -105,7 +105,12 @@ export class NextStartInstance extends NextInstance {
           this.childProcess = null
           if (code || signal)
             reject(
-              new Error(`next build failed with code/signal ${code || signal}`)
+              new Error(
+                `next build failed with ${code !== undefined ? `code ${code}` : `signal {signal}`}.` +
+                  (this.cliOutput
+                    ? '\n(no output emitted on stdout/stderr)'
+                    : '\n\n' + this.cliOutput)
+              )
             )
           else resolve()
         })
