@@ -1664,7 +1664,10 @@ impl VisitAstPath for Analyzer<'_> {
                     && is_lexically_block_scope(ast_path);
                 let init_value = self.eval_context.eval(init);
                 self.current_value = Some(if should_include_undefined {
-                    JsValue::alternatives(vec![init_value, JsValue::FreeVar(atom!("undefined"))])
+                    JsValue::alternatives(vec![
+                        init_value,
+                        JsValue::Constant(ConstantValue::Undefined),
+                    ])
                 } else {
                     init_value
                 });
