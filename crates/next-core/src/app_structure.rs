@@ -49,6 +49,8 @@ pub struct AppDirModules {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub not_found: Option<ResolvedVc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub offline: Option<ResolvedVc<FileSystemPath>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub default: Option<ResolvedVc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub route: Option<ResolvedVc<FileSystemPath>>,
@@ -68,6 +70,7 @@ impl AppDirModules {
             not_found: self.not_found,
             forbidden: self.forbidden,
             unauthorized: self.unauthorized,
+            offline: self.offline,
             default: None,
             route: None,
             metadata: self.metadata.clone(),
@@ -326,6 +329,7 @@ async fn get_directory_tree_internal(
                             "template" => modules.template = Some(file),
                             "forbidden" => modules.forbidden = Some(file),
                             "unauthorized" => modules.unauthorized = Some(file),
+                            "offline" => modules.offline = Some(file),
                             "not-found" => modules.not_found = Some(file),
                             "default" => modules.default = Some(file),
                             "route" => modules.route = Some(file),
@@ -910,6 +914,16 @@ async fn directory_tree_to_loader_tree_internal(
                     .await?,
             );
         }
+
+        // // TODO: default offline boundary?
+        // if modules.offline.is_none() {
+        //     modules.offline = Some(
+        //         get_next_package(app_dir)
+        //             .join("dist/client/components/unauthorized-error.js".into())
+        //             .to_resolved()
+        //             .await?,
+        //     );
+        // }
     }
 
     let mut tree = AppPageLoaderTree {
@@ -1281,6 +1295,15 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                     .await?,
             );
         }
+        // TODO: default offline boundary?
+        // if modules.offline.is_none() {
+        //     modules.offline = Some(
+        //         get_next_package(*app_dir)
+        //             .join("dist/client/components/unauthorized-error.js".into())
+        //             .to_resolved()
+        //             .await?,
+        //     );
+        // }
 
         // Next.js has this logic in "collect-app-paths", where the root not-found page
         // is considered as its own entry point.

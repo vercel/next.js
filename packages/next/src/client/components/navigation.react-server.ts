@@ -31,5 +31,6 @@ export { RedirectType } from './redirect-error'
 export { notFound } from './not-found'
 export { forbidden } from './forbidden'
 export { unauthorized } from './unauthorized'
+export { offline } from './offline'
 export { unstable_rethrow } from './unstable-rethrow'
 export { ReadonlyURLSearchParams }

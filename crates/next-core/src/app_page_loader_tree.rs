@@ -336,6 +336,7 @@ impl AppPageLoaderTreeBuilder {
             metadata,
             forbidden,
             unauthorized,
+            offline,
             route: _,
         } = &modules;
 
@@ -362,6 +363,8 @@ impl AppPageLoaderTreeBuilder {
         self.write_modules_entry(AppDirModuleType::Forbidden, *forbidden)
             .await?;
         self.write_modules_entry(AppDirModuleType::Unauthorized, *unauthorized)
+            .await?;
+        self.write_modules_entry(AppDirModuleType::Offline, *offline)
             .await?;
         self.write_modules_entry(AppDirModuleType::Page, *page)
             .await?;

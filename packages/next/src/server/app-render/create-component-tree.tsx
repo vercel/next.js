@@ -128,6 +128,7 @@ async function createComponentTreeInternal({
     'not-found': notFound,
     forbidden,
     unauthorized,
+    offline,
   } = modules
 
   const injectedCSSWithCurrentLayout = new Set(injectedCSS)
@@ -230,6 +231,16 @@ async function createComponentTreeInternal({
           injectedJS: injectedJSWithCurrentLayout,
         })
       : []
+
+  const [Offline, offlineStyles] = offline
+    ? await createComponentStylesAndScripts({
+        ctx,
+        filePath: offline[1],
+        getComponent: offline[0],
+        injectedCSS: injectedCSSWithCurrentLayout,
+        injectedJS: injectedJSWithCurrentLayout,
+      })
+    : []
 
   let dynamic = layoutOrPageMod?.dynamic
 
@@ -416,6 +427,13 @@ async function createComponentTreeInternal({
     </>
   ) : undefined
 
+  const offlineElement = Offline ? (
+    <>
+      <Offline />
+      {offlineStyles}
+    </>
+  ) : undefined
+
   // TODO: Combine this `map` traversal with the loop below that turns the array
   // into an object.
   const parallelRouteMap = await Promise.all(
@@ -437,6 +455,8 @@ async function createComponentTreeInternal({
         const unauthorizedComponent = isChildrenRouteKey
           ? unauthorizedElement
           : undefined
+
+        const offlineComponent = isChildrenRouteKey ? offlineElement : undefined
 
         // if we're prefetching and that there's a Loading component, we bail out
         // otherwise we keep rendering for the prefetch.
@@ -541,6 +561,7 @@ async function createComponentTreeInternal({
             notFound={notFoundComponent}
             forbidden={forbiddenComponent}
             unauthorized={unauthorizedComponent}
+            offline={offlineComponent}
           />,
           childCacheNodeSeedData,
         ]
@@ -754,6 +775,7 @@ async function createComponentTreeInternal({
         let notfoundClientSegment: React.ReactNode
         let forbiddenClientSegment: React.ReactNode
         let unauthorizedClientSegment: React.ReactNode
+        let offlineClientSegment: React.ReactNode
         // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
         // This ensures that a `HTTPAccessFallbackBoundary` is available for when that happens,
         // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
@@ -783,10 +805,19 @@ async function createComponentTreeInternal({
           SegmentComponent,
           currentParams,
         })
+        offlineClientSegment = createErrorBoundaryClientSegmentRoot({
+          ErrorBoundaryComponent: Offline,
+          errorElement: offlineElement,
+          ClientSegmentRoot,
+          layerAssets,
+          SegmentComponent,
+          currentParams,
+        })
         if (
           notfoundClientSegment ||
           forbiddenClientSegment ||
-          unauthorizedClientSegment
+          unauthorizedClientSegment ||
+          offlineClientSegment
         ) {
           segmentNode = (
             <HTTPAccessFallbackBoundary
@@ -794,6 +825,7 @@ async function createComponentTreeInternal({
               notFound={notfoundClientSegment}
               forbidden={forbiddenClientSegment}
               unauthorized={unauthorizedClientSegment}
+              offline={offlineClientSegment}
             >
               {layerAssets}
               {clientSegment}
