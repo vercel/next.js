@@ -1659,7 +1659,15 @@ impl VisitAstPath for Analyzer<'_> {
                 // }
                 //
                 // The variable `x` is undefined
-                self.current_value = Some(self.eval_context.eval(init));
+
+                let should_include_undefined = matches!(self.var_decl_kind, Some(VarDeclKind::Var))
+                    && is_lexically_block_scope(ast_path);
+                let init_value = self.eval_context.eval(init);
+                self.current_value = Some(if should_include_undefined {
+                    JsValue::alternatives(vec![init_value, JsValue::FreeVar(atom!("undefined"))])
+                } else {
+                    init_value
+                });
             }
         }
         {
@@ -2192,6 +2200,23 @@ impl VisitAstPath for Analyzer<'_> {
         self.effects = prev_effects;
         self.early_return_stack = prev_early_return_stack;
     }
+}
+
+fn is_lexically_block_scope(ast_path: &mut AstNodePath<AstParentNodeRef>) -> bool {
+    let mut iter = ast_path.iter().rev().peekable();
+
+    while let Some(cur) = iter.next() {
+        // If it's a block statement, we need to check if it's Function#body
+        if matches!(cur.kind(), AstParentKind::BlockStmt(..)) {
+            if let Some(next) = iter.peek() {
+                return !matches!(next.kind(), AstParentKind::Function(FunctionField::Body));
+            }
+            return false;
+        }
+    }
+
+    // This `var` is not in a block scope
+    false
 }
 
 impl Analyzer<'_> {
