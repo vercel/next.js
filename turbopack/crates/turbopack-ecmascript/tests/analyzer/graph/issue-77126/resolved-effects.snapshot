@@ -1,9 +1,6 @@
 0 -> 1 call = (...) => false()
 
-0 -> 2 conditional = (true | ???*0*)
-- *0* FreeVar(undefined)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+0 -> 2 conditional = (true | undefined)
 
 2 -> 3 unreachable = ???*0*
 - *0* unreachable

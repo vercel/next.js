@@ -1601,8 +1601,8 @@
                         #4,
                     ),
                 ),
-                FreeVar(
-                    "undefined",
+                Constant(
+                    Undefined,
                 ),
             ],
             logical_property: None,
@@ -2853,8 +2853,8 @@
                         #4,
                     ),
                 ),
-                FreeVar(
-                    "undefined",
+                Constant(
+                    Undefined,
                 ),
             ],
             logical_property: None,
@@ -4137,8 +4137,8 @@
                         #4,
                     ),
                 ),
-                FreeVar(
-                    "undefined",
+                Constant(
+                    Undefined,
                 ),
             ],
             logical_property: None,
@@ -5414,8 +5414,8 @@
                         #4,
                     ),
                 ),
-                FreeVar(
-                    "undefined",
+                Constant(
+                    Undefined,
                 ),
             ],
             logical_property: None,

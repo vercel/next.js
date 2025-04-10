@@ -63,8 +63,8 @@
                         #0,
                     ),
                 ),
-                FreeVar(
-                    "undefined",
+                Constant(
+                    Undefined,
                 ),
             ],
             logical_property: None,
@@ -93,8 +93,8 @@
                         ),
                     ],
                 ),
-                FreeVar(
-                    "undefined",
+                Constant(
+                    Undefined,
                 ),
             ],
             logical_property: None,
@@ -127,8 +127,8 @@
                         ),
                     ],
                 ),
-                FreeVar(
-                    "undefined",
+                Constant(
+                    Undefined,
                 ),
             ],
             logical_property: None,
@@ -158,8 +158,8 @@
                     parts: [],
                     mutable: true,
                 },
-                FreeVar(
-                    "undefined",
+                Constant(
+                    Undefined,
                 ),
             ],
             logical_property: None,

@@ -53,8 +53,8 @@
                         ),
                     ),
                 ),
-                FreeVar(
-                    "undefined",
+                Constant(
+                    Undefined,
                 ),
             ],
             logical_property: None,

@@ -4,4 +4,4 @@ run = (...) => ("should not run" | "should run")
 
 shouldRun = *arrow function 19*
 
-x = (true | FreeVar(undefined))
+x = (true | undefined)

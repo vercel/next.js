@@ -4,7 +4,4 @@ run = (...) => ("should not run" | "should run")
 
 shouldRun = (...) => false
 
-x = (true | ???*0*)
-- *0* FreeVar(undefined)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+x = (true | undefined)

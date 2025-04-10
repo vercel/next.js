@@ -236,7 +236,7 @@ hex = (
 
 hexTab = "0123456789abcdef"
 
-i#3 = (0 | FreeVar(undefined) | ???*0*)
+i#3 = (0 | undefined | ???*0*)
 - *0* updated with update expression
   ⚠️  This value might have side effects
 
@@ -301,7 +301,7 @@ md5ii = (...) => md5cmn(???*0*, a, b, x, s, t)
 
 msg = (
   | FreeVar(unescape)(FreeVar(encodeURIComponent)(bytes))
-  | FreeVar(undefined)
+  | undefined
 )
 
 msw = (???*0* + ???*1* + ???*2*)
