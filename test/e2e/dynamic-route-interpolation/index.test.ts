@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+const fs = require('fs')
 
 describe('Dynamic Route Interpolation', () => {
   const { next, isNextStart } = nextTestSetup({
@@ -80,6 +81,22 @@ describe('Dynamic Route Interpolation', () => {
           decodedStatus: 200,
         })
       }
+    })
+
+    it('should support partially encoded paths', async () => {
+      const modalChunk = await fs.promises.readdir(
+        next.testDir +
+          '/.next/static/chunks/app/@modal/(...)comments/[productId]'
+      )
+
+      const partiallyEncodedPath =
+        '/_next/static/chunks/app/@modal/(...)comments/%5BproductId%5D/' +
+        modalChunk
+
+      const { status: encodedPathReqStatus } =
+        await next.fetch(partiallyEncodedPath)
+
+      expect(encodedPathReqStatus).toBe(200)
     })
   }
 })
