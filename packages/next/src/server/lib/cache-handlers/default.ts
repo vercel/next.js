@@ -46,9 +46,9 @@ const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
   : undefined
 
 const DefaultCacheHandler: CacheHandlerV2 = {
-  async get(cacheKey, metaData) {
+  async get(cacheKey, metadata) {
     const pendingPromise = pendingSets.get(cacheKey)
-    const displayName = metaData?.displayName
+    const displayName = metadata?.displayName
 
     if (pendingPromise) {
       debug?.('get', displayName, cacheKey, 'pending')
@@ -96,8 +96,8 @@ const DefaultCacheHandler: CacheHandlerV2 = {
     }
   },
 
-  async set(cacheKey, pendingEntry, metaData) {
-    const displayName = metaData?.displayName
+  async set(cacheKey, pendingEntry, metadata) {
+    const displayName = metadata?.displayName
     debug?.('set', displayName, cacheKey, 'start')
 
     let resolvePending: () => void = () => {}

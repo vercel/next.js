@@ -75,7 +75,7 @@ export interface CacheHandler {
   receiveExpiredTags(...tags: string[]): Promise<void>
 }
 
-export interface CacheHandlerMetaData {
+export interface CacheHandlerMetadata {
   readonly displayName: string
 }
 
@@ -85,7 +85,7 @@ export interface CacheHandlerV2 {
    */
   get(
     cacheKey: string,
-    metaData?: CacheHandlerMetaData
+    metadata?: CacheHandlerMetadata
   ): Promise<undefined | CacheEntry>
 
   /**
@@ -99,7 +99,7 @@ export interface CacheHandlerV2 {
   set(
     cacheKey: string,
     pendingEntry: Promise<CacheEntry>,
-    metaData?: CacheHandlerMetaData
+    metadata?: CacheHandlerMetadata
   ): Promise<void>
 
   /**
