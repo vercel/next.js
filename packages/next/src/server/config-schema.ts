@@ -390,6 +390,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         prerenderEarlyExit: z.boolean().optional(),
         proxyTimeout: z.number().gte(0).optional(),
         routerBFCache: z.boolean().optional(),
+        removeUnhandledRejectionListeners: z.boolean().optional(),
         scrollRestoration: z.boolean().optional(),
         sri: z
           .object({
