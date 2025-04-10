@@ -1,12 +1,4 @@
-type Params = {
-  locale: string
-  rest: string[]
-}
-
-const expectedParams: Params = {
-  locale: 'en',
-  rest: ['1', '2'],
-}
+import { type Params, expectedParams } from '../../../expected'
 
 export default async function CatchAll({
   params,
@@ -21,3 +13,5 @@ export default async function CatchAll({
 export async function generateStaticParams(): Promise<Params[]> {
   return [expectedParams]
 }
+
+export const dynamic = 'force-dynamic'
