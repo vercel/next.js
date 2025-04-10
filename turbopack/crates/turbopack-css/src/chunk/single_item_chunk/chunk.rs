@@ -59,7 +59,7 @@ impl SingleItemCssChunk {
             &*this.chunking_context.minify_type().await?,
             MinifyType::NoMinify
         ) {
-            let id = this.item.id().await?;
+            let id = this.item.asset_ident().to_string().await?;
             writeln!(code, "/* {} */", id)?;
         }
         let content = this.item.content().await?;
