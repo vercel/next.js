@@ -16,7 +16,6 @@ import {
   nextStart,
   renderViaHTTP,
   retry,
-  waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -612,16 +611,17 @@ function runTests(mode: 'dev' | 'server') {
       `/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x`
     )
     if (mode === 'dev') {
-      await waitFor(1000)
-      const warnings = (await browser.log())
-        .map((log) => log.message)
-        .join('\n')
-      expect(warnings).toMatch(
-        /Image with src "\/wide.png" has either width or height modified, but not the other./gm
-      )
-      expect(warnings).not.toMatch(
-        /Image with src "\/test.png" has either width or height modified, but not the other./gm
-      )
+      await retry(async () => {
+        const warnings = (await browser.log())
+          .map((log) => log.message)
+          .join('\n')
+        expect(warnings).toMatch(
+          /Image with src "\/wide.png" has either width or height modified, but not the other./gm
+        )
+        expect(warnings).not.toMatch(
+          /Image with src "\/test.png" has either width or height modified, but not the other./gm
+        )
+      })
     }
   })
 
@@ -923,7 +923,6 @@ function runTests(mode: 'dev' | 'server') {
 
     it('should show error when invalid height prop', async () => {
       const browser = await webdriver(appPort, '/invalid-height')
-
       await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" has invalid "height" property. Expected a numeric value in pixels but received "50vh".`
@@ -1025,14 +1024,15 @@ function runTests(mode: 'dev' | 'server') {
         }
         return 'done'
       }, 'done')
-      await waitFor(1000)
-      const warnings = (await browser.log())
-        .map((log) => log.message)
-        .join('\n')
-      await assertNoRedbox(browser)
-      expect(warnings).toMatch(
-        /Image with src (.*)test(.*) was detected as the Largest Contentful Paint/gm
-      )
+      await retry(async () => {
+        const warnings = (await browser.log())
+          .map((log) => log.message)
+          .join('\n')
+        await assertNoRedbox(browser)
+        expect(warnings).toMatch(
+          /Image with src (.*)test(.*) was detected as the Largest Contentful Paint/gm
+        )
+      })
     })
 
     it('should warn when loader is missing width', async () => {
@@ -1112,14 +1112,15 @@ function runTests(mode: 'dev' | 'server') {
         }
         return 'done'
       }, 'done')
-      await waitFor(1000)
-      const warnings = (await browser.log())
-        .map((log) => log.message)
-        .filter((log) => log.startsWith('Image with src'))
-      expect(warnings[0]).toMatch(
-        'Image with src "/test.png" was detected as the Largest Contentful Paint (LCP).'
-      )
-      expect(warnings.length).toBe(1)
+      await retry(async () => {
+        const warnings = (await browser.log())
+          .map((log) => log.message)
+          .filter((log) => log.startsWith('Image with src'))
+        expect(warnings[0]).toMatch(
+          'Image with src "/test.png" was detected as the Largest Contentful Paint (LCP).'
+        )
+        expect(warnings.length).toBe(1)
+      })
     })
   } else {
     //server-only tests
@@ -1178,11 +1179,11 @@ function runTests(mode: 'dev' | 'server') {
       return 'result-correct'
     }, /result-correct/)
 
-    await waitFor(1000)
-
-    const computedWidth = await getComputed(browser, id, 'width')
-    const computedHeight = await getComputed(browser, id, 'height')
-    expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(1, 1)
+    await retry(async () => {
+      const computedWidth = await getComputed(browser, id, 'width')
+      const computedHeight = await getComputed(browser, id, 'height')
+      expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(1, 1)
+    })
   })
 
   it('should apply style inheritance for img elements but not wrapper elements', async () => {
@@ -1222,33 +1223,34 @@ function runTests(mode: 'dev' | 'server') {
     const browser = await webdriver(appPort, '/style-filter')
     await check(() => getSrc(browser, 'img-plain'), /^\/_next\/image/)
     await check(() => getSrc(browser, 'img-blur'), /^\/_next\/image/)
-    await waitFor(1000)
 
-    expect(await getComputedStyle(browser, 'img-plain', 'filter')).toBe(
-      'opacity(0.5)'
-    )
-    expect(
-      await getComputedStyle(browser, 'img-plain', 'background-size')
-    ).toBe('30%')
-    expect(
-      await getComputedStyle(browser, 'img-plain', 'background-image')
-    ).toMatch('iVBORw0KGgo=')
-    expect(
-      await getComputedStyle(browser, 'img-plain', 'background-position')
-    ).toBe('1px 2px')
+    await retry(async () => {
+      expect(await getComputedStyle(browser, 'img-plain', 'filter')).toBe(
+        'opacity(0.5)'
+      )
+      expect(
+        await getComputedStyle(browser, 'img-plain', 'background-size')
+      ).toBe('30%')
+      expect(
+        await getComputedStyle(browser, 'img-plain', 'background-image')
+      ).toMatch('iVBORw0KGgo=')
+      expect(
+        await getComputedStyle(browser, 'img-plain', 'background-position')
+      ).toBe('1px 2px')
 
-    expect(await getComputedStyle(browser, 'img-blur', 'filter')).toBe(
-      'opacity(0.5)'
-    )
-    expect(await getComputedStyle(browser, 'img-blur', 'background-size')).toBe(
-      '30%'
-    )
-    expect(
-      await getComputedStyle(browser, 'img-blur', 'background-image')
-    ).toMatch('iVBORw0KGgo=')
-    expect(
-      await getComputedStyle(browser, 'img-blur', 'background-position')
-    ).toBe('1px 2px')
+      expect(await getComputedStyle(browser, 'img-blur', 'filter')).toBe(
+        'opacity(0.5)'
+      )
+      expect(
+        await getComputedStyle(browser, 'img-blur', 'background-size')
+      ).toBe('30%')
+      expect(
+        await getComputedStyle(browser, 'img-blur', 'background-image')
+      ).toMatch('iVBORw0KGgo=')
+      expect(
+        await getComputedStyle(browser, 'img-blur', 'background-position')
+      ).toBe('1px 2px')
+    })
   })
 
   it('should emit image for next/dynamic with non ssr case', async () => {
@@ -1298,43 +1300,46 @@ function runTests(mode: 'dev' | 'server') {
     if (mode === 'dev') {
       it('should not log incorrect warnings', async () => {
         const browser = await webdriver(appPort, '/fill')
-        await waitFor(1000)
-        const warnings = (await browser.log())
-          .map((log) => log.message)
-          .join('\n')
-        expect(warnings).not.toMatch(/Image with src (.*) has "fill"/gm)
-        expect(warnings).not.toMatch(
-          /Image with src (.*) is smaller than 40x40. Consider removing(.*)/gm
-        )
+        await retry(async () => {
+          const warnings = (await browser.log())
+            .map((log) => log.message)
+            .join('\n')
+          expect(warnings).not.toMatch(/Image with src (.*) has "fill"/gm)
+          expect(warnings).not.toMatch(
+            /Image with src (.*) is smaller than 40x40. Consider removing(.*)/gm
+          )
+        })
       })
       it('should log warnings when using fill mode incorrectly', async () => {
         const browser = await webdriver(appPort, '/fill-warnings')
-        await waitFor(1000)
-        const warnings = (await browser.log())
-          .map((log) => log.message)
-          .join('\n')
-        expect(warnings).toContain(
-          'Image with src "/wide.png" has "fill" and parent element with invalid "position". Provided "static" should be one of absolute,fixed,relative.'
-        )
-        expect(warnings).toContain(
-          'Image with src "/wide.png" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.'
-        )
-        expect(warnings).toContain(
-          'Image with src "/wide.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more:'
-        )
-        expect(warnings).toContain(
-          'Image with src "/test.png" has "fill" prop and "sizes" prop of "100vw", but image is not rendered at full viewport width. Please adjust "sizes" to improve page performance. Read more:'
-        )
+        await retry(async () => {
+          const warnings = (await browser.log())
+            .map((log) => log.message)
+            .join('\n')
+          expect(warnings).toContain(
+            'Image with src "/wide.png" has "fill" and parent element with invalid "position". Provided "static" should be one of absolute,fixed,relative.'
+          )
+          expect(warnings).toContain(
+            'Image with src "/wide.png" has "fill" and a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.'
+          )
+          expect(warnings).toContain(
+            'Image with src "/wide.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more:'
+          )
+          expect(warnings).toContain(
+            'Image with src "/test.png" has "fill" prop and "sizes" prop of "100vw", but image is not rendered at full viewport width. Please adjust "sizes" to improve page performance. Read more:'
+          )
+        })
       })
       it('should not log warnings when image unmounts', async () => {
         const browser = await webdriver(appPort, '/should-not-warn-unmount')
-        await waitFor(1000)
-        const warnings = (await browser.log())
-          .map((log) => log.message)
-          .join('\n')
-        expect(warnings).not.toContain(
-          'Image with src "/test.jpg" has "fill" and parent element'
-        )
+        await retry(async () => {
+          const warnings = (await browser.log())
+            .map((log) => log.message)
+            .join('\n')
+          expect(warnings).not.toContain(
+            'Image with src "/test.jpg" has "fill" and parent element'
+          )
+        })
       })
     }
   })
@@ -1358,11 +1363,11 @@ function runTests(mode: 'dev' | 'server') {
         return 'result-correct'
       }, /result-correct/)
 
-      await waitFor(500)
-
-      const computedWidth = await getComputed(browser, id, 'width')
-      const computedHeight = await getComputed(browser, id, 'height')
-      expect(getRatio(computedHeight, computedWidth)).toBeCloseTo(0.75, 1)
+      await retry(async () => {
+        const computedWidth = await getComputed(browser, id, 'width')
+        const computedHeight = await getComputed(browser, id, 'height')
+        expect(getRatio(computedHeight, computedWidth)).toBeCloseTo(0.75, 1)
+      })
     })
   }
 
@@ -1500,8 +1505,9 @@ function runTests(mode: 'dev' | 'server') {
 
   it('should be valid HTML', async () => {
     const browser = await webdriver(appPort, '/valid-html-w3c')
-    await waitFor(1000)
-    expect(await browser.hasElementByCssSelector('img')).toBeTruthy()
+    await retry(async () =>
+      expect(await browser.hasElementByCssSelector('img')).toBeTruthy()
+    )
     const url = await browser.url()
     const result = (await validateHTML({
       url,
