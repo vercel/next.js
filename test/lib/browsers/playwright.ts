@@ -427,7 +427,7 @@ export class Playwright extends BrowserInterface {
     )
   }
 
-  waitForElementByCss(selector, timeout?: number) {
+  waitForElementByCss(selector, timeout = 10_000) {
     return this.chain(() => {
       return page
         .waitForSelector(selector, { timeout, state: 'attached' })
