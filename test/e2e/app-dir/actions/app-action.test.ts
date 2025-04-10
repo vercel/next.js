@@ -1454,14 +1454,13 @@ describe('app-dir action handling', () => {
     // TODO: investigate flakey behavior with revalidate
     it('should revalidate when cookies.set is called in a client action', async () => {
       const browser = await next.browser('/revalidate')
-      await browser.refresh()
 
       let randomCookie
       await retry(async () => {
         randomCookie = JSON.parse(
           await browser.elementByCss('#random-cookie').text()
-        ).value
-        expect(randomCookie).toBeDefined()
+        )?.value
+        expect(randomCookie).toBeUndefined()
       })
 
       console.log(123, await browser.elementByCss('body').text())
@@ -1475,7 +1474,7 @@ describe('app-dir action handling', () => {
 
       const newRandomCookie = JSON.parse(
         await browser.elementByCss('#random-cookie').text()
-      ).value
+      )?.value
 
       console.log(456, await browser.elementByCss('body').text())
 
@@ -1492,7 +1491,8 @@ describe('app-dir action handling', () => {
       await retry(async () => {
         revalidatedRandomCookie = JSON.parse(
           await browser.elementByCss('#random-cookie').text()
-        ).value
+        )?.value
+        expect(revalidatedRandomCookie).toBeDefined()
         expect(revalidatedRandomCookie).not.toBe(randomCookie)
       })
 
@@ -1502,7 +1502,7 @@ describe('app-dir action handling', () => {
       await retry(async () => {
         const newRandomCookie = await JSON.parse(
           await browser.elementByCss('#random-cookie').text()
-        ).value
+        )?.value
         expect(revalidatedRandomCookie).toBe(newRandomCookie)
       })
     })
