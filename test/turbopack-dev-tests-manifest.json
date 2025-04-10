@@ -2009,6 +2009,7 @@
       "Error Overlay for server components Class component used in Server Component should show error when Class Component is used",
       "Error Overlay for server components Class component used in Server Component should show error when Component is rendered in external package",
       "Error Overlay for server components Class component used in Server Component should show error when React.PureComponent is rendered in external package",
+      "Error Overlay for server components Next.js link client hooks called in Server Component should show error when useLinkStatus is called",
       "Error Overlay for server components Next.js navigation client hooks called in Server Component should show error when useParams is called",
       "Error Overlay for server components Next.js navigation client hooks called in Server Component should show error when usePathname is called",
       "Error Overlay for server components Next.js navigation client hooks called in Server Component should show error when useRouter is called",
@@ -4901,6 +4902,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/back-forward-cache/back-forward-cache.test.ts": {
+    "passed": [
+      "back/forward cache Activity component is renderable when the routerBFCache flag is on"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/binary/rsc-binary.test.ts": {
     "passed": [
       "RSC binary serialization should correctly encode/decode binaries and hydrate"
@@ -7753,6 +7763,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/rewrite-with-search-params/rewrite-with-search-params.test.ts": {
+    "passed": [
+      "rewrite-with-search-params should not contain params in search params after rewrite"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/rewrites-redirects/rewrites-redirects.test.ts": {
     "passed": [
       "redirects and rewrites navigation using button should redirect from middleware correctly",
@@ -7896,6 +7915,16 @@
     "pending": [
       "app dir - rsc basics should support partial hydration with inlined server data in browser"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/rsc-query-routing/rsc-query-routing.test.ts": {
+    "passed": [
+      "rsc-query-routing should contain rsc query in rsc request when redirect the page",
+      "rsc-query-routing should contain rsc query in rsc request when rewrite the page"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -11300,6 +11329,16 @@
       "specified tsconfig app router: allows a user-specific tsconfig via the next config",
       "specified tsconfig middleware: allows a user-specific tsconfig via the next config",
       "specified tsconfig pages router: allows a user-specific tsconfig via the next config"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/turbopack-turbo-config-compatibility/index.test.ts": {
+    "passed": [
+      "turbopack-turbo-config-compatibility including both turbopack and deprecated experimental turbo config prefers turbopack config over deprecated experimental turbo config",
+      "turbopack-turbo-config-compatibility only including deprecated experimental turbo config still uses the deprecated experimental turbo config"
     ],
     "failed": [],
     "pending": [],
@@ -18147,7 +18186,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/module-id-strategies/test/index.test.js": {
+  "test/integration/module-ids/test/index.test.js": {
     "passed": [
       "minified module ids development mode should have long module id for the next client runtime module",
       "minified module ids development mode should have long module ids for async loader modules",
