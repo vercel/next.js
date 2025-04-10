@@ -4,6 +4,7 @@
 const nextConfig = {
   experimental: {
     cssChunking: 'strict',
+    turbopackMinify: false,
   },
 }
 
