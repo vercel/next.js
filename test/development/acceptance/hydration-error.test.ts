@@ -81,19 +81,32 @@ describe('Error overlay for hydration errors in Pages router', () => {
     // Pages Router uses React version without Owner Stacks hence the empty `stack`
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
-       {
-         "componentStack": "<Mismatch>
+       [
+         {
+           "componentStack": "<Mismatch>
            <div>
              <main>
        +       "server"
        -       "client"",
-         "count": 2,
-         "description": "Text content did not match. Server: "server" Client: "client"",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": null,
-         "stack": [],
-       }
+           "description": "Text content did not match. Server: "server" Client: "client"",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Mismatch>
+           <div>
+             <main>
+       +       "server"
+       -       "client"",
+           "description": "Text content did not match. Server: "server" Client: "client"",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
@@ -112,7 +125,6 @@ describe('Error overlay for hydration errors in Pages router', () => {
        -                     server
                      ...
                  ...",
-         "count": 1,
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -172,17 +184,38 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
-       {
-         "componentStack": "<Mismatch>
+       [
+         {
+           "componentStack": "<Mismatch>
        >   <div>
        >     <main>",
-         "count": 3,
-         "description": "Expected server HTML to contain a matching <main> in <div>.",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": null,
-         "stack": [],
-       }
+           "description": "Expected server HTML to contain a matching <main> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Mismatch>
+       >   <div>
+       >     <main>",
+           "description": "Expected server HTML to contain a matching <main> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Mismatch>
+       >   <div>
+       >     <main>",
+           "description": "Expected server HTML to contain a matching <main> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
@@ -199,7 +232,6 @@ describe('Error overlay for hydration errors in Pages router', () => {
        +                   <main className="only">
                      ...
                  ...",
-         "count": 1,
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -244,18 +276,41 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
-       {
-         "componentStack": "<Mismatch>
+       [
+         {
+           "componentStack": "<Mismatch>
            <div>
        >     <div>
        >       "second"",
-         "count": 3,
-         "description": "Expected server HTML to contain a matching text node for "second" in <div>.",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": null,
-         "stack": [],
-       }
+           "description": "Expected server HTML to contain a matching text node for "second" in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Mismatch>
+           <div>
+       >     <div>
+       >       "second"",
+           "description": "Expected server HTML to contain a matching text node for "second" in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Mismatch>
+           <div>
+       >     <div>
+       >       "second"",
+           "description": "Expected server HTML to contain a matching text node for "second" in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
@@ -275,7 +330,6 @@ describe('Error overlay for hydration errors in Pages router', () => {
                            ...
                      ...
                  ...",
-         "count": 1,
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -314,16 +368,26 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
-       {
-         "componentStack": "<Mismatch>
+       [
+         {
+           "componentStack": "<Mismatch>
        >   <div>",
-         "count": 2,
-         "description": "Did not expect server HTML to contain a <main> in <div>.",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": null,
-         "stack": [],
-       }
+           "description": "Did not expect server HTML to contain a <main> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Mismatch>
+       >   <div>",
+           "description": "Did not expect server HTML to contain a <main> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
@@ -341,7 +405,6 @@ describe('Error overlay for hydration errors in Pages router', () => {
        -                   <main className="only">
                      ...
                  ...",
-         "count": 1,
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -376,18 +439,30 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
-       {
-         "componentStack": "<Mismatch>
+       [
+         {
+           "componentStack": "<Mismatch>
            <div>
        >     <div>
        >       "only"",
-         "count": 2,
-         "description": "Did not expect server HTML to contain the text node "only" in <div>.",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": null,
-         "stack": [],
-       }
+           "description": "Did not expect server HTML to contain the text node "only" in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Mismatch>
+           <div>
+       >     <div>
+       >       "only"",
+           "description": "Did not expect server HTML to contain the text node "only" in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
@@ -405,7 +480,6 @@ describe('Error overlay for hydration errors in Pages router', () => {
        -                   only
                      ...
                  ...",
-         "count": 1,
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -454,16 +528,35 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
-       {
-         "componentStack": "<Page>
+       [
+         {
+           "componentStack": "<Page>
        >   <table>",
-         "count": 3,
-         "description": "Expected server HTML to contain a matching <table> in <div>.",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": null,
-         "stack": [],
-       }
+           "description": "Expected server HTML to contain a matching <table> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Page>
+       >   <table>",
+           "description": "Expected server HTML to contain a matching <table> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Page>
+       >   <table>",
+           "description": "Expected server HTML to contain a matching <table> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
@@ -481,7 +574,6 @@ describe('Error overlay for hydration errors in Pages router', () => {
        -                 test
                      ...
                  ...",
-         "count": 1,
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -524,16 +616,35 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
-       {
-         "componentStack": "<Page>
+       [
+         {
+           "componentStack": "<Page>
        >   <table>",
-         "count": 3,
-         "description": "Expected server HTML to contain a matching <table> in <div>.",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": null,
-         "stack": [],
-       }
+           "description": "Expected server HTML to contain a matching <table> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Page>
+       >   <table>",
+           "description": "Expected server HTML to contain a matching <table> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Page>
+       >   <table>",
+           "description": "Expected server HTML to contain a matching <table> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
@@ -551,7 +662,6 @@ describe('Error overlay for hydration errors in Pages router', () => {
        -                 {" 123"}
                      ...
                  ...",
-         "count": 1,
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -599,18 +709,41 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
-       {
-         "componentStack": "<Mismatch>
+       [
+         {
+           "componentStack": "<Mismatch>
        >   <div>
              <Suspense>
        >       <main>",
-         "count": 3,
-         "description": "Expected server HTML to contain a matching <main> in <div>.",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": null,
-         "stack": [],
-       }
+           "description": "Expected server HTML to contain a matching <main> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Mismatch>
+       >   <div>
+             <Suspense>
+       >       <main>",
+           "description": "Expected server HTML to contain a matching <main> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Mismatch>
+       >   <div>
+             <Suspense>
+       >       <main>",
+           "description": "Expected server HTML to contain a matching <main> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
@@ -629,7 +762,6 @@ describe('Error overlay for hydration errors in Pages router', () => {
                          ...
                  ...
              ...",
-         "count": 1,
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -704,17 +836,38 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
-       {
-         "componentStack": "<Page>
+       [
+         {
+           "componentStack": "<Page>
        >   <p>
        >     <p>",
-         "count": 3,
-         "description": "Expected server HTML to contain a matching <p> in <p>.",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": null,
-         "stack": [],
-       }
+           "description": "Expected server HTML to contain a matching <p> in <p>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Page>
+       >   <p>
+       >     <p>",
+           "description": "Expected server HTML to contain a matching <p> in <p>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Page>
+       >   <p>
+       >     <p>",
+           "description": "Expected server HTML to contain a matching <p> in <p>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
@@ -732,7 +885,6 @@ describe('Error overlay for hydration errors in Pages router', () => {
        >                   <p>
                      ...
                  ...",
-         "count": 1,
          "description": "In HTML, <p> cannot be a descendant of <p>.
        This will cause a hydration error.",
          "environmentLabel": null,
@@ -779,19 +931,44 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
-       {
-         "componentStack": "<Page>
+       [
+         {
+           "componentStack": "<Page>
            <div>
              <div>
        >       <p>
        >         <div>",
-         "count": 3,
-         "description": "Expected server HTML to contain a matching <div> in <p>.",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": null,
-         "stack": [],
-       }
+           "description": "Expected server HTML to contain a matching <div> in <p>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Page>
+           <div>
+             <div>
+       >       <p>
+       >         <div>",
+           "description": "Expected server HTML to contain a matching <div> in <p>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Page>
+           <div>
+             <div>
+       >       <p>
+       >         <div>",
+           "description": "Expected server HTML to contain a matching <div> in <p>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
@@ -809,7 +986,6 @@ describe('Error overlay for hydration errors in Pages router', () => {
        >                     <div>
                    ...
                ...",
-         "count": 1,
          "description": "In HTML, <div> cannot be a descendant of <p>.
        This will cause a hydration error.",
          "environmentLabel": null,
@@ -848,17 +1024,38 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
-       {
-         "componentStack": "<Page>
+       [
+         {
+           "componentStack": "<Page>
        >   <div>
        >     <tr>",
-         "count": 3,
-         "description": "Expected server HTML to contain a matching <tr> in <div>.",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": null,
-         "stack": [],
-       }
+           "description": "Expected server HTML to contain a matching <tr> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Page>
+       >   <div>
+       >     <tr>",
+           "description": "Expected server HTML to contain a matching <tr> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Page>
+       >   <div>
+       >     <tr>",
+           "description": "Expected server HTML to contain a matching <tr> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
@@ -876,7 +1073,6 @@ describe('Error overlay for hydration errors in Pages router', () => {
        >                   <tr>
                      ...
                  ...",
-         "count": 1,
          "description": "In HTML, <tr> cannot be a child of <div>.
        This will cause a hydration error.",
          "environmentLabel": null,
@@ -917,21 +1113,50 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
-       {
-         "componentStack": "<Page>
+       [
+         {
+           "componentStack": "<Page>
            <p>
              <span>
                <span>
                  <span>
        >           <span>
        >             <p>",
-         "count": 3,
-         "description": "Expected server HTML to contain a matching <p> in <span>.",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": null,
-         "stack": [],
-       }
+           "description": "Expected server HTML to contain a matching <p> in <span>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Page>
+           <p>
+             <span>
+               <span>
+                 <span>
+       >           <span>
+       >             <p>",
+           "description": "Expected server HTML to contain a matching <p> in <span>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+         {
+           "componentStack": "<Page>
+           <p>
+             <span>
+               <span>
+                 <span>
+       >           <span>
+       >             <p>",
+           "description": "Expected server HTML to contain a matching <p> in <span>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
+       ]
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
@@ -953,7 +1178,6 @@ describe('Error overlay for hydration errors in Pages router', () => {
        >                           <p>
                      ...
                  ...",
-         "count": 1,
          "description": "In HTML, <p> cannot be a descendant of <p>.
        This will cause a hydration error.",
          "environmentLabel": null,
