@@ -23,7 +23,9 @@ import { useLinkStatus } from 'next/link'
 
 export default function LoadingIndicator() {
   const { pending } = useLinkStatus()
-  return pending ? <span>⌛</span> : null
+  return pending ? (
+    <div role="status" aria-label="Loading" className="spinner" />
+  ) : null
 }
 ```
 
@@ -34,7 +36,9 @@ import { useLinkStatus } from 'next/link'
 
 export default function LoadingIndicator() {
   const { pending } = useLinkStatus()
-  return pending ? <span>⌛</span> : null
+  return pending ? (
+    <div role="status" aria-label="Loading" className="spinner" />
+  ) : null
 }
 ```
 
