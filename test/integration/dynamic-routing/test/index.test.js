@@ -593,11 +593,7 @@ function runTests({ dev }) {
 
   it('should allow calling Router.push on mount successfully', async () => {
     const browser = await webdriver(appPort, '/post-1/on-mount-redir')
-    try {
-      expect(await browser.waitForElementByCss('h3').text()).toBe('My blog')
-    } finally {
-      browser.close()
-    }
+    expect(await browser.waitForElementByCss('h3').text()).toBe('My blog')
   })
 
   it('should navigate optional dynamic page', async () => {

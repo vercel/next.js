@@ -147,7 +147,6 @@ describe('router autoscrolling on navigation', () => {
       })
     `)
       await waitForScrollToComplete(browser, { x: 0, y: 10000 })
-      browser.close()
     })
 
     // Test hot reloading only in development
