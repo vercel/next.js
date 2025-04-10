@@ -120,7 +120,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
 
                     return Ok(ResolveResultOption::some(*ResolveResult::primary(
                         ResolveResultItem::Error(ResolvedVc::cell(
-                            format!("Failed to resolve next/font file").into(),
+                            "Failed to resolve next/font file".into(),
                         )),
                     )));
                 }
