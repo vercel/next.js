@@ -510,14 +510,14 @@ export interface ExperimentalConfig {
   routerBFCache?: boolean
 
   /**
-   * Uninstalls all "unhandledRejection" listeners from the global process so
-   * that we can override the behavior, which in some runtimes is to exit the
-   * process on an unhandled rejection.
+   * Uninstalls all "unhandledRejection" and "uncaughtException" listeners from
+   * the global process so that we can override the behavior, which in some
+   * runtimes is to exit the process.
    *
    * This is experimental until we've considered the impact in various
    * deployment environments.
    */
-  removeUnhandledRejectionListeners?: boolean
+  removeUncaughtErrorAndRejectionListeners?: boolean
 
   serverActions?: {
     /**
@@ -1312,7 +1312,7 @@ export const defaultConfig: NextConfig = {
     useEarlyImport: false,
     viewTransition: false,
     routerBFCache: false,
-    removeUnhandledRejectionListeners: false,
+    removeUncaughtErrorAndRejectionListeners: false,
     staleTimes: {
       dynamic: 0,
       static: 300,

@@ -161,7 +161,7 @@ function getMiddlewareMatcher(
 }
 
 function installProcessErrorHandlers(
-  shouldRemoveUnhandledRejectionListeners: boolean
+  shouldRemoveUncaughtErrorAndRejectionListeners: boolean
 ) {
   // The conventional wisdom of Node.js and other runtimes is to treat
   // unhandled errors as fatal and exit the process.
@@ -199,11 +199,12 @@ function installProcessErrorHandlers(
   // So, we're going to intentionally override the default error handling
   // behavior of the outer JS runtime to be more forgiving
 
-  // Remove any existing "unhandledRejection" handlers. This is gated behind
-  // an experimental flag until we've considered the impact in various
-  // deployment environments. It's possible this may always need to
+  // Remove any existing "unhandledRejection" and "uncaughtException" handlers.
+  // This is gated behind an experimental flag until we've considered the impact
+  // in various deployment environments. It's possible this may always need to
   // be configurable.
-  if (shouldRemoveUnhandledRejectionListeners) {
+  if (shouldRemoveUncaughtErrorAndRejectionListeners) {
+    process.removeAllListeners('uncaughtException')
     process.removeAllListeners('unhandledRejection')
   }
 
@@ -370,10 +371,10 @@ export default class NextNodeServer extends BaseServer<
       populateStaticEnv(this.nextConfig)
     }
 
-    const shouldRemoveUnhandledRejectionListeners = Boolean(
-      options.conf.experimental?.removeUnhandledRejectionListeners
+    const shouldRemoveUncaughtErrorAndRejectionListeners = Boolean(
+      options.conf.experimental?.removeUncaughtErrorAndRejectionListeners
     )
-    installProcessErrorHandlers(shouldRemoveUnhandledRejectionListeners)
+    installProcessErrorHandlers(shouldRemoveUncaughtErrorAndRejectionListeners)
   }
 
   public async unstable_preloadEntries(): Promise<void> {
