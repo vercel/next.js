@@ -7,10 +7,12 @@ import type zod from 'next/dist/compiled/zod'
 import type { SizeLimit } from '../types'
 import type {
   ExportPathMap,
-  TurboLoaderItem,
-  TurboRuleConfigItem,
-  TurboRuleConfigItemOptions,
-  TurboRuleConfigItemOrShortcut,
+  TurbopackLoaderItem,
+  DeprecatedExperimentalTurboOptions,
+  TurbopackOptions,
+  TurbopackRuleConfigItem,
+  TurbopackRuleConfigItemOptions,
+  TurbopackRuleConfigItemOrShortcut,
 } from './config-shared'
 import type {
   Header,
@@ -99,7 +101,7 @@ const zHeader: zod.ZodType<Header> = z.object({
   internal: z.boolean().optional(),
 })
 
-const zTurboLoaderItem: zod.ZodType<TurboLoaderItem> = z.union([
+const zTurboLoaderItem: zod.ZodType<TurbopackLoaderItem> = z.union([
   z.string(),
   z.object({
     loader: z.string(),
@@ -108,13 +110,13 @@ const zTurboLoaderItem: zod.ZodType<TurboLoaderItem> = z.union([
   }),
 ])
 
-const zTurboRuleConfigItemOptions: zod.ZodType<TurboRuleConfigItemOptions> =
+const zTurboRuleConfigItemOptions: zod.ZodType<TurbopackRuleConfigItemOptions> =
   z.object({
     loaders: z.array(zTurboLoaderItem),
     as: z.string().optional(),
   })
 
-const zTurboRuleConfigItem: zod.ZodType<TurboRuleConfigItem> = z.union([
+const zTurboRuleConfigItem: zod.ZodType<TurbopackRuleConfigItem> = z.union([
   z.literal(false),
   z.record(
     z.string(),
@@ -122,9 +124,49 @@ const zTurboRuleConfigItem: zod.ZodType<TurboRuleConfigItem> = z.union([
   ),
   zTurboRuleConfigItemOptions,
 ])
-
-const zTurboRuleConfigItemOrShortcut: zod.ZodType<TurboRuleConfigItemOrShortcut> =
+const zTurboRuleConfigItemOrShortcut: zod.ZodType<TurbopackRuleConfigItemOrShortcut> =
   z.union([z.array(zTurboLoaderItem), zTurboRuleConfigItem])
+
+const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
+  rules: z.record(z.string(), zTurboRuleConfigItemOrShortcut).optional(),
+  resolveAlias: z
+    .record(
+      z.string(),
+      z.union([
+        z.string(),
+        z.array(z.string()),
+        z.record(z.string(), z.union([z.string(), z.array(z.string())])),
+      ])
+    )
+    .optional(),
+  resolveExtensions: z.array(z.string()).optional(),
+  moduleIds: z.enum(['named', 'deterministic']).optional(),
+})
+
+// Same as zTurbopackConfig but with deprecated properties. Unfortunately, base
+// properties are duplicated here as `ZodType`s do not export `extend()`.
+const zDeprecatedExperimentalTurboConfig: zod.ZodType<DeprecatedExperimentalTurboOptions> =
+  z.strictObject({
+    loaders: z.record(z.string(), z.array(zTurboLoaderItem)).optional(),
+    rules: z.record(z.string(), zTurboRuleConfigItemOrShortcut).optional(),
+    resolveAlias: z
+      .record(
+        z.string(),
+        z.union([
+          z.string(),
+          z.array(z.string()),
+          z.record(z.string(), z.union([z.string(), z.array(z.string())])),
+        ])
+      )
+      .optional(),
+    resolveExtensions: z.array(z.string()).optional(),
+    treeShaking: z.boolean().optional(),
+    persistentCaching: z.union([z.number(), z.literal(false)]).optional(),
+    memoryLimit: z.number().optional(),
+    moduleIds: z.enum(['named', 'deterministic']).optional(),
+    minify: z.boolean().optional(),
+    sourceMaps: z.boolean().optional(),
+  })
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
   z.strictObject({
@@ -347,6 +389,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         taint: z.boolean().optional(),
         prerenderEarlyExit: z.boolean().optional(),
         proxyTimeout: z.number().gte(0).optional(),
+        routerBFCache: z.boolean().optional(),
         scrollRestoration: z.boolean().optional(),
         sri: z
           .object({
@@ -392,36 +435,15 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         typedRoutes: z.boolean().optional(),
         webpackBuildWorker: z.boolean().optional(),
         webpackMemoryOptimizations: z.boolean().optional(),
-        turbo: z
-          .object({
-            loaders: z.record(z.string(), z.array(zTurboLoaderItem)).optional(),
-            rules: z
-              .record(z.string(), zTurboRuleConfigItemOrShortcut)
-              .optional(),
-            resolveAlias: z
-              .record(
-                z.string(),
-                z.union([
-                  z.string(),
-                  z.array(z.string()),
-                  z.record(
-                    z.string(),
-                    z.union([z.string(), z.array(z.string())])
-                  ),
-                ])
-              )
-              .optional(),
-            resolveExtensions: z.array(z.string()).optional(),
-            treeShaking: z.boolean().optional(),
-            persistentCaching: z
-              .union([z.number(), z.literal(false)])
-              .optional(),
-            memoryLimit: z.number().optional(),
-            moduleIdStrategy: z.enum(['named', 'deterministic']).optional(),
-            minify: z.boolean().optional(),
-            sourceMaps: z.boolean().optional(),
-          })
-          .optional(),
+        /**
+         * @deprecated Use `config.turbopack` instead.
+         */
+        turbo: zDeprecatedExperimentalTurboConfig.optional(),
+        turbopackMemoryLimit: z.number().optional(),
+        turbopackMinify: z.boolean().optional(),
+        turbopackPersistentCaching: z.boolean().optional(),
+        turbopackSourceMaps: z.boolean().optional(),
+        turbopackTreeShaking: z.boolean().optional(),
         optimizePackageImports: z.array(z.string()).optional(),
         optimizeServerReact: z.boolean().optional(),
         clientTraceMetadata: z.array(z.string()).optional(),
@@ -658,6 +680,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     target: z.string().optional(),
     trailingSlash: z.boolean().optional(),
     transpilePackages: z.array(z.string()).optional(),
+    turbopack: zTurbopackConfig.optional(),
     typescript: z
       .strictObject({
         ignoreBuildErrors: z.boolean().optional(),

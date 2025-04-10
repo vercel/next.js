@@ -1196,21 +1196,26 @@ export default abstract class Server<
             parsedUrl.pathname = `/${defaultLocale}${parsedUrl.pathname}`
           }
 
+          // Store a copy of `parsedUrl.query` before calling handleRewrites.
+          // Since `handleRewrites` might add new queries to `parsedUrl.query`.
+          const originQueryParams = { ...parsedUrl.query }
+
           const pathnameBeforeRewrite = parsedUrl.pathname
           const rewriteParamKeys = Object.keys(
             utils.handleRewrites(req, parsedUrl)
           )
+
+          // Create a copy of the query params to avoid mutating the original
+          // object. This prevents any overlapping query params that have the
+          // same normalized key from causing issues.
+          const queryParams = { ...parsedUrl.query }
           const didRewrite = pathnameBeforeRewrite !== parsedUrl.pathname
 
           if (didRewrite && parsedUrl.pathname) {
             addRequestMeta(req, 'rewroteURL', parsedUrl.pathname)
           }
 
-          // Create a copy of the query params to avoid mutating the original
-          // object. This prevents any overlapping query params that have the
-          // same normalized key from causing issues.
-          const queryParams = { ...parsedUrl.query }
-
+          const routeParamKeys = new Set<string>()
           for (const [key, value] of Object.entries(parsedUrl.query)) {
             const normalizedKey = normalizeNextQueryParam(key)
             if (!normalizedKey) continue
@@ -1218,6 +1223,7 @@ export default abstract class Server<
             // Remove the prefixed key from the query params because we want
             // to consume it for the dynamic route matcher.
             delete parsedUrl.query[key]
+            routeParamKeys.add(normalizedKey)
 
             if (typeof value === 'undefined') continue
 
@@ -1370,6 +1376,14 @@ export default abstract class Server<
               ...rewriteParamKeys,
               ...Object.keys(utils.defaultRouteRegex?.groups || {}),
             ])
+          }
+          // Remove the route `params` keys from `parsedUrl.query` if they are
+          // not in the original query params.
+          // If it's used in both route `params` and query `searchParams`, it should be kept.
+          for (const key of routeParamKeys) {
+            if (!(key in originQueryParams)) {
+              delete parsedUrl.query[key]
+            }
           }
           parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
