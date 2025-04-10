@@ -327,7 +327,7 @@ where
                 Some(config) => Either::Left(crate::transforms::server_actions::server_actions(
                     FileInfo {
                         path: file.name.to_string().into(),
-                        relative_path: relative_file_name(&opts.app_dir, &file.name),
+                        relative_path: relative_file_path(&opts.app_dir, &file.name),
                         query: None,
                     },
                     config.clone(),
@@ -456,28 +456,12 @@ where
     }
 }
 
-pub fn relative_file_name(app_dir: &Option<PathBuf>, file: &FileName) -> Option<RcStr> {
-    let project_dir = match app_dir.as_deref() {
-        Some(app_dir) => app_dir.parent(),
-        _ => None,
-    };
+pub fn relative_file_path(app_dir: &Option<PathBuf>, file: &FileName) -> Option<RcStr> {
+    let base = app_dir.as_deref()?.parent()?;
 
-    let base = match project_dir {
-        Some(path) => path,
-        None => return None,
-    };
-
-    let file = match file {
-        FileName::Real(path) => path,
-        _ => {
-            return None;
-        }
-    };
-
-    let rel_path = diff_paths(file, base);
-
-    match rel_path {
-        Some(relative) => Some(relative.display().to_string().into()),
-        None => None,
+    if let FileName::Real(path) = file {
+        diff_paths(path, base).map(|relative| relative.display().to_string().into())
+    } else {
+        None
     }
 }
