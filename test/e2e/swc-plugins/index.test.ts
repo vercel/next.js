@@ -17,7 +17,7 @@ describe('swcPlugins', () => {
       expect(html).not.toContain('data-custom-attribute')
     })
   })
-  ;(isNextDev ? describe : describe.skip)('invalid plugin names', () => {
+  ;(isNextDev ? describe : describe.skip)('invalid plugin name', () => {
     const { next, skipped, isTurbopack } = nextTestSetup({
       files: __dirname,
       skipDeployment: true,
@@ -38,7 +38,6 @@ module.exports = {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Module not found: Can't resolve '@swc/plugin-nonexistent'",
            "environmentLabel": null,
            "label": "Build Error",
