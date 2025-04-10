@@ -1,9 +1,9 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::server_actions::{
-    server_actions, Config, ServerActionsMode,
+    server_actions, Config, FileInfo, ServerActionsMode,
 };
-use swc_core::{common::FileName, ecma::ast::Program};
+use swc_core::ecma::ast::Program;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
@@ -63,17 +63,19 @@ struct NextServerActions {
 impl CustomTransformer for NextServerActions {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "server_actions", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
-        let relative_file_name = self
+        let relative_file_path = self
             .app_dir
             .parent()
             .await?
             .get_relative_path_to(&*ctx.file_path.await?)
-            .unwrap_or(ctx.file_path.await?.path.clone());
+            .map(|path| path.trim_start_matches("./").into());
 
         let actions = server_actions(
-            &FileName::Real(ctx.file_path_str.into()),
-            relative_file_name,
-            Some(ctx.query_str.clone()),
+            FileInfo {
+                path: ctx.file_path_str.into(),
+                relative_path: relative_file_path,
+                query: Some(ctx.query_str.clone()),
+            },
             Config {
                 is_react_server_layer: matches!(self.transform, ActionsTransform::Server),
                 is_development: self.mode.is_development(),

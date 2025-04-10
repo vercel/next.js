@@ -134,11 +134,21 @@ enum ServerActionsErrorKind {
 // Using BTreeMap to ensure the order of the actions is deterministic.
 pub type ActionsMap = BTreeMap<Atom, Atom>;
 
+pub struct FileInfo {
+    pub path: RcStr,
+    pub relative_path: Option<RcStr>,
+    pub query: Option<RcStr>,
+}
+
+impl FileInfo {
+    fn try_relative_path(&self) -> RcStr {
+        self.relative_path.clone().unwrap_or(self.path.clone())
+    }
+}
+
 #[tracing::instrument(level = tracing::Level::TRACE, skip_all)]
 pub fn server_actions<C: Comments>(
-    file_name: &FileName,
-    relative_file_name: RcStr,
-    file_query: Option<RcStr>,
+    file_info: FileInfo,
     config: Config,
     comments: C,
     cm: Arc<SourceMap>,
@@ -150,9 +160,7 @@ pub fn server_actions<C: Comments>(
         mode,
         comments,
         cm,
-        file_name: file_name.to_string(),
-        relative_file_name,
-        file_query,
+        file_info,
         start_pos: BytePos(0),
         file_directive: None,
         in_exported_expr: false,
@@ -211,9 +219,7 @@ fn generate_server_actions_comment(
 struct ServerActions<C: Comments> {
     #[allow(unused)]
     config: Config,
-    file_name: String,
-    relative_file_name: RcStr,
-    file_query: Option<RcStr>,
+    file_info: FileInfo,
     comments: C,
     cm: Arc<SourceMap>,
     mode: ServerActionsMode,
@@ -272,7 +278,7 @@ impl<C: Comments> ServerActions<C> {
 
         let mut hasher = Sha1::new();
         hasher.update(self.config.hash_salt.as_bytes());
-        hasher.update(self.file_name.as_bytes());
+        hasher.update(self.file_info.path.as_bytes());
         hasher.update(b":");
         hasher.update(export_name.as_bytes());
         let mut result = hasher.finalize().to_vec();
@@ -788,7 +794,7 @@ impl<C: Comments> ServerActions<C> {
                             &cache_kind,
                             &reference_id,
                             name,
-                            &self.relative_file_name,
+                            self.file_info.try_relative_path(),
                             loc,
                             ids_from_closure.len(),
                         )),
@@ -922,7 +928,7 @@ impl<C: Comments> ServerActions<C> {
                             &cache_kind,
                             &reference_id,
                             name,
-                            &self.relative_file_name,
+                            self.file_info.try_relative_path(),
                             loc,
                             ids_from_closure.len(),
                         )),
@@ -2197,7 +2203,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     )],
                                     src: Some(Box::new(
                                         program_to_data_url(
-                                            &self.file_name,
+                                            &self.file_info.path,
                                             &self.cm,
                                             vec![
                                                 ModuleItem::Stmt(Stmt::Expr(ExprStmt {
@@ -2215,8 +2221,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                 text: generate_server_actions_comment(
                                                     &std::iter::once((ref_id, export)).collect(),
                                                     Some((
-                                                        &self.file_name,
-                                                        self.file_query.as_ref().map_or("", |v| v),
+                                                        &self.file_info.path,
+                                                        self.file_info
+                                                            .query
+                                                            .as_ref()
+                                                            .map_or("", |v| v),
                                                     )),
                                                 )
                                                 .into(),
@@ -2395,20 +2404,20 @@ fn retain_names_from_declared_idents(
     *child_names = retained_names;
 }
 
-/// `$$cache__("default", "id", "myFn (filename:47:11)", 0, expr)`
+/// `$$cache__("default", "id", "Page (app/page.tsx:47:11)", 0, expr)`
 fn wrap_cache_expr(
     expr: Box<Expr>,
     cache_kind: &str,
     id: &str,
     name: Option<&str>,
-    file_name: &str,
+    file_path: RcStr,
     loc: Loc,
     bound_args_len: usize,
 ) -> Box<Expr> {
     let location = format!(
         "{} ({}:{}:{})",
         name.unwrap_or("<anonymous>"),
-        file_name,
+        file_path,
         loc.line,
         // Note: V8 stack frame columns are 1-based, whereas col_display is 0-based.
         loc.col_display + 1

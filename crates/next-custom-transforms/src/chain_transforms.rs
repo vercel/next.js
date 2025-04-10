@@ -1,9 +1,4 @@
-use std::{
-    cell::RefCell,
-    path::{Component, Path, PathBuf},
-    rc::Rc,
-    sync::Arc,
-};
+use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 
 use either::Either;
 use modularize_imports;
@@ -34,7 +29,7 @@ use crate::{
         fonts::next_font_loaders,
         lint_codemod_comments::lint_codemod_comments,
         react_server_components,
-        server_actions::ServerActionsMode,
+        server_actions::{FileInfo, ServerActionsMode},
     },
 };
 
@@ -330,9 +325,11 @@ where
             },
             match &opts.server_actions {
                 Some(config) => Either::Left(crate::transforms::server_actions::server_actions(
-                    &file.name,
-                    relative_file_name(&opts.app_dir, &file.name),
-                    None,
+                    FileInfo {
+                        path: file.name.to_string().into(),
+                        relative_path: relative_file_name(&opts.app_dir, &file.name),
+                        query: None,
+                    },
                     config.clone(),
                     comments.clone(),
                     cm.clone(),
@@ -459,7 +456,7 @@ where
     }
 }
 
-pub fn relative_file_name(app_dir: &Option<PathBuf>, file: &FileName) -> RcStr {
+pub fn relative_file_name(app_dir: &Option<PathBuf>, file: &FileName) -> Option<RcStr> {
     let project_dir = match app_dir.as_deref() {
         Some(app_dir) => app_dir.parent(),
         _ => None,
@@ -467,23 +464,20 @@ pub fn relative_file_name(app_dir: &Option<PathBuf>, file: &FileName) -> RcStr {
 
     let base = match project_dir {
         Some(path) => path,
-        None => return file.to_string().into(),
+        None => return None,
     };
 
     let file = match file {
         FileName::Real(path) => path,
         _ => {
-            return file.to_string().into();
+            return None;
         }
     };
 
     let rel_path = diff_paths(file, base);
 
     match rel_path {
-        Some(relative) => match relative.components().next() {
-            Some(Component::ParentDir) => relative.display().to_string().into(),
-            _ => Path::new(".").join(relative).display().to_string().into(),
-        },
-        None => file.display().to_string().into(),
+        Some(relative) => Some(relative.display().to_string().into()),
+        None => None,
     }
 }

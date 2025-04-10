@@ -510,7 +510,7 @@ function createTrackedReadableStream(
 }
 
 /**
- * @param location Similar to a V8 stack frame location e.g. `"myFn (./app/page.tsx:47:11)"`
+ * @param location Similar to a V8 stack frame location e.g. `"myFn (app/page.tsx:47:11)"`
  */
 export function cache(
   kind: string,

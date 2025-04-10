@@ -18,7 +18,7 @@ use next_custom_transforms::transforms::{
     page_config::page_config_test,
     pure::pure_magic,
     react_server_components::server_components,
-    server_actions::{self, server_actions, ServerActionsMode},
+    server_actions::{self, server_actions, FileInfo, ServerActionsMode},
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
     strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
     warn_for_edge_runtime::warn_for_edge_runtime,
@@ -553,9 +553,11 @@ fn server_actions_fixture(input: PathBuf) {
             (
                 resolver(Mark::new(), Mark::new(), false),
                 server_actions(
-                    &FileName::Real("/app/item.js".into()),
-                    "./app/item.js".into(),
-                    None,
+                    FileInfo {
+                        path: "/app/item.js".into(),
+                        relative_path: Some("app/item.js".into()),
+                        query: None,
+                    },
                     server_actions::Config {
                         is_react_server_layer,
                         is_development,
@@ -592,9 +594,11 @@ fn next_font_with_directive_fixture(input: PathBuf) {
                     font_loaders: vec!["@next/font/google".into()],
                 }),
                 server_actions(
-                    &FileName::Real("/app/test.tsx".into()),
-                    "./app/test.tsx".into(),
-                    None,
+                    FileInfo {
+                        path: "/app/test.tsx".into(),
+                        relative_path: Some("app/test.tsx".into()),
+                        query: None,
+                    },
                     server_actions::Config {
                         is_react_server_layer: true,
                         is_development: true,
@@ -906,9 +910,11 @@ fn test_source_maps(input: PathBuf) {
             (
                 resolver(Mark::new(), Mark::new(), false),
                 server_actions(
-                    &FileName::Real("/app/item.js".into()),
-                    "./app/item.js".into(),
-                    None,
+                    FileInfo {
+                        path: "/app/item.js".into(),
+                        relative_path: Some("app/item.js".into()),
+                        query: None,
+                    },
                     server_actions::Config {
                         is_react_server_layer,
                         is_development,

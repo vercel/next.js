@@ -28,11 +28,11 @@ describe('use-cache-custom-handler', () => {
     expect(cliOutput).toContain('ModernCustomCacheHandler::refreshTags')
 
     expect(next.cliOutput.slice(outputIndex)).toMatch(
-      /ModernCustomCacheHandler::get use-cache getData \(\.\/app\/page.tsx:12:1\) \["(development|[A-Za-z0-9_-]{21})","([0-9a-f]{2})+",\[\]\]/
+      /ModernCustomCacheHandler::get use-cache getData \(app\/page.tsx:12:1\) \["(development|[A-Za-z0-9_-]{21})","([0-9a-f]{2})+",\[\]\]/
     )
 
     expect(next.cliOutput.slice(outputIndex)).toMatch(
-      /ModernCustomCacheHandler::set use-cache getData \(\.\/app\/page.tsx:12:1\) \["(development|[A-Za-z0-9_-]{21})","([0-9a-f]{2})+",\[\]\]/
+      /ModernCustomCacheHandler::set use-cache getData \(app\/page.tsx:12:1\) \["(development|[A-Za-z0-9_-]{21})","([0-9a-f]{2})+",\[\]\]/
     )
 
     // Since no existing cache entry was retrieved, we don't need to call
