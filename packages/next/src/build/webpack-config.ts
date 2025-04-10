@@ -172,11 +172,17 @@ let loggedIgnoredCompilerOptions = false
 const reactRefreshLoaderName =
   'next/dist/compiled/@next/react-refresh-utils/dist/loader'
 
+function getReactRefreshLoader() {
+  return process.env.NEXT_RSPACK
+    ? getRspackReactRefresh().loader
+    : require.resolve(reactRefreshLoaderName)
+}
+
 export function attachReactRefresh(
   webpackConfig: webpack.Configuration,
   targetLoader: webpack.RuleSetUseItem
 ) {
-  const reactRefreshLoader = require.resolve(reactRefreshLoaderName)
+  const reactRefreshLoader = getReactRefreshLoader()
   webpackConfig.module?.rules?.forEach((rule) => {
     if (rule && typeof rule === 'object' && 'use' in rule) {
       const curr = rule.use
@@ -603,11 +609,7 @@ export default async function getBaseWebpackConfig(
     babelLoader,
   ].filter(Boolean)
 
-  // Rspack will inject their own React Refresh loader in @rspack/plugin-react-refresh
-  const reactRefreshLoaders =
-    !isRspack && dev && isClient
-      ? [require.resolve(reactRefreshLoaderName)]
-      : []
+  const reactRefreshLoaders = dev && isClient ? [getReactRefreshLoader()] : []
 
   // client components layers: SSR or browser
   const createClientLayerLoader = ({
@@ -669,15 +671,19 @@ export default async function getBaseWebpackConfig(
     '...',
   ]
 
+  const reactRefreshEntry = isRspack
+    ? getRspackReactRefresh().entry
+    : require.resolve(
+        `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
+      )
+
   const clientEntries = isClient
     ? ({
         // Backwards compatibility
         'main.js': [],
         ...(dev
           ? {
-              [CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]: require.resolve(
-                `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
-              ),
+              [CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]: reactRefreshEntry,
               [CLIENT_STATIC_FILES_RUNTIME_AMP]:
                 `./` +
                 path
@@ -703,9 +709,7 @@ export default async function getBaseWebpackConfig(
           ? {
               [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP]: dev
                 ? [
-                    require.resolve(
-                      `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
-                    ),
+                    reactRefreshEntry,
                     `./` +
                       path
                         .relative(
@@ -1183,7 +1187,10 @@ export default async function getBaseWebpackConfig(
                     'process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE': false,
                   },
                 },
-                mangle: !noMangling && { reserved: ['AbortSignal'] },
+                mangle: !noMangling && {
+                  reserved: ['AbortSignal'],
+                  disableCharFreq: !isClient,
+                },
               },
             }),
             new (getRspackCore().LightningCssMinimizerRspackPlugin)({
@@ -1900,7 +1907,11 @@ export default async function getBaseWebpackConfig(
         isClient &&
         (isRspack
           ? // eslint-disable-next-line
-            new (getRspackReactRefresh() as any)()
+            new (getRspackReactRefresh() as any)({
+              injectLoader: false,
+              injectEntry: false,
+              overlay: false,
+            })
           : new ReactRefreshWebpackPlugin(webpack)),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       (isClient || isEdgeServer) &&
@@ -2616,8 +2627,7 @@ export default async function getBaseWebpackConfig(
   }
 
   // Inject missing React Refresh loaders so that development mode is fast:
-  // Rspack will inject their own React Refresh loader in @rspack/plugin-react-refresh
-  if (!isRspack && dev && isClient) {
+  if (dev && isClient) {
     attachReactRefresh(webpackConfig, defaultLoaders.babel)
   }
 

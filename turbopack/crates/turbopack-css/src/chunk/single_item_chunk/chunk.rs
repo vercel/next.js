@@ -6,7 +6,7 @@ use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{rope::RopeBuilder, File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{Chunk, ChunkItem, ChunkingContext},
+    chunk::{Chunk, ChunkItem, ChunkingContext, MinifyType},
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     introspect::Introspectable,
@@ -55,9 +55,13 @@ impl SingleItemCssChunk {
             .await?;
         let mut code = CodeBuilder::new(source_maps);
 
-        let id = &*this.item.id().await?;
-
-        writeln!(code, "/* {} */", id)?;
+        if matches!(
+            &*this.chunking_context.minify_type().await?,
+            MinifyType::NoMinify
+        ) {
+            let id = this.item.asset_ident().to_string().await?;
+            writeln!(code, "/* {} */", id)?;
+        }
         let content = this.item.content().await?;
         let close = write_import_context(&mut code, content.import_context).await?;
 
@@ -98,10 +102,11 @@ fn single_item_modifier() -> Vc<RcStr> {
 impl OutputAsset for SingleItemCssChunk {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(self
-            .await?
-            .chunking_context
-            .chunk_path(self.ident_for_path(), ".single.css".into()))
+        Ok(self.await?.chunking_context.chunk_path(
+            Some(Vc::upcast(self)),
+            self.ident_for_path(),
+            ".single.css".into(),
+        ))
     }
 
     #[turbo_tasks::function]

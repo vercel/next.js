@@ -120,22 +120,11 @@ impl VersionedContentMap {
         client_relative_path: Vc<FileSystemPath>,
         client_output_path: Vc<FileSystemPath>,
     ) -> Result<Vc<OptionMapEntry>> {
-        let assets = assets_operation.connect();
-        async fn get_entries(
-            assets: Vc<OutputAssets>,
-        ) -> Result<Vec<(ResolvedVc<FileSystemPath>, ResolvedVc<Box<dyn OutputAsset>>)>> {
-            let assets_ref = assets.await?;
-            let entries = assets_ref
-                .iter()
-                .map(|&asset| async move {
-                    let path = asset.path().to_resolved().await?;
-                    Ok((path, asset))
-                })
-                .try_join()
-                .await?;
-            Ok(entries)
-        }
-        let entries = get_entries(assets).await.unwrap_or_default();
+        let entries = get_entries(assets_operation)
+            .read_strongly_consistent()
+            .await
+            // Any error should result in an empty list, which removes all assets from the map
+            .ok();
 
         self.map_path_to_op.update_conditionally(|map| {
             let mut changed = false;
@@ -143,7 +132,7 @@ impl VersionedContentMap {
             // get current map's keys, subtract keys that don't exist in operation
             let mut stale_assets = map.0.keys().copied().collect::<FxHashSet<_>>();
 
-            for (k, _) in entries.iter() {
+            for (k, _) in entries.iter().flatten() {
                 let res = map.0.entry(*k).or_default().insert(assets_operation);
                 stale_assets.remove(k);
                 changed = changed || res;
@@ -163,12 +152,17 @@ impl VersionedContentMap {
         });
 
         // Make sure all written client assets are up-to-date
-        let _ = emit_assets(assets, node_root, client_relative_path, client_output_path)
-            .resolve()
-            .await?;
+        let _ = emit_assets(
+            assets_operation.connect(),
+            node_root,
+            client_relative_path,
+            client_output_path,
+        )
+        .resolve()
+        .await?;
         let map_entry = Vc::cell(Some(MapEntry {
             assets_operation,
-            path_to_asset: entries.into_iter().collect(),
+            path_to_asset: entries.iter().flatten().copied().collect(),
         }));
         Ok(map_entry)
     }
@@ -263,6 +257,25 @@ impl VersionedContentMap {
         };
         compute_entry.connect()
     }
+}
+
+type GetEntriesResultT = Vec<(ResolvedVc<FileSystemPath>, ResolvedVc<Box<dyn OutputAsset>>)>;
+
+#[turbo_tasks::value(transparent)]
+struct GetEntriesResult(GetEntriesResultT);
+
+#[turbo_tasks::function(operation)]
+async fn get_entries(assets: OperationVc<OutputAssets>) -> Result<Vc<GetEntriesResult>> {
+    let assets_ref = assets.connect().await?;
+    let entries = assets_ref
+        .iter()
+        .map(|&asset| async move {
+            let path = asset.path().to_resolved().await?;
+            Ok((path, asset))
+        })
+        .try_join()
+        .await?;
+    Ok(Vc::cell(entries))
 }
 
 #[turbo_tasks::function(operation)]

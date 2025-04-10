@@ -4,7 +4,7 @@ import path from 'path'
 import cheerio from 'cheerio'
 
 // This test suite is skipped with Turbopack because it's testing an experimental feature. To be implemented after stable.
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Subresource Integrity',
   () => {
     describe.each(['node', 'edge'] as const)('with %s runtime', (runtime) => {

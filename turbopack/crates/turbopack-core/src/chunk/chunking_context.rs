@@ -8,6 +8,7 @@ use turbo_tasks_hash::DeterministicHash;
 
 use super::{availability_info::AvailabilityInfo, ChunkableModule, EvaluatableAssets};
 use crate::{
+    asset::Asset,
     chunk::{ChunkItem, ChunkType, ModuleId},
     environment::Environment,
     ident::AssetIdent,
@@ -30,14 +31,26 @@ use crate::{
     DeterministicHash,
     NonLocalValue,
 )]
+#[serde(rename_all = "kebab-case")]
+pub enum MangleType {
+    OptimalSize,
+    Deterministic,
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Debug, TaskInput, Clone, Copy, Hash, DeterministicHash)]
 pub enum MinifyType {
-    Minify { mangle: bool },
+    // TODO instead of adding a new property here,
+    // refactor that to Minify(MinifyOptions) to allow defaults on MinifyOptions
+    Minify { mangle: Option<MangleType> },
     NoMinify,
 }
 
 impl Default for MinifyType {
     fn default() -> Self {
-        Self::Minify { mangle: true }
+        Self::Minify {
+            mangle: Some(MangleType::OptimalSize),
+        }
     }
 }
 
@@ -143,7 +156,12 @@ pub trait ChunkingContext {
     // discretion of chunking context implementors. However, we currently use this
     // in a couple of places in `turbopack-css`, so we need to remove that
     // dependency first.
-    fn chunk_path(self: Vc<Self>, ident: Vc<AssetIdent>, extension: RcStr) -> Vc<FileSystemPath>;
+    fn chunk_path(
+        self: Vc<Self>,
+        asset: Option<Vc<Box<dyn Asset>>>,
+        ident: Vc<AssetIdent>,
+        extension: RcStr,
+    ) -> Vc<FileSystemPath>;
 
     /// Reference Source Map Assets for chunks
     fn reference_chunk_source_maps(self: Vc<Self>, chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool>;
@@ -177,6 +195,10 @@ pub trait ChunkingContext {
 
     fn is_tracing_enabled(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
+    }
+
+    fn minify_type(self: Vc<Self>) -> Vc<MinifyType> {
+        MinifyType::NoMinify.cell()
     }
 
     fn async_loader_chunk_item(

@@ -151,6 +151,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map();
       if (isCss(chunkUrl)) {
         // ignore
       } else if (isJs(chunkUrl)) {
+        self.TURBOPACK_NEXT_CHUNK_URLS!.push(chunkUrl);
         importScripts(TURBOPACK_WORKER_LOCATION + chunkUrl);
       } else {
         throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);

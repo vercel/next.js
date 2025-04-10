@@ -66,20 +66,23 @@ describe('Build Activity Indicator', () => {
       app = await launchApp(appDir, appPort)
     })
     afterAll(() => killApp(app))
-    ;(process.env.TURBOPACK ? describe.skip : describe)('webpack only', () => {
-      it('Shows the build indicator when a page is built during navigation', async () => {
-        const browser = await webdriver(
-          appPort,
-          pagesOrApp === 'pages' ? '/' : '/app'
-        )
-        await installCheckVisible(browser)
-        await browser.elementByCss('#to-a').click()
-        await waitFor(500)
-        const wasVisible = await browser.eval('window.showedBuilder')
-        expect(wasVisible).toBe(true)
-        await browser.close()
-      })
-    })
+    ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
+      'webpack only',
+      () => {
+        it('Shows the build indicator when a page is built during navigation', async () => {
+          const browser = await webdriver(
+            appPort,
+            pagesOrApp === 'pages' ? '/' : '/app'
+          )
+          await installCheckVisible(browser)
+          await browser.elementByCss('#to-a').click()
+          await waitFor(500)
+          const wasVisible = await browser.eval('window.showedBuilder')
+          expect(wasVisible).toBe(true)
+          await browser.close()
+        })
+      }
+    )
 
     it('Shows build indicator when page is built from modifying', async () => {
       const browser = await webdriver(

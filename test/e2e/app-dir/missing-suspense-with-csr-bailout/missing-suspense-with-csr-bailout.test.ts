@@ -30,7 +30,7 @@ describe('missing-suspense-with-csr-bailout', () => {
       expect(next.cliOutput).toContain(message)
       // Can show the trace where the searchParams hook is used
       // TODO: This path is different for Turbopack. Builds need to have sourcemaps support.
-      if (!process.env.TURBOPACK) {
+      if (!process.env.IS_TURBOPACK_TEST) {
         expect(next.cliOutput).toMatch(/at.*server[\\/]app[\\/]page.js/)
       }
     })

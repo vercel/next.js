@@ -68,7 +68,7 @@ type RequestContext = RequestResponsePair & {
   renderOpts?: WrapperRenderOpts
   isHmrRefresh?: boolean
   serverComponentsHmrCache?: ServerComponentsHmrCache
-  implicitTags: ImplicitTags | undefined
+  implicitTags: ImplicitTags
 }
 
 type RequestResponsePair =

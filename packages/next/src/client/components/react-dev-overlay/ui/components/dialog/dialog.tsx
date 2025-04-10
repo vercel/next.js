@@ -4,7 +4,6 @@ import { useMeasureHeight } from '../../hooks/use-measure-height'
 
 export type DialogProps = {
   children?: React.ReactNode
-  type: 'error' | 'warning'
   'aria-labelledby': string
   'aria-describedby': string
   className?: string
@@ -22,7 +21,6 @@ const CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE = [
 
 const Dialog: React.FC<DialogProps> = function Dialog({
   children,
-  type,
   className,
   onClose,
   'aria-labelledby': ariaLabelledBy,
