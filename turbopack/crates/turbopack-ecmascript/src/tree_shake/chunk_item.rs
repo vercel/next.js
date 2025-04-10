@@ -150,6 +150,11 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
         let mut code = RopeBuilder::default();
         let mut has_top_level_await = false;
 
+        let annotated_stack_traces = *self
+            .chunking_context
+            .should_use_annotated_stack_traces()
+            .await?;
+
         let module = self.module.await?;
 
         for &side_effect in self.module.await?.side_effects.iter() {
@@ -206,6 +211,7 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
                 } else {
                     None
                 },
+                annotated_stack_traces,
                 ..Default::default()
             },
             placeholder_for_future_extensions: (),
