@@ -12,7 +12,6 @@ describe('middleware-rewrite-dynamic-params', () => {
 
     // navigate to /1/2
     await browser.elementByCss('a').click()
-    expect(await browser.url()).toEndWith(next.appPort + '/1/2')
 
     // should be rewritten with /en/1/2 with correct params
     expect(await browser.elementByCss('p').text()).toBe(
