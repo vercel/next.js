@@ -16,8 +16,8 @@ import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-let app
-let appPort
+let app: Awaited<ReturnType<typeof nextStart>>
+let appPort: number
 const appDir = join(__dirname, '..')
 
 // This test doesn't seem to benefit from retries, let's disable them until the test gets fixed
@@ -98,8 +98,16 @@ describe('Invalid hrefs', () => {
         await noError('/first')
       })
 
-      it('does not show error in production when https://google.com is used as href on Link', async () => {
+      it('does not show error in production when https:// is used in href on Link', async () => {
         await noError('/second')
+      })
+
+      it('does not show error in production when exotic protocols are used in href in Link', async () => {
+        const browser = await webdriver(appPort, '/exotic-href')
+
+        expect(
+          (await browser.log()).filter((x) => x.source === 'error')
+        ).toEqual([])
       })
 
       it('does not show error when internal href is used with external as', async () => {
@@ -160,8 +168,16 @@ describe('Invalid hrefs', () => {
         await noError('/first')
       })
 
-      it('does not show error when https://google.com is used as href on Link', async () => {
+      it('does not show error when https:// is used as href in Link', async () => {
         await noError('/second')
+      })
+
+      it('does not show error when exotic protocols are used in href in Link', async () => {
+        const browser = await webdriver(appPort, '/exotic-href')
+
+        expect(
+          (await browser.log()).filter((x) => x.source === 'error')
+        ).toEqual([])
       })
 
       // eslint-disable-next-line jest/no-identical-title

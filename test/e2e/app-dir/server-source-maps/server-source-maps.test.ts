@@ -218,7 +218,6 @@ describe('app-dir - server source maps', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: Boom",
          "environmentLabel": null,
          "label": "Runtime Error",

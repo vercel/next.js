@@ -6324,9 +6324,13 @@ function updateSimpleMemoComponent(
     renderLanes
   );
 }
-function updateOffscreenComponent(current, workInProgress, renderLanes) {
-  var nextProps = workInProgress.pendingProps,
-    nextChildren = nextProps.children,
+function updateOffscreenComponent(
+  current,
+  workInProgress,
+  renderLanes,
+  nextProps
+) {
+  var nextChildren = nextProps.children,
     prevState = null !== current ? current.memoizedState : null;
   if ("hidden" === nextProps.mode) {
     if (0 !== (workInProgress.flags & 128)) {
@@ -7347,10 +7351,14 @@ function attemptEarlyBailoutIfNoScheduledUpdate(
       if (stateNode) break;
       else return null;
     case 22:
-    case 23:
       return (
         (workInProgress.lanes = 0),
-        updateOffscreenComponent(current, workInProgress, renderLanes)
+        updateOffscreenComponent(
+          current,
+          workInProgress,
+          renderLanes,
+          workInProgress.pendingProps
+        )
       );
     case 24:
       pushProvider(workInProgress, CacheContext, current.memoizedState.cache);
@@ -7820,7 +7828,12 @@ function beginWork(current, workInProgress, renderLanes) {
         workInProgress
       );
     case 22:
-      return updateOffscreenComponent(current, workInProgress, renderLanes);
+      return updateOffscreenComponent(
+        current,
+        workInProgress,
+        renderLanes,
+        workInProgress.pendingProps
+      );
     case 24:
       return (
         prepareToReadContext(workInProgress),
@@ -8882,12 +8895,7 @@ function commitProfilerUpdate(
         commitStartTime
       );
     "function" === typeof onCommit &&
-      onCommit(
-        finishedWork.memoizedProps.id,
-        current,
-        effectDuration,
-        commitStartTime
-      );
+      onCommit(id, current, effectDuration, commitStartTime);
   } catch (error) {
     captureCommitPhaseError(finishedWork, finishedWork.return, error);
   }
@@ -12495,20 +12503,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1622 = 0;
-  i$jscomp$inline_1622 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1622++
+  var i$jscomp$inline_1623 = 0;
+  i$jscomp$inline_1623 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1623++
 ) {
-  var eventName$jscomp$inline_1623 =
-      simpleEventPluginEvents[i$jscomp$inline_1622],
-    domEventName$jscomp$inline_1624 =
-      eventName$jscomp$inline_1623.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1625 =
-      eventName$jscomp$inline_1623[0].toUpperCase() +
-      eventName$jscomp$inline_1623.slice(1);
+  var eventName$jscomp$inline_1624 =
+      simpleEventPluginEvents[i$jscomp$inline_1623],
+    domEventName$jscomp$inline_1625 =
+      eventName$jscomp$inline_1624.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1626 =
+      eventName$jscomp$inline_1624[0].toUpperCase() +
+      eventName$jscomp$inline_1624.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1624,
-    "on" + capitalizedEvent$jscomp$inline_1625
+    domEventName$jscomp$inline_1625,
+    "on" + capitalizedEvent$jscomp$inline_1626
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -16023,16 +16031,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_1881 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_1882 = React.version;
 if (
-  "19.2.0-canary-3fbfb9ba-20250409" !==
-  isomorphicReactPackageVersion$jscomp$inline_1881
+  "19.2.0-canary-c44e4a25-20250409" !==
+  isomorphicReactPackageVersion$jscomp$inline_1882
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_1881,
-      "19.2.0-canary-3fbfb9ba-20250409"
+      isomorphicReactPackageVersion$jscomp$inline_1882,
+      "19.2.0-canary-c44e4a25-20250409"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -16052,12 +16060,12 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_1888 = {
+var internals$jscomp$inline_1889 = {
   bundleType: 0,
-  version: "19.2.0-canary-3fbfb9ba-20250409",
+  version: "19.2.0-canary-c44e4a25-20250409",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-canary-3fbfb9ba-20250409",
+  reconcilerVersion: "19.2.0-canary-c44e4a25-20250409",
   getLaneLabelMap: function () {
     for (
       var map = new Map(), lane = 1, index$284 = 0;
@@ -16075,16 +16083,16 @@ var internals$jscomp$inline_1888 = {
   }
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2323 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2324 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2323.isDisabled &&
-    hook$jscomp$inline_2323.supportsFiber
+    !hook$jscomp$inline_2324.isDisabled &&
+    hook$jscomp$inline_2324.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2323.inject(
-        internals$jscomp$inline_1888
+      (rendererID = hook$jscomp$inline_2324.inject(
+        internals$jscomp$inline_1889
       )),
-        (injectedHook = hook$jscomp$inline_2323);
+        (injectedHook = hook$jscomp$inline_2324);
     } catch (err) {}
 }
 function noop() {}
@@ -16337,7 +16345,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.2.0-canary-3fbfb9ba-20250409";
+exports.version = "19.2.0-canary-c44e4a25-20250409";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

@@ -6154,9 +6154,13 @@ function updateSimpleMemoComponent(
     renderLanes
   );
 }
-function updateOffscreenComponent(current, workInProgress, renderLanes) {
-  var nextProps = workInProgress.pendingProps,
-    nextChildren = nextProps.children,
+function updateOffscreenComponent(
+  current,
+  workInProgress,
+  renderLanes,
+  nextProps
+) {
+  var nextChildren = nextProps.children,
     prevState = null !== current ? current.memoizedState : null;
   if ("hidden" === nextProps.mode) {
     if (0 !== (workInProgress.flags & 128)) {
@@ -7163,10 +7167,14 @@ function attemptEarlyBailoutIfNoScheduledUpdate(
       if (state) break;
       else return null;
     case 22:
-    case 23:
       return (
         (workInProgress.lanes = 0),
-        updateOffscreenComponent(current, workInProgress, renderLanes)
+        updateOffscreenComponent(
+          current,
+          workInProgress,
+          renderLanes,
+          workInProgress.pendingProps
+        )
       );
     case 24:
       pushProvider(workInProgress, CacheContext, current.memoizedState.cache);
@@ -7629,7 +7637,12 @@ function beginWork(current, workInProgress, renderLanes) {
         workInProgress
       );
     case 22:
-      return updateOffscreenComponent(current, workInProgress, renderLanes);
+      return updateOffscreenComponent(
+        current,
+        workInProgress,
+        renderLanes,
+        workInProgress.pendingProps
+      );
     case 24:
       return (
         prepareToReadContext(workInProgress),
@@ -11825,20 +11838,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1526 = 0;
-  i$jscomp$inline_1526 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1526++
+  var i$jscomp$inline_1527 = 0;
+  i$jscomp$inline_1527 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1527++
 ) {
-  var eventName$jscomp$inline_1527 =
-      simpleEventPluginEvents[i$jscomp$inline_1526],
-    domEventName$jscomp$inline_1528 =
-      eventName$jscomp$inline_1527.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1529 =
-      eventName$jscomp$inline_1527[0].toUpperCase() +
-      eventName$jscomp$inline_1527.slice(1);
+  var eventName$jscomp$inline_1528 =
+      simpleEventPluginEvents[i$jscomp$inline_1527],
+    domEventName$jscomp$inline_1529 =
+      eventName$jscomp$inline_1528.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1530 =
+      eventName$jscomp$inline_1528[0].toUpperCase() +
+      eventName$jscomp$inline_1528.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1528,
-    "on" + capitalizedEvent$jscomp$inline_1529
+    domEventName$jscomp$inline_1529,
+    "on" + capitalizedEvent$jscomp$inline_1530
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -15334,16 +15347,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_1783 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_1784 = React.version;
 if (
-  "19.2.0-canary-3fbfb9ba-20250409" !==
-  isomorphicReactPackageVersion$jscomp$inline_1783
+  "19.2.0-canary-c44e4a25-20250409" !==
+  isomorphicReactPackageVersion$jscomp$inline_1784
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_1783,
-      "19.2.0-canary-3fbfb9ba-20250409"
+      isomorphicReactPackageVersion$jscomp$inline_1784,
+      "19.2.0-canary-c44e4a25-20250409"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -15363,24 +15376,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2257 = {
+var internals$jscomp$inline_2258 = {
   bundleType: 0,
-  version: "19.2.0-canary-3fbfb9ba-20250409",
+  version: "19.2.0-canary-c44e4a25-20250409",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-canary-3fbfb9ba-20250409"
+  reconcilerVersion: "19.2.0-canary-c44e4a25-20250409"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2258 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2259 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2258.isDisabled &&
-    hook$jscomp$inline_2258.supportsFiber
+    !hook$jscomp$inline_2259.isDisabled &&
+    hook$jscomp$inline_2259.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2258.inject(
-        internals$jscomp$inline_2257
+      (rendererID = hook$jscomp$inline_2259.inject(
+        internals$jscomp$inline_2258
       )),
-        (injectedHook = hook$jscomp$inline_2258);
+        (injectedHook = hook$jscomp$inline_2259);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -15472,4 +15485,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.2.0-canary-3fbfb9ba-20250409";
+exports.version = "19.2.0-canary-c44e4a25-20250409";

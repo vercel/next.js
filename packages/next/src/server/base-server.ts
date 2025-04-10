@@ -1131,6 +1131,8 @@ export default abstract class Server<
           matchedPath = this.normalize(matchedPath)
           const normalizedUrlPath = this.stripNextDataPath(urlPathname)
 
+          matchedPath = denormalizePagePath(matchedPath)
+
           // Perform locale detection and normalization.
           const localeAnalysisResult = this.i18nProvider?.analyze(matchedPath, {
             defaultLocale,
@@ -1151,11 +1153,15 @@ export default abstract class Server<
             }
           }
 
-          // TODO: check if this is needed any more?
-          matchedPath = denormalizePagePath(matchedPath)
-
           let srcPathname = matchedPath
           let pageIsDynamic = isDynamicRoute(srcPathname)
+          let paramsResult: {
+            params: ParsedUrlQuery | false
+            hasValidParams: boolean
+          } = {
+            params: false,
+            hasValidParams: false,
+          }
 
           if (!pageIsDynamic) {
             const match = await this.matchers.match(srcPathname, {
@@ -1165,8 +1171,15 @@ export default abstract class Server<
             // Update the source pathname to the matched page's pathname.
             if (match) {
               srcPathname = match.definition.pathname
-              // The page is dynamic if the params are defined.
-              pageIsDynamic = typeof match.params !== 'undefined'
+
+              // The page is dynamic if the params are defined. We know at this
+              // stage that the matched path is not a static page if the params
+              // were parsed from the matched path header.
+              if (typeof match.params !== 'undefined') {
+                pageIsDynamic = true
+                paramsResult.params = match.params
+                paramsResult.hasValidParams = true
+              }
             }
           }
 
@@ -1236,10 +1249,14 @@ export default abstract class Server<
           if (pageIsDynamic) {
             let params: ParsedUrlQuery | false = {}
 
-            let paramsResult = utils.normalizeDynamicRouteParams(
-              queryParams,
-              false
-            )
+            // If we don't already have valid params, try to parse them from
+            // the query params.
+            if (!paramsResult.hasValidParams) {
+              paramsResult = utils.normalizeDynamicRouteParams(
+                queryParams,
+                false
+              )
+            }
 
             // for prerendered ISR paths we attempt parsing the route
             // params from the URL directly as route-matches may not
