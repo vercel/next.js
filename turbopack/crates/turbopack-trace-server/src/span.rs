@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
-use rustc_hash::FxHashMap;
+use hashbrown::HashMap;
 
 use crate::timestamp::Timestamp;
 
@@ -64,7 +64,7 @@ pub struct SpanTimeData {
 pub struct SpanExtra {
     pub graph: OnceLock<Vec<SpanGraphEvent>>,
     pub bottom_up: OnceLock<Vec<Arc<SpanBottomUp>>>,
-    pub search_index: OnceLock<FxHashMap<String, Vec<SpanIndex>>>,
+    pub search_index: OnceLock<HashMap<String, Vec<SpanIndex>>>,
 }
 
 #[derive(Default)]

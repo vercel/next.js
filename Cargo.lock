@@ -10145,6 +10145,7 @@ dependencies = [
  "anyhow",
  "either",
  "flate2",
+ "hashbrown 0.14.5",
  "indexmap 2.7.1",
  "itertools 0.10.5",
  "postcard",
