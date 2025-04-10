@@ -6639,9 +6639,13 @@ function updateSimpleMemoComponent(
     renderLanes
   );
 }
-function updateOffscreenComponent(current, workInProgress, renderLanes) {
-  var nextProps = workInProgress.pendingProps,
-    nextChildren = nextProps.children,
+function updateOffscreenComponent(
+  current,
+  workInProgress,
+  renderLanes,
+  nextProps
+) {
+  var nextChildren = nextProps.children,
     prevState = null !== current ? current.memoizedState : null;
   if ("hidden" === nextProps.mode) {
     if (0 !== (workInProgress.flags & 128)) {
@@ -7683,10 +7687,14 @@ function attemptEarlyBailoutIfNoScheduledUpdate(
       if (state) break;
       else return null;
     case 22:
-    case 23:
       return (
         (workInProgress.lanes = 0),
-        updateOffscreenComponent(current, workInProgress, renderLanes)
+        updateOffscreenComponent(
+          current,
+          workInProgress,
+          renderLanes,
+          workInProgress.pendingProps
+        )
       );
     case 24:
       pushProvider(workInProgress, CacheContext, current.memoizedState.cache);
@@ -8146,7 +8154,12 @@ function beginWork(current, workInProgress, renderLanes) {
         workInProgress
       );
     case 22:
-      return updateOffscreenComponent(current, workInProgress, renderLanes);
+      return updateOffscreenComponent(
+        current,
+        workInProgress,
+        renderLanes,
+        workInProgress.pendingProps
+      );
     case 24:
       return (
         prepareToReadContext(workInProgress),
@@ -14255,20 +14268,20 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_1719 = 0;
-  i$jscomp$inline_1719 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1719++
+  var i$jscomp$inline_1720 = 0;
+  i$jscomp$inline_1720 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1720++
 ) {
-  var eventName$jscomp$inline_1720 =
-      simpleEventPluginEvents[i$jscomp$inline_1719],
-    domEventName$jscomp$inline_1721 =
-      eventName$jscomp$inline_1720.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1722 =
-      eventName$jscomp$inline_1720[0].toUpperCase() +
-      eventName$jscomp$inline_1720.slice(1);
+  var eventName$jscomp$inline_1721 =
+      simpleEventPluginEvents[i$jscomp$inline_1720],
+    domEventName$jscomp$inline_1722 =
+      eventName$jscomp$inline_1721.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1723 =
+      eventName$jscomp$inline_1721[0].toUpperCase() +
+      eventName$jscomp$inline_1721.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1721,
-    "on" + capitalizedEvent$jscomp$inline_1722
+    domEventName$jscomp$inline_1722,
+    "on" + capitalizedEvent$jscomp$inline_1723
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -18689,16 +18702,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2036 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2037 = React.version;
 if (
-  "19.2.0-experimental-3fbfb9ba-20250409" !==
-  isomorphicReactPackageVersion$jscomp$inline_2036
+  "19.2.0-experimental-c44e4a25-20250409" !==
+  isomorphicReactPackageVersion$jscomp$inline_2037
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2036,
-      "19.2.0-experimental-3fbfb9ba-20250409"
+      isomorphicReactPackageVersion$jscomp$inline_2037,
+      "19.2.0-experimental-c44e4a25-20250409"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -18718,24 +18731,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2655 = {
+var internals$jscomp$inline_2656 = {
   bundleType: 0,
-  version: "19.2.0-experimental-3fbfb9ba-20250409",
+  version: "19.2.0-experimental-c44e4a25-20250409",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-experimental-3fbfb9ba-20250409"
+  reconcilerVersion: "19.2.0-experimental-c44e4a25-20250409"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2656 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2657 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2656.isDisabled &&
-    hook$jscomp$inline_2656.supportsFiber
+    !hook$jscomp$inline_2657.isDisabled &&
+    hook$jscomp$inline_2657.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2656.inject(
-        internals$jscomp$inline_2655
+      (rendererID = hook$jscomp$inline_2657.inject(
+        internals$jscomp$inline_2656
       )),
-        (injectedHook = hook$jscomp$inline_2656);
+        (injectedHook = hook$jscomp$inline_2657);
     } catch (err) {}
 }
 exports.createComponentSelector = function (component) {
@@ -18978,4 +18991,4 @@ exports.observeVisibleRects = function (
     }
   };
 };
-exports.version = "19.2.0-experimental-3fbfb9ba-20250409";
+exports.version = "19.2.0-experimental-c44e4a25-20250409";
