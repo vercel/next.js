@@ -450,7 +450,10 @@ impl ModuleOptions {
                     })],
                 ),
                 ModuleRule::new(
-                    RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                    RuleCondition::any(vec![
+                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                        RuleCondition::ContentTypeStartsWith("text/css-module".to_string()),
+                    ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
                     })],
@@ -509,7 +512,10 @@ impl ModuleOptions {
                 ),
                 ModuleRule::new(
                     RuleCondition::all(vec![
-                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                        RuleCondition::Any(vec![
+                            RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                            RuleCondition::ContentTypeStartsWith("text/css-module".to_string()),
+                        ]),
                         // Only create a module CSS asset if not `@import`ed from CSS already.
                         // NOTE: `composes` references should not be treated as `@import`s and
                         // should also create a module CSS asset.
@@ -533,7 +539,10 @@ impl ModuleOptions {
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to include it
                 ModuleRule::new_internal(
-                    RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                    RuleCondition::Any(vec![
+                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                        RuleCondition::ContentTypeStartsWith("text/css-module".to_string()),
+                    ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
                     })],
@@ -544,7 +553,10 @@ impl ModuleOptions {
                         RuleCondition::ReferenceType(ReferenceType::Css(
                             CssReferenceSubType::Analyze,
                         )),
-                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                        RuleCondition::Any(vec![
+                            RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                            RuleCondition::ContentTypeStartsWith("text/css-module".to_string()),
+                        ]),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
