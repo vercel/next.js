@@ -4,7 +4,7 @@ i = (0 | ???*0*)
 - *0* updated with update expression
   ⚠️  This value might have side effects
 
-key = keys[i]
+key = (keys[i] | undefined)
 
 keys = FreeVar(Object)["keys"](namespace)
 
