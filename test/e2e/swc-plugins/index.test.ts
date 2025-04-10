@@ -17,7 +17,7 @@ describe('swcPlugins', () => {
     })
   })
 
-  describe('shown an error for invalid plugin names', () => {
+  describe('invalid plugin names', () => {
     const { next, skipped, isTurbopack } = nextTestSetup({
       files: __dirname,
       skipDeployment: true,
@@ -35,7 +35,7 @@ module.exports = {
     })
     if (skipped) return
 
-    it('basic case', async () => {
+    it('shows a proper error', async () => {
       const browser = await next.browser('/')
 
       if (isTurbopack) {
@@ -60,7 +60,7 @@ module.exports = {
     })
   })
 
-  describe('shown an error for invalid plugin config', () => {
+  describe('invalid plugin config', () => {
     const { next, skipped, isTurbopack } = nextTestSetup({
       files: __dirname,
       skipDeployment: true,
@@ -78,7 +78,7 @@ module.exports = {
     })
     if (skipped) return
 
-    it('basic case', async () => {
+    it('shows a proper error', async () => {
       const browser = await next.browser('/')
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
