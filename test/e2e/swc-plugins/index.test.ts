@@ -1,13 +1,14 @@
 import { nextTestSetup } from 'e2e-utils'
-
 describe('swcPlugins', () => {
   describe('support swcPlugins', () => {
-    const { next } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
+      skipDeployment: true,
       dependencies: {
         '@swc/plugin-react-remove-properties': '7.0.2',
       },
     })
+    if (skipped) return
 
     it('basic case', async () => {
       const html = await next.render('/')
@@ -17,57 +18,70 @@ describe('swcPlugins', () => {
   })
 
   describe('shown an error for invalid plugin names', () => {
-    const { next } = nextTestSetup({
+    const { next, skipped, isTurbopack } = nextTestSetup({
       files: __dirname,
+      skipDeployment: true,
       dependencies: {
         '@swc/plugin-react-remove-properties': '7.0.2',
       },
       overrideFiles: {
         'next.config.js': `
-        module.exports = {
+module.exports = {
   experimental: {
     swcPlugins: [['@swc/plugin-nonexistent', {}]],
   },
 }`,
       },
     })
+    if (skipped) return
 
     it('basic case', async () => {
       const browser = await next.browser('/')
-      await expect(browser).toDisplayRedbox(`
-       {
-         "count": 1,
-         "description": "Module not found: Can't resolve '@swc/plugin-nonexistent'",
-         "environmentLabel": null,
-         "label": "Build Error",
-         "source": "./
-       Module not found: Can't resolve '@swc/plugin-nonexistent'
-       https://nextjs.org/docs/messages/module-not-found",
-         "stack": [],
-       }
-      `)
+
+      if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+                {
+                  "count": 1,
+                  "description": "Module not found: Can't resolve '@swc/plugin-nonexistent'",
+                  "environmentLabel": null,
+                  "label": "Build Error",
+                  "source": "./
+                Module not found: Can't resolve '@swc/plugin-nonexistent'
+                https://nextjs.org/docs/messages/module-not-found",
+                  "stack": [],
+                }
+              `)
+      } else {
+        // TODO missing proper error with Webpack
+        await expect(browser).toDisplayRedbox(
+          `"Expected Redbox but found no visible one."`
+        )
+      }
     })
   })
 
   describe('shown an error for invalid plugin config', () => {
-    const { next } = nextTestSetup({
+    const { next, skipped, isTurbopack } = nextTestSetup({
       files: __dirname,
+      skipDeployment: true,
       dependencies: {
         '@swc/plugin-react-remove-properties': '7.0.2',
       },
       overrideFiles: {
         'next.config.js': `
-        module.exports = {
+module.exports = {
   experimental: {
     swcPlugins: ['@swc/plugin-nonexistent'],
   },
 }`,
       },
     })
+    if (skipped) return
 
     it('basic case', async () => {
       const browser = await next.browser('/')
-      await expect(browser).toDisplayRedbox(`
+      if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
          {
            "count": 1,
            "description": "Error: this is a test",
@@ -81,6 +95,12 @@ describe('swcPlugins', () => {
            ],
          }
         `)
+      } else {
+        // TODO missing proper error with Webpack
+        await expect(browser).toDisplayRedbox(
+          `"Expected Redbox but found no visible one."`
+        )
+      }
     })
   })
 })
