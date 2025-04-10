@@ -73,95 +73,106 @@ describe('persistent-caching', () => {
     }
   })
 
-  it('should allow to change files while stopped', async () => {
-    {
-      const browser = await next.browser('/')
-      expect(await browser.elementByCss('p').text()).toBe('hello world')
-      await browser.close()
-    }
-    {
-      const browser = await next.browser('/client')
-      expect(await browser.elementByCss('p').text()).toBe('hello world')
-      await browser.close()
-    }
-    {
-      const browser = await next.browser('/pages')
-      expect(await browser.elementByCss('p').text()).toBe('hello world')
-      await browser.close()
-    }
-    {
-      const browser = await next.browser('/remove-me')
-      expect(await browser.elementByCss('p').text()).toBe('hello world')
-      await browser.close()
-    }
-
-    await stop()
-
-    async function checkChanges() {
-      {
-        const browser = await next.browser('/')
-        expect(await browser.elementByCss('p').text()).toBe(
-          'hello persistent caching'
-        )
-        await browser.close()
-      }
-      {
-        const browser = await next.browser('/client')
-        expect(await browser.elementByCss('p').text()).toBe(
-          'hello persistent caching'
-        )
-        await browser.close()
-      }
-      {
-        const browser = await next.browser('/pages')
-        expect(await browser.elementByCss('p').text()).toBe(
-          'hello persistent caching'
-        )
-        await browser.close()
+  it.each([1, 2, 3])(
+    'should allow to change files while stopped (run %d)',
+    async (_i) => {
+      async function checkInitial() {
+        {
+          const browser = await next.browser('/')
+          expect(await browser.elementByCss('p').text()).toBe('hello world')
+          await browser.close()
+        }
+        {
+          const browser = await next.browser('/client')
+          expect(await browser.elementByCss('p').text()).toBe('hello world')
+          await browser.close()
+        }
+        {
+          const browser = await next.browser('/pages')
+          expect(await browser.elementByCss('p').text()).toBe('hello world')
+          await browser.close()
+        }
+        {
+          const browser = await next.browser('/remove-me')
+          expect(await browser.elementByCss('p').text()).toBe('hello world')
+          await browser.close()
+        }
       }
 
-      {
-        const browser = await next.browser('/add-me')
-        expect(await browser.elementByCss('p').text()).toBe('hello world')
-        await browser.close()
-      }
-    }
+      await checkInitial()
 
-    await next.patchFile(
-      'pages/pages.tsx',
-      (content) => {
-        return content.replace('hello world', 'hello persistent caching')
-      },
-      async () => {
-        await next.patchFile(
-          'app/page.tsx',
-          (content) => {
-            return content.replace('hello world', 'hello persistent caching')
-          },
-          async () => {
-            await next.patchFile(
-              'app/client/page.tsx',
-              (content) => {
-                return content.replace(
-                  'hello world',
-                  'hello persistent caching'
-                )
-              },
-              async () => {
-                await next.renameFolder('app/remove-me', 'app/add-me')
-                try {
-                  await start()
-                  await checkChanges()
-                  await stop()
-                } finally {
-                  await next.renameFolder('app/add-me', 'app/remove-me')
+      await stop()
+
+      async function checkChanges() {
+        {
+          const browser = await next.browser('/')
+          expect(await browser.elementByCss('p').text()).toBe(
+            'hello persistent caching'
+          )
+          await browser.close()
+        }
+        {
+          const browser = await next.browser('/client')
+          expect(await browser.elementByCss('p').text()).toBe(
+            'hello persistent caching'
+          )
+          await browser.close()
+        }
+        {
+          const browser = await next.browser('/pages')
+          expect(await browser.elementByCss('p').text()).toBe(
+            'hello persistent caching'
+          )
+          await browser.close()
+        }
+        {
+          const browser = await next.browser('/add-me')
+          expect(await browser.elementByCss('p').text()).toBe('hello world')
+          await browser.close()
+        }
+      }
+
+      await next.patchFile(
+        'pages/pages.tsx',
+        (content) => {
+          return content.replace('hello world', 'hello persistent caching')
+        },
+        async () => {
+          await next.patchFile(
+            'app/page.tsx',
+            (content) => {
+              return content.replace('hello world', 'hello persistent caching')
+            },
+            async () => {
+              await next.patchFile(
+                'app/client/page.tsx',
+                (content) => {
+                  return content.replace(
+                    'hello world',
+                    'hello persistent caching'
+                  )
+                },
+                async () => {
+                  await next.renameFolder('app/remove-me', 'app/add-me')
+                  try {
+                    await start()
+                    await checkChanges()
+                    // Some no-op change builds
+                    for (let i = 0; i < 2; i++) {
+                      await restartCycle()
+                      await checkChanges()
+                    }
+                    await stop()
+                  } finally {
+                    await next.renameFolder('app/add-me', 'app/remove-me')
+                  }
                 }
-              }
-            )
-          }
-        )
-      }
-    )
-    await start()
-  })
+              )
+            }
+          )
+        }
+      )
+      await start()
+    }
+  )
 })
