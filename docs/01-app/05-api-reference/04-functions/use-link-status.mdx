@@ -96,13 +96,11 @@ const { pending } = useLinkStatus()
 | -------- | ------- | -------------------------------------------- |
 | pending  | boolean | `true` before history updates, `false` after |
 
-## Examples
+## Example
 
-### Improving the user experience when navigating with new query parameters
+### Inline loading indicator
 
-In this example, navigating between categories updates the query string (e.g. ?category=books). However, the page may appear unresponsive because the `<PageSkeleton />` fallback won't replace the existing content (see [preventing unwanted loading indicators](https://react.dev/reference/react/useTransition#preventing-unwanted-loading-indicators)).
-
-You can use the `useLinkStatus` hook to render a lightweight loading indicator next to the active link and provide immediate feedback to the user while the data is being fetched.
+It's helpful to add visual feedback that navigation is happening in case the user clicks a link before prefetching is complete.
 
 ```tsx filename="app/components/loading-indicator.tsx" switcher
 'use client'
@@ -111,7 +109,9 @@ import { useLinkStatus } from 'next/link'
 
 export default function LoadingIndicator() {
   const { pending } = useLinkStatus()
-  return pending ? <span>⌛</span> : null
+  return pending ? (
+    <div role="status" aria-label="Loading" className="spinner" />
+  ) : null
 }
 ```
 
@@ -122,104 +122,72 @@ import { useLinkStatus } from 'next/link'
 
 export default function LoadingIndicator() {
   const { pending } = useLinkStatus()
-  return pending ? <span>⌛</span> : null
+  return pending ? (
+    <div role="status" aria-label="Loading" className="spinner" />
+  ) : null
 }
 ```
 
-```tsx filename="app/page.tsx" switcher
-import { useSearchParams } from 'next/navigation'
+```tsx filename="app/shop/layout.tsx" switcher
 import Link from 'next/link'
-import { Suspense } from 'react'
-import LoadingIndicator from './loading-indicator'
+import LoadingIndicator from './components/loading-indicator'
 
-function MenuBar() {
+const links = [
+  { href: '/shop/electronics', label: 'Electronics' },
+  { href: '/shop/clothing', label: 'Clothing' },
+  { href: '/shop/books', label: 'Books' },
+]
+
+function Menubar() {
   return (
     <div>
-      <Link href="?category=electronics">
-        Electronics <LoadingIndicator />
-      </Link>
-      <Link href="?category=clothing">
-        Clothing <LoadingIndicator />
-      </Link>
-      <Link href="?category=books">
-        Books <LoadingIndicator />
-      </Link>
+      {links.map((link) => (
+        <Link key={link.label} href={link.href}>
+          {link.label} <LoadingIndicator />
+        </Link>
+      ))}
     </div>
   )
 }
 
-async function ProductList({ category }: { category: string }) {
-  const products = await fetchProducts(category)
-
+export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <ul>
-      {products.map((product) => (
-        <li key={product}>{product}</li>
-      ))}
-    </ul>
-  )
-}
-
-export default async function ProductCategories({
-  searchParams,
-}: {
-  searchParams: Promise<{
-    category: string
-  }>
-}) {
-  const { category } = await searchParams
-
-  return (
-    <Suspense fallback={<PageSkeleton />}>
-      <MenuBar />
-      <ProductList category={category} />
-    </Suspense>
+    <div>
+      <Menubar />
+      {children}
+    </div>
   )
 }
 ```
 
-```jsx filename="app/page.js" switcher
-import { useSearchParams } from 'next/navigation'
+```jsx filename="app/shop/layout.js" switcher
 import Link from 'next/link'
-import { Suspense } from 'react'
-import LoadingIndicator from './loading-indicator'
+import LoadingIndicator from './components/loading-indicator'
 
-function MenuBar() {
+const links = [
+  { href: '/shop/electronics', label: 'Electronics' },
+  { href: '/shop/clothing', label: 'Clothing' },
+  { href: '/shop/books', label: 'Books' },
+]
+
+function Menubar() {
   return (
     <div>
-      <Link href="?category=electronics">
-        Electronics <LoadingIndicator />
-      </Link>
-      <Link href="?category=clothing">
-        Clothing <LoadingIndicator />
-      </Link>
-      <Link href="?category=books">
-        Books <LoadingIndicator />
-      </Link>
+      {links.map((link) => (
+        <Link key={link.label} href={link.href}>
+          {link.label} <LoadingIndicator />
+        </Link>
+      ))}
     </div>
   )
 }
 
-async function ProductList({ category }) {
-  const products = await fetchProducts(category)
-
+export default function Layout({ children }) {
   return (
-    <ul>
-      {products.map((product) => (
-        <li key={product}>{product}</li>
-      ))}
-    </ul>
-  )
-}
-
-export default async function ProductCategories({ searchParams }) {
-  const { category } = await searchParams
-
-  return (
-    <Suspense fallback={<PageSkeleton />}>
-      <MenuBar />
-      <ProductList category={category} />
-    </Suspense>
+    <div>
+      <Menubar />
+      {children}
+    </div>
   )
 }
 ```
