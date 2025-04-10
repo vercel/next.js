@@ -577,7 +577,7 @@ export async function setupFsCheck(opts: {
             // e.g. nginx could decode the proxy urls, the below ones should be treated as the same:
             // decoded version: `/_next/static/chunks/pages/blog/[slug]-d4858831b91b69f6.js`
             // encoded version: `/_next/static/chunks/pages/blog/%5Bslug%5D-d4858831b91b69f6.js`
-            // or serverless deploys could partially decode the path, such as in the case of the @ in parallel route slots
+            // Another example is that serverless deploys can partially decode the path, such as in the case of the @ in parallel route slots
             // partially encoded version: `/_next/static/chunks/app/@modal/(.)photos/%5Bid%5D/page-8f5e339ccc213b0c.js`
             try {
               // encode the special characters in the path and retrieve again to determine if path exists.
