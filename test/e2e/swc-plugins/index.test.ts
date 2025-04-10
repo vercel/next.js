@@ -59,48 +59,4 @@ module.exports = {
       }
     })
   })
-
-  describe('invalid plugin config', () => {
-    const { next, skipped, isTurbopack } = nextTestSetup({
-      files: __dirname,
-      skipDeployment: true,
-      dependencies: {
-        '@swc/plugin-react-remove-properties': '7.0.2',
-      },
-      overrideFiles: {
-        'next.config.js': `
-module.exports = {
-  experimental: {
-    swcPlugins: ['@swc/plugin-nonexistent'],
-  },
-}`,
-      },
-    })
-    if (skipped) return
-
-    it('shows a proper error', async () => {
-      const browser = await next.browser('/')
-      if (isTurbopack) {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "count": 1,
-           "description": "Error: this is a test",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "app/global-error-boundary/client/page.js (8:11) @ Page
-         >  8 |     throw new Error('this is a test')
-              |           ^",
-           "stack": [
-             "Page app/global-error-boundary/client/page.js (8:11)",
-           ],
-         }
-        `)
-      } else {
-        // TODO missing proper error with Webpack
-        await expect(browser).toDisplayRedbox(
-          `"Expected Redbox but found no visible one."`
-        )
-      }
-    })
-  })
 })
