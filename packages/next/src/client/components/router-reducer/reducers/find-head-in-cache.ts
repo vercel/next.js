@@ -20,7 +20,19 @@ function findHeadInCacheImpl(
     return [cache, keyPrefix]
   }
 
-  for (const key in parallelRoutes) {
+  // First try the 'children' parallel route if it exists
+  // when starting from the "root", this corresponds with the main page component
+  const parallelRoutesKeys = Object.keys(parallelRoutes).filter(
+    (key) => key !== 'children'
+  )
+
+  // if we are at the root, we need to check the children slot first
+  if ('children' in parallelRoutes) {
+    parallelRoutesKeys.unshift('children')
+  }
+
+  // if we didn't find metadata in the page slot, check the other parallel routes
+  for (const key of parallelRoutesKeys) {
     const [segment, childParallelRoutes] = parallelRoutes[key]
     const childSegmentMap = cache.parallelRoutes.get(key)
     if (!childSegmentMap) {

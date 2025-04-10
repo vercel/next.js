@@ -245,6 +245,8 @@ interface ParseRequestHeadersOptions {
 }
 
 const flightDataPathHeadKey = 'h'
+const getFlightViewportKey = (requestId: string) => requestId + 'v'
+const getFlightMetadataKey = (requestId: string) => requestId + 'm'
 
 interface ParsedRequestHeaders {
   /**
@@ -519,9 +521,9 @@ async function generateDynamicRSCPayload(
               isPossibleServerAction={ctx.isPossibleServerAction}
             />
             {/* Adding requestId as react key to make metadata remount for each render */}
-            <ViewportTree key={requestId} />
+            <ViewportTree key={getFlightViewportKey(requestId)} />
             {/* Not add requestId as react key to ensure segment prefetch could result consistently if nothing changed */}
-            <MetadataTree />
+            <MetadataTree key={getFlightMetadataKey(requestId)} />
           </React.Fragment>
         ),
         injectedCSS: new Set(),
@@ -855,7 +857,7 @@ async function getRSCPayload(
         statusCode={ctx.res.statusCode}
         isPossibleServerAction={ctx.isPossibleServerAction}
       />
-      <ViewportTree key={ctx.requestId} />
+      <ViewportTree key={getFlightViewportKey(ctx.requestId)} />
       {/* Not add requestId as react key to ensure segment prefetch could result consistently if nothing changed */}
       <MetadataTree />
     </React.Fragment>
@@ -944,12 +946,8 @@ async function getErrorRSCPayload(
     serveStreamingMetadata: serveStreamingMetadata,
   })
 
-  const metadata = (
-    <React.Fragment key={flightDataPathHeadKey}>
-      {/* Adding requestId as react key to make metadata remount for each render */}
-      <MetadataTree key={requestId} />
-    </React.Fragment>
-  )
+  // {/* Adding requestId as react key to make metadata remount for each render */}
+  const metadata = <MetadataTree key={getFlightMetadataKey(requestId)} />
 
   const initialHead = (
     <React.Fragment key={flightDataPathHeadKey}>
@@ -959,7 +957,7 @@ async function getErrorRSCPayload(
         isPossibleServerAction={ctx.isPossibleServerAction}
       />
       {/* Adding requestId as react key to make metadata remount for each render */}
-      <ViewportTree key={requestId} />
+      <ViewportTree key={getFlightViewportKey(requestId)} />
       {process.env.NODE_ENV === 'development' && (
         <meta name="next-error" content="not-found" />
       )}
