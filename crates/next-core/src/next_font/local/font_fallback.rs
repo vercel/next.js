@@ -3,7 +3,7 @@ use allsorts::{
     Font,
 };
 use anyhow::{bail, Context, Result};
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 
 use super::{
@@ -15,7 +15,6 @@ use crate::next_font::{
         AutomaticFontFallback, DefaultFallbackFont, FontAdjustment, FontFallback, FontFallbacks,
         DEFAULT_SANS_SERIF_FONT, DEFAULT_SERIF_FONT,
     },
-    local::errors::FontError,
     util::{get_scoped_font_family, FontFamilyType},
 };
 
@@ -31,6 +30,8 @@ pub(super) async fn get_font_fallbacks(
     options_vc: Vc<NextFontLocalOptions>,
 ) -> Result<Vc<FontFallbacks>> {
     let options = &*options_vc.await?;
+    let main_descriptor = pick_font_for_fallback_generation(&options.fonts)?;
+    let font_path = lookup_path.join(main_descriptor.path.clone());
     let mut font_fallbacks = vec![];
     let scoped_font_family =
         get_scoped_font_family(FontFamilyType::Fallback.cell(), options_vc.font_family());
@@ -40,9 +41,7 @@ pub(super) async fn get_font_fallbacks(
             FontFallback::Automatic(AutomaticFontFallback {
                 scoped_font_family: scoped_font_family.to_resolved().await?,
                 local_font_family: ResolvedVc::cell("Arial".into()),
-                adjustment: Some(
-                    get_font_adjustment(lookup_path, options_vc, &DEFAULT_SANS_SERIF_FONT).await?,
-                ),
+                adjustment: Some(get_font_adjustment(font_path, &DEFAULT_SANS_SERIF_FONT).await?),
             })
             .resolved_cell(),
         ),
@@ -50,9 +49,7 @@ pub(super) async fn get_font_fallbacks(
             FontFallback::Automatic(AutomaticFontFallback {
                 scoped_font_family: scoped_font_family.to_resolved().await?,
                 local_font_family: ResolvedVc::cell("Times New Roman".into()),
-                adjustment: Some(
-                    get_font_adjustment(lookup_path, options_vc, &DEFAULT_SERIF_FONT).await?,
-                ),
+                adjustment: Some(get_font_adjustment(font_path, &DEFAULT_SERIF_FONT).await?),
             })
             .resolved_cell(),
         ),
@@ -67,35 +64,36 @@ pub(super) async fn get_font_fallbacks(
 }
 
 async fn get_font_adjustment(
-    lookup_path: Vc<FileSystemPath>,
-    options: Vc<NextFontLocalOptions>,
+    font_path: Vc<FileSystemPath>,
     fallback_font: &DefaultFallbackFont,
 ) -> Result<FontAdjustment> {
-    let options = &*options.await?;
-    let main_descriptor = pick_font_for_fallback_generation(&options.fonts)?;
-    let font_file = &*lookup_path
-        .join(main_descriptor.path.clone())
-        .read()
-        .await?;
+    let font_file = &*font_path.read().await?;
+    let font_path_str = font_path.to_string().await?;
     let font_file_rope = match font_file {
-        FileContent::NotFound => bail!(FontError::FontFileNotFound(main_descriptor.path.clone())),
+        FileContent::NotFound => {
+            bail!("File {} doesn't exist", font_path_str)
+        }
         FileContent::Content(file) => file.content(),
     };
 
     let font_file_binary = font_file_rope.to_bytes()?;
     let scope = allsorts::binary::read::ReadScope::new(&font_file_binary);
-    let mut font = Font::new(scope.read::<FontData>()?.table_provider(0)?)?.context(format!(
-        "Unable to read font metrics from font file at {}",
-        &main_descriptor.path,
-    ))?;
+    let mut font = Font::new(scope.read::<FontData>()?.table_provider(0)?)?.with_context(|| {
+        format!(
+            "Unable to read font metrics from font file at {}",
+            font_path_str
+        )
+    })?;
 
     let az_avg_width = calc_average_width(&mut font);
     let units_per_em = font
         .head_table()?
-        .context(format!(
-            "Unable to read font scale from font file at {}",
-            &main_descriptor.path
-        ))?
+        .with_context(|| {
+            format!(
+                "Unable to read font scale from font file at {}",
+                font_path_str
+            )
+        })?
         .units_per_em as f64;
 
     let fallback_avg_width = fallback_font.az_avg_width / fallback_font.units_per_em as f64;

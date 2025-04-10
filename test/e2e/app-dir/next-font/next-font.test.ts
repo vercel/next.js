@@ -457,9 +457,15 @@ describe('app dir - next/font', () => {
             )
           )
           await assertHasRedbox(browser)
-          expect(await getRedboxSource(browser)).toInclude(
-            "Can't resolve './does-not-exist.woff2'"
-          )
+          if (process.env.TURBOPACK) {
+            expect(await getRedboxSource(browser)).toInclude(
+              "File [project]/fonts/does-not-exist.woff2 doesn't exist"
+            )
+          } else {
+            expect(await getRedboxSource(browser)).toInclude(
+              "Can't resolve './does-not-exist.woff2'"
+            )
+          }
 
           // Fix file
           await next.patchFile('fonts/index.js', font1Content)
