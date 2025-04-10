@@ -1,7 +1,6 @@
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
-#![feature(extract_if)]
 
 use std::{iter::once, thread::available_parallelism};
 
