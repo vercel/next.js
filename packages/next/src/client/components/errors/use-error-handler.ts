@@ -5,7 +5,6 @@ import { storeHydrationErrorStateFromConsoleArgs } from './hydration-error-info'
 import { formatConsoleArgs, parseConsoleArgs } from '../../lib/console'
 import isError from '../../../lib/is-error'
 import { createConsoleError } from './console-error'
-import { enqueueConsecutiveDedupedError } from './enqueue-client-error'
 import { getReactStitchedError } from '../errors/stitched-error'
 
 const queueMicroTask =
@@ -37,7 +36,7 @@ export function handleConsoleError(
   storeHydrationErrorStateFromConsoleArgs(...consoleErrorArgs)
   attachHydrationErrorState(error)
 
-  enqueueConsecutiveDedupedError(errorQueue, error)
+  errorQueue.push(error)
   for (const handler of errorHandlers) {
     // Delayed the error being passed to React Dev Overlay,
     // avoid the state being synchronously updated in the component.
@@ -60,7 +59,7 @@ export function handleClientError(originError: unknown) {
 
   attachHydrationErrorState(error)
 
-  enqueueConsecutiveDedupedError(errorQueue, error)
+  errorQueue.push(error)
   for (const handler of errorHandlers) {
     // Delayed the error being passed to React Dev Overlay,
     // avoid the state being synchronously updated in the component.
