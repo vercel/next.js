@@ -1,5 +1,21 @@
 export type Event = 'request' | 'response'
 
+export const WaitTimes = {
+  quick: 1_000 as const,
+  default: 5_000 as const,
+  slow: 10_000 as const,
+  verySlow: 30_000 as const,
+}
+
+export type WaitTime = keyof typeof WaitTimes | number
+
+export function resolveWaitTime(timeout: WaitTime): number {
+  if (typeof timeout === 'string') {
+    return WaitTimes[timeout]
+  }
+  return timeout
+}
+
 /**
  * This is the base Browser interface all browser
  * classes should build on, it is the bare
@@ -71,11 +87,11 @@ export abstract class BrowserInterface<TCurrent = any> {
   abstract moveTo(): BrowserInterface<any> & Promise<any>
   abstract waitForElementByCss(
     selector: string,
-    timeout?: number
+    timeout?: WaitTime
   ): BrowserInterface<any> & Promise<any>
   abstract waitForCondition(
     snippet: string,
-    timeout?: number
+    timeout?: WaitTime
   ): BrowserInterface<any> & Promise<any>
   /**
    * Use browsers `go back` functionality.
@@ -128,5 +144,5 @@ export abstract class BrowserInterface<TCurrent = any> {
   >
   abstract websocketFrames(): Promise<any[]>
   abstract url(): Promise<string>
-  abstract waitForIdleNetwork(): Promise<void>
+  abstract waitForIdleNetwork(timeout?: WaitTime): Promise<void>
 }

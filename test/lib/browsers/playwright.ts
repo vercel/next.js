@@ -1,4 +1,10 @@
-import { BrowserInterface, Event } from './base'
+import {
+  BrowserInterface,
+  Event,
+  resolveWaitTime,
+  WaitTime,
+  WaitTimes,
+} from './base'
 import fs from 'fs-extra'
 import {
   chromium,
@@ -348,7 +354,7 @@ export class Playwright extends BrowserInterface {
   }
 
   elementByCss(selector: string) {
-    return this.waitForElementByCss(selector, 5_000)
+    return this.waitForElementByCss(selector, WaitTimes.default)
   }
 
   elementById(sel) {
@@ -427,10 +433,13 @@ export class Playwright extends BrowserInterface {
     )
   }
 
-  waitForElementByCss(selector, timeout = 10_000) {
+  waitForElementByCss(selector: string, timeout: WaitTime = WaitTimes.slow) {
     return this.chain(() => {
       return page
-        .waitForSelector(selector, { timeout, state: 'attached' })
+        .waitForSelector(selector, {
+          timeout: resolveWaitTime(timeout),
+          state: 'attached',
+        })
         .then(async (el) => {
           // it seems selenium waits longer and tests rely on this behavior
           // so we wait for the load event fire before returning
@@ -440,9 +449,11 @@ export class Playwright extends BrowserInterface {
     })
   }
 
-  waitForCondition(condition, timeout) {
+  waitForCondition(condition, timeout: WaitTime = WaitTimes.slow) {
     return this.chain(() => {
-      return page.waitForFunction(condition, { timeout })
+      return page.waitForFunction(condition, {
+        timeout: resolveWaitTime(timeout),
+      })
     })
   }
 
@@ -512,9 +523,11 @@ export class Playwright extends BrowserInterface {
     return this.chain(() => page.url())
   }
 
-  async waitForIdleNetwork(): Promise<void> {
+  async waitForIdleNetwork(timeout: WaitTime = WaitTimes.slow): Promise<void> {
     return this.chain(() => {
-      return page.waitForLoadState('networkidle')
+      return page.waitForLoadState('networkidle', {
+        timeout: resolveWaitTime(timeout),
+      })
     })
   }
 
