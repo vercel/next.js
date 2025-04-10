@@ -795,7 +795,7 @@ export class File {
 
 export async function retry<T>(
   fn: () => T | Promise<T>,
-  duration: number = 3000,
+  duration: number = 5000,
   interval: number = 500,
   description?: string
 ): Promise<T> {
@@ -805,22 +805,30 @@ export async function retry<T>(
     )
   }
 
-  for (let i = duration; i >= 0; i -= interval) {
+  const startTime = Date.now()
+  const maxEndTime = startTime + duration
+  while (true) {
+    const callStartTime = Date.now()
     try {
       return await fn()
     } catch (err) {
-      if (i === 0) {
+      const callEndTime = Date.now()
+      const callDuration = callEndTime - callStartTime
+
+      if (callEndTime >= maxEndTime) {
         console.error(
           `Failed to retry${
             description ? ` ${description}` : ''
           } within ${duration}ms`
         )
         throw err
+      } else {
+        console.log(
+          `Retrying${description ? ` ${description}` : ''} in ${interval}ms`
+        )
+
+        await waitFor(Math.max(interval - callDuration, 0))
       }
-      console.log(
-        `Retrying${description ? ` ${description}` : ''} in ${interval}ms`
-      )
-      await waitFor(interval)
     }
   }
 }
