@@ -89,14 +89,15 @@ describe('Dynamic Route Interpolation', () => {
           '/.next/static/chunks/app/@modal/(...)comments/[productId]'
       )
 
+      // Piece the path to the chunk together but only encode the productId section of it
       const partiallyEncodedPath =
         '/_next/static/chunks/app/@modal/(...)comments/%5BproductId%5D/' +
         modalChunk
 
-      const { status: encodedPathReqStatus } =
+      const { status: partiallyEncodedPathReqStatus } =
         await next.fetch(partiallyEncodedPath)
 
-      expect(encodedPathReqStatus).toBe(200)
+      expect(partiallyEncodedPathReqStatus).toBe(200)
     })
   }
 })
