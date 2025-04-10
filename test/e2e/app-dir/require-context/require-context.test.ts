@@ -12,7 +12,7 @@ describe('require-context', () => {
       JSON.stringify([
         './parent/file1.js',
         './parent/file2.js',
-        './parent2/file3.',
+        './parent2/file3.js',
       ])
     )
   })
