@@ -348,7 +348,7 @@ export class Playwright extends BrowserInterface {
   }
 
   elementByCss(selector: string) {
-    return this.waitForElementByCss(selector)
+    return this.waitForElementByCss(selector, 5_000)
   }
 
   elementById(sel) {
