@@ -28,5 +28,11 @@ describe('graceful-degrade-error', () => {
     const originBody = await browser.elementByCss('body')
     expect(await originHtml.getAttribute('class')).toBe('layout-cls')
     expect(await originBody.getAttribute('class')).toBe('body-cls')
+
+    // Do not contain the global error boundary text
+    const bodyText = await originBody.text()
+    expect(bodyText).not.toMatch(
+      /Application error: a client-side exception has occurred while loading/
+    )
   })
 })

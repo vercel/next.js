@@ -15,7 +15,7 @@ describe('graceful-degrade-error - non bot', () => {
     deleteBrowserDynamicChunks(next)
   })
 
-  it('should degrade to graceful error when chunk loading fails in ssr for bot', async () => {
+  it('should not degrade to graceful error when chunk loading fails in ssr for non-bot user agents', async () => {
     const browser = await next.browser('/')
 
     const logs = await browser.log()
