@@ -24,6 +24,7 @@ use turbopack_core::{
     module::Module,
     module_graph::ModuleGraph,
     reference::ModuleReference,
+    resolve::ModulePart,
 };
 
 use super::base::ReferencedAsset;
@@ -33,6 +34,8 @@ use crate::{
     magic_identifier,
     parse::ParseResult,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
+    tree_shake::asset::EcmascriptModulePartAsset,
+    EcmascriptModuleAsset,
 };
 
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
@@ -178,8 +181,8 @@ pub async fn follow_reexports(
         // Try to find the export in the star exports
         if !exports_ref.star_exports.is_empty() && &*export_name != "default" {
             let result = find_export_from_reexports(*module, export_name.clone()).await?;
-            if let Some(m) = result.esm_exports.get(&export_name) {
-                module = *m;
+            if let Some(m) = result.esm_export {
+                module = m;
                 continue;
             }
             return match &result.dynamic_exporting_modules[..] {
@@ -283,7 +286,7 @@ async fn find_export_from_reexports(
     if let Some(module) =
         Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(*module).await?
     {
-        if matches!(&*module.await?.part.await?, ModulePart::Exports) {
+        if matches!(module.await?.part, ModulePart::Exports) {
             let module_part = EcmascriptModulePartAsset::select_part(
                 *module.await?.full_module,
                 ModulePart::export(export_name.clone()),
@@ -313,13 +316,6 @@ async fn find_export_from_reexports(
 
     let exports = exports.await?;
     let mut dynamic_exporting_modules = Vec::new();
-
-    vdbg!(
-        module,
-        export_name.clone(),
-        exports.exports.clone(),
-        exports.star_exports.to_vec(),
-    );
 
     for (name, _) in exports.exports.iter() {
         if *name == export_name {

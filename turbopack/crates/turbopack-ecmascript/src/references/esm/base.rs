@@ -13,6 +13,7 @@ use turbopack_core::{
         ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption,
         ModuleChunkItemIdExt,
     },
+    context::AssetContext,
     issue::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
@@ -23,7 +24,7 @@ use turbopack_core::{
     resolve::{
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
-        ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
+        ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem, RequestKey,
     },
 };
 use turbopack_resolve::ecmascript::esm_resolve;
@@ -179,7 +180,7 @@ impl ModuleReference for EsmAssetReference {
                     // _module_ so we cannot return Ignore in resolve step. This causes a problem
                     // for side-effect optimization logic.w
                     if matches!(
-                        &*part.await?,
+                        part,
                         ModulePart::Evaluation | ModulePart::InternalEvaluation(..)
                     ) {
                         let side_effect_free_packages =
@@ -190,20 +191,21 @@ impl ModuleReference for EsmAssetReference {
                             .await?
                         {
                             return Ok(ModuleResolveResult {
-                                primary: fxindexmap! {
-                                    RequestKey::default() => ModuleResolveResultItem::Ignore
-                                },
-                                affecting_sources: Vec::new(),
+                                primary: Box::new([(
+                                    RequestKey::default(),
+                                    ModuleResolveResultItem::Ignore,
+                                )]),
+                                affecting_sources: Default::default(),
                             }
                             .cell());
                         }
                     }
 
-                    return Ok(*ModuleResolveResult::module(
+                    return Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
                         EcmascriptModulePartAsset::select_part(*module, part.clone())
                             .to_resolved()
                             .await?,
-                    ));
+                    )));
                 }
 
                 bail!("export_name is required for part import")
