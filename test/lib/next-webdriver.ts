@@ -29,15 +29,34 @@ if (isBrowserStack) {
   }
 }
 
-let browserTeardown: (() => Promise<void>)[] = []
+function createAfterCurrentTest() {
+  const afterCurrentTestCallbacks = new Set<() => Promise<void>>()
+
+  afterEach(async () => {
+    for (const callback of afterCurrentTestCallbacks) {
+      await callback()
+    }
+    afterCurrentTestCallbacks.clear()
+  })
+
+  return function afterCurrentTest(cb: () => void | Promise<void>) {
+    const wrapped = async () => {
+      try {
+        await cb()
+      } finally {
+        afterCurrentTestCallbacks.delete(wrapped)
+      }
+    }
+    afterCurrentTestCallbacks.add(wrapped)
+  }
+}
+
+const afterCurrentTest = createAfterCurrentTest()
+
 let browserQuit: (() => Promise<void>) | undefined
 
 if (typeof afterAll === 'function') {
   afterAll(async () => {
-    await Promise.all(browserTeardown.map((f) => f())).catch((e) =>
-      console.error('browser teardown', e)
-    )
-
     if (browserQuit) {
       await browserQuit()
     }
@@ -152,7 +171,9 @@ export default async function webdriver(
   })
   console.log(`\n> Loaded browser with ${fullUrl}\n`)
 
-  browserTeardown.push(browser.close.bind(browser))
+  afterCurrentTest(async () => {
+    await browser.close()
+  })
 
   // This is a temporary workaround for turbopack starting watching too late.
   // So we delay file changes to give it some time

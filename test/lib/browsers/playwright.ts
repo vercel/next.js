@@ -207,6 +207,10 @@ export class Playwright<TCurrent = undefined> {
 
   async close(): Promise<void> {
     await teardown(this.teardownTracing.bind(this))
+    await this.reset()
+  }
+
+  async reset() {
     if (page && !page.isClosed()) {
       await page.close()
     }
@@ -266,9 +270,14 @@ export class Playwright<TCurrent = undefined> {
     } & NavigationOptions
   ) {
     url = this.resolveUrl(url)
-    await this.close()
+    await this.reset()
 
-    await this.initContextTracing(url, context!)
+    if (!this.activeTrace) {
+      // if this is the first time loadPage is called in this test, start a trace.
+      // otherwise, we should already have a trace running.
+      await this.initContextTracing(url, context!)
+    }
+
     page = await context!.newPage()
 
     page.setDefaultTimeout(defaultTimeout)
