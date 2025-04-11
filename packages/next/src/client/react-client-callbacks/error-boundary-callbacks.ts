@@ -79,7 +79,7 @@ export function onCaughtError(
     // Log and report the error with location but without modifying the error stack
     originConsoleError('%o\n\n%s', err, errorLocation)
 
-    handleClientError(stitchedError, [])
+    handleClientError(stitchedError)
   } else {
     originConsoleError(err)
   }

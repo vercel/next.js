@@ -144,19 +144,6 @@ describe('Middleware Runtime', () => {
       }
     }
 
-    it('should filter request header properly', async () => {
-      const res = await next.fetch('/redirect-to-somewhere', {
-        headers: {
-          'x-middleware-subrequest':
-            'middleware:middleware:middleware:middleware:middleware',
-        },
-        redirect: 'manual',
-      })
-
-      expect(res.status).toBe(307)
-      expect(res.headers.get('location')).toContain('/somewhere')
-    })
-
     it('should handle 404 on fallback: false route correctly', async () => {
       const res = await next.fetch('/ssg-fallback-false/first')
       expect(res.status).toBe(200)
@@ -239,7 +226,7 @@ describe('Middleware Runtime', () => {
         delete middlewareWithoutEnvs.env
         expect(middlewareWithoutEnvs).toEqual({
           // Turbopack creates more files as it can do chunking.
-          files: process.env.TURBOPACK
+          files: process.env.IS_TURBOPACK_TEST
             ? expect.toBeArray()
             : expect.arrayContaining([
                 'server/edge-runtime-webpack.js',
@@ -249,7 +236,7 @@ describe('Middleware Runtime', () => {
           page: '/',
           matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
           wasm: [],
-          assets: process.env.TURBOPACK ? expect.toBeArray() : [],
+          assets: process.env.IS_TURBOPACK_TEST ? expect.toBeArray() : [],
           regions: 'auto',
         })
         expect(envs).toContainAllKeys([
@@ -278,7 +265,7 @@ describe('Middleware Runtime', () => {
         )
         for (const key of Object.keys(manifest.middleware)) {
           const middleware = manifest.middleware[key]
-          if (!process.env.TURBOPACK) {
+          if (!process.env.IS_TURBOPACK_TEST) {
             expect(middleware.files).toContainEqual(
               expect.stringContaining('server/edge-runtime-webpack')
             )

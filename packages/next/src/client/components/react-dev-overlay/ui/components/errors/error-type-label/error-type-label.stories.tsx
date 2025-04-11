@@ -31,12 +31,6 @@ export const ConsoleError: Story = {
   },
 }
 
-export const UnhandledRuntimeError: Story = {
-  args: {
-    errorType: 'Unhandled Runtime Error',
-  },
-}
-
 export const MissingRequiredHTMLTag: Story = {
   args: {
     errorType: 'Missing Required HTML Tag',

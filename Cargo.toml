@@ -296,22 +296,21 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "16.9.0", features = [
+swc_core = { version = "21.0.1", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
-swc_parallel = { version = "1.3.0", default-features = false, features = ["rayon"] }
 testing = { version = "8.0.0" }
 
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = { version = "0.17.0" }
 miette = { version = "5.10.0", features = ["fancy"] }
-mdxjs = "0.3"
-modularize_imports = { version = "0.79.0" }
-styled_components = { version = "0.107.1" }
-styled_jsx = { version = "0.83.1" }
-swc_emotion = { version = "0.83.0" }
-swc_relay = { version = "0.53.0" }
+mdxjs = "0.3.3"
+modularize_imports = { version = "0.80.0" }
+styled_components = { version = "0.108.0" }
+styled_jsx = { version = "0.84.0" }
+swc_emotion = { version = "0.84.0" }
+swc_relay = { version = "0.54.0" }
 
 # General Deps
 chromiumoxide = { version = "0.5.4", features = [
@@ -374,6 +373,7 @@ nohash-hasher = "0.2.0"
 notify = "6.1.1"
 once_cell = "1.17.1"
 owo-colors = "3.5.0"
+par-core = { version = "1.0.3", features = ["rayon"] }
 parcel_selectors = "0.28.1"
 parking_lot = "0.12.1"
 pathdiff = "0.2.1"
@@ -433,4 +433,4 @@ wasmer-cache = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
 wasmer-compiler-cranelift = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
 wasmer-wasix = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
 
-mdxjs = { git="https://github.com/kdy1/mdxjs-rs.git", branch = "swc-core-16" }
+mdxjs = { git = "https://github.com/kdy1/mdxjs-rs", branch = "swc-core-21" }

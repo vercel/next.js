@@ -115,6 +115,9 @@
       var dispatcher = ReactSharedInternals.A;
       return null === dispatcher ? null : dispatcher.getOwner();
     }
+    function UnknownOwner() {
+      return Error("react-stack-top-frame");
+    }
     function hasValidKey(config) {
       if (hasOwnProperty.call(config, "key")) {
         var getter = Object.getOwnPropertyDescriptor(config, "key").get;
@@ -305,9 +308,19 @@
         ? console.createTask
         : function () {
             return null;
-          },
-      specialPropKeyWarningShown;
+          };
+    React = {
+      "react-stack-bottom-frame": function (callStackForError) {
+        return callStackForError();
+      }
+    };
+    var specialPropKeyWarningShown;
     var didWarnAboutElementRef = {};
+    var unknownOwnerDebugStack = React["react-stack-bottom-frame"].bind(
+      React,
+      UnknownOwner
+    )();
+    var unknownOwnerDebugTask = createTask(getTaskName(UnknownOwner));
     var didWarnAboutKeySpread = {};
     exports.Fragment = REACT_FRAGMENT_TYPE;
     exports.jsxDEV = function (
@@ -318,6 +331,8 @@
       source,
       self
     ) {
+      var trackActualOwner =
+        1e4 > ReactSharedInternals.recentlyCreatedOwnerStacks++;
       return jsxDEVImpl(
         type,
         config,
@@ -325,8 +340,10 @@
         isStaticChildren,
         source,
         self,
-        Error("react-stack-top-frame"),
-        createTask(getTaskName(type))
+        trackActualOwner
+          ? Error("react-stack-top-frame")
+          : unknownOwnerDebugStack,
+        trackActualOwner ? createTask(getTaskName(type)) : unknownOwnerDebugTask
       );
     };
   })();

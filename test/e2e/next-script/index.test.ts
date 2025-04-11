@@ -227,7 +227,7 @@ describe('empty strategy in document body', () => {
     }
   })
 })
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'experimental.nextScriptWorkers',
   () => {
     describe('experimental.nextScriptWorkers: false with no Partytown dependency', () => {

@@ -138,7 +138,8 @@ function handleSuccess() {
         sendMessage,
         [...hmrUpdate.updatedModules],
         hmrUpdate.startMsSinceEpoch,
-        hmrUpdate.endMsSinceEpoch
+        hmrUpdate.endMsSinceEpoch,
+        hmrUpdate.hasUpdates
       )
     }
     onBuildOk()
@@ -275,8 +276,8 @@ function processMessage(obj: HMR_ACTION_TYPES) {
         turbopackHmr!.onBuilding()
       } else {
         webpackStartMsSinceEpoch = Date.now()
+        console.log('[Fast Refresh] rebuilding')
       }
-      console.log('[Fast Refresh] rebuilding')
       break
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
@@ -323,6 +324,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       return handleSuccess()
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
+      turbopackHmr?.onServerComponentChanges()
       if (hasCompileErrors || RuntimeErrorHandler.hadRuntimeError) {
         window.location.reload()
       }
@@ -348,6 +350,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       break
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE: {
+      turbopackHmr!.onTurbopackMessage(obj)
       onBeforeRefresh()
       for (const listener of turbopackMessageListeners) {
         listener({
@@ -360,7 +363,6 @@ function processMessage(obj: HMR_ACTION_TYPES) {
         performFullReload(null)
       }
       onRefresh()
-      turbopackHmr!.onTurbopackMessage(obj)
       break
     }
     default: {

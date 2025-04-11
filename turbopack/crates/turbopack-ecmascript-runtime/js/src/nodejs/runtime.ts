@@ -27,6 +27,8 @@ type SourceInfo =
       parentId: ModuleId;
     };
 
+process.env.TURBOPACK = '1';
+
 function stringifySourceInfo(source: SourceInfo): string {
   switch (source.type) {
     case SourceType.Runtime:

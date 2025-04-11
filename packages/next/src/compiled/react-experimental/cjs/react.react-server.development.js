@@ -49,7 +49,7 @@
     function getComponentNameFromType(type) {
       if (null == type) return null;
       if ("function" === typeof type)
-        return type.$$typeof === REACT_CLIENT_REFERENCE$1
+        return type.$$typeof === REACT_CLIENT_REFERENCE
           ? null
           : type.displayName || type.name || null;
       if ("string" === typeof type) return type;
@@ -124,6 +124,9 @@
     function getOwner() {
       var dispatcher = ReactSharedInternals.A;
       return null === dispatcher ? null : dispatcher.getOwner();
+    }
+    function UnknownOwner() {
+      return Error("react-stack-top-frame");
     }
     function hasValidKey(config) {
       if (hasOwnProperty.call(config, "key")) {
@@ -465,6 +468,9 @@
     function createCacheNode() {
       return { s: 0, v: void 0, o: null, p: null };
     }
+    function releaseAsyncTransition() {
+      ReactSharedInternals.asyncTransitions--;
+    }
     function noop() {}
     function cleanup(entryValue) {
       var entry = TaintRegistryValues.get(entryValue);
@@ -488,6 +494,7 @@
     ReactSharedInternals.TaintRegistryPendingRequests =
       TaintRegistryPendingRequests$1;
     ReactSharedInternals.getCurrentStack = null;
+    ReactSharedInternals.recentlyCreatedOwnerStacks = 0;
     var isArrayImpl = Array.isArray,
       REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
       REACT_PORTAL_TYPE = Symbol.for("react.portal"),
@@ -506,20 +513,27 @@
       REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
       REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
-      REACT_CLIENT_REFERENCE$1 = Symbol.for("react.client.reference"),
+      REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"),
       hasOwnProperty = Object.prototype.hasOwnProperty,
       assign = Object.assign,
       createTask = console.createTask
         ? console.createTask
         : function () {
             return null;
-          },
-      specialPropKeyWarningShown,
-      didWarnAboutOldJSXRuntime;
+          };
+    TaintRegistryObjects$1 = {
+      "react-stack-bottom-frame": function (callStackForError) {
+        return callStackForError();
+      }
+    };
+    var specialPropKeyWarningShown, didWarnAboutOldJSXRuntime;
     var didWarnAboutElementRef = {};
+    var unknownOwnerDebugStack = TaintRegistryObjects$1[
+      "react-stack-bottom-frame"
+    ].bind(TaintRegistryObjects$1, UnknownOwner)();
+    var unknownOwnerDebugTask = createTask(getTaskName(UnknownOwner));
     var didWarnAboutMaps = !1,
       userProvidedKeyEscapeRegex = /\/+/g,
-      REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"),
       reportGlobalError =
         "function" === typeof reportError
           ? reportError
@@ -714,7 +728,6 @@
         var node = arguments[i];
         isValidElement(node) && node._store && (node._store.validated = 1);
       }
-      var propName;
       i = {};
       node = null;
       if (null != config)
@@ -755,6 +768,7 @@
             ? type.displayName || type.name || "Unknown"
             : type
         );
+      var propName = 1e4 > ReactSharedInternals.recentlyCreatedOwnerStacks++;
       return ReactElement(
         type,
         node,
@@ -762,8 +776,8 @@
         void 0,
         getOwner(),
         i,
-        Error("react-stack-top-frame"),
-        createTask(getTaskName(type))
+        propName ? Error("react-stack-top-frame") : unknownOwnerDebugStack,
+        propName ? createTask(getTaskName(type)) : unknownOwnerDebugTask
       );
     };
     exports.createRef = function () {
@@ -882,24 +896,7 @@
       };
     };
     exports.memo = function (type, compare) {
-      "string" === typeof type ||
-        "function" === typeof type ||
-        type === REACT_FRAGMENT_TYPE ||
-        type === REACT_PROFILER_TYPE ||
-        type === REACT_STRICT_MODE_TYPE ||
-        type === REACT_SUSPENSE_TYPE ||
-        type === REACT_SUSPENSE_LIST_TYPE ||
-        type === REACT_ACTIVITY_TYPE ||
-        type === REACT_VIEW_TRANSITION_TYPE ||
-        ("object" === typeof type &&
-          null !== type &&
-          (type.$$typeof === REACT_LAZY_TYPE ||
-            type.$$typeof === REACT_MEMO_TYPE ||
-            type.$$typeof === REACT_CONTEXT_TYPE ||
-            type.$$typeof === REACT_CONSUMER_TYPE ||
-            type.$$typeof === REACT_FORWARD_REF_TYPE ||
-            type.$$typeof === REACT_CLIENT_REFERENCE ||
-            void 0 !== type.getModuleId)) ||
+      null == type &&
         console.error(
           "memo: The first argument must be a component. Instead received: %s",
           null === type ? "null" : typeof type
@@ -929,8 +926,11 @@
     exports.startTransition = function (scope) {
       var prevTransition = ReactSharedInternals.T,
         currentTransition = {};
-      ReactSharedInternals.T = currentTransition;
+      currentTransition.types =
+        null !== prevTransition ? prevTransition.types : null;
+      currentTransition.gesture = null;
       currentTransition._updatedFibers = new Set();
+      ReactSharedInternals.T = currentTransition;
       try {
         var returnValue = scope(),
           onStartTransitionFinish = ReactSharedInternals.S;
@@ -939,7 +939,9 @@
         "object" === typeof returnValue &&
           null !== returnValue &&
           "function" === typeof returnValue.then &&
-          returnValue.then(noop, reportGlobalError);
+          (ReactSharedInternals.asyncTransitions++,
+          returnValue.then(releaseAsyncTransition, releaseAsyncTransition),
+          returnValue.then(noop, reportGlobalError));
       } catch (error) {
         reportGlobalError(error);
       } finally {
@@ -951,6 +953,14 @@
             console.warn(
               "Detected a large number of updates inside startTransition. If this is due to a subscription please re-write it to use React provided hooks. Otherwise concurrent mode guarantees are off the table."
             )),
+          null !== prevTransition &&
+            null !== currentTransition.types &&
+            (null !== prevTransition.types &&
+              prevTransition.types !== currentTransition.types &&
+              console.error(
+                "We expected inner Transitions to have transferred the outer types set and that you cannot add to the outer Transition while inside the inner.This is a bug in React."
+              ),
+            (prevTransition.types = currentTransition.types)),
           (ReactSharedInternals.T = prevTransition);
       }
     };
@@ -982,5 +992,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.1.0-experimental-db7dfe05-20250319";
+    exports.version = "19.2.0-experimental-c44e4a25-20250409";
   })();

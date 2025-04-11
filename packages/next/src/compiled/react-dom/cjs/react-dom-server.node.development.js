@@ -4376,6 +4376,10 @@
       onPostpone,
       formState
     ) {
+      var now = getCurrentTime();
+      1e3 < now - lastResetTime &&
+        ((ReactSharedInternals.recentlyCreatedOwnerStacks = 0),
+        (lastResetTime = now));
       resumableState = new RequestInstance(
         resumableState,
         renderState,
@@ -5408,18 +5412,43 @@
             task.keyPath = prevKeyPath$jscomp$1;
             return;
           case REACT_ACTIVITY_TYPE:
-            if ("hidden" !== props.mode) {
-              var prevKeyPath$jscomp$2 = task.keyPath;
-              task.keyPath = keyPath;
-              renderNodeDestructive(request, task, props.children, -1);
-              task.keyPath = prevKeyPath$jscomp$2;
+            var segment$jscomp$0 = task.blockedSegment;
+            if (null === segment$jscomp$0) {
+              if ("hidden" !== props.mode) {
+                var prevKeyPath$jscomp$2 = task.keyPath;
+                task.keyPath = keyPath;
+                renderNode(request, task, props.children, -1);
+                task.keyPath = prevKeyPath$jscomp$2;
+              }
+            } else {
+              segment$jscomp$0.chunks.push(startActivityBoundary);
+              segment$jscomp$0.lastPushedText = !1;
+              if ("hidden" !== props.mode) {
+                var _prevKeyPath3 = task.keyPath;
+                task.keyPath = keyPath;
+                renderNode(request, task, props.children, -1);
+                task.keyPath = _prevKeyPath3;
+              }
+              var target$jscomp$0 = segment$jscomp$0.chunks,
+                preambleState = task.blockedPreamble;
+              if (preambleState) {
+                var contribution = preambleState.contribution;
+                contribution !== NoContribution &&
+                  target$jscomp$0.push(
+                    boundaryPreambleContributionChunkStart,
+                    "" + contribution,
+                    boundaryPreambleContributionChunkEnd
+                  );
+              }
+              target$jscomp$0.push(endActivityBoundary);
+              segment$jscomp$0.lastPushedText = !1;
             }
             return;
           case REACT_SUSPENSE_LIST_TYPE:
-            var _prevKeyPath3 = task.keyPath;
+            var _prevKeyPath4 = task.keyPath;
             task.keyPath = keyPath;
             renderNodeDestructive(request, task, props.children, -1);
-            task.keyPath = _prevKeyPath3;
+            task.keyPath = _prevKeyPath4;
             return;
           case REACT_VIEW_TRANSITION_TYPE:
           case REACT_SCOPE_TYPE:
@@ -7640,11 +7669,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.1.0-canary-db7dfe05-20250319" !== isomorphicReactPackageVersion)
+      if ("19.2.0-canary-c44e4a25-20250409" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.1.0-canary-db7dfe05-20250319\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-canary-c44e4a25-20250409\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     function createDrainHandler(destination, request) {
@@ -8849,6 +8878,8 @@
       endTagCache = new Map(),
       placeholder1 = stringToPrecomputedChunk('<template id="'),
       placeholder2 = stringToPrecomputedChunk('"></template>'),
+      startActivityBoundary = stringToPrecomputedChunk("\x3c!--&--\x3e"),
+      endActivityBoundary = stringToPrecomputedChunk("\x3c!--/&--\x3e"),
       startCompletedSuspenseBoundary =
         stringToPrecomputedChunk("\x3c!--$--\x3e"),
       startPendingSuspenseBoundary1 = stringToPrecomputedChunk(
@@ -9188,7 +9219,22 @@
       },
       callLazyInitInDEV =
         callLazyInit["react-stack-bottom-frame"].bind(callLazyInit),
-      CLIENT_RENDERED = 4,
+      lastResetTime = 0;
+    if (
+      "object" === typeof performance &&
+      "function" === typeof performance.now
+    ) {
+      var localPerformance = performance;
+      var getCurrentTime = function () {
+        return localPerformance.now();
+      };
+    } else {
+      var localDate = Date;
+      getCurrentTime = function () {
+        return localDate.now();
+      };
+    }
+    var CLIENT_RENDERED = 4,
       PENDING = 0,
       COMPLETED = 1,
       FLUSHED = 2,
@@ -9294,5 +9340,5 @@
         }
       };
     };
-    exports.version = "19.1.0-canary-db7dfe05-20250319";
+    exports.version = "19.2.0-canary-c44e4a25-20250409";
   })();

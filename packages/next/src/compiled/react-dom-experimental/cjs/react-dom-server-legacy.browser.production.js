@@ -125,6 +125,20 @@ function murmurhash3_32_gc(key, seed) {
     4294967295;
   return (h1 ^ (h1 >>> 16)) >>> 0;
 }
+function readAsDataURL(blob) {
+  return blob.arrayBuffer().then(function (arrayBuffer) {
+    arrayBuffer =
+      "function" === typeof Buffer && "function" === typeof Buffer.from
+        ? Buffer.from(arrayBuffer).toString("base64")
+        : btoa(String.fromCharCode.apply(String, new Uint8Array(arrayBuffer)));
+    return (
+      "data:" +
+      (blob.type || "application/octet-stream") +
+      ";base64," +
+      arrayBuffer
+    );
+  });
+}
 var assign = Object.assign,
   hasOwnProperty = Object.prototype.hasOwnProperty,
   VALID_ATTRIBUTE_NAME_REGEX = RegExp(
@@ -502,6 +516,28 @@ function pushFormActionAttribute(
   null != formTarget && pushAttribute(target, "formTarget", formTarget);
   return formData;
 }
+var blobCache = null;
+function pushSrcObjectAttribute(target, blob) {
+  null === blobCache && (blobCache = new WeakMap());
+  var suspenseCache = blobCache,
+    thenable = suspenseCache.get(blob);
+  void 0 === thenable &&
+    ((thenable = readAsDataURL(blob)),
+    thenable.then(
+      function (result) {
+        thenable.status = "fulfilled";
+        thenable.value = result;
+      },
+      function (error) {
+        thenable.status = "rejected";
+        thenable.reason = error;
+      }
+    ),
+    suspenseCache.set(blob, thenable));
+  if ("rejected" === thenable.status) throw thenable.reason;
+  if ("fulfilled" !== thenable.status) throw thenable;
+  target.push(" ", "src", '="', escapeTextForBrowser(thenable.value), '"');
+}
 function pushAttribute(target, name, value) {
   switch (name) {
     case "className":
@@ -521,6 +557,15 @@ function pushAttribute(target, name, value) {
       pushStyleAttribute(target, value);
       break;
     case "src":
+      if (
+        "object" === typeof value &&
+        null !== value &&
+        "function" === typeof Blob &&
+        value instanceof Blob
+      ) {
+        pushSrcObjectAttribute(target, value);
+        break;
+      }
     case "href":
       if ("" === value) break;
     case "action":
@@ -2748,17 +2793,17 @@ function createRenderState(resumableState, generateStaticMarkup) {
       "\x3c/script>"
     );
   bootstrapScriptContent = idPrefix + "P:";
-  var JSCompiler_object_inline_segmentPrefix_1712 = idPrefix + "S:";
+  var JSCompiler_object_inline_segmentPrefix_1737 = idPrefix + "S:";
   idPrefix += "B:";
-  var JSCompiler_object_inline_preamble_1715 = createPreambleState(),
-    JSCompiler_object_inline_preconnects_1725 = new Set(),
-    JSCompiler_object_inline_fontPreloads_1726 = new Set(),
-    JSCompiler_object_inline_highImagePreloads_1727 = new Set(),
-    JSCompiler_object_inline_styles_1728 = new Map(),
-    JSCompiler_object_inline_bootstrapScripts_1729 = new Set(),
-    JSCompiler_object_inline_scripts_1730 = new Set(),
-    JSCompiler_object_inline_bulkPreloads_1731 = new Set(),
-    JSCompiler_object_inline_preloads_1732 = {
+  var JSCompiler_object_inline_preamble_1740 = createPreambleState(),
+    JSCompiler_object_inline_preconnects_1750 = new Set(),
+    JSCompiler_object_inline_fontPreloads_1751 = new Set(),
+    JSCompiler_object_inline_highImagePreloads_1752 = new Set(),
+    JSCompiler_object_inline_styles_1753 = new Map(),
+    JSCompiler_object_inline_bootstrapScripts_1754 = new Set(),
+    JSCompiler_object_inline_scripts_1755 = new Set(),
+    JSCompiler_object_inline_bulkPreloads_1756 = new Set(),
+    JSCompiler_object_inline_preloads_1757 = {
       images: new Map(),
       stylesheets: new Map(),
       scripts: new Map(),
@@ -2795,7 +2840,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
       scriptConfig.moduleScriptResources[href] = null;
       scriptConfig = [];
       pushLinkImpl(scriptConfig, props);
-      JSCompiler_object_inline_bootstrapScripts_1729.add(scriptConfig);
+      JSCompiler_object_inline_bootstrapScripts_1754.add(scriptConfig);
       bootstrapChunks.push('<script src="', escapeTextForBrowser(src));
       "string" === typeof integrity &&
         bootstrapChunks.push('" integrity="', escapeTextForBrowser(integrity));
@@ -2836,7 +2881,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
         (props.moduleScriptResources[scriptConfig] = null),
         (props = []),
         pushLinkImpl(props, integrity),
-        JSCompiler_object_inline_bootstrapScripts_1729.add(props),
+        JSCompiler_object_inline_bootstrapScripts_1754.add(props),
         bootstrapChunks.push(
           '<script type="module" src="',
           escapeTextForBrowser(i)
@@ -2851,10 +2896,10 @@ function createRenderState(resumableState, generateStaticMarkup) {
         bootstrapChunks.push('" async="">\x3c/script>');
   return {
     placeholderPrefix: bootstrapScriptContent,
-    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1712,
+    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1737,
     boundaryPrefix: idPrefix,
     startInlineScript: "<script>",
-    preamble: JSCompiler_object_inline_preamble_1715,
+    preamble: JSCompiler_object_inline_preamble_1740,
     externalRuntimeScript: null,
     bootstrapChunks: bootstrapChunks,
     importMapChunks: [],
@@ -2870,14 +2915,14 @@ function createRenderState(resumableState, generateStaticMarkup) {
     charsetChunks: [],
     viewportChunks: [],
     hoistableChunks: [],
-    preconnects: JSCompiler_object_inline_preconnects_1725,
-    fontPreloads: JSCompiler_object_inline_fontPreloads_1726,
-    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1727,
-    styles: JSCompiler_object_inline_styles_1728,
-    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1729,
-    scripts: JSCompiler_object_inline_scripts_1730,
-    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1731,
-    preloads: JSCompiler_object_inline_preloads_1732,
+    preconnects: JSCompiler_object_inline_preconnects_1750,
+    fontPreloads: JSCompiler_object_inline_fontPreloads_1751,
+    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1752,
+    styles: JSCompiler_object_inline_styles_1753,
+    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1754,
+    scripts: JSCompiler_object_inline_scripts_1755,
+    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1756,
+    preloads: JSCompiler_object_inline_preloads_1757,
     stylesToHoist: !1,
     generateStaticMarkup: generateStaticMarkup
   };
@@ -3331,9 +3376,6 @@ function readPreviousThenableFromState() {
 function unsupportedRefresh() {
   throw Error(formatProdErrorMessage(393));
 }
-function unsupportedStartGesture() {
-  throw Error(formatProdErrorMessage(547));
-}
 function noop$1() {}
 var HooksDispatcher = {
     readContext: function (context) {
@@ -3425,10 +3467,6 @@ var HooksDispatcher = {
     },
     useEffectEvent: function () {
       return throwOnUseEffectEventCall;
-    },
-    useSwipeTransition: function (previous, current) {
-      resolveCurrentlyRenderingComponent();
-      return [current, unsupportedStartGesture];
     }
   },
   currentResumableState = null,
@@ -4218,11 +4256,31 @@ function renderElement(request, task, keyPath, type, props, ref) {
         task.keyPath = type;
         return;
       case REACT_ACTIVITY_TYPE:
-        "hidden" !== props.mode &&
-          ((type = task.keyPath),
-          (task.keyPath = keyPath),
-          renderNodeDestructive(request, task, props.children, -1),
-          (task.keyPath = type));
+        type = task.blockedSegment;
+        if (null === type)
+          "hidden" !== props.mode &&
+            ((type = task.keyPath),
+            (task.keyPath = keyPath),
+            renderNode(request, task, props.children, -1),
+            (task.keyPath = type));
+        else {
+          request.renderState.generateStaticMarkup ||
+            type.chunks.push("\x3c!--&--\x3e");
+          type.lastPushedText = !1;
+          "hidden" !== props.mode &&
+            ((newProps = task.keyPath),
+            (task.keyPath = keyPath),
+            renderNode(request, task, props.children, -1),
+            (task.keyPath = newProps));
+          if (!request.renderState.generateStaticMarkup) {
+            request = type.chunks;
+            if ((task = task.blockedPreamble))
+              (task = task.contribution),
+                0 !== task && request.push("\x3c!--", "" + task, "--\x3e");
+            request.push("\x3c!--/&--\x3e");
+          }
+          type.lastPushedText = !1;
+        }
         return;
       case REACT_SUSPENSE_LIST_TYPE:
         type = task.keyPath;
@@ -4912,9 +4970,9 @@ function trackPostpone(request, trackedPostpones, task, segment) {
         addToReplayParent(segment, boundaryKeyPath[0], trackedPostpones);
         return;
       }
-      var boundaryNode$43 = trackedPostpones.workingMap.get(boundaryKeyPath);
-      void 0 === boundaryNode$43
-        ? ((boundaryNode$43 = [
+      var boundaryNode$45 = trackedPostpones.workingMap.get(boundaryKeyPath);
+      void 0 === boundaryNode$45
+        ? ((boundaryNode$45 = [
             boundaryKeyPath[1],
             boundaryKeyPath[2],
             children,
@@ -4922,13 +4980,13 @@ function trackPostpone(request, trackedPostpones, task, segment) {
             fallbackReplayNode,
             boundary.rootSegmentID
           ]),
-          trackedPostpones.workingMap.set(boundaryKeyPath, boundaryNode$43),
+          trackedPostpones.workingMap.set(boundaryKeyPath, boundaryNode$45),
           addToReplayParent(
-            boundaryNode$43,
+            boundaryNode$45,
             boundaryKeyPath[0],
             trackedPostpones
           ))
-        : ((boundaryKeyPath = boundaryNode$43),
+        : ((boundaryKeyPath = boundaryNode$45),
           (boundaryKeyPath[4] = fallbackReplayNode),
           (boundaryKeyPath[5] = boundary.rootSegmentID));
     }
@@ -5078,15 +5136,15 @@ function renderNode(request, task, node, childIndex) {
       chunkLength = segment.chunks.length;
     try {
       return renderNodeDestructive(request, task, node, childIndex);
-    } catch (thrownValue$55) {
+    } catch (thrownValue$57) {
       if (
         (resetHooksState(),
         (segment.children.length = childrenLength),
         (segment.chunks.length = chunkLength),
         (childIndex =
-          thrownValue$55 === SuspenseException
+          thrownValue$57 === SuspenseException
             ? getSuspendedThenable()
-            : thrownValue$55),
+            : thrownValue$57),
         "object" === typeof childIndex && null !== childIndex)
       ) {
         if ("function" === typeof childIndex.then) {
@@ -5281,16 +5339,16 @@ function abortTask(task, request, error) {
     }
   } else {
     boundary.pendingTasks--;
-    var trackedPostpones$58 = request.trackedPostpones;
+    var trackedPostpones$60 = request.trackedPostpones;
     if (4 !== boundary.status) {
-      if (null !== trackedPostpones$58 && null !== segment)
+      if (null !== trackedPostpones$60 && null !== segment)
         return (
           "object" === typeof error &&
           null !== error &&
           error.$$typeof === REACT_POSTPONE_TYPE
             ? logPostpone(request, error.message, errorInfo)
             : logRecoverableError(request, error, errorInfo),
-          trackPostpone(request, trackedPostpones$58, task, segment),
+          trackPostpone(request, trackedPostpones$60, task, segment),
           boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
             return abortTask(fallbackTask, request, error);
           }),
@@ -5598,13 +5656,13 @@ function performWork(request$jscomp$1) {
                       null !== request.trackedPostpones &&
                       x$jscomp$0.$$typeof === REACT_POSTPONE_TYPE
                     ) {
-                      var trackedPostpones$62 = request.trackedPostpones;
+                      var trackedPostpones$64 = request.trackedPostpones;
                       task.abortSet.delete(task);
                       var postponeInfo = getThrownInfo(task.componentStack);
                       logPostpone(request, x$jscomp$0.message, postponeInfo);
                       trackPostpone(
                         request,
-                        trackedPostpones$62,
+                        trackedPostpones$64,
                         task,
                         segment$jscomp$0
                       );
@@ -6165,11 +6223,11 @@ function flushCompletedQueues(request, destination) {
       completedBoundaries.splice(0, i);
       var partialBoundaries = request.partialBoundaries;
       for (i = 0; i < partialBoundaries.length; i++) {
-        var boundary$65 = partialBoundaries[i];
+        var boundary$67 = partialBoundaries[i];
         a: {
           clientRenderedBoundaries = request;
           boundary = destination;
-          var completedSegments = boundary$65.completedSegments;
+          var completedSegments = boundary$67.completedSegments;
           for (
             JSCompiler_inline_result = 0;
             JSCompiler_inline_result < completedSegments.length;
@@ -6179,7 +6237,7 @@ function flushCompletedQueues(request, destination) {
               !flushPartiallyCompletedSegment(
                 clientRenderedBoundaries,
                 boundary,
-                boundary$65,
+                boundary$67,
                 completedSegments[JSCompiler_inline_result]
               )
             ) {
@@ -6191,7 +6249,7 @@ function flushCompletedQueues(request, destination) {
           completedSegments.splice(0, JSCompiler_inline_result);
           JSCompiler_inline_result$jscomp$0 = writeHoistablesForBoundary(
             boundary,
-            boundary$65.contentState,
+            boundary$67.contentState,
             clientRenderedBoundaries.renderState
           );
         }
@@ -6276,8 +6334,8 @@ function abort(request, reason) {
     }
     null !== request.destination &&
       flushCompletedQueues(request, request.destination);
-  } catch (error$67) {
-    logRecoverableError(request, error$67, {}), fatalError(request, error$67);
+  } catch (error$69) {
+    logRecoverableError(request, error$69, {}), fatalError(request, error$69);
   }
 }
 function addToReplayParent(node, parentKeyPath, trackedPostpones) {
@@ -6358,4 +6416,4 @@ exports.renderToString = function (children, options) {
     'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
   );
 };
-exports.version = "19.1.0-experimental-db7dfe05-20250319";
+exports.version = "19.2.0-experimental-c44e4a25-20250409";

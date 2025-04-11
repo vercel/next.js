@@ -354,6 +354,12 @@
       var owner = componentStorage.getStore();
       return owner ? owner : null;
     }
+    function resetOwnerStackLimit() {
+      var now = getCurrentTime();
+      1e3 < now - lastResetTime &&
+        ((ReactSharedInternalsServer.recentlyCreatedOwnerStacks = 0),
+        (lastResetTime = now));
+    }
     function isObjectPrototype(object) {
       if (!object) return !1;
       var ObjectPrototype = Object.prototype;
@@ -752,6 +758,58 @@
       pingedTasks.push(model);
     }
     function noop() {}
+    function createRequest(
+      model,
+      bundlerConfig,
+      onError,
+      identifierPrefix,
+      onPostpone,
+      temporaryReferences,
+      environmentName,
+      filterStackFrame
+    ) {
+      resetOwnerStackLimit();
+      return new RequestInstance(
+        20,
+        model,
+        bundlerConfig,
+        onError,
+        identifierPrefix,
+        onPostpone,
+        temporaryReferences,
+        environmentName,
+        filterStackFrame,
+        noop,
+        noop
+      );
+    }
+    function createPrerenderRequest(
+      model,
+      bundlerConfig,
+      onAllReady,
+      onFatalError,
+      onError,
+      identifierPrefix,
+      onPostpone,
+      temporaryReferences,
+      environmentName,
+      filterStackFrame
+    ) {
+      resetOwnerStackLimit();
+      return new RequestInstance(
+        PRERENDER,
+        model,
+        bundlerConfig,
+        onError,
+        identifierPrefix,
+        onPostpone,
+        temporaryReferences,
+        environmentName,
+        filterStackFrame,
+        onAllReady,
+        onFatalError
+      );
+    }
     function resolveRequest() {
       if (currentRequest) return currentRequest;
       var store = requestStorage.getStore();
@@ -3923,7 +3981,6 @@
         }
       };
     HooksDispatcher.useEffectEvent = unsupportedHook;
-    HooksDispatcher.useSwipeTransition = unsupportedHook;
     var currentOwner = null,
       DefaultAsyncDispatcher = {
         getCacheForType: function (resourceType) {
@@ -3943,6 +4000,21 @@
       );
     var prefix, suffix;
     new ("function" === typeof WeakMap ? WeakMap : Map)();
+    var lastResetTime = 0;
+    if (
+      "object" === typeof performance &&
+      "function" === typeof performance.now
+    ) {
+      var localPerformance = performance;
+      var getCurrentTime = function () {
+        return localPerformance.now();
+      };
+    } else {
+      var localDate = Date;
+      getCurrentTime = function () {
+        return localDate.now();
+      };
+    }
     var callComponent = {
         "react-stack-bottom-frame": function (
           Component,
@@ -4198,8 +4270,7 @@
       });
     };
     exports.renderToPipeableStream = function (model, webpackMap, options) {
-      var request = new RequestInstance(
-          20,
+      var request = createRequest(
           model,
           webpackMap,
           options ? options.onError : void 0,
@@ -4207,9 +4278,7 @@
           options ? options.onPostpone : void 0,
           options ? options.temporaryReferences : void 0,
           options ? options.environmentName : void 0,
-          options ? options.filterStackFrame : void 0,
-          noop,
-          noop
+          options ? options.filterStackFrame : void 0
         ),
         hasStartedFlowing = !1;
       startWork(request);
@@ -4246,16 +4315,9 @@
       options
     ) {
       return new Promise(function (resolve, reject) {
-        var request = new RequestInstance(
-          PRERENDER,
+        var request = createPrerenderRequest(
           model,
           webpackMap,
-          options ? options.onError : void 0,
-          options ? options.identifierPrefix : void 0,
-          options ? options.onPostpone : void 0,
-          options ? options.temporaryReferences : void 0,
-          options ? options.environmentName : void 0,
-          options ? options.filterStackFrame : void 0,
           function () {
             var readable = new stream.Readable({
                 read: function () {
@@ -4265,7 +4327,13 @@
               writable = createFakeWritable(readable);
             resolve({ prelude: readable });
           },
-          reject
+          reject,
+          options ? options.onError : void 0,
+          options ? options.identifierPrefix : void 0,
+          options ? options.onPostpone : void 0,
+          options ? options.temporaryReferences : void 0,
+          options ? options.environmentName : void 0,
+          options ? options.filterStackFrame : void 0
         );
         if (options && options.signal) {
           var signal = options.signal;

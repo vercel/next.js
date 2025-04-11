@@ -976,13 +976,15 @@
   },
   "packages/next/src/server/app-render/csrf-protection.test.ts": {
     "passed": [
+      "isCsrfOriginAllowed should correctly handle origins that don't have a TLD (eg for localhost)",
       "isCsrfOriginAllowed should return false when allowedOrigins contains originDomain with non-matching pattern",
       "isCsrfOriginAllowed should return false when allowedOrigins does not contain originDomain",
       "isCsrfOriginAllowed should return false when allowedOrigins is empty",
       "isCsrfOriginAllowed should return false when allowedOrigins is empty string",
       "isCsrfOriginAllowed should return false when allowedOrigins is undefined",
       "isCsrfOriginAllowed should return true when allowedOrigins contains originDomain",
-      "isCsrfOriginAllowed should return true when allowedOrigins contains originDomain with matching pattern"
+      "isCsrfOriginAllowed should return true when allowedOrigins contains originDomain with matching pattern",
+      "isCsrfOriginAllowed wildcards are only supported below the domain level"
     ],
     "failed": [],
     "pending": [],
@@ -1763,7 +1765,6 @@
   },
   "test/development/acceptance-app/ReactRefreshLogBox.test.ts": {
     "passed": [
-      "ReactRefreshLogBox app Should show error location for server actions in server component",
       "ReactRefreshLogBox app boundaries",
       "ReactRefreshLogBox app should strip whitespace correctly with newline"
     ],
@@ -1775,6 +1776,7 @@
       "ReactRefreshLogBox app Server component errors should open up in fullscreen",
       "ReactRefreshLogBox app Should not show __webpack_exports__ when exporting anonymous arrow function",
       "ReactRefreshLogBox app Should show error location for server actions in client component",
+      "ReactRefreshLogBox app Should show error location for server actions in server component",
       "ReactRefreshLogBox app Unhandled errors and rejections opens up in the minimized state",
       "ReactRefreshLogBox app conversion to class component (1)",
       "ReactRefreshLogBox app css syntax errors",
@@ -1812,12 +1814,13 @@
       "ReactRefreshRegression app can fast refresh a page with config",
       "ReactRefreshRegression app can fast refresh a page with dynamic rendering",
       "ReactRefreshRegression app can fast refresh a page with static generation",
-      "ReactRefreshRegression app custom loader mdx should have Fast Refresh enabled",
+      "ReactRefreshRegression app custom loader mdx should have Fast Refresh enabled"
+    ],
+    "failed": [
       "ReactRefreshRegression app shows an overlay for anonymous function server-side error",
       "ReactRefreshRegression app shows an overlay for server-side error in client component",
       "ReactRefreshRegression app shows an overlay for server-side error in server component"
     ],
-    "failed": [],
     "pending": [
       "ReactRefreshRegression app styled-components hydration mismatch"
     ],
@@ -1892,9 +1895,7 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/error-recovery.test.ts": {
-    "passed": [
-      "Error recovery app server component can recover from a component error"
-    ],
+    "passed": [],
     "failed": [
       "Error recovery app can recover from a event handler error",
       "Error recovery app can recover from a syntax error without losing state",
@@ -1902,6 +1903,7 @@
       "Error recovery app client component can recover from syntax error",
       "Error recovery app displays build error on initial page load",
       "Error recovery app render error not shown right after syntax error",
+      "Error recovery app server component can recover from a component error",
       "Error recovery app server component can recover from syntax error",
       "Error recovery app stuck error",
       "Error recovery app syntax > runtime error"
@@ -2101,19 +2103,17 @@
     "runtimeError": false
   },
   "test/development/acceptance/ReactRefreshLogBox.test.ts": {
-    "passed": [
+    "passed": ["ReactRefreshLogBox non-Error errors are handled properly"],
+    "failed": [
       "ReactRefreshLogBox Call stack count is correct for pages error",
       "ReactRefreshLogBox boundaries",
       "ReactRefreshLogBox conversion to class component (1)",
-      "ReactRefreshLogBox logbox: anchors links in error messages",
-      "ReactRefreshLogBox non-Error errors are handled properly",
-      "ReactRefreshLogBox should collapse nodejs internal stack frames from stack trace",
-      "ReactRefreshLogBox should strip whitespace correctly with newline"
-    ],
-    "failed": [
       "ReactRefreshLogBox css syntax errors",
+      "ReactRefreshLogBox logbox: anchors links in error messages",
       "ReactRefreshLogBox module init error not shown",
+      "ReactRefreshLogBox should collapse nodejs internal stack frames from stack trace",
       "ReactRefreshLogBox should show anonymous frames from stack trace",
+      "ReactRefreshLogBox should strip whitespace correctly with newline",
       "ReactRefreshLogBox unterminated JSX"
     ],
     "pending": ["ReactRefreshLogBox internal package errors"],
@@ -2129,14 +2129,14 @@
   },
   "test/development/acceptance/ReactRefreshRegression.test.ts": {
     "passed": [
-      "ReactRefreshRegression can fast refresh a page with config",
-      "ReactRefreshRegression can fast refresh a page with getServerSideProps",
-      "ReactRefreshRegression can fast refresh a page with getStaticProps",
-      "ReactRefreshRegression shows an overlay for a server-side error",
+      "ReactRefreshRegression custom loader mdx should have Fast Refresh enabled",
       "ReactRefreshRegression styled-components hydration mismatch"
     ],
     "failed": [
-      "ReactRefreshRegression custom loader mdx should have Fast Refresh enabled"
+      "ReactRefreshRegression can fast refresh a page with config",
+      "ReactRefreshRegression can fast refresh a page with getServerSideProps",
+      "ReactRefreshRegression can fast refresh a page with getStaticProps",
+      "ReactRefreshRegression shows an overlay for a server-side error"
     ],
     "pending": [],
     "flakey": [],
@@ -2167,14 +2167,13 @@
     "runtimeError": false
   },
   "test/development/acceptance/error-recovery.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "pages/ error recovery logbox: can recover from a component error",
       "pages/ error recovery logbox: can recover from a event handler error",
-      "pages/ error recovery stuck error"
-    ],
-    "failed": [
       "pages/ error recovery logbox: can recover from a syntax error without losing state",
       "pages/ error recovery render error not shown right after syntax error",
+      "pages/ error recovery stuck error",
       "pages/ error recovery syntax > runtime error"
     ],
     "pending": [],
@@ -2185,6 +2184,9 @@
     "passed": [
       "Error overlay for hydration errors in Pages router includes a React docs link when hydration error does occur",
       "Error overlay for hydration errors in Pages router should not show a hydration error when using `useId` in a client component",
+      "Error overlay for hydration errors in Pages router should show error if script is directly placed under html instead of body"
+    ],
+    "failed": [
       "Error overlay for hydration errors in Pages router should only show one hydration error when bad nesting happened - div > tr",
       "Error overlay for hydration errors in Pages router should only show one hydration error when bad nesting happened - div under p",
       "Error overlay for hydration errors in Pages router should only show one hydration error when bad nesting happened - p under p",
@@ -2196,10 +2198,8 @@
       "Error overlay for hydration errors in Pages router should show correct hydration error when server renders an extra text node",
       "Error overlay for hydration errors in Pages router should show correct hydration error when server renders an extra text node in an invalid place",
       "Error overlay for hydration errors in Pages router should show correct hydration error when server renders an extra whitespace in an invalid place",
-      "Error overlay for hydration errors in Pages router should show error if script is directly placed under html instead of body",
       "Error overlay for hydration errors in Pages router should show the highlighted bad nesting html snippet when bad nesting happened"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2213,12 +2213,13 @@
       "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_cacheTag is not allowed",
       "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_expirePath is not allowed",
       "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_expireTag is not allowed",
-      "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_noStore is allowed",
+      "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_noStore is allowed"
+    ],
+    "failed": [
       "Error Overlay for server components compiler errors in pages importing 'next/headers' in pages",
       "Error Overlay for server components compiler errors in pages importing 'server-only' in pages",
       "Error Overlay for server components compiler errors in pages importing after from 'next/server' in pages"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2270,18 +2271,18 @@
     "runtimeError": false
   },
   "test/development/app-dir/build-error-logs/build-error-logs.test.ts": {
-    "passed": ["build-error-logs should only log error a single time"],
-    "failed": [],
+    "passed": [],
+    "failed": ["build-error-logs should only log error a single time"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/development/app-dir/capture-console-error-owner-stack/capture-console-error-owner-stack.test.ts": {
     "passed": [
-      "app-dir - capture-console-error-owner-stack should be able to capture rsc logged error",
       "app-dir - capture-console-error-owner-stack should display the error message in error event when event.error is not present"
     ],
     "failed": [
+      "app-dir - capture-console-error-owner-stack should be able to capture rsc logged error",
       "app-dir - capture-console-error-owner-stack should capture browser console error and format the error message",
       "app-dir - capture-console-error-owner-stack should capture browser console error in render and dedupe if necessary",
       "app-dir - capture-console-error-owner-stack should capture browser console error in render and dedupe when multi same errors logged",
@@ -2350,13 +2351,13 @@
   },
   "test/development/app-dir/dynamic-io-dev-errors/dynamic-io-dev-errors.test.ts": {
     "passed": [
-      "Dynamic IO Dev Errors should not log unhandled rejections for persistently thrown top-level errors",
-      "Dynamic IO Dev Errors should show a red box error on client navigations",
-      "Dynamic IO Dev Errors should show a red box error on the SSR render"
+      "Dynamic IO Dev Errors should not log unhandled rejections for persistently thrown top-level errors"
     ],
     "failed": [
       "Dynamic IO Dev Errors should clear segment errors after correcting them",
-      "Dynamic IO Dev Errors should display error when component accessed data without suspense boundary"
+      "Dynamic IO Dev Errors should display error when component accessed data without suspense boundary",
+      "Dynamic IO Dev Errors should show a red box error on client navigations",
+      "Dynamic IO Dev Errors should show a red box error on the SSR render"
     ],
     "pending": [],
     "flakey": [],
@@ -2385,34 +2386,31 @@
   },
   "test/development/app-dir/edge-errors-hmr/index.test.ts": {
     "passed": [
+      "develop - app-dir - edge errros hmr should recover from build errors when client component error",
       "develop - app-dir - edge errros hmr should recover from build errors when server component error"
     ],
-    "failed": [
-      "develop - app-dir - edge errros hmr should recover from build errors when client component error"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/development/app-dir/error-overlay/async-client-component/async-client-component.test.ts": {
     "passed": [
+      "app-dir - async-client-component app router client component async module",
       "app-dir - async-client-component app router server component async module"
     ],
-    "failed": [
-      "app-dir - async-client-component app router client component async module"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/development/app-dir/error-overlay/error-ignored-frames/error-ignored-frames.test.ts": {
-    "passed": [
-      "error-ignored-frames should be able to collapse pages router ignored frames"
-    ],
+    "passed": [],
     "failed": [
       "error-ignored-frames should be able to collapse ignored frames in client component",
       "error-ignored-frames should be able to collapse ignored frames in interleaved call stack",
-      "error-ignored-frames should be able to collapse ignored frames in server component"
+      "error-ignored-frames should be able to collapse ignored frames in server component",
+      "error-ignored-frames should be able to collapse pages router ignored frames"
     ],
     "pending": [],
     "flakey": [],
@@ -2521,12 +2519,11 @@
   },
   "test/development/app-dir/missing-required-html-tags/index.test.ts": {
     "passed": [
-      "app-dir - missing required html tags should display correct error count in dev indicator"
-    ],
-    "failed": [
+      "app-dir - missing required html tags should display correct error count in dev indicator",
       "app-dir - missing required html tags should hmr when you fix the error",
       "app-dir - missing required html tags should show error overlay"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2550,11 +2547,10 @@
     "runtimeError": false
   },
   "test/development/app-dir/owner-stack-invalid-element-type/owner-stack-invalid-element-type.test.ts": {
-    "passed": [
-      "app-dir - owner-stack-invalid-element-type should catch invalid element from a rsc component"
-    ],
+    "passed": [],
     "failed": [
       "app-dir - owner-stack-invalid-element-type should catch invalid element from a browser only component",
+      "app-dir - owner-stack-invalid-element-type should catch invalid element from a rsc component",
       "app-dir - owner-stack-invalid-element-type should catch invalid element from on ssr client component"
     ],
     "pending": [],
@@ -2572,9 +2568,10 @@
     "runtimeError": false
   },
   "test/development/app-dir/owner-stack/owner-stack.test.ts": {
-    "passed": [],
+    "passed": [
+      "app-dir - owner-stack should capture unhandled promise rejections"
+    ],
     "failed": [
-      "app-dir - owner-stack should capture unhandled promise rejections",
       "app-dir - owner-stack should log stitched error for SSR errors",
       "app-dir - owner-stack should log stitched error for browser caught errors",
       "app-dir - owner-stack should log stitched error for browser uncaught errors"
@@ -2696,17 +2693,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/app-dir/use-cache-dev/use-cache-dev.test.ts": {
-    "passed": [
-      "use-cache-dev should return cached data after reload",
-      "use-cache-dev should return fresh data after hard reload",
-      "use-cache-dev should successfully finish compilation when \"use cache\" directive is added/removed"
-    ],
-    "failed": ["use-cache-dev should update cached data after editing a file"],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/development/app-hmr/hmr.test.ts": {
     "passed": [
       "app-dir-hmr filesystem changes should have no unexpected action error for hmr",
@@ -2724,6 +2710,21 @@
     "pending": [],
     "flakey": [],
     "runtimeError": true
+  },
+  "test/development/basic/allowed-dev-origins.test.ts": {
+    "passed": [
+      "allowed-dev-origins, basePath: \"\" block mode should load images regardless of allowed origins",
+      "allowed-dev-origins, basePath: \"\" block mode should not allow dev WebSocket from cross-site",
+      "allowed-dev-origins, basePath: \"\" block mode should not allow loading internal middleware from cross-site",
+      "allowed-dev-origins, basePath: \"\" block mode should not allow loading scripts from cross-site",
+      "allowed-dev-origins, basePath: \"\" warn mode should warn about WebSocket from cross-site",
+      "allowed-dev-origins, basePath: \"\" warn mode should warn about loading internal middleware from cross-site",
+      "allowed-dev-origins, basePath: \"\" warn mode should warn about loading scripts from cross-site"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
   },
   "test/development/basic/asset-prefix/asset-prefix.test.ts": {
     "passed": [
@@ -2787,7 +2788,8 @@
     "runtimeError": false
   },
   "test/development/basic/gssp-ssr-change-reloading/test/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "GS(S)P Server-Side Change Reloading should keep scroll position when updating from change in getStaticProps",
       "GS(S)P Server-Side Change Reloading should not reload page when client-side is changed too GSP",
       "GS(S)P Server-Side Change Reloading should not reload page when client-side is changed too GSSP",
@@ -2801,7 +2803,6 @@
       "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only for /another/index",
       "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only for /index"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2841,7 +2842,6 @@
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover from 404 after a page has been added",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover from 404 after a page has been added with dynamic segments",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover from errors in getInitialProps in client",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover from errors in the render function",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should show the error on all pages",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after a bad return from the render function",
@@ -2852,7 +2852,6 @@
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover from 404 after a page has been added",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover from 404 after a page has been added with dynamic segments",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover from errors in getInitialProps in client",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover from errors in the render function",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should show the error on all pages",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after a bad return from the render function",
@@ -2863,7 +2862,6 @@
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from 404 after a page has been added",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from 404 after a page has been added with dynamic segments",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from errors in getInitialProps in client",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from errors in the render function",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should show the error on all pages",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after a bad return from the render function",
@@ -2874,7 +2872,6 @@
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover from 404 after a page has been added",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover from 404 after a page has been added with dynamic segments",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover from errors in getInitialProps in client",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover from errors in the render function",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should show the error on all pages"
     ],
     "failed": [
@@ -2882,18 +2879,22 @@
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should not continously poll a custom error page",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after loader parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover from errors in the render function",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should detect runtime errors on the module scope",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should not continously poll a custom error page",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after loader parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover from errors in the render function",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should detect runtime errors on the module scope",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should not continously poll a custom error page",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after loader parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from errors in the render function",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should detect runtime errors on the module scope",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should not continously poll a custom error page",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after loader parse error in an imported file"
+      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after loader parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover from errors in the render function"
     ],
     "pending": [],
     "flakey": [],
@@ -2964,14 +2965,10 @@
     "passed": [
       "misc basic dev tests, basePath: \"\" With Security Related Issues should handle encoded / value for trailing slash correctly",
       "misc basic dev tests, basePath: \"\" With Security Related Issues should not allow accessing files outside .next/static and .next/server directory",
-      "misc basic dev tests, basePath: \"\" With Security Related Issues should not allow dev WebSocket from cross-site",
-      "misc basic dev tests, basePath: \"\" With Security Related Issues should not allow loading scripts from cross-site",
       "misc basic dev tests, basePath: \"\" should allow access to public files",
       "misc basic dev tests, basePath: \"\" should set process.env.NODE_ENV in development",
       "misc basic dev tests, basePath: \"/docs\" With Security Related Issues should handle encoded / value for trailing slash correctly",
       "misc basic dev tests, basePath: \"/docs\" With Security Related Issues should not allow accessing files outside .next/static and .next/server directory",
-      "misc basic dev tests, basePath: \"/docs\" With Security Related Issues should not allow dev WebSocket from cross-site",
-      "misc basic dev tests, basePath: \"/docs\" With Security Related Issues should not allow loading scripts from cross-site",
       "misc basic dev tests, basePath: \"/docs\" should allow access to public files",
       "misc basic dev tests, basePath: \"/docs\" should set process.env.NODE_ENV in development"
     ],
@@ -3428,7 +3425,6 @@
       "Client Navigation resets scroll at the correct time should intentionally not reset scroll before the new page runs its lifecycles (Router#push)",
       "Client Navigation resets scroll at the correct time should reset scroll before the new page runs its lifecycles (<Link />)",
       "Client Navigation resets scroll at the correct time should reset scroll before the new page runs its lifecycles (Router#push)",
-      "Client Navigation runtime errors should show redbox when a client side error is thrown inside a component",
       "Client Navigation should emit routeChangeError on hash change cancel",
       "Client Navigation should handle boolean async prop in next/script client-side: false",
       "Client Navigation should handle boolean async prop in next/script client-side: true",
@@ -3476,6 +3472,7 @@
       "Client Navigation with different types of urls should work with / page",
       "Client Navigation with different types of urls should work with dir/ page",
       "Client Navigation with different types of urls should work with normal page",
+      "Client Navigation with empty getInitialProps() should render a redbox",
       "Client Navigation with getInitialProp redirect should redirect the page via client side",
       "Client Navigation with getInitialProp redirect should redirect the page when loading",
       "Client Navigation with hash changes check hydration mis-match should not have hydration mis-match for hash link",
@@ -3530,8 +3527,8 @@
       "updating <Head /> with strictNextHead=true while client routing should warn when stylesheets or scripts are in head"
     ],
     "failed": [
-      "Client Navigation runtime errors should show redbox when a client side error is thrown outside a component",
-      "Client Navigation with empty getInitialProps() should render a redbox"
+      "Client Navigation runtime errors should show redbox when a client side error is thrown inside a component",
+      "Client Navigation runtime errors should show redbox when a client side error is thrown outside a component"
     ],
     "pending": [],
     "flakey": [],
@@ -3569,7 +3566,9 @@
       "Client Navigation rendering Rendering via HTTP asPath",
       "Client Navigation rendering Rendering via HTTP default Content-Type",
       "Client Navigation rendering Rendering via HTTP default export is not a React Component",
-      "Client Navigation rendering Rendering via HTTP error-inside-page",
+      "Client Navigation rendering Rendering via HTTP getInitialProps circular structure",
+      "Client Navigation rendering Rendering via HTTP getInitialProps resolves to null",
+      "Client Navigation rendering Rendering via HTTP getInitialProps should be class method",
       "Client Navigation rendering Rendering via HTTP renders a link component",
       "Client Navigation rendering Rendering via HTTP renders a stateless component",
       "Client Navigation rendering Rendering via HTTP renders properties populated asynchronously",
@@ -3593,9 +3592,7 @@
     ],
     "failed": [
       "Client Navigation rendering Rendering via HTTP error-in-the-global-scope",
-      "Client Navigation rendering Rendering via HTTP getInitialProps circular structure",
-      "Client Navigation rendering Rendering via HTTP getInitialProps resolves to null",
-      "Client Navigation rendering Rendering via HTTP getInitialProps should be class method"
+      "Client Navigation rendering Rendering via HTTP error-inside-page"
     ],
     "pending": [],
     "flakey": [],
@@ -3830,6 +3827,7 @@
       "app-dir action handling Edge SSR should handle calls to redirect() with a relative URL in a single pass",
       "app-dir action handling Edge SSR should handle calls to redirect() with external URLs",
       "app-dir action handling Edge SSR should return error response for hoc auth wrappers in edge runtime",
+      "app-dir action handling HMR should support updating the action",
       "app-dir action handling caching disabled by default should not override force-cache in server action",
       "app-dir action handling caching disabled by default should not override revalidate in server action",
       "app-dir action handling caching disabled by default should use no-store as default for server action",
@@ -3848,6 +3846,7 @@
       "app-dir action handling fetch actions should revalidate when cookies.set is called",
       "app-dir action handling fetch actions should revalidate when cookies.set is called in a client action",
       "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
+      "app-dir action handling redirects displays searchParams correctly when redirecting with SearchParams",
       "app-dir action handling redirects merges cookies correctly when redirecting",
       "app-dir action handling redirects redirects properly when server action handler redirects with a 307 status code",
       "app-dir action handling redirects redirects properly when server action handler redirects with a 308 status code",
@@ -3862,6 +3861,7 @@
       "app-dir action handling should be possible to catch regular errors",
       "app-dir action handling should bundle external libraries if they are on the action layer",
       "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
+      "app-dir action handling should forward action request to a worker that contains the action handler (node)",
       "app-dir action handling should handle action correctly with middleware rewrite",
       "app-dir action handling should handle actions executed in quick succession",
       "app-dir action handling should handle basic actions correctly",
@@ -3902,10 +3902,7 @@
       "app-dir action handling should work with interception routes"
     ],
     "failed": [
-      "app-dir action handling Edge SSR should handle unicode search params",
-      "app-dir action handling HMR should support updating the action",
-      "app-dir action handling redirects displays searchParams correctly when redirecting with SearchParams",
-      "app-dir action handling should forward action request to a worker that contains the action handler (node)"
+      "app-dir action handling Edge SSR should handle unicode search params"
     ],
     "pending": [
       "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
@@ -4361,13 +4358,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/app-routes-subrequests/app-routes-subrequests.test.ts": {
-    "passed": ["app-routes-subrequests shortcuts after 5 subrequests"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/app-routes-trailing-slash/app-routes-trailing-slash.test.ts": {
     "passed": [
       "app-routes-trailing-slash should handle trailing slash for edge runtime",
@@ -4753,6 +4743,7 @@
       "app dir - basic <Link /> should soft replace",
       "app dir - basic HMR should HMR correctly for client component",
       "app dir - basic HMR should HMR correctly for server component",
+      "app dir - basic bootstrap scripts should fail to bootstrap when using CSP in Dev due to eval",
       "app dir - basic bootstrap scripts should only bootstrap with one script, prinitializing the rest",
       "app dir - basic data fetch with response over 16KB with chunked encoding should load page when fetching a large amount of data",
       "app dir - basic known bugs should handle as on next/link",
@@ -4773,7 +4764,6 @@
       "app dir - basic next/script should pass nonce when using next/font",
       "app dir - basic next/script should pass on extra props for beforeInteractive scripts with a src prop",
       "app dir - basic next/script should pass on extra props for beforeInteractive scripts without a src prop",
-      "app dir - basic next/script should support next/script and render in correct order",
       "app dir - basic rewrites should support rewrites on client-side navigation",
       "app dir - basic rewrites should support rewrites on client-side navigation from pages to app with existing pages path",
       "app dir - basic rewrites should support rewrites on initial load",
@@ -4824,8 +4814,6 @@
       "app dir - basic should not share edge workers",
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
-      "app dir - basic should return the `vary` header from edge runtime",
-      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
       "app dir - basic should serve dynamic route from pages",
@@ -4842,7 +4830,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic bootstrap scripts should fail to bootstrap when using CSP in Dev due to eval",
+      "app dir - basic next/script should support next/script and render in correct order",
       "app dir - basic should serve polyfills for browsers that do not support modules"
     ],
     "pending": [
@@ -5037,6 +5025,13 @@
     "passed": [
       "css-client-side-nav-parallel-routes should apply styles after navigation"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/css-modules-pure-no-check/css-modules-pure-no-check.test.ts": {
+    "passed": ["css-modules-pure-no-check should apply styles correctly"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -6200,6 +6195,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/link-component-deprecations/link-component-deprecations.test.ts": {
+    "passed": [
+      "Link component deprecations logs deprecation warning for legacyBehavior prop"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/loader-file-named-export-custom-loader-error/loader-file-named-export-custom-loader-error.test.ts": {
     "passed": [
       "Error test if the loader file export a named function in Development development only should show the error when using `Image` component",
@@ -6239,7 +6243,6 @@
       "app-dir - logging with fetches verbose logging should log each page request only once",
       "app-dir - logging with fetches verbose logging should log requests for client-side navigations",
       "app-dir - logging with fetches verbose logging should log requests with correct indentation",
-      "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches verbose logging should not contain trailing word page for app router routes",
       "app-dir - logging with fetches verbose logging should not limit the number of requests that are logged",
       "app-dir - logging with fetches verbose logging should not log _rsc query for client navigation RSC request",
@@ -6265,6 +6268,7 @@
     "failed": [
       "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches default logging should not contain metadata internal segments for dynamic metadata routes",
+      "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes"
     ],
     "pending": [],
@@ -6293,6 +6297,11 @@
       "mdx with-mdx-rs app directory should work using browser",
       "mdx with-mdx-rs app directory should work using browser with mdx import",
       "mdx with-mdx-rs app directory should work with next/image",
+      "mdx with-mdx-rs pages directory should allow overriding components",
+      "mdx with-mdx-rs pages directory should work in initial html",
+      "mdx with-mdx-rs pages directory should work in initial html with mdx import",
+      "mdx with-mdx-rs pages directory should work using browser",
+      "mdx with-mdx-rs pages directory should work using browser with mdx import",
       "mdx without-mdx-rs app directory should allow importing client components",
       "mdx without-mdx-rs app directory should allow overriding components",
       "mdx without-mdx-rs app directory should run plugins",
@@ -6300,20 +6309,14 @@
       "mdx without-mdx-rs app directory should work in initial html with mdx import",
       "mdx without-mdx-rs app directory should work using browser",
       "mdx without-mdx-rs app directory should work using browser with mdx import",
-      "mdx without-mdx-rs app directory should work with next/image"
-    ],
-    "failed": [
-      "mdx with-mdx-rs pages directory should allow overriding components",
-      "mdx with-mdx-rs pages directory should work in initial html",
-      "mdx with-mdx-rs pages directory should work in initial html with mdx import",
-      "mdx with-mdx-rs pages directory should work using browser",
-      "mdx with-mdx-rs pages directory should work using browser with mdx import",
+      "mdx without-mdx-rs app directory should work with next/image",
       "mdx without-mdx-rs pages directory should allow overriding components",
       "mdx without-mdx-rs pages directory should work in initial html",
       "mdx without-mdx-rs pages directory should work in initial html with mdx import",
       "mdx without-mdx-rs pages directory should work using browser",
       "mdx without-mdx-rs pages directory should work using browser with mdx import"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6479,7 +6482,10 @@
       "app-dir - metadata-streaming should send streaming response for headless browser bots",
       "app-dir - metadata-streaming should send the blocking response for html limited bots",
       "app-dir - metadata-streaming should still load viewport meta tags even if metadata is delayed",
-      "app-dir - metadata-streaming should still render metadata if children is not rendered in parallel routes layout"
+      "app-dir - metadata-streaming should still render metadata if children is not rendered in parallel routes layout",
+      "app-dir - metadata-streaming static should determine dynamic metadata in build and render in the body",
+      "app-dir - metadata-streaming static should render static metadata in the head",
+      "app-dir - metadata-streaming static should still render dynamic metadata in the head for html bots"
     ],
     "failed": [],
     "pending": [],
@@ -6627,8 +6633,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/modularizeimports/modularizeimports.test.ts": {
-    "passed": ["modularizeImports should work"],
-    "failed": ["modularizeImports should work with MDX"],
+    "passed": [
+      "modularizeImports should work",
+      "modularizeImports should work with MDX"
+    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6672,6 +6681,7 @@
       "app dir - navigation hash-with-scroll-offset should scroll to the specified hash",
       "app dir - navigation locale warnings should have no warnings in pages router",
       "app dir - navigation locale warnings should warn about using the `locale` prop with `next/link` in app router",
+      "app dir - navigation middleware redirect should change browser location when router.refresh() gets a redirect response",
       "app dir - navigation navigating to a page with async metadata shows a fallback when prefetch completed",
       "app dir - navigation navigating to a page with async metadata shows a fallback when prefetch was pending",
       "app dir - navigation navigating to dynamic params & changing the casing should load the page correctly",
@@ -6710,12 +6720,10 @@
       "app dir - navigation relative hashes and queries should work with a query-only href",
       "app dir - navigation relative hashes and queries should work with both relative hashes and queries",
       "app dir - navigation scroll restoration should restore original scroll position when navigating back",
+      "app dir - navigation useRouter identity between navigations should preserve identity when navigating between different pages",
       "app dir - navigation useRouter identity between navigations should preserve identity when navigating to the same page"
     ],
-    "failed": [
-      "app dir - navigation middleware redirect should change browser location when router.refresh() gets a redirect response",
-      "app dir - navigation useRouter identity between navigations should preserve identity when navigating between different pages"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7296,6 +7304,7 @@
       "parallel-routes-and-interception parallel routes should support parallel route tab bars",
       "parallel-routes-and-interception parallel routes should support parallel routes with no page component",
       "parallel-routes-and-interception parallel routes should throw a 404 when no matching parallel route is found",
+      "parallel-routes-and-interception route intercepting should intercept on routes that contain hyphenated/special dynamic params",
       "parallel-routes-and-interception route intercepting should re-render the layout on the server when it had a default child route",
       "parallel-routes-and-interception route intercepting should render an intercepted route at the top level from a nested path",
       "parallel-routes-and-interception route intercepting should render an intercepted route from a slot",
@@ -7309,9 +7318,7 @@
       "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route",
       "parallel-routes-and-interception-conflicting-pages should gracefully handle when two page segments match the `children` parallel slot"
     ],
-    "failed": [
-      "parallel-routes-and-interception route intercepting should intercept on routes that contain hyphenated/special dynamic params"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8001,6 +8008,7 @@
       "app dir - rsc basics next internal shared context should not error if just load next/router module in app page",
       "app dir - rsc basics react@experimental should opt into the react@experimental when enabling ppr",
       "app dir - rsc basics react@experimental should opt into the react@experimental when enabling taint",
+      "app dir - rsc basics should be able to navigate between rsc routes",
       "app dir - rsc basics should correctly render component returning null",
       "app dir - rsc basics should correctly render component returning undefined",
       "app dir - rsc basics should correctly render layout returning null",
@@ -8033,8 +8041,7 @@
       "app dir - rsc basics should use canary react for app"
     ],
     "failed": [
-      "app dir - rsc basics should be able to call legacy react-dom/server APIs in client components",
-      "app dir - rsc basics should be able to navigate between rsc routes"
+      "app dir - rsc basics should be able to call legacy react-dom/server APIs in client components"
     ],
     "pending": [
       "app dir - rsc basics should support partial hydration with inlined server data in browser"
@@ -8506,6 +8513,20 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/client-only-opt-in/client-only-opt-in.test.ts": {
+    "passed": ["segment cache prefetch scheduling prefetching is disabled"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/dynamic-on-hover/dynamic-on-hover.test.ts": {
+    "passed": ["dynamic on hover prefetching is disabled"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/export/segment-cache-output-export.test.ts": {
     "passed": [
       "segment cache (output: \"export\") build test should not run during dev test run"
@@ -8635,15 +8656,15 @@
   },
   "test/e2e/app-dir/server-source-maps/server-source-maps.test.ts": {
     "passed": [
-      "app-dir - server source maps logged errors have a sourcemapped `cause`",
-      "app-dir - server source maps logged errors have a sourcemapped stack with a codeframe",
-      "app-dir - server source maps logged errors preserve their name",
-      "app-dir - server source maps thrown SSR errors"
+      "app-dir - server source maps logged errors preserve their name"
     ],
     "failed": [
       "app-dir - server source maps handles invalid sourcemaps gracefully",
+      "app-dir - server source maps logged errors have a sourcemapped `cause`",
+      "app-dir - server source maps logged errors have a sourcemapped stack with a codeframe",
       "app-dir - server source maps stack frames are ignore-listed in rsc",
-      "app-dir - server source maps stack frames are ignore-listed in ssr"
+      "app-dir - server source maps stack frames are ignore-listed in ssr",
+      "app-dir - server source maps thrown SSR errors"
     ],
     "pending": [],
     "flakey": [],
@@ -8859,10 +8880,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-close-over-function/use-cache-close-over-function.test.ts": {
-    "passed": [
-      "use-cache-close-over-function should show an error toast for client-side usage"
-    ],
+    "passed": [],
     "failed": [
+      "use-cache-close-over-function should show an error toast for client-side usage",
       "use-cache-close-over-function should show the error overlay for server-side usage"
     ],
     "pending": [],
@@ -8871,12 +8891,26 @@
   },
   "test/e2e/app-dir/use-cache-custom-handler/use-cache-custom-handler.test.ts": {
     "passed": [
-      "use-cache-custom-handler should revalidate using a legacy custom cache handler",
-      "use-cache-custom-handler should revalidate using a modern custom cache handler",
+      "use-cache-custom-handler calls neither refreshTags nor getExpiration if \"use cache\" is not used",
+      "use-cache-custom-handler should not call expireTags for a normal invocation",
+      "use-cache-custom-handler should not call getExpiration after an action",
+      "use-cache-custom-handler should revalidate after redirect using a legacy custom cache handler",
+      "use-cache-custom-handler should revalidate after redirect using a modern custom cache handler",
       "use-cache-custom-handler should use a legacy custom cache handler if provided",
       "use-cache-custom-handler should use a modern custom cache handler if provided"
     ],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/use-cache-dev/use-cache-dev.test.ts": {
+    "passed": [
+      "use-cache-dev should return cached data after reload",
+      "use-cache-dev should return fresh data after hard reload",
+      "use-cache-dev should successfully finish compilation when \"use cache\" directive is added/removed"
+    ],
+    "failed": ["use-cache-dev should update cached data after editing a file"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8937,9 +8971,11 @@
   },
   "test/e2e/app-dir/use-cache-standalone-search-params/use-cache-standalone-search-params.test.ts": {
     "passed": [
+      "use-cache-standalone-search-params when searchParams are caught inside of \"use cache\" should also show an error after the second reload",
       "use-cache-standalone-search-params when searchParams are unused inside of \"use cache\" should not show an error"
     ],
     "failed": [
+      "use-cache-standalone-search-params when searchParams are caught inside of \"use cache\" should show an error",
       "use-cache-standalone-search-params when searchParams are used inside of \"use cache\" should show an error"
     ],
     "pending": [],
@@ -8947,12 +8983,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-unknown-cache-kind/use-cache-unknown-cache-kind.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "use-cache-unknown-cache-kind should not show an error for default cache kinds",
-      "use-cache-unknown-cache-kind should recover from the build error if the cache handler is defined",
-      "use-cache-unknown-cache-kind should show a build error"
+      "use-cache-unknown-cache-kind should recover from the build error if the cache handler is defined"
     ],
+    "failed": ["use-cache-unknown-cache-kind should show a build error"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9108,6 +9143,55 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-document/client.test.ts": {
+    "passed": [
+      "Document and App - Client side should detect the changes to pages/_app.js and display it",
+      "Document and App - Client side should detect the changes to pages/_document.js and display it",
+      "Document and App - Client side should keep state between page navigations",
+      "Document and App - Client side should share module state with pages"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-document/csp.test.ts": {
+    "passed": [
+      "Document and App - With CSP enabled should load inline script by hash",
+      "Document and App - With CSP enabled should load inline script by nonce"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-document/index.test.ts": {
+    "passed": ["Document and App should not have any missing key warnings"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-document/rendering.test.ts": {
+    "passed": [
+      "Document and App - Rendering via HTTP _app should share module state with pages",
+      "Document and App - Rendering via HTTP _app should show valid error when thrown in _app getInitialProps",
+      "Document and App - Rendering via HTTP _app shows a custom tag",
+      "Document and App - Rendering via HTTP _document Document.getInitialProps returns html prop representing app shell",
+      "Document and App - Rendering via HTTP _document adds a timestamp to link tags with preload attribute to invalidate the cache in dev",
+      "Document and App - Rendering via HTTP _document adds crossOrigin to all scripts and preload links",
+      "Document and App - Rendering via HTTP _document adds nonces to all scripts and preload links",
+      "Document and App - Rendering via HTTP _document renders ctx.renderPage with enhanceApp and enhanceComponent correctly",
+      "Document and App - Rendering via HTTP _document renders ctx.renderPage with enhanceApp correctly",
+      "Document and App - Rendering via HTTP _document renders ctx.renderPage with enhanceComponent correctly",
+      "Document and App - Rendering via HTTP _document renders ctx.renderPage with enhancer correctly",
+      "Document and App - Rendering via HTTP _document should include required elements in rendered html"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/async-modules/index.test.ts": {
     "passed": [
       "Async modules can render async 404 pages",
@@ -9125,7 +9209,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/basepath-trailing-slash.test.ts": {
+  "test/e2e/basepath/basepath-trailing-slash.test.ts": {
     "passed": [
       "basePath + trailingSlash should allow URL query strings on index without refresh",
       "basePath + trailingSlash should allow URL query strings without refresh",
@@ -9136,7 +9220,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/basepath.test.ts": {
+  "test/e2e/basepath/basepath.test.ts": {
     "passed": [
       "basePath should 404 for public file without basePath",
       "basePath should 404 when manually adding basePath with <Link>",
@@ -9484,9 +9568,7 @@
       "esm-externals app dir url /client should render the correct page",
       "esm-externals app dir url /client should return the correct SSR HTML",
       "esm-externals app dir url /server should render the correct page",
-      "esm-externals app dir url /server should return the correct SSR HTML"
-    ],
-    "failed": [
+      "esm-externals app dir url /server should return the correct SSR HTML",
       "esm-externals pages url /ssg should render the correct page",
       "esm-externals pages url /ssg should return the correct SSR HTML",
       "esm-externals pages url /ssr should render the correct page",
@@ -9494,6 +9576,7 @@
       "esm-externals pages url /static should render the correct page",
       "esm-externals pages url /static should return the correct SSR HTML"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9901,7 +9984,9 @@
       "Instrumentation Client Hook App Router should execute instrumentation-client from app router before hydration",
       "Instrumentation Client Hook HMR in development mode should reload instrumentation-client when modified",
       "Instrumentation Client Hook Pages Router should execute instrumentation-client from pages router before hydration",
-      "Instrumentation Client Hook With src folder should execute instrumentation-client from with src folder before hydration"
+      "Instrumentation Client Hook With src folder should execute instrumentation-client from with src folder before hydration",
+      "Instrumentation Client Hook onRouterTransitionStart onRouterTransitionStart fires at the start of a back/forward navigation",
+      "Instrumentation Client Hook onRouterTransitionStart onRouterTransitionStart fires at the start of a navigation"
     ],
     "failed": [],
     "pending": [],
@@ -9923,18 +10008,17 @@
   },
   "test/e2e/instrumentation-hook/instrumentation-hook.test.ts": {
     "passed": [
+      "Instrumentation Hook general should not overlap with a instrumentation page",
       "Instrumentation Hook with-async-edge-page with-async-edge-page should run the instrumentation hook",
       "Instrumentation Hook with-async-node-page with-async-node-page should run the instrumentation hook",
       "Instrumentation Hook with-edge-api with-edge-api should run the instrumentation hook",
       "Instrumentation Hook with-edge-page with-edge-page should run the instrumentation hook",
+      "Instrumentation Hook with-esm-import with-esm-import should run the instrumentation hook",
       "Instrumentation Hook with-middleware with-middleware should run the instrumentation hook",
       "Instrumentation Hook with-node-api with-node-api should run the instrumentation hook",
       "Instrumentation Hook with-node-page with-node-page should run the instrumentation hook"
     ],
-    "failed": [
-      "Instrumentation Hook general should not overlap with a instrumentation page",
-      "Instrumentation Hook with-esm-import with-esm-import should run the instrumentation hook"
-    ],
+    "failed": [],
     "pending": [
       "Instrumentation Hook general should reload the server when the instrumentation hook changes"
     ],
@@ -10128,7 +10212,6 @@
       "Middleware Runtime with i18n should be able to rewrite on _next/static/chunks/pages/ 404",
       "Middleware Runtime with i18n should contain `globalThis`",
       "Middleware Runtime with i18n should contain crypto APIs",
-      "Middleware Runtime with i18n should filter request header properly",
       "Middleware Runtime with i18n should handle 404 on fallback: false route correctly",
       "Middleware Runtime with i18n should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime with i18n should have correct dynamic route params on client-transition to dynamic route",
@@ -10168,7 +10251,6 @@
       "Middleware Runtime without i18n should be able to rewrite on _next/static/chunks/pages/ 404",
       "Middleware Runtime without i18n should contain `globalThis`",
       "Middleware Runtime without i18n should contain crypto APIs",
-      "Middleware Runtime without i18n should filter request header properly",
       "Middleware Runtime without i18n should handle 404 on fallback: false route correctly",
       "Middleware Runtime without i18n should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime without i18n should have correct dynamic route params on client-transition to dynamic route",
@@ -10215,7 +10297,6 @@
       "Middleware Runtime with i18n should be able to use node builtins with node runtime",
       "Middleware Runtime with i18n should contain `globalThis`",
       "Middleware Runtime with i18n should contain crypto APIs",
-      "Middleware Runtime with i18n should filter request header properly",
       "Middleware Runtime with i18n should handle 404 on fallback: false route correctly",
       "Middleware Runtime with i18n should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime with i18n should have correct dynamic route params on client-transition to dynamic route",
@@ -10256,7 +10337,6 @@
       "Middleware Runtime without i18n should be able to use node builtins with node runtime",
       "Middleware Runtime without i18n should contain `globalThis`",
       "Middleware Runtime without i18n should contain crypto APIs",
-      "Middleware Runtime without i18n should filter request header properly",
       "Middleware Runtime without i18n should handle 404 on fallback: false route correctly",
       "Middleware Runtime without i18n should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime without i18n should have correct dynamic route params on client-transition to dynamic route",
@@ -10505,10 +10585,12 @@
   "test/e2e/module-layer/module-layer.test.ts": {
     "passed": [
       "module layer client packages in middleware should error when import server packages in middleware",
+      "module layer with server-only in server targets should contain client react exports for pages api",
       "module layer with server-only in server targets should render installed react-server condition for middleware",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/default",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/default-edge",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/mixed",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/server-only",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/server-only-edge",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/client",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/client-edge",
@@ -10517,10 +10599,7 @@
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server-edge"
     ],
-    "failed": [
-      "module layer with server-only in server targets should contain client react exports for pages api",
-      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/server-only"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10861,8 +10940,7 @@
     "runtimeError": false
   },
   "test/e2e/opentelemetry/client-trace-metadata/client-trace-metadata.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "clientTraceMetadata app router hard loading a dynamic page twice should yield different dynamic trace data",
       "clientTraceMetadata app router next dev only should inject propagation data for a statically server-side-rendered page",
       "clientTraceMetadata app router next dev only soft navigating to a dynamic page should not transform previous propagation data",
@@ -10875,6 +10953,7 @@
       "clientTraceMetadata pages router next dev only soft navigating to a static page should not transform previous propagation data",
       "clientTraceMetadata pages router should inject propagation data for a dynamically server-side-rendered page"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11143,11 +11222,11 @@
     "runtimeError": false
   },
   "test/e2e/rsc-layers-transform/rsc-layers-transform.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "rsc layers transform should call instrumentation hook without errors",
       "rsc layers transform should render installed react-server condition for middleware"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11366,12 +11445,34 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/tsconfig-path/index.test.ts": {
+    "passed": [
+      "specified tsconfig app router: allows a user-specific tsconfig via the next config",
+      "specified tsconfig middleware: allows a user-specific tsconfig via the next config",
+      "specified tsconfig pages router: allows a user-specific tsconfig via the next config"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/type-module-interop/index.test.ts": {
     "passed": [
       "Type module interop should render client-side",
       "Type module interop should render client-side with modules",
       "Type module interop should render server-side",
       "Type module interop should render server-side with modules"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/typescript-custom-tsconfig/test/index.test.js": {
+    "passed": [
+      "Custom TypeScript Config app router: allows a user-specific tsconfig via the next config",
+      "Custom TypeScript Config middleware: allows a user-specific tsconfig via the next config",
+      "Custom TypeScript Config pages router: allows a user-specific tsconfig via the next config"
     ],
     "failed": [],
     "pending": [],
@@ -11404,6 +11505,20 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/use-link-status/index.test.ts": {
+    "passed": [
+      "useLinkStatus should remove pending state after browser back navigation",
+      "useLinkStatus should remove pending state after shallow routing",
+      "useLinkStatus should remove pending state when navigation starts by router.push",
+      "useLinkStatus should remove pending state when server action triggers a redirect",
+      "useLinkStatus should show pending state for the last link clicked when clicking multiple links in a row",
+      "useLinkStatus should show pending state when navigating to the same path"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/useselectedlayoutsegment-s-in-pages-router/useselectedlayoutsegment-s-in-pages-router.test.ts": {
     "passed": [
       "useSelectedLayoutSegment(s) in Pages Router Should render with `useSelectedLayoutSegment(s) hooks"
@@ -11415,9 +11530,9 @@
   },
   "test/e2e/vary-header/test/index.test.ts": {
     "passed": [
-      "Vary Header Tests should preserve custom vary header and append RSC headers in app route handlers",
+      "Vary Header Tests should preserve custom vary header",
       "Vary Header Tests should preserve custom vary header in API routes",
-      "Vary Header Tests should preserve middleware vary header in combination with route handlers"
+      "Vary Header Tests should preserve middleware vary header"
     ],
     "failed": [],
     "pending": [],
@@ -11601,10 +11716,10 @@
     "runtimeError": false
   },
   "test/integration/amp-export-validation/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "AMP Validation on Export production mode should have shown errors during build"
     ],
+    "failed": [],
     "pending": [
       "AMP Validation on Export production mode shows AMP warning without throwing error",
       "AMP Validation on Export production mode shows warning and error when throwing error",
@@ -12031,33 +12146,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/app-document/test/index.test.js": {
-    "passed": [
-      "Document and App Client side It should share module state with pages",
-      "Document and App Client side should detect the changes to pages/_app.js and display it",
-      "Document and App Client side should detect the changes to pages/_document.js and display it",
-      "Document and App Client side should keep state between page navigations",
-      "Document and App Rendering via HTTP _app It should share module state with pages",
-      "Document and App Rendering via HTTP _app It should show valid error when thrown in _app getInitialProps",
-      "Document and App Rendering via HTTP _app It shows a custom tag",
-      "Document and App Rendering via HTTP _document Document.getInitialProps returns html prop representing app shell",
-      "Document and App Rendering via HTTP _document It adds a timestamp to link tags with preload attribute to invalidate the cache (DEV only)",
-      "Document and App Rendering via HTTP _document It adds crossOrigin to all scripts and preload links",
-      "Document and App Rendering via HTTP _document It adds nonces to all scripts and preload links",
-      "Document and App Rendering via HTTP _document It renders ctx.renderPage with enhanceApp and enhanceComponent correctly",
-      "Document and App Rendering via HTTP _document It renders ctx.renderPage with enhanceApp correctly",
-      "Document and App Rendering via HTTP _document It renders ctx.renderPage with enhanceComponent correctly",
-      "Document and App Rendering via HTTP _document It renders ctx.renderPage with enhancer correctly",
-      "Document and App Rendering via HTTP _document should include required elements in rendered html",
-      "Document and App With CSP enabled should load inline script by hash",
-      "Document and App With CSP enabled should load inline script by nonce",
-      "Document and App should not have any missing key warnings"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/app-dynamic-error/test/index.test.ts": {
     "passed": [],
     "failed": [],
@@ -12319,8 +12407,6 @@
       "CLI Usage dev -p reserved",
       "CLI Usage dev Allow retry if default port is already in use",
       "CLI Usage dev NODE_OPTIONS='--inspect'",
-      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to --require.js'",
-      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to-require-with-node-require-option.js'",
       "CLI Usage dev PORT=0",
       "CLI Usage dev custom directory",
       "CLI Usage dev invalid directory",
@@ -12341,6 +12427,8 @@
       "CLI Usage no command invalid directory"
     ],
     "failed": [
+      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to --require.js'",
+      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to-require-with-node-require-option.js'",
       "CLI Usage info should print output",
       "CLI Usage info should print output with next.config.mjs"
     ],
@@ -12424,10 +12512,10 @@
     "runtimeError": false
   },
   "test/integration/config-devtool-dev/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "devtool set in development mode in next config should warn and revert when a devtool is set in development mode"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12474,10 +12562,8 @@
       "config-output-export should error with getStaticPaths and fallback true",
       "config-output-export should error with getStaticProps and revalidate 10 seconds (ISR)",
       "config-output-export should error with middleware function",
-      "config-output-export should work with getStaticPaths and fallback false",
       "config-output-export should work with getStaticProps and revalidate false",
       "config-output-export should work with getStaticProps and without revalidate",
-      "config-output-export should work with static homepage",
       "config-output-export when hasNextSupport = false should error with \"headers\" config",
       "config-output-export when hasNextSupport = false should error with \"redirects\" config",
       "config-output-export when hasNextSupport = false should error with \"rewrites\" config",
@@ -12485,7 +12571,10 @@
       "config-output-export when hasNextSupport = true should error with \"redirects\" config",
       "config-output-export when hasNextSupport = true should error with \"rewrites\" config"
     ],
-    "failed": [],
+    "failed": [
+      "config-output-export should work with getStaticPaths and fallback false",
+      "config-output-export should work with static homepage"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12861,7 +12950,10 @@
   "test/integration/css-modules/test/index.test.js": {
     "passed": [
       "Can hot reload CSS Module without losing state should update CSS color without remounting <input>",
-      "Has CSS Module in computed styles in Development should have CSS for page"
+      "Has CSS Module in computed styles in Development should have CSS for page",
+      "cssmodules-pure-no-check usage should apply styles correctly",
+      "cssmodules-pure-no-check usage should have compiled successfully",
+      "cssmodules-pure-no-check usage should've emitted a CSS file"
     ],
     "failed": [],
     "pending": [
@@ -13007,7 +13099,10 @@
     "runtimeError": false
   },
   "test/integration/css/test/css-rendering.test.js": {
-    "passed": [],
+    "passed": [
+      "CSS Support Page reload on CSS missing useLightnincsss(false) production mode should fall back to server-side transition on missing CSS",
+      "CSS Support Page reload on CSS missing useLightnincsss(true) production mode should fall back to server-side transition on missing CSS"
+    ],
     "failed": [],
     "pending": [
       "CSS Support CSS Cleanup on Render Failure useLightnincsss(false) production mode not have intermediary page styles on error rendering",
@@ -13024,8 +13119,6 @@
       "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(true) production mode should hydrate black without dependencies manifest",
       "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(true) production mode should hydrate red without dependencies manifest",
       "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(true) production mode should route from black to red without dependencies",
-      "CSS Support Page reload on CSS missing useLightnincsss(false) production mode should fall back to server-side transition on missing CSS",
-      "CSS Support Page reload on CSS missing useLightnincsss(true) production mode should fall back to server-side transition on missing CSS",
       "CSS Support production mode CSS Import from node_modules useLightnincsss(false) should fail the build",
       "CSS Support production mode CSS Import from node_modules useLightnincsss(true) should fail the build"
     ],
@@ -17018,6 +17111,275 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/image-optimizer/test/disable-write-to-cache-dir.test.ts": {
+    "passed": [
+      "with isrFlushToDisk false config dev support w/o next.config.js recursive url is not allowed should fail with absolute next image url",
+      "with isrFlushToDisk false config dev support w/o next.config.js recursive url is not allowed should fail with encoded relative image url",
+      "with isrFlushToDisk false config dev support w/o next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+      "with isrFlushToDisk false config dev support w/o next.config.js recursive url is not allowed should fail with relative next image url",
+      "with isrFlushToDisk false config dev support w/o next.config.js should downlevel avif format to jpeg for old Safari",
+      "with isrFlushToDisk false config dev support w/o next.config.js should downlevel webp format to jpeg for old Safari",
+      "with isrFlushToDisk false config dev support w/o next.config.js should emit blur svg when width is 8 in dev but not prod",
+      "with isrFlushToDisk false config dev support w/o next.config.js should emit blur svg when width is less than 8 in dev but not prod",
+      "with isrFlushToDisk false config dev support w/o next.config.js should error if the image file does not exist",
+      "with isrFlushToDisk false config dev support w/o next.config.js should error if the resource isn't a valid image",
+      "with isrFlushToDisk false config dev support w/o next.config.js should fail when domain is not defined in next.config.js",
+      "with isrFlushToDisk false config dev support w/o next.config.js should fail when internal url is not an image",
+      "with isrFlushToDisk false config dev support w/o next.config.js should fail when q is greater than 100",
+      "with isrFlushToDisk false config dev support w/o next.config.js should fail when q is less than 1",
+      "with isrFlushToDisk false config dev support w/o next.config.js should fail when q is missing",
+      "with isrFlushToDisk false config dev support w/o next.config.js should fail when q is not a number",
+      "with isrFlushToDisk false config dev support w/o next.config.js should fail when q is not an integer",
+      "with isrFlushToDisk false config dev support w/o next.config.js should fail when url has file protocol",
+      "with isrFlushToDisk false config dev support w/o next.config.js should fail when url has ftp protocol",
+      "with isrFlushToDisk false config dev support w/o next.config.js should fail when url is missing",
+      "with isrFlushToDisk false config dev support w/o next.config.js should fail when url is protocol relative",
+      "with isrFlushToDisk false config dev support w/o next.config.js should fail when url is too long",
+      "with isrFlushToDisk false config dev support w/o next.config.js should fail when w is 0",
+      "with isrFlushToDisk false config dev support w/o next.config.js should fail when w is less than 0",
+      "with isrFlushToDisk false config dev support w/o next.config.js should fail when w is missing",
+      "with isrFlushToDisk false config dev support w/o next.config.js should fail when w is not a number",
+      "with isrFlushToDisk false config dev support w/o next.config.js should fail when w is not an integer",
+      "with isrFlushToDisk false config dev support w/o next.config.js should fail when width is not in next.config.js",
+      "with isrFlushToDisk false config dev support w/o next.config.js should handle non-ascii characters in image url",
+      "with isrFlushToDisk false config dev support w/o next.config.js should maintain animated gif",
+      "with isrFlushToDisk false config dev support w/o next.config.js should maintain animated png",
+      "with isrFlushToDisk false config dev support w/o next.config.js should maintain animated png 2",
+      "with isrFlushToDisk false config dev support w/o next.config.js should maintain animated webp",
+      "with isrFlushToDisk false config dev support w/o next.config.js should maintain bmp",
+      "with isrFlushToDisk false config dev support w/o next.config.js should maintain icns",
+      "with isrFlushToDisk false config dev support w/o next.config.js should maintain ico format",
+      "with isrFlushToDisk false config dev support w/o next.config.js should maintain jpg format for old Safari",
+      "with isrFlushToDisk false config dev support w/o next.config.js should maintain pic/pct",
+      "with isrFlushToDisk false config dev support w/o next.config.js should maintain png format for old Safari",
+      "with isrFlushToDisk false config dev support w/o next.config.js should not allow svg with application header",
+      "with isrFlushToDisk false config dev support w/o next.config.js should not allow svg with comma header",
+      "with isrFlushToDisk false config dev support w/o next.config.js should not allow svg with uppercase header",
+      "with isrFlushToDisk false config dev support w/o next.config.js should not allow svg with wrong header",
+      "with isrFlushToDisk false config dev support w/o next.config.js should not allow vector svg",
+      "with isrFlushToDisk false config dev support w/o next.config.js should not resize if requested width is larger than original source image",
+      "with isrFlushToDisk false config dev support w/o next.config.js should resize avif",
+      "with isrFlushToDisk false config dev support w/o next.config.js should resize gif (not animated)",
+      "with isrFlushToDisk false config dev support w/o next.config.js should resize relative url and old Chrome accept header as webp",
+      "with isrFlushToDisk false config dev support w/o next.config.js should resize relative url and png accept header",
+      "with isrFlushToDisk false config dev support w/o next.config.js should resize relative url and webp Firefox accept header",
+      "with isrFlushToDisk false config dev support w/o next.config.js should resize relative url with invalid accept header as gif",
+      "with isrFlushToDisk false config dev support w/o next.config.js should resize relative url with invalid accept header as png",
+      "with isrFlushToDisk false config dev support w/o next.config.js should resize relative url with invalid accept header as tiff",
+      "with isrFlushToDisk false config dev support w/o next.config.js should resize tiff",
+      "with isrFlushToDisk false config dev support w/o next.config.js should return home page",
+      "with isrFlushToDisk false config dev support w/o next.config.js should set 304 status without body when etag matches if-none-match",
+      "with isrFlushToDisk false config dev support w/o next.config.js should set cache-control to immutable for static images",
+      "with isrFlushToDisk false config dev support w/o next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
+      "with isrFlushToDisk false config dev support w/o next.config.js should use cached image file when parameters are the same for animated gif",
+      "with isrFlushToDisk false config dev support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+      "with isrFlushToDisk false config dev support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+      "with isrFlushToDisk false config dev support with next.config.js recursive url is not allowed should fail with relative next image url",
+      "with isrFlushToDisk false config dev support with next.config.js recursive url is not allowed should pass with absolute next image url",
+      "with isrFlushToDisk false config dev support with next.config.js should automatically detect image type when content-type is octet-stream",
+      "with isrFlushToDisk false config dev support with next.config.js should compress avif smaller than webp at q=100",
+      "with isrFlushToDisk false config dev support with next.config.js should compress avif smaller than webp at q=50",
+      "with isrFlushToDisk false config dev support with next.config.js should compress avif smaller than webp at q=75",
+      "with isrFlushToDisk false config dev support with next.config.js should downlevel avif format to jpeg for old Safari",
+      "with isrFlushToDisk false config dev support with next.config.js should downlevel webp format to jpeg for old Safari",
+      "with isrFlushToDisk false config dev support with next.config.js should emit blur svg when width is 8 in dev but not prod",
+      "with isrFlushToDisk false config dev support with next.config.js should emit blur svg when width is less than 8 in dev but not prod",
+      "with isrFlushToDisk false config dev support with next.config.js should error if the image file does not exist",
+      "with isrFlushToDisk false config dev support with next.config.js should error if the resource isn't a valid image",
+      "with isrFlushToDisk false config dev support with next.config.js should fail when domain is not defined in next.config.js",
+      "with isrFlushToDisk false config dev support with next.config.js should fail when internal url is not an image",
+      "with isrFlushToDisk false config dev support with next.config.js should fail when q is greater than 100",
+      "with isrFlushToDisk false config dev support with next.config.js should fail when q is less than 1",
+      "with isrFlushToDisk false config dev support with next.config.js should fail when q is missing",
+      "with isrFlushToDisk false config dev support with next.config.js should fail when q is not a number",
+      "with isrFlushToDisk false config dev support with next.config.js should fail when q is not an integer",
+      "with isrFlushToDisk false config dev support with next.config.js should fail when url fails to load an image",
+      "with isrFlushToDisk false config dev support with next.config.js should fail when url has file protocol",
+      "with isrFlushToDisk false config dev support with next.config.js should fail when url has ftp protocol",
+      "with isrFlushToDisk false config dev support with next.config.js should fail when url is missing",
+      "with isrFlushToDisk false config dev support with next.config.js should fail when url is protocol relative",
+      "with isrFlushToDisk false config dev support with next.config.js should fail when url is too long",
+      "with isrFlushToDisk false config dev support with next.config.js should fail when w is 0",
+      "with isrFlushToDisk false config dev support with next.config.js should fail when w is less than 0",
+      "with isrFlushToDisk false config dev support with next.config.js should fail when w is missing",
+      "with isrFlushToDisk false config dev support with next.config.js should fail when w is not a number",
+      "with isrFlushToDisk false config dev support with next.config.js should fail when w is not an integer",
+      "with isrFlushToDisk false config dev support with next.config.js should fail when width is not in next.config.js",
+      "with isrFlushToDisk false config dev support with next.config.js should handle concurrent requests",
+      "with isrFlushToDisk false config dev support with next.config.js should handle non-ascii characters in image url",
+      "with isrFlushToDisk false config dev support with next.config.js should maintain animated gif",
+      "with isrFlushToDisk false config dev support with next.config.js should maintain animated png",
+      "with isrFlushToDisk false config dev support with next.config.js should maintain animated png 2",
+      "with isrFlushToDisk false config dev support with next.config.js should maintain animated webp",
+      "with isrFlushToDisk false config dev support with next.config.js should maintain bmp",
+      "with isrFlushToDisk false config dev support with next.config.js should maintain icns",
+      "with isrFlushToDisk false config dev support with next.config.js should maintain ico format",
+      "with isrFlushToDisk false config dev support with next.config.js should maintain jpg format for old Safari",
+      "with isrFlushToDisk false config dev support with next.config.js should maintain pic/pct",
+      "with isrFlushToDisk false config dev support with next.config.js should maintain png format for old Safari",
+      "with isrFlushToDisk false config dev support with next.config.js should normalize invalid status codes",
+      "with isrFlushToDisk false config dev support with next.config.js should not allow svg with application header",
+      "with isrFlushToDisk false config dev support with next.config.js should not allow svg with comma header",
+      "with isrFlushToDisk false config dev support with next.config.js should not allow svg with uppercase header",
+      "with isrFlushToDisk false config dev support with next.config.js should not allow svg with wrong header",
+      "with isrFlushToDisk false config dev support with next.config.js should not allow vector svg",
+      "with isrFlushToDisk false config dev support with next.config.js should not resize if requested width is larger than original source image",
+      "with isrFlushToDisk false config dev support with next.config.js should resize absolute url from localhost",
+      "with isrFlushToDisk false config dev support with next.config.js should resize avif",
+      "with isrFlushToDisk false config dev support with next.config.js should resize avif and maintain format",
+      "with isrFlushToDisk false config dev support with next.config.js should resize gif (not animated)",
+      "with isrFlushToDisk false config dev support with next.config.js should resize relative url and new Chrome accept header as avif",
+      "with isrFlushToDisk false config dev support with next.config.js should resize relative url and old Chrome accept header as webp",
+      "with isrFlushToDisk false config dev support with next.config.js should resize relative url and png accept header",
+      "with isrFlushToDisk false config dev support with next.config.js should resize relative url and webp Firefox accept header",
+      "with isrFlushToDisk false config dev support with next.config.js should resize relative url with invalid accept header as gif",
+      "with isrFlushToDisk false config dev support with next.config.js should resize relative url with invalid accept header as png",
+      "with isrFlushToDisk false config dev support with next.config.js should resize relative url with invalid accept header as tiff",
+      "with isrFlushToDisk false config dev support with next.config.js should resize tiff",
+      "with isrFlushToDisk false config dev support with next.config.js should return home page",
+      "with isrFlushToDisk false config dev support with next.config.js should set 304 status without body when etag matches if-none-match",
+      "with isrFlushToDisk false config dev support with next.config.js should set cache-control to immutable for static images",
+      "with isrFlushToDisk false config dev support with next.config.js should timeout for upstream image exceeding 7 seconds",
+      "with isrFlushToDisk false config dev support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
+      "with isrFlushToDisk false config dev support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
+      "with isrFlushToDisk false config dev support with next.config.js should use cached image file when parameters are the same for animated gif"
+    ],
+    "failed": [],
+    "pending": [
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js recursive url is not allowed should fail with absolute next image url",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js recursive url is not allowed should fail with encoded relative image url",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js recursive url is not allowed should fail with relative next image url",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should downlevel avif format to jpeg for old Safari",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should downlevel webp format to jpeg for old Safari",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should emit blur svg when width is 8 in dev but not prod",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should emit blur svg when width is less than 8 in dev but not prod",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should error if the image file does not exist",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should error if the resource isn't a valid image",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should fail when domain is not defined in next.config.js",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should fail when internal url is not an image",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should fail when q is greater than 100",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should fail when q is less than 1",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should fail when q is missing",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should fail when q is not a number",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should fail when q is not an integer",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should fail when url has file protocol",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should fail when url has ftp protocol",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should fail when url is missing",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should fail when url is protocol relative",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should fail when url is too long",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should fail when w is 0",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should fail when w is less than 0",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should fail when w is missing",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should fail when w is not a number",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should fail when w is not an integer",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should fail when width is not in next.config.js",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should handle non-ascii characters in image url",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should maintain animated gif",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should maintain animated png",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should maintain animated png 2",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should maintain animated webp",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should maintain bmp",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should maintain icns",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should maintain ico format",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should maintain jpg format for old Safari",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should maintain pic/pct",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should maintain png format for old Safari",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should not allow svg with application header",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should not allow svg with comma header",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should not allow svg with uppercase header",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should not allow svg with wrong header",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should not allow vector svg",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should not resize if requested width is larger than original source image",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should resize avif",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should resize gif (not animated)",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should resize relative url and old Chrome accept header as webp",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should resize relative url and png accept header",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should resize relative url and webp Firefox accept header",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should resize relative url with invalid accept header as gif",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should resize relative url with invalid accept header as png",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should resize relative url with invalid accept header as tiff",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should resize tiff",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should return home page",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should set 304 status without body when etag matches if-none-match",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should set cache-control to immutable for static images",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
+      "with isrFlushToDisk false config Production Mode Server support w/o next.config.js should use cached image file when parameters are the same for animated gif",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js recursive url is not allowed should fail with relative next image url",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js recursive url is not allowed should pass with absolute next image url",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should compress avif smaller than webp at q=75",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should downlevel avif format to jpeg for old Safari",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should downlevel webp format to jpeg for old Safari",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should emit blur svg when width is 8 in dev but not prod",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should emit blur svg when width is less than 8 in dev but not prod",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should error if the image file does not exist",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should error if the resource isn't a valid image",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when domain is not defined in next.config.js",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when internal url is not an image",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when q is greater than 100",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when q is less than 1",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when q is missing",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when q is not a number",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when q is not an integer",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when url fails to load an image",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when url has file protocol",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when url has ftp protocol",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when url is missing",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when url is protocol relative",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when url is too long",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when w is 0",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when w is less than 0",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when w is missing",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when w is not a number",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when w is not an integer",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when width is not in next.config.js",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should handle concurrent requests",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should handle non-ascii characters in image url",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should maintain animated gif",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should maintain animated png",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should maintain animated png 2",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should maintain animated webp",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should maintain bmp",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should maintain icns",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should maintain ico format",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should maintain jpg format for old Safari",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should maintain pic/pct",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should maintain png format for old Safari",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should normalize invalid status codes",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should not allow svg with application header",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should not allow svg with comma header",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should not allow svg with uppercase header",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should not allow svg with wrong header",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should not allow vector svg",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should not resize if requested width is larger than original source image",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should resize absolute url from localhost",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should resize avif",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should resize avif and maintain format",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should resize gif (not animated)",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should resize relative url and new Chrome accept header as avif",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should resize relative url and old Chrome accept header as webp",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should resize relative url and png accept header",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should resize relative url and webp Firefox accept header",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should resize relative url with invalid accept header as gif",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should resize relative url with invalid accept header as png",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should resize relative url with invalid accept header as tiff",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should resize tiff",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should return home page",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should set 304 status without body when etag matches if-none-match",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should set cache-control to immutable for static images",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should timeout for upstream image exceeding 7 seconds",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should use cached image file when parameters are the same for animated gif"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/image-optimizer/test/index.test.ts": {
     "passed": [
       "Image Optimizer Server support for trailingSlash in next.config.js should return successful response for original loader",
@@ -17033,6 +17395,7 @@
       "Image Optimizer config checks should error when images.loader is assigned but images.path is not",
       "Image Optimizer config checks should error when images.loaderFile does not exist",
       "Image Optimizer config checks should error when images.minimumCacheTTL is not valid",
+      "Image Optimizer config checks should error when images.remotePatterns URL has invalid protocol",
       "Image Optimizer config checks should error when images.remotePatterns is invalid",
       "Image Optimizer config checks should error when images.unoptimized is not a boolean",
       "Image Optimizer config checks should error when loader contains invalid value",
@@ -17988,12 +18351,11 @@
   },
   "test/integration/next-dynamic-lazy-compilation/test/index.test.js": {
     "passed": [
+      "next/dynamic lazy compilation development mode should render dynamic server rendered values before hydration",
+      "next/dynamic lazy compilation development mode should render dynamic server rendered values on client mount",
       "next/dynamic lazy compilation development mode should render server value"
     ],
-    "failed": [
-      "next/dynamic lazy compilation development mode should render dynamic server rendered values before hydration",
-      "next/dynamic lazy compilation development mode should render dynamic server rendered values on client mount"
-    ],
+    "failed": [],
     "pending": [
       "next/dynamic lazy compilation production mode should render dynamic server rendered values before hydration",
       "next/dynamic lazy compilation production mode should render dynamic server rendered values on client mount",
@@ -18293,10 +18655,10 @@
     "runtimeError": false
   },
   "test/integration/next-image-legacy/svgo-webpack/test/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "svgo-webpack with Image Component development mode should print error when invalid Image usage"
     ],
-    "failed": [],
     "pending": [
       "svgo-webpack with Image Component production mode should not fail to build invalid usage of the Image component"
     ],
@@ -18932,6 +19294,7 @@
     ],
     "failed": [],
     "pending": [
+      "Image Component Unicode Image URL production mode should build correct images-manifest.json",
       "Image Component Unicode Image URL production mode should load external image with space",
       "Image Component Unicode Image URL production mode should load external unicode image",
       "Image Component Unicode Image URL production mode should load internal image with space",
@@ -19974,7 +20337,8 @@
     "runtimeError": false
   },
   "test/integration/server-side-dev-errors/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "server-side dev errors should show server-side error for api route correctly",
       "server-side dev errors should show server-side error for dynamic api route correctly",
       "server-side dev errors should show server-side error for dynamic gssp page correctly",
@@ -19985,7 +20349,6 @@
       "server-side dev errors should show server-side error for uncaught exception correctly",
       "server-side dev errors should show server-side error for uncaught rejection correctly"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -20591,8 +20954,7 @@
     "runtimeError": false
   },
   "test/integration/url-imports/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Handle url imports with next build should allow url import in css",
       "Handle url imports with next build should client-render the /ssg page",
       "Handle url imports with next build should client-render the /ssr page",
@@ -20612,6 +20974,7 @@
       "Handle url imports with next dev should render the /static page",
       "Handle url imports with next dev should respond on value api"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

@@ -107,6 +107,25 @@ macro_rules! impl_trace_tuple {
 
 impl_trace_tuple!(E D C B A Z Y X W V U T);
 
+/// Function pointers (the lowercase `fn` type, not `Fn`) don't contain any data, so it's not
+/// possible for them to contain a `Vc`.
+macro_rules! impl_trace_fn_ptr {
+    ($T:ident) => {
+        impl_trace_fn_ptr!(@impl $T);
+    };
+    ($T:ident $( $U:ident )+) => {
+        impl_trace_fn_ptr!($( $U )+);
+        impl_trace_fn_ptr!(@impl $T $( $U )+);
+    };
+    (@impl $( $T:ident )+) => {
+        impl<$($T,)+ Return> TraceRawVcs for fn($($T),+) -> Return {
+            fn trace_raw_vcs(&self, _trace_context: &mut TraceRawVcsContext) {}
+        }
+    };
+}
+
+impl_trace_fn_ptr!(E D C B A Z Y X W V U T);
+
 impl<T: TraceRawVcs> TraceRawVcs for Option<T> {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         if let Some(item) = self {

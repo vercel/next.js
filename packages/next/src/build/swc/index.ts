@@ -10,10 +10,10 @@ import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadNativeNextSwc, downloadWasmSwc } from '../../lib/download-swc'
 import type {
   NextConfigComplete,
-  TurboLoaderItem,
-  TurboRuleConfigItem,
-  TurboRuleConfigItemOptions,
-  TurboRuleConfigItemOrShortcut,
+  TurbopackLoaderItem,
+  TurbopackRuleConfigItem,
+  TurbopackRuleConfigItemOptions,
+  TurbopackRuleConfigItemOrShortcut,
 } from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
 import {
@@ -509,7 +509,7 @@ function bindingToApi(
     try {
       return await fn()
     } catch (nativeError: any) {
-      throw new TurbopackInternalError(nativeError)
+      throw TurbopackInternalError.createAndRecordTelemetry(nativeError)
     }
   }
 
@@ -577,7 +577,7 @@ function bindingToApi(
       } catch (e) {
         if (e === cancel) return
         if (e instanceof Error) {
-          throw new TurbopackInternalError(e)
+          throw TurbopackInternalError.createAndRecordTelemetry(e)
         }
         throw e
       } finally {
@@ -786,24 +786,24 @@ function bindingToApi(
     if (reactCompilerOptions) {
       const ruleKeys = ['*.ts', '*.js', '*.jsx', '*.tsx']
       if (
-        Object.keys(nextConfig?.experimental?.turbo?.rules ?? []).some((key) =>
+        Object.keys(nextConfig?.turbopack?.rules ?? []).some((key) =>
           ruleKeys.includes(key)
         )
       ) {
         Log.warn(
-          `The React Compiler cannot be enabled automatically because 'experimental.turbo' contains a rule for '*.ts', '*.js', '*.jsx', and '*.tsx'. Remove this rule, or add 'babel-loader' and 'babel-plugin-react-compiler' to the Turbopack configuration manually.`
+          `The React Compiler cannot be enabled automatically because 'turbopack.rules' contains a rule for '*.ts', '*.js', '*.jsx', and '*.tsx'. Remove this rule, or add 'babel-loader' and 'babel-plugin-react-compiler' to the Turbopack configuration manually.`
         )
       } else {
-        if (!nextConfig.experimental.turbo) {
-          nextConfig.experimental.turbo = {}
+        if (!nextConfig.turbopack) {
+          nextConfig.turbopack = {}
         }
 
-        if (!nextConfig.experimental.turbo.rules) {
-          nextConfig.experimental.turbo.rules = {}
+        if (!nextConfig.turbopack.rules) {
+          nextConfig.turbopack.rules = {}
         }
 
         for (const key of ['*.ts', '*.js', '*.jsx', '*.tsx']) {
-          nextConfig.experimental.turbo.rules[key] = {
+          nextConfig.turbopack.rules[key] = {
             browser: {
               foreign: false,
               loaders: [
@@ -840,7 +840,7 @@ function bindingToApi(
 
     if (nextConfigSerializable.experimental?.turbo?.rules) {
       ensureLoadersHaveSerializableOptions(
-        nextConfigSerializable.experimental.turbo?.rules
+        nextConfigSerializable.turbopack?.rules
       )
     }
 
@@ -878,7 +878,7 @@ function bindingToApi(
   }
 
   function ensureLoadersHaveSerializableOptions(
-    turbopackRules: Record<string, TurboRuleConfigItemOrShortcut>
+    turbopackRules: Record<string, TurbopackRuleConfigItemOrShortcut>
   ) {
     for (const [glob, rule] of Object.entries(turbopackRules)) {
       if (Array.isArray(rule)) {
@@ -888,10 +888,10 @@ function bindingToApi(
       }
     }
 
-    function checkConfigItem(rule: TurboRuleConfigItem, glob: string) {
+    function checkConfigItem(rule: TurbopackRuleConfigItem, glob: string) {
       if (!rule) return
       if ('loaders' in rule) {
-        checkLoaderItems((rule as TurboRuleConfigItemOptions).loaders, glob)
+        checkLoaderItems((rule as TurbopackRuleConfigItemOptions).loaders, glob)
       } else {
         for (const key in rule) {
           const inner = rule[key]
@@ -902,7 +902,10 @@ function bindingToApi(
       }
     }
 
-    function checkLoaderItems(loaderItems: TurboLoaderItem[], glob: string) {
+    function checkLoaderItems(
+      loaderItems: TurbopackLoaderItem[],
+      glob: string
+    ) {
       for (const loaderItem of loaderItems) {
         if (
           typeof loaderItem !== 'string' &&

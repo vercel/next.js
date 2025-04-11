@@ -50,6 +50,8 @@ describe(`app-dir-hmr`, () => {
         // The new page should be rendered
         const newHTML = await next.render('/folder-renamed')
         expect(newHTML).toContain('Hello')
+
+        expect(next.cliOutput).not.toContain('FATAL')
       } finally {
         // Rename it back
         await next.renameFolder('app/folder-renamed', 'app/folder')
@@ -89,7 +91,6 @@ describe(`app-dir-hmr`, () => {
         // details are unimportant.
         expect(fastRefreshLogs).toEqual(
           expect.arrayContaining([
-            { source: 'log', message: '[Fast Refresh] rebuilding' },
             {
               source: 'log',
               message: expect.stringContaining('[Fast Refresh] done in '),
@@ -102,6 +103,8 @@ describe(`app-dir-hmr`, () => {
       await retry(async () => {
         expect(await browser.elementByCss('p').text()).toBe('mac')
       })
+
+      expect(next.cliOutput).not.toContain('FATAL')
     })
 
     it.each(['node', 'node-module-var', 'edge', 'edge-module-var'])(
@@ -118,7 +121,7 @@ describe(`app-dir-hmr`, () => {
             expect(logs).toEqual(
               expect.arrayContaining([
                 expect.objectContaining({
-                  message: '[Fast Refresh] rebuilding',
+                  message: expect.stringContaining('[Fast Refresh] done'),
                   source: 'log',
                 }),
               ])
@@ -143,6 +146,8 @@ describe(`app-dir-hmr`, () => {
         await retry(async () => {
           expect(await browser.elementByCss('p').text()).toBe('mac')
         })
+
+        expect(next.cliOutput).not.toContain('FATAL')
       }
     )
 
@@ -169,10 +174,6 @@ describe(`app-dir-hmr`, () => {
       expect(logs).toEqual(
         expect.arrayContaining([
           {
-            message: '[Fast Refresh] rebuilding',
-            source: 'log',
-          },
-          {
             message: expect.stringContaining('[Fast Refresh] done in'),
             source: 'log',
           },
@@ -187,6 +188,8 @@ describe(`app-dir-hmr`, () => {
       )
       // No MPA navigation triggered
       expect(await browser.eval('window.__TEST_NO_RELOAD')).toEqual(true)
+
+      expect(next.cliOutput).not.toContain('FATAL')
     })
   })
 })

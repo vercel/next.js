@@ -50,7 +50,9 @@ async fn side_effects_from_package_json(
                     .filter_map(|side_effect| {
                         if let Some(side_effect) = side_effect.as_str() {
                             if side_effect.contains('/') {
-                                Some(Glob::new(side_effect.into()))
+                                Some(Glob::new(
+                                    side_effect.strip_prefix("./").unwrap_or(side_effect).into(),
+                                ))
                             } else {
                                 Some(Glob::new(format!("**/{side_effect}").into()))
                             }
@@ -179,7 +181,8 @@ pub async fn is_marked_as_side_effect_free(
                     .await?
                     .get_relative_path_to(&*path.await?)
                 {
-                    return Ok(Vc::cell(!glob.await?.execute(&rel_path)));
+                    let rel_path = rel_path.strip_prefix("./").unwrap_or(&rel_path);
+                    return Ok(Vc::cell(!glob.await?.execute(rel_path)));
                 }
             }
         }

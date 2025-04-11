@@ -45,6 +45,17 @@ function closeWithError(destination, error) {
     ? destination.error(error)
     : destination.close();
 }
+function readAsDataURL(blob) {
+  return blob.arrayBuffer().then(function (arrayBuffer) {
+    arrayBuffer = Buffer.from(arrayBuffer).toString("base64");
+    return (
+      "data:" +
+      (blob.type || "application/octet-stream") +
+      ";base64," +
+      arrayBuffer
+    );
+  });
+}
 var assign = Object.assign,
   hasOwnProperty = Object.prototype.hasOwnProperty,
   VALID_ATTRIBUTE_NAME_REGEX = RegExp(
@@ -643,6 +654,28 @@ function pushFormActionAttribute(
   null != formTarget && pushAttribute(target, "formTarget", formTarget);
   return formData;
 }
+var blobCache = null;
+function pushSrcObjectAttribute(target, blob) {
+  null === blobCache && (blobCache = new WeakMap());
+  var suspenseCache = blobCache,
+    thenable = suspenseCache.get(blob);
+  void 0 === thenable &&
+    ((thenable = readAsDataURL(blob)),
+    thenable.then(
+      function (result) {
+        thenable.status = "fulfilled";
+        thenable.value = result;
+      },
+      function (error) {
+        thenable.status = "rejected";
+        thenable.reason = error;
+      }
+    ),
+    suspenseCache.set(blob, thenable));
+  if ("rejected" === thenable.status) throw thenable.reason;
+  if ("fulfilled" !== thenable.status) throw thenable;
+  target.push(" ", "src", '="', escapeTextForBrowser(thenable.value), '"');
+}
 function pushAttribute(target, name, value) {
   switch (name) {
     case "className":
@@ -662,6 +695,15 @@ function pushAttribute(target, name, value) {
       pushStyleAttribute(target, value);
       break;
     case "src":
+      if (
+        "object" === typeof value &&
+        null !== value &&
+        "function" === typeof Blob &&
+        value instanceof Blob
+      ) {
+        pushSrcObjectAttribute(target, value);
+        break;
+      }
     case "href":
       if ("" === value) break;
     case "action":
@@ -3366,9 +3408,6 @@ function readPreviousThenableFromState() {
 function unsupportedRefresh() {
   throw Error("Cache cannot be refreshed during server rendering.");
 }
-function unsupportedStartGesture() {
-  throw Error("startGesture cannot be called during server rendering.");
-}
 function noop$1() {}
 var HooksDispatcher = {
     readContext: function (context) {
@@ -3464,10 +3503,6 @@ var HooksDispatcher = {
     },
     useEffectEvent: function () {
       return throwOnUseEffectEventCall;
-    },
-    useSwipeTransition: function (previous, current) {
-      resolveCurrentlyRenderingComponent();
-      return [current, unsupportedStartGesture];
     }
   },
   currentResumableState = null,
@@ -4272,11 +4307,28 @@ function renderElement(request, task, keyPath, type, props, ref) {
         task.keyPath = type;
         return;
       case REACT_ACTIVITY_TYPE:
-        "hidden" !== props.mode &&
-          ((type = task.keyPath),
-          (task.keyPath = keyPath),
-          renderNodeDestructive(request, task, props.children, -1),
-          (task.keyPath = type));
+        type = task.blockedSegment;
+        if (null === type)
+          "hidden" !== props.mode &&
+            ((type = task.keyPath),
+            (task.keyPath = keyPath),
+            renderNode(request, task, props.children, -1),
+            (task.keyPath = type));
+        else {
+          type.chunks.push("\x3c!--&--\x3e");
+          type.lastPushedText = !1;
+          "hidden" !== props.mode &&
+            ((newProps = task.keyPath),
+            (task.keyPath = keyPath),
+            renderNode(request, task, props.children, -1),
+            (task.keyPath = newProps));
+          request = type.chunks;
+          if ((task = task.blockedPreamble))
+            (task = task.contribution),
+              0 !== task && request.push("\x3c!--", "" + task, "--\x3e");
+          request.push("\x3c!--/&--\x3e");
+          type.lastPushedText = !1;
+        }
         return;
       case REACT_SUSPENSE_LIST_TYPE:
         type = task.keyPath;
@@ -4976,9 +5028,9 @@ function trackPostpone(request, trackedPostpones, task, segment) {
         addToReplayParent(segment, boundaryKeyPath[0], trackedPostpones);
         return;
       }
-      var boundaryNode$43 = trackedPostpones.workingMap.get(boundaryKeyPath);
-      void 0 === boundaryNode$43
-        ? ((boundaryNode$43 = [
+      var boundaryNode$45 = trackedPostpones.workingMap.get(boundaryKeyPath);
+      void 0 === boundaryNode$45
+        ? ((boundaryNode$45 = [
             boundaryKeyPath[1],
             boundaryKeyPath[2],
             children,
@@ -4986,13 +5038,13 @@ function trackPostpone(request, trackedPostpones, task, segment) {
             fallbackReplayNode,
             boundary.rootSegmentID
           ]),
-          trackedPostpones.workingMap.set(boundaryKeyPath, boundaryNode$43),
+          trackedPostpones.workingMap.set(boundaryKeyPath, boundaryNode$45),
           addToReplayParent(
-            boundaryNode$43,
+            boundaryNode$45,
             boundaryKeyPath[0],
             trackedPostpones
           ))
-        : ((boundaryKeyPath = boundaryNode$43),
+        : ((boundaryKeyPath = boundaryNode$45),
           (boundaryKeyPath[4] = fallbackReplayNode),
           (boundaryKeyPath[5] = boundary.rootSegmentID));
     }
@@ -5146,15 +5198,15 @@ function renderNode(request, task, node, childIndex) {
       chunkLength = segment.chunks.length;
     try {
       return renderNodeDestructive(request, task, node, childIndex);
-    } catch (thrownValue$55) {
+    } catch (thrownValue$57) {
       if (
         (resetHooksState(),
         (segment.children.length = childrenLength),
         (segment.chunks.length = chunkLength),
         (childIndex =
-          thrownValue$55 === SuspenseException
+          thrownValue$57 === SuspenseException
             ? getSuspendedThenable()
-            : thrownValue$55),
+            : thrownValue$57),
         "object" === typeof childIndex && null !== childIndex)
       ) {
         if ("function" === typeof childIndex.then) {
@@ -5355,16 +5407,16 @@ function abortTask(task, request, error) {
     }
   } else {
     boundary.pendingTasks--;
-    var trackedPostpones$58 = request.trackedPostpones;
+    var trackedPostpones$60 = request.trackedPostpones;
     if (4 !== boundary.status) {
-      if (null !== trackedPostpones$58 && null !== segment)
+      if (null !== trackedPostpones$60 && null !== segment)
         return (
           "object" === typeof error &&
           null !== error &&
           error.$$typeof === REACT_POSTPONE_TYPE
             ? logPostpone(request, error.message, errorInfo)
             : logRecoverableError(request, error, errorInfo),
-          trackPostpone(request, trackedPostpones$58, task, segment),
+          trackPostpone(request, trackedPostpones$60, task, segment),
           boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
             return abortTask(fallbackTask, request, error);
           }),
@@ -5673,13 +5725,13 @@ function performWork(request$jscomp$1) {
                       null !== request.trackedPostpones &&
                       x$jscomp$0.$$typeof === REACT_POSTPONE_TYPE
                     ) {
-                      var trackedPostpones$62 = request.trackedPostpones;
+                      var trackedPostpones$64 = request.trackedPostpones;
                       task.abortSet.delete(task);
                       var postponeInfo = getThrownInfo(task.componentStack);
                       logPostpone(request, x$jscomp$0.message, postponeInfo);
                       trackPostpone(
                         request,
-                        trackedPostpones$62,
+                        trackedPostpones$64,
                         task,
                         segment$jscomp$0
                       );
@@ -6250,11 +6302,11 @@ function flushCompletedQueues(request, destination) {
       completedBoundaries.splice(0, i);
       var partialBoundaries = request.partialBoundaries;
       for (i = 0; i < partialBoundaries.length; i++) {
-        var boundary$65 = partialBoundaries[i];
+        var boundary$67 = partialBoundaries[i];
         a: {
           clientRenderedBoundaries = request;
           boundary = destination;
-          var completedSegments = boundary$65.completedSegments;
+          var completedSegments = boundary$67.completedSegments;
           for (
             JSCompiler_inline_result = 0;
             JSCompiler_inline_result < completedSegments.length;
@@ -6264,7 +6316,7 @@ function flushCompletedQueues(request, destination) {
               !flushPartiallyCompletedSegment(
                 clientRenderedBoundaries,
                 boundary,
-                boundary$65,
+                boundary$67,
                 completedSegments[JSCompiler_inline_result]
               )
             ) {
@@ -6276,7 +6328,7 @@ function flushCompletedQueues(request, destination) {
           completedSegments.splice(0, JSCompiler_inline_result);
           JSCompiler_inline_result$jscomp$0 = writeHoistablesForBoundary(
             boundary,
-            boundary$65.contentState,
+            boundary$67.contentState,
             clientRenderedBoundaries.renderState
           );
         }
@@ -6359,8 +6411,8 @@ function abort(request, reason) {
     }
     null !== request.destination &&
       flushCompletedQueues(request, request.destination);
-  } catch (error$67) {
-    logRecoverableError(request, error$67, {}), fatalError(request, error$67);
+  } catch (error$69) {
+    logRecoverableError(request, error$69, {}), fatalError(request, error$69);
   }
 }
 function addToReplayParent(node, parentKeyPath, trackedPostpones) {
@@ -6375,15 +6427,15 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
     parentNode[2].push(node);
   }
 }
-var isomorphicReactPackageVersion$jscomp$inline_818 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_826 = React.version;
 if (
-  "19.1.0-experimental-db7dfe05-20250319" !==
-  isomorphicReactPackageVersion$jscomp$inline_818
+  "19.2.0-experimental-c44e4a25-20250409" !==
+  isomorphicReactPackageVersion$jscomp$inline_826
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
-      (isomorphicReactPackageVersion$jscomp$inline_818 +
-        "\n  - react-dom:  19.1.0-experimental-db7dfe05-20250319\nLearn more: https://react.dev/warnings/version-mismatch")
+      (isomorphicReactPackageVersion$jscomp$inline_826 +
+        "\n  - react-dom:  19.2.0-experimental-c44e4a25-20250409\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -6474,4 +6526,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.1.0-experimental-db7dfe05-20250319";
+exports.version = "19.2.0-experimental-c44e4a25-20250409";

@@ -12,10 +12,9 @@ describe('ssr-only-error', () => {
     // TODO(veil): Missing Owner Stack
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "count": 1,
        "description": "Error: SSR only error",
        "environmentLabel": null,
-       "label": "Unhandled Runtime Error",
+       "label": "Runtime Error",
        "source": "app/page.tsx (5:11) @ Component
      > 5 |     throw new Error('SSR only error')
          |           ^",

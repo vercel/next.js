@@ -19,7 +19,7 @@ import { findSourceMapURL } from './app-find-source-map-url'
 import {
   type AppRouterActionQueue,
   createMutableActionQueue,
-} from '../shared/lib/router/action-queue'
+} from './components/app-router-instance'
 import AppRouter from './components/app-router'
 import type { InitialRSCPayload } from '../server/app-render/types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
@@ -159,38 +159,11 @@ const initialServerResponse = createFromReadableStream<InitialRSCPayload>(
   { callServer, findSourceMapURL }
 )
 
-// React overrides `.then` and doesn't return a new promise chain,
-// so we wrap the action queue in a promise to ensure that its value
-// is defined when the promise resolves.
-// https://github.com/facebook/react/blob/163365a07872337e04826c4f501565d43dbd2fd4/packages/react-client/src/ReactFlightClient.js#L189-L190
-const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
-  (resolve, reject) => {
-    initialServerResponse.then(
-      (initialRSCPayload) => {
-        // setAppBuildId should be called only once, during JS initialization
-        // and before any components have hydrated.
-        setAppBuildId(initialRSCPayload.b)
-
-        resolve(
-          createMutableActionQueue(
-            createInitialRouterState({
-              initialFlightData: initialRSCPayload.f,
-              initialCanonicalUrlParts: initialRSCPayload.c,
-              initialParallelRoutes: new Map(),
-              location: window.location,
-              couldBeIntercepted: initialRSCPayload.i,
-              postponed: initialRSCPayload.s,
-              prerendered: initialRSCPayload.S,
-            })
-          )
-        )
-      },
-      (err: Error) => reject(err)
-    )
-  }
-)
-
-function ServerRoot(): React.ReactNode {
+function ServerRoot({
+  pendingActionQueue,
+}: {
+  pendingActionQueue: Promise<AppRouterActionQueue>
+}): React.ReactNode {
   const initialRSCPayload = use(initialServerResponse)
   const actionQueue = use<AppRouterActionQueue>(pendingActionQueue)
 
@@ -238,12 +211,56 @@ const reactRootOptions: ReactDOMClient.RootOptions = {
   onUncaughtError,
 }
 
-export function hydrate() {
+export type ClientInstrumentationHooks = {
+  onRouterTransitionStart?: (
+    url: string,
+    navigationType: 'push' | 'replace' | 'traverse'
+  ) => void
+}
+
+export function hydrate(
+  instrumentationHooks: ClientInstrumentationHooks | null
+) {
+  // React overrides `.then` and doesn't return a new promise chain,
+  // so we wrap the action queue in a promise to ensure that its value
+  // is defined when the promise resolves.
+  // https://github.com/facebook/react/blob/163365a07872337e04826c4f501565d43dbd2fd4/packages/react-client/src/ReactFlightClient.js#L189-L190
+  const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
+    (resolve, reject) => {
+      initialServerResponse.then(
+        (initialRSCPayload) => {
+          // setAppBuildId should be called only once, during JS initialization
+          // and before any components have hydrated.
+          setAppBuildId(initialRSCPayload.b)
+
+          const initialTimestamp = Date.now()
+
+          resolve(
+            createMutableActionQueue(
+              createInitialRouterState({
+                navigatedAt: initialTimestamp,
+                initialFlightData: initialRSCPayload.f,
+                initialCanonicalUrlParts: initialRSCPayload.c,
+                initialParallelRoutes: new Map(),
+                location: window.location,
+                couldBeIntercepted: initialRSCPayload.i,
+                postponed: initialRSCPayload.s,
+                prerendered: initialRSCPayload.S,
+              }),
+              instrumentationHooks
+            )
+          )
+        },
+        (err: Error) => reject(err)
+      )
+    }
+  )
+
   const reactEl = (
     <StrictModeIfEnabled>
       <HeadManagerContext.Provider value={{ appDir: true }}>
         <Root>
-          <ServerRoot />
+          <ServerRoot pendingActionQueue={pendingActionQueue} />
         </Root>
       </HeadManagerContext.Provider>
     </StrictModeIfEnabled>

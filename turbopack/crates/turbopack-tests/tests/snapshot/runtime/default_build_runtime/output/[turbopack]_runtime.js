@@ -429,6 +429,7 @@ var SourceType = /*#__PURE__*/ function(SourceType) {
    */ SourceType[SourceType["Parent"] = 1] = "Parent";
     return SourceType;
 }(SourceType || {});
+process.env.TURBOPACK = '1';
 function stringifySourceInfo(source) {
     switch(source.type){
         case 0:

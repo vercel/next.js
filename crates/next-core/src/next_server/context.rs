@@ -2,7 +2,7 @@ use std::iter::once;
 
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc};
+use turbo_tasks::{FxIndexMap, OptionVcExt, ResolvedVc, Value, Vc};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
@@ -15,7 +15,10 @@ use turbopack::{
     transition::Transition,
 };
 use turbopack_core::{
-    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingConfig, MinifyType, SourceMapsType},
+    chunk::{
+        module_id_strategies::ModuleIdStrategy, ChunkingConfig, MangleType, MinifyType,
+        SourceMapsType,
+    },
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
         FreeVarReferences,
@@ -324,6 +327,13 @@ pub async fn get_server_resolve_options_context(
         enable_react: true,
         enable_mjs_extension: true,
         custom_extensions: next_config.resolve_extension().owned().await?,
+        tsconfig_path: next_config
+            .typescript_tsconfig_path()
+            .await?
+            .as_ref()
+            .map(|p| project_path.join(p.to_owned()))
+            .to_resolved()
+            .await?,
         rules: vec![(
             foreign_code_context_condition,
             resolve_options_context.clone().resolved_cell(),
@@ -526,25 +536,22 @@ pub async fn get_server_module_options_context(
         get_styled_components_transform_rule(next_config).await?;
     let styled_jsx_transform_rule = get_styled_jsx_transform_rule(next_config, versions).await?;
 
+    let source_maps = if *next_config.server_source_maps().await? {
+        SourceMapsType::Full
+    } else {
+        SourceMapsType::None
+    };
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Undefined),
             import_externals: *next_config.import_externals().await?,
             ignore_dynamic_requests: true,
-            source_maps: if *next_config.turbo_source_maps().await? {
-                SourceMapsType::Full
-            } else {
-                SourceMapsType::None
-            },
+            source_maps,
             ..Default::default()
         },
         execution_context: Some(execution_context),
         css: CssOptionsContext {
-            source_maps: if *next_config.turbo_source_maps().await? {
-                SourceMapsType::Full
-            } else {
-                SourceMapsType::None
-            },
+            source_maps,
             ..Default::default()
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
@@ -659,7 +666,7 @@ pub async fn get_server_module_options_context(
             foreign_next_server_rules.extend(internal_custom_rules);
 
             custom_source_transform_rules.push(
-                get_next_react_server_components_transform_rule(next_config, false, Some(*app_dir))
+                get_next_react_server_components_transform_rule(next_config, false, Some(app_dir))
                     .await?,
             );
 
@@ -729,7 +736,7 @@ pub async fn get_server_module_options_context(
             {
                 custom_source_transform_rules.push(get_ecma_transform_rule(
                     Box::new(ClientDirectiveTransformer::new(
-                        *ecmascript_client_reference_transition_name,
+                        ecmascript_client_reference_transition_name,
                     )),
                     enable_mdx_rs.is_some(),
                     true,
@@ -740,7 +747,7 @@ pub async fn get_server_module_options_context(
             foreign_next_server_rules.extend(internal_custom_rules);
 
             custom_source_transform_rules.push(
-                get_next_react_server_components_transform_rule(next_config, true, Some(*app_dir))
+                get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
                     .await?,
             );
 
@@ -796,7 +803,7 @@ pub async fn get_server_module_options_context(
             next_server_rules.extend(source_transform_rules);
 
             let mut common_next_server_rules = vec![
-                get_next_react_server_components_transform_rule(next_config, true, Some(*app_dir))
+                get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
                     .await?,
             ];
 
@@ -805,7 +812,7 @@ pub async fn get_server_module_options_context(
             {
                 common_next_server_rules.push(get_ecma_transform_rule(
                     Box::new(ClientDirectiveTransformer::new(
-                        *ecmascript_client_reference_transition_name,
+                        ecmascript_client_reference_transition_name,
                     )),
                     enable_mdx_rs.is_some(),
                     true,
@@ -883,7 +890,7 @@ pub async fn get_server_module_options_context(
             {
                 custom_source_transform_rules.push(get_ecma_transform_rule(
                     Box::new(ClientDirectiveTransformer::new(
-                        *ecmascript_client_reference_transition_name,
+                        ecmascript_client_reference_transition_name,
                     )),
                     enable_mdx_rs.is_some(),
                     true,
@@ -899,12 +906,7 @@ pub async fn get_server_module_options_context(
             }
 
             custom_source_transform_rules.push(
-                get_next_react_server_components_transform_rule(
-                    next_config,
-                    true,
-                    app_dir.as_deref().copied(),
-                )
-                .await?,
+                get_next_react_server_components_transform_rule(next_config, true, app_dir).await?,
             );
 
             internal_custom_rules.extend(custom_source_transform_rules.iter().cloned());
@@ -1013,7 +1015,8 @@ pub async fn get_server_chunking_context_with_client_assets(
     .asset_prefix(asset_prefix)
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
-            mangle: !*no_mangling.await?,
+            // React needs deterministic function names to work correctly.
+            mangle: (!*no_mangling.await?).then_some(MangleType::Deterministic),
         }
     } else {
         MinifyType::NoMinify
@@ -1078,7 +1081,7 @@ pub async fn get_server_chunking_context(
     )
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
-            mangle: !*no_mangling.await?,
+            mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
         }
     } else {
         MinifyType::NoMinify

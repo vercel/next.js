@@ -22,6 +22,7 @@ export interface OverlayState {
   versionInfo: VersionInfo
   notFound: boolean
   staticIndicator: boolean
+  showIndicator: boolean
   disableDevIndicator: boolean
   debugInfo: DebugInfo
   routerType: 'pages' | 'app'
@@ -122,8 +123,13 @@ export const INITIAL_OVERLAY_STATE: Omit<OverlayState, 'routerType'> = {
   errors: [],
   notFound: false,
   staticIndicator: false,
-  // To prevent flickering, set the initial state to disabled.
-  disableDevIndicator: true,
+  /* 
+    This is set to `true` when we can reliably know
+    whether the indicator is in disabled state or not.  
+    Otherwise the surface would flicker because the disabled flag loads from the config.
+  */
+  showIndicator: false,
+  disableDevIndicator: false,
   refreshState: { type: 'idle' },
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
   debugInfo: { devtoolsFrontendUrl: undefined },
@@ -209,6 +215,7 @@ export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
       case ACTION_DEV_INDICATOR: {
         return {
           ...state,
+          showIndicator: true,
           disableDevIndicator:
             shouldDisableDevIndicator || !!action.devIndicator.disabledUntil,
         }

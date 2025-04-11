@@ -55,10 +55,9 @@ describe('app-dir - owner-stack', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 1,
        "description": "Error: browser error",
        "environmentLabel": null,
-       "label": "Unhandled Runtime Error",
+       "label": "Runtime Error",
        "source": "app/browser/uncaught/page.js (5:11) @ useThrowError
      > 5 |     throw new Error('browser error')
          |           ^",
@@ -92,10 +91,9 @@ describe('app-dir - owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "count": 1,
        "description": "Error: browser error",
        "environmentLabel": null,
-       "label": "Unhandled Runtime Error",
+       "label": "Runtime Error",
        "source": "app/browser/caught/page.js (34:11) @ useThrowError
      > 34 |     throw new Error('browser error')
           |           ^",
@@ -141,10 +139,9 @@ describe('app-dir - owner-stack', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 1,
        "description": "Error: ssr error",
        "environmentLabel": null,
-       "label": "Unhandled Runtime Error",
+       "label": "Runtime Error",
        "source": "app/ssr/page.js (4:9) @ useThrowError
      > 4 |   throw new Error('ssr error')
          |         ^",
@@ -171,10 +168,9 @@ describe('app-dir - owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "count": 1,
-       "description": "string in rejected promise",
+       "description": "Error: string in rejected promise",
        "environmentLabel": null,
-       "label": "Console Error",
+       "label": "Runtime Error",
        "source": null,
        "stack": [],
      }

@@ -2,6 +2,7 @@ import path from 'path'
 import { check } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
+import { Page } from 'playwright'
 
 // TODO: We should decide on an established pattern for gating test assertions
 // on experimental flags. For example, as a first step we could all the common
@@ -161,27 +162,28 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should reuse the inline flight response without sending extra requests', async () => {
-    let hasFlightRequest = false
+    const flightRequests: string[] = []
     let requestsCount = 0
-    await next.browser('/root', {
-      beforePageLoad(page) {
+    const browser = await next.browser('/root', {
+      beforePageLoad(page: Page) {
         page.on('request', (request) => {
           requestsCount++
-          return request.allHeaders().then((headers) => {
-            if (
-              headers['RSC'.toLowerCase()] === '1' &&
-              // Prefetches also include `RSC`
-              headers['Next-Router-Prefetch'.toLowerCase()] !== '1'
-            ) {
-              hasFlightRequest = true
-            }
-          })
+          const headers = request.headers()
+          if (
+            headers['RSC'.toLowerCase()] === '1' &&
+            // Prefetches also include `RSC`
+            headers['Next-Router-Prefetch'.toLowerCase()] !== '1'
+          ) {
+            flightRequests.push(request.url())
+          }
         })
       },
     })
 
+    await browser.waitForIdleNetwork()
+
     expect(requestsCount).toBeGreaterThan(0)
-    expect(hasFlightRequest).toBe(false)
+    expect(flightRequests).toEqual([])
   })
 
   it('should support multi-level server component imports', async () => {
@@ -619,84 +621,4 @@ describe('app dir - rsc basics', () => {
       await Promise.all(promises)
     })
   }
-
-  describe('react@experimental', () => {
-    it.each([{ flag: 'ppr' }, { flag: 'taint' }])(
-      'should opt into the react@experimental when enabling $flag',
-      async ({ flag }) => {
-        await next.stop()
-        await next.patchFile(
-          'next.config.js',
-          `
-          module.exports = {
-            experimental: {
-              ${flag}: true
-            }
-          }
-          `,
-          async () => {
-            await next.start()
-            const resPages$ = await next.render$('/app-react')
-            const [
-              ssrReact,
-              ssrReactDOM,
-              ssrClientReact,
-              ssrClientReactDOM,
-              ssrClientReactDOMServer,
-            ] = [
-              resPages$('#react').text(),
-              resPages$('#react-dom').text(),
-              resPages$('#client-react').text(),
-              resPages$('#client-react-dom').text(),
-              resPages$('#client-react-dom-server').text(),
-            ]
-            expect({
-              ssrReact,
-              ssrReactDOM,
-              ssrClientReact,
-              ssrClientReactDOM,
-              ssrClientReactDOMServer,
-            }).toEqual({
-              ssrReact: expect.stringMatching('-experimental-'),
-              ssrReactDOM: expect.stringMatching('-experimental-'),
-              ssrClientReact: expect.stringMatching('-experimental-'),
-              ssrClientReactDOM: expect.stringMatching('-experimental-'),
-              ssrClientReactDOMServer: expect.stringMatching('-experimental-'),
-            })
-
-            const browser = await next.browser('/app-react')
-            const [
-              browserReact,
-              browserReactDOM,
-              browserClientReact,
-              browserClientReactDOM,
-              browserClientReactDOMServer,
-            ] = await browser.eval(`
-              [
-                document.querySelector('#react').innerText,
-                document.querySelector('#react-dom').innerText,
-                document.querySelector('#client-react').innerText,
-                document.querySelector('#client-react-dom').innerText,
-                document.querySelector('#client-react-dom-server').innerText,
-              ]
-            `)
-            expect({
-              browserReact,
-              browserReactDOM,
-              browserClientReact,
-              browserClientReactDOM,
-              browserClientReactDOMServer,
-            }).toEqual({
-              browserReact: expect.stringMatching('-experimental-'),
-              browserReactDOM: expect.stringMatching('-experimental-'),
-              browserClientReact: expect.stringMatching('-experimental-'),
-              browserClientReactDOM: expect.stringMatching('-experimental-'),
-              browserClientReactDOMServer:
-                expect.stringMatching('-experimental-'),
-            })
-          }
-        )
-      }
-    )
-  })
 })

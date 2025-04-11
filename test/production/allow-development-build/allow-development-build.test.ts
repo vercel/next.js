@@ -37,9 +37,14 @@ describe('allow-development-build', () => {
             expect.arrayContaining([
               {
                 message: expect.toBeOneOf([
-                  expect.stringContaining(
-                    "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client."
-                  ),
+                  expect.toBeOneOf([
+                    expect.stringContaining(
+                      "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client."
+                    ),
+                    expect.stringContaining(
+                      "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client."
+                    ),
+                  ]),
                   expect.stringContaining(
                     'There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.'
                   ),

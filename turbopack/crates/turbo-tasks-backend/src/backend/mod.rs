@@ -455,11 +455,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     Some(Ok(Err(listen_to_done_event(this, reader, done_event))))
                 }
                 Some(InProgressState::InProgress(box InProgressStateInner {
-                    marked_as_completed,
+                    done,
                     done_event,
                     ..
                 })) => {
-                    if !*marked_as_completed {
+                    if !*done {
                         Some(Ok(Err(listen_to_done_event(this, reader, done_event))))
                     } else {
                         None
@@ -606,6 +606,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // Output doesn't exist. We need to schedule the task to compute it.
         let (item, listener) =
             CachedDataItem::new_scheduled_with_listener(self.get_task_desc_fn(task_id), note);
+        // It's not possible that the task is InProgress at this point. If it is InProgress {
+        // done: true } it must have Output and would early return.
         task.add_new(item);
         turbo_tasks.schedule(task_id);
 
@@ -1135,6 +1137,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     done_event,
                     session_dependent: false,
                     marked_as_completed: false,
+                    done: false,
                     new_children: Default::default(),
                 })),
             });
@@ -1277,7 +1280,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
         let &mut InProgressState::InProgress(box InProgressStateInner {
             stale,
-            ref mut marked_as_completed,
+            ref mut done,
             ref done_event,
             ref mut new_children,
             ..
@@ -1318,10 +1321,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         // mark the task as completed, so dependent tasks can continue working
-        if !*marked_as_completed {
-            *marked_as_completed = true;
-            done_event.notify(usize::MAX);
-        }
+        *done = true;
+        done_event.notify(usize::MAX);
 
         // take the children from the task to process them
         let mut new_children = take(new_children);
@@ -1332,10 +1333,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         // handle cell counters: update max index and remove cells that are no longer used
-        let mut old_counters: FxHashMap<_, _> =
+        let old_counters: FxHashMap<_, _> =
             get_many!(task, CellTypeMaxIndex { cell_type } max_index => (cell_type, *max_index));
+        let mut counters_to_remove = old_counters.clone();
         for (&cell_type, &max_index) in cell_counters.iter() {
-            if let Some(old_max_index) = old_counters.remove(&cell_type) {
+            if let Some(old_max_index) = counters_to_remove.remove(&cell_type) {
                 if old_max_index != max_index {
                     task.insert(CachedDataItem::CellTypeMaxIndex {
                         cell_type,
@@ -1349,7 +1351,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 });
             }
         }
-        for (cell_type, _) in old_counters {
+        for (cell_type, _) in counters_to_remove {
             task.remove(&CachedDataItemKey::CellTypeMaxIndex { cell_type });
         }
 
@@ -1404,14 +1406,17 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             .get(&cell.type_id)
                             .is_none_or(|start_index| cell.index >= *start_index)
                         {
-                            Some(OutdatedEdge::RemovedCellDependent {
-                                task_id: task,
-                                #[cfg(feature = "trace_task_dirty")]
-                                value_type_id: cell.type_id,
-                            })
-                        } else {
-                            None
+                            if let Some(old_counter) = old_counters.get(&cell.type_id) {
+                                if cell.index < *old_counter {
+                                    return Some(OutdatedEdge::RemovedCellDependent {
+                                        task_id: task,
+                                        #[cfg(feature = "trace_task_dirty")]
+                                        value_type_id: cell.type_id,
+                                    });
+                                }
+                            }
                         }
+                        None
                     },
                 ),
             );
@@ -1498,6 +1503,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             once_task: _,
             stale,
             session_dependent,
+            done: _,
             marked_as_completed: _,
             new_children,
         }) = in_progress
@@ -1882,12 +1888,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut task = ctx.task(task, TaskDataCategory::Data);
         if let Some(InProgressState::InProgress(box InProgressStateInner {
             marked_as_completed,
-            done_event,
             ..
         })) = get_mut!(task, InProgress)
         {
             *marked_as_completed = true;
-            done_event.notify(usize::MAX);
             // TODO this should remove the dirty state (also check session_dependent)
             // but this would break some assumptions for strongly consistent reads.
             // Client tasks are not connected yet, so we wouldn't wait for them.

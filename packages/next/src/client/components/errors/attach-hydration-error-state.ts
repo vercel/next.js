@@ -1,11 +1,12 @@
 import {
   getDefaultHydrationErrorMessage,
+  getHydrationErrorStackInfo,
   isHydrationError,
   testReactHydrationWarning,
 } from '../is-hydration-error'
 import {
   hydrationErrorState,
-  getReactHydrationDiffSegments,
+  type HydrationErrorState,
 } from './hydration-error-info'
 
 export function attachHydrationErrorState(error: Error) {
@@ -18,16 +19,10 @@ export function attachHydrationErrorState(error: Error) {
     return
   }
 
-  const reactHydrationDiffSegments = getReactHydrationDiffSegments(
-    error.message
-  )
-  // If the reactHydrationDiffSegments exists
-  // and the diff (reactHydrationDiffSegments[1]) exists
-  // e.g. the hydration diff log error.
-  if (reactHydrationDiffSegments) {
-    const diff = reactHydrationDiffSegments[1]
+  const { message, diff } = getHydrationErrorStackInfo(error.message)
+  if (message) {
     parsedHydrationErrorState = {
-      ...(error as any).details,
+      ...((error as any).details as HydrationErrorState),
       ...hydrationErrorState,
       // If diff is present in error, we don't need to pick up the console logged warning.
       // - if hydration error has diff, and is not hydration diff log, then it's a normal hydration error.
@@ -35,10 +30,14 @@ export function attachHydrationErrorState(error: Error) {
 
       warning: (diff && !isHydrationWarning
         ? null
-        : hydrationErrorState.warning) || [getDefaultHydrationErrorMessage()],
+        : hydrationErrorState.warning) || [
+        getDefaultHydrationErrorMessage(),
+        '',
+        '',
+      ],
       // When it's hydration diff log, do not show notes section.
       // This condition is only for the 1st squashed error.
-      notes: isHydrationWarning ? '' : reactHydrationDiffSegments[0],
+      notes: isHydrationWarning ? '' : message,
       reactOutputComponentDiff: diff,
     }
     // Cache the `reactOutputComponentDiff` into hydrationErrorState.

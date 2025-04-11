@@ -4323,6 +4323,10 @@
       onPostpone,
       formState
     ) {
+      var now = getCurrentTime();
+      1e3 < now - lastResetTime &&
+        ((ReactSharedInternals.recentlyCreatedOwnerStacks = 0),
+        (lastResetTime = now));
       resumableState = new RequestInstance(
         resumableState,
         renderState,
@@ -5310,18 +5314,46 @@
             task.keyPath = prevKeyPath$jscomp$1;
             return;
           case REACT_ACTIVITY_TYPE:
-            if ("hidden" !== props.mode) {
-              var prevKeyPath$jscomp$2 = task.keyPath;
-              task.keyPath = keyPath;
-              renderNodeDestructive(request, task, props.children, -1);
-              task.keyPath = prevKeyPath$jscomp$2;
+            var segment$jscomp$0 = task.blockedSegment;
+            if (null === segment$jscomp$0) {
+              if ("hidden" !== props.mode) {
+                var prevKeyPath$jscomp$2 = task.keyPath;
+                task.keyPath = keyPath;
+                renderNode(request, task, props.children, -1);
+                task.keyPath = prevKeyPath$jscomp$2;
+              }
+            } else {
+              request.renderState.generateStaticMarkup ||
+                segment$jscomp$0.chunks.push("\x3c!--&--\x3e");
+              segment$jscomp$0.lastPushedText = !1;
+              if ("hidden" !== props.mode) {
+                var _prevKeyPath3 = task.keyPath;
+                task.keyPath = keyPath;
+                renderNode(request, task, props.children, -1);
+                task.keyPath = _prevKeyPath3;
+              }
+              if (!request.renderState.generateStaticMarkup) {
+                var target$jscomp$0 = segment$jscomp$0.chunks,
+                  preambleState = task.blockedPreamble;
+                if (preambleState) {
+                  var contribution = preambleState.contribution;
+                  contribution !== NoContribution &&
+                    target$jscomp$0.push(
+                      boundaryPreambleContributionChunkStart,
+                      "" + contribution,
+                      boundaryPreambleContributionChunkEnd
+                    );
+                }
+                target$jscomp$0.push("\x3c!--/&--\x3e");
+              }
+              segment$jscomp$0.lastPushedText = !1;
             }
             return;
           case REACT_SUSPENSE_LIST_TYPE:
-            var _prevKeyPath3 = task.keyPath;
+            var _prevKeyPath4 = task.keyPath;
             task.keyPath = keyPath;
             renderNodeDestructive(request, task, props.children, -1);
-            task.keyPath = _prevKeyPath3;
+            task.keyPath = _prevKeyPath4;
             return;
           case REACT_VIEW_TRANSITION_TYPE:
           case REACT_SCOPE_TYPE:
@@ -8982,7 +9014,22 @@
       },
       callLazyInitInDEV =
         callLazyInit["react-stack-bottom-frame"].bind(callLazyInit),
-      CLIENT_RENDERED = 4,
+      lastResetTime = 0;
+    if (
+      "object" === typeof performance &&
+      "function" === typeof performance.now
+    ) {
+      var localPerformance = performance;
+      var getCurrentTime = function () {
+        return localPerformance.now();
+      };
+    } else {
+      var localDate = Date;
+      getCurrentTime = function () {
+        return localDate.now();
+      };
+    }
+    var CLIENT_RENDERED = 4,
       PENDING = 0,
       COMPLETED = 1,
       FLUSHED = 2,
@@ -9012,5 +9059,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.1.0-canary-db7dfe05-20250319";
+    exports.version = "19.2.0-canary-c44e4a25-20250409";
   })();

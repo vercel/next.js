@@ -6,7 +6,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { UrlObject } from 'url'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 
-import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
+import { type webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import {
   getOverlayMiddleware,
   getSourceMapMiddleware,
@@ -86,6 +86,7 @@ import { getNodeDebugType } from '../lib/utils'
 import { getNextErrorFeedbackMiddleware } from '../../client/components/react-dev-overlay/server/get-next-error-feedback-middleware'
 import { getDevOverlayFontMiddleware } from '../../client/components/react-dev-overlay/font/get-dev-overlay-font-middleware'
 import { getDisableDevIndicatorMiddleware } from './dev-indicator-middleware'
+import getWebpackBundler from '../../shared/lib/get-webpack-bundler'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
@@ -735,7 +736,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       ).client,
       ...info,
     })
-    const fallbackCompiler = webpack(fallbackConfig)
+
+    const fallbackCompiler = getWebpackBundler()(fallbackConfig)
 
     this.fallbackWatcher = await new Promise((resolve) => {
       let bootedFallbackCompiler = false
@@ -1136,7 +1138,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     // @ts-ignore webpack 5
     this.activeWebpackConfigs.parallelism = 1
 
-    this.multiCompiler = webpack(
+    this.multiCompiler = getWebpackBundler()(
       this.activeWebpackConfigs
     ) as unknown as webpack.MultiCompiler
 

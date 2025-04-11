@@ -5,7 +5,7 @@ import {
 } from '../_testing/utils'
 
 // TODO: revisit when we have a better side-effect free transform approach for server action
-;(process.env.TURBOPACK ? describe : describe.skip)(
+;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'actions-tree-shaking - shared-module-actions',
   () => {
     const { next } = nextTestSetup({

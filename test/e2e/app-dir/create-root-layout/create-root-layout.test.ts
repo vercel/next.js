@@ -3,7 +3,7 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'app-dir create root layout',
   () => {
     const isDev = (global as any).isNextDev

@@ -50,6 +50,7 @@ import { NEXT_PATCH_SYMBOL } from './patch-fetch'
 import type { ServerInitResult } from './render-server'
 import { filterInternalHeaders } from './server-ipc/utils'
 import { blockCrossSite } from './router-utils/block-cross-site'
+import { traceGlobals } from '../../trace/shared'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -122,6 +123,8 @@ export async function initialize(opts: {
     const telemetry = new Telemetry({
       distDir: path.join(opts.dir, config.distDir),
     })
+    traceGlobals.set('telemetry', telemetry)
+
     const { pagesDir, appDir } = findPagesDir(opts.dir)
 
     const { setupDevBundler } =
@@ -165,12 +168,6 @@ export async function initialize(opts: {
 
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
-
-  const randomBytes = new Uint8Array(8)
-  crypto.getRandomValues(randomBytes)
-  const middlewareSubrequestId = Buffer.from(randomBytes).toString('hex')
-  ;(globalThis as any)[Symbol.for('@next/middleware-subrequest-id')] =
-    middlewareSubrequestId
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
     // internal headers should not be honored by the request handler
