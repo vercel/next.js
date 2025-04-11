@@ -66,10 +66,22 @@ impl DiskWatcher {
         }
     }
 
+    /// Called after a rescan in case a previously watched-but-deleted directory was recreated.
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    pub(crate) fn restore_all_watching(&self, root_path: &Path) {
+        let mut watcher = self.watcher.lock().unwrap();
+        for dir_path in self.watching.iter() {
+            // TODO: Report diagnostics if this error happens
+            let _ = self.start_watching_dir(&mut watcher, &dir_path, root_path);
+        }
+    }
+
+    /// Called when a new file is found in a directory we're watching.
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     pub(crate) fn restore_if_watching(&self, dir_path: &Path, root_path: &Path) -> Result<()> {
         if self.watching.contains(dir_path) {
             let mut watcher = self.watcher.lock().unwrap();
+            // TODO: Also restore any watchers for children of this directory
             self.start_watching_dir(&mut watcher, dir_path, root_path)?;
         }
         Ok(())
@@ -87,6 +99,7 @@ impl DiskWatcher {
         Ok(())
     }
 
+    /// Private helper, assumes that the path has already been added to `self.watching`.
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     fn start_watching_dir(
         &self,
@@ -95,25 +108,47 @@ impl DiskWatcher {
         root_path: &Path,
     ) -> Result<()> {
         use anyhow::Context;
+        use notify::ErrorKind;
 
         if let Some(watcher) = watcher.as_mut() {
             let mut path = dir_path;
-            while let Err(err) = watcher.watch(path, RecursiveMode::NonRecursive) {
-                if path == root_path {
-                    return Err(err).context(format!(
-                        "Unable to watch {} (tried up to {})",
-                        dir_path.display(),
-                        path.display()
-                    ));
+            let err_with_context = |err| {
+                return Err(err).context(format!(
+                    "Unable to watch {} (tried up to {})",
+                    dir_path.display(),
+                    path.display()
+                ));
+            };
+            loop {
+                match watcher.watch(path, RecursiveMode::NonRecursive) {
+                    Ok(()) => break,
+                    Err(
+                        err @ notify::Error {
+                            kind: ErrorKind::PathNotFound,
+                            ..
+                        },
+                    ) => {
+                        // The path was probably deleted before we could process the event. That's
+                        // okay, just make sure we're watching the parent directory, so we can know
+                        // if it gets recreated.
+                        // TODO: We should probably also trigger an invalidation if this happens
+
+                        let Some(parent_path) = path.parent() else {
+                            // this should never happen as we break before we reach the root path
+                            return err_with_context(err);
+                        };
+                        if parent_path == root_path {
+                            // assume there's already a root watcher
+                            break;
+                        }
+                        if !self.watching.insert(parent_path.to_owned()) {
+                            // we're already watching the parent path!
+                            break;
+                        }
+                        path = parent_path;
+                    }
+                    Err(err) => return err_with_context(err),
                 }
-                let Some(parent_path) = path.parent() else {
-                    return Err(err).context(format!(
-                        "Unable to watch {} (tried up to {})",
-                        dir_path.display(),
-                        path.display()
-                    ));
-                };
-                path = parent_path;
             }
         }
         Ok(())
@@ -161,8 +196,8 @@ impl DiskWatcher {
             DiskWatcherInternal::Recommended(RecommendedWatcher::new(tx, Config::default())?)
         };
 
-        // Add a path to be watched. All files and directories at that path and
-        // below will be monitored for changes.
+        // Macos and Windows provide efficient recursive directory watchers. On other platforms, we
+        // only track the directories we need: https://github.com/vercel/turborepo/pull/4100
         #[cfg(any(target_os = "macos", target_os = "windows"))]
         {
             watcher.watch(inner.root_path(), RecursiveMode::Recursive)?;
@@ -252,11 +287,40 @@ impl DiskWatcher {
         let mut batched_new_paths = FxHashSet::default();
 
         'outer: loop {
-            let mut event = rx.recv().or(Err(TryRecvError::Disconnected));
+            let mut event_result = rx.recv().or(Err(TryRecvError::Disconnected));
+            // this inner loop batches events using `try_recv`
             loop {
-                match event {
-                    Ok(Ok(notify::Event { kind, paths, .. })) => {
-                        let paths: Vec<PathBuf> = paths
+                match event_result {
+                    Ok(Ok(event)) => {
+                        // TODO: We might benefit from some user-facing diagnostics if it rescans
+                        // occur frequently (i.e. more than X times in Y minutes)
+                        if event.need_rescan() {
+                            let _lock = inner.invalidation_lock.blocking_write();
+
+                            #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+                            {
+                                self.restore_all_watching(inner.root_path());
+                                batched_new_paths.clear();
+                            }
+
+                            if report_invalidation_reason {
+                                inner.invalidate_with_reason();
+                            } else {
+                                inner.invalidate();
+                            }
+
+                            // no need to process the rest of the batch as we just
+                            // invalidated everything
+                            batched_invalidate_path.clear();
+                            batched_invalidate_path_dir.clear();
+                            batched_invalidate_path_and_children.clear();
+                            batched_invalidate_path_and_children_dir.clear();
+
+                            break;
+                        }
+
+                        let paths: Vec<PathBuf> = event
+                            .paths
                             .iter()
                             .filter(|p| {
                                 !self
@@ -268,13 +332,15 @@ impl DiskWatcher {
                             .collect();
 
                         if paths.is_empty() {
-                            return;
+                            // this event isn't useful, but keep trying to process the batch
+                            event_result = rx.try_recv();
+                            continue;
                         }
 
                         // [NOTE] there is attrs in the `Event` struct, which contains few
                         // more metadata like process_id who triggered the event,
                         // or the source we may able to utilize later.
-                        match kind {
+                        match event.kind {
                             // [NOTE] Observing `ModifyKind::Metadata(MetadataKind::Any)` is
                             // not a mistake, fix for PACK-2437.
                             // In here explicitly subscribes to the `ModifyKind::Data` which
@@ -291,7 +357,7 @@ impl DiskWatcher {
                             EventKind::Modify(
                                 ModifyKind::Data(_) | ModifyKind::Metadata(MetadataKind::Any),
                             ) => {
-                                batched_invalidate_path.extend(paths.clone());
+                                batched_invalidate_path.extend(paths);
                             }
                             EventKind::Create(_) => {
                                 batched_invalidate_path_and_children.extend(paths.clone());
@@ -390,20 +456,23 @@ impl DiskWatcher {
                         let delay = Duration::from_millis(1);
                         match rx.recv_timeout(delay) {
                             Ok(result) => {
-                                event = Ok(result);
+                                event_result = Ok(result);
                                 continue;
                             }
                             Err(_) => break,
                         }
                     }
                 }
-                event = rx.try_recv();
+                event_result = rx.try_recv();
             }
 
-            // We need to start watching first before invalidating the changed paths
+            // We need to start watching first before invalidating the changed paths...
+            // This is only needed on platforms we don't do recursive watching on:
+            // https://github.com/vercel/turborepo/pull/4100
             #[cfg(not(any(target_os = "macos", target_os = "windows")))]
             {
                 for path in batched_new_paths.drain() {
+                    // TODO: Report diagnostics if this error happens
                     let _ = self.restore_if_watching(&path, inner.root_path());
                 }
             }
