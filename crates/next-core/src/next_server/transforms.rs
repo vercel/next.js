@@ -3,7 +3,7 @@ use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
-use turbopack_core::reference_type::{ReferenceType, UrlReferenceSubType};
+use turbopack_core::reference_type::{CssReferenceSubType, ReferenceType, UrlReferenceSubType};
 
 use crate::{
     mode::NextMode,
@@ -54,7 +54,10 @@ pub async fn get_next_server_transforms_rules(
             // Ignore the internal ModuleCssAsset -> CssModuleAsset references
             // The CSS Module module itself is still needed for class names
             ModuleRule::new_internal(
-                RuleCondition::ResourcePathEndsWith(".module.css".into()),
+                RuleCondition::all(vec![
+                    RuleCondition::ResourcePathEndsWith(".module.css".into()),
+                    RuleCondition::ReferenceType(ReferenceType::Css(CssReferenceSubType::Internal)),
+                ]),
                 vec![ModuleRuleEffect::Ignore],
             ),
         ]);
