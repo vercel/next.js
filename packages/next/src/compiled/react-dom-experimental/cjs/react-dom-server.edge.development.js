@@ -323,6 +323,22 @@
         ? destination.error(error)
         : destination.close();
     }
+    function readAsDataURL(blob) {
+      return blob.arrayBuffer().then(function (arrayBuffer) {
+        arrayBuffer =
+          "function" === typeof Buffer && "function" === typeof Buffer.from
+            ? Buffer.from(arrayBuffer).toString("base64")
+            : btoa(
+                String.fromCharCode.apply(String, new Uint8Array(arrayBuffer))
+              );
+        return (
+          "data:" +
+          (blob.type || "application/octet-stream") +
+          ";base64," +
+          arrayBuffer
+        );
+      });
+    }
     function typeName(value) {
       return (
         ("function" === typeof Symbol &&
@@ -1378,6 +1394,34 @@
       null != formTarget && pushAttribute(target, "formTarget", formTarget);
       return formData;
     }
+    function pushSrcObjectAttribute(target, blob) {
+      null === blobCache && (blobCache = new WeakMap());
+      var suspenseCache = blobCache,
+        thenable = suspenseCache.get(blob);
+      void 0 === thenable &&
+        ((thenable = readAsDataURL(blob)),
+        thenable.then(
+          function (result) {
+            thenable.status = "fulfilled";
+            thenable.value = result;
+          },
+          function (error) {
+            thenable.status = "rejected";
+            thenable.reason = error;
+          }
+        ),
+        suspenseCache.set(blob, thenable));
+      if ("rejected" === thenable.status) throw thenable.reason;
+      if ("fulfilled" !== thenable.status) throw thenable;
+      blob = thenable.value;
+      target.push(
+        attributeSeparator,
+        stringToChunk("src"),
+        attributeAssign,
+        stringToChunk(escapeTextForBrowser(blob)),
+        attributeEnd
+      );
+    }
     function pushAttribute(target, name, value) {
       switch (name) {
         case "className":
@@ -1397,6 +1441,15 @@
           pushStyleAttribute(target, value);
           break;
         case "src":
+          if (
+            "object" === typeof value &&
+            null !== value &&
+            "function" === typeof Blob &&
+            value instanceof Blob
+          ) {
+            pushSrcObjectAttribute(target, value);
+            break;
+          }
         case "href":
           if ("" === value) {
             "src" === name
@@ -5804,18 +5857,43 @@
             task.keyPath = prevKeyPath$jscomp$1;
             return;
           case REACT_ACTIVITY_TYPE:
-            if ("hidden" !== props.mode) {
-              var prevKeyPath$jscomp$2 = task.keyPath;
-              task.keyPath = keyPath;
-              renderNodeDestructive(request, task, props.children, -1);
-              task.keyPath = prevKeyPath$jscomp$2;
+            var segment$jscomp$0 = task.blockedSegment;
+            if (null === segment$jscomp$0) {
+              if ("hidden" !== props.mode) {
+                var prevKeyPath$jscomp$2 = task.keyPath;
+                task.keyPath = keyPath;
+                renderNode(request, task, props.children, -1);
+                task.keyPath = prevKeyPath$jscomp$2;
+              }
+            } else {
+              segment$jscomp$0.chunks.push(startActivityBoundary);
+              segment$jscomp$0.lastPushedText = !1;
+              if ("hidden" !== props.mode) {
+                var _prevKeyPath3 = task.keyPath;
+                task.keyPath = keyPath;
+                renderNode(request, task, props.children, -1);
+                task.keyPath = _prevKeyPath3;
+              }
+              var target$jscomp$0 = segment$jscomp$0.chunks,
+                preambleState = task.blockedPreamble;
+              if (preambleState) {
+                var contribution = preambleState.contribution;
+                contribution !== NoContribution &&
+                  target$jscomp$0.push(
+                    boundaryPreambleContributionChunkStart,
+                    stringToChunk("" + contribution),
+                    boundaryPreambleContributionChunkEnd
+                  );
+              }
+              target$jscomp$0.push(endActivityBoundary);
+              segment$jscomp$0.lastPushedText = !1;
             }
             return;
           case REACT_SUSPENSE_LIST_TYPE:
-            var _prevKeyPath3 = task.keyPath;
+            var _prevKeyPath4 = task.keyPath;
             task.keyPath = keyPath;
             renderNodeDestructive(request, task, props.children, -1);
-            task.keyPath = _prevKeyPath3;
+            task.keyPath = _prevKeyPath4;
             return;
           case REACT_VIEW_TRANSITION_TYPE:
             var prevKeyPath$jscomp$3 = task.keyPath;
@@ -8540,11 +8618,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-experimental-33661467-20250407" !== isomorphicReactPackageVersion)
+      if ("19.2.0-experimental-c44e4a25-20250409" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-experimental-33661467-20250407\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-experimental-c44e4a25-20250409\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -9674,6 +9752,7 @@
         )
       ),
       startHiddenInputChunk = stringToPrecomputedChunk('<input type="hidden"'),
+      blobCache = null,
       endOfStartTag = stringToPrecomputedChunk(">"),
       endOfStartTagSelfClosing = stringToPrecomputedChunk("/>"),
       didWarnDefaultInputValue = !1,
@@ -9701,6 +9780,8 @@
       endTagCache = new Map(),
       placeholder1 = stringToPrecomputedChunk('<template id="'),
       placeholder2 = stringToPrecomputedChunk('"></template>'),
+      startActivityBoundary = stringToPrecomputedChunk("\x3c!--&--\x3e"),
+      endActivityBoundary = stringToPrecomputedChunk("\x3c!--/&--\x3e"),
       startCompletedSuspenseBoundary =
         stringToPrecomputedChunk("\x3c!--$--\x3e"),
       startPendingSuspenseBoundary1 = stringToPrecomputedChunk(
@@ -10349,5 +10430,5 @@ const setTimeoutOrImmediate =
     ? globalThis['set' + 'Immediate']
     : setTimeout;
 
-    exports.version = "19.2.0-experimental-33661467-20250407";
+    exports.version = "19.2.0-experimental-c44e4a25-20250409";
   })();

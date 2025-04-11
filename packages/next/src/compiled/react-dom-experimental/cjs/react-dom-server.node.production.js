@@ -125,6 +125,17 @@ var textEncoder = new util.TextEncoder();
 function stringToPrecomputedChunk(content) {
   return textEncoder.encode(content);
 }
+function readAsDataURL(blob) {
+  return blob.arrayBuffer().then(function (arrayBuffer) {
+    arrayBuffer = Buffer.from(arrayBuffer).toString("base64");
+    return (
+      "data:" +
+      (blob.type || "application/octet-stream") +
+      ";base64," +
+      arrayBuffer
+    );
+  });
+}
 var assign = Object.assign,
   hasOwnProperty = Object.prototype.hasOwnProperty,
   VALID_ATTRIBUTE_NAME_REGEX = RegExp(
@@ -768,6 +779,34 @@ function pushFormActionAttribute(
   null != formTarget && pushAttribute(target, "formTarget", formTarget);
   return formData;
 }
+var blobCache = null;
+function pushSrcObjectAttribute(target, blob) {
+  null === blobCache && (blobCache = new WeakMap());
+  var suspenseCache = blobCache,
+    thenable = suspenseCache.get(blob);
+  void 0 === thenable &&
+    ((thenable = readAsDataURL(blob)),
+    thenable.then(
+      function (result) {
+        thenable.status = "fulfilled";
+        thenable.value = result;
+      },
+      function (error) {
+        thenable.status = "rejected";
+        thenable.reason = error;
+      }
+    ),
+    suspenseCache.set(blob, thenable));
+  if ("rejected" === thenable.status) throw thenable.reason;
+  if ("fulfilled" !== thenable.status) throw thenable;
+  target.push(
+    attributeSeparator,
+    "src",
+    attributeAssign,
+    escapeTextForBrowser(thenable.value),
+    attributeEnd
+  );
+}
 function pushAttribute(target, name, value) {
   switch (name) {
     case "className":
@@ -787,6 +826,15 @@ function pushAttribute(target, name, value) {
       pushStyleAttribute(target, value);
       break;
     case "src":
+      if (
+        "object" === typeof value &&
+        null !== value &&
+        "function" === typeof Blob &&
+        value instanceof Blob
+      ) {
+        pushSrcObjectAttribute(target, value);
+        break;
+      }
     case "href":
       if ("" === value) break;
     case "action":
@@ -2234,6 +2282,8 @@ function writeBootstrap(destination, renderState) {
 }
 var placeholder1 = stringToPrecomputedChunk('<template id="'),
   placeholder2 = stringToPrecomputedChunk('"></template>'),
+  startActivityBoundary = stringToPrecomputedChunk("\x3c!--&--\x3e"),
+  endActivityBoundary = stringToPrecomputedChunk("\x3c!--/&--\x3e"),
   startCompletedSuspenseBoundary = stringToPrecomputedChunk("\x3c!--$--\x3e"),
   startPendingSuspenseBoundary1 = stringToPrecomputedChunk(
     '\x3c!--$?--\x3e<template id="'
@@ -4713,11 +4763,33 @@ function renderElement(request, task, keyPath, type, props, ref) {
         task.keyPath = type;
         return;
       case REACT_ACTIVITY_TYPE:
-        "hidden" !== props.mode &&
-          ((type = task.keyPath),
-          (task.keyPath = keyPath),
-          renderNodeDestructive(request, task, props.children, -1),
-          (task.keyPath = type));
+        type = task.blockedSegment;
+        if (null === type)
+          "hidden" !== props.mode &&
+            ((type = task.keyPath),
+            (task.keyPath = keyPath),
+            renderNode(request, task, props.children, -1),
+            (task.keyPath = type));
+        else {
+          type.chunks.push(startActivityBoundary);
+          type.lastPushedText = !1;
+          "hidden" !== props.mode &&
+            ((newProps = task.keyPath),
+            (task.keyPath = keyPath),
+            renderNode(request, task, props.children, -1),
+            (task.keyPath = newProps));
+          request = type.chunks;
+          if ((task = task.blockedPreamble))
+            (task = task.contribution),
+              0 !== task &&
+                request.push(
+                  boundaryPreambleContributionChunkStart,
+                  "" + task,
+                  boundaryPreambleContributionChunkEnd
+                );
+          request.push(endActivityBoundary);
+          type.lastPushedText = !1;
+        }
         return;
       case REACT_SUSPENSE_LIST_TYPE:
         type = task.keyPath;
@@ -5417,9 +5489,9 @@ function trackPostpone(request, trackedPostpones, task, segment) {
         addToReplayParent(segment, boundaryKeyPath[0], trackedPostpones);
         return;
       }
-      var boundaryNode$44 = trackedPostpones.workingMap.get(boundaryKeyPath);
-      void 0 === boundaryNode$44
-        ? ((boundaryNode$44 = [
+      var boundaryNode$46 = trackedPostpones.workingMap.get(boundaryKeyPath);
+      void 0 === boundaryNode$46
+        ? ((boundaryNode$46 = [
             boundaryKeyPath[1],
             boundaryKeyPath[2],
             children,
@@ -5427,13 +5499,13 @@ function trackPostpone(request, trackedPostpones, task, segment) {
             fallbackReplayNode,
             boundary.rootSegmentID
           ]),
-          trackedPostpones.workingMap.set(boundaryKeyPath, boundaryNode$44),
+          trackedPostpones.workingMap.set(boundaryKeyPath, boundaryNode$46),
           addToReplayParent(
-            boundaryNode$44,
+            boundaryNode$46,
             boundaryKeyPath[0],
             trackedPostpones
           ))
-        : ((boundaryKeyPath = boundaryNode$44),
+        : ((boundaryKeyPath = boundaryNode$46),
           (boundaryKeyPath[4] = fallbackReplayNode),
           (boundaryKeyPath[5] = boundary.rootSegmentID));
     }
@@ -5587,15 +5659,15 @@ function renderNode(request, task, node, childIndex) {
       chunkLength = segment.chunks.length;
     try {
       return renderNodeDestructive(request, task, node, childIndex);
-    } catch (thrownValue$56) {
+    } catch (thrownValue$58) {
       if (
         (resetHooksState(),
         (segment.children.length = childrenLength),
         (segment.chunks.length = chunkLength),
         (childIndex =
-          thrownValue$56 === SuspenseException
+          thrownValue$58 === SuspenseException
             ? getSuspendedThenable()
-            : thrownValue$56),
+            : thrownValue$58),
         "object" === typeof childIndex && null !== childIndex)
       ) {
         if ("function" === typeof childIndex.then) {
@@ -5796,16 +5868,16 @@ function abortTask(task, request, error) {
     }
   } else {
     boundary.pendingTasks--;
-    var trackedPostpones$59 = request.trackedPostpones;
+    var trackedPostpones$61 = request.trackedPostpones;
     if (4 !== boundary.status) {
-      if (null !== trackedPostpones$59 && null !== segment)
+      if (null !== trackedPostpones$61 && null !== segment)
         return (
           "object" === typeof error &&
           null !== error &&
           error.$$typeof === REACT_POSTPONE_TYPE
             ? logPostpone(request, error.message, errorInfo)
             : logRecoverableError(request, error, errorInfo),
-          trackPostpone(request, trackedPostpones$59, task, segment),
+          trackPostpone(request, trackedPostpones$61, task, segment),
           boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
             return abortTask(fallbackTask, request, error);
           }),
@@ -6114,13 +6186,13 @@ function performWork(request$jscomp$1) {
                       null !== request.trackedPostpones &&
                       x$jscomp$0.$$typeof === REACT_POSTPONE_TYPE
                     ) {
-                      var trackedPostpones$63 = request.trackedPostpones;
+                      var trackedPostpones$65 = request.trackedPostpones;
                       task.abortSet.delete(task);
                       var postponeInfo = getThrownInfo(task.componentStack);
                       logPostpone(request, x$jscomp$0.message, postponeInfo);
                       trackPostpone(
                         request,
-                        trackedPostpones$63,
+                        trackedPostpones$65,
                         task,
                         segment$jscomp$0
                       );
@@ -6690,11 +6762,11 @@ function flushCompletedQueues(request, destination) {
       destinationHasCapacity$1 = !0;
       var partialBoundaries = request.partialBoundaries;
       for (i = 0; i < partialBoundaries.length; i++) {
-        var boundary$66 = partialBoundaries[i];
+        var boundary$68 = partialBoundaries[i];
         a: {
           clientRenderedBoundaries = request;
           boundary = destination;
-          var completedSegments = boundary$66.completedSegments;
+          var completedSegments = boundary$68.completedSegments;
           for (
             JSCompiler_inline_result = 0;
             JSCompiler_inline_result < completedSegments.length;
@@ -6704,7 +6776,7 @@ function flushCompletedQueues(request, destination) {
               !flushPartiallyCompletedSegment(
                 clientRenderedBoundaries,
                 boundary,
-                boundary$66,
+                boundary$68,
                 completedSegments[JSCompiler_inline_result]
               )
             ) {
@@ -6716,7 +6788,7 @@ function flushCompletedQueues(request, destination) {
           completedSegments.splice(0, JSCompiler_inline_result);
           JSCompiler_inline_result$jscomp$0 = writeHoistablesForBoundary(
             boundary,
-            boundary$66.contentState,
+            boundary$68.contentState,
             clientRenderedBoundaries.renderState
           );
         }
@@ -6819,8 +6891,8 @@ function abort(request, reason) {
     }
     null !== request.destination &&
       flushCompletedQueues(request, request.destination);
-  } catch (error$68) {
-    logRecoverableError(request, error$68, {}), fatalError(request, error$68);
+  } catch (error$70) {
+    logRecoverableError(request, error$70, {}), fatalError(request, error$70);
   }
 }
 function addToReplayParent(node, parentKeyPath, trackedPostpones) {
@@ -6880,11 +6952,11 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-experimental-33661467-20250407" !== isomorphicReactPackageVersion)
+  if ("19.2.0-experimental-c44e4a25-20250409" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.2.0-experimental-33661467-20250407\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.2.0-experimental-c44e4a25-20250409\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -7135,4 +7207,4 @@ exports.resumeToPipeableStream = function (children, postponedState, options) {
     }
   };
 };
-exports.version = "19.2.0-experimental-33661467-20250407";
+exports.version = "19.2.0-experimental-c44e4a25-20250409";

@@ -1687,7 +1687,7 @@ export async function copyTracedFiles(
   const serverOutputPath = path.join(
     outputPath,
     path.relative(tracingRoot, dir),
-    moduleType ? 'server.mjs' : 'server.js'
+    'server.js'
   )
   await fs.mkdir(path.dirname(serverOutputPath), { recursive: true })
 

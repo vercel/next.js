@@ -4113,11 +4113,28 @@ function renderElement(request, task, keyPath, type, props, ref) {
         task.keyPath = type;
         return;
       case REACT_ACTIVITY_TYPE:
-        "hidden" !== props.mode &&
-          ((type = task.keyPath),
-          (task.keyPath = keyPath),
-          renderNodeDestructive(request, task, props.children, -1),
-          (task.keyPath = type));
+        type = task.blockedSegment;
+        if (null === type)
+          "hidden" !== props.mode &&
+            ((type = task.keyPath),
+            (task.keyPath = keyPath),
+            renderNode(request, task, props.children, -1),
+            (task.keyPath = type));
+        else {
+          type.chunks.push("\x3c!--&--\x3e");
+          type.lastPushedText = !1;
+          "hidden" !== props.mode &&
+            ((newProps = task.keyPath),
+            (task.keyPath = keyPath),
+            renderNode(request, task, props.children, -1),
+            (task.keyPath = newProps));
+          request = type.chunks;
+          if ((task = task.blockedPreamble))
+            (task = task.contribution),
+              0 !== task && request.push("\x3c!--", "" + task, "--\x3e");
+          request.push("\x3c!--/&--\x3e");
+          type.lastPushedText = !1;
+        }
         return;
       case REACT_SUSPENSE_LIST_TYPE:
         type = task.keyPath;
@@ -4847,15 +4864,15 @@ function renderNode(request, task, node, childIndex) {
       chunkLength = segment.chunks.length;
     try {
       return renderNodeDestructive(request, task, node, childIndex);
-    } catch (thrownValue$48) {
+    } catch (thrownValue$50) {
       if (
         (resetHooksState(),
         (segment.children.length = childrenLength),
         (segment.chunks.length = chunkLength),
         (node =
-          thrownValue$48 === SuspenseException
+          thrownValue$50 === SuspenseException
             ? getSuspendedThenable()
-            : thrownValue$48),
+            : thrownValue$50),
         "object" === typeof node && null !== node)
       ) {
         if ("function" === typeof node.then) {
@@ -5753,11 +5770,11 @@ function flushCompletedQueues(request, destination) {
       completedBoundaries.splice(0, i);
       var partialBoundaries = request.partialBoundaries;
       for (i = 0; i < partialBoundaries.length; i++) {
-        var boundary$51 = partialBoundaries[i];
+        var boundary$53 = partialBoundaries[i];
         a: {
           clientRenderedBoundaries = request;
           boundary = destination;
-          var completedSegments = boundary$51.completedSegments;
+          var completedSegments = boundary$53.completedSegments;
           for (
             JSCompiler_inline_result = 0;
             JSCompiler_inline_result < completedSegments.length;
@@ -5767,7 +5784,7 @@ function flushCompletedQueues(request, destination) {
               !flushPartiallyCompletedSegment(
                 clientRenderedBoundaries,
                 boundary,
-                boundary$51,
+                boundary$53,
                 completedSegments[JSCompiler_inline_result]
               )
             ) {
@@ -5779,7 +5796,7 @@ function flushCompletedQueues(request, destination) {
           completedSegments.splice(0, JSCompiler_inline_result);
           JSCompiler_inline_result$jscomp$0 = writeHoistablesForBoundary(
             boundary,
-            boundary$51.contentState,
+            boundary$53.contentState,
             clientRenderedBoundaries.renderState
           );
         }
@@ -5861,19 +5878,19 @@ function abort(request, reason) {
     }
     null !== request.destination &&
       flushCompletedQueues(request, request.destination);
-  } catch (error$53) {
-    logRecoverableError(request, error$53, {}), fatalError(request, error$53);
+  } catch (error$55) {
+    logRecoverableError(request, error$55, {}), fatalError(request, error$55);
   }
 }
-var isomorphicReactPackageVersion$jscomp$inline_761 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_769 = React.version;
 if (
-  "19.2.0-canary-33661467-20250407" !==
-  isomorphicReactPackageVersion$jscomp$inline_761
+  "19.2.0-canary-c44e4a25-20250409" !==
+  isomorphicReactPackageVersion$jscomp$inline_769
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
-      (isomorphicReactPackageVersion$jscomp$inline_761 +
-        "\n  - react-dom:  19.2.0-canary-33661467-20250407\nLearn more: https://react.dev/warnings/version-mismatch")
+      (isomorphicReactPackageVersion$jscomp$inline_769 +
+        "\n  - react-dom:  19.2.0-canary-c44e4a25-20250409\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -5964,4 +5981,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-canary-33661467-20250407";
+exports.version = "19.2.0-canary-c44e4a25-20250409";

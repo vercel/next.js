@@ -248,8 +248,20 @@ var isArrayImpl = Array.isArray,
     data: null,
     method: null,
     action: null
-  },
-  valueStack = [],
+  };
+function setSrcObject(domElement, tag, value) {
+  function cleanUp() {
+    URL.revokeObjectURL(url);
+    domElement.removeEventListener(loadEvent, cleanUp);
+    domElement.removeEventListener("error", cleanUp);
+  }
+  var url = URL.createObjectURL(value),
+    loadEvent = "img" === tag ? "load" : "loadstart";
+  domElement.addEventListener(loadEvent, cleanUp);
+  domElement.addEventListener("error", cleanUp);
+  domElement.setAttribute("src", url);
+}
+var valueStack = [],
   index = -1;
 function createCursor(defaultValue) {
   return { current: defaultValue };
@@ -2562,7 +2574,8 @@ function createFiberFromTypeAndProps(
       case REACT_LEGACY_HIDDEN_TYPE:
       case REACT_VIEW_TRANSITION_TYPE:
         return (
-          (type = createFiberImplClass(30, pendingProps, key, mode)),
+          (type = mode | 32),
+          (type = createFiberImplClass(30, pendingProps, key, type)),
           (type.elementType = REACT_VIEW_TRANSITION_TYPE),
           (type.lanes = lanes),
           (type.stateNode = {
@@ -6540,9 +6553,13 @@ function updateSimpleMemoComponent(
     renderLanes
   );
 }
-function updateOffscreenComponent(current, workInProgress, renderLanes) {
-  var nextProps = workInProgress.pendingProps,
-    nextChildren = nextProps.children,
+function updateOffscreenComponent(
+  current,
+  workInProgress,
+  renderLanes,
+  nextProps
+) {
+  var nextChildren = nextProps.children,
     prevState = null !== current ? current.memoizedState : null;
   if ("hidden" === nextProps.mode) {
     if (0 !== (workInProgress.flags & 128)) {
@@ -7584,10 +7601,14 @@ function attemptEarlyBailoutIfNoScheduledUpdate(
       if (state) break;
       else return null;
     case 22:
-    case 23:
       return (
         (workInProgress.lanes = 0),
-        updateOffscreenComponent(current, workInProgress, renderLanes)
+        updateOffscreenComponent(
+          current,
+          workInProgress,
+          renderLanes,
+          workInProgress.pendingProps
+        )
       );
     case 24:
       pushProvider(workInProgress, CacheContext, current.memoizedState.cache);
@@ -8047,7 +8068,12 @@ function beginWork(current, workInProgress, renderLanes) {
         workInProgress
       );
     case 22:
-      return updateOffscreenComponent(current, workInProgress, renderLanes);
+      return updateOffscreenComponent(
+        current,
+        workInProgress,
+        renderLanes,
+        workInProgress.pendingProps
+      );
     case 24:
       return (
         prepareToReadContext(workInProgress),
@@ -8145,12 +8171,15 @@ function preloadInstanceAndSuspendIfNeeded(
   newProps,
   renderLanes
 ) {
-  if (
-    null === oldProps
-      ? maySuspendCommit(type, newProps)
-      : maySuspendCommit(type, newProps) &&
-        (newProps.src !== oldProps.src || newProps.srcSet !== oldProps.srcSet)
-  ) {
+  var JSCompiler_temp;
+  if ((JSCompiler_temp = 0 !== (workInProgress.mode & 32)))
+    JSCompiler_temp =
+      null === oldProps
+        ? maySuspendCommit(type, newProps)
+        : maySuspendCommit(type, newProps) &&
+          (newProps.src !== oldProps.src ||
+            newProps.srcSet !== oldProps.srcSet);
+  if (JSCompiler_temp) {
     if (
       ((workInProgress.flags |= 16777216),
       (renderLanes & 335544128) === renderLanes)
@@ -8956,9 +8985,15 @@ function commitHostMount(finishedWork) {
         props.autoFocus && instance.focus();
         break a;
       case "img":
-        props.src
-          ? (instance.src = props.src)
-          : props.srcSet && (instance.srcset = props.srcSet);
+        if (props.src) {
+          var src = props.src;
+          if ("object" === typeof src)
+            try {
+              setSrcObject(instance, type, src);
+              break a;
+            } catch (x) {}
+          instance.src = src;
+        } else props.srcSet && (instance.srcset = props.srcSet);
     }
   } catch (error) {
     captureCommitPhaseError(finishedWork, finishedWork.return, error);
@@ -13961,20 +13996,20 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_1687 = 0;
-  i$jscomp$inline_1687 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1687++
+  var i$jscomp$inline_1691 = 0;
+  i$jscomp$inline_1691 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1691++
 ) {
-  var eventName$jscomp$inline_1688 =
-      simpleEventPluginEvents[i$jscomp$inline_1687],
-    domEventName$jscomp$inline_1689 =
-      eventName$jscomp$inline_1688.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1690 =
-      eventName$jscomp$inline_1688[0].toUpperCase() +
-      eventName$jscomp$inline_1688.slice(1);
+  var eventName$jscomp$inline_1692 =
+      simpleEventPluginEvents[i$jscomp$inline_1691],
+    domEventName$jscomp$inline_1693 =
+      eventName$jscomp$inline_1692.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1694 =
+      eventName$jscomp$inline_1692[0].toUpperCase() +
+      eventName$jscomp$inline_1692.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1689,
-    "on" + capitalizedEvent$jscomp$inline_1690
+    domEventName$jscomp$inline_1693,
+    "on" + capitalizedEvent$jscomp$inline_1694
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -14811,6 +14846,15 @@ function setProp(domElement, tag, key, value, props, prevValue) {
         break;
       }
     case "src":
+      if (
+        "object" === typeof value &&
+        null !== value &&
+        ("img" === tag || "video" === tag || "audio" === tag)
+      )
+        try {
+          setSrcObject(domElement, tag, value);
+          break;
+        } catch (x) {}
     case "href":
       if ("" === value && ("a" !== tag || "href" !== key)) {
         domElement.removeAttribute(key);
@@ -18342,16 +18386,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2004 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2008 = React.version;
 if (
-  "19.2.0-experimental-33661467-20250407" !==
-  isomorphicReactPackageVersion$jscomp$inline_2004
+  "19.2.0-experimental-c44e4a25-20250409" !==
+  isomorphicReactPackageVersion$jscomp$inline_2008
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2004,
-      "19.2.0-experimental-33661467-20250407"
+      isomorphicReactPackageVersion$jscomp$inline_2008,
+      "19.2.0-experimental-c44e4a25-20250409"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -18371,24 +18415,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2618 = {
+var internals$jscomp$inline_2622 = {
   bundleType: 0,
-  version: "19.2.0-experimental-33661467-20250407",
+  version: "19.2.0-experimental-c44e4a25-20250409",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-experimental-33661467-20250407"
+  reconcilerVersion: "19.2.0-experimental-c44e4a25-20250409"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2619 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2623 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2619.isDisabled &&
-    hook$jscomp$inline_2619.supportsFiber
+    !hook$jscomp$inline_2623.isDisabled &&
+    hook$jscomp$inline_2623.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2619.inject(
-        internals$jscomp$inline_2618
+      (rendererID = hook$jscomp$inline_2623.inject(
+        internals$jscomp$inline_2622
       )),
-        (injectedHook = hook$jscomp$inline_2619);
+        (injectedHook = hook$jscomp$inline_2623);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -18480,4 +18524,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.2.0-experimental-33661467-20250407";
+exports.version = "19.2.0-experimental-c44e4a25-20250409";

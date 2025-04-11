@@ -4311,7 +4311,8 @@ mod tests {
                                     }
                                     ConditionalKind::And { expr }
                                     | ConditionalKind::Or { expr }
-                                    | ConditionalKind::NullishCoalescing { expr } => {
+                                    | ConditionalKind::NullishCoalescing { expr }
+                                    | ConditionalKind::Labeled { body: expr } => {
                                         queue
                                             .extend(expr.effects.into_iter().rev().map(|e| (i, e)));
                                     }
