@@ -4,8 +4,8 @@ import dataURLEncoded from 'data:application/json,%7B%20%22foo%22%3A%201234%20%7
 import dataBase64Encoded from 'data:application/json;base64,eyAiZm9vIjogMTIzNCB9';
 import "data:text/css,body { color: red }";
 import "data:text/css,body { background: url('./dark.svg') }";
-import * as style from "data:text/css-module,.bar { background: url('./dark.svg') }";
-import * as style64 from "data:text/css-module;base64,LmJhciB7IGJhY2tncm91bmQ6IHVybCgnLi9kYXJrLnN2ZycpIH0=";
+import * as style from "data:text/css+module,.bar { background: url('./dark.svg') }";
+import * as style64 from "data:text/css+module;base64,LmJhciB7IGJhY2tncm91bmQ6IHVybCgnLi9kYXJrLnN2ZycpIH0=";
 
 it("support data URL imports", () => {
   expect(bar).toEqual(1234);

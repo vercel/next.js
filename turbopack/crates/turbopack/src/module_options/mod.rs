@@ -452,7 +452,7 @@ impl ModuleOptions {
                 ModuleRule::new(
                     RuleCondition::any(vec![
                         RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
-                        RuleCondition::ContentTypeStartsWith("text/css-module".to_string()),
+                        RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
@@ -514,7 +514,7 @@ impl ModuleOptions {
                     RuleCondition::all(vec![
                         RuleCondition::Any(vec![
                             RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
-                            RuleCondition::ContentTypeStartsWith("text/css-module".to_string()),
+                            RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
                         ]),
                         // Only create a module CSS asset if not `@import`ed from CSS already.
                         // NOTE: `composes` references should not be treated as `@import`s and
@@ -541,7 +541,7 @@ impl ModuleOptions {
                 ModuleRule::new_internal(
                     RuleCondition::Any(vec![
                         RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
-                        RuleCondition::ContentTypeStartsWith("text/css-module".to_string()),
+                        RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
@@ -555,7 +555,7 @@ impl ModuleOptions {
                         )),
                         RuleCondition::Any(vec![
                             RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
-                            RuleCondition::ContentTypeStartsWith("text/css-module".to_string()),
+                            RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
                         ]),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
