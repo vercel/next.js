@@ -1795,14 +1795,13 @@ export default abstract class Server<
     >
   ): Promise<void> {
     const ua = partialContext.req.headers['user-agent'] || ''
-    const isBotRequest = isBot(ua)
 
     const ctx: RequestContext<ServerRequest, ServerResponse> = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        supportsDynamicResponse: !isBotRequest,
-        botType: getBotType(ua),
+        // `renderOpts.botType` is accumulated in `this.renderImpl()`
+        supportsDynamicResponse: !this.renderOpts.botType,
         serveStreamingMetadata: shouldServeStreamingMetadata(
           ua,
           this.nextConfig.htmlLimitedBots
@@ -1932,6 +1931,9 @@ export default abstract class Server<
       // (see custom-server integration tests)
       pathname = '/'
     }
+
+    const ua = req.headers['user-agent'] || ''
+    this.renderOpts.botType = getBotType(ua)
 
     // we allow custom servers to call render for all URLs
     // so check if we need to serve a static _next file or not.
