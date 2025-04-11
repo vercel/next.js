@@ -175,6 +175,30 @@ impl ModuleReference for EsmAssetReference {
                         ResolvedVc::try_downcast_type(self.origin)
                             .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
 
+                    // We handle this logic here because these references are already resolved as
+                    // _module_ so we cannot return Ignore in resolve step. This causes a problem
+                    // for side-effect optimization logic.w
+                    if matches!(
+                        &*part.await?,
+                        ModulePart::Evaluation | ModulePart::InternalEvaluation(..)
+                    ) {
+                        let side_effect_free_packages =
+                            module.asset_context().side_effect_free_packages();
+
+                        if *module
+                            .is_marked_as_side_effect_free(side_effect_free_packages)
+                            .await?
+                        {
+                            return Ok(ModuleResolveResult {
+                                primary: fxindexmap! {
+                                    RequestKey::default() => ModuleResolveResultItem::Ignore
+                                },
+                                affecting_sources: Vec::new(),
+                            }
+                            .cell());
+                        }
+                    }
+
                     return Ok(*ModuleResolveResult::module(
                         EcmascriptModulePartAsset::select_part(*module, part.clone())
                             .to_resolved()

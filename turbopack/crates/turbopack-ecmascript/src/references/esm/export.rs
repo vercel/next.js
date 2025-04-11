@@ -177,7 +177,7 @@ pub async fn follow_reexports(
 
         // Try to find the export in the star exports
         if !exports_ref.star_exports.is_empty() && &*export_name != "default" {
-            let result = get_all_export_names(*module).await?;
+            let result = find_export_from_reexports(*module, export_name.clone()).await?;
             if let Some(m) = result.esm_exports.get(&export_name) {
                 module = *m;
                 continue;
@@ -267,6 +267,110 @@ async fn handle_declared_export(
         export_name: Some(export_name),
         ty: FoundExportType::Unknown,
     }))
+}
+
+#[turbo_tasks::value]
+struct FindExportFromReexportsResult {
+    esm_export: Option<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
+    dynamic_exporting_modules: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
+}
+
+#[turbo_tasks::function]
+async fn find_export_from_reexports(
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    export_name: RcStr,
+) -> Result<Vc<FindExportFromReexportsResult>> {
+    if let Some(module) =
+        Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(*module).await?
+    {
+        if matches!(&*module.await?.part.await?, ModulePart::Exports) {
+            let module_part = EcmascriptModulePartAsset::select_part(
+                *module.await?.full_module,
+                ModulePart::export(export_name.clone()),
+            );
+
+            // If we apply this logic to EcmascriptModuleAsset, we will resolve everything in the
+            // target module.
+            if (Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module_part).await?)
+                .is_none()
+            {
+                return Ok(find_export_from_reexports(
+                    Vc::upcast(module_part),
+                    export_name,
+                ));
+            }
+        }
+    }
+
+    let exports = module.get_exports().await?;
+    let EcmascriptExports::EsmExports(exports) = &*exports else {
+        return Ok(FindExportFromReexportsResult {
+            esm_export: None,
+            dynamic_exporting_modules: vec![],
+        }
+        .cell());
+    };
+
+    let exports = exports.await?;
+    let mut dynamic_exporting_modules = Vec::new();
+
+    vdbg!(
+        module,
+        export_name.clone(),
+        exports.exports.clone(),
+        exports.star_exports.to_vec(),
+    );
+
+    for (name, _) in exports.exports.iter() {
+        if *name == export_name {
+            return Ok(FindExportFromReexportsResult {
+                esm_export: Some(module),
+                dynamic_exporting_modules: vec![],
+            }
+            .cell());
+        }
+    }
+
+    let star_export_names = exports
+        .star_exports
+        .iter()
+        .map(|esm_ref| async {
+            Ok(
+                if let ReferencedAsset::Some(m) =
+                    *ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
+                {
+                    Some(find_export_from_reexports(*m, export_name.clone()))
+                } else {
+                    None
+                },
+            )
+        })
+        .try_flat_join()
+        .await?;
+
+    for star_export_names in star_export_names {
+        if let Some(m) = star_export_names.await?.esm_export {
+            return Ok(FindExportFromReexportsResult {
+                esm_export: Some(m),
+                dynamic_exporting_modules: vec![],
+            }
+            .cell());
+        }
+
+        dynamic_exporting_modules.extend(
+            star_export_names
+                .await?
+                .dynamic_exporting_modules
+                .iter()
+                .copied(),
+        );
+    }
+
+    Ok(FindExportFromReexportsResult {
+        esm_export: None,
+        dynamic_exporting_modules,
+    }
+    .cell())
 }
 
 #[turbo_tasks::value]
