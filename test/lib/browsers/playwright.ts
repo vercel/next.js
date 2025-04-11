@@ -13,6 +13,8 @@ import {
 } from 'playwright'
 import path from 'path'
 import { getCurrentTestTraceOutputDir } from '../test-trace-output'
+import { isValidRelativeUrl } from './utils/relative-url'
+import { patchBrowserContextRemoveAllListeners } from './utils/patch-remove-all-listeners'
 
 type EventType = 'request' | 'response'
 
@@ -172,6 +174,7 @@ export class BrowserContextWrapper {
 
     const tracer = tracingEnabled ? await Tracer.start(context) : null
 
+    patchBrowserContextRemoveAllListeners(context)
     return new BrowserContextWrapper(context, options, tracer)
   }
 
@@ -630,7 +633,16 @@ export class Playwright<TCurrent = undefined> {
     if (typeof url !== 'string') {
       throw new Error(`Expected a valid url string, got ${url}`)
     }
-    return new URL(url, this.baseUrl).href
+
+    if (this.baseUrl === null) {
+      if (isValidRelativeUrl(url)) {
+        throw new Error('Cannot use base urls when no baseUrl is set')
+      }
+      // the url might be absolute. if it's malformed, this'll throw here
+      return new URL(url).href
+    } else {
+      return new URL(url, this.baseUrl).href
+    }
   }
 
   setBaseUrl(baseUrl: string) {
