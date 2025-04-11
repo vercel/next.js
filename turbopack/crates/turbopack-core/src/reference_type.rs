@@ -179,7 +179,7 @@ pub enum CssReferenceSubType {
     /// Reference from ModuleCssAsset to the CssModuleAsset
     Internal,
     /// Used for generating the list of classes in a ModuleCssAsset
-    Analyze,
+    InternalAnalyze,
     Custom(u8),
     Undefined,
 }
@@ -322,6 +322,7 @@ impl ReferenceType {
             self,
             ReferenceType::Internal(_)
                 | ReferenceType::Css(CssReferenceSubType::Internal)
+                | ReferenceType::Css(CssReferenceSubType::InternalAnalyze)
                 | ReferenceType::Runtime
         )
     }

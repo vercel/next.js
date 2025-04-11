@@ -395,10 +395,10 @@ impl AppProject {
                 ),
                 // Don't wrap in marker module but change context, this is used to determine
                 // the list of CSS module classes.
-                TransitionRule::new(
+                TransitionRule::new_internal(
                     RuleCondition::all(vec![
                         RuleCondition::ReferenceType(ReferenceType::Css(
-                            CssReferenceSubType::Analyze,
+                            CssReferenceSubType::InternalAnalyze,
                         )),
                         module_styles_rule_condition(),
                     ]),
