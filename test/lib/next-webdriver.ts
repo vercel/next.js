@@ -93,8 +93,6 @@ export default async function webdriver(
   url: string,
   options?: WebdriverOptions
 ): Promise<BrowserInterface> {
-  let CurrentInterface: new () => BrowserInterface
-
   const defaultOptions = {
     waitHydration: true,
     retryWaitHydration: false,
@@ -116,10 +114,9 @@ export default async function webdriver(
   } = options
 
   const { Playwright, quit } = await import('./browsers/playwright')
-  CurrentInterface = Playwright
   browserQuit = quit
 
-  const browser = new CurrentInterface()
+  const browser = new Playwright()
   const browserName = process.env.BROWSER_NAME || 'chrome'
   await browser.setup(
     browserName,
