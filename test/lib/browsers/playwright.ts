@@ -348,7 +348,7 @@ export class Playwright extends BrowserInterface {
   }
 
   elementByCss(selector: string) {
-    return this.waitForElementByCss(selector)
+    return this.waitForElementByCss(selector, 5_000)
   }
 
   elementById(sel) {
@@ -427,7 +427,7 @@ export class Playwright extends BrowserInterface {
     )
   }
 
-  waitForElementByCss(selector, timeout?: number) {
+  waitForElementByCss(selector, timeout = 10_000) {
     return this.chain(() => {
       return page
         .waitForSelector(selector, { timeout, state: 'attached' })
