@@ -3,8 +3,11 @@
     "noEmit": true,
     "strict": false,
     "allowJs": true,
+    "checkJs": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "moduleDetection": "force",
     "jsx": "react-jsx",
     "module": "ESNext",
     "target": "ESNext",
@@ -18,14 +21,52 @@
       "e2e-utils": ["./test/lib/e2e-utils"],
       "e2e-utils/*": ["./test/lib/e2e-utils/*"],
       "test-data-service/*": ["./test/lib/test-data-service/*"],
-      "test-log": ["./test/lib/test-log"]
+      "test-log": ["./test/lib/test-log"],
+      // avoid referencing the next.js types in node_modules (which e.g. "next/package.json" would normally resolve to)
+      "next/*": ["./packages/next/*"],
+      // The following paths are a workaround for some weird issues with typechecking 'next/dist/compiled/*'.
+      // I don't know why, but there's no way i can get this to typecheck without aliasing these manually.
+      // When removed, you'll get errors from typescript attempting to check the corresponding .js files in "next/dist/compiled/*",
+      // DESPITE the declarations in "$$compiled.internal.d.ts". Beats me, but this works
+      //
+      // no declarations available, use custom dummy modules
+      "next/dist/compiled/cssnano-simple": [
+        "./test/typings/next-dist-compiled/cssnano-simple.d.ts"
+      ],
+      "next/dist/compiled/postcss-value-parser": [
+        "./test/typings/next-dist-compiled/postcss-value-parser.d.ts"
+      ],
+      // declarations are a dependency of 'next'
+      "next/dist/compiled/amphtml-validator": [
+        "./packages/next/node_modules/@types/amphtml-validator"
+      ],
+      "next/dist/compiled/conf": ["./packages/next/node_modules/conf"],
+      "next/dist/compiled/jest-worker": [
+        "./packages/next/node_modules/jest-worker"
+      ],
+      "next/dist/compiled/semver": [
+        "./packages/next/node_modules/@types/semver"
+      ],
+      "next/dist/compiled/superstruct": [
+        "./packages/next/node_modules/superstruct"
+      ],
+      // declarations are available at the root
+      "next/dist/compiled/cookie": ["./node_modules/cookie"],
+      "next/dist/compiled/browserslist": ["./node_modules/browserslist"]
     }
   },
+  "files": ["packages/next/types/$$compiled.internal.d.ts"],
   "include": [
     "test/**/*.test.ts",
+    "test/**/*.test.js",
     "test/**/*.test.tsx",
     "test/e2e/app-dir/use-cache-custom-handler/*.js",
     "test/lib/**/*.ts",
     "turbo/**/*.ts"
+  ],
+  "exclude": [
+    "**/node_modules",
+    // has a dedicated tsconfig with some specific setup
+    "crates/next-custom-transforms/tests/fixture/server-actions"
   ]
 }

@@ -11,7 +11,7 @@ import {
 } from 'next-test-utils'
 import fs from 'fs-extra'
 import path, { join } from 'path'
-import pkg from 'next/package'
+import pkg from 'next/package.json'
 import http from 'http'
 import stripAnsi from 'strip-ansi'
 

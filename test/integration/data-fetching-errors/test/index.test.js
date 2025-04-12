@@ -14,8 +14,8 @@ import { join } from 'path'
 import {
   GSP_NO_RETURNED_VALUE,
   GSSP_NO_RETURNED_VALUE,
-} from '../../../../packages/next/dist/lib/constants'
-import { PHASE_PRODUCTION_BUILD } from '../../../../packages/next/dist/shared/lib/constants'
+} from 'next/dist/lib/constants'
+import { PHASE_PRODUCTION_BUILD } from 'next/dist/shared/lib/constants'
 
 const appDir = join(__dirname, '..')
 const indexPage = join(appDir, 'pages/index.js')

@@ -1,5 +1,15 @@
 /* eslint-disable import/no-extraneous-dependencies */
-declare module 'next/package.json'
+declare module 'next/package.json' {
+  type PackageJson = {
+    name: string
+    version: string
+    dependencies?: { [key: string]: string }
+    resolutions?: { [key: string]: string }
+    [key: string]: unknown
+  }
+  const pkg: PackageJson
+  export = pkg
+}
 declare module 'next/dist/compiled/postcss-value-parser'
 declare module 'next/dist/compiled/icss-utils'
 declare module 'next/dist/compiled/postcss-modules-values'
