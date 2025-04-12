@@ -73,6 +73,6 @@ When working in these environments, it's helpful to think of the flow of the cod
 
 If you need to access the server from the client, you send a **new** request to the server rather than re-use the same request. This makes it easier to understand where to render your components and where to place the Network Boundary.
 
-In practice, this model encourages developers to think about what they want to execute on the server first, before sending the result to the client and making the application interactive.
+In practice, this model encourages developers to first determine what should execute on the server, then send those results to the client for interactivity.
 
 This concept will become clearer when we look at how you can [interleave client and server components](/docs/app/building-your-application/rendering/composition-patterns) in the same component tree.

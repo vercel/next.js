@@ -121,10 +121,7 @@ Both `layout.tsx` and `page.tsx` will be rendered when the user visits the root 
   height="363"
 />
 
-> **Good to know**:
->
-> - If you forget to create the root layout, Next.js will automatically create this file when running the development server with `next dev`.
-> - You can optionally use a [`src` directory](/docs/app/building-your-application/configuring/src-directory) in the root of your project to separate your application's code from configuration files.
+> **Good to know**: If you forget to create the root layout, Next.js will automatically create this file when you run `next dev`.
 
 </AppOnly>
 
@@ -230,7 +227,7 @@ export default function Page() {
 
 ## Set up TypeScript
 
-> Minimum TypeScript version: `v4.5.2`
+> **Note**: Minimum TypeScript version: v4.5.2
 
 Next.js comes with built-in TypeScript support. To add TypeScript to your project, rename a file to `.ts` / `.tsx` and run `next dev`. Next.js will automatically install the necessary dependencies and add a `tsconfig.json` file with the recommended config options.
 
