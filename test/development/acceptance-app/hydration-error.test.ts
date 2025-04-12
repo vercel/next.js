@@ -70,7 +70,6 @@ describe('Error overlay for hydration errors in App router', () => {
     )
     const { session, browser } = sandbox
 
-    // TODO(veil): Should be "rendered text"
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "componentStack": "...
@@ -91,7 +90,7 @@ describe('Error overlay for hydration errors in App router', () => {
      +                               client
      -                               server
                              ...",
-       "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
+       "description": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
        "label": "Runtime Error",
        "source": "app/page.js (6:7) @ Mismatch
@@ -229,7 +228,7 @@ describe('Error overlay for hydration errors in App router', () => {
                                >
                            ...
                ...",
-         "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
+         "description": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Console Error",
          "source": "app/layout.js (5:5) @ Root
@@ -262,7 +261,7 @@ describe('Error overlay for hydration errors in App router', () => {
                                >
                            ...
                ...",
-         "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
+         "description": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Console Error",
          "source": "app/layout.js (5:5) @ Root
@@ -737,24 +736,7 @@ describe('Error overlay for hydration errors in App router', () => {
          ],
        },
        {
-         "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                               <Page params={Promise} searchParams={Promise}>
-     >                           <p>
-     >                             <p>
-                             ...",
-         "description": "In HTML, <p> cannot be a descendant of <p>.
-     This will cause a hydration error.",
+         "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "app/page.js (6:7) @ Page
@@ -833,25 +815,7 @@ describe('Error overlay for hydration errors in App router', () => {
          ],
        },
        {
-         "componentStack": "...
-         <ScrollAndFocusHandler segmentPath={[...]}>
-           <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-             <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-               <LoadingBoundary loading={null}>
-                 <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                   <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                           <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                             <Page params={Promise} searchParams={Promise}>
-                               <div>
-                                 <div>
-     >                             <p>
-     >                               <div>
-                           ...",
-         "description": "In HTML, <div> cannot be a descendant of <p>.
-     This will cause a hydration error.",
+         "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "app/page.js (8:11) @ Page
@@ -920,24 +884,7 @@ describe('Error overlay for hydration errors in App router', () => {
          ],
        },
        {
-         "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                               <Page params={Promise} searchParams={Promise}>
-     >                           <div>
-     >                             <tr>
-                             ...",
-         "description": "In HTML, <tr> cannot be a child of <div>.
-     This will cause a hydration error.",
+         "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "app/page.js (3:15) @ Page
@@ -1026,28 +973,7 @@ describe('Error overlay for hydration errors in App router', () => {
          ],
        },
        {
-         "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                               <Page params={Promise} searchParams={Promise}>
-     >                           <p>
-                                   <span>
-                                     <span>
-                                       <span>
-                                         <span>
-     >                                     <p>
-                             ...",
-         "description": "In HTML, <p> cannot be a descendant of <p>.
-     This will cause a hydration error.",
+         "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "app/page.js (5:32) @ Page

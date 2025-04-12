@@ -556,20 +556,21 @@ describe('Error overlay for hydration errors in Pages router', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "componentStack": "<Root callbacks={[...]}>
-           <Head>
-           <AppContainer>
-             <Container fn={function fn}>
-               <PagesDevOverlay>
-                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
-                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                     <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
-                       <Page>
-       +                 <table>
-       -                 test
-                     ...
-                 ...",
-         "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
+         "componentStack": "...
+           <Container fn={function fn}>
+             <PagesDevOverlay>
+               <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
+                 <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
+                   <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+                     <Page>
+                       <table>
+                         <tbody>
+                           <tr>
+       >                     test
+                   ...
+               ...",
+         "description": "In HTML, text nodes cannot be a child of <tr>.
+       This will cause a hydration error.",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (3:5) @ Page
@@ -653,11 +654,13 @@ describe('Error overlay for hydration errors in Pages router', () => {
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Page>
-       +                 <table>
-       -                 {" 123"}
+       >                 <table>
+       >                   {" 123"}
+                           ...
                      ...
                  ...",
-         "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
+         "description": "In HTML, text nodes cannot be a child of <table>.
+       This will cause a hydration error.",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (3:5) @ Page
