@@ -248,7 +248,7 @@ Next.js' swc compiler is used for minification by default since v13. This is 7x 
 
 ### Module Transpilation
 
-Next.js can automatically transpile and bundle dependencies from local packages (like monorepos) or from external dependencies (`node_modules`). This replaces the `next-transpile-modules` package.
+Next.js can automatically transpile and bundle dependencies from local packages (like monorepos) or from external dependencies (`node_modules`). This replaces the `next-transpile-modules` package and is useful when working with packages that use modern JavaScript features not supported by your target browsers.
 
 ```js filename="next.config.js"
 module.exports = {
@@ -262,7 +262,8 @@ This option has been superseded by [`optimizePackageImports`](/docs/app/api-refe
 
 ### Define (Replacing variables during build)
 
-The `define` option allows you to statically replace variables in your code at build-time.
+The `define` option allows you to statically replace variables in your code at build-time. This is useful for environment-specific configuration, feature flags, or injecting constants that should be available at runtime.
+
 The option takes an object as key-value pairs, where the keys are the variables that should be replaced with the corresponding values.
 
 Use the `compiler.define` field in `next.config.js`:
