@@ -18080,6 +18080,24 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/app-dir/graceful-degrade-error/graceful-degrade-error-non-bot.test.ts": {
+    "passed": [
+      "graceful-degrade-error - non bot should not degrade to graceful error when chunk loading fails in ssr for non-bot user agents"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/graceful-degrade-error/graceful-degrade-error.test.ts": {
+    "passed": [
+      "graceful-degrade-error should degrade to graceful error when chunk loading fails in ssr for bot"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/app-dir/mangle-reserved/mangle-reserved.test.ts": {
     "passed": ["mangle-reserved should preserve the name"],
     "failed": [],
