@@ -35,7 +35,9 @@ describe('app-dir action useActionState', () => {
   })
 
   it('should support hydrating the app from progressively enhanced form request', async () => {
-    const browser = await next.browser('/client/form-state')
+    const browser = await next.browser('/client/form-state', {
+      waitHydration: false,
+    })
 
     // Simulate a progressively enhanced form request
     await browser.eval(`document.getElementById('name-input').value = 'test'`)
