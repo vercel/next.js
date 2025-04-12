@@ -1,5 +1,6 @@
 /* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
+import { ElementHandle } from 'playwright'
 
 describe('scripts', () => {
   const { next } = nextTestSetup({
@@ -13,7 +14,9 @@ describe('scripts', () => {
     async (routerType) => {
       const browser = await next.browser(routerType === 'app' ? '/' : '/pages')
       expect(await browser.elementByCss('p').text()).toBe('hello world')
-      const scripts = await browser.elementsByCss('script')
+      const scripts = (await browser.elementsByCss(
+        'script'
+      )) as ElementHandle<HTMLScriptElement>[]
       expect(scripts.length).toBeGreaterThan(0)
       for (const script of scripts) {
         const src = await script.evaluate((script) => script.src)
@@ -38,11 +41,13 @@ describe('styles', () => {
       let body = await browser.elementByCss('body')
       expect(
         await body.evaluate((el) =>
-          getComputedStyle(el).getPropertyValue('background-color')
+          getComputedStyle(el as Element).getPropertyValue('background-color')
         )
       ).toBe('rgb(0, 0, 255)')
 
-      const stylesheets = await browser.elementsByCss('link[rel="stylesheet"]')
+      const stylesheets = (await browser.elementsByCss(
+        'link[rel="stylesheet"]'
+      )) as ElementHandle<HTMLLinkElement>[]
       expect(stylesheets.length).toBeGreaterThan(0)
       for (const stylesheet of stylesheets) {
         const href = await stylesheet.evaluate((stylesheet) => stylesheet.href)

@@ -14,9 +14,9 @@ import {
 } from './next-test-utils'
 import webdriver, { WebdriverOptions } from './next-webdriver'
 import { NextInstance } from './next-modes/base'
-import { BrowserInterface } from './browsers/base'
+import { Playwright } from 'next-webdriver'
 
-export function waitForHydration(browser: BrowserInterface): Promise<void> {
+export function waitForHydration(browser: Playwright): Promise<void> {
   return browser.evalAsync(function () {
     var callback = arguments[arguments.length - 1]
     if ((window as any).__NEXT_HYDRATED) {

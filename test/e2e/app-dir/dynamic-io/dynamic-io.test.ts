@@ -1,7 +1,7 @@
 /* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
-import { BrowserInterface } from 'next-webdriver'
+import { Playwright } from 'next-webdriver'
 
 const WITH_PPR = !!process.env.__NEXT_EXPERIMENTAL_PPR
 
@@ -16,7 +16,7 @@ describe('dynamic-io', () => {
   }
 
   if (isNextDev && !WITH_PPR) {
-    async function hasStaticIndicator(browser: BrowserInterface) {
+    async function hasStaticIndicator(browser: Playwright) {
       await browser.elementByCss('[data-nextjs-dev-tools-button]').click()
 
       return await browser.eval(

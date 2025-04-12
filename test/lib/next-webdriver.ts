@@ -1,6 +1,9 @@
 import { getFullUrl, waitFor } from 'next-test-utils'
 import os from 'os'
-import { BrowserInterface } from './browsers/base'
+import { Playwright } from './browsers/playwright'
+import { Page } from 'playwright'
+
+export type { Playwright }
 
 if (!process.env.TEST_FILE_PATH) {
   process.env.TEST_FILE_PATH = module.parent!.filename
@@ -59,7 +62,7 @@ export interface WebdriverOptions {
    * @param page
    * @returns
    */
-  beforePageLoad?: (page: any) => void
+  beforePageLoad?: (page: Page) => void
   /**
    * browser locale
    */
@@ -92,7 +95,7 @@ export default async function webdriver(
   appPortOrUrl: string | number,
   url: string,
   options?: WebdriverOptions
-): Promise<BrowserInterface> {
+): Promise<Playwright> {
   const defaultOptions = {
     waitHydration: true,
     retryWaitHydration: false,
@@ -206,5 +209,3 @@ export default async function webdriver(
   }
   return browser
 }
-
-export { BrowserInterface }

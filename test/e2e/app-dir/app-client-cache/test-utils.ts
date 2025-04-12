@@ -1,4 +1,4 @@
-import { BrowserInterface } from 'next-webdriver'
+import { Playwright } from 'next-webdriver'
 import type { Request } from 'playwright'
 
 export const getPathname = (url: string) => {
@@ -51,7 +51,7 @@ export const fastForwardTo = (ms) => {
   }
 }
 
-export const createRequestsListener = async (browser: BrowserInterface) => {
+export const createRequestsListener = async (browser: Playwright) => {
   // wait for network idle
   await browser.waitForIdleNetwork()
 

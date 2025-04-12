@@ -36,7 +36,7 @@ describe('bfcache-routing', () => {
     const browser = await webdriver(port, '/index.html', { headless: false })
 
     // we overwrite the typical waitUntil: 'load' option here as the event is never being triggered if we hit the bfcache
-    const bfOptions = { waitUntil: 'commit' }
+    const bfOptions = { waitUntil: 'commit' as const }
 
     await browser.elementByCss('a[href="https://example.vercel.sh"]').click()
     await browser.waitForCondition(

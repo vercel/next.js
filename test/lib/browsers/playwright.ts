@@ -1,4 +1,3 @@
-import { BrowserInterface, Event } from './base'
 import fs from 'fs-extra'
 import {
   chromium,
@@ -10,8 +9,12 @@ import {
   ElementHandle,
   devices,
   Locator,
+  Request as PlaywrightRequest,
+  Response as PlaywrightResponse,
 } from 'playwright'
 import path from 'path'
+
+type EventType = 'request' | 'response'
 
 type PageLog = { source: string; message: string; args: unknown[] }
 
@@ -31,7 +34,7 @@ const defaultTimeout = process.env.NEXT_E2E_TEST_TIMEOUT
     60 * 1000
 
 // loose global to register teardown functions before quitting the browser instance.
-// This is due to `quit` can be called anytime outside of BrowserInterface's lifecycle,
+// This is due to `quit` can be called anytime outside of Playwright's lifecycle,
 // which can create corrupted state by terminating the context.
 // [TODO] global `quit` might need to be removed, instead should introduce per-instance teardown
 const pendingTeardown: Array<() => Promise<void>> = []
@@ -54,9 +57,9 @@ interface ElementHandleExt extends ElementHandle {
   text(): Promise<string>
 }
 
-export class Playwright extends BrowserInterface {
+export class Playwright<TCurrent = undefined> {
   private activeTrace?: string
-  private eventCallbacks: Record<Event, Set<(...args: any[]) => void>> = {
+  private eventCallbacks: Record<EventType, Set<(...args: any[]) => void>> = {
     request: new Set(),
     response: new Set(),
   }
@@ -106,7 +109,15 @@ export class Playwright extends BrowserInterface {
     }
   }
 
-  on(event: Event, cb: (...args: any[]) => void) {
+  on(
+    event: 'request',
+    cb: (request: PlaywrightRequest) => void | Promise<void>
+  ): void
+  on(
+    event: 'response',
+    cb: (request: PlaywrightResponse) => void | Promise<void>
+  ): void
+  on(event: EventType, cb: (...args: any[]) => void) {
     if (!this.eventCallbacks[event]) {
       throw new Error(
         `Invalid event passed to browser.on, received ${event}. Valid events are ${Object.keys(
@@ -116,7 +127,16 @@ export class Playwright extends BrowserInterface {
     }
     this.eventCallbacks[event]?.add(cb)
   }
-  off(event: Event, cb: (...args: any[]) => void) {
+
+  off(
+    event: 'request',
+    cb: (request: PlaywrightRequest) => void | Promise<void>
+  ): void
+  off(
+    event: 'response',
+    cb: (request: PlaywrightResponse) => void | Promise<void>
+  ): void
+  off(event: EventType, cb: (...args: any[]) => void) {
     this.eventCallbacks[event]?.delete(cb)
   }
 
@@ -205,10 +225,10 @@ export class Playwright extends BrowserInterface {
   async loadPage(
     url: string,
     opts?: {
-      disableCache: boolean
-      cpuThrottleRate: number
+      disableCache?: boolean
+      cpuThrottleRate?: number
       pushErrorAsConsoleLog?: boolean
-      beforePageLoad?: (...args: any[]) => void
+      beforePageLoad?: (page: Page) => void
     }
   ) {
     await this.close()
@@ -295,12 +315,12 @@ export class Playwright extends BrowserInterface {
     await page.goto(url, { waitUntil: 'load' })
   }
 
-  back(options) {
+  back(options?: Parameters<Page['goBack']>[0]) {
     return this.chain(async () => {
       await page.goBack(options)
     })
   }
-  forward(options) {
+  forward(options?: Parameters<Page['goForward']>[0]) {
     return this.chain(async () => {
       await page.goForward(options)
     })
@@ -354,36 +374,36 @@ export class Playwright extends BrowserInterface {
     return this.waitForElementByCss(selector, 5_000)
   }
 
-  elementById(sel) {
-    return this.elementByCss(`#${sel}`)
+  elementById(id: string) {
+    return this.elementByCss(`#${id}`)
   }
 
-  getValue() {
-    return this.chain((el: ElementHandleExt) => el.inputValue())
+  getValue(this: Playwright<ElementHandleExt>) {
+    return this.chain((el) => el.inputValue())
   }
 
-  text() {
-    return this.chain((el: ElementHandleExt) => el.innerText())
+  text(this: Playwright<ElementHandleExt>) {
+    return this.chain((el) => el.innerText())
   }
 
-  type(text) {
-    return this.chain((el: ElementHandleExt) => el.type(text))
+  type(this: Playwright<ElementHandleExt>, text: string) {
+    return this.chain((el) => el.type(text))
   }
 
-  moveTo() {
-    return this.chain((el: ElementHandleExt) => {
+  moveTo(this: Playwright<ElementHandleExt>) {
+    return this.chain((el) => {
       return el.hover().then(() => el)
     })
   }
 
-  async getComputedCss(prop: string) {
-    return this.chain((el: ElementHandleExt) => {
+  async getComputedCss(this: Playwright<ElementHandleExt>, prop: string) {
+    return this.chain((el) => {
       return el.getComputedCss(prop)
-    }) as any
+    })
   }
 
-  async getAttribute(attr) {
-    return this.chain((el: ElementHandleExt) => el.getAttribute(attr))
+  async getAttribute(this: Playwright<ElementHandleExt>, attr: string) {
+    return this.chain((el) => el.getAttribute(attr))
   }
 
   hasElementByCssSelector(selector: string) {
@@ -391,32 +411,32 @@ export class Playwright extends BrowserInterface {
   }
 
   keydown(key: string) {
-    return this.chain((el: ElementHandleExt) => {
+    return this.chain((el) => {
       return page.keyboard.down(key).then(() => el)
     })
   }
 
   keyup(key: string) {
-    return this.chain((el: ElementHandleExt) => {
+    return this.chain((el) => {
       return page.keyboard.up(key).then(() => el)
     })
   }
 
-  click() {
-    return this.chain((el: ElementHandleExt) => {
+  click(this: Playwright<ElementHandleExt>) {
+    return this.chain((el) => {
       return el.click().then(() => el)
     })
   }
 
-  touchStart() {
-    return this.chain((el: ElementHandleExt) => {
+  touchStart(this: Playwright<ElementHandleExt>) {
+    return this.chain((el) => {
       return el.dispatchEvent('touchstart').then(() => el)
     })
   }
 
-  elementsByCss(sel) {
+  elementsByCss(selector: string) {
     return this.chain(() =>
-      page.$$(sel).then((els) => {
+      page.$$(selector).then((els) => {
         return els.map((el) => {
           const origGetAttribute = el.getAttribute.bind(el)
           el.getAttribute = (name) => {
@@ -430,7 +450,7 @@ export class Playwright extends BrowserInterface {
     )
   }
 
-  waitForElementByCss(selector, timeout = 10_000) {
+  waitForElementByCss(selector: string, timeout = 10_000) {
     return this.chain(() => {
       return page
         .waitForSelector(selector, { timeout, state: 'attached' })
@@ -443,13 +463,13 @@ export class Playwright extends BrowserInterface {
     })
   }
 
-  waitForCondition(condition, timeout) {
-    return this.chain(() => {
-      return page.waitForFunction(condition, { timeout })
+  waitForCondition(snippet: string, timeout?: number) {
+    return this.chain((el) => {
+      return page.waitForFunction(snippet, { timeout }).then(() => el)
     })
   }
 
-  eval<T = any>(fn: any, ...args: any[]): Promise<T> {
+  eval<T = any>(fn: any, ...args: any[]) {
     return this.chain(() =>
       page
         .evaluate(fn, ...args)
@@ -485,13 +505,7 @@ export class Playwright extends BrowserInterface {
     return page.evaluate<T>(fn).catch(() => null)
   }
 
-  async log<T extends boolean = false>(options?: {
-    includeArgs?: T
-  }): Promise<
-    T extends true
-      ? { source: string; message: string; args: unknown[] }[]
-      : { source: string; message: string }[]
-  > {
+  async log<T extends boolean = false>(options?: { includeArgs?: T }) {
     return this.chain(
       () =>
         options?.includeArgs
@@ -515,9 +529,9 @@ export class Playwright extends BrowserInterface {
     return this.chain(() => page.url())
   }
 
-  async waitForIdleNetwork(): Promise<void> {
-    return this.chain(() => {
-      return page.waitForLoadState('networkidle')
+  async waitForIdleNetwork() {
+    return this.chain((el) => {
+      return page.waitForLoadState('networkidle').then(() => el)
     })
   }
 
@@ -529,5 +543,51 @@ export class Playwright extends BrowserInterface {
 
   locateDevToolsIndicator(): Locator {
     return page.locator('nextjs-portal [data-nextjs-dev-tools-button]')
+  }
+
+  private promise?: Promise<TCurrent>;
+
+  // necessary for the type of the function below
+  readonly [Symbol.toStringTag]: string = 'Playwright'
+
+  private chain<TNext>(
+    this: Playwright<TCurrent>,
+    nextCall: (current: TCurrent) => TNext | Promise<TNext>
+  ): Playwright<TNext> & Promise<TNext> {
+    const syncError = new Error('next-browser-base-chain-error')
+
+    // `TCurrent` is `undefined` by default, and only changes as a result of a `chain` call.
+    // if the promise is undefined, then we haven't done any `chain` calls yet,
+    // so `TCurrent` must be at its initial value of `undefined`.
+    // this means that defaulting to a blank promise should(TM) still be typesafe.
+    const currentPromise = (this.promise ??
+      Promise.resolve(undefined)) as Promise<TCurrent>
+
+    const promise = currentPromise.then(nextCall).catch((reason) => {
+      if (reason !== null && typeof reason === 'object' && 'stack' in reason) {
+        const syncCallStack = syncError.stack!.split(syncError.message)[1]
+        reason.stack += `\n${syncCallStack}`
+      }
+      throw reason
+    })
+
+    function get(target: Playwright<TNext>, p: string | symbol): any {
+      switch (p) {
+        case 'promise':
+          return promise
+        case 'then':
+          return promise.then.bind(promise)
+        case 'catch':
+          return promise.catch.bind(promise)
+        case 'finally':
+          return promise.finally.bind(promise)
+        default:
+          return target[p]
+      }
+    }
+
+    return new Proxy<any>(this, {
+      get,
+    })
   }
 }
