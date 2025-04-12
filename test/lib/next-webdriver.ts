@@ -145,61 +145,12 @@ export default async function webdriver(
     cpuThrottleRate,
     beforePageLoad,
     pushErrorAsConsoleLog,
+    waitHydration,
+    retryWaitHydration,
   })
   console.log(`\n> Loaded browser with ${fullUrl}\n`)
 
   browserTeardown.push(browser.close.bind(browser))
-
-  // Wait for application to hydrate
-  if (waitHydration && !disableJavaScript) {
-    console.log(`\n> Waiting hydration for ${fullUrl}\n`)
-
-    const checkHydrated = async () => {
-      await browser.eval(() => {
-        return new Promise<void>((callback) => {
-          // if it's not a Next.js app return
-          if (
-            !document.documentElement.innerHTML.includes('__NEXT_DATA__') &&
-            // @ts-ignore next exists on window if it's a Next.js page.
-            typeof ((window as any).next && (window as any).next.version) ===
-              'undefined'
-          ) {
-            console.log('Not a next.js page, resolving hydrate check')
-            callback()
-          }
-
-          // TODO: should we also ensure router.isReady is true
-          // by default before resolving?
-          if ((window as any).__NEXT_HYDRATED) {
-            console.log('Next.js page already hydrated')
-            callback()
-          } else {
-            let timeout = setTimeout(callback, 10 * 1000)
-            ;(window as any).__NEXT_HYDRATED_CB = function () {
-              clearTimeout(timeout)
-              console.log('Next.js hydrate callback fired')
-              callback()
-            }
-          }
-        })
-      })
-    }
-
-    try {
-      await checkHydrated()
-    } catch (err) {
-      if (retryWaitHydration) {
-        // re-try in case the page reloaded during check
-        await new Promise((resolve) => setTimeout(resolve, 2000))
-        await checkHydrated()
-      } else {
-        console.error('failed to check hydration')
-        throw err
-      }
-    }
-
-    console.log(`\n> Hydration complete for ${fullUrl}\n`)
-  }
 
   // This is a temporary workaround for turbopack starting watching too late.
   // So we delay file changes to give it some time

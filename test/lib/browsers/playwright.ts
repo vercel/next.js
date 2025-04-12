@@ -244,6 +244,8 @@ export class Playwright<TCurrent = undefined> {
       cpuThrottleRate?: number
       pushErrorAsConsoleLog?: boolean
       beforePageLoad?: (page: Page) => void
+      waitHydration?: boolean
+      retryWaitHydration?: boolean
     }
   ) {
     await this.close()
@@ -323,6 +325,62 @@ export class Playwright<TCurrent = undefined> {
     opts?.beforePageLoad?.(page)
 
     await page.goto(url, { waitUntil: 'load' })
+
+    const waitHydration = opts?.waitHydration ?? true
+    if (waitHydration && contextHasJSEnabled) {
+      await this.waitForHydration(opts?.retryWaitHydration)
+    }
+  }
+
+  async waitForHydration(retry = false) {
+    // Wait for application to hydrate
+    console.log(`\n> Waiting hydration for ${page.url()}\n`)
+
+    const checkHydrated = async () => {
+      await page.evaluate(() => {
+        return new Promise<void>((callback) => {
+          // if it's not a Next.js app return
+          if (
+            !document.documentElement.innerHTML.includes('__NEXT_DATA__') &&
+            // @ts-ignore next exists on window if it's a Next.js page.
+            typeof ((window as any).next && (window as any).next.version) ===
+              'undefined'
+          ) {
+            console.log('Not a next.js page, resolving hydrate check')
+            callback()
+          }
+
+          // TODO: should we also ensure router.isReady is true
+          // by default before resolving?
+          if ((window as any).__NEXT_HYDRATED) {
+            console.log('Next.js page already hydrated')
+            callback()
+          } else {
+            let timeout = setTimeout(callback, 10 * 1000)
+            ;(window as any).__NEXT_HYDRATED_CB = function () {
+              clearTimeout(timeout)
+              console.log('Next.js hydrate callback fired')
+              callback()
+            }
+          }
+        })
+      })
+    }
+
+    try {
+      await checkHydrated()
+    } catch (err) {
+      if (retry) {
+        // re-try in case the page reloaded during check
+        await new Promise((resolve) => setTimeout(resolve, 2000))
+        await checkHydrated()
+      } else {
+        console.error('failed to check hydration')
+        throw err
+      }
+    }
+
+    console.log(`\n> Hydration complete for ${page.url()}\n`)
   }
 
   back(options?: Parameters<Page['goBack']>[0]) {
