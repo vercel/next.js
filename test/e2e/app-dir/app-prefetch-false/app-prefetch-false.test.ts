@@ -1,5 +1,3 @@
-import type { Request } from 'playwright'
-
 import { nextTestSetup } from 'e2e-utils'
 import type { Playwright } from 'next-webdriver'
 
@@ -14,7 +12,7 @@ const createRequestsListener = async (browser: Playwright) => {
 
   let requests = []
 
-  browser.on('request', (req: Request) => {
+  browser.on('request', (req) => {
     requests.push([req.url(), !!req.headers()['next-router-prefetch']])
   })
 

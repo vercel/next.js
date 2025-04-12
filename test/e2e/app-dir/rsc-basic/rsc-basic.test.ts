@@ -2,7 +2,6 @@ import path from 'path'
 import { check } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
-import { Page } from 'playwright'
 
 // TODO: We should decide on an established pattern for gating test assertions
 // on experimental flags. For example, as a first step we could all the common
@@ -165,7 +164,7 @@ describe('app dir - rsc basics', () => {
     const flightRequests: string[] = []
     let requestsCount = 0
     const browser = await next.browser('/root', {
-      beforePageLoad(page: Page) {
+      beforePageLoad(page) {
         page.on('request', (request) => {
           requestsCount++
           const headers = request.headers()

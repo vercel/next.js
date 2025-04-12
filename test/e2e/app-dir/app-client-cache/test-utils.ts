@@ -1,5 +1,4 @@
 import { Playwright } from 'next-webdriver'
-import type { Request } from 'playwright'
 
 export const getPathname = (url: string) => {
   const urlObj = new URL(url)
@@ -57,7 +56,7 @@ export const createRequestsListener = async (browser: Playwright) => {
 
   let requests = []
 
-  browser.on('request', (req: Request) => {
+  browser.on('request', (req) => {
     requests.push([req.url(), !!req.headers()['next-router-prefetch']])
   })
 
