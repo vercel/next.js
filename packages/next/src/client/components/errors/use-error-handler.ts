@@ -33,7 +33,7 @@ export function handleConsoleError(
   }
   error = getReactStitchedError(error)
 
-  storeHydrationErrorStateFromConsoleArgs(...consoleErrorArgs)
+  // storeHydrationErrorStateFromConsoleArgs(...consoleErrorArgs)
   attachHydrationErrorState(error)
 
   errorQueue.push(error)
