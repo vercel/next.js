@@ -748,7 +748,7 @@ declare module 'next/dist/compiled/zod-validation-error' {
 }
 
 declare module 'next/dist/compiled/ts-next-plugin' {
-  import * as m from 'ts-next-plugin'
+  import m from 'ts-next-plugin'
   export = m
 }
 

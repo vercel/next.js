@@ -384,4 +384,5 @@ const createTSPlugin: tsModule.server.PluginModuleFactory = ({
   return { create }
 }
 
-export = createTSPlugin
+module.exports = createTSPlugin
+export default createTSPlugin

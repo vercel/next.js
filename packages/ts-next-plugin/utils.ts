@@ -31,7 +31,7 @@ export function init(opts: {
     '^' + (projectDir + '(/src)?/app').replace(/[\\/]/g, '[\\/]')
   )
 
-  log('Initializing Next.js TypeScript plugin: ' + projectDir)
+  log(' 2 Initializing Next.js TypeScript plugin: ' + projectDir)
 
   const compilerOptions = info.project.getCompilerOptions()
   const fsMap = createDefaultMapFromNodeModules(
