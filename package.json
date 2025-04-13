@@ -80,7 +80,8 @@
     "test-storybook": "turbo run test-storybook",
     "with-rspack": "cross-env NEXT_RSPACK=1 NEXT_TEST_USE_RSPACK=1",
     "build-ts-next-plugin": "pnpm --filter ts-next-plugin build",
-    "watch-ts-next-plugin": "pnpm --filter ts-next-plugin watch"
+    "watch-ts-next-plugin": "pnpm --filter ts-next-plugin watch",
+    "ncc-compiled": "cd packages/next && pnpm ncc-compiled"
   },
   "devDependencies": {
     "@actions/core": "1.10.1",
@@ -263,6 +264,7 @@
     "tree-kill": "1.2.2",
     "tsec": "0.2.1",
     "tsx": "4.19.2",
+    "ts-next-plugin": "workspace:*",
     "turbo": "2.3.3",
     "typescript": "5.8.2",
     "unfetch": "4.2.0",

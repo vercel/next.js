@@ -567,6 +567,9 @@ importers:
       tree-kill:
         specifier: 1.2.2
         version: 1.2.2
+      ts-next-plugin:
+        specifier: workspace:*
+        version: link:packages/ts-next-plugin
       tsec:
         specifier: 0.2.1
         version: 0.2.1(@bazel/bazelisk@1.19.0)(typescript@5.8.2)
@@ -1518,9 +1521,6 @@ importers:
       timers-browserify:
         specifier: 2.0.12
         version: 2.0.12
-      ts-next-plugin:
-        specifier: workspace:*
-        version: link:../ts-next-plugin
       tty-browserify:
         specifier: 0.0.1
         version: 0.0.1

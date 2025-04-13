@@ -334,7 +334,6 @@
     "terser-webpack-plugin": "5.3.9",
     "text-table": "0.2.0",
     "timers-browserify": "2.0.12",
-    "ts-next-plugin": "workspace:*",
     "tty-browserify": "0.0.1",
     "typescript": "5.8.2",
     "ua-parser-js": "1.0.35",
