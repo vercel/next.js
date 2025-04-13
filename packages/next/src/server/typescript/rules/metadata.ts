@@ -5,8 +5,8 @@ import {
   getTs,
   getTypeChecker,
   isPositionInsideNode,
-  log,
   getVirtualTsEnv,
+  updateVirtualFile,
 } from '../utils'
 
 import type tsModule from 'typescript/lib/tsserverlibrary'
@@ -86,15 +86,7 @@ function updateVirtualFileWithType(
     sourceText.slice(nodeEnd) +
     TYPE_IMPORT
 
-  const virtualTsEnv = getVirtualTsEnv()
-
-  if (virtualTsEnv.getSourceFile(fileName)) {
-    log('Updating file: ' + fileName)
-    virtualTsEnv.updateFile(fileName, newSource)
-  } else {
-    log('Creating file: ' + fileName)
-    virtualTsEnv.createFile(fileName, newSource)
-  }
+  updateVirtualFile(fileName, newSource)
 
   return [nodeEnd, annotation.length]
 }

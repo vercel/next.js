@@ -216,3 +216,31 @@ export function getEntryInfo(
 
   return { client: false, server: false }
 }
+
+// Save up to 10 files in the virtual env.
+const MAX_LRU_CACHE_SIZE = 10
+// Save only the filenames as the source is retrieved from the virtual env.
+const lruCache = new Set<string>()
+
+export function updateVirtualFile(fileName: string, newSource: string) {
+  const virtualTsEnv = getVirtualTsEnv()
+
+  if (virtualTsEnv.getSourceFile(fileName)) {
+    log('Updating file: ' + fileName)
+    virtualTsEnv.updateFile(fileName, newSource)
+    // Move to end (most recently used)
+    lruCache.delete(fileName)
+    lruCache.add(fileName)
+  } else {
+    if (lruCache.size >= MAX_LRU_CACHE_SIZE) {
+      const [oldestKey] = lruCache
+      log('LRU Cache is full, deleting file: ' + oldestKey)
+      virtualTsEnv.deleteFile(oldestKey!)
+      lruCache.delete(oldestKey!)
+    }
+
+    log('Creating file: ' + fileName)
+    virtualTsEnv.createFile(fileName, newSource)
+    lruCache.add(fileName)
+  }
+}
