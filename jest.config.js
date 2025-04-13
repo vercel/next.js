@@ -22,6 +22,7 @@ const customJestConfig = {
   moduleNameMapper: {
     '@next/font/(.*)': '@next/font/$1',
   },
+  testEnvironment: '<rootDir>/lib/jest-reflection/environment.ts',
 }
 
 // Check if the environment variable is set to enable test report,

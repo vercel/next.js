@@ -75,9 +75,15 @@ importers:
       '@fullhuman/postcss-purgecss':
         specifier: 1.3.0
         version: 1.3.0
+      '@jest/environment':
+        specifier: 29.7.0
+        version: 29.7.0
       '@jest/expect-utils':
         specifier: 29.7.0
         version: 29.7.0
+      '@jest/types':
+        specifier: 29.5.0
+        version: 29.5.0
       '@mdx-js/loader':
         specifier: 2.2.1
         version: 2.2.1(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15)))
@@ -367,6 +373,9 @@ importers:
         specifier: 29.7.0
         version: 29.7.0
       jest-environment-jsdom:
+        specifier: 29.7.0
+        version: 29.7.0
+      jest-environment-node:
         specifier: 29.7.0
         version: 29.7.0
       jest-extended:
@@ -6148,17 +6157,11 @@ packages:
   '@types/is-empty@1.2.3':
     resolution: {integrity: sha512-4J1l5d79hoIvsrKh5VUKVRA1aIdsOb10Hu5j3J2VfP/msDnfTdGPmNp2E1Wg+vs97Bktzo+MZePFFXSGoykYJw==}
 
-  '@types/istanbul-lib-coverage@2.0.3':
-    resolution: {integrity: sha512-sz7iLqvVUg1gIedBOvlkxPlc8/uVzyS5OwGz1cKjXzkl3FpL3al0crU8YGU1WoHkxn0Wxbw5tyi6hvzJKNzFsw==}
-
   '@types/istanbul-lib-coverage@2.0.4':
     resolution: {integrity: sha512-z/QT1XN4K4KYuslS23k62yDIDLwLFkzxOuMplDtObz0+y7VqJCaO2o+SPwHCvLFZh7xazvvoor2tA/hPz9ee7g==}
 
   '@types/istanbul-lib-report@3.0.0':
     resolution: {integrity: sha512-plGgXAPfVKFoYfa9NpYDAkseG+g6Jr294RqeqcqDixSbU34MZVJRi/P+7Y8GDpzkEwLaGZZOpKIEmeVZNtKsrg==}
-
-  '@types/istanbul-reports@3.0.0':
-    resolution: {integrity: sha512-nwKNbvnwJ2/mndE9ItP/zc2TCzw6uuodnF4EHYWD+gCQDVBuRQL5UzbZD0/ezy1iKsFU2ZQiDqg4M9dN4+wZgA==}
 
   '@types/istanbul-reports@3.0.1':
     resolution: {integrity: sha512-c3mAZEuK0lvBp8tmuL74XRKn1+y2dcwOUpH7x4WrF6gk1GIgiluDRgMYQtw2OFcBvAJWlt6ASU3tSqxp0Uu0Aw==}
@@ -14449,6 +14452,7 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
+
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.11.0:
@@ -20576,9 +20580,9 @@ snapshots:
 
   '@jest/types@29.5.0':
     dependencies:
-      '@jest/schemas': 29.4.3
-      '@types/istanbul-lib-coverage': 2.0.3
-      '@types/istanbul-reports': 3.0.0
+      '@jest/schemas': 29.6.3
+      '@types/istanbul-lib-coverage': 2.0.4
+      '@types/istanbul-reports': 3.0.1
       '@types/node': 20.17.6
       '@types/yargs': 17.0.10
       chalk: 4.1.2
@@ -22754,17 +22758,11 @@ snapshots:
 
   '@types/is-empty@1.2.3': {}
 
-  '@types/istanbul-lib-coverage@2.0.3': {}
-
   '@types/istanbul-lib-coverage@2.0.4': {}
 
   '@types/istanbul-lib-report@3.0.0':
     dependencies:
       '@types/istanbul-lib-coverage': 2.0.4
-
-  '@types/istanbul-reports@3.0.0':
-    dependencies:
-      '@types/istanbul-lib-report': 3.0.0
 
   '@types/istanbul-reports@3.0.1':
     dependencies:
