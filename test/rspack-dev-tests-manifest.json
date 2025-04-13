@@ -6276,14 +6276,14 @@
       "app-dir - logging with verbose logging for edge runtime should not log _rsc query for client navigation RSC request",
       "app-dir - logging with verbose logging for edge runtime should only log requests in development mode",
       "app-dir - logging with verbose logging for edge runtime should respect request.init.cache when use with fetch input is instance",
-      "app-dir - logging with verbose logging for edge runtime should show cache reason of noStore when use with fetch"
+      "app-dir - logging with verbose logging for edge runtime should show cache reason of noStore when use with fetch",
+      "app-dir - logging with verbose logging for edge runtime when logging.fetches.hmrRefreshes is true should log requests for HMR refreshes"
     ],
     "failed": [
       "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
-      "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes",
-      "app-dir - logging with verbose logging for edge runtime when logging.fetches.hmrRefreshes is true should log requests for HMR refreshes"
+      "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes"
     ],
     "pending": [],
     "flakey": [],
