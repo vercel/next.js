@@ -1,9 +1,9 @@
-import type { VirtualTypeScriptEnvironment } from 'next/dist/compiled/@typescript/vfs'
+import type { VirtualTypeScriptEnvironment } from '@typescript/vfs'
 import {
   createFSBackedSystem,
   createDefaultMapFromNodeModules,
   createVirtualTypeScriptEnvironment,
-} from 'next/dist/compiled/@typescript/vfs'
+} from '@typescript/vfs'
 
 import path, { join } from 'path'
 

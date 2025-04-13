@@ -1,1 +1,1 @@
-export { createTSPlugin } from './typescript'
+export { createTSPlugin } from 'next/dist/compiled/ts-next-plugin'

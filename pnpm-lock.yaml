@@ -1176,9 +1176,6 @@ importers:
       '@types/ws':
         specifier: 8.2.0
         version: 8.2.0
-      '@typescript/vfs':
-        specifier: 1.6.1
-        version: 1.6.1(typescript@5.8.2)
       '@vercel/ncc':
         specifier: 0.34.0
         version: 0.34.0
@@ -1521,6 +1518,9 @@ importers:
       timers-browserify:
         specifier: 2.0.12
         version: 2.0.12
+      ts-next-plugin:
+        specifier: workspace:*
+        version: link:../ts-next-plugin
       tty-browserify:
         specifier: 0.0.1
         version: 0.0.1
@@ -1720,6 +1720,16 @@ importers:
       prettier:
         specifier: 2.5.1
         version: 2.5.1
+      typescript:
+        specifier: 5.8.2
+        version: 5.8.2
+
+  packages/ts-next-plugin:
+    dependencies:
+      '@typescript/vfs':
+        specifier: 1.6.1
+        version: 1.6.1(typescript@5.8.2)
+    devDependencies:
       typescript:
         specifier: 5.8.2
         version: 5.8.2
@@ -14452,6 +14462,7 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
+
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.11.0:

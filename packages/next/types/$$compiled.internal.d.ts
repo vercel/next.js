@@ -747,8 +747,8 @@ declare module 'next/dist/compiled/zod-validation-error' {
   export = zve
 }
 
-declare module 'next/dist/compiled/@typescript/vfs' {
-  import m from '@typescript/vfs'
+declare module 'next/dist/compiled/ts-next-plugin' {
+  import * as m from 'ts-next-plugin'
   export = m
 }
 

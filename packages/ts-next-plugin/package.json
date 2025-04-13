@@ -1,0 +1,11 @@
+{
+  "name": "ts-next-plugin",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "@typescript/vfs": "1.6.1"
+  },
+  "devDependencies": {
+    "typescript": "5.8.2"
+  }
+}

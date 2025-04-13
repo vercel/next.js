@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "stripInternal": true,
+    "esModuleInterop": true,
+    "verbatimModuleSyntax": true,
+    "module": "ESNext",
+    "target": "ES2018",
+    "moduleResolution": "node"
+  }
+}
