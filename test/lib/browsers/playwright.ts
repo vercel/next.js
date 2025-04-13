@@ -347,11 +347,69 @@ class Tracer {
     const maxTotalLength = 255
 
     const prefix = `pw-${moduleInitializationTime}-${traceInfo.id}-`
-    const suffix = `-${Date.now()}.zip`
+    const suffix = `.zip`
 
     const maxInfixLength = maxTotalLength - (prefix.length + suffix.length)
-    const infix = encodeURIComponent(traceInfo.name).slice(0, maxInfixLength)
+    const infix = middleOut(
+      replaceUnsafeChars(traceInfo.name),
+      maxInfixLength,
+      '...'
+    )
+
     return prefix + infix + suffix
+
+    function replaceUnsafeChars(text: string) {
+      const chars = /[^a-zA-Z0-9\-_.]+/
+      return (
+        text
+          // strip leading unsafe chars to avoid a useless '_' at the start
+          .replace(new RegExp(`^${chars.source}`), '')
+          // strip trailing unsafe chars to avoid a useless '_' at the end
+          .replace(new RegExp(`${chars.source}$`), '')
+          // replace each run of unsafe chars with a '_'
+          .replaceAll(new RegExp(chars, 'g'), '_')
+      )
+    }
+
+    /**
+     * Truncate `text` to be at most `maxLen` characters,
+     * replacing the appropriate number of characters in the middle with `replacement`.
+     * */
+    function middleOut(text: string, maxLen: number, replacement: string) {
+      if (text.length <= maxLen) {
+        return text
+      }
+
+      // EXAMPLE
+      //
+      // maxLen = 10:
+      //   __________  (it looks like this)
+      // replacement (length: 3)
+      //   '...'
+      // input (length: 17):
+      //   '0123456789abcdefg'
+      //
+      // surplus = 17 - 10 + 3 = 10
+      // keep    = 17 - surplus = 7
+      // i.e. we need to replace 10 inner chars with: '...' (leaving 7 characters of the actual string)
+      //   '0123456789abcdefg'
+      //        ^^^^^^^^^^
+      // so we take the leading and traling parts:
+      //   '0123456789abcdefg'
+      //    ^^^^..........^^^
+      //     4     (10)    3
+      // result:
+      //   '0123...efg'
+      const surplus = text.length - maxLen + replacement.length
+      const keep = text.length - surplus
+
+      // if we have an odd length of characters remaining, prioritize the leading part.
+      const halfKeep = Math.floor(keep / 2)
+      const leading = keep % 2 === 0 ? halfKeep : halfKeep + 1
+      const trailing = halfKeep
+
+      return text.slice(0, leading) + replacement + text.slice(-trailing)
+    }
   }
 }
 
