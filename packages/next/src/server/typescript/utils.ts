@@ -18,7 +18,7 @@ export function getVirtualTsEnv() {
   const virtualTsEnv = globalThis.__NEXT_TS_PLUGIN_VIRTUAL_ENV
   if (!virtualTsEnv) {
     throw new Error(
-      'Could not find virtual TypeScript environment. This is a bug in Next.js TypeScript plugin. Please report it by opening an issue at https://github.com/vercel/next.js/issues.'
+      '[next] Could not find virtual TypeScript environment. This is a bug in Next.js TypeScript plugin. Please report it by opening an issue at https://github.com/vercel/next.js/issues.'
     )
   }
   return virtualTsEnv
