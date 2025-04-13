@@ -2234,17 +2234,33 @@ export async function ncc_https_proxy_agent(task, opts) {
     .target('src/compiled/https-proxy-agent')
 }
 
-externals['@typescript/vfs'] = 'next/dist/compiled/@typescript/vfs'
-export async function ncc_typescript_vfs(task, opts) {
+externals['ts-next-plugin'] = 'next/dist/compiled/ts-next-plugin'
+export async function ncc_ts_next_plugin(task, opts) {
+  const targetPath = relative(
+    __dirname,
+    resolveFrom(__dirname, 'ts-next-plugin')
+  )
+  console.log({ targetPath })
   await task
-    .source(relative(__dirname, require.resolve('@typescript/vfs')))
-    .ncc({ packageName: '@typescript/vfs', externals })
-    .target('src/compiled/@typescript/vfs')
+    .source(targetPath)
+    .ncc({ packageName: 'ts-next-plugin', externals })
+    .target('src/compiled/ts-next-plugin')
+}
+
+export async function build_ts_next_plugin(task, opts) {
+  await execa.command('pnpm build-ts-next-plugin', {
+    stdio: 'inherit',
+  })
 }
 
 export async function precompile(task, opts) {
   await task.parallel(
-    ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets'],
+    [
+      'browser_polyfills',
+      'copy_ncced',
+      'copy_styled_jsx_assets',
+      'build_ts_next_plugin',
+    ],
     opts
   )
 
@@ -2389,7 +2405,7 @@ export async function ncc(task, opts) {
         'ncc_opentelemetry_api',
         'ncc_http_proxy_agent',
         'ncc_https_proxy_agent',
-        'ncc_typescript_vfs',
+        'ncc_ts_next_plugin',
         'ncc_mini_css_extract_plugin',
       ],
       opts

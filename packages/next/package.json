@@ -89,7 +89,9 @@
     "ncc-compiled": "taskr ncc",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "test-storybook": "test-storybook"
+    "test-storybook": "test-storybook",
+    "build-ts-next-plugin": "pnpm --filter ts-next-plugin build",
+    "watch-ts-next-plugin": "pnpm --filter ts-next-plugin watch"
   },
   "taskr": {
     "requires": [

@@ -2,6 +2,7 @@
   "name": "ts-next-plugin",
   "version": "0.0.0",
   "private": true,
+  "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch"
@@ -9,6 +10,9 @@
   "dependencies": {
     "@typescript/vfs": "1.6.1"
   },
+  "files": [
+    "dist"
+  ],
   "devDependencies": {
     "typescript": "5.8.2"
   }
