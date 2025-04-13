@@ -2236,13 +2236,8 @@ export async function ncc_https_proxy_agent(task, opts) {
 
 externals['ts-next-plugin'] = 'next/dist/compiled/ts-next-plugin'
 export async function ncc_ts_next_plugin(task, opts) {
-  const targetPath = relative(
-    __dirname,
-    resolveFrom(__dirname, 'ts-next-plugin')
-  )
-  console.log({ targetPath })
   await task
-    .source(targetPath)
+    .source(relative(__dirname, resolveFrom(__dirname, 'ts-next-plugin')))
     .ncc({ packageName: 'ts-next-plugin', externals })
     .target('src/compiled/ts-next-plugin')
 }
@@ -2255,12 +2250,7 @@ export async function build_ts_next_plugin(task, opts) {
 
 export async function precompile(task, opts) {
   await task.parallel(
-    [
-      'browser_polyfills',
-      'copy_ncced',
-      'copy_styled_jsx_assets',
-      'build_ts_next_plugin',
-    ],
+    ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets'],
     opts
   )
 
@@ -2405,7 +2395,6 @@ export async function ncc(task, opts) {
         'ncc_opentelemetry_api',
         'ncc_http_proxy_agent',
         'ncc_https_proxy_agent',
-        'ncc_ts_next_plugin',
         'ncc_mini_css_extract_plugin',
       ],
       opts
@@ -2429,6 +2418,8 @@ export async function ncc(task, opts) {
       'ncc_edge_runtime',
       'ncc_mswjs_interceptors',
       'ncc_rsc_poison_packages',
+      'build_ts_next_plugin',
+      'ncc_ts_next_plugin',
     ],
     opts
   )
