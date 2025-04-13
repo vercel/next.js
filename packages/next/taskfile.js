@@ -78,6 +78,9 @@ const externals = {
 
   punycode: 'punycode/',
   // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
+
+  // Prevent accidentally including the whole TypeScript package.
+  typescript: 'typescript',
 }
 // eslint-disable-next-line camelcase
 externals['node-html-parser'] = 'next/dist/compiled/node-html-parser'

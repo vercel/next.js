@@ -32,11 +32,18 @@ module.exports = function (task) {
       ...options,
     }).then(({ code, assets }) => {
       Object.keys(assets).forEach((key) => {
+        const base = basename(key)
+        const filename = basename(base, extname(base))
+        // Skip generating files for externals.
+        if (options.externals && options.externals[filename]) {
+          return
+        }
+
         let data = assets[key].source
 
         this._.files.push({
           data,
-          base: basename(key),
+          base,
           dir: join(file.dir, dirname(key)),
         })
       })
