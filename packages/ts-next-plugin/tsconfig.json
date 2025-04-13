@@ -3,9 +3,8 @@
     "strict": true,
     "stripInternal": true,
     "esModuleInterop": true,
-    "verbatimModuleSyntax": true,
     "outDir": "./dist",
-    "module": "ESNext",
+    "module": "CommonJS",
     "target": "ES2018",
     "moduleResolution": "node"
   }

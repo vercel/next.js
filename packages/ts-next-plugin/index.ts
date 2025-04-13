@@ -28,7 +28,7 @@ import metadata from './rules/metadata'
 import errorEntry from './rules/error'
 import type tsModule from 'typescript/lib/tsserverlibrary'
 
-export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
+const createTSPlugin: tsModule.server.PluginModuleFactory = ({
   typescript: ts,
 }) => {
   function create(info: tsModule.server.PluginCreateInfo) {
@@ -383,3 +383,5 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
 
   return { create }
 }
+
+export = createTSPlugin
