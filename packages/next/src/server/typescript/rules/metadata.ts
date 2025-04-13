@@ -6,7 +6,7 @@ import {
   getTypeChecker,
   isPositionInsideNode,
   log,
-  virtualTsEnv,
+  getVirtualTsEnv,
 } from '../utils'
 
 import type tsModule from 'typescript/lib/tsserverlibrary'
@@ -86,6 +86,8 @@ function updateVirtualFileWithType(
     sourceText.slice(nodeEnd) +
     TYPE_IMPORT
 
+  const virtualTsEnv = getVirtualTsEnv()
+
   if (virtualTsEnv.getSourceFile(fileName)) {
     log('Updating file: ' + fileName)
     virtualTsEnv.updateFile(fileName, newSource)
@@ -108,6 +110,8 @@ function proxyDiagnostics(
   pos: number[],
   n: tsModule.VariableDeclaration | tsModule.FunctionDeclaration
 ) {
+  const virtualTsEnv = getVirtualTsEnv()
+
   // Get diagnostics
   const diagnostics =
     virtualTsEnv.languageService.getSemanticDiagnostics(fileName)
@@ -151,6 +155,7 @@ const metadata = {
 
     // Get completions
     const newPos = position <= pos[0] ? position : position + pos[1]
+    const virtualTsEnv = getVirtualTsEnv()
     const completions = virtualTsEnv.languageService.getCompletionsAtPosition(
       fileName,
       newPos,
@@ -382,6 +387,7 @@ const metadata = {
 
     const newPos = position <= pos[0] ? position : position + pos[1]
 
+    const virtualTsEnv = getVirtualTsEnv()
     const details = virtualTsEnv.languageService.getCompletionEntryDetails(
       fileName,
       newPos,
@@ -404,6 +410,7 @@ const metadata = {
     if (pos === undefined) return
 
     const newPos = position <= pos[0] ? position : position + pos[1]
+    const virtualTsEnv = getVirtualTsEnv()
     const insight = virtualTsEnv.languageService.getQuickInfoAtPosition(
       fileName,
       newPos
@@ -421,6 +428,7 @@ const metadata = {
     if (pos === undefined) return
     const newPos = position <= pos[0] ? position : position + pos[1]
 
+    const virtualTsEnv = getVirtualTsEnv()
     const definitionInfoAndBoundSpan =
       virtualTsEnv.languageService.getDefinitionAndBoundSpan(fileName, newPos)
 

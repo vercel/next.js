@@ -10,10 +10,23 @@ import path, { join } from 'path'
 import type tsModule from 'typescript/lib/tsserverlibrary'
 type TypeScript = typeof import('typescript/lib/tsserverlibrary')
 
+declare global {
+  var __NEXT_TS_PLUGIN_VIRTUAL_ENV: VirtualTypeScriptEnvironment | undefined
+}
+
+export function getVirtualTsEnv() {
+  const virtualTsEnv = globalThis.__NEXT_TS_PLUGIN_VIRTUAL_ENV
+  if (!virtualTsEnv) {
+    throw new Error(
+      'Could not find virtual TypeScript environment. This is a bug in Next.js TypeScript plugin. Please report it by opening an issue at https://github.com/vercel/next.js/issues.'
+    )
+  }
+  return virtualTsEnv
+}
+
 let ts: TypeScript
 let info: tsModule.server.PluginCreateInfo
 let appDirRegExp: RegExp
-export let virtualTsEnv: VirtualTypeScriptEnvironment
 
 export function log(message: string) {
   info.project.projectService.logger.info('[next] ' + message)
@@ -33,6 +46,11 @@ export function init(opts: {
 
   log('Initializing Next.js TypeScript plugin: ' + projectDir)
 
+  if (globalThis.__NEXT_TS_PLUGIN_VIRTUAL_ENV) {
+    log('Virtual TypeScript environment already initialized.')
+    return true
+  }
+
   const compilerOptions = info.project.getCompilerOptions()
   const fsMap = createDefaultMapFromNodeModules(
     compilerOptions,
@@ -41,14 +59,14 @@ export function init(opts: {
   )
   const system = createFSBackedSystem(fsMap, projectDir, ts)
 
-  virtualTsEnv = createVirtualTypeScriptEnvironment(
+  globalThis.__NEXT_TS_PLUGIN_VIRTUAL_ENV = createVirtualTypeScriptEnvironment(
     system,
     [],
     ts,
     compilerOptions
   )
 
-  if (!virtualTsEnv) {
+  if (!globalThis.__NEXT_TS_PLUGIN_VIRTUAL_ENV) {
     log(
       'Failed to create virtual TypeScript environment. This is a bug in Next.js TypeScript plugin. Please report it by opening an issue at https://github.com/vercel/next.js/issues.'
     )
@@ -76,6 +94,7 @@ export function getSource(fileName: string) {
 }
 
 export function getSourceFromVirtualTsEnv(fileName: string) {
+  const virtualTsEnv = getVirtualTsEnv()
   if (virtualTsEnv.sys.fileExists(fileName)) {
     return virtualTsEnv.getSourceFile(fileName)
   }
