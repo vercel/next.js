@@ -4,6 +4,7 @@
     "stripInternal": true,
     "esModuleInterop": true,
     "verbatimModuleSyntax": true,
+    "outDir": "./dist",
     "module": "ESNext",
     "target": "ES2018",
     "moduleResolution": "node"
