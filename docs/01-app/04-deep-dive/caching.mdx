@@ -50,20 +50,19 @@ However, **client-first does not mean client-only**. The server still plays a ro
 
 In this hybrid model, the client is prioritized, becoming an active participant in improving the navigation experience and reducing server load.
 
-- **[Revalidating Data](/docs/app/building-your-application/caching#revalidating)**: Revalidating the [Data Cache](#data-cache), will in turn invalidate the Router Cache by re-rendering components on the server and caching the new render output.
-- **Redeploying**: Unlike the Data Cache, which persists across deployments, the Full Route Cache is cleared on new deployments.
+### Declarative
 
-### Opting out
+Next.js caching APIs let you describe caching **semantics** instead of caching **mechanics**.
 
-You can opt out of the Full Route Cache, or in other words, dynamically render components for every incoming request, by:
+Instead of asking: _"Where should this be cached?"_
+You ask: _"When should this cache be updated?"_
 
-- **Using a [Dynamic API](#dynamic-apis)**: This will opt the route out from the Full Route Cache and dynamically render it at request time. The Data Cache can still be used.
-- **Using the `dynamic = 'force-dynamic'` or `revalidate = 0` route segment config options**: This will skip the Full Route Cache and the Data Cache. Meaning components will be rendered and data fetched on every incoming request to the server. The Router Cache will still apply as it's a client-side cache.
-- **Opting out of the [Data Cache](#data-cache)**: If a route has a `fetch` request that is not cached, this will opt the route out of the Full Route Cache. The data for the specific `fetch` request will be fetched for every incoming request. Other `fetch` requests that do not opt out of caching will still be cached in the Data Cache. This allows for a hybrid of cached and uncached data.
+In other words:
 
-## Client-side Router Cache
+- You describe the [update semantics](#update-semantics): how long something is fresh, when it should revalidate, and what causes invalidation.
+- Next.js determines the most appropriate caching layer based on your declared semantics.
 
-Next.js has an in-memory client-side router cache that stores the RSC payload of route segments, split by layouts, loading states, and pages.
+This declarative and agnostic approach allows Next.js to provide a consistent API regardless of your static or dynamic requirements and infrastructure setup.
 
 When a user navigates between routes, Next.js caches the visited route segments and [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) the routes the user is likely to navigate to. This results in instant back/forward navigation, no full-page reload between navigations, and preservation of React state and browser state.
 
