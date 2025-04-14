@@ -36,6 +36,7 @@ export class SharedPlaywrightState {
     public defaultContext: BrowserContextWrapper,
     public browserOptions: BrowserOptions
   ) {}
+  private secondaryContexts = new Set<BrowserContextWrapper>()
 
   static async create(
     browserOptions: BrowserOptions,
@@ -51,6 +52,16 @@ export class SharedPlaywrightState {
       tracingEnabled
     )
     return new SharedPlaywrightState(browser, defaultContext, browserOptions)
+  }
+
+  public async createSecondaryBrowserContext(options: BrowserContextOptions) {
+    const context = await BrowserContextWrapper.create(
+      this.browser,
+      options,
+      this.tracingEnabled()
+    )
+    this.secondaryContexts.add(context)
+    return context
   }
 
   canReuseBrowser(browserOptions: BrowserOptions) {
@@ -93,15 +104,20 @@ export class SharedPlaywrightState {
   }
 
   async close() {
-    await this.closeDefaultContext()
+    await this.closeAllContexts()
     await this.browser.close()
     this.browser = null!
   }
 
-  async closeDefaultContext() {
-    await this.defaultContext.close().finally(() => {
-      this.defaultContext = null!
-    })
+  async closeAllContexts() {
+    await Promise.all([
+      this.defaultContext.close().finally(() => {
+        this.defaultContext = null!
+      }),
+      ...Array.from(this.secondaryContexts).map((context) =>
+        context.close().finally(() => this.secondaryContexts.delete(context))
+      ),
+    ])
   }
 
   tracingEnabled() {

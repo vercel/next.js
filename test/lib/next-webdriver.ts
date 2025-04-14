@@ -87,6 +87,13 @@ export type WebdriverOptions = {
   disableJavaScript?: boolean
   cpuThrottleRate?: number
   pushErrorAsConsoleLog?: boolean
+  /**
+   * @deprecated Calling `next.browser()` multiple times in a single test is not recommended.
+   * If you need to navigate to a new page, use `browser.get(path)`
+   *
+   * If you REALLY need multiple browsers running in parallel, set this option to true.
+   */
+  inefficientlyCreateAdditionalBrowserInstance?: boolean
 } & Partial<Omit<BrowserOptions, 'enableTracing'>> &
   Partial<Omit<BrowserContextOptions, 'javaScriptEnabled'>> &
   NavigationOptions
@@ -102,14 +109,6 @@ export default async function webdriver(
   url: string,
   options: WebdriverOptions = {}
 ): Promise<Playwright> {
-  if (previousBrowser) {
-    console.warn(
-      'Calling `next.browser()` multiple times in a single test is not recommended. use `browser.loadPage()` instead.'
-    )
-    await previousBrowser.close()
-    previousBrowser = null
-  }
-
   const {
     waitHydration = true,
     retryWaitHydration = false,
@@ -122,8 +121,24 @@ export default async function webdriver(
     cpuThrottleRate = undefined,
     pushErrorAsConsoleLog = false,
     userAgent = undefined,
+    inefficientlyCreateAdditionalBrowserInstance:
+      createSecondaryInstance = false,
   } = options
 
+  if (previousBrowser && !createSecondaryInstance) {
+    // the previous browser will be cleaned up after the current test
+    // (or by manually calling `browser.close()` in legacy tests),
+    // so we don't need to do any cleanup here
+    throw new Error(
+      'Calling `next.browser()` multiple times in a single test is not recommended. ' +
+        'If you need to navigate to a new page, use `browser.get(path)` instead. \n' +
+        'If you REALLY need multiple browsers running in parallel, pass `inefficientlyCreateAdditionalBrowserInstance: true` when creating the second browser.'
+    )
+  } else if (!previousBrowser && createSecondaryInstance) {
+    throw new Error(
+      '`inefficientlyCreateAdditionalBrowserInstance: true` can only be passed to the second browser created within a test.'
+    )
+  }
   const { Playwright, SharedPlaywrightState } = await import(
     './browsers/playwright'
   )
@@ -149,17 +164,32 @@ export default async function webdriver(
     )
     context = sharedState.defaultContext
   } else {
-    if (sharedState.canReuseBrowser(browserOptions)) {
-      context = await sharedState.updateDefaultBrowserContext(
+    if (createSecondaryInstance) {
+      if (!sharedState.canReuseBrowser(browserOptions)) {
+        throw new Error(
+          `Changing the following options for a secondary browser is not supported: ${Object.keys(
+            browserOptions
+          )
+            .map((name) => JSON.stringify(name))
+            .join(', ')}`
+        )
+      }
+      context = await sharedState.createSecondaryBrowserContext(
         browserContextOptions
       )
     } else {
-      await sharedState.close()
-      sharedState = await SharedPlaywrightState.create(
-        browserOptions,
-        browserContextOptions
-      )
-      context = sharedState.defaultContext
+      if (sharedState.canReuseBrowser(browserOptions)) {
+        context = await sharedState.updateDefaultBrowserContext(
+          browserContextOptions
+        )
+      } else {
+        await sharedState.close()
+        sharedState = await SharedPlaywrightState.create(
+          browserOptions,
+          browserContextOptions
+        )
+        context = sharedState.defaultContext
+      }
     }
   }
 
