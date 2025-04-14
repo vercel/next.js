@@ -29,6 +29,7 @@ use turbo_tasks_fs::{rope::Rope, FileContent, FileSystemPath};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    chunk::MinifyType,
     error::PrettyPrintError,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     source::Source,
@@ -151,10 +152,11 @@ pub async fn parse(
     source: ResolvedVc<Box<dyn Source>>,
     ty: Value<EcmascriptModuleAssetType>,
     transforms: Vc<EcmascriptInputTransforms>,
+    minify: MinifyType,
 ) -> Result<Vc<ParseResult>> {
     let name = source.ident().to_string().await?.to_string();
     let span = tracing::info_span!("parse ecmascript", name = name, ty = display(&*ty));
-    match parse_internal(source, ty, transforms)
+    match parse_internal(source, ty, transforms, minify)
         .instrument(span)
         .await
     {
@@ -170,6 +172,7 @@ async fn parse_internal(
     source: ResolvedVc<Box<dyn Source>>,
     ty: Value<EcmascriptModuleAssetType>,
     transforms: Vc<EcmascriptInputTransforms>,
+    minify: MinifyType,
 ) -> Result<Vc<ParseResult>> {
     let content = source.content();
     let fs_path_vc = source.ident().path();
@@ -210,6 +213,7 @@ async fn parse_internal(
                         source,
                         ty,
                         transforms,
+                        minify,
                     )
                     .await
                     {
@@ -251,6 +255,7 @@ async fn parse_file_content(
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: &[EcmascriptInputTransform],
+    minify: MinifyType,
 ) -> Result<Vc<ParseResult>> {
     let source_map: Arc<swc_core::common::SourceMap> = Default::default();
     let (emitter, collector) = IssueEmitter::new(
@@ -413,16 +418,16 @@ async fn parse_file_content(
             .await?;
 
 
-            let span = tracing::trace_span!("eager_swc_minifier").entered();
-            parsed_program.mutate(swc_core::ecma::transforms::optimization::simplify::dce::dce(
-                swc_core::ecma::transforms::optimization::simplify::dce::Config {
-                    preserve_imports_with_side_effects: true,
-                    ..Default::default()
-                },
-                unresolved_mark,
-            ));
-
-            drop(span);
+            if matches!(minify,MinifyType::Minify { .. }){
+                let _span = tracing::trace_span!("eager_swc_minifier").entered();
+                parsed_program.mutate(swc_core::ecma::transforms::optimization::simplify::dce::dce(
+                    swc_core::ecma::transforms::optimization::simplify::dce::Config {
+                        preserve_imports_with_side_effects: true,
+                        ..Default::default()
+                    },
+                    unresolved_mark,
+                ));
+            }
 
             if parser_handler.has_errors() {
                 let messages = if let Some(error) = collector_parse.last_emitted_issue() {
