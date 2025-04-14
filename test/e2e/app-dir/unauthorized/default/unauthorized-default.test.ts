@@ -71,7 +71,7 @@ describe('app dir - unauthorized with default unauthorized boundary', () => {
       'group-dynamic [id]'
     )
 
-    await browser.loadPage(next.url + '/group-dynamic/401')
+    await browser.loadPage('/group-dynamic/401')
     await assertNoRedbox(browser)
     await browser.waitForElementByCss('.group-root-layout')
     expect(await browser.elementByCss('.next-error-h1').text()).toBe('401')

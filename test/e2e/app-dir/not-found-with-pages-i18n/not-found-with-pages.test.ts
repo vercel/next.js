@@ -23,7 +23,7 @@ describe('not-found-with-pages', () => {
       'APP ROUTER - 404 PAGE'
     )
 
-    await browser.loadPage(next.url)
+    await browser.loadPage('/')
     expect(await browser.elementByCss('h1').text()).toBe(
       'APP ROUTER - 404 PAGE'
     )

@@ -217,7 +217,7 @@ describe('app dir - metadata', () => {
         href: 'https://example.com/alternates/child/de-DE',
       })
 
-      await browser.loadPage(next.url + '/alternates/child/123')
+      await browser.loadPage('/alternates/child/123')
       await matchDom('link', 'rel="canonical"', {
         href: 'https://example.com/alternates/child/123',
       })
@@ -303,7 +303,7 @@ describe('app dir - metadata', () => {
 
       await checkMetaNameContentPair(browser, 'keywords', 'parent,child')
 
-      await browser.loadPage(next.url + '/dynamic/blog?q=xxx')
+      await browser.loadPage('/dynamic/blog?q=xxx')
       await check(
         () => browser.elementByCss('p').text(),
         /params - blog query - xxx/

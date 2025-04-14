@@ -62,6 +62,8 @@ interface ElementHandleExt extends ElementHandle {
 }
 
 export class Playwright<TCurrent = undefined> {
+  constructor(private baseUrl: string) {}
+
   private activeTrace?: string
   private eventCallbacks: Record<EventType, Set<(...args: any[]) => void>> = {
     request: new Set(),
@@ -234,6 +236,7 @@ export class Playwright<TCurrent = undefined> {
   }
 
   async get(url: string): Promise<void> {
+    url = this.resolveUrl(url)
     await page.goto(url)
   }
 
@@ -248,6 +251,7 @@ export class Playwright<TCurrent = undefined> {
       retryWaitHydration?: boolean
     }
   ) {
+    url = this.resolveUrl(url)
     await this.close()
 
     await this.initContextTracing(url, context!)
@@ -330,6 +334,27 @@ export class Playwright<TCurrent = undefined> {
     if (waitHydration && contextHasJSEnabled) {
       await this.waitForHydration(opts?.retryWaitHydration)
     }
+  }
+
+  resolveUrl(url: string) {
+    // no strictmode, so null/undefined can happen
+    if (typeof url !== 'string') {
+      throw new Error(`Expected a valid url string, got ${url}`)
+    }
+    return new URL(url, this.baseUrl).href
+  }
+
+  setBaseUrl(baseUrl: string) {
+    // no strictmode, so null/undefined can happen
+    if (typeof baseUrl !== 'string') {
+      throw new Error(`Expected a valid url string, got ${baseUrl}`)
+    }
+    try {
+      new URL(baseUrl)
+    } catch {
+      throw new Error(`Expected baseUrl to be a valid URL, got: '${baseUrl}'`)
+    }
+    this.baseUrl = baseUrl
   }
 
   async waitForHydration(retry = false) {

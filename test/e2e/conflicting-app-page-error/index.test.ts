@@ -94,11 +94,11 @@ describe('Conflict between app file and pages file', () => {
       await next.renameFile('pages/another.js', 'pages/another2.js')
 
       // Wait for successful recompilation
-      await browser.loadPage(next.url + '/')
+      await browser.loadPage('/')
       await assertNoRedbox(browser)
       expect(await browser.elementByCss('p').text()).toContain('index - app')
 
-      await browser.loadPage(next.url + '/another')
+      await browser.loadPage('/another')
       expect(await browser.elementByCss('p').text()).toBe('another - app')
     })
 
@@ -108,7 +108,7 @@ describe('Conflict between app file and pages file', () => {
       expect(await getRedboxHeader(browser)).toEqual(null)
       expect(await browser.elementByCss('p').text()).toBe('non-conflict app')
 
-      await browser.loadPage(next.url + '/non-conflict-pages')
+      await browser.loadPage('/non-conflict-pages')
       await assertNoRedbox(browser)
       expect(await getRedboxHeader(browser)).toEqual(null)
       expect(await browser.elementByCss('h1').text()).toBe('non-conflict pages')

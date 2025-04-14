@@ -33,7 +33,7 @@ import { retry } from 'next-test-utils'
       try {
         // Compile /_error
         browser = await webdriver(next.url, '/404')
-        await browser.loadPage(new URL('/', next.url).toString())
+        await browser.loadPage('/')
 
         await retry(async () => {
           const logs = await browser.log()

@@ -119,7 +119,17 @@ export default async function webdriver(
   const { Playwright, quit } = await import('./browsers/playwright')
   browserQuit = quit
 
-  const browser = new Playwright()
+  // TODO: this can change if the next server is stopped and started again
+  // we have some tests work around this:
+  // - test/development/app-dir/dev-indicator/hide-button.test.ts
+  // - test/e2e/persistent-caching/persistent-caching.test.ts
+  const baseUrl = getFullUrl(
+    appPortOrUrl,
+    '',
+    isBrowserStack ? deviceIP : 'localhost'
+  )
+
+  const browser = new Playwright(baseUrl)
   const browserName = process.env.BROWSER_NAME || 'chrome'
   await browser.setup(
     browserName,

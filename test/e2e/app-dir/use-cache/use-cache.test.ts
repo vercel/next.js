@@ -22,11 +22,11 @@ describe('use-cache', () => {
     expect(await browser.waitForElementByCss('#x').text()).toBe('1')
     const random1a = await browser.waitForElementByCss('#y').text()
 
-    await browser.loadPage(new URL(`/?n=2`, next.url).toString())
+    await browser.loadPage('/?n=2')
     expect(await browser.waitForElementByCss('#x').text()).toBe('2')
     const random2 = await browser.waitForElementByCss('#y').text()
 
-    await browser.loadPage(new URL(`/?n=1&unrelated`, next.url).toString())
+    await browser.loadPage('/?n=1&unrelated')
     expect(await browser.waitForElementByCss('#x').text()).toBe('1')
     const random1b = await browser.waitForElementByCss('#y').text()
 
@@ -45,19 +45,15 @@ describe('use-cache', () => {
 
   if (!process.env.TURBOPACK_BUILD) {
     it('should cache results custom handler', async () => {
-      const browser = await next.browser(`/custom-handler?n=1`)
+      const browser = await next.browser('/custom-handler?n=1')
       expect(await browser.waitForElementByCss('#x').text()).toBe('1')
       const random1a = await browser.waitForElementByCss('#y').text()
 
-      await browser.loadPage(
-        new URL(`/custom-handler?n=2`, next.url).toString()
-      )
+      await browser.loadPage('/custom-handler?n=2')
       expect(await browser.waitForElementByCss('#x').text()).toBe('2')
       const random2 = await browser.waitForElementByCss('#y').text()
 
-      await browser.loadPage(
-        new URL(`/custom-handler?n=1&unrelated`, next.url).toString()
-      )
+      await browser.loadPage('/custom-handler?n=1&unrelated')
       expect(await browser.waitForElementByCss('#x').text()).toBe('1')
       const random1b = await browser.waitForElementByCss('#y').text()
 
@@ -78,17 +74,17 @@ describe('use-cache', () => {
     const a1a = await browser.waitForElementByCss('#x').text()
     expect(a1a.slice(0, 2)).toBe('a1')
 
-    await browser.loadPage(new URL('/complex-args?n=e2', next.url).toString())
+    await browser.loadPage('/complex-args?n=e2')
     const e2a = await browser.waitForElementByCss('#x').text()
     expect(e2a.slice(0, 2)).toBe('e2')
 
     expect(a1a).not.toBe(e2a)
 
-    await browser.loadPage(new URL('/complex-args?n=a1', next.url).toString())
+    await browser.loadPage('/complex-args?n=a1')
     const a1b = await browser.waitForElementByCss('#x').text()
     expect(a1b.slice(0, 2)).toBe('a1')
 
-    await browser.loadPage(new URL('/complex-args?n=e2', next.url).toString())
+    await browser.loadPage('/complex-args?n=e2')
     const e2b = await browser.waitForElementByCss('#x').text()
     expect(e2b.slice(0, 2)).toBe('e2')
 
@@ -595,7 +591,7 @@ describe('use-cache', () => {
       const browser = await next.browser(`/form`)
       const time1 = await browser.waitForElementByCss('#t').text()
 
-      await browser.loadPage(new URL(`/form`, next.url).toString())
+      await browser.loadPage('/form')
 
       const time2 = await browser.waitForElementByCss('#t').text()
 
@@ -611,7 +607,7 @@ describe('use-cache', () => {
 
       // Reloading again should ideally be the same value but because the Action seeds
       // the cache with real params as the argument it has a different cache key.
-      // await browser.loadPage(new URL(`/form?c`, next.url).toString())
+      // await browser.loadPage('/form?c')
       // const time4 = await browser.waitForElementByCss('#t').text()
       // expect(time4).toBe(time3);
     })

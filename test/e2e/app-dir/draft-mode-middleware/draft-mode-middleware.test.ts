@@ -22,7 +22,7 @@ describe('app-dir - draft-mode-middleware', () => {
       )
     })
 
-    await browser.loadPage(new URL('/preview-page', next.url).toString())
+    await browser.loadPage('/preview-page')
     const draftText = await browser.elementByCss('h1').text()
     expect(draftText).toBe('draft')
   })
@@ -35,7 +35,7 @@ describe('app-dir - draft-mode-middleware', () => {
       )
     })
 
-    await browser.loadPage(new URL('/preview-page', next.url).toString())
+    await browser.loadPage('/preview-page')
     const draftText = await browser.elementByCss('h1').text()
     expect(draftText).toBe('none')
   })

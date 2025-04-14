@@ -369,7 +369,7 @@ export function runTests(ctx) {
       ctx.basePath || '/'
     )
 
-    await browser.get(browser.initUrl)
+    await browser.get(`${ctx.basePath || '/'}`)
     await browser.waitForElementByCss('#index')
 
     await browser.eval(`(function() {
