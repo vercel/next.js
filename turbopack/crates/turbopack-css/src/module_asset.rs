@@ -89,7 +89,7 @@ impl Module for ModuleCssAsset {
             .chain(
                 match *self
                     .inner(Value::new(ReferenceType::Css(
-                        CssReferenceSubType::ModuleStyles,
+                        CssReferenceSubType::Internal,
                     )))
                     .try_into_module()
                     .await?
@@ -173,7 +173,7 @@ impl ModuleCssAsset {
     async fn classes(self: Vc<Self>) -> Result<Vc<ModuleCssClasses>> {
         let inner = self
             .inner(Value::new(ReferenceType::Css(
-                CssReferenceSubType::ModuleAnalyze,
+                CssReferenceSubType::InternalAnalyze,
             )))
             .module();
 

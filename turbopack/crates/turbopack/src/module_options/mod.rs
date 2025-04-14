@@ -475,28 +475,9 @@ impl ModuleOptions {
                 };
 
                 rules.push(ModuleRule::new(
-                    RuleCondition::All(vec![
-                        RuleCondition::Any(vec![
-                            RuleCondition::ResourcePathEndsWith(".css".to_string()),
-                            RuleCondition::ContentTypeStartsWith("text/css".to_string()),
-                        ]),
-                        // ... but if module css, then only ModuleStyles and ModuleAnalyze
-                        RuleCondition::not(RuleCondition::All(vec![
-                            RuleCondition::Any(vec![
-                                RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
-                                RuleCondition::ResourcePathEndsWith(".module.scss".to_string()),
-                                RuleCondition::ResourcePathEndsWith(".module.sass".to_string()),
-                                RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
-                            ]),
-                            RuleCondition::not(RuleCondition::Any(vec![
-                                RuleCondition::ReferenceType(ReferenceType::Css(
-                                    CssReferenceSubType::ModuleAnalyze,
-                                )),
-                                RuleCondition::ReferenceType(ReferenceType::Css(
-                                    CssReferenceSubType::ModuleStyles,
-                                )),
-                            ])),
-                        ])),
+                    RuleCondition::Any(vec![
+                        RuleCondition::ResourcePathEndsWith(".css".to_string()),
+                        RuleCondition::ContentTypeStartsWith("text/css".to_string()),
                     ]),
                     vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                         ResolvedVc::upcast(
@@ -530,41 +511,47 @@ impl ModuleOptions {
                     })],
                 ),
                 ModuleRule::new(
-                    RuleCondition::all(vec![RuleCondition::Any(vec![
-                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
-                        RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
-                    ])]),
+                    RuleCondition::all(vec![
+                        RuleCondition::Any(vec![
+                            RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                            RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
+                        ]),
+                        // Only create a module CSS asset if not `@import`ed from CSS already.
+                        // NOTE: `composes` references should not be treated as `@import`s and
+                        // should also create a module CSS asset.
+                        RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Css(
+                            CssReferenceSubType::AtImport(None),
+                        ))),
+                    ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::CssModule)],
                 ),
                 ModuleRule::new(
-                    // Exceptions from the preceding rule:
-
-                    // Only create a module CSS asset if not `@import`ed from CSS already.
-                    // NOTE: `composes` references should not be treated as `@import`s and
-                    // should also create a module CSS asset.
+                    RuleCondition::all(vec![
+                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                        // Create a normal CSS asset if `@import`ed from CSS already.
+                        RuleCondition::ReferenceType(ReferenceType::Css(
+                            CssReferenceSubType::AtImport(None),
+                        )),
+                    ]),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
+                        ty: CssModuleAssetType::Module,
+                    })],
+                ),
+                // Ecmascript CSS Modules referencing the actual CSS module to include it
+                ModuleRule::new_internal(
                     RuleCondition::Any(vec![
-                        RuleCondition::ReferenceType(ReferenceType::Css(
-                            CssReferenceSubType::ModuleAnalyze,
-                        )),
-                        RuleCondition::ReferenceType(ReferenceType::Css(
-                            CssReferenceSubType::ModuleStyles,
-                        )),
-                        RuleCondition::all(vec![
-                            RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
-                            RuleCondition::ReferenceType(ReferenceType::Css(
-                                CssReferenceSubType::AtImport(None),
-                            )),
-                        ]),
+                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                        RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
                     })],
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to list the classes
-                ModuleRule::new(
+                ModuleRule::new_internal(
                     RuleCondition::all(vec![
                         RuleCondition::ReferenceType(ReferenceType::Css(
-                            CssReferenceSubType::ModuleAnalyze,
+                            CssReferenceSubType::InternalAnalyze,
                         )),
                         RuleCondition::Any(vec![
                             RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
@@ -649,22 +636,6 @@ impl ModuleOptions {
                             }
                         },
                         RuleCondition::not(RuleCondition::ResourceIsVirtualSource),
-                        RuleCondition::not(RuleCondition::All(vec![
-                            RuleCondition::Any(vec![
-                                RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
-                                RuleCondition::ResourcePathEndsWith(".module.scss".to_string()),
-                                RuleCondition::ResourcePathEndsWith(".module.sass".to_string()),
-                                RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
-                            ]),
-                            RuleCondition::not(RuleCondition::Any(vec![
-                                RuleCondition::ReferenceType(ReferenceType::Css(
-                                    CssReferenceSubType::ModuleAnalyze,
-                                )),
-                                RuleCondition::ReferenceType(ReferenceType::Css(
-                                    CssReferenceSubType::ModuleStyles,
-                                )),
-                            ])),
-                        ])),
                     ]),
                     vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                         ResolvedVc::upcast(

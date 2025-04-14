@@ -9,8 +9,7 @@ use turbopack::{
     css::chunk::CssChunkType,
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
-        ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition, TypeofWindow,
-        TypescriptTransformOptions,
+        ModuleRule, TypeofWindow, TypescriptTransformOptions,
     },
     resolve_options_context::ResolveOptionsContext,
     transition::Transition,
@@ -28,7 +27,6 @@ use turbopack_core::{
         Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion, RuntimeVersions,
     },
     free_var_references,
-    reference_type::{CssReferenceSubType, ReferenceType},
     target::CompileTarget,
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior};
@@ -527,18 +525,6 @@ pub async fn get_server_module_options_context(
         get_emotion_transform_rule(next_config).await?,
         get_react_remove_properties_transform_rule(next_config).await?,
         get_remove_console_transform_rule(next_config).await?,
-        Some(ModuleRule::new(
-            RuleCondition::All(vec![
-                RuleCondition::Any(vec![
-                    RuleCondition::ResourcePathEndsWith(".module.scss".to_string()),
-                    RuleCondition::ResourcePathEndsWith(".module.sass".to_string()),
-                ]),
-                RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Css(
-                    CssReferenceSubType::Undefined,
-                ))),
-            ]),
-            vec![ModuleRuleEffect::ModuleType(ModuleType::CssModule)],
-        )),
     ]
     .into_iter()
     .flatten()
