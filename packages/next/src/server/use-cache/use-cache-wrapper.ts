@@ -122,7 +122,7 @@ function generateCacheEntryWithCacheContext(
   encodedCacheKeyParts: FormData | string,
   ctx: GenerateCacheKeyContext
 ) {
-  const { workStore } = ctx
+  const { workStore, outerWorkUnitStore } = ctx
 
   if (!workStore.cacheLifeProfiles) {
     throw new Error(
@@ -151,6 +151,22 @@ function generateCacheEntryWithCacheContext(
     explicitExpire: undefined,
     explicitStale: undefined,
     tags: [],
+  }
+
+  if (outerWorkUnitStore) {
+    // This is the risky bit about separating the cache store from the work unit
+    // store. It gives access to request-specific data to cache scopes, unless
+    // we guard it in all request APIs based on the existences of a cache store.
+    return cacheAsyncStorage.run(cacheStore, async () =>
+      workUnitAsyncStorage.run(
+        outerWorkUnitStore,
+        generateCacheEntryImpl,
+        cacheStore,
+        fn,
+        encodedCacheKeyParts,
+        ctx
+      )
+    )
   }
 
   return cacheAsyncStorage.run(
