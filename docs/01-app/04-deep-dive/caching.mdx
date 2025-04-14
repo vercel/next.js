@@ -79,14 +79,13 @@ In Next.js, rather than caching entire pages, you can cache:
 
 {/* TODO: Add examples */}
 
-The cache is stored in the browser's temporary memory. Two factors determine how long the router cache lasts:
+## Caching APIs
 
-- **Session**: The cache persists across navigation. However, it's cleared on page refresh.
-- **Automatic Invalidation Period**: The cache of layouts and loading states is automatically invalidated after a specific time. The duration depends on how the resource was [prefetched](/docs/app/api-reference/components/link#prefetch), and if the resource was [statically generated](/docs/app/building-your-application/rendering/server-components#static-rendering-default):
-  - **Default Prefetching** (`prefetch={null}` or unspecified): not cached for dynamic pages, 5 minutes for static pages.
-  - **Full Prefetching** (`prefetch={true}` or `router.prefetch`): 5 minutes for both static & dynamic pages.
+There are three main APIs used for caching:
 
-While a page refresh will clear **all** cached segments, the automatic invalidation period only affects the individual segment from the time it was prefetched.
+- [`"use cache"`](/docs/app/api-reference/directives/use-cachee): Defines a cache boundary for a component or function. Cache boundaries are tied to serialized arguments and function identity.
+- [`cacheLife()`](/docs/app/api-reference/functions/cacheLife): Defines the cache lifetime for a component or function. You can specify `stale`, `revalidate`, and `expire` values, or use presets like `'minutes'`, `'hours'`, `'days'`.
+- [`cacheTag()`](/docs/app/api-reference/functions/cacheTag): Defines a cache tag across multiple boundaries to be invalidated together. This allows coordination between nested boundaries or external triggers (e.g. a CMS update).
 
 > **Good to know**: The experimental [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes) config option can be used to adjust the automatic invalidation times mentioned above.
 
