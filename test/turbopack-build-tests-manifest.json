@@ -2121,6 +2121,7 @@
       "dynamic-io should not prerender pages that use at least one fetch without cache",
       "dynamic-io should not warn about potential memory leak for even listeners on AbortSignal",
       "dynamic-io should prerender fully static pages",
+      "dynamic-io should prerender pages that cached the whole page",
       "dynamic-io should prerender pages that only use cached (\"use cache\") IO",
       "dynamic-io should prerender pages that only use cached (unstable_cache) IO",
       "dynamic-io should prerender pages that only use cached fetches",
@@ -2128,7 +2129,7 @@
       "dynamic-io should prerender static not-found pages"
     ],
     "failed": [],
-    "pending": ["dynamic-io should prerender pages that cached the whole page"],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
