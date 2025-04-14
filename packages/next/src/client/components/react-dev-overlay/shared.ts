@@ -117,7 +117,7 @@ function pushErrorFilterDuplicates(
 const shouldDisableDevIndicator =
   process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
 
-export const INITIAL_OVERLAY_STATE: Omit<OverlayState, 'routerType'> = {
+const INITIAL_OVERLAY_STATE: Omit<OverlayState, 'routerType'> = {
   nextId: 1,
   buildError: null,
   errors: [],
