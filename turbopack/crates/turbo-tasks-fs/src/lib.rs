@@ -473,7 +473,8 @@ impl DiskFileSystem {
     /// # Arguments
     ///
     /// * `name` - Name of the filesystem.
-    /// * `root` - Path to the given filesystem's root.
+    /// * `root` - Path to the given filesystem's root. Should be
+    ///   [canonicalized][std::fs::canonicalize].
     /// * `ignored_subpaths` - A list of subpaths that should not trigger invalidation. This should
     ///   be a full path, since it is possible that root & project dir is different and requires to
     ///   ignore specific subpaths from each.

@@ -215,7 +215,7 @@ mod tests {
         let indicies = (0..THREADS)
             .map(|_| {
                 let mut vec = (0..N).collect::<Vec<_>>();
-                vec.shuffle(&mut rand::thread_rng());
+                vec.shuffle(&mut rand::rng());
                 vec
             })
             .collect::<Vec<_>>();

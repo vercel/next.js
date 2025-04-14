@@ -466,7 +466,7 @@ async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completio
     ));
 
     let mut random_buffer = [0u8; 512];
-    rand::thread_rng().fill(&mut random_buffer[..]);
+    rand::rng().fill(&mut random_buffer[..]);
 
     // perform IO directly with tokio (skipping `tokio_tasks_fs`) to avoid the
     // additional noise/overhead of tasks caching, invalidation, file locks,
