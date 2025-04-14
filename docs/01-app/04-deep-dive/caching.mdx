@@ -21,31 +21,34 @@ In Next.js, caching can be described as:
 - [Declarative](#declarative): You describe when a cache should be updated, rather than how and where the cache is stored.
 - [Granular](#granular): Instead of splitting the cache by pages, you can cache parts of a route (segments), components, or individual async functions.
 
-If the route segments are not in the cache, Next.js will fetch the React Server Components Payload from the server, and populate the Router Cache on the client.
+### Client-first
 
-### Static and Dynamic Rendering
+Historically, web frameworks have been primarily concerned with **server-side** caching:
 
-Whether a route is cached or not at build time depends on whether it's statically or dynamically rendered. Static routes are cached by default, whereas dynamic routes are rendered at request time, and not cached.
+- Cache is coupled to infrastructure (e.g. [ISR](https://vercel.com/docs/incremental-static-regeneration), [Data Cache](https://vercel.com/docs/data-cache), CDNs, etc).
+- Pages are described as entirely static or dynamic:
+  - Static: Prerendered and cached on the server, improving initial page load.
+  - Dynamic: Re-rendered at request time.
+- Personalized data bypassees caching altogether.
 
-This diagram shows the difference between statically and dynamically rendered routes, with cached and uncached data:
+Next.js uses both the client and server environments for caching. When resolving a cache miss, it checks:
 
-<Image
-  alt="How static and dynamic rendering affects the Full Route Cache. Static routes are cached at build time or after data revalidation, whereas dynamic routes are never cached"
-  srcLight="/docs/light/static-and-dynamic-routes.png"
-  srcDark="/docs/dark/static-and-dynamic-routes.png"
-  width="1600"
-  height="1314"
-/>
+1. The client cache (prefetched or previously visited content)
+2. The server in-memory cache (Lambda or Node runtime)
+3. A persistent remote cache, if defined (e.g. [ISR](https://vercel.com/docs/incremental-static-regeneration), [Data Cache](https://vercel.com/docs/data-cache))
 
-Learn more about [static and dynamic rendering](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies).
+{/* TODO: Add diagram */}
 
-### Duration
+By making caching **client-first**, we can reduce unnecessary server requests and optimize React Server Components to provide a similar **user experience** as Single-Page Applications (SPAs)—while still leveraging the benefits of doing work on the server. For the user, it means faster navigation and less intermediary loading states like skeletons and spinners.
 
-By default, the Full Route Cache is persistent. This means that the render output is cached across user requests.
+However, **client-first does not mean client-only**. The server still plays a role in:
 
-### Invalidation
+- Executing logic when needed (e.g. data fetching and rendering)
+- Deduping requests for the same content (in-memory caching)
+- Reusing static shells across users (PPR)
+- Persisting the result in a remote cache (e.g. ISR, CDN, etc)
 
-There are two ways you can invalidate the Full Route Cache:
+In this hybrid model, the client is prioritized, becoming an active participant in improving the navigation experience and reducing server load.
 
 - **[Revalidating Data](/docs/app/building-your-application/caching#revalidating)**: Revalidating the [Data Cache](#data-cache), will in turn invalidate the Router Cache by re-rendering components on the server and caching the new render output.
 - **Redeploying**: Unlike the Data Cache, which persists across deployments, the Full Route Cache is cleared on new deployments.
