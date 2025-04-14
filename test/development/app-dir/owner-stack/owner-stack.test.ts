@@ -1,19 +1,22 @@
 import { nextTestSetup } from 'e2e-utils'
 import { assertNoRedbox, retry } from 'next-test-utils'
 
-// Remove the location `()` part in every line of stack trace;
-// Remove the leading spaces in every line of stack trace;
-// Remove the trailing spaces in every line of stack trace;
 // These stacks are not sourcemapped and therefore not ignore-listed.
 // Feel free to update internal frames in assertions.
 function normalizeBrowserConsoleStackTrace(trace: unknown) {
   if (typeof trace !== 'string') {
     return trace
   }
-  return trace
-    .replace(/\(.*\)/g, '')
-    .replace(/^\s+/gm, '')
-    .trim()
+  return (
+    trace
+      // Removes React's internals i.e. incomplete ignore-listing
+      .split(/at react-stack-bottom-frame.*/m)[0]
+      // Remove the location `()` part in every line of stack trace;
+      .replace(/\(.*\)/g, '')
+      // Remove the leading spaces in every line of stack trace;
+      .replace(/^\s+/gm, '')
+      .trim()
+  )
 }
 
 describe('app-dir - owner-stack', () => {
@@ -74,8 +77,7 @@ describe('app-dir - owner-stack', () => {
      "Error: browser error
      at useThrowError 
      at useErrorHook 
-     at Page 
-     at ClientPageRoot"
+     at Page"
     `)
   })
 
@@ -108,22 +110,11 @@ describe('app-dir - owner-stack', () => {
     `)
 
     expect(normalizeBrowserConsoleStackTrace(errorLog)).toMatchInlineSnapshot(`
-      "%o
-      %s Error: browser error
-      at useThrowError 
-      at useErrorHook 
-      at Thrower 
-      at react-stack-bottom-frame 
-      at renderWithHooks 
-      at updateFunctionComponent 
-      at beginWork 
-      at runWithFiberInDEV 
-      at performUnitOfWork 
-      at workLoopSync 
-      at renderRootSync 
-      at performWorkOnRoot 
-      at performWorkOnRootViaSchedulerTask 
-      at MessagePort.performWorkUntilDeadline  The above error occurred in the <Thrower> component. It was handled by the <MyErrorBoundary> error boundary."
+     "%o
+     %s Error: browser error
+     at useThrowError 
+     at useErrorHook 
+     at Thrower"
     `)
   })
 
@@ -158,8 +149,7 @@ describe('app-dir - owner-stack', () => {
      "Error: ssr error
      at useThrowError 
      at useErrorHook 
-     at Page 
-     at ClientPageRoot"
+     at Page"
     `)
   })
 

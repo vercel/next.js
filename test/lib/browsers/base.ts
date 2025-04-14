@@ -54,7 +54,8 @@ export abstract class BrowserInterface<TCurrent = any> {
     locale: string,
     javaScriptEnabled: boolean,
     ignoreHttpsErrors: boolean,
-    headless: boolean
+    headless: boolean,
+    userAgent: string | undefined
   ): Promise<void>
   abstract close(): Promise<void>
 

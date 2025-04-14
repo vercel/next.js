@@ -3,7 +3,7 @@ import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 
 const regexNextStatic = /\/_next(\/static\/.+)/
 
-export function parseStack(stack: string | undefined): StackFrame[] {
+export function parseStack(stack: string): StackFrame[] {
   if (!stack) return []
 
   // throw away eval information that stacktrace-parser doesn't support

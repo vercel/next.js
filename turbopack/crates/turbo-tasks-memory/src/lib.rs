@@ -1,3 +1,4 @@
+#![feature(hash_extract_if)]
 #![feature(type_alias_impl_trait)]
 #![feature(box_patterns)]
 #![feature(int_roundings)]

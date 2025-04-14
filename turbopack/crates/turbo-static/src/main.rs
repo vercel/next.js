@@ -194,7 +194,6 @@ fn resolve_concurrency(
 
     for (ident, references) in dep_tree {
         for reference in references {
-            #[allow(clippy::map_entry)] // This doesn't insert into dep_tree, so entry isn't useful
             if !dep_tree.contains_key(&reference.identifier) {
                 // this is a task that is not in the task list
                 // so we can't resolve it

@@ -29,6 +29,7 @@
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
 #![feature(try_trait_v2)]
+#![feature(hash_extract_if)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![feature(result_flattening)]
 #![feature(error_generic_member_access)]
