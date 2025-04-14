@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// Skip as Turbopack doesn't support webpack loaders.
+// Skip as Turbopack doesn't support the `!=!` Webpack syntax
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'app dir - rsc webpack loader',
   () => {
