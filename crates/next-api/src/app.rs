@@ -384,10 +384,10 @@ impl AppProject {
             transition_rules: vec![
                 // Mark as client reference (and exclude from RSC chunking) the edge from the
                 // CSS Module to the actual CSS
-                TransitionRule::new_internal(
+                TransitionRule::new(
                     RuleCondition::all(vec![
                         RuleCondition::ReferenceType(ReferenceType::Css(
-                            CssReferenceSubType::Internal,
+                            CssReferenceSubType::ModuleStyles,
                         )),
                         module_styles_rule_condition(),
                     ]),
@@ -395,10 +395,10 @@ impl AppProject {
                 ),
                 // Don't wrap in marker module but change context, this is used to determine
                 // the list of CSS module classes.
-                TransitionRule::new_internal(
+                TransitionRule::new(
                     RuleCondition::all(vec![
                         RuleCondition::ReferenceType(ReferenceType::Css(
-                            CssReferenceSubType::InternalAnalyze,
+                            CssReferenceSubType::ModuleAnalyze,
                         )),
                         module_styles_rule_condition(),
                     ]),
