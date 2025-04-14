@@ -90,12 +90,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "componentStack": "<Mismatch>
-           <div>
-             <main>
-       +       "server"
-       -       "client"",
-           "description": "Text content did not match. Server: "server" Client: "client"",
+           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -201,10 +196,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "componentStack": "<Mismatch>
-       >   <div>
-       >     <main>",
-           "description": "Expected server HTML to contain a matching <main> in <div>.",
+           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -295,11 +287,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "componentStack": "<Mismatch>
-           <div>
-       >     <div>
-       >       "second"",
-           "description": "Expected server HTML to contain a matching text node for "second" in <div>.",
+           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -374,9 +362,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "componentStack": "<Mismatch>
-       >   <div>",
-           "description": "Did not expect server HTML to contain a <main> in <div>.",
+           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -447,11 +433,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "componentStack": "<Mismatch>
-           <div>
-       >     <div>
-       >       "only"",
-           "description": "Did not expect server HTML to contain the text node "only" in <div>.",
+           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -543,9 +525,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "componentStack": "<Page>
-       >   <table>",
-           "description": "Expected server HTML to contain a matching <table> in <div>.",
+           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -632,9 +612,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "componentStack": "<Page>
-       >   <table>",
-           "description": "Expected server HTML to contain a matching <table> in <div>.",
+           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -731,11 +709,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "componentStack": "<Mismatch>
-       >   <div>
-             <Suspense>
-       >       <main>",
-           "description": "Expected server HTML to contain a matching <main> in <div>.",
+           "description": "Error: There was an error while hydrating this Suspense boundary. Switched to client rendering.",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -856,10 +830,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "componentStack": "<Page>
-       >   <p>
-       >     <p>",
-           "description": "Expected server HTML to contain a matching <p> in <p>.",
+           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -955,12 +926,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "componentStack": "<Page>
-           <div>
-             <div>
-       >       <p>
-       >         <div>",
-           "description": "Expected server HTML to contain a matching <div> in <p>.",
+           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -1044,10 +1010,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "componentStack": "<Page>
-       >   <div>
-       >     <tr>",
-           "description": "Expected server HTML to contain a matching <tr> in <div>.",
+           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -1141,14 +1104,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "componentStack": "<Page>
-           <p>
-             <span>
-               <span>
-                 <span>
-       >           <span>
-       >             <p>",
-           "description": "Expected server HTML to contain a matching <p> in <span>.",
+           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
