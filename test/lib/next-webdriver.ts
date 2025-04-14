@@ -1,6 +1,6 @@
 import { getFullUrl, waitFor } from 'next-test-utils'
 import os from 'os'
-import { Playwright } from './browsers/playwright'
+import type { NavigationOptions, Playwright } from './browsers/playwright'
 import { Page } from 'playwright'
 
 export type { Playwright }
@@ -44,15 +44,7 @@ if (typeof afterAll === 'function') {
   })
 }
 
-export interface WebdriverOptions {
-  /**
-   * whether to wait for React hydration to finish
-   */
-  waitHydration?: boolean
-  /**
-   * allow retrying hydration wait if reload occurs
-   */
-  retryWaitHydration?: boolean
+export type WebdriverOptions = {
   /**
    * disable cache for page load
    */
@@ -83,7 +75,7 @@ export interface WebdriverOptions {
    * Override the user agent
    */
   userAgent?: string
-}
+} & NavigationOptions
 
 /**
  *

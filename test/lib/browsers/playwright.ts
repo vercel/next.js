@@ -61,6 +61,17 @@ interface ElementHandleExt extends ElementHandle {
   text(): Promise<string>
 }
 
+export type NavigationOptions = {
+  /**
+   * whether to wait for React hydration to finish
+   */
+  waitHydration?: boolean
+  /**
+   * allow retrying hydration wait if reload occurs
+   */
+  retryWaitHydration?: boolean
+}
+
 export class Playwright<TCurrent = undefined> {
   constructor(private baseUrl: string) {}
 
@@ -235,9 +246,14 @@ export class Playwright<TCurrent = undefined> {
     }
   }
 
-  async get(url: string): Promise<void> {
+  async get(url: string, opts?: NavigationOptions): Promise<void> {
     url = this.resolveUrl(url)
-    await page.goto(url)
+    await page.goto(url, { waitUntil: 'load' })
+
+    const waitHydration = opts?.waitHydration ?? true
+    if (waitHydration && contextHasJSEnabled) {
+      await this.waitForHydration(opts?.retryWaitHydration)
+    }
   }
 
   async loadPage(
@@ -247,9 +263,7 @@ export class Playwright<TCurrent = undefined> {
       cpuThrottleRate?: number
       pushErrorAsConsoleLog?: boolean
       beforePageLoad?: (page: Page) => void
-      waitHydration?: boolean
-      retryWaitHydration?: boolean
-    }
+    } & NavigationOptions
   ) {
     url = this.resolveUrl(url)
     await this.close()
@@ -328,12 +342,10 @@ export class Playwright<TCurrent = undefined> {
 
     opts?.beforePageLoad?.(page)
 
-    await page.goto(url, { waitUntil: 'load' })
-
-    const waitHydration = opts?.waitHydration ?? true
-    if (waitHydration && contextHasJSEnabled) {
-      await this.waitForHydration(opts?.retryWaitHydration)
-    }
+    await this.get(url, {
+      waitHydration: opts?.waitHydration,
+      retryWaitHydration: opts?.retryWaitHydration,
+    })
   }
 
   resolveUrl(url: string) {
