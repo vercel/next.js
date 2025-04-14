@@ -68,12 +68,12 @@ export function connection(): Promise<void> {
       } else if (workUnitStore.type === 'prerender-legacy') {
         // Legacy Prerender
         // We throw an error here to interrupt prerendering to mark the route as dynamic
-        throwToInterruptStaticGeneration('connection', workStore, workUnitStore)
+        throwToInterruptStaticGeneration('connection', workStore)
       }
     }
     // We fall through to the dynamic context below but we still track dynamic access
     // because in dev we can still error for things like using headers inside a cache context
-    trackDynamicDataInDynamicRender(workStore, workUnitStore)
+    trackDynamicDataInDynamicRender(workUnitStore)
   }
 
   return Promise.resolve(undefined)

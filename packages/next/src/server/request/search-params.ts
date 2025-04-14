@@ -162,7 +162,7 @@ function createRenderSearchParams(
         workStore
       )
     } else {
-      return makeUntrackedExoticSearchParams(underlyingSearchParams, workStore)
+      return makeUntrackedExoticSearchParams(underlyingSearchParams)
     }
   }
 }
@@ -309,11 +309,7 @@ function makeErroringExoticSearchParams(
             )
           } else {
             // Legacy Prerender
-            throwToInterruptStaticGeneration(
-              expression,
-              workStore,
-              prerenderStore
-            )
+            throwToInterruptStaticGeneration(expression, workStore)
           }
           return
         }
@@ -334,11 +330,7 @@ function makeErroringExoticSearchParams(
             )
           } else {
             // Legacy Prerender
-            throwToInterruptStaticGeneration(
-              expression,
-              workStore,
-              prerenderStore
-            )
+            throwToInterruptStaticGeneration(expression, workStore)
           }
           return
         }
@@ -362,11 +354,7 @@ function makeErroringExoticSearchParams(
               )
             } else {
               // Legacy Prerender
-              throwToInterruptStaticGeneration(
-                expression,
-                workStore,
-                prerenderStore
-              )
+              throwToInterruptStaticGeneration(expression, workStore)
             }
           }
           return ReflectAdapter.get(target, prop, receiver)
@@ -397,11 +385,7 @@ function makeErroringExoticSearchParams(
           )
         } else {
           // Legacy Prerender
-          throwToInterruptStaticGeneration(
-            expression,
-            workStore,
-            prerenderStore
-          )
+          throwToInterruptStaticGeneration(expression, workStore)
         }
         return false
       }
@@ -424,7 +408,7 @@ function makeErroringExoticSearchParams(
         )
       } else {
         // Legacy Prerender
-        throwToInterruptStaticGeneration(expression, workStore, prerenderStore)
+        throwToInterruptStaticGeneration(expression, workStore)
       }
     },
   })
@@ -491,8 +475,7 @@ export function makeErroringExoticSearchParamsForUseCache(
 }
 
 function makeUntrackedExoticSearchParams(
-  underlyingSearchParams: SearchParams,
-  store: WorkStore
+  underlyingSearchParams: SearchParams
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
   if (cachedSearchParams) {
@@ -510,7 +493,7 @@ function makeUntrackedExoticSearchParams(
       Object.defineProperty(promise, prop, {
         get() {
           const workUnitStore = workUnitAsyncStorage.getStore()
-          trackDynamicDataInDynamicRender(store, workUnitStore)
+          trackDynamicDataInDynamicRender(workUnitStore)
           return underlyingSearchParams[prop]
         },
         set(value) {
@@ -559,7 +542,7 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
           )
         }
         const workUnitStore = workUnitAsyncStorage.getStore()
-        trackDynamicDataInDynamicRender(store, workUnitStore)
+        trackDynamicDataInDynamicRender(workUnitStore)
       }
       return ReflectAdapter.get(target, prop, receiver)
     },

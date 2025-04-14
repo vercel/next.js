@@ -13,6 +13,7 @@ import {
   type CachedFetchData,
 } from '../../response-cache'
 import type { UnstableCacheStore } from '../../app-render/work-unit-async-storage.external'
+import { cacheAsyncStorage } from '../../app-render/cache-async-storage.external'
 
 type Callback = (...args: any[]) => Promise<any>
 
@@ -92,6 +93,7 @@ export function unstable_cache<T extends Callback>(
   const cachedCb = async (...args: any[]) => {
     const workStore = workAsyncStorage.getStore()
     const workUnitStore = workUnitAsyncStorage.getStore()
+    const cacheStore = cacheAsyncStorage.getStore()
 
     // We must be able to find the incremental cache otherwise we throw
     const maybeIncrementalCache:
@@ -162,27 +164,21 @@ export function unstable_cache<T extends Callback>(
         // the background. If the entry is missing or invalid we generate a new entry and return it.
 
         // We update the store's revalidate property if the option.revalidate is a higher precedence
-        if (
-          workUnitStore &&
-          (workUnitStore.type === 'cache' ||
-            workUnitStore.type === 'prerender' ||
-            workUnitStore.type === 'prerender-ppr' ||
-            workUnitStore.type === 'prerender-legacy')
-        ) {
+        if (cacheStore) {
           // options.revalidate === undefined doesn't affect timing.
           // options.revalidate === false doesn't shrink timing. it stays at the maximum.
           if (typeof options.revalidate === 'number') {
-            if (workUnitStore.revalidate < options.revalidate) {
+            if (cacheStore.revalidate < options.revalidate) {
               // The store is already revalidating on a shorter time interval, leave it alone
             } else {
-              workUnitStore.revalidate = options.revalidate
+              cacheStore.revalidate = options.revalidate
             }
           }
 
           // We need to accumulate the tags for this invocation within the store
-          const collectedTags = workUnitStore.tags
+          const collectedTags = cacheStore.tags
           if (collectedTags === null) {
-            workUnitStore.tags = tags.slice()
+            cacheStore.tags = tags.slice()
           } else {
             for (const tag of tags) {
               // @TODO refactor tags to be a set to avoid this O(n) lookup
@@ -193,8 +189,7 @@ export function unstable_cache<T extends Callback>(
           }
         }
 
-        const isNestedUnstableCache =
-          workUnitStore && workUnitStore.type === 'unstable-cache'
+        const isNestedUnstableCache = cacheStore?.type === 'unstable-cache'
         if (
           // when we are nested inside of other unstable_cache's
           // we should bypass cache similar to fetches

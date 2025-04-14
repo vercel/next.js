@@ -106,12 +106,6 @@ export interface PrerenderStoreModern extends CommonWorkUnitStore {
 
   readonly rootParams: Params
 
-  // Collected revalidate times and tags for this document during the prerender.
-  revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
-  expire: number // server expiration time
-  stale: number // client expiration time
-  tags: null | string[]
-
   /**
    * The resume data cache for this prerender.
    */
@@ -129,11 +123,6 @@ export interface PrerenderStorePPR extends CommonWorkUnitStore {
   type: 'prerender-ppr'
   readonly rootParams: Params
   readonly dynamicTracking: null | DynamicTrackingState
-  // Collected revalidate times and tags for this document during the prerender.
-  revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
-  expire: number // server expiration time
-  stale: number // client expiration time
-  tags: null | string[]
 
   /**
    * The resume data cache for this prerender.
@@ -144,11 +133,6 @@ export interface PrerenderStorePPR extends CommonWorkUnitStore {
 export interface PrerenderStoreLegacy extends CommonWorkUnitStore {
   type: 'prerender-legacy'
   readonly rootParams: Params
-  // Collected revalidate times and tags for this document during the prerender.
-  revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
-  expire: number // server expiration time
-  stale: number // client expiration time
-  tags: null | string[]
 }
 
 export type PrerenderStore =

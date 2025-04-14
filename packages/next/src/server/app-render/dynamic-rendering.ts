@@ -24,7 +24,6 @@ import type { WorkStore } from '../app-render/work-async-storage.external'
 import type {
   WorkUnitStore,
   RequestStore,
-  PrerenderStoreLegacy,
   PrerenderStoreModern,
 } from '../app-render/work-unit-async-storage.external'
 
@@ -43,6 +42,7 @@ import {
 } from '../../lib/metadata/metadata-constants'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { cacheAsyncStorage } from './cache-async-storage.external'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
@@ -153,7 +153,11 @@ export function markCurrentScopeAsDynamic(
         workUnitStore.dynamicTracking
       )
     } else if (workUnitStore.type === 'prerender-legacy') {
-      workUnitStore.revalidate = 0
+      const cacheStore = cacheAsyncStorage.getStore()
+
+      if (cacheStore) {
+        cacheStore.revalidate = 0
+      }
 
       // We aren't prerendering but we are generating a static page. We need to bail out of static generation
       const err = new DynamicServerError(
@@ -199,15 +203,18 @@ export function trackFallbackParamAccessed(
  */
 export function throwToInterruptStaticGeneration(
   expression: string,
-  store: WorkStore,
-  prerenderStore: PrerenderStoreLegacy
+  store: WorkStore
 ): never {
   // We aren't prerendering but we are generating a static page. We need to bail out of static generation
   const err = new DynamicServerError(
     `Route ${store.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
   )
 
-  prerenderStore.revalidate = 0
+  const cacheStore = cacheAsyncStorage.getStore()
+
+  if (cacheStore) {
+    cacheStore.revalidate = 0
+  }
 
   store.dynamicUsageDescription = expression
   store.dynamicUsageStack = err.stack
@@ -223,8 +230,7 @@ export function throwToInterruptStaticGeneration(
  * @internal
  */
 export function trackDynamicDataInDynamicRender(
-  _store: WorkStore,
-  workUnitStore: void | WorkUnitStore
+  workUnitStore: undefined | WorkUnitStore
 ) {
   if (workUnitStore) {
     if (
@@ -240,7 +246,11 @@ export function trackDynamicDataInDynamicRender(
       workUnitStore.type === 'prerender' ||
       workUnitStore.type === 'prerender-legacy'
     ) {
-      workUnitStore.revalidate = 0
+      const cacheStore = cacheAsyncStorage.getStore()
+
+      if (cacheStore) {
+        cacheStore.revalidate = 0
+      }
     }
     if (
       process.env.NODE_ENV === 'development' &&
@@ -590,7 +600,7 @@ export function useDynamicRouteParams(expression: string) {
           workUnitStore.dynamicTracking
         )
       } else if (workUnitStore.type === 'prerender-legacy') {
-        throwToInterruptStaticGeneration(expression, workStore, workUnitStore)
+        throwToInterruptStaticGeneration(expression, workStore)
       }
     }
   }

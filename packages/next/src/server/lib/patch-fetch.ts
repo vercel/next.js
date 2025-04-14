@@ -23,6 +23,7 @@ import {
 } from '../response-cache'
 import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 import { cloneResponse } from './clone-response'
+import { cacheAsyncStorage } from '../app-render/cache-async-storage.external'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -183,6 +184,7 @@ export function createPatchedFetcher(
 
     const workStore = workAsyncStorage.getStore()
     const workUnitStore = workUnitAsyncStorage.getStore()
+    const cacheStore = cacheAsyncStorage.getStore()
 
     // During static generation we track cache reads so we can reason about when they fill
     let cacheSignal =
@@ -252,20 +254,10 @@ export function createPatchedFetcher(
           `fetch ${input.toString()}`
         )
 
-        const revalidateStore =
-          workUnitStore &&
-          (workUnitStore.type === 'cache' ||
-            workUnitStore.type === 'prerender' ||
-            workUnitStore.type === 'prerender-ppr' ||
-            workUnitStore.type === 'prerender-legacy')
-            ? workUnitStore
-            : undefined
-
-        if (revalidateStore) {
+        if (cacheStore) {
           if (Array.isArray(tags)) {
             // Collect tags onto parent caches or parent prerenders.
-            const collectedTags =
-              revalidateStore.tags ?? (revalidateStore.tags = [])
+            const collectedTags = cacheStore.tags ?? (cacheStore.tags = [])
             for (const tag of tags) {
               if (!collectedTags.includes(tag)) {
                 collectedTags.push(tag)
@@ -399,8 +391,8 @@ export function createPatchedFetcher(
             // leverage the fetch cache between SSG workers
             !workStore.isPrerendering) ||
           ((hasUnCacheableHeader || isUnCacheableMethod) &&
-            revalidateStore &&
-            revalidateStore.revalidate === 0)
+            cacheStore &&
+            cacheStore.revalidate === 0)
 
         if (
           hasNoExplicitCacheConfig &&
@@ -477,8 +469,8 @@ export function createPatchedFetcher(
           } else {
             // TODO: should we consider this case an invariant?
             cacheReason = 'auto cache'
-            finalRevalidate = revalidateStore
-              ? revalidateStore.revalidate
+            finalRevalidate = cacheStore
+              ? cacheStore.revalidate
               : INFINITE_CACHE
           }
         } else if (!cacheReason) {
@@ -494,8 +486,8 @@ export function createPatchedFetcher(
           // If the revalidate value isn't currently set or the value is less
           // than the current revalidate value, we should update the revalidate
           // value.
-          revalidateStore &&
-          finalRevalidate < revalidateStore.revalidate
+          cacheStore &&
+          finalRevalidate < cacheStore.revalidate
         ) {
           // If we were setting the revalidate value to 0, we should try to
           // postpone instead first.
@@ -520,8 +512,8 @@ export function createPatchedFetcher(
 
           // We only want to set the revalidate store's revalidate time if it
           // was explicitly set for the fetch call, i.e. currentFetchRevalidate.
-          if (revalidateStore && currentFetchRevalidate === finalRevalidate) {
-            revalidateStore.revalidate = finalRevalidate
+          if (cacheStore && currentFetchRevalidate === finalRevalidate) {
+            cacheStore.revalidate = finalRevalidate
           }
         }
 
@@ -865,8 +857,8 @@ export function createPatchedFetcher(
           const { next = {} } = init
           if (
             typeof next.revalidate === 'number' &&
-            revalidateStore &&
-            next.revalidate < revalidateStore.revalidate
+            cacheStore &&
+            next.revalidate < cacheStore.revalidate
           ) {
             if (next.revalidate === 0) {
               // If enabled, we should bail out of static generation.
@@ -885,7 +877,7 @@ export function createPatchedFetcher(
             }
 
             if (!workStore.forceStatic || next.revalidate !== 0) {
-              revalidateStore.revalidate = next.revalidate
+              cacheStore.revalidate = next.revalidate
             }
           }
           if (hasNextConfig) delete init.next

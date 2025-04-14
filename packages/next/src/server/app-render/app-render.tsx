@@ -192,6 +192,11 @@ import { isUseCacheTimeoutError } from '../use-cache/use-cache-errors'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
 import { getPreviouslyRevalidatedTags } from '../server-utils'
 import { executeRevalidates } from '../revalidation-utils'
+import {
+  cacheAsyncStorage,
+  type CacheStore,
+  type RouteCacheStore,
+} from './cache-async-storage.external'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -740,10 +745,6 @@ async function warmupDevRender(
     controller: prerenderController,
     cacheSignal,
     dynamicTracking: null,
-    revalidate: INFINITE_CACHE,
-    expire: INFINITE_CACHE,
-    stale: INFINITE_CACHE,
-    tags: [],
     prerenderResumeDataCache,
     hmrRefreshHash: req.cookies[NEXT_HMR_REFRESH_HASH_COOKIE],
   }
@@ -2284,10 +2285,6 @@ async function spawnDynamicValidationInDev(
     controller: initialServerPrerenderController,
     cacheSignal,
     dynamicTracking: null,
-    revalidate: INFINITE_CACHE,
-    expire: INFINITE_CACHE,
-    stale: INFINITE_CACHE,
-    tags: [],
     prerenderResumeDataCache,
     hmrRefreshHash,
   }
@@ -2302,10 +2299,6 @@ async function spawnDynamicValidationInDev(
     controller: initialClientController,
     cacheSignal,
     dynamicTracking: null,
-    revalidate: INFINITE_CACHE,
-    expire: INFINITE_CACHE,
-    stale: INFINITE_CACHE,
-    tags: [],
     prerenderResumeDataCache,
     hmrRefreshHash,
   }
@@ -2451,10 +2444,6 @@ async function spawnDynamicValidationInDev(
     // During the final prerender we don't need to track cache access so we omit the signal
     cacheSignal: null,
     dynamicTracking: serverDynamicTracking,
-    revalidate: INFINITE_CACHE,
-    expire: INFINITE_CACHE,
-    stale: INFINITE_CACHE,
-    tags: [],
     prerenderResumeDataCache,
     hmrRefreshHash,
   }
@@ -2473,10 +2462,6 @@ async function spawnDynamicValidationInDev(
     // During the final prerender we don't need to track cache access so we omit the signal
     cacheSignal: null,
     dynamicTracking: clientDynamicTracking,
-    revalidate: INFINITE_CACHE,
-    expire: INFINITE_CACHE,
-    stale: INFINITE_CACHE,
-    tags: [],
     prerenderResumeDataCache,
     hmrRefreshHash,
   }
@@ -2762,7 +2747,13 @@ async function prerenderToStream(
     setMetadataHeader(name)
   }
 
-  let prerenderStore: PrerenderStore | null = null
+  const cacheStore: RouteCacheStore = {
+    type: 'route',
+    revalidate: INFINITE_CACHE,
+    expire: INFINITE_CACHE,
+    stale: INFINITE_CACHE,
+    tags: [...implicitTags.tags],
+  }
 
   try {
     if (renderOpts.experimental.dynamicIO) {
@@ -2802,7 +2793,7 @@ async function prerenderToStream(
         // resume data cache instead.
         const prerenderResumeDataCache = createPrerenderResumeDataCache()
 
-        const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
+        const initialServerPrerenderStore: PrerenderStore = {
           type: 'prerender',
           phase: 'render',
           rootParams,
@@ -2811,13 +2802,9 @@ async function prerenderToStream(
           controller: initialServerPrerenderController,
           cacheSignal,
           dynamicTracking: null,
-          revalidate: INFINITE_CACHE,
-          expire: INFINITE_CACHE,
-          stale: INFINITE_CACHE,
-          tags: [...implicitTags.tags],
           prerenderResumeDataCache,
           hmrRefreshHash: undefined,
-        })
+        }
 
         // We're not going to use the result of this render because the only time it could be used
         // is if it completes in a microtask and that's likely very rare for any non-trivial app
@@ -2906,10 +2893,6 @@ async function prerenderToStream(
             controller: initialClientController,
             cacheSignal: null,
             dynamicTracking: null,
-            revalidate: INFINITE_CACHE,
-            expire: INFINITE_CACHE,
-            stale: INFINITE_CACHE,
-            tags: [...implicitTags.tags],
             prerenderResumeDataCache,
             hmrRefreshHash: undefined,
           }
@@ -2979,76 +2962,75 @@ async function prerenderToStream(
         }
 
         let serverIsDynamic = false
-        const finalServerController = new AbortController()
         const serverDynamicTracking = createDynamicTrackingState(
           renderOpts.isDebugDynamicAccesses
         )
 
-        const finalRenderPrerenderStore: PrerenderStore = (prerenderStore = {
-          type: 'prerender',
-          phase: 'render',
-          rootParams,
-          implicitTags,
-          renderSignal: finalServerController.signal,
-          controller: finalServerController,
-          // During the final prerender we don't need to track cache access so we omit the signal
-          cacheSignal: null,
-          dynamicTracking: serverDynamicTracking,
-          revalidate: INFINITE_CACHE,
-          expire: INFINITE_CACHE,
-          stale: INFINITE_CACHE,
-          tags: [...implicitTags.tags],
-          prerenderResumeDataCache,
-          hmrRefreshHash: undefined,
-        })
-
-        const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
-          finalRenderPrerenderStore,
-          getRSCPayload,
-          tree,
-          ctx,
-          res.statusCode === 404
-        )
-        let prerenderIsPending = true
         const reactServerResult = (reactServerPrerenderResult =
-          await createReactServerPrerenderResult(
-            prerenderAndAbortInSequentialTasks(
-              async () => {
-                const prerenderResult = await workUnitAsyncStorage.run(
-                  // The store to scope
-                  finalRenderPrerenderStore,
-                  // The function to run
-                  ComponentMod.prerender,
-                  // ... the arguments for the function to run
-                  finalAttemptRSCPayload,
-                  clientReferenceManifest.clientModules,
-                  {
-                    onError: (err: unknown) => {
-                      return serverComponentsErrorHandler(err)
-                    },
-                    signal: finalServerController.signal,
-                  }
-                )
-                prerenderIsPending = false
-                return prerenderResult
-              },
-              () => {
-                if (finalServerController.signal.aborted) {
-                  // If the server controller is already aborted we must have called something
-                  // that required aborting the prerender synchronously such as with new Date()
-                  serverIsDynamic = true
-                  return
-                }
+          // TODO: Should the cache store wrap the SSR pass as well?
+          await cacheAsyncStorage.run(cacheStore, async () => {
+            const finalServerController = new AbortController()
 
-                if (prerenderIsPending) {
-                  // If prerenderIsPending then we have blocked for longer than a Task and we assume
-                  // there is something unfinished.
-                  serverIsDynamic = true
-                }
-                finalServerController.abort()
-              }
+            const finalServerPrerenderStore: PrerenderStore = {
+              type: 'prerender',
+              phase: 'render',
+              rootParams,
+              implicitTags,
+              renderSignal: finalServerController.signal,
+              controller: finalServerController,
+              // During the final prerender we don't need to track cache access so we omit the signal
+              cacheSignal: null,
+              dynamicTracking: serverDynamicTracking,
+              prerenderResumeDataCache,
+              hmrRefreshHash: undefined,
+            }
+
+            const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
+              finalServerPrerenderStore,
+              getRSCPayload,
+              tree,
+              ctx,
+              res.statusCode === 404
             )
-          ))
+
+            let prerenderIsPending = true
+
+            return createReactServerPrerenderResult(
+              prerenderAndAbortInSequentialTasks(
+                async () => {
+                  const prerenderResult = await workUnitAsyncStorage.run(
+                    finalServerPrerenderStore,
+                    ComponentMod.prerender,
+                    finalAttemptRSCPayload,
+                    clientReferenceManifest.clientModules,
+                    {
+                      onError: (err: unknown) => {
+                        return serverComponentsErrorHandler(err)
+                      },
+                      signal: finalServerController.signal,
+                    }
+                  )
+                  prerenderIsPending = false
+                  return prerenderResult
+                },
+                () => {
+                  if (finalServerController.signal.aborted) {
+                    // If the server controller is already aborted we must have called something
+                    // that required aborting the prerender synchronously such as with new Date()
+                    serverIsDynamic = true
+                    return
+                  }
+
+                  if (prerenderIsPending) {
+                    // If prerenderIsPending then we have blocked for longer than a Task and we assume
+                    // there is something unfinished.
+                    serverIsDynamic = true
+                  }
+                  finalServerController.abort()
+                }
+              )
+            )
+          }))
 
         const clientDynamicTracking = createDynamicTrackingState(
           renderOpts.isDebugDynamicAccesses
@@ -3064,10 +3046,6 @@ async function prerenderToStream(
           // For HTML Generation we don't need to track cache reads (RSC only)
           cacheSignal: null,
           dynamicTracking: clientDynamicTracking,
-          revalidate: INFINITE_CACHE,
-          expire: INFINITE_CACHE,
-          stale: INFINITE_CACHE,
-          tags: [...implicitTags.tags],
           prerenderResumeDataCache,
           hmrRefreshHash: undefined,
         }
@@ -3156,7 +3134,7 @@ async function prerenderToStream(
         metadata.flightData = flightData
         metadata.segmentData = await collectSegmentData(
           flightData,
-          finalRenderPrerenderStore,
+          cacheStore,
           ComponentMod,
           renderOpts,
           fallbackRouteParams
@@ -3188,11 +3166,10 @@ async function prerenderToStream(
               serverDynamicTracking,
               clientDynamicTracking
             ),
-            // TODO: Should this include the SSR pass?
-            collectedRevalidate: finalRenderPrerenderStore.revalidate,
-            collectedExpire: finalRenderPrerenderStore.expire,
-            collectedStale: finalRenderPrerenderStore.stale,
-            collectedTags: finalRenderPrerenderStore.tags,
+            collectedRevalidate: cacheStore.revalidate,
+            collectedExpire: cacheStore.expire,
+            collectedStale: cacheStore.stale,
+            collectedTags: cacheStore.tags,
           }
         } else {
           // Static case
@@ -3251,11 +3228,10 @@ async function prerenderToStream(
               serverDynamicTracking,
               clientDynamicTracking
             ),
-            // TODO: Should this include the SSR pass?
-            collectedRevalidate: finalRenderPrerenderStore.revalidate,
-            collectedExpire: finalRenderPrerenderStore.expire,
-            collectedStale: finalRenderPrerenderStore.stale,
-            collectedTags: finalRenderPrerenderStore.tags,
+            collectedRevalidate: cacheStore.revalidate,
+            collectedExpire: cacheStore.expire,
+            collectedStale: cacheStore.stale,
+            collectedTags: cacheStore.tags,
           }
         }
       } else {
@@ -3298,7 +3274,7 @@ async function prerenderToStream(
         const cacheSignal = new CacheSignal()
         const prerenderResumeDataCache = createPrerenderResumeDataCache()
 
-        const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
+        const initialServerPrerenderStore: PrerenderStore = {
           type: 'prerender',
           phase: 'render',
           rootParams,
@@ -3307,16 +3283,12 @@ async function prerenderToStream(
           controller: initialServerPrerenderController,
           cacheSignal,
           dynamicTracking: null,
-          revalidate: INFINITE_CACHE,
-          expire: INFINITE_CACHE,
-          stale: INFINITE_CACHE,
-          tags: [...implicitTags.tags],
           prerenderResumeDataCache,
           hmrRefreshHash: undefined,
-        })
+        }
 
         const initialClientController = new AbortController()
-        const initialClientPrerenderStore: PrerenderStore = (prerenderStore = {
+        const initialClientPrerenderStore: PrerenderStore = {
           type: 'prerender',
           phase: 'render',
           rootParams,
@@ -3325,13 +3297,9 @@ async function prerenderToStream(
           controller: initialClientController,
           cacheSignal,
           dynamicTracking: null,
-          revalidate: INFINITE_CACHE,
-          expire: INFINITE_CACHE,
-          stale: INFINITE_CACHE,
-          tags: [...implicitTags.tags],
           prerenderResumeDataCache,
           hmrRefreshHash: undefined,
-        })
+        }
 
         // We're not going to use the result of this render because the only time it could be used
         // is if it completes in a microtask and that's likely very rare for any non-trivial app
@@ -3461,32 +3429,69 @@ async function prerenderToStream(
         initialServerRenderController.abort()
         initialServerPrerenderController.abort()
 
-        // We've now filled caches and triggered any inadvertant sync bailouts
+        // We've now filled caches and triggered any inadvertent sync bailouts
         // due to lazy module initialization. We can restart our render to capture results
 
         let serverIsDynamic = false
-        const finalServerController = new AbortController()
         const serverDynamicTracking = createDynamicTrackingState(
           renderOpts.isDebugDynamicAccesses
         )
 
-        const finalServerPrerenderStore: PrerenderStore = (prerenderStore = {
-          type: 'prerender',
-          phase: 'render',
-          rootParams,
-          implicitTags,
-          renderSignal: finalServerController.signal,
-          controller: finalServerController,
-          // During the final prerender we don't need to track cache access so we omit the signal
-          cacheSignal: null,
-          dynamicTracking: serverDynamicTracking,
-          revalidate: INFINITE_CACHE,
-          expire: INFINITE_CACHE,
-          stale: INFINITE_CACHE,
-          tags: [...implicitTags.tags],
-          prerenderResumeDataCache,
-          hmrRefreshHash: undefined,
-        })
+        const serverPrerenderStreamResult = (reactServerPrerenderResult =
+          // TODO: Should the cache store wrap the SSR pass as well?
+          await cacheAsyncStorage.run(cacheStore, async () => {
+            const finalServerController = new AbortController()
+
+            const finalServerPrerenderStore: PrerenderStore = {
+              type: 'prerender',
+              phase: 'render',
+              rootParams,
+              implicitTags,
+              renderSignal: finalServerController.signal,
+              controller: finalServerController,
+              // During the final prerender we don't need to track cache access so we omit the signal
+              cacheSignal: null,
+              dynamicTracking: serverDynamicTracking,
+              prerenderResumeDataCache,
+              hmrRefreshHash: undefined,
+            }
+
+            const finalServerPayload = await workUnitAsyncStorage.run(
+              finalServerPrerenderStore,
+              getRSCPayload,
+              tree,
+              ctx,
+              res.statusCode === 404
+            )
+
+            return prerenderServerWithPhases(
+              finalServerController.signal,
+              () =>
+                workUnitAsyncStorage.run(
+                  finalServerPrerenderStore,
+                  ComponentMod.renderToReadableStream,
+                  finalServerPayload,
+                  clientReferenceManifest.clientModules,
+                  {
+                    onError: (err: unknown) => {
+                      if (finalServerController.signal.aborted) {
+                        serverIsDynamic = true
+                        if (isPrerenderInterruptedError(err)) {
+                          return err.digest
+                        }
+                        return getDigestForWellKnownError(err)
+                      }
+
+                      return serverComponentsErrorHandler(err)
+                    },
+                    signal: finalServerController.signal,
+                  }
+                ),
+              () => {
+                finalServerController.abort()
+              }
+            )
+          }))
 
         let clientIsDynamic = false
         const finalClientController = new AbortController()
@@ -3495,7 +3500,7 @@ async function prerenderToStream(
         )
         const dynamicValidation = createDynamicValidationState()
 
-        const finalClientPrerenderStore: PrerenderStore = (prerenderStore = {
+        const finalClientPrerenderStore: PrerenderStore = {
           type: 'prerender',
           phase: 'render',
           rootParams,
@@ -3505,50 +3510,9 @@ async function prerenderToStream(
           // During the final prerender we don't need to track cache access so we omit the signal
           cacheSignal: null,
           dynamicTracking: clientDynamicTracking,
-          revalidate: INFINITE_CACHE,
-          expire: INFINITE_CACHE,
-          stale: INFINITE_CACHE,
-          tags: [...implicitTags.tags],
           prerenderResumeDataCache,
           hmrRefreshHash: undefined,
-        })
-
-        const finalServerPayload = await workUnitAsyncStorage.run(
-          finalServerPrerenderStore,
-          getRSCPayload,
-          tree,
-          ctx,
-          res.statusCode === 404
-        )
-
-        const serverPrerenderStreamResult = (reactServerPrerenderResult =
-          await prerenderServerWithPhases(
-            finalServerController.signal,
-            () =>
-              workUnitAsyncStorage.run(
-                finalServerPrerenderStore,
-                ComponentMod.renderToReadableStream,
-                finalServerPayload,
-                clientReferenceManifest.clientModules,
-                {
-                  onError: (err: unknown) => {
-                    if (finalServerController.signal.aborted) {
-                      serverIsDynamic = true
-                      if (isPrerenderInterruptedError(err)) {
-                        return err.digest
-                      }
-                      return getDigestForWellKnownError(err)
-                    }
-
-                    return serverComponentsErrorHandler(err)
-                  },
-                  signal: finalServerController.signal,
-                }
-              ),
-            () => {
-              finalServerController.abort()
-            }
-          ))
+        }
 
         let htmlStream, preludeIsEmpty
         const serverPhasedStream = serverPrerenderStreamResult.asPhasedStream()
@@ -3649,7 +3613,7 @@ async function prerenderToStream(
         metadata.flightData = flightData
         metadata.segmentData = await collectSegmentData(
           flightData,
-          finalClientPrerenderStore,
+          cacheStore,
           ComponentMod,
           renderOpts,
           fallbackRouteParams
@@ -3681,11 +3645,10 @@ async function prerenderToStream(
             serverDynamicTracking,
             clientDynamicTracking
           ),
-          // TODO: Should this include the SSR pass?
-          collectedRevalidate: finalServerPrerenderStore.revalidate,
-          collectedExpire: finalServerPrerenderStore.expire,
-          collectedStale: finalServerPrerenderStore.stale,
-          collectedTags: finalServerPrerenderStore.tags,
+          collectedRevalidate: cacheStore.revalidate,
+          collectedExpire: cacheStore.expire,
+          collectedStale: cacheStore.stale,
+          collectedTags: cacheStore.tags,
         }
       }
     } else if (renderOpts.experimental.isRoutePPREnabled) {
@@ -3695,38 +3658,40 @@ async function prerenderToStream(
       )
 
       const prerenderResumeDataCache = createPrerenderResumeDataCache()
-      const reactServerPrerenderStore: PrerenderStore = (prerenderStore = {
-        type: 'prerender-ppr',
-        phase: 'render',
-        rootParams,
-        implicitTags,
-        dynamicTracking,
-        revalidate: INFINITE_CACHE,
-        expire: INFINITE_CACHE,
-        stale: INFINITE_CACHE,
-        tags: [...implicitTags.tags],
-        prerenderResumeDataCache,
-      })
-      const RSCPayload = await workUnitAsyncStorage.run(
-        reactServerPrerenderStore,
-        getRSCPayload,
-        tree,
-        ctx,
-        res.statusCode === 404
-      )
+
       const reactServerResult = (reactServerPrerenderResult =
-        await createReactServerPrerenderResultFromRender(
-          workUnitAsyncStorage.run(
+        // TODO: Should the cache store wrap the SSR pass as well?
+        await cacheAsyncStorage.run(cacheStore, async () => {
+          const reactServerPrerenderStore: PrerenderStore = {
+            type: 'prerender-ppr',
+            phase: 'render',
+            rootParams,
+            implicitTags,
+            dynamicTracking,
+            prerenderResumeDataCache,
+          }
+
+          const RSCPayload = await workUnitAsyncStorage.run(
             reactServerPrerenderStore,
-            ComponentMod.renderToReadableStream,
-            // ... the arguments for the function to run
-            RSCPayload,
-            clientReferenceManifest.clientModules,
-            {
-              onError: serverComponentsErrorHandler,
-            }
+            getRSCPayload,
+            tree,
+            ctx,
+            res.statusCode === 404
           )
-        ))
+
+          return createReactServerPrerenderResultFromRender(
+            workUnitAsyncStorage.run(
+              reactServerPrerenderStore,
+              ComponentMod.renderToReadableStream,
+              // ... the arguments for the function to run
+              RSCPayload,
+              clientReferenceManifest.clientModules,
+              {
+                onError: serverComponentsErrorHandler,
+              }
+            )
+          )
+        }))
 
       const ssrPrerenderStore: PrerenderStore = {
         type: 'prerender-ppr',
@@ -3734,10 +3699,6 @@ async function prerenderToStream(
         rootParams,
         implicitTags,
         dynamicTracking,
-        revalidate: INFINITE_CACHE,
-        expire: INFINITE_CACHE,
-        stale: INFINITE_CACHE,
-        tags: [...implicitTags.tags],
         prerenderResumeDataCache,
       }
       const prerender = require('react-dom/static.edge')
@@ -3782,7 +3743,7 @@ async function prerenderToStream(
         metadata.flightData = flightData
         metadata.segmentData = await collectSegmentData(
           flightData,
-          ssrPrerenderStore,
+          cacheStore,
           ComponentMod,
           renderOpts,
           fallbackRouteParams
@@ -3831,11 +3792,10 @@ async function prerenderToStream(
             getServerInsertedMetadata,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
-          // TODO: Should this include the SSR pass?
-          collectedRevalidate: reactServerPrerenderStore.revalidate,
-          collectedExpire: reactServerPrerenderStore.expire,
-          collectedStale: reactServerPrerenderStore.stale,
-          collectedTags: reactServerPrerenderStore.tags,
+          collectedRevalidate: cacheStore.revalidate,
+          collectedExpire: cacheStore.expire,
+          collectedStale: cacheStore.stale,
+          collectedTags: cacheStore.tags,
         }
       } else if (fallbackRouteParams && fallbackRouteParams.size > 0) {
         // Rendering the fallback case.
@@ -3851,11 +3811,10 @@ async function prerenderToStream(
             getServerInsertedMetadata,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
-          // TODO: Should this include the SSR pass?
-          collectedRevalidate: reactServerPrerenderStore.revalidate,
-          collectedExpire: reactServerPrerenderStore.expire,
-          collectedStale: reactServerPrerenderStore.stale,
-          collectedTags: reactServerPrerenderStore.tags,
+          collectedRevalidate: cacheStore.revalidate,
+          collectedExpire: cacheStore.expire,
+          collectedStale: cacheStore.stale,
+          collectedTags: cacheStore.tags,
         }
       } else {
         // Static case
@@ -3912,45 +3871,45 @@ async function prerenderToStream(
             getServerInsertedMetadata,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
-          // TODO: Should this include the SSR pass?
-          collectedRevalidate: reactServerPrerenderStore.revalidate,
-          collectedExpire: reactServerPrerenderStore.expire,
-          collectedStale: reactServerPrerenderStore.stale,
-          collectedTags: reactServerPrerenderStore.tags,
+          collectedRevalidate: cacheStore.revalidate,
+          collectedExpire: cacheStore.expire,
+          collectedStale: cacheStore.stale,
+          collectedTags: cacheStore.tags,
         }
       }
     } else {
-      const prerenderLegacyStore: PrerenderStore = (prerenderStore = {
+      const prerenderLegacyStore: PrerenderStore = {
         type: 'prerender-legacy',
         phase: 'render',
         rootParams,
         implicitTags,
-        revalidate: INFINITE_CACHE,
-        expire: INFINITE_CACHE,
-        stale: INFINITE_CACHE,
-        tags: [...implicitTags.tags],
-      })
+      }
       // This is a regular static generation. We don't do dynamic tracking because we rely on
       // the old-school dynamic error handling to bail out of static generation
-      const RSCPayload = await workUnitAsyncStorage.run(
-        prerenderLegacyStore,
-        getRSCPayload,
-        tree,
-        ctx,
-        res.statusCode === 404
-      )
+
       const reactServerResult = (reactServerPrerenderResult =
-        await createReactServerPrerenderResultFromRender(
-          workUnitAsyncStorage.run(
+        // TODO: Should the cache store wrap the SSR pass as well?
+        await cacheAsyncStorage.run(cacheStore, async () => {
+          const RSCPayload = await workUnitAsyncStorage.run(
             prerenderLegacyStore,
-            ComponentMod.renderToReadableStream,
-            RSCPayload,
-            clientReferenceManifest.clientModules,
-            {
-              onError: serverComponentsErrorHandler,
-            }
+            getRSCPayload,
+            tree,
+            ctx,
+            res.statusCode === 404
           )
-        ))
+
+          return createReactServerPrerenderResultFromRender(
+            workUnitAsyncStorage.run(
+              prerenderLegacyStore,
+              ComponentMod.renderToReadableStream,
+              RSCPayload,
+              clientReferenceManifest.clientModules,
+              {
+                onError: serverComponentsErrorHandler,
+              }
+            )
+          )
+        }))
 
       const renderToReadableStream = require('react-dom/server.edge')
         .renderToReadableStream as (typeof import('react-dom/server.edge'))['renderToReadableStream']
@@ -3979,7 +3938,7 @@ async function prerenderToStream(
         metadata.flightData = flightData
         metadata.segmentData = await collectSegmentData(
           flightData,
-          prerenderLegacyStore,
+          cacheStore,
           ComponentMod,
           renderOpts,
           fallbackRouteParams
@@ -4006,11 +3965,10 @@ async function prerenderToStream(
           getServerInsertedHTML,
           getServerInsertedMetadata,
         }),
-        // TODO: Should this include the SSR pass?
-        collectedRevalidate: prerenderLegacyStore.revalidate,
-        collectedExpire: prerenderLegacyStore.expire,
-        collectedStale: prerenderLegacyStore.stale,
-        collectedTags: prerenderLegacyStore.tags,
+        collectedRevalidate: cacheStore.revalidate,
+        collectedExpire: cacheStore.expire,
+        collectedStale: cacheStore.stale,
+        collectedTags: cacheStore.tags,
       }
     }
   } catch (err) {
@@ -4081,41 +4039,34 @@ async function prerenderToStream(
       '/_not-found/page'
     )
 
-    const prerenderLegacyStore: PrerenderStore = (prerenderStore = {
-      type: 'prerender-legacy',
-      phase: 'render',
-      rootParams,
-      implicitTags: implicitTags,
-      revalidate:
-        typeof prerenderStore?.revalidate !== 'undefined'
-          ? prerenderStore.revalidate
-          : INFINITE_CACHE,
-      expire:
-        typeof prerenderStore?.expire !== 'undefined'
-          ? prerenderStore.expire
-          : INFINITE_CACHE,
-      stale:
-        typeof prerenderStore?.stale !== 'undefined'
-          ? prerenderStore.stale
-          : INFINITE_CACHE,
-      tags: [...(prerenderStore?.tags || implicitTags.tags)],
-    })
-    const errorRSCPayload = await workUnitAsyncStorage.run(
-      prerenderLegacyStore,
-      getErrorRSCPayload,
-      tree,
-      ctx,
-      reactServerErrorsByDigest.has((err as any).digest) ? undefined : err,
-      errorType
-    )
+    // TODO: Should the cache store wrap the SSR pass as well?
+    const errorServerStream = await cacheAsyncStorage.run(
+      cacheStore,
+      async () => {
+        const prerenderLegacyStore: PrerenderStore = {
+          type: 'prerender-legacy',
+          phase: 'render',
+          rootParams,
+          implicitTags: implicitTags,
+        }
+        const errorRSCPayload = await workUnitAsyncStorage.run(
+          prerenderLegacyStore,
+          getErrorRSCPayload,
+          tree,
+          ctx,
+          reactServerErrorsByDigest.has((err as any).digest) ? undefined : err,
+          errorType
+        )
 
-    const errorServerStream = workUnitAsyncStorage.run(
-      prerenderLegacyStore,
-      ComponentMod.renderToReadableStream,
-      errorRSCPayload,
-      clientReferenceManifest.clientModules,
-      {
-        onError: serverComponentsErrorHandler,
+        return workUnitAsyncStorage.run(
+          prerenderLegacyStore,
+          ComponentMod.renderToReadableStream,
+          errorRSCPayload,
+          clientReferenceManifest.clientModules,
+          {
+            onError: serverComponentsErrorHandler,
+          }
+        )
       }
     )
 
@@ -4148,7 +4099,7 @@ async function prerenderToStream(
         metadata.flightData = flightData
         metadata.segmentData = await collectSegmentData(
           flightData,
-          prerenderLegacyStore,
+          cacheStore,
           ComponentMod,
           renderOpts,
           fallbackRouteParams
@@ -4187,13 +4138,10 @@ async function prerenderToStream(
           validateRootLayout,
         }),
         dynamicAccess: null,
-        collectedRevalidate:
-          prerenderStore !== null ? prerenderStore.revalidate : INFINITE_CACHE,
-        collectedExpire:
-          prerenderStore !== null ? prerenderStore.expire : INFINITE_CACHE,
-        collectedStale:
-          prerenderStore !== null ? prerenderStore.stale : INFINITE_CACHE,
-        collectedTags: prerenderStore !== null ? prerenderStore.tags : null,
+        collectedRevalidate: cacheStore.revalidate,
+        collectedExpire: cacheStore.expire,
+        collectedStale: cacheStore.stale,
+        collectedTags: cacheStore.tags,
       }
     } catch (finalErr: any) {
       if (
@@ -4283,7 +4231,7 @@ const getGlobalErrorStyles = async (
 
 async function collectSegmentData(
   fullPageDataBuffer: Buffer,
-  prerenderStore: PrerenderStore,
+  cacheStore: CacheStore,
   ComponentMod: AppPageModule,
   renderOpts: RenderOpts,
   fallbackRouteParams: FallbackRouteParams | null
@@ -4348,7 +4296,7 @@ async function collectSegmentData(
     renderOpts.experimental.isRoutePPREnabled === true && // PPR is enabled
     !renderOpts.experimental.dynamicIO // dynamicIO is disabled
 
-  const staleTime = prerenderStore.stale
+  const staleTime = cacheStore.stale
   return await ComponentMod.collectSegmentData(
     shouldAssumePartialData,
     fullPageDataBuffer,

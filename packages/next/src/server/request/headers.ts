@@ -116,12 +116,12 @@ export function headers(): Promise<ReadonlyHeaders> {
         // We are in a legacy static generation mode while prerendering
         // We track dynamic access here so we don't need to wrap the headers in
         // individual property access tracking.
-        throwToInterruptStaticGeneration('headers', workStore, workUnitStore)
+        throwToInterruptStaticGeneration('headers', workStore)
       }
     }
     // We fall through to the dynamic context below but we still track dynamic access
     // because in dev we can still error for things like using headers inside a cache context
-    trackDynamicDataInDynamicRender(workStore, workUnitStore)
+    trackDynamicDataInDynamicRender(workUnitStore)
   }
 
   const requestStore = getExpectedRequestStore('headers')

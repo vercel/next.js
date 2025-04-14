@@ -56,4 +56,4 @@ export interface UnstableCacheStore extends CommonCacheStore {
 export type CacheStore = RouteCacheStore | UseCacheStore | UnstableCacheStore
 export type CacheAsyncStorage = AsyncLocalStorage<CacheStore>
 
-export { cacheAsyncStorageInstance as cacheUnitAsyncStorage }
+export { cacheAsyncStorageInstance as cacheAsyncStorage }

@@ -18,6 +18,7 @@ import {
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { DynamicServerError } from '../../client/components/hooks-server-context'
+import { cacheAsyncStorage } from '../app-render/cache-async-storage.external'
 
 /**
  * In this version of Next.js `draftMode()` returns a Promise however you can still reference the properties of the underlying draftMode object
@@ -302,7 +303,11 @@ function trackDynamicDraftMode(expression: string) {
         )
       } else if (workUnitStore.type === 'prerender-legacy') {
         // legacy Prerender
-        workUnitStore.revalidate = 0
+        const cacheStore = cacheAsyncStorage.getStore()
+
+        if (cacheStore) {
+          cacheStore.revalidate = 0
+        }
 
         const err = new DynamicServerError(
           `Route ${store.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`

@@ -5,7 +5,6 @@ import type { NextRequest } from '../../web/spec-extension/request'
 import type { PrerenderManifest } from '../../../build'
 import type { NextURL } from '../../web/next-url'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
-import type { WorkUnitStore } from '../../app-render/work-unit-async-storage.external'
 
 import {
   RouteModule,
@@ -83,6 +82,10 @@ import {
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
 import { INFINITE_CACHE } from '../../../lib/constants'
 import { executeRevalidates } from '../../revalidation-utils'
+import {
+  cacheAsyncStorage,
+  type RouteCacheStore,
+} from '../../app-render/cache-async-storage.external'
 
 export class WrappedNextRouterError {
   constructor(
@@ -336,20 +339,24 @@ export class AppRouteRouteModule extends RouteModule<
       })
     }
 
-    let prerenderStore: null | PrerenderStore = null
+    const userlandRevalidate = this.userland.revalidate
+
+    const defaultRevalidate: number =
+      userlandRevalidate === false || userlandRevalidate === undefined
+        ? INFINITE_CACHE
+        : userlandRevalidate
+
+    const cacheStore: RouteCacheStore = {
+      type: 'route',
+      revalidate: defaultRevalidate,
+      expire: INFINITE_CACHE,
+      stale: INFINITE_CACHE,
+      tags: [...implicitTags.tags],
+    }
 
     let res: unknown
     try {
       if (isStaticGeneration) {
-        const userlandRevalidate = this.userland.revalidate
-        const defaultRevalidate: number =
-          // If the static generation store does not have a revalidate value
-          // set, then we should set it the revalidate value from the userland
-          // module or default to false.
-          userlandRevalidate === false || userlandRevalidate === undefined
-            ? INFINITE_CACHE
-            : userlandRevalidate
-
         if (dynamicIOEnabled) {
           /**
            * When we are attempting to statically prerender the GET handler of a route.ts module
@@ -374,27 +381,22 @@ export class AppRouteRouteModule extends RouteModule<
           const cacheSignal = new CacheSignal()
           let dynamicTracking = createDynamicTrackingState(undefined)
 
-          const prospectiveRoutePrerenderStore: PrerenderStore =
-            (prerenderStore = {
-              type: 'prerender',
-              phase: 'action',
-              // This replicates prior behavior where rootParams is empty in routes
-              // TODO we need to make this have the proper rootParams for this route
-              rootParams: {},
-              implicitTags,
-              renderSignal: prospectiveController.signal,
-              controller: prospectiveController,
-              cacheSignal,
-              // During prospective render we don't use a controller
-              // because we need to let all caches fill.
-              dynamicTracking,
-              revalidate: defaultRevalidate,
-              expire: INFINITE_CACHE,
-              stale: INFINITE_CACHE,
-              tags: [...implicitTags.tags],
-              prerenderResumeDataCache: null,
-              hmrRefreshHash: undefined,
-            })
+          const prospectiveRoutePrerenderStore: PrerenderStore = {
+            type: 'prerender',
+            phase: 'action',
+            // This replicates prior behavior where rootParams is empty in routes
+            // TODO we need to make this have the proper rootParams for this route
+            rootParams: {},
+            implicitTags,
+            renderSignal: prospectiveController.signal,
+            controller: prospectiveController,
+            cacheSignal,
+            // During prospective render we don't use a controller
+            // because we need to let all caches fill.
+            dynamicTracking,
+            prerenderResumeDataCache: null,
+            hmrRefreshHash: undefined,
+          }
 
           let prospectiveResult
           try {
@@ -465,7 +467,7 @@ export class AppRouteRouteModule extends RouteModule<
           const finalController = new AbortController()
           dynamicTracking = createDynamicTrackingState(undefined)
 
-          const finalRoutePrerenderStore: PrerenderStore = (prerenderStore = {
+          const finalRoutePrerenderStore: PrerenderStore = {
             type: 'prerender',
             phase: 'action',
             rootParams: {},
@@ -474,13 +476,9 @@ export class AppRouteRouteModule extends RouteModule<
             controller: finalController,
             cacheSignal: null,
             dynamicTracking,
-            revalidate: defaultRevalidate,
-            expire: INFINITE_CACHE,
-            stale: INFINITE_CACHE,
-            tags: [...implicitTags.tags],
             prerenderResumeDataCache: null,
             hmrRefreshHash: undefined,
-          })
+          }
 
           let responseHandled = false
           res = await new Promise((resolve, reject) => {
@@ -546,19 +544,15 @@ export class AppRouteRouteModule extends RouteModule<
             finalController.abort()
           }
         } else {
-          prerenderStore = {
+          const prerenderLegacyStore: PrerenderStore = {
             type: 'prerender-legacy',
             phase: 'action',
             rootParams: {},
             implicitTags,
-            revalidate: defaultRevalidate,
-            expire: INFINITE_CACHE,
-            stale: INFINITE_CACHE,
-            tags: [...implicitTags.tags],
           }
 
           res = await workUnitAsyncStorage.run(
-            prerenderStore,
+            prerenderLegacyStore,
             handler,
             request,
             handlerContext
@@ -622,12 +616,10 @@ export class AppRouteRouteModule extends RouteModule<
 
     resolvePendingRevalidations()
 
-    if (prerenderStore) {
-      context.renderOpts.collectedTags = prerenderStore.tags?.join(',')
-      context.renderOpts.collectedRevalidate = prerenderStore.revalidate
-      context.renderOpts.collectedExpire = prerenderStore.expire
-      context.renderOpts.collectedStale = prerenderStore.stale
-    }
+    context.renderOpts.collectedTags = cacheStore.tags.join(',')
+    context.renderOpts.collectedRevalidate = cacheStore.revalidate
+    context.renderOpts.collectedExpire = cacheStore.expire
+    context.renderOpts.collectedStale = cacheStore.stale
 
     // It's possible cookies were set in the handler, so we need
     // to merge the modified cookies and the returned response
@@ -968,8 +960,7 @@ function proxyNextRequest(request: NextRequest, workStore: WorkStore) {
         case 'toJSON':
         case 'toString':
         case 'origin': {
-          const workUnitStore = workUnitAsyncStorage.getStore()
-          trackDynamic(workStore, workUnitStore, `nextUrl.${prop}`)
+          trackDynamic(workStore, `nextUrl.${prop}`)
           return ReflectAdapter.get(target, prop, receiver)
         }
         case 'clone':
@@ -1004,8 +995,7 @@ function proxyNextRequest(request: NextRequest, workStore: WorkStore) {
         case 'text':
         case 'arrayBuffer':
         case 'formData': {
-          const workUnitStore = workUnitAsyncStorage.getStore()
-          trackDynamic(workStore, workUnitStore, `request.${prop}`)
+          trackDynamic(workStore, `request.${prop}`)
           // The receiver arg is intentionally the same as the target to fix an issue with
           // edge runtime, where attempting to access internal slots with the wrong `this` context
           // results in an error.
@@ -1127,11 +1117,10 @@ function createDynamicIOError(route: string) {
   )
 }
 
-export function trackDynamic(
-  store: WorkStore,
-  workUnitStore: undefined | WorkUnitStore,
-  expression: string
-): void {
+export function trackDynamic(store: WorkStore, expression: string): void {
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  const cacheStore = cacheAsyncStorage.getStore()
+
   if (workUnitStore) {
     if (workUnitStore.type === 'cache') {
       throw new Error(
@@ -1171,7 +1160,9 @@ export function trackDynamic(
       )
     } else if (workUnitStore.type === 'prerender-legacy') {
       // legacy Prerender
-      workUnitStore.revalidate = 0
+      if (cacheStore) {
+        cacheStore.revalidate = 0
+      }
 
       const err = new DynamicServerError(
         `Route ${store.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`

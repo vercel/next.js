@@ -153,11 +153,7 @@ function makeErroringRootParams(
               )
             } else {
               // Legacy Prerender
-              throwToInterruptStaticGeneration(
-                expression,
-                workStore,
-                prerenderStore
-              )
+              throwToInterruptStaticGeneration(expression, workStore)
             }
           },
           enumerable: true,

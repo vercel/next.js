@@ -289,11 +289,7 @@ function makeErroringExoticParams(
               )
             } else {
               // Legacy Prerender
-              throwToInterruptStaticGeneration(
-                expression,
-                workStore,
-                prerenderStore
-              )
+              throwToInterruptStaticGeneration(expression, workStore)
             }
           },
           enumerable: true,
@@ -316,11 +312,7 @@ function makeErroringExoticParams(
               )
             } else {
               // Legacy Prerender
-              throwToInterruptStaticGeneration(
-                expression,
-                workStore,
-                prerenderStore
-              )
+              throwToInterruptStaticGeneration(expression, workStore)
             }
           },
           set(newValue) {

@@ -19,9 +19,9 @@ import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { Params } from '../request/params'
-import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { OUTLET_BOUNDARY_NAME } from '../../lib/metadata/metadata-constants'
 import type { UseCachePageComponentProps } from '../use-cache/use-cache-wrapper'
+import { cacheAsyncStorage } from './cache-async-storage.external'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -283,18 +283,11 @@ async function createComponentTreeInternal({
   if (typeof layoutOrPageMod?.revalidate === 'number') {
     const defaultRevalidate = layoutOrPageMod.revalidate as number
 
-    const workUnitStore = workUnitAsyncStorage.getStore()
+    const cacheStore = cacheAsyncStorage.getStore()
 
-    if (workUnitStore) {
-      if (
-        workUnitStore.type === 'prerender' ||
-        workUnitStore.type === 'prerender-legacy' ||
-        workUnitStore.type === 'prerender-ppr' ||
-        workUnitStore.type === 'cache'
-      ) {
-        if (workUnitStore.revalidate > defaultRevalidate) {
-          workUnitStore.revalidate = defaultRevalidate
-        }
+    if (cacheStore) {
+      if (cacheStore.revalidate > defaultRevalidate) {
+        cacheStore.revalidate = defaultRevalidate
       }
     }
 

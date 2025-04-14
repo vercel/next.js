@@ -10,6 +10,7 @@ import {
 import { workAsyncStorage } from '../../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.external'
 import { DynamicServerError } from '../../../client/components/hooks-server-context'
+import { cacheAsyncStorage } from '../../app-render/cache-async-storage.external'
 
 /**
  * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
@@ -91,6 +92,8 @@ function revalidate(tags: string[], expression: string) {
   }
 
   const workUnitStore = workUnitAsyncStorage.getStore()
+  const cacheStore = cacheAsyncStorage.getStore()
+
   if (workUnitStore) {
     if (workUnitStore.type === 'cache') {
       throw new Error(
@@ -127,7 +130,9 @@ function revalidate(tags: string[], expression: string) {
       )
     } else if (workUnitStore.type === 'prerender-legacy') {
       // legacy Prerender
-      workUnitStore.revalidate = 0
+      if (cacheStore) {
+        cacheStore.revalidate = 0
+      }
 
       const err = new DynamicServerError(
         `Route ${store.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
