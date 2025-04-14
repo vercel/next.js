@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
+use rand::{rngs::StdRng, seq::IndexedRandom, SeedableRng};
 use rustc_hash::FxHashMap;
 
 /// Picks modules at random, but with a fixed seed so runs are somewhat
