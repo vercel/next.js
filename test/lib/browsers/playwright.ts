@@ -13,6 +13,7 @@ import {
   Response as PlaywrightResponse,
 } from 'playwright'
 import path from 'path'
+import { getCurrentTestTraceOutputDir } from '../test-trace-output'
 
 type EventType = 'request' | 'response'
 
@@ -123,14 +124,9 @@ export class Playwright<TCurrent = undefined> {
     }
 
     try {
-      const traceDir = path.join(__dirname, '../../traces')
-      const traceOutputPath = path.join(
-        traceDir,
-        `${path
-          .relative(path.join(__dirname, '../../'), process.env.TEST_FILE_PATH!)
-          .replace(/\//g, '-')}`,
-        `playwright-${this.activeTrace}-${Date.now()}.zip`
-      )
+      const fileName = `playwright-${this.activeTrace}-${Date.now()}.zip`
+      const traceOutputDir = getCurrentTestTraceOutputDir()
+      const traceOutputPath = path.join(traceOutputDir, fileName)
 
       await fs.remove(traceOutputPath)
       await context!.tracing.stop({
