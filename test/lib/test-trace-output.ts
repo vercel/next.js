@@ -1,15 +1,10 @@
 import * as path from 'node:path'
+import { getCurrentTestContext } from './jest-reflection'
 
 export function getCurrentTestTraceOutputDir() {
-  if (!process.env.TEST_FILE_PATH) {
-    throw new Error('Expected `process.env.TEST_FILE_PATH` to be set')
-  }
-  const testRootDir = path.resolve(__dirname, '..')
+  const testContext = getCurrentTestContext()
+  const testRootDir = testContext.rootDir
   const traceDir = path.join(testRootDir, 'traces')
-  const testPathRelativeToTestDir = path.relative(
-    testRootDir,
-    process.env.TEST_FILE_PATH
-  )
-  const traceSubDir = testPathRelativeToTestDir.replace(/\//g, '--')
+  const traceSubDir = testContext.testPathRelativeToTestDir.replace(/\//g, '--')
   return path.join(traceDir, traceSubDir)
 }

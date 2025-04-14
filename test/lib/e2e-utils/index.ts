@@ -7,8 +7,17 @@ import { NextDevInstance } from '../next-modes/next-dev'
 import { NextStartInstance } from '../next-modes/next-start'
 import { NextDeployInstance } from '../next-modes/next-deploy'
 import { shouldRunTurboDevTest } from '../next-test-utils'
+import {
+  getCurrentTestContext,
+  type TestSuiteContext,
+} from '../jest-reflection'
 
 export type { NextInstance }
+
+const testContext = getCurrentTestContext()
+if (!testContext) {
+  throw new Error('e2e-utils requires Jest test context to be set up')
+}
 
 function determineTestTimeout(): number {
   if (process.env.NEXT_E2E_TEST_TIMEOUT) {
@@ -35,59 +44,62 @@ function determineTestTimeout(): number {
 
 jest.setTimeout(determineTestTimeout())
 
-const testsFolder = path.join(__dirname, '..', '..')
+const TEST_MODES = ['dev', 'start', 'deploy'] as const
+type TestMode = (typeof TEST_MODES)[number]
 
-let testFile
-const testFileRegex = /\.test\.(js|tsx?)/
+function determineTestMode(testContext: TestSuiteContext): TestMode {
+  const testFile = testContext.testPathRelativeToRepo
+  const rootDirName = path.basename(testContext.rootDir)
 
-const visitedModules = new Set()
-const checkParent = (mod) => {
-  if (!mod?.parent || visitedModules.has(mod)) return
-  testFile = mod.parent.filename || ''
-  visitedModules.add(mod)
+  const testFolders = ['e2e', 'development', 'production'] as const
 
-  if (!testFileRegex.test(testFile)) {
-    checkParent(mod.parent)
-  }
-}
-checkParent(module)
-
-process.env.TEST_FILE_PATH = testFile
-
-let testMode = process.env.NEXT_TEST_MODE
-
-if (!testFileRegex.test(testFile)) {
-  throw new Error(
-    `e2e-utils imported from non-test file ${testFile} (must end with .test.(js,ts,tsx)`
+  const testTypeFromFile = testFolders.find((dir) =>
+    testFile.startsWith(path.join(rootDirName, dir))
   )
-}
-
-const testFolderModes = ['e2e', 'development', 'production']
-
-const testModeFromFile = testFolderModes.find((mode) =>
-  testFile.startsWith(path.join(testsFolder, mode))
-)
-
-if (testModeFromFile === 'e2e') {
-  const validE2EModes = ['dev', 'start', 'deploy']
-
-  if (!process.env.NEXT_TEST_JOB && !testMode) {
-    require('console').warn(
-      'Warn: no NEXT_TEST_MODE set, using default of start'
+  if (!testTypeFromFile) {
+    throw new Error(
+      [
+        `Failed to determine test type for '${testFile}'.`,
+        `'e2e-utils' can only be imported from a file in these directories:`,
+        ...[testFolders.map((dir) => `  - ${path.join(rootDirName, dir)}`)],
+      ].join('\n')
     )
-    testMode = 'start'
   }
-  assert(
-    validE2EModes.includes(testMode!),
-    `NEXT_TEST_MODE must be one of ${validE2EModes.join(
-      ', '
-    )} for e2e tests but received ${testMode}`
-  )
-} else if (testModeFromFile === 'development') {
-  testMode = 'dev'
-} else if (testModeFromFile === 'production') {
-  testMode = 'start'
+
+  if (testTypeFromFile === 'e2e') {
+    const testModeFromEnv = process.env.NEXT_TEST_MODE
+    if (!testModeFromEnv) {
+      if (!process.env.NEXT_TEST_JOB) {
+        // if we're not in CI, we can be lenient and default to 'start'
+        require('console').warn(
+          'Warn: no NEXT_TEST_MODE set, using default of start'
+        )
+        return 'start'
+      } else {
+        // if we're in CI, we should be strict
+        throw new Error(
+          `No 'NEXT_TEST_MODE' set in environment, this is required for e2e-utils`
+        )
+      }
+    }
+
+    assert(
+      (TEST_MODES as readonly string[]).includes(testModeFromEnv),
+      `NEXT_TEST_MODE must be one of ${TEST_MODES.join(
+        ', '
+      )} for e2e tests but received ${testModeFromEnv}`
+    )
+    return testModeFromEnv as TestMode
+  } else if (testTypeFromFile === 'development') {
+    return 'dev'
+  } else if (testTypeFromFile === 'production') {
+    return 'start'
+  } else {
+    throw new Error()
+  }
 }
+
+const testMode = determineTestMode(testContext)
 
 if (testMode === 'dev') {
   ;(global as any).isNextDev = true
@@ -111,16 +123,7 @@ export const isNextDeploy = testMode === 'deploy'
  * Whether the test is running in start mode.
  * Default mode. `true` when both `isNextDev` and `isNextDeploy` are false.
  */
-export const isNextStart = !isNextDev && !isNextDeploy
-
-if (!testMode) {
-  throw new Error(
-    `No 'NEXT_TEST_MODE' set in environment, this is required for e2e-utils`
-  )
-}
-require('console').warn(
-  `Using test mode: ${testMode} in test folder ${testModeFromFile}`
-)
+export const isNextStart = testMode === 'start'
 
 /**
  * FileRef is wrapper around a file path that is meant be copied

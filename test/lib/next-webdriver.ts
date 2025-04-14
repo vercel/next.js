@@ -12,10 +12,6 @@ import type { Page } from 'playwright'
 
 export type { Playwright }
 
-if (!process.env.TEST_FILE_PATH) {
-  process.env.TEST_FILE_PATH = module.parent!.filename
-}
-
 let deviceIP: string
 const isBrowserStack = !!process.env.BROWSERSTACK
 ;(global as any).browserName = process.env.BROWSER_NAME || 'chrome'
