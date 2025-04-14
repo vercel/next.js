@@ -73,6 +73,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext, EvaluatableAsset,
+        MinifyType,
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
@@ -165,6 +166,8 @@ pub struct EcmascriptOptions {
     /// parsing fails. This is useful to keep the module graph structure intact when syntax errors
     /// are temporarily introduced.
     pub keep_last_successful_parse: bool,
+
+    pub minify: MinifyType,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -568,8 +571,15 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub fn parse(&self) -> Vc<ParseResult> {
-        parse(*self.source, Value::new(self.ty), *self.transforms)
+    pub async fn parse(&self) -> Result<Vc<ParseResult>> {
+        let minify = self.options.await?.minify;
+
+        Ok(parse(
+            *self.source,
+            Value::new(self.ty),
+            *self.transforms,
+            minify,
+        ))
     }
 }
 

@@ -4,6 +4,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    chunk::MinifyType,
     file_source::FileSource,
     ident::AssetIdent,
     module::Module,
@@ -34,6 +35,7 @@ pub struct WebpackModuleAsset {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub runtime: ResolvedVc<WebpackRuntime>,
     pub transforms: ResolvedVc<EcmascriptInputTransforms>,
+    pub minify: MinifyType,
 }
 
 #[turbo_tasks::value_impl]
@@ -43,11 +45,13 @@ impl WebpackModuleAsset {
         source: ResolvedVc<Box<dyn Source>>,
         runtime: ResolvedVc<WebpackRuntime>,
         transforms: ResolvedVc<EcmascriptInputTransforms>,
+        minify: MinifyType,
     ) -> Vc<Self> {
         Self::cell(WebpackModuleAsset {
             source,
             runtime,
             transforms,
+            minify,
         })
     }
 }
@@ -61,7 +65,7 @@ impl Module for WebpackModuleAsset {
 
     #[turbo_tasks::function]
     fn references(&self) -> Vc<ModuleReferences> {
-        module_references(*self.source, *self.runtime, *self.transforms)
+        module_references(*self.source, *self.runtime, *self.transforms, self.minify)
     }
 }
 
@@ -79,6 +83,7 @@ pub struct WebpackChunkAssetReference {
     pub chunk_id: Lit,
     pub runtime: ResolvedVc<WebpackRuntime>,
     pub transforms: ResolvedVc<EcmascriptInputTransforms>,
+    pub minify: MinifyType,
 }
 
 #[turbo_tasks::value_impl]
@@ -101,7 +106,7 @@ impl ModuleReference for WebpackChunkAssetReference {
                 let source = Vc::upcast(FileSource::new(context_path.join(filename)));
 
                 *ModuleResolveResult::module(ResolvedVc::upcast(
-                    WebpackModuleAsset::new(source, *self.runtime, *self.transforms)
+                    WebpackModuleAsset::new(source, *self.runtime, *self.transforms, self.minify)
                         .to_resolved()
                         .await?,
                 ))
@@ -129,6 +134,7 @@ pub struct WebpackEntryAssetReference {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub runtime: ResolvedVc<WebpackRuntime>,
     pub transforms: ResolvedVc<EcmascriptInputTransforms>,
+    pub minify: MinifyType,
 }
 
 #[turbo_tasks::value_impl]
@@ -136,7 +142,7 @@ impl ModuleReference for WebpackEntryAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
-            WebpackModuleAsset::new(*self.source, *self.runtime, *self.transforms)
+            WebpackModuleAsset::new(*self.source, *self.runtime, *self.transforms, self.minify)
                 .to_resolved()
                 .await?,
         )))
@@ -157,6 +163,7 @@ pub struct WebpackRuntimeAssetReference {
     pub request: ResolvedVc<Request>,
     pub runtime: ResolvedVc<WebpackRuntime>,
     pub transforms: ResolvedVc<EcmascriptInputTransforms>,
+    pub minify: MinifyType,
 }
 
 #[turbo_tasks::value_impl]
@@ -179,7 +186,7 @@ impl ModuleReference for WebpackRuntimeAssetReference {
             .await?
             .map_module(|source| async move {
                 Ok(ModuleResolveResultItem::Module(ResolvedVc::upcast(
-                    WebpackModuleAsset::new(*source, *self.runtime, *self.transforms)
+                    WebpackModuleAsset::new(*source, *self.runtime, *self.transforms, self.minify)
                         .to_resolved()
                         .await?,
                 )))

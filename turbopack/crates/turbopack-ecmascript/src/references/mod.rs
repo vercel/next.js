@@ -516,6 +516,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let options = raw_module.options;
     let options = options.await?;
     let import_externals = options.import_externals;
+    let minify = options.minify;
 
     let origin = ResolvedVc::upcast::<Box<dyn ResolveOrigin>>(module);
 
@@ -530,7 +531,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     };
 
     let parsed = if let Some(part) = part {
-        let parsed = parse(*source, ty, *transforms);
+        let parsed = parse(*source, ty, *transforms, options.minify);
         let split_data = split(source.ident(), *source, parsed);
         part_of_module(split_data, part.clone())
     } else {
@@ -931,6 +932,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         request,
                         runtime,
                         transforms,
+                        minify,
                     }
                     .resolved_cell(),
                 );
@@ -941,6 +943,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                             source,
                             runtime,
                             transforms,
+                            minify,
                         }
                         .resolved_cell(),
                     );
@@ -952,6 +955,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                             chunk_id: chunk,
                             runtime,
                             transforms,
+                            minify,
                         }
                         .resolved_cell(),
                     );

@@ -8,6 +8,7 @@ use swc_core::{
 };
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::{
+    chunk::MinifyType,
     reference::{ModuleReference, ModuleReferences},
     source::Source,
 };
@@ -24,11 +25,13 @@ pub async fn module_references(
     source: ResolvedVc<Box<dyn Source>>,
     runtime: ResolvedVc<WebpackRuntime>,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
+    minify: MinifyType,
 ) -> Result<Vc<ModuleReferences>> {
     let parsed = parse(
         *source,
         Value::new(EcmascriptModuleAssetType::Ecmascript),
         *transforms,
+        minify,
     )
     .await?;
     match &*parsed {
@@ -42,6 +45,7 @@ pub async fn module_references(
                 references: &mut references,
                 runtime,
                 transforms,
+                minify,
             };
             let (emitter, collector) = IssueEmitter::new(
                 source,
@@ -63,6 +67,7 @@ struct ModuleReferencesVisitor<'a> {
     runtime: ResolvedVc<WebpackRuntime>,
     references: &'a mut Vec<ResolvedVc<Box<dyn ModuleReference>>>,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
+    minify: MinifyType,
 }
 
 impl Visit for ModuleReferencesVisitor<'_> {
@@ -77,6 +82,7 @@ impl Visit for ModuleReferencesVisitor<'_> {
                                     chunk_id: lit.clone(),
                                     runtime: self.runtime,
                                     transforms: self.transforms,
+                                    minify: self.minify,
                                 }
                                 .resolved_cell(),
                             ));
