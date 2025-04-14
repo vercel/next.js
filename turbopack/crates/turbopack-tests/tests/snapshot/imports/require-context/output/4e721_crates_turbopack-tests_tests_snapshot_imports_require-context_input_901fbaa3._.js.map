@@ -1,0 +1,9 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 6, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
+    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
+    {"offset": {"line": 16, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
+    {"offset": {"line": 40, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/require-context/input/index.js"],"sourcesContent":["require.context(\"./grandparent\", true, /\\.js/)\n\n// TODO: Ensure that `require.context` matches the Webpack implmentation with no filter\n// Make sure this also gets added to the e2e test to ensure it matches for all supported bundlers\n// <project-root>/test/e2e/app-dir/require-context/\n//\n// require.context(\"./grandparent\", true)\n"],"names":[],"mappings":"yLAEA,uFAAuF;CACvF,iGAAiG;CACjG,mDAAmD;CACnD,EAAE;CACF,yCAAyC"}}]
+}
