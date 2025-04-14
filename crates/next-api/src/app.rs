@@ -102,27 +102,13 @@ impl AppProject {}
 pub(crate) const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
 
 fn styles_rule_condition() -> RuleCondition {
-    RuleCondition::any(vec![
-        RuleCondition::all(vec![
-            RuleCondition::ResourcePathEndsWith(".css".into()),
-            RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.css".into())),
-        ]),
-        RuleCondition::all(vec![
-            RuleCondition::ResourcePathEndsWith(".scss".into()),
-            RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.scss".into())),
-        ]),
-        RuleCondition::all(vec![
-            RuleCondition::ResourcePathEndsWith(".sass".into()),
-            RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.sass".into())),
-        ]),
+    RuleCondition::all(vec![
+        RuleCondition::ResourcePathEndsWith(".css".into()),
+        RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.css".into())),
     ])
 }
 fn module_styles_rule_condition() -> RuleCondition {
-    RuleCondition::any(vec![
-        RuleCondition::ResourcePathEndsWith(".module.css".into()),
-        RuleCondition::ResourcePathEndsWith(".module.scss".into()),
-        RuleCondition::ResourcePathEndsWith(".module.sass".into()),
-    ])
+    RuleCondition::ResourcePathEndsWith(".module.css".into())
 }
 
 #[turbo_tasks::value_impl]
@@ -395,13 +381,8 @@ impl AppProject {
                 ),
                 // Don't wrap in marker module but change context, this is used to determine
                 // the list of CSS module classes.
-                TransitionRule::new_internal(
-                    RuleCondition::all(vec![
-                        RuleCondition::ReferenceType(ReferenceType::Css(
-                            CssReferenceSubType::InternalAnalyze,
-                        )),
-                        module_styles_rule_condition(),
-                    ]),
+                TransitionRule::new(
+                    module_styles_rule_condition(),
                     ResolvedVc::upcast(self.client_transition().to_resolved().await?),
                 ),
                 // Mark as client reference all regular CSS imports
