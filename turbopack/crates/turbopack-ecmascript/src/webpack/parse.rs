@@ -14,7 +14,7 @@ use swc_core::{
 };
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::source::Source;
+use turbopack_core::{chunk::MinifyType, source::Source};
 
 use crate::{
     analyzer::{graph::EvalContext, JsValue},
@@ -205,6 +205,7 @@ pub async fn webpack_runtime(
         source,
         Value::new(EcmascriptModuleAssetType::Ecmascript),
         transforms,
+        MinifyType::NoMinify,
     )
     .await?;
     match &*parsed {
