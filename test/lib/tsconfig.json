@@ -2,6 +2,6 @@
   "extends": "../../tsconfig.json",
   "include": ["./**/*.ts"],
   "compilerOptions": {
-    "strictNullChecks": false
+    "strictNullChecks": true
   }
 }
