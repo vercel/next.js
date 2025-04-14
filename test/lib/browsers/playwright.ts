@@ -15,6 +15,11 @@ import path from 'path'
 import { getCurrentTestTraceOutputDir } from '../test-trace-output'
 import { isValidRelativeUrl } from './utils/relative-url'
 import { patchBrowserContextRemoveAllListeners } from './utils/patch-remove-all-listeners'
+import {
+  TestContext,
+  formatTestName,
+  getCurrentTestContext,
+} from '../jest-reflection'
 
 type EventType = 'request' | 'response'
 
@@ -207,7 +212,8 @@ export class BrowserContextWrapper {
 
 type StartedTraceInfo = {
   id: number
-  name: string
+  debugName: string
+  currentTest: TestContext | null
 }
 
 type TraceState =
@@ -245,7 +251,7 @@ class Tracer {
         await this.ensureCurrentTraceEnded()
       } catch (err) {
         require('console').warn(
-          `Failed to end playwright trace '${traceState.info.name}' while tearing down`,
+          `Failed to end playwright trace '${traceState.info.debugName}' while tearing down`,
           err
         )
       }
@@ -258,9 +264,14 @@ class Tracer {
     }
   }
 
-  async startTrace(rawName: string): Promise<void> {
+  async startTrace(): Promise<void> {
+    const testContext = getCurrentTestContext()
+    const testName = testContext.currentTest
+      ? formatTestName(testContext.currentTest.nameStack)
+      : '(no test)'
+
     const traceId = nextTraceId++
-    const name = `${traceId}. ${rawName}`
+    const debugName = `${traceId}. ${testName}`
 
     const { traceState } = this
     if (traceState.kind !== 'initial' && traceState.kind !== 'ended') {
@@ -270,13 +281,16 @@ class Tracer {
       const stateDescription =
         traceState.kind === 'started' ? 'still running' : traceState.kind
       throw new Error(
-        `Cannot start a new trace '${name}' while the previous trace '${traceState.info.name}' is ${stateDescription}`
+        `Cannot start a new trace '${debugName}' while the previous trace '${traceState.info.debugName}' is ${stateDescription}`
       )
     }
 
+    const traceTitle = `${testContext.testPathRelativeToRepo}: ${testName}`
+
     const info: StartedTraceInfo = {
       id: traceId,
-      name,
+      debugName,
+      currentTest: testContext.currentTest,
     }
 
     try {
@@ -284,14 +298,14 @@ class Tracer {
         kind: 'starting',
         info,
         promise: this.context.tracing.startChunk({
-          title: name,
+          title: traceTitle,
         }),
       }
       await this.traceState.promise
       this.traceState = { kind: 'started', info }
     } catch (err) {
       this.traceState = { kind: 'initial' }
-      throw new Error(`Failed to start playwright trace '${name}'`, {
+      throw new Error(`Failed to start playwright trace '${debugName}'`, {
         cause: err,
       })
     }
@@ -316,7 +330,7 @@ class Tracer {
       await this.traceState.promise
     } catch (err) {
       throw new Error(
-        `An error occurred while stopping playwright trace '${traceState.info.name}'`,
+        `An error occurred while stopping playwright trace '${traceState.info.debugName}'`,
         { cause: err }
       )
     } finally {
@@ -346,17 +360,45 @@ class Tracer {
     // https://stackoverflow.com/a/54742403
     const maxTotalLength = 255
 
-    const prefix = `pw-${moduleInitializationTime}-${traceInfo.id}-`
+    const testContext = getCurrentTestContext()
+
+    const startTime = testContext?.suiteStartTime ?? moduleInitializationTime
+    const prefix = `pw-${startTime}-${traceInfo.id}-`
     const suffix = `.zip`
+    const maxNameLength = maxTotalLength - (prefix.length + suffix.length)
 
-    const maxInfixLength = maxTotalLength - (prefix.length + suffix.length)
-    const infix = middleOut(
-      replaceUnsafeChars(traceInfo.name),
-      maxInfixLength,
-      '...'
-    )
+    const traceName = getTraceName(traceInfo, maxNameLength)
+    return prefix + traceName + suffix
 
-    return prefix + infix + suffix
+    function getTraceName(traceInfo: StartedTraceInfo, maxLength: number) {
+      const { currentTest } = traceInfo
+
+      let statusPrefix = ''
+      let unsafeName = traceInfo.debugName
+
+      if (currentTest) {
+        const testStatus =
+          currentTest.status === 'success'
+            ? 'PASS'
+            : currentTest.status === 'failure'
+              ? 'FAIL'
+              : // if a trace is closed while the test is still running, e.g. because of a manual `browser.close()`,
+                // then we might not have a useful test status
+                null
+        if (testStatus) {
+          statusPrefix = testStatus + '__'
+        }
+        unsafeName = formatTestName(currentTest.nameStack)
+      }
+
+      const safeName = middleOut(
+        replaceUnsafeChars(unsafeName),
+        maxLength - statusPrefix.length,
+        '...'
+      )
+
+      return statusPrefix + safeName
+    }
 
     function replaceUnsafeChars(text: string) {
       const chars = /[^a-zA-Z0-9\-_.]+/
@@ -601,15 +643,7 @@ export class Playwright<TCurrent = undefined> {
     } else {
       // if this is the first time loadPage is called in this test, start a trace.
       // otherwise, we should already have a trace running.
-
-      // omit the host from the trace name if it's `localhost[:port]`, because that's not useful.
-      const urlObj = new URL(url)
-      const traceName =
-        urlObj.hostname === 'localhost'
-          ? urlObj.pathname + urlObj.search + urlObj.hash
-          : url
-
-      await this.context.tracer?.startTrace(traceName)
+      await this.context.tracer?.startTrace()
     }
 
     const { context } = this
