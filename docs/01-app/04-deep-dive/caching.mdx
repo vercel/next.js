@@ -1,14 +1,17 @@
 ---
 title: How caching works in Next.js
 nav_title: Caching
-description: An overview of how caching works in Next.js
+description: An deep dive into how caching works in Next.js
 ---
 
-Next.js improves your application's performance and reduces costs by caching rendering work and data requests. This page provides an in-depth look at Next.js caching mechanisms, the APIs you can use to configure them, and how they interact with each other.
+Caching is a technique for storing the result of expensive work (rendering, data fetching, and other computations) so that future requests for the same content can be served faster, without recomputing the result.
 
-> **Good to know**: This page helps you understand how Next.js works under the hood but is **not** essential knowledge to be productive with Next.js. Most of Next.js' caching heuristics are determined by your API usage and have defaults for the best performance with zero or minimal configuration. If you instead want to jump to examples, [start here](/docs/app/building-your-application/data-fetching/fetching).
+In this deep dive, you’ll learn:
 
-## Overview
+- [How caching works in Next.js](#how-caching-works-in-nextjs)
+- How to define cache boundaries with `"use cache"`
+- How to define update semantics with `cacheLife` and `cacheTag`
+- How to configure a remote, persistent cache (coming soon)
 
 Here's a high-level overview of the different caching mechanisms and their purpose:
 
