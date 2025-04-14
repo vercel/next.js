@@ -7,7 +7,7 @@ describe('prefetching-not-found', () => {
   })
 
   it('should correctly navigate to/from a global 404 page when following links with prefetch=auto', async () => {
-    let browser = await next.browser('/')
+    const browser = await next.browser('/')
     expect(await browser.elementByCss('h1').text()).toBe('Home Page')
 
     await browser.elementByCss("[href='/fake-link']").click()
@@ -28,7 +28,7 @@ describe('prefetching-not-found', () => {
     // ensure that when we seed the prefetch cache, we don't have any cache
     // collisions that would cause the not-found page to remain rendered when
     // following a link to the home page.
-    browser = await next.browser('/fake-link')
+    await browser.get('/fake-link')
     expect(await browser.elementByCss('body').text()).toContain(
       'This page could not be found.'
     )

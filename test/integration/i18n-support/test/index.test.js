@@ -357,9 +357,10 @@ describe('i18n Support', () => {
       })
 
       it('should navigate between pages correctly', async () => {
+        const browser = await webdriver(curCtx.appPort, '/')
         for (const locale of nonDomainLocales) {
           const localePath = `/${locale !== 'en-US' ? `${locale}/` : ''}`
-          const browser = await webdriver(curCtx.appPort, localePath)
+          await browser.get(localePath)
 
           await browser.eval('window.beforeNav = 1')
           await browser.elementByCss('#to-gsp').click()

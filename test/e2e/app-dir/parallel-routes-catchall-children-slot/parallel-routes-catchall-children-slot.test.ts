@@ -6,7 +6,7 @@ describe('parallel-routes-catchall-children-slot', () => {
   })
 
   it('should match the @children slot for a page before attempting to match the catchall', async () => {
-    let browser = await next.browser('/')
+    const browser = await next.browser('/')
     await expect(browser.elementById('children').text()).resolves.toBe(
       'Hello from @children/page'
     )
@@ -14,7 +14,7 @@ describe('parallel-routes-catchall-children-slot', () => {
       '@slot content'
     )
 
-    browser = await next.browser('/nested')
+    await browser.get('/nested')
 
     await expect(browser.elementById('children').text()).resolves.toBe(
       'Hello from nested @children page'

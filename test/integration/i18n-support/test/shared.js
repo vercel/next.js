@@ -391,7 +391,7 @@ export function runTests(ctx) {
   // this test can not currently be tested in browser without modifying the
   // host resolution since it needs a domain to test locale domains behavior
   it.skip('should render the correct href for locale domain', async () => {
-    let browser = await webdriver(
+    const browser = await webdriver(
       ctx.appPort,
       `${ctx.basePath || ''}/links?nextLocale=go`
     )
@@ -411,10 +411,7 @@ export function runTests(ctx) {
       await browser.elementByCss('#to-external').getAttribute('href')
     ).toBe('https://nextjs.org/')
 
-    browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath || ''}/links?nextLocale=go-BE`
-    )
+    await browser.get(`${ctx.basePath || ''}/links?nextLocale=go-BE`)
 
     for (const [element, pathname] of [
       ['#to-another', '/another'],
@@ -438,7 +435,7 @@ export function runTests(ctx) {
   // Once this is not the case the test will need to be changed to access it via domain.
   // Beware of the different expectations on dev and prod version since the pre-rendering on dev does not work with domain locales
   it('should prerender with the correct href for locale domain', async () => {
-    let browser = await webdriver(ctx.appPort, `${ctx.basePath || ''}/go`)
+    const browser = await webdriver(ctx.appPort, `${ctx.basePath || ''}/go`)
 
     for (const [element, pathname] of [
       ['#to-another', '/another'],
@@ -459,7 +456,7 @@ export function runTests(ctx) {
       await browser.elementByCss('#to-external').getAttribute('href')
     ).toBe('https://nextjs.org/')
 
-    browser = await webdriver(ctx.appPort, `${ctx.basePath || ''}/go-BE`)
+    await browser.get(`${ctx.basePath || ''}/go-BE`)
 
     for (const [element, pathname] of [
       ['#to-another', '/another'],
@@ -484,7 +481,7 @@ export function runTests(ctx) {
   })
 
   it('should render the correct href with locale domains but not on a locale domain', async () => {
-    let browser = await webdriver(
+    const browser = await webdriver(
       ctx.appPort,
       `${ctx.basePath || ''}/links?nextLocale=go`
     )
@@ -503,10 +500,7 @@ export function runTests(ctx) {
       expect(hrefPathname).toBe(`${ctx.basePath || ''}/go${pathname}`)
     }
 
-    browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath || ''}/links?nextLocale=go-BE`
-    )
+    await browser.get(`${ctx.basePath || ''}/links?nextLocale=go-BE`)
 
     for (const [element, pathname] of [
       ['#to-another', '/another'],
@@ -1846,8 +1840,9 @@ export function runTests(ctx) {
   })
 
   it('should navigate to auto-export dynamic page', async () => {
+    const browser = await webdriver(ctx.appPort, '/')
     for (const locale of nonDomainLocales) {
-      const browser = await webdriver(ctx.appPort, `${ctx.basePath}/${locale}`)
+      await browser.get(`${ctx.basePath}/${locale}`)
       await browser.eval('window.beforeNav = 1')
 
       await browser
@@ -2571,8 +2566,9 @@ export function runTests(ctx) {
   })
 
   it('should update asPath on the client correctly', async () => {
+    const browser = await webdriver(ctx.appPort, '/')
     for (const check of ['en', 'En']) {
-      const browser = await webdriver(ctx.appPort, `${ctx.basePath}/${check}`)
+      await browser.get(`${ctx.basePath}/${check}`)
 
       expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
       expect(await browser.elementByCss('#router-locale').text()).toBe('en')
@@ -3006,6 +3002,7 @@ export function runTests(ctx) {
 
   it('should 404 for GSP pages that returned notFound', async () => {
     const skippedLocales = ['en', 'nl']
+    const browser = await webdriver(ctx.appPort, '/')
 
     for (const locale of nonDomainLocales) {
       const res = await fetchViaHTTP(
@@ -3015,10 +3012,7 @@ export function runTests(ctx) {
       expect(res.status).toBe(skippedLocales.includes(locale) ? 404 : 200)
 
       if (skippedLocales.includes(locale)) {
-        const browser = await webdriver(
-          ctx.appPort,
-          `${ctx.basePath}/${locale}/not-found`
-        )
+        await browser.get(`${ctx.basePath}/${locale}/not-found`)
         expect(await browser.elementByCss('html').getAttribute('lang')).toBe(
           locale
         )

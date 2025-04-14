@@ -21,12 +21,12 @@ describe.each([
   const { basePath } = nextConfig
 
   it('should have correct router.isReady for auto-export page', async () => {
-    let browser = await next.browser(basePath + '/auto-export-is-ready')
+    const browser = await next.browser(basePath + '/auto-export-is-ready')
 
     expect(await browser.elementByCss('#ready').text()).toBe('yes')
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
 
-    browser = await next.browser(basePath + '/auto-export-is-ready?hello=world')
+    await browser.get(basePath + '/auto-export-is-ready?hello=world')
 
     await retry(async () => {
       expect(await browser.elementByCss('#ready').text()).toBe('yes')
@@ -37,12 +37,12 @@ describe.each([
   })
 
   it('should have correct router.isReady for getStaticProps page', async () => {
-    let browser = await next.browser(basePath + '/gsp-is-ready')
+    const browser = await next.browser(basePath + '/gsp-is-ready')
 
     expect(await browser.elementByCss('#ready').text()).toBe('yes')
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
 
-    browser = await next.browser(basePath + '/gsp-is-ready?hello=world')
+    await browser.get(basePath + '/gsp-is-ready?hello=world')
 
     await retry(async () => {
       expect(await browser.elementByCss('#ready').text()).toBe('yes')

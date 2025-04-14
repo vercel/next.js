@@ -12,17 +12,17 @@ describe('app dir - not-found - basic', () => {
   }
 
   it("should propagate notFound errors past a segment's error boundary", async () => {
-    let browser = await next.browser('/error-boundary')
+    const browser = await next.browser('/error-boundary')
     await browser.elementByCss('button').click()
     expect(await browser.elementByCss('h1').text()).toBe('Root Not Found')
 
-    browser = await next.browser('/error-boundary/nested/nested-2')
+    await browser.get('/error-boundary/nested/nested-2')
     await browser.elementByCss('button').click()
     expect(await browser.elementByCss('h1').text()).toBe(
       'Not Found (error-boundary/nested)'
     )
 
-    browser = await next.browser('/error-boundary/nested/trigger-not-found')
+    await browser.get('/error-boundary/nested/trigger-not-found')
     expect(await browser.elementByCss('h1').text()).toBe(
       'Not Found (error-boundary/nested)'
     )
@@ -70,41 +70,31 @@ describe('app dir - not-found - basic', () => {
 
     it('should match dynamic route not-found boundary correctly', async () => {
       // `/dynamic` display works
-      const browserDynamic = await next.browser('/dynamic')
-      expect(await browserDynamic.elementByCss('main').text()).toBe('dynamic')
+      const browser = await next.browser('/dynamic')
+      expect(await browser.elementByCss('main').text()).toBe('dynamic')
 
       // `/dynamic/404` calling notFound() will match the same level not-found boundary
-      const browserDynamic404 = await next.browser('/dynamic/404')
-      expect(await browserDynamic404.elementByCss('#not-found').text()).toBe(
+      await browser.get('/dynamic/404')
+      expect(await browser.elementByCss('#not-found').text()).toBe(
         'dynamic/[id] not found'
       )
 
-      const browserDynamicId = await next.browser('/dynamic/123')
-      expect(await browserDynamicId.elementByCss('#page').text()).toBe(
-        'dynamic [id]'
-      )
+      await browser.get('/dynamic/123')
+      expect(await browser.elementByCss('#page').text()).toBe('dynamic [id]')
     })
 
     it('should escalate notFound to parent layout if no not-found boundary present in current layer', async () => {
-      const browserDynamic = await next.browser(
-        '/dynamic-layout-without-not-found'
-      )
-      expect(await browserDynamic.elementByCss('h1').text()).toBe(
+      const browser = await next.browser('/dynamic-layout-without-not-found')
+      expect(await browser.elementByCss('h1').text()).toBe(
         'Dynamic with Layout'
       )
 
       // no not-found boundary in /dynamic-layout-without-not-found, escalate to parent layout to render root not-found
-      const browserDynamicId = await next.browser(
-        '/dynamic-layout-without-not-found/404'
-      )
-      expect(await browserDynamicId.elementByCss('h1').text()).toBe(
-        'Root Not Found'
-      )
+      await browser.get('/dynamic-layout-without-not-found/404')
+      expect(await browser.elementByCss('h1').text()).toBe('Root Not Found')
 
-      const browserDynamic404 = await next.browser(
-        '/dynamic-layout-without-not-found/123'
-      )
-      expect(await browserDynamic404.elementByCss('#page').text()).toBe(
+      await browser.get('/dynamic-layout-without-not-found/123')
+      expect(await browser.elementByCss('#page').text()).toBe(
         'dynamic-layout-without-not-found [id]'
       )
     })

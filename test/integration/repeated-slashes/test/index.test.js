@@ -309,77 +309,75 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
     }
   })
 
-  it('should handle slashes in router push correctly', async () => {
-    for (const item of [
-      {
-        page: '/another',
-        href: '/another',
-        as: '//google.com',
-        pathname: '/google.com',
-      },
-      {
-        page: isPages404 ? '/404' : '/_error',
-        href: '//google.com',
-        pathname: '/google.com',
-      },
-      {
-        page: isPages404 ? '/404' : '/_error',
-        href: '//google.com?hello=1',
-        pathname: '/google.com',
-        search: '?hello=1',
-      },
-      {
-        page: isPages404 ? '/404' : '/_error',
-        href: '//google.com#hello',
-        pathname: '/google.com',
-        hash: '#hello',
-      },
-    ]) {
-      const browser = await webdriver(appPort, '/')
-      await browser.eval(
-        `window.next.router.push("${item.href}"${
-          item.as ? `, "${item.as}"` : ''
-        })`
-      )
-      await check(
-        () => browser.eval('document.readyState'),
-        /interactive|complete/
-      )
-      expect(await browser.eval('window.location.pathname')).toBe(item.pathname)
-      expect(await browser.eval('window.location.search')).toBe(
-        item.search || ''
-      )
-      expect(await browser.eval('window.location.hash')).toBe(item.hash || '')
-      expect(await browser.eval('window.next.router.pathname')).toBe(item.page)
-    }
+  it.each([
+    {
+      page: '/another',
+      href: '/another',
+      as: '//google.com',
+      pathname: '/google.com',
+    },
+    {
+      page: isPages404 ? '/404' : '/_error',
+      href: '//google.com',
+      pathname: '/google.com',
+    },
+    {
+      page: isPages404 ? '/404' : '/_error',
+      href: '//google.com?hello=1',
+      pathname: '/google.com',
+      search: '?hello=1',
+    },
+    {
+      page: isPages404 ? '/404' : '/_error',
+      href: '//google.com#hello',
+      pathname: '/google.com',
+      hash: '#hello',
+    },
+  ])('should handle slashes in router push correctly - %o', async (item) => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval(
+      `window.next.router.push("${item.href}"${
+        item.as ? `, "${item.as}"` : ''
+      })`
+    )
+    await check(
+      () => browser.eval('document.readyState'),
+      /interactive|complete/
+    )
+    expect(await browser.eval('window.location.pathname')).toBe(item.pathname)
+    expect(await browser.eval('window.location.search')).toBe(item.search || '')
+    expect(await browser.eval('window.location.hash')).toBe(item.hash || '')
+    expect(await browser.eval('window.next.router.pathname')).toBe(item.page)
   })
 
-  it('should have no error from encoded slashes in router push', async () => {
-    for (const item of [
-      {
-        page: '/another',
-        href: '/another',
-        as: '/%2Fgoogle.com',
-        shouldHardNav: false,
-      },
-      {
-        page: isPages404 ? '/404' : '/_error',
-        href: '/%2Fgoogle.com',
-      },
-      {
-        page: isPages404 ? '/404' : '/_error',
-        href: '/%2F%2Fgoogle.com?hello=1',
-        pathname: '/%2F%2Fgoogle.com',
-        search: '?hello=1',
-      },
-      {
-        page: isPages404 ? '/404' : '/_error',
-        href: '/%5C%5C%2Fgoogle.com#hello',
-        pathname: '/%5C%5C%2Fgoogle.com',
-        hash: '#hello',
-      },
-    ]) {
+  it.each([
+    {
+      page: '/another',
+      href: '/another',
+      as: '/%2Fgoogle.com',
+      shouldHardNav: false,
+    },
+    {
+      page: isPages404 ? '/404' : '/_error',
+      href: '/%2Fgoogle.com',
+    },
+    {
+      page: isPages404 ? '/404' : '/_error',
+      href: '/%2F%2Fgoogle.com?hello=1',
+      pathname: '/%2F%2Fgoogle.com',
+      search: '?hello=1',
+    },
+    {
+      page: isPages404 ? '/404' : '/_error',
+      href: '/%5C%5C%2Fgoogle.com#hello',
+      pathname: '/%5C%5C%2Fgoogle.com',
+      hash: '#hello',
+    },
+  ])(
+    'should have no error from encoded slashes in router push - %o',
+    async (item) => {
       const browser = await webdriver(appPort, '/')
+
       await browser.eval(`(function() {
         window.beforeNav = 1
         window.next.router.push("${item.href}"${
@@ -406,7 +404,7 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
         expect(await browser.eval('window.beforeNav')).toBe(1)
       }
     }
-  })
+  )
 }
 
 describe('404 handling', () => {

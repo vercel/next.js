@@ -42,9 +42,9 @@ import { nextTestSetup } from 'e2e-utils'
         importWith: 'Hello World',
       })
 
-      const browser2 = await next.browser('/export-as-string')
+      await browser.get('/export-as-string')
       expect(
-        JSON.parse(await browser2.elementByCss('#values-to-check').text())
+        JSON.parse(await browser.elementByCss('#values-to-check').text())
       ).toEqual({
         exportAsString: 1,
       })

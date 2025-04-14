@@ -85,8 +85,9 @@ const runTests = () => {
     }
   })
 
-  it('should navigate on the client with rewrites correctly', async () => {
-    for (const locale of ['', '/nl-NL', '/fr']) {
+  it.each(['', '/nl-NL', '/fr'])(
+    'should navigate on the client with rewrites correctly - %s',
+    async (locale) => {
       const browser = await webdriver(appPort, `${locale}/links`)
 
       const expectedIndex = locale === '/fr' ? `fr` : ''
@@ -144,7 +145,7 @@ const runTests = () => {
       )
       expect(await browser.eval('window.beforeNav')).toBe(1)
     }
-  })
+  )
 }
 
 describe('Custom routes i18n', () => {
@@ -164,8 +165,10 @@ describe('Custom routes i18n', () => {
     nextConfig.replace(/__EXTERNAL_PORT__/g, '' + externalPort)
   })
   afterAll(async () => {
-    server.close()
     nextConfig.restore()
+    await new Promise((resolve, reject) =>
+      server.close((err) => (err ? reject(err) : resolve()))
+    )
   })
   ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
     'development mode',

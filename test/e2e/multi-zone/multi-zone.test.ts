@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
 import path from 'path'
+import { Playwright } from 'next-webdriver'
 
 describe('multi-zone', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -56,9 +57,7 @@ describe('multi-zone', () => {
   )
 
   if (isNextDev) {
-    async function runHMRTest(app: string) {
-      const isHostApp = app === 'host'
-      const browser = await next.browser(isHostApp ? '/' : app)
+    async function runHMRTest(app: string, browser: Playwright) {
       expect(await browser.elementByCss('body').text()).toContain(
         `hello from ${app} app`
       )
@@ -91,8 +90,18 @@ describe('multi-zone', () => {
     }
 
     it('should support HMR in both apps', async () => {
-      await runHMRTest('host')
-      await runHMRTest('guest')
+      const getAppPath = (app: string) => {
+        const isHostApp = app === 'host'
+        return isHostApp ? '/' : app
+      }
+
+      const hostBrowser = await next.browser(getAppPath('host'))
+      await runHMRTest('host', hostBrowser)
+
+      const guestBrowser = await next.browser(getAppPath('guest'), {
+        inefficientlyCreateAdditionalBrowserInstance: true,
+      })
+      await runHMRTest('guest', guestBrowser)
     })
   }
 })

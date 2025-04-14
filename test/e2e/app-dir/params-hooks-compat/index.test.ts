@@ -1,3 +1,4 @@
+import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app-dir - params hooks compat', () => {
@@ -6,30 +7,38 @@ describe('app-dir - params hooks compat', () => {
   })
 
   it('should only access search params with useSearchParams', async () => {
-    const browserApp = await next.browser('/app/foobar?q=app')
-    const appSearchparamsJSON = JSON.parse(
-      await browserApp.elementByCss('#use-search-params').text()
-    )
-    const browserPages = await next.browser('/pages/foobar?q=pages')
-    const pagesSearchparamsJSON = JSON.parse(
-      await browserPages.elementByCss('#use-search-params').text()
-    )
+    const browser = await next.browser('/app/foobar?q=app')
+    await retry(async () => {
+      const appSearchparamsJSON = JSON.parse(
+        await browser.elementByCss('#use-search-params').text()
+      )
+      expect(appSearchparamsJSON).toEqual({ q: 'app' })
+    })
 
-    expect(appSearchparamsJSON).toEqual({ q: 'app' })
-    expect(pagesSearchparamsJSON).toEqual({ q: 'pages' })
+    await browser.get('/pages/foobar?q=pages')
+    await retry(async () => {
+      const pagesSearchparamsJSON = JSON.parse(
+        await browser.elementByCss('#use-search-params').text()
+      )
+      expect(pagesSearchparamsJSON).toEqual({ q: 'pages' })
+    })
   })
 
   it('should only access path params with useParams', async () => {
-    const browserApp = await next.browser('/app/foobar?a=app')
-    const appParamsJSON = JSON.parse(
-      await browserApp.elementByCss('#use-params').text()
-    )
-    const browserPages = await next.browser('/pages/foobar?a=pages')
-    const pagesParamsJSON = JSON.parse(
-      await browserPages.elementByCss('#use-params').text()
-    )
+    const browser = await next.browser('/app/foobar?a=app')
+    await retry(async () => {
+      const appParamsJSON = JSON.parse(
+        await browser.elementByCss('#use-params').text()
+      )
+      expect(appParamsJSON).toEqual({ slug: 'foobar' })
+    })
 
-    expect(appParamsJSON).toEqual({ slug: 'foobar' })
-    expect(pagesParamsJSON).toEqual({ slug: 'foobar' })
+    await browser.get('/pages/foobar?a=pages')
+    await retry(async () => {
+      const pagesParamsJSON = JSON.parse(
+        await browser.elementByCss('#use-params').text()
+      )
+      expect(pagesParamsJSON).toEqual({ slug: 'foobar' })
+    })
   })
 })

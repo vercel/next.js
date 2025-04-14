@@ -23,13 +23,13 @@ describe('clientTraceMetadata', () => {
     })
 
     it('hard loading a dynamic page twice should yield different dynamic trace data', async () => {
-      const browser1 = await next.browser('/app-router/dynamic-page')
-      const firstLoadSpanIdContent = await browser1
+      const browser = await next.browser('/app-router/dynamic-page')
+      const firstLoadSpanIdContent = await browser
         .elementByCss('meta[name="my-parent-span-id"]')
         .getAttribute('content')
 
-      const browser2 = await next.browser('/app-router/dynamic-page')
-      const secondLoadSpanIdContent = await browser2
+      await browser.get('/app-router/dynamic-page')
+      const secondLoadSpanIdContent = await browser
         .elementByCss('meta[name="my-parent-span-id"]')
         .getAttribute('content')
 
@@ -183,13 +183,13 @@ describe('clientTraceMetadata', () => {
     })
 
     it('hard loading a dynamic page twice should yield different dynamic trace data', async () => {
-      const browser1 = await next.browser('/pages-router/dynamic-page')
-      const firstLoadSpanIdContent = await browser1
+      const browser = await next.browser('/pages-router/dynamic-page')
+      const firstLoadSpanIdContent = await browser
         .elementByCss('meta[name="my-parent-span-id"]')
         .getAttribute('content')
 
-      const browser2 = await next.browser('/pages-router/dynamic-page')
-      const secondLoadSpanIdContent = await browser2
+      await browser.get('/pages-router/dynamic-page')
+      const secondLoadSpanIdContent = await browser
         .elementByCss('meta[name="my-parent-span-id"]')
         .getAttribute('content')
 

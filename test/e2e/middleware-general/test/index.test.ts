@@ -9,6 +9,7 @@ import {
   fetchViaHTTP,
   shouldRunTurboDevTest,
   waitFor,
+  retry,
 } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 
@@ -203,12 +204,16 @@ describe('Middleware Runtime', () => {
       })
 
       it('should only contain middleware route in dev middleware manifest', async () => {
-        const res = await fetchViaHTTP(
-          next.url,
-          `/_next/static/${next.buildId}/_devMiddlewareManifest.json`
-        )
-        const matchers = await res.json()
-        expect(matchers).toEqual([{ regexp: '.*', originalSource: '/:path*' }])
+        await retry(async () => {
+          const res = await fetchViaHTTP(
+            next.url,
+            `/_next/static/${next.buildId}/_devMiddlewareManifest.json`
+          )
+          const matchers = await res.json()
+          expect(matchers).toEqual([
+            { regexp: '.*', originalSource: '/:path*' },
+          ])
+        })
       })
     }
 
