@@ -14105,12 +14105,9 @@
     "runtimeError": false
   },
   "test/integration/edge-runtime-streaming-error/test/index.test.ts": {
-    "passed": [],
+    "passed": ["development mode logs the error correctly"],
     "failed": [],
-    "pending": [
-      "development mode logs the error correctly",
-      "production mode logs the error correctly"
-    ],
+    "pending": ["production mode logs the error correctly"],
     "flakey": [],
     "runtimeError": false
   },
