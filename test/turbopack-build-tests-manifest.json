@@ -2121,6 +2121,7 @@
       "dynamic-io should not prerender pages that use at least one fetch without cache",
       "dynamic-io should not warn about potential memory leak for even listeners on AbortSignal",
       "dynamic-io should prerender fully static pages",
+      "dynamic-io should prerender pages that cached the whole page",
       "dynamic-io should prerender pages that only use cached (\"use cache\") IO",
       "dynamic-io should prerender pages that only use cached (unstable_cache) IO",
       "dynamic-io should prerender pages that only use cached fetches",
@@ -2128,7 +2129,7 @@
       "dynamic-io should prerender static not-found pages"
     ],
     "failed": [],
-    "pending": ["dynamic-io should prerender pages that cached the whole page"],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -2636,10 +2637,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/loader-file-named-export-custom-loader-error/loader-file-named-export-custom-loader-error.test.ts": {
-    "passed": [],
+    "passed": [
+      "Error test if the loader file export a named function in Build and Start build and start only should show the build error"
+    ],
     "failed": [],
     "pending": [
-      "Error test if the loader file export a named function in Build and Start build and start only should show the build error",
       "Error test if the loader file export a named function in Development development only should show the error when using `Image` component",
       "Error test if the loader file export a named function in Development development only should show the error when using `getImageProps` method"
     ],
