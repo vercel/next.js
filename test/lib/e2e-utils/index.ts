@@ -10,23 +10,30 @@ import { shouldRunTurboDevTest } from '../next-test-utils'
 
 export type { NextInstance }
 
-// increase timeout to account for pnpm install time
-// if either test runs for the --turbo or have a custom timeout, set reduced timeout instead.
-// this is due to current --turbo test have a lot of tests fails with timeouts, ends up the whole
-// test job exceeds the 6 hours limit.
-let testTimeout = shouldRunTurboDevTest()
-  ? (240 * 1000) / 2
-  : (process.platform === 'win32' ? 240 : 120) * 1000
-
-if (process.env.NEXT_E2E_TEST_TIMEOUT) {
-  try {
-    testTimeout = parseInt(process.env.NEXT_E2E_TEST_TIMEOUT, 10)
-  } catch (_) {
-    // ignore
+function determineTestTimeout(): number {
+  if (process.env.NEXT_E2E_TEST_TIMEOUT) {
+    const testTimeoutFromEnv = Number.parseInt(
+      process.env.NEXT_E2E_TEST_TIMEOUT,
+      10
+    )
+    if (Number.isNaN(testTimeoutFromEnv)) {
+      throw new Error(
+        `NEXT_E2E_TEST_TIMEOUT must be a number, got: ${JSON.stringify(process.env.NEXT_E2E_TEST_TIMEOUT)}`
+      )
+    }
+    return testTimeoutFromEnv
   }
+
+  // increase timeout to account for pnpm install time
+  // if either test runs for the --turbo or have a custom timeout, set reduced timeout instead.
+  // this is due to current --turbo test have a lot of tests fails with timeouts, ends up the whole
+  // test job exceeds the 6 hours limit.
+  return shouldRunTurboDevTest()
+    ? (240 * 1000) / 2
+    : (process.platform === 'win32' ? 240 : 120) * 1000
 }
 
-jest.setTimeout(testTimeout)
+jest.setTimeout(determineTestTimeout())
 
 const testsFolder = path.join(__dirname, '..', '..')
 
