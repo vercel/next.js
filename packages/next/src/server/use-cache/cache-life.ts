@@ -1,5 +1,5 @@
+import { cacheAsyncStorage } from '../app-render/cache-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 
 export type CacheLife = {
   // How long the client can cache a value without checking with the server.
@@ -91,8 +91,8 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
     )
   }
 
-  const workUnitStore = workUnitAsyncStorage.getStore()
-  if (!workUnitStore || workUnitStore.type !== 'cache') {
+  const cacheStore = cacheAsyncStorage.getStore()
+  if (cacheStore?.type !== 'cache') {
     throw new Error(
       'cacheLife() can only be called inside a "use cache" function.'
     )
@@ -147,28 +147,28 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
   if (profile.revalidate !== undefined) {
     // Track the explicit revalidate time.
     if (
-      workUnitStore.explicitRevalidate === undefined ||
-      workUnitStore.explicitRevalidate > profile.revalidate
+      cacheStore.explicitRevalidate === undefined ||
+      cacheStore.explicitRevalidate > profile.revalidate
     ) {
-      workUnitStore.explicitRevalidate = profile.revalidate
+      cacheStore.explicitRevalidate = profile.revalidate
     }
   }
   if (profile.expire !== undefined) {
     // Track the explicit expire time.
     if (
-      workUnitStore.explicitExpire === undefined ||
-      workUnitStore.explicitExpire > profile.expire
+      cacheStore.explicitExpire === undefined ||
+      cacheStore.explicitExpire > profile.expire
     ) {
-      workUnitStore.explicitExpire = profile.expire
+      cacheStore.explicitExpire = profile.expire
     }
   }
   if (profile.stale !== undefined) {
     // Track the explicit stale time.
     if (
-      workUnitStore.explicitStale === undefined ||
-      workUnitStore.explicitStale > profile.stale
+      cacheStore.explicitStale === undefined ||
+      cacheStore.explicitStale > profile.stale
     ) {
-      workUnitStore.explicitStale = profile.stale
+      cacheStore.explicitStale = profile.stale
     }
   }
 }

@@ -1121,12 +1121,12 @@ export function trackDynamic(store: WorkStore, expression: string): void {
   const workUnitStore = workUnitAsyncStorage.getStore()
   const cacheStore = cacheAsyncStorage.getStore()
 
-  if (workUnitStore) {
-    if (workUnitStore.type === 'cache') {
+  if (cacheStore) {
+    if (cacheStore.type === 'cache') {
       throw new Error(
         `Route ${store.route} used "${expression}" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
       )
-    } else if (workUnitStore.type === 'unstable-cache') {
+    } else if (cacheStore.type === 'unstable-cache') {
       throw new Error(
         `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
       )

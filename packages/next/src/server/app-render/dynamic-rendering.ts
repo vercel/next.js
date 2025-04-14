@@ -122,14 +122,14 @@ export function markCurrentScopeAsDynamic(
   workUnitStore: undefined | Exclude<WorkUnitStore, PrerenderStoreModern>,
   expression: string
 ): void {
-  if (workUnitStore) {
-    if (
-      workUnitStore.type === 'cache' ||
-      workUnitStore.type === 'unstable-cache'
-    ) {
-      // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
-      // creates a cache boundary. This is subtly different from reading a dynamic data source which is
-      // forbidden inside a cache scope.
+  const cacheStore = cacheAsyncStorage.getStore()
+
+  if (cacheStore) {
+    if (cacheStore.type === 'cache' || cacheStore.type === 'unstable-cache') {
+      // Inside cache scopes, marking a scope as dynamic has no effect because
+      // the outer cache scope creates a cache boundary. This is subtly
+      // different from reading a dynamic data source which is forbidden inside
+      // a cache scope.
       return
     }
   }
@@ -153,8 +153,6 @@ export function markCurrentScopeAsDynamic(
         workUnitStore.dynamicTracking
       )
     } else if (workUnitStore.type === 'prerender-legacy') {
-      const cacheStore = cacheAsyncStorage.getStore()
-
       if (cacheStore) {
         cacheStore.revalidate = 0
       }
@@ -232,22 +230,23 @@ export function throwToInterruptStaticGeneration(
 export function trackDynamicDataInDynamicRender(
   workUnitStore: undefined | WorkUnitStore
 ) {
-  if (workUnitStore) {
-    if (
-      workUnitStore.type === 'cache' ||
-      workUnitStore.type === 'unstable-cache'
-    ) {
-      // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
-      // creates a cache boundary. This is subtly different from reading a dynamic data source which is
-      // forbidden inside a cache scope.
+  const cacheStore = cacheAsyncStorage.getStore()
+
+  if (cacheStore) {
+    if (cacheStore.type === 'cache' || cacheStore.type === 'unstable-cache') {
+      // Inside cache scopes, marking a scope as dynamic has no effect because
+      // the outer cache scope creates a cache boundary. This is subtly
+      // different from reading a dynamic data source which is forbidden inside
+      // a cache scope.
       return
     }
+  }
+
+  if (workUnitStore) {
     if (
       workUnitStore.type === 'prerender' ||
       workUnitStore.type === 'prerender-legacy'
     ) {
-      const cacheStore = cacheAsyncStorage.getStore()
-
       if (cacheStore) {
         cacheStore.revalidate = 0
       }

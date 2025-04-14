@@ -140,48 +140,7 @@ export type PrerenderStore =
   | PrerenderStorePPR
   | PrerenderStoreModern
 
-export interface CommonCacheStore
-  extends Omit<CommonWorkUnitStore, 'implicitTags'> {
-  /**
-   * A cache work unit store might not always have an outer work unit store,
-   * from which implicit tags could be inherited.
-   */
-  readonly implicitTags: ImplicitTags | undefined
-}
-
-export interface UseCacheStore extends CommonCacheStore {
-  type: 'cache'
-  // Collected revalidate times and tags for this cache entry during the cache render.
-  revalidate: number // implicit revalidate time from inner caches / fetches
-  expire: number // server expiration time
-  stale: number // client expiration time
-  explicitRevalidate: undefined | number // explicit revalidate time from cacheLife() calls
-  explicitExpire: undefined | number // server expiration time
-  explicitStale: undefined | number // client expiration time
-  tags: null | string[]
-  readonly hmrRefreshHash: string | undefined
-  readonly isHmrRefresh: boolean
-  readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
-  readonly forceRevalidate: boolean
-  // Draft mode is only available if the outer work unit store is a request
-  // store and draft mode is enabled.
-  readonly draftMode: DraftModeProvider | undefined
-}
-
-export interface UnstableCacheStore extends CommonCacheStore {
-  type: 'unstable-cache'
-  // Draft mode is only available if the outer work unit store is a request
-  // store and draft mode is enabled.
-  readonly draftMode: DraftModeProvider | undefined
-}
-
-/**
- * The Cache store is for tracking information inside a "use cache" or unstable_cache context.
- * Inside this context we should never expose any request or page specific information.
- */
-export type CacheStore = UseCacheStore | UnstableCacheStore
-
-export type WorkUnitStore = RequestStore | CacheStore | PrerenderStore
+export type WorkUnitStore = RequestStore | PrerenderStore
 
 export type WorkUnitAsyncStorage = AsyncLocalStorage<WorkUnitStore>
 
@@ -206,16 +165,6 @@ export function getExpectedRequestStore(
       // This should not happen because we should have checked it already.
       throw new Error(
         `\`${callingExpression}\` cannot be called inside a prerender. This is a bug in Next.js.`
-      )
-
-    case 'cache':
-      throw new Error(
-        `\`${callingExpression}\` cannot be called inside "use cache". Call it outside and pass an argument instead. Read more: https://nextjs.org/docs/messages/next-request-in-use-cache`
-      )
-
-    case 'unstable-cache':
-      throw new Error(
-        `\`${callingExpression}\` cannot be called inside unstable_cache. Call it outside and pass an argument instead. Read more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
       )
 
     default:
@@ -246,11 +195,7 @@ export function getPrerenderResumeDataCache(
 export function getRenderResumeDataCache(
   workUnitStore: WorkUnitStore
 ): RenderResumeDataCache | null {
-  if (
-    workUnitStore.type !== 'prerender-legacy' &&
-    workUnitStore.type !== 'cache' &&
-    workUnitStore.type !== 'unstable-cache'
-  ) {
+  if (workUnitStore.type !== 'prerender-legacy') {
     if (workUnitStore.type === 'request') {
       return workUnitStore.renderResumeDataCache
     }
@@ -271,30 +216,9 @@ export function getHmrRefreshHash(
     return undefined
   }
 
-  return workUnitStore.type === 'cache' || workUnitStore.type === 'prerender'
+  return workUnitStore.type === 'prerender'
     ? workUnitStore.hmrRefreshHash
     : workUnitStore.type === 'request'
       ? workUnitStore.cookies.get(NEXT_HMR_REFRESH_HASH_COOKIE)?.value
       : undefined
-}
-
-/**
- * Returns a draft mode provider only if draft mode is enabled.
- */
-export function getDraftModeProviderForCacheScope(
-  workStore: WorkStore,
-  workUnitStore: WorkUnitStore
-): DraftModeProvider | undefined {
-  if (workStore.isDraftMode) {
-    switch (workUnitStore.type) {
-      case 'cache':
-      case 'unstable-cache':
-      case 'request':
-        return workUnitStore.draftMode
-      default:
-        return undefined
-    }
-  }
-
-  return undefined
 }

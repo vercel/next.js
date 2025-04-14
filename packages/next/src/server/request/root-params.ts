@@ -20,6 +20,7 @@ import {
   describeStringPropertyAccess,
   wellKnownProperties,
 } from '../../shared/lib/utils/reflect-utils'
+import { cacheAsyncStorage } from '../app-render/cache-async-storage.external'
 
 interface CacheLifetime {}
 const CachedParams = new WeakMap<CacheLifetime, Promise<Params>>()
@@ -38,13 +39,18 @@ export async function unstable_rootParams(): Promise<Params> {
     )
   }
 
+  const cacheStore = cacheAsyncStorage.getStore()
+
+  if (
+    cacheStore &&
+    (cacheStore.type === 'cache' || cacheStore.type === 'unstable-cache')
+  ) {
+    throw new Error(
+      `Route ${workStore.route} used \`unstable_rootParams()\` inside \`"use cache"\` or \`unstable_cache\`. Support for this API inside cache scopes is planned for a future version of Next.js.`
+    )
+  }
+
   switch (workUnitStore.type) {
-    case 'unstable-cache':
-    case 'cache': {
-      throw new Error(
-        `Route ${workStore.route} used \`unstable_rootParams()\` inside \`"use cache"\` or \`unstable_cache\`. Support for this API inside cache scopes is planned for a future version of Next.js.`
-      )
-    }
     case 'prerender':
     case 'prerender-ppr':
     case 'prerender-legacy':

@@ -8,6 +8,7 @@ import {
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { isRequestAPICallableInsideAfter } from './utils'
+import { cacheAsyncStorage } from '../app-render/cache-async-storage.external'
 
 /**
  * This function allows you to indicate that you require an actual user Request before continuing.
@@ -35,12 +36,14 @@ export function connection(): Promise<void> {
       return Promise.resolve(undefined)
     }
 
-    if (workUnitStore) {
-      if (workUnitStore.type === 'cache') {
+    const cacheStore = cacheAsyncStorage.getStore()
+
+    if (cacheStore) {
+      if (cacheStore.type === 'cache') {
         throw new Error(
           `Route ${workStore.route} used "connection" inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but caches must be able to be produced before a Request so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
         )
-      } else if (workUnitStore.type === 'unstable-cache') {
+      } else if (cacheStore.type === 'unstable-cache') {
         throw new Error(
           `Route ${workStore.route} used "connection" inside a function cached with "unstable_cache(...)". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but caches must be able to be produced before a Request so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
         )

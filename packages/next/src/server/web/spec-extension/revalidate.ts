@@ -94,16 +94,19 @@ function revalidate(tags: string[], expression: string) {
   const workUnitStore = workUnitAsyncStorage.getStore()
   const cacheStore = cacheAsyncStorage.getStore()
 
-  if (workUnitStore) {
-    if (workUnitStore.type === 'cache') {
+  if (cacheStore) {
+    if (cacheStore.type === 'cache') {
       throw new Error(
         `Route ${store.route} used "${expression}" inside a "use cache" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )
-    } else if (workUnitStore.type === 'unstable-cache') {
+    } else if (cacheStore.type === 'unstable-cache') {
       throw new Error(
         `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )
     }
+  }
+
+  if (workUnitStore) {
     if (workUnitStore.phase === 'render') {
       throw new Error(
         `Route ${store.route} used "${expression}" during render which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`

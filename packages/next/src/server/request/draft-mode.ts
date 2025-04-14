@@ -1,7 +1,4 @@
-import {
-  getDraftModeProviderForCacheScope,
-  throwForMissingRequestStore,
-} from '../app-render/work-unit-async-storage.external'
+import { throwForMissingRequestStore } from '../app-render/work-unit-async-storage.external'
 
 import type { DraftModeProvider } from '../async-storage/draft-mode-provider'
 
@@ -52,46 +49,16 @@ export function draftMode(): Promise<DraftMode> {
     throwForMissingRequestStore(callingExpression)
   }
 
-  switch (workUnitStore.type) {
-    case 'request':
-      return createOrGetCachedExoticDraftMode(
-        workUnitStore.draftMode,
-        workStore
-      )
+  if (workUnitStore.type === 'request') {
+    return createOrGetCachedExoticDraftMode(workUnitStore.draftMode, workStore)
+  }
 
-    case 'cache':
-    case 'unstable-cache':
-      // Inside of `"use cache"` or `unstable_cache`, draft mode is available if
-      // the outmost work unit store is a request store, and if draft mode is
-      // enabled.
-      const draftModeProvider = getDraftModeProviderForCacheScope(
-        workStore,
-        workUnitStore
-      )
-
-      if (draftModeProvider) {
-        return createOrGetCachedExoticDraftMode(draftModeProvider, workStore)
-      }
-
-    // Otherwise, we fall through to providing an empty draft mode.
-    // eslint-disable-next-line no-fallthrough
-    case 'prerender':
-    case 'prerender-ppr':
-    case 'prerender-legacy':
-      // Return empty draft mode
-      if (
-        process.env.NODE_ENV === 'development' &&
-        !workStore?.isPrefetchRequest
-      ) {
-        const route = workStore?.route
-        return createExoticDraftModeWithDevWarnings(null, route)
-      } else {
-        return createExoticDraftMode(null)
-      }
-
-    default:
-      const _exhaustiveCheck: never = workUnitStore
-      return _exhaustiveCheck
+  // Otherwise, we provide an empty draft mode.
+  if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
+    const route = workStore?.route
+    return createExoticDraftModeWithDevWarnings(null, route)
+  } else {
+    return createExoticDraftMode(null)
   }
 }
 
@@ -256,24 +223,28 @@ function createDraftModeAccessError(
 
 function trackDynamicDraftMode(expression: string) {
   const store = workAsyncStorage.getStore()
-  const workUnitStore = workUnitAsyncStorage.getStore()
   if (store) {
     // We have a store we want to track dynamic data access to ensure we
     // don't statically generate routes that manipulate draft mode.
-    if (workUnitStore) {
-      if (workUnitStore.type === 'cache') {
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    const cacheStore = cacheAsyncStorage.getStore()
+
+    if (cacheStore) {
+      if (cacheStore.type === 'cache') {
         throw new Error(
           `Route ${store.route} used "${expression}" inside "use cache". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
         )
-      } else if (workUnitStore.type === 'unstable-cache') {
+      } else if (cacheStore.type === 'unstable-cache') {
         throw new Error(
           `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
         )
-      } else if (workUnitStore.phase === 'after') {
-        throw new Error(
-          `Route ${store.route} used "${expression}" inside \`after\`. The enabled status of draftMode can be read inside \`after\` but you cannot enable or disable draftMode. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
-        )
       }
+    }
+
+    if (workUnitStore?.phase === 'after') {
+      throw new Error(
+        `Route ${store.route} used "${expression}" inside \`after\`. The enabled status of draftMode can be read inside \`after\` but you cannot enable or disable draftMode. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
+      )
     }
 
     if (store.dynamicShouldError) {
@@ -303,8 +274,6 @@ function trackDynamicDraftMode(expression: string) {
         )
       } else if (workUnitStore.type === 'prerender-legacy') {
         // legacy Prerender
-        const cacheStore = cacheAsyncStorage.getStore()
-
         if (cacheStore) {
           cacheStore.revalidate = 0
         }

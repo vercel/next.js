@@ -271,7 +271,7 @@ export function createPatchedFetcher(
         // Inside unstable-cache we treat it the same as force-no-store on the
         // page.
         const pageFetchCacheMode =
-          workUnitStore && workUnitStore.type === 'unstable-cache'
+          cacheStore?.type === 'unstable-cache'
             ? 'force-no-store'
             : workStore.fetchCache
 
@@ -332,7 +332,7 @@ export function createPatchedFetcher(
           // if we are inside of "use cache"/"unstable_cache"
           // we shouldn't set the revalidate to 0 as it's overridden
           // by the cache context
-          workUnitStore?.type !== 'cache' &&
+          !cacheStore &&
           (hasExplicitFetchCacheOptOut || noFetchConfigAndForceDynamic)
         ) {
           currentFetchRevalidate = 0
@@ -523,15 +523,12 @@ export function createPatchedFetcher(
         let cacheKey: string | undefined
         const { incrementalCache } = workStore
 
-        const useCacheOrRequestStore =
-          workUnitStore?.type === 'request' || workUnitStore?.type === 'cache'
-            ? workUnitStore
-            : undefined
+        const requestStore =
+          workUnitStore?.type === 'request' ? workUnitStore : undefined
 
         if (
           incrementalCache &&
-          (isCacheableRevalidate ||
-            useCacheOrRequestStore?.serverComponentsHmrCache)
+          (isCacheableRevalidate || requestStore?.serverComponentsHmrCache)
         ) {
           try {
             cacheKey = await incrementalCache.generateCacheKey(
@@ -618,7 +615,7 @@ export function createPatchedFetcher(
                 incrementalCache &&
                 cacheKey &&
                 (isCacheableRevalidate ||
-                  useCacheOrRequestStore?.serverComponentsHmrCache)
+                  requestStore?.serverComponentsHmrCache)
               ) {
                 const normalizedRevalidate =
                   finalRevalidate >= INFINITE_CACHE
@@ -680,7 +677,7 @@ export function createPatchedFetcher(
                         url: cloned1.url,
                       }
 
-                      useCacheOrRequestStore?.serverComponentsHmrCache?.set(
+                      requestStore?.serverComponentsHmrCache?.set(
                         cacheKey,
                         fetchedData
                       )
@@ -726,11 +723,11 @@ export function createPatchedFetcher(
           let cachedFetchData: CachedFetchData | undefined
 
           if (
-            useCacheOrRequestStore?.isHmrRefresh &&
-            useCacheOrRequestStore.serverComponentsHmrCache
+            requestStore?.isHmrRefresh &&
+            requestStore.serverComponentsHmrCache
           ) {
             cachedFetchData =
-              useCacheOrRequestStore.serverComponentsHmrCache.get(cacheKey)
+              requestStore.serverComponentsHmrCache.get(cacheKey)
 
             isHmrRefreshCache = true
           }

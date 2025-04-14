@@ -1,19 +1,18 @@
 import type { IncrementalCache } from '../../lib/incremental-cache'
 
-import { CACHE_ONE_YEAR } from '../../../lib/constants'
+import { CACHE_ONE_YEAR, INFINITE_CACHE } from '../../../lib/constants'
 import { validateRevalidate, validateTags } from '../../lib/patch-fetch'
 import { workAsyncStorage } from '../../app-render/work-async-storage.external'
-import {
-  getDraftModeProviderForCacheScope,
-  workUnitAsyncStorage,
-} from '../../app-render/work-unit-async-storage.external'
+import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.external'
 import {
   CachedRouteKind,
   IncrementalCacheKind,
   type CachedFetchData,
 } from '../../response-cache'
-import type { UnstableCacheStore } from '../../app-render/work-unit-async-storage.external'
-import { cacheAsyncStorage } from '../../app-render/cache-async-storage.external'
+import {
+  cacheAsyncStorage,
+  type UnstableCacheStore,
+} from '../../app-render/cache-async-storage.external'
 
 type Callback = (...args: any[]) => Promise<any>
 
@@ -148,12 +147,10 @@ export function unstable_cache<T extends Callback>(
 
       const innerCacheStore: UnstableCacheStore = {
         type: 'unstable-cache',
-        phase: 'render',
-        implicitTags,
-        draftMode:
-          workUnitStore &&
-          workStore &&
-          getDraftModeProviderForCacheScope(workStore, workUnitStore),
+        revalidate: INFINITE_CACHE,
+        expire: INFINITE_CACHE,
+        stale: INFINITE_CACHE,
+        tags: implicitTags ? [...implicitTags.tags] : [],
       }
 
       if (workStore) {
@@ -234,27 +231,26 @@ export function unstable_cache<T extends Callback>(
                 }
 
                 // We run the cache function asynchronously and save the result when it completes
-                workStore.pendingRevalidates[invocationKey] =
-                  workUnitAsyncStorage
-                    .run(innerCacheStore, cb, ...args)
-                    .then((result) => {
-                      return cacheNewResult(
-                        result,
-                        incrementalCache,
-                        cacheKey,
-                        tags,
-                        options.revalidate,
-                        fetchIdx,
-                        fetchUrl
-                      )
-                    })
-                    // @TODO This error handling seems wrong. We swallow the error?
-                    .catch((err) =>
-                      console.error(
-                        `revalidating cache with key: ${invocationKey}`,
-                        err
-                      )
+                workStore.pendingRevalidates[invocationKey] = cacheAsyncStorage
+                  .run(innerCacheStore, cb, ...args)
+                  .then((result) => {
+                    return cacheNewResult(
+                      result,
+                      incrementalCache,
+                      cacheKey,
+                      tags,
+                      options.revalidate,
+                      fetchIdx,
+                      fetchUrl
                     )
+                  })
+                  // @TODO This error handling seems wrong. We swallow the error?
+                  .catch((err) =>
+                    console.error(
+                      `revalidating cache with key: ${invocationKey}`,
+                      err
+                    )
+                  )
               }
               // We had a valid cache entry so we return it here
               return cachedResponse
@@ -263,11 +259,7 @@ export function unstable_cache<T extends Callback>(
         }
 
         // If we got this far then we had an invalid cache entry and need to generate a new one
-        const result = await workUnitAsyncStorage.run(
-          innerCacheStore,
-          cb,
-          ...args
-        )
+        const result = await cacheAsyncStorage.run(innerCacheStore, cb, ...args)
 
         if (!workStore.isDraftMode) {
           cacheNewResult(
@@ -320,11 +312,8 @@ export function unstable_cache<T extends Callback>(
         }
 
         // If we got this far then we had an invalid cache entry and need to generate a new one
-        const result = await workUnitAsyncStorage.run(
-          innerCacheStore,
-          cb,
-          ...args
-        )
+        const result = await cacheAsyncStorage.run(innerCacheStore, cb, ...args)
+
         cacheNewResult(
           result,
           incrementalCache,

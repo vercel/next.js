@@ -15,16 +15,12 @@ import {
 
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import type {
-  UseCacheStore,
-  WorkUnitStore,
-} from '../app-render/work-unit-async-storage.external'
+import type { WorkUnitStore } from '../app-render/work-unit-async-storage.external'
 import {
   getHmrRefreshHash,
   getRenderResumeDataCache,
   getPrerenderResumeDataCache,
   workUnitAsyncStorage,
-  getDraftModeProviderForCacheScope,
 } from '../app-render/work-unit-async-storage.external'
 import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'
 
@@ -55,6 +51,7 @@ import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
 import {
   cacheAsyncStorage,
   type CacheStore,
+  type UseCacheStore,
 } from '../app-render/cache-async-storage.external'
 
 type CacheKeyParts =
@@ -125,7 +122,7 @@ function generateCacheEntryWithCacheContext(
   encodedCacheKeyParts: FormData | string,
   ctx: GenerateCacheKeyContext
 ) {
-  const { workStore, outerWorkUnitStore } = ctx
+  const { workStore } = ctx
 
   if (!workStore.cacheLifeProfiles) {
     throw new Error(
@@ -144,35 +141,19 @@ function generateCacheEntryWithCacheContext(
     )
   }
 
-  const useCacheOrRequestStore =
-    outerWorkUnitStore?.type === 'request' ||
-    outerWorkUnitStore?.type === 'cache'
-      ? outerWorkUnitStore
-      : undefined
-
   // Initialize the Store for this Cache entry.
   const cacheStore: UseCacheStore = {
     type: 'cache',
-    phase: 'render',
-    implicitTags: outerWorkUnitStore?.implicitTags,
     revalidate: defaultCacheLife.revalidate,
     expire: defaultCacheLife.expire,
     stale: defaultCacheLife.stale,
     explicitRevalidate: undefined,
     explicitExpire: undefined,
     explicitStale: undefined,
-    tags: null,
-    hmrRefreshHash:
-      outerWorkUnitStore && getHmrRefreshHash(workStore, outerWorkUnitStore),
-    isHmrRefresh: useCacheOrRequestStore?.isHmrRefresh ?? false,
-    serverComponentsHmrCache: useCacheOrRequestStore?.serverComponentsHmrCache,
-    forceRevalidate: shouldForceRevalidate(workStore, outerWorkUnitStore),
-    draftMode:
-      outerWorkUnitStore &&
-      getDraftModeProviderForCacheScope(workStore, outerWorkUnitStore),
+    tags: [],
   }
 
-  return workUnitAsyncStorage.run(
+  return cacheAsyncStorage.run(
     cacheStore,
     generateCacheEntryImpl,
     cacheStore,
@@ -962,14 +943,8 @@ function shouldForceRevalidate(
     return true
   }
 
-  if (workStore.dev && workUnitStore) {
-    if (workUnitStore.type === 'request') {
-      return workUnitStore.headers.get('cache-control') === 'no-cache'
-    }
-
-    if (workUnitStore.type === 'cache') {
-      return workUnitStore.forceRevalidate
-    }
+  if (workStore.dev && workUnitStore?.type === 'request') {
+    return workUnitStore.headers.get('cache-control') === 'no-cache'
   }
 
   return false

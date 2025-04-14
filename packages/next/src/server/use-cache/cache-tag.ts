@@ -1,4 +1,4 @@
-import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import { cacheAsyncStorage } from '../app-render/cache-async-storage.external'
 import { validateTags } from '../lib/patch-fetch'
 
 export function cacheTag(...tags: string[]): void {
@@ -8,8 +8,8 @@ export function cacheTag(...tags: string[]): void {
     )
   }
 
-  const workUnitStore = workUnitAsyncStorage.getStore()
-  if (!workUnitStore || workUnitStore.type !== 'cache') {
+  const cacheStore = cacheAsyncStorage.getStore()
+  if (cacheStore?.type !== 'cache') {
     throw new Error(
       'cacheTag() can only be called inside a "use cache" function.'
     )
@@ -17,9 +17,9 @@ export function cacheTag(...tags: string[]): void {
 
   const validTags = validateTags(tags, 'cacheTag()')
 
-  if (!workUnitStore.tags) {
-    workUnitStore.tags = validTags
+  if (!cacheStore.tags) {
+    cacheStore.tags = validTags
   } else {
-    workUnitStore.tags.push(...validTags)
+    cacheStore.tags.push(...validTags)
   }
 }
