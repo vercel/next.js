@@ -250,17 +250,6 @@ export const styles = `
   .nextjs-toast-hide-button:hover {
     opacity: 1;
   }
-  .nextjs__container_errors_inspect_copy_button {
-    cursor: pointer;
-    background: none;
-    border: none;
-    color: var(--color-ansi-bright-white);
-    font-size: var(--size-24);
-    padding: 0;
-    margin: 0;
-    margin-left: 8px;
-    transition: opacity 0.25s ease;
-  }
   .nextjs__container_errors__error_title {
     display: flex;
     align-items: center;
