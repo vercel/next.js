@@ -1486,6 +1486,7 @@ async function loadWebAssemblyModule(_source, wasmChunkPath) {
             });
             resolver = {
                 resolved: false,
+                loadingStarted: false,
                 promise,
                 resolve: ()=>{
                     resolver.resolved = true;
@@ -1502,12 +1503,13 @@ async function loadWebAssemblyModule(_source, wasmChunkPath) {
     * has been loaded.
     */ function doLoadChunk(chunkUrl, source) {
         const resolver = getOrCreateResolver(chunkUrl);
-        if (resolver.resolved) {
+        if (resolver.loadingStarted) {
             return resolver.promise;
         }
         if (source.type === SourceType.Runtime) {
             // We don't need to load chunks references from runtime code, as they're already
             // present in the DOM.
+            resolver.loadingStarted = true;
             if (isCss(chunkUrl)) {
                 // CSS chunks do not register themselves, and as such must be marked as
                 // loaded instantly.
@@ -1576,6 +1578,7 @@ async function loadWebAssemblyModule(_source, wasmChunkPath) {
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl}`);
             }
         }
+        resolver.loadingStarted = true;
         return resolver.promise;
     }
 })();
