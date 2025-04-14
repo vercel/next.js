@@ -52,7 +52,6 @@ export function testReactHydrationWarning(msg: string): boolean {
 
 export function getHydrationErrorStackInfo(rawMessage: string): {
   message: string | null
-  stack?: string
   diff?: string
 } {
   rawMessage = rawMessage.replace(/^Error: /, '')
@@ -62,7 +61,6 @@ export function getHydrationErrorStackInfo(rawMessage: string): {
   if (!isReactHydrationErrorMessage(rawMessage) && !isReactHydrationWarning) {
     return {
       message: null,
-      stack: rawMessage,
       diff: '',
     }
   }
@@ -71,7 +69,6 @@ export function getHydrationErrorStackInfo(rawMessage: string): {
     const [message, diffLog] = rawMessage.split('\n\n')
     return {
       message: message.trim(),
-      stack: '',
       diff: (diffLog || '').trim(),
     }
   }
@@ -83,13 +80,10 @@ export function getHydrationErrorStackInfo(rawMessage: string): {
   const trimmedMessage = message.trim()
   // React built-in hydration diff starts with a newline, checking if length is > 1
   if (trailing && trailing.length > 1) {
-    const stacks: string[] = []
     const diffs: string[] = []
     trailing.split('\n').forEach((line) => {
       if (line.trim() === '') return
-      if (line.trim().startsWith('at ')) {
-        stacks.push(line)
-      } else {
+      if (!line.trim().startsWith('at ')) {
         diffs.push(line)
       }
     })
@@ -97,12 +91,10 @@ export function getHydrationErrorStackInfo(rawMessage: string): {
     return {
       message: trimmedMessage,
       diff: diffs.join('\n'),
-      stack: stacks.join('\n'),
     }
   } else {
     return {
       message: trimmedMessage,
-      stack: trailing, // without hydration diff
     }
   }
 }

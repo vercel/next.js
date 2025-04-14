@@ -424,6 +424,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         consistency: ReadConsistency,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<Result<RawVc, EventListener>> {
+        if let Some(reader) = reader {
+            self.assert_not_persistent_calling_transient(reader, task_id);
+        }
+
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
 
@@ -455,11 +459,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     Some(Ok(Err(listen_to_done_event(this, reader, done_event))))
                 }
                 Some(InProgressState::InProgress(box InProgressStateInner {
-                    marked_as_completed,
+                    done,
                     done_event,
                     ..
                 })) => {
-                    if !*marked_as_completed {
+                    if !*done {
                         Some(Ok(Err(listen_to_done_event(this, reader, done_event))))
                     } else {
                         None
@@ -606,6 +610,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // Output doesn't exist. We need to schedule the task to compute it.
         let (item, listener) =
             CachedDataItem::new_scheduled_with_listener(self.get_task_desc_fn(task_id), note);
+        // It's not possible that the task is InProgress at this point. If it is InProgress {
+        // done: true } it must have Output and would early return.
         task.add_new(item);
         turbo_tasks.schedule(task_id);
 
@@ -620,6 +626,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
+        if let Some(reader) = reader {
+            self.assert_not_persistent_calling_transient(reader, task_id);
+        }
+
         fn add_cell_dependency<B: BackingStorage>(
             backend: &TurboTasksBackendInner<B>,
             mut task: impl TaskGuard,
@@ -977,11 +987,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
         if !parent_task.is_transient() {
-            let parent_task_type = self.lookup_task_type(parent_task);
-            panic!(
-                "Calling transient function {} from persistent function {} is not allowed",
-                task_type.get_name(),
-                parent_task_type.map_or("unknown", |t| t.get_name())
+            panic_persistent_calling_transient(
+                self.lookup_task_type(parent_task).as_deref(),
+                Some(&task_type),
             );
         }
         if let Some(task_id) = self.task_cache.lookup_forward(&task_type) {
@@ -1135,6 +1143,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     done_event,
                     session_dependent: false,
                     marked_as_completed: false,
+                    done: false,
                     new_children: Default::default(),
                 })),
             });
@@ -1277,7 +1286,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
         let &mut InProgressState::InProgress(box InProgressStateInner {
             stale,
-            ref mut marked_as_completed,
+            ref mut done,
             ref done_event,
             ref mut new_children,
             ..
@@ -1318,10 +1327,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         // mark the task as completed, so dependent tasks can continue working
-        if !*marked_as_completed {
-            *marked_as_completed = true;
-            done_event.notify(usize::MAX);
-        }
+        *done = true;
+        done_event.notify(usize::MAX);
 
         // take the children from the task to process them
         let mut new_children = take(new_children);
@@ -1502,6 +1509,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             once_task: _,
             stale,
             session_dependent,
+            done: _,
             marked_as_completed: _,
             new_children,
         }) = in_progress
@@ -1886,12 +1894,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut task = ctx.task(task, TaskDataCategory::Data);
         if let Some(InProgressState::InProgress(box InProgressStateInner {
             marked_as_completed,
-            done_event,
             ..
         })) = get_mut!(task, InProgress)
         {
             *marked_as_completed = true;
-            done_event.notify(usize::MAX);
             // TODO this should remove the dirty state (also check session_dependent)
             // but this would break some assumptions for strongly consistent reads.
             // Client tasks are not connected yet, so we wouldn't wait for them.
@@ -1982,6 +1988,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // Technically nobody should be listening to this event, but just in case
             // we notify it anyway
             root_state.all_clean_event.notify(usize::MAX);
+        }
+    }
+
+    fn assert_not_persistent_calling_transient(&self, parent_id: TaskId, child_id: TaskId) {
+        if !parent_id.is_transient() && child_id.is_transient() {
+            panic_persistent_calling_transient(
+                self.lookup_task_type(parent_id).as_deref(),
+                self.lookup_task_type(child_id).as_deref(),
+            );
         }
     }
 }
@@ -2259,6 +2274,17 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
     fn task_statistics(&self) -> &TaskStatisticsApi {
         &self.0.task_statistics
     }
+}
+
+fn panic_persistent_calling_transient(
+    parent: Option<&CachedTaskType>,
+    child: Option<&CachedTaskType>,
+) {
+    panic!(
+        "Persistent task {} is not allowed to call or read transient tasks {}",
+        parent.map_or("unknown", |t| t.get_name()),
+        child.map_or("unknown", |t| t.get_name()),
+    );
 }
 
 // from https://github.com/tokio-rs/tokio/blob/29cd6ec1ec6f90a7ee1ad641c03e0e00badbcb0e/tokio/src/time/instant.rs#L57-L63

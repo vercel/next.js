@@ -48,7 +48,6 @@ describe('ReactRefreshLogBox-builtins app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Module not found: Can't resolve 'dns'",
          "environmentLabel": null,
          "label": "Build Error",
@@ -62,7 +61,6 @@ describe('ReactRefreshLogBox-builtins app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Module not found: Can't resolve 'dns'",
          "environmentLabel": null,
          "label": "Build Error",
@@ -97,7 +95,6 @@ describe('ReactRefreshLogBox-builtins app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Module not found: Can't resolve 'b'",
          "environmentLabel": null,
          "label": "Build Error",
@@ -111,7 +108,6 @@ describe('ReactRefreshLogBox-builtins app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Module not found: Can't resolve 'b'",
          "environmentLabel": null,
          "label": "Build Error",
@@ -147,7 +143,6 @@ describe('ReactRefreshLogBox-builtins app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Module not found: Can't resolve 'b'",
          "environmentLabel": null,
          "label": "Build Error",
@@ -161,7 +156,6 @@ describe('ReactRefreshLogBox-builtins app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Module not found: Can't resolve 'b'",
          "environmentLabel": null,
          "label": "Build Error",
@@ -195,7 +189,6 @@ describe('ReactRefreshLogBox-builtins app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Module not found: Can't resolve './non-existent.css'",
          "environmentLabel": null,
          "label": "Build Error",
@@ -209,7 +202,6 @@ describe('ReactRefreshLogBox-builtins app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Module not found: Can't resolve './non-existent.css'",
          "environmentLabel": null,
          "label": "Build Error",

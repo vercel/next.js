@@ -1061,12 +1061,7 @@
       };
     }
     function createPreambleState() {
-      return {
-        htmlChunks: null,
-        headChunks: null,
-        bodyChunks: null,
-        contribution: NoContribution
-      };
+      return { htmlChunks: null, headChunks: null, bodyChunks: null };
     }
     function createFormatContext(insertionMode, selectedValue, tagScope) {
       return {
@@ -3083,6 +3078,8 @@
             var preamble = preambleState || renderState.preamble;
             if (preamble.headChunks)
               throw Error("The `<head>` tag may only be rendered once.");
+            null !== preambleState &&
+              target$jscomp$0.push(headPreambleContributionChunk);
             preamble.headChunks = [];
             var JSCompiler_inline_result$jscomp$9 = pushStartSingletonElement(
               preamble.headChunks,
@@ -3101,6 +3098,8 @@
             var preamble$jscomp$0 = preambleState || renderState.preamble;
             if (preamble$jscomp$0.bodyChunks)
               throw Error("The `<body>` tag may only be rendered once.");
+            null !== preambleState &&
+              target$jscomp$0.push(bodyPreambleContributionChunk);
             preamble$jscomp$0.bodyChunks = [];
             var JSCompiler_inline_result$jscomp$10 = pushStartSingletonElement(
               preamble$jscomp$0.bodyChunks,
@@ -3119,6 +3118,8 @@
             var preamble$jscomp$1 = preambleState || renderState.preamble;
             if (preamble$jscomp$1.htmlChunks)
               throw Error("The `<html>` tag may only be rendered once.");
+            null !== preambleState &&
+              target$jscomp$0.push(htmlPreambleContributionChunk);
             preamble$jscomp$1.htmlChunks = [doctypeChunk];
             var JSCompiler_inline_result$jscomp$11 = pushStartSingletonElement(
               preamble$jscomp$1.htmlChunks,
@@ -3205,16 +3206,13 @@
       renderState = renderState.preamble;
       null === renderState.htmlChunks &&
         preambleState.htmlChunks &&
-        ((renderState.htmlChunks = preambleState.htmlChunks),
-        (preambleState.contribution |= 1));
+        (renderState.htmlChunks = preambleState.htmlChunks);
       null === renderState.headChunks &&
         preambleState.headChunks &&
-        ((renderState.headChunks = preambleState.headChunks),
-        (preambleState.contribution |= 4));
+        (renderState.headChunks = preambleState.headChunks);
       null === renderState.bodyChunks &&
         preambleState.bodyChunks &&
-        ((renderState.bodyChunks = preambleState.bodyChunks),
-        (preambleState.contribution |= 2));
+        (renderState.bodyChunks = preambleState.bodyChunks);
     }
     function writeBootstrap(destination, renderState) {
       renderState = renderState.bootstrapChunks;
@@ -3235,13 +3233,6 @@
       writeChunk(destination, renderState.boundaryPrefix);
       writeChunk(destination, stringToChunk(id.toString(16)));
       return writeChunkAndReturn(destination, startPendingSuspenseBoundary2);
-    }
-    function writePreambleContribution(destination, preambleState) {
-      preambleState = preambleState.contribution;
-      preambleState !== NoContribution &&
-        (writeChunk(destination, boundaryPreambleContributionChunkStart),
-        writeChunk(destination, stringToChunk("" + preambleState)),
-        writeChunk(destination, boundaryPreambleContributionChunkEnd));
     }
     function writeStartSegment(destination, renderState, formatContext, id) {
       switch (formatContext.insertionMode) {
@@ -5858,18 +5849,7 @@
                 renderNode(request, task, props.children, -1);
                 task.keyPath = _prevKeyPath3;
               }
-              var target$jscomp$0 = segment$jscomp$0.chunks,
-                preambleState = task.blockedPreamble;
-              if (preambleState) {
-                var contribution = preambleState.contribution;
-                contribution !== NoContribution &&
-                  target$jscomp$0.push(
-                    boundaryPreambleContributionChunkStart,
-                    stringToChunk("" + contribution),
-                    boundaryPreambleContributionChunkEnd
-                  );
-              }
-              target$jscomp$0.push(endActivityBoundary);
+              segment$jscomp$0.chunks.push(endActivityBoundary);
               segment$jscomp$0.lastPushedText = !1;
             }
             return;
@@ -7848,8 +7828,8 @@
       if (boundary.status === CLIENT_RENDERED) {
         var errorDigest = boundary.errorDigest,
           errorMessage = boundary.errorMessage,
-          errorStack = boundary.errorStack,
-          errorComponentStack = boundary.errorComponentStack;
+          errorStack = boundary.errorStack;
+        boundary = boundary.errorComponentStack;
         writeChunkAndReturn(destination, startClientRenderedSuspenseBoundary);
         writeChunk(destination, clientRenderedSuspenseBoundaryError1);
         errorDigest &&
@@ -7882,11 +7862,11 @@
             destination,
             clientRenderedSuspenseBoundaryErrorAttrInterstitial
           ));
-        errorComponentStack &&
+        boundary &&
           (writeChunk(destination, clientRenderedSuspenseBoundaryError1D),
           writeChunk(
             destination,
-            stringToChunk(escapeTextForBrowser(errorComponentStack))
+            stringToChunk(escapeTextForBrowser(boundary))
           ),
           writeChunk(
             destination,
@@ -7894,14 +7874,9 @@
           ));
         writeChunkAndReturn(destination, clientRenderedSuspenseBoundaryError2);
         flushSubtree(request, destination, segment, hoistableState);
-        (request = boundary.fallbackPreamble) &&
-          writePreambleContribution(destination, request);
-        return writeChunkAndReturn(destination, endSuspenseBoundary);
-      }
-      if (boundary.status !== COMPLETED)
-        return (
-          boundary.status === PENDING &&
-            (boundary.rootSegmentID = request.nextSegmentId++),
+      } else if (boundary.status !== COMPLETED)
+        boundary.status === PENDING &&
+          (boundary.rootSegmentID = request.nextSegmentId++),
           0 < boundary.completedSegments.length &&
             request.partialBoundaries.push(boundary),
           writeStartPendingSuspenseBoundary(
@@ -7916,34 +7891,32 @@
               hoistStylesheetDependency,
               hoistableState
             )),
-          flushSubtree(request, destination, segment, hoistableState),
-          writeChunkAndReturn(destination, endSuspenseBoundary)
-        );
-      if (boundary.byteSize > request.progressiveChunkSize)
-        return (
-          (boundary.rootSegmentID = request.nextSegmentId++),
+          flushSubtree(request, destination, segment, hoistableState);
+      else if (boundary.byteSize > request.progressiveChunkSize)
+        (boundary.rootSegmentID = request.nextSegmentId++),
           request.completedBoundaries.push(boundary),
           writeStartPendingSuspenseBoundary(
             destination,
             request.renderState,
             boundary.rootSegmentID
           ),
-          flushSubtree(request, destination, segment, hoistableState),
-          writeChunkAndReturn(destination, endSuspenseBoundary)
-        );
-      hoistableState &&
-        ((segment = boundary.contentState),
-        segment.styles.forEach(hoistStyleQueueDependency, hoistableState),
-        segment.stylesheets.forEach(hoistStylesheetDependency, hoistableState));
-      writeChunkAndReturn(destination, startCompletedSuspenseBoundary);
-      segment = boundary.completedSegments;
-      if (1 !== segment.length)
-        throw Error(
-          "A previously unvisited boundary must have exactly one root segment. This is a bug in React."
-        );
-      flushSegment(request, destination, segment[0], hoistableState);
-      (request = boundary.contentPreamble) &&
-        writePreambleContribution(destination, request);
+          flushSubtree(request, destination, segment, hoistableState);
+      else {
+        hoistableState &&
+          ((segment = boundary.contentState),
+          segment.styles.forEach(hoistStyleQueueDependency, hoistableState),
+          segment.stylesheets.forEach(
+            hoistStylesheetDependency,
+            hoistableState
+          ));
+        writeChunkAndReturn(destination, startCompletedSuspenseBoundary);
+        segment = boundary.completedSegments;
+        if (1 !== segment.length)
+          throw Error(
+            "A previously unvisited boundary must have exactly one root segment. This is a bug in React."
+          );
+        flushSegment(request, destination, segment[0], hoistableState);
+      }
       return writeChunkAndReturn(destination, endSuspenseBoundary);
     }
     function flushSegmentContainer(
@@ -8589,11 +8562,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-experimental-3fbfb9ba-20250409" !== isomorphicReactPackageVersion)
+      if ("19.2.0-experimental-1d6c8168-20250411" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-experimental-3fbfb9ba-20250409\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-experimental-1d6c8168-20250411\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -9703,8 +9676,7 @@
       ),
       importMapScriptEnd = stringToPrecomputedChunk("\x3c/script>");
     var didWarnForNewBooleanPropsWithEmptyValue = {};
-    var NoContribution = 0,
-      ROOT_HTML_MODE = 0,
+    var ROOT_HTML_MODE = 0,
       HTML_HTML_MODE = 1,
       HTML_MODE = 2,
       HTML_HEAD_MODE = 3,
@@ -9750,6 +9722,12 @@
       formStateMarkerIsMatching = stringToPrecomputedChunk("\x3c!--F!--\x3e"),
       formStateMarkerIsNotMatching = stringToPrecomputedChunk("\x3c!--F--\x3e"),
       styleRegex = /(<\/|<)(s)(tyle)/gi,
+      headPreambleContributionChunk =
+        stringToPrecomputedChunk("\x3c!--head--\x3e"),
+      bodyPreambleContributionChunk =
+        stringToPrecomputedChunk("\x3c!--body--\x3e"),
+      htmlPreambleContributionChunk =
+        stringToPrecomputedChunk("\x3c!--html--\x3e"),
       leadingNewline = stringToPrecomputedChunk("\n"),
       VALID_TAG_REGEX = /^[a-zA-Z][a-zA-Z:_\.\-\d]*$/,
       validatedTagCache = new Map(),
@@ -9782,9 +9760,6 @@
         stringToPrecomputedChunk(' data-cstck="'),
       clientRenderedSuspenseBoundaryError2 =
         stringToPrecomputedChunk("></template>"),
-      boundaryPreambleContributionChunkStart =
-        stringToPrecomputedChunk("\x3c!--"),
-      boundaryPreambleContributionChunkEnd = stringToPrecomputedChunk("--\x3e"),
       startSegmentHTML = stringToPrecomputedChunk('<div hidden id="'),
       startSegmentHTML2 = stringToPrecomputedChunk('">'),
       endSegmentHTML = stringToPrecomputedChunk("</div>"),
@@ -10394,5 +10369,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.2.0-experimental-3fbfb9ba-20250409";
+    exports.version = "19.2.0-experimental-1d6c8168-20250411";
   })();

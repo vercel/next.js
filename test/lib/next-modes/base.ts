@@ -58,7 +58,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "^19.0.0";
+const nextjsReactPeerVersion = "19.1.0";
 
 export class NextInstance {
   protected files: ResolvedFileConfig
@@ -207,8 +207,8 @@ export class NextInstance {
         const finalDependencies = {
           react: reactVersion,
           'react-dom': reactVersion,
-          '@types/react': 'latest',
-          '@types/react-dom': 'latest',
+          '@types/react': '^19.1.1',
+          '@types/react-dom': '^19.1.2',
           typescript: 'latest',
           '@types/node': 'latest',
           ...this.dependencies,

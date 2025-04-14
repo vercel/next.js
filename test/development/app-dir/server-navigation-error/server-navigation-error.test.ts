@@ -12,7 +12,6 @@ describe('server-navigation-error', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Error: Next.js navigation API is not allowed to be used in Pages Router.",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -27,7 +26,6 @@ describe('server-navigation-error', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Error: Next.js navigation API is not allowed to be used in Pages Router.",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -48,7 +46,6 @@ describe('server-navigation-error', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Error: Next.js navigation API is not allowed to be used in Pages Router.",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -63,7 +60,6 @@ describe('server-navigation-error', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Error: Next.js navigation API is not allowed to be used in Pages Router.",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -89,7 +85,6 @@ describe('server-navigation-error', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Error: Next.js navigation API is not allowed to be used in Middleware.",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -104,7 +99,6 @@ describe('server-navigation-error', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Error: Next.js navigation API is not allowed to be used in Middleware.",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -126,7 +120,6 @@ describe('server-navigation-error', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Error: Next.js navigation API is not allowed to be used in Middleware.",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -141,7 +134,6 @@ describe('server-navigation-error', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Error: Next.js navigation API is not allowed to be used in Middleware.",
            "environmentLabel": null,
            "label": "Runtime Error",

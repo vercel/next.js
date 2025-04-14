@@ -75,6 +75,11 @@ export interface WebdriverOptions {
   ignoreHTTPSErrors?: boolean
   cpuThrottleRate?: number
   pushErrorAsConsoleLog?: boolean
+
+  /**
+   * Override the user agent
+   */
+  userAgent?: string
 }
 
 /**
@@ -107,6 +112,7 @@ export default async function webdriver(
     headless,
     cpuThrottleRate,
     pushErrorAsConsoleLog,
+    userAgent,
   } = options
 
   const { Playwright, quit } = await import('./browsers/playwright')
@@ -121,7 +127,8 @@ export default async function webdriver(
     !disableJavaScript,
     ignoreHTTPSErrors,
     // allow headless to be overwritten for a particular test
-    typeof headless !== 'undefined' ? headless : !!process.env.HEADLESS
+    typeof headless !== 'undefined' ? headless : !!process.env.HEADLESS,
+    userAgent
   )
   ;(global as any).browserName = browserName
 

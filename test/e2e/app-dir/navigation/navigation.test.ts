@@ -893,7 +893,7 @@ describe('app dir - navigation', () => {
         .elementByCss("[href='/metadata-await-promise/nested']")
         .click()
 
-      await waitFor(resolveMetadataDuration)
+      await waitFor(resolveMetadataDuration + 500)
 
       expect(await browser.elementById('page-content').text()).toBe('Content')
       expect(await browser.elementByCss('title').text()).toBe('Async Title')
@@ -912,9 +912,11 @@ describe('app dir - navigation', () => {
         .click()
 
       if (!isNextDev) {
-        expect(await browser.elementByCss('title').text()).toBe('Async Title')
-
-        await waitFor(resolveMetadataDuration + 500)
+        expect(
+          await browser
+            .waitForElementByCss('title', resolveMetadataDuration + 500)
+            .text()
+        ).toBe('Async Title')
       }
 
       expect(await browser.elementById('page-content').text()).toBe('Content')
