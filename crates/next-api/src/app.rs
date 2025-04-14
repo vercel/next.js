@@ -47,7 +47,7 @@ use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
     module_options::{transition_rule::TransitionRule, ModuleOptionsContext, RuleCondition},
     resolve_options_context::ResolveOptionsContext,
-    transition::{ContextTransition, FullContextTransition, Transition, TransitionOptions},
+    transition::{ContextTransition, Transition, TransitionOptions},
     ModuleAssetContext,
 };
 use turbopack_core::{
@@ -109,6 +109,39 @@ fn styles_rule_condition() -> RuleCondition {
 }
 fn module_styles_rule_condition() -> RuleCondition {
     RuleCondition::ResourcePathEndsWith(".module.css".into())
+}
+
+#[turbo_tasks::value(shared)]
+pub struct ContextOriginalTransition {
+    module_context: ResolvedVc<ModuleAssetContext>,
+}
+
+#[turbo_tasks::value_impl]
+impl ContextOriginalTransition {
+    #[turbo_tasks::function]
+    pub fn new(module_context: ResolvedVc<ModuleAssetContext>) -> Vc<ContextOriginalTransition> {
+        ContextOriginalTransition { module_context }.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Transition for ContextOriginalTransition {
+    #[turbo_tasks::function]
+    fn process_source(
+        self: Vc<Self>,
+        original_source: Vc<Box<dyn Source>>,
+        _source: Vc<Box<dyn Source>>,
+    ) -> Vc<Box<dyn Source>> {
+        original_source
+    }
+
+    #[turbo_tasks::function]
+    fn process_context(
+        &self,
+        _module_asset_context: Vc<ModuleAssetContext>,
+    ) -> Vc<ModuleAssetContext> {
+        *self.module_context
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -207,9 +240,9 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn client_transition(self: Vc<Self>) -> Vc<FullContextTransition> {
+    fn client_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
         let module_context = self.client_module_context();
-        FullContextTransition::new(module_context)
+        Vc::upcast(ContextOriginalTransition::new(module_context))
     }
 
     #[turbo_tasks::function]
@@ -638,9 +671,9 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn ssr_transition(self: Vc<Self>) -> Vc<FullContextTransition> {
+    fn ssr_transition(self: Vc<Self>) -> Vc<ContextOriginalTransition> {
         let module_context = self.ssr_module_context();
-        FullContextTransition::new(module_context)
+        ContextOriginalTransition::new(module_context)
     }
 
     #[turbo_tasks::function]
@@ -689,9 +722,9 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn edge_ssr_transition(self: Vc<Self>) -> Vc<FullContextTransition> {
+    fn edge_ssr_transition(self: Vc<Self>) -> Vc<ContextOriginalTransition> {
         let module_context = self.edge_ssr_module_context();
-        FullContextTransition::new(module_context)
+        ContextOriginalTransition::new(module_context)
     }
 
     #[turbo_tasks::function]

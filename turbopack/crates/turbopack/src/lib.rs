@@ -431,6 +431,7 @@ impl ModuleAssetContext {
 impl ModuleAssetContext {
     async fn process_with_transition_rules(
         self: Vc<Self>,
+        original_source: ResolvedVc<Box<dyn Source>>,
         source: ResolvedVc<Box<dyn Source>>,
         reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ProcessResult>> {
@@ -442,24 +443,27 @@ impl ModuleAssetContext {
                 .get_by_rules(source, &reference_type)
                 .await?
             {
-                transition.process(*source, self, reference_type)
+                transition.process(*original_source, *source, self, reference_type)
             } else {
-                self.process_default(source, reference_type).await?
+                self.process_default(original_source, source, reference_type)
+                    .await?
             },
         )
     }
 
     async fn process_default(
         self: Vc<Self>,
+        original_source: ResolvedVc<Box<dyn Source>>,
         source: ResolvedVc<Box<dyn Source>>,
         reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ProcessResult>> {
-        process_default(self, source, reference_type, Vec::new()).await
+        process_default(self, original_source, source, reference_type, Vec::new()).await
     }
 }
 
 async fn process_default(
     module_asset_context: Vc<ModuleAssetContext>,
+    original_source: ResolvedVc<Box<dyn Source>>,
     source: ResolvedVc<Box<dyn Source>>,
     reference_type: Value<ReferenceType>,
     processed_rules: Vec<usize>,
@@ -478,6 +482,7 @@ async fn process_default(
     }
     process_default_internal(
         module_asset_context,
+        original_source,
         source,
         reference_type,
         processed_rules,
@@ -488,6 +493,7 @@ async fn process_default(
 
 async fn process_default_internal(
     module_asset_context: Vc<ModuleAssetContext>,
+    original_source: ResolvedVc<Box<dyn Source>>,
     source: ResolvedVc<Box<dyn Source>>,
     reference_type: Value<ReferenceType>,
     processed_rules: Vec<usize>,
@@ -552,6 +558,7 @@ async fn process_default_internal(
                                 .await?
                             {
                                 return Ok(transition.process(
+                                    *original_source,
                                     *current_source,
                                     module_asset_context,
                                     Value::new(reference_type),
@@ -561,6 +568,7 @@ async fn process_default_internal(
                                 processed_rules.push(i);
                                 return Box::pin(process_default(
                                     module_asset_context,
+                                    original_source,
                                     current_source,
                                     Value::new(reference_type),
                                     processed_rules,
@@ -871,15 +879,15 @@ impl AssetContext for ModuleAssetContext {
     #[turbo_tasks::function]
     async fn process(
         self: Vc<Self>,
-        asset: ResolvedVc<Box<dyn Source>>,
+        source: ResolvedVc<Box<dyn Source>>,
         reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ProcessResult>> {
         let this = self.await?;
         if let Some(transition) = this.transition {
-            Ok(transition.process(*asset, self, reference_type))
+            Ok(transition.process(*source, *source, self, reference_type))
         } else {
             Ok(self
-                .process_with_transition_rules(asset, reference_type)
+                .process_with_transition_rules(source, source, reference_type)
                 .await?)
         }
     }

@@ -23,14 +23,17 @@ impl Transition for NextCssClientReferenceTransition {
     #[turbo_tasks::function]
     async fn process(
         self: Vc<Self>,
+        original_source: Vc<Box<dyn Source>>,
         source: Vc<Box<dyn Source>>,
         rsc_module_asset_context: Vc<ModuleAssetContext>,
         reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ProcessResult>> {
-        let module =
-            self.await?
-                .client_transition
-                .process(source, rsc_module_asset_context, reference_type);
+        let module = self.await?.client_transition.process(
+            original_source,
+            source,
+            rsc_module_asset_context,
+            reference_type,
+        );
 
         let ProcessResult::Module(module) = *module.await? else {
             return Ok(ProcessResult::Ignore.cell());

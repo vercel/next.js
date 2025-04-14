@@ -53,6 +53,7 @@ impl Transition for NextDynamicTransition {
     #[turbo_tasks::function]
     async fn process(
         self: Vc<Self>,
+        original_source: Vc<Box<dyn Source>>,
         source: Vc<Box<dyn Source>>,
         module_asset_context: Vc<ModuleAssetContext>,
         _reference_type: Value<ReferenceType>,
@@ -60,6 +61,7 @@ impl Transition for NextDynamicTransition {
         let module_asset_context = self.process_context(module_asset_context);
         let module = match self.await?.client_transition {
             Some(client_transition) => client_transition.process(
+                original_source,
                 source,
                 module_asset_context,
                 Value::new(ReferenceType::Undefined),
