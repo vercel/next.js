@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   bundlePagesRouterDependencies: true,
-  serverExternalPackages: ['opted-out-external-package'],
+  serverExternalPackages: ['external-package'],
 }
 
 module.exports = nextConfig
