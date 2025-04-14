@@ -12,7 +12,6 @@ pub mod global_module_ids;
 mod graph;
 pub mod module_options;
 pub mod transition;
-pub(crate) mod unsupported_sass;
 
 use anyhow::{bail, Result};
 use css::{CssModuleAsset, ModuleCssAsset};
