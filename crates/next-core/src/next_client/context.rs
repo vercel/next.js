@@ -9,7 +9,8 @@ use turbopack::{
     css::chunk::CssChunkType,
     module_options::{
         module_options_context::ModuleOptionsContext, CssOptionsContext, EcmascriptOptionsContext,
-        JsxTransformOptions, ModuleRule, TypeofWindow, TypescriptTransformOptions,
+        JsxTransformOptions, ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition, TypeofWindow,
+        TypescriptTransformOptions,
     },
     resolve_options_context::ResolveOptionsContext,
 };
@@ -28,6 +29,7 @@ use turbopack_core::{
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
     free_var_references,
+    reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{parse::Request, pattern::Pattern},
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkType;
@@ -304,6 +306,18 @@ pub async fn get_client_module_options_context(
         get_styled_jsx_transform_rule(next_config, target_browsers).await?,
         get_react_remove_properties_transform_rule(next_config).await?,
         get_remove_console_transform_rule(next_config).await?,
+        Some(ModuleRule::new(
+            RuleCondition::All(vec![
+                RuleCondition::Any(vec![
+                    RuleCondition::ResourcePathEndsWith(".module.scss".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".module.sass".to_string()),
+                ]),
+                RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Css(
+                    CssReferenceSubType::Undefined,
+                ))),
+            ]),
+            vec![ModuleRuleEffect::ModuleType(ModuleType::CssModule)],
+        )),
     ]
     .into_iter()
     .flatten()
