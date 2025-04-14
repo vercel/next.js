@@ -64,19 +64,20 @@ In other words:
 
 This declarative and agnostic approach allows Next.js to provide a consistent API regardless of your static or dynamic requirements and infrastructure setup.
 
-When a user navigates between routes, Next.js caches the visited route segments and [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) the routes the user is likely to navigate to. This results in instant back/forward navigation, no full-page reload between navigations, and preservation of React state and browser state.
+### Granular
 
-With the Router Cache:
+Modern web applications are **dynamic**, **personalized**, **interactive**, and require a granular approach to caching, specifically for:
 
-- **Layouts** are cached and reused on navigation ([partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering)).
-- **Loading states** are cached and reused on navigation for [instant navigation](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states).
-- **Pages** are not cached by default, but are reused during browser backward and forward navigation. You can enable caching for page segments by using the experimental [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes) config option.
+1. **Dynamic route segments** - which can potentially create a large number of unique pages. Trying to prerender or cache all of them on the server can be time-consuming and server-intensive.
+2. **Personalized content** - some content can only be fetched after authentication—once a browser session exists and cookies are available.
 
-{/* TODO: Update diagram to match v15 behavior */}
+In Next.js, rather than caching entire pages, you can cache:
 
-> **Good to know:** This cache specifically applies to Next.js and Server Components, and is different to the browser's [bfcache](https://web.dev/bfcache/), though it has a similar result.
+- Layouts (e.g. navigation, static shell)
+- Nested UI components (e.g. user avatar and name)
+- Individual data fetching functions (e.g. `getUser()`)
 
-### Duration
+{/* TODO: Add examples */}
 
 The cache is stored in the browser's temporary memory. Two factors determine how long the router cache lasts:
 
