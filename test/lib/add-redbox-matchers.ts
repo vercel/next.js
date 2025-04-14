@@ -63,12 +63,12 @@ declare global {
 }
 
 interface ErrorSnapshot {
-  environmentLabel: string
-  label: string
-  description: string
+  environmentLabel: string | null
+  label: string | null
+  description: string | null
   componentStack?: string
-  source: string
-  stack: string[]
+  source: string | null
+  stack: string[] | null
 }
 
 async function createErrorSnapshot(
@@ -145,7 +145,7 @@ async function createErrorSnapshot(
         : description,
     source: focusedSource,
     stack:
-      next !== null
+      next !== null && stack !== null
         ? stack.map((stackframe) => {
             return stackframe.replace(next.testDir, '<FIXME-project-root>')
           })
@@ -202,7 +202,7 @@ expect.extend({
     expectedRedboxSnapshot?: string
   ) {
     let browser: BrowserInterface
-    let next: NextInstance
+    let next: NextInstance | null
     if ('browser' in browserOrContext && 'next' in browserOrContext) {
       browser = browserOrContext.browser
       next = browserOrContext.next
