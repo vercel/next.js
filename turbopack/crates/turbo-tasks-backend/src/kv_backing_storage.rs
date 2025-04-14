@@ -26,7 +26,7 @@ const POT_CONFIG: pot::Config = pot::Config::new().compatibility(pot::Compatibil
 
 fn pot_serialize_small_vec<T: Serialize>(value: &T) -> pot::Result<SmallVec<[u8; 16]>> {
     struct SmallVecWrite<'l>(&'l mut SmallVec<[u8; 16]>);
-    impl<'l> std::io::Write for SmallVecWrite<'l> {
+    impl std::io::Write for SmallVecWrite<'_> {
         #[inline]
         fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
             self.0.extend_from_slice(buf);
@@ -349,7 +349,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                             .put(
                                 key_space,
                                 WriteBuffer::Borrowed(IntKey::new(*task_id).as_ref()),
-                                value.into(),
+                                value,
                             )
                             .with_context(|| anyhow!("Unable to write data items for {task_id}"))?;
                     }

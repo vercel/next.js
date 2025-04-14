@@ -160,7 +160,7 @@ impl KeyBase for WriteBuffer<'_> {
 
 impl StoreKey for WriteBuffer<'_> {
     fn write_to(&self, buf: &mut Vec<u8>) {
-        buf.extend_from_slice(&**self);
+        buf.extend_from_slice(self);
     }
 }
 
@@ -184,9 +184,9 @@ impl PartialOrd for WriteBuffer<'_> {
     }
 }
 
-impl<'l> Into<ValueBuffer<'l>> for WriteBuffer<'l> {
-    fn into(self) -> ValueBuffer<'l> {
-        match self {
+impl<'l> From<WriteBuffer<'l>> for ValueBuffer<'l> {
+    fn from(val: WriteBuffer<'l>) -> Self {
+        match val {
             WriteBuffer::Borrowed(b) => ValueBuffer::Borrowed(b),
             WriteBuffer::Vec(v) => ValueBuffer::Vec(v),
             WriteBuffer::SmallVec(sv) => ValueBuffer::SmallVec(sv),
