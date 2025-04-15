@@ -44,6 +44,7 @@ use crate::{
     },
     output::OutputAssets,
     reference::ModuleReference,
+    resolve::ExportUsage,
 };
 
 /// A module id, which can be a number or string
@@ -273,6 +274,10 @@ pub trait ChunkableModuleReference: ModuleReference + ValueToString {
             inherit_async: false,
             hoisted: false,
         }))
+    }
+
+    fn export_usage(self: Vc<Self>) -> Vc<ExportUsage> {
+        ExportUsage::all()
     }
 }
 
