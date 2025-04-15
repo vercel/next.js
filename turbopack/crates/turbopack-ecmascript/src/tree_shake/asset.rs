@@ -9,7 +9,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
-    reference::{ModuleReference, ModuleReferences, SingleModuleReference},
+    reference::{ModuleReference, ModuleReferences},
     resolve::{origin::ResolveOrigin, ModulePart},
 };
 
@@ -24,7 +24,9 @@ use crate::{
         analyse_ecmascript_module, esm::FoundExportType, follow_reexports, FollowExportsResult,
     },
     side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
-    tree_shake::{side_effect_module::SideEffectsModule, Key},
+    tree_shake::{
+        reference::EcmascriptModulePartReference, side_effect_module::SideEffectsModule, Key,
+    },
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
     EcmascriptModuleAssetType, EcmascriptModuleContent, EcmascriptParsable,
 };
@@ -290,10 +292,7 @@ impl Module for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let part_dep = |part: ModulePart| -> Vc<Box<dyn ModuleReference>> {
-            Vc::upcast(SingleModuleReference::new(
-                Vc::upcast(EcmascriptModulePartAsset::new(*self.full_module, part)),
-                Vc::cell("ecmascript module part".into()),
-            ))
+            Vc::upcast(EcmascriptModulePartReference::new(*self.full_module, part))
         };
 
         if let ModulePart::Facade = self.part {
