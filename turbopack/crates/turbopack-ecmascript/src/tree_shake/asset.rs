@@ -306,15 +306,12 @@ impl Module for EcmascriptModulePartAsset {
 
         let split_data = split_module(*self.full_module).await?;
 
-        let deps = match &*split_data {
-            SplitResult::Ok { deps, .. } => deps,
+        let SplitResult::Ok { deps, .. } = &*split_data else {
             // If the module is not split, we don't need to add any references
-            SplitResult::Failed { .. } => return Ok(Vc::cell(vec![])),
+            return Ok(Vc::cell(vec![]));
         };
 
-        let analyze = analyze(*self.full_module, self.part.clone());
-
-        let mut references = analyze.references().owned().await?;
+        let mut references = vec![];
 
         let deps = {
             let part_id = get_part_id(&split_data, &self.part)
@@ -347,6 +344,10 @@ impl Module for EcmascriptModulePartAsset {
                 .try_join()
                 .await?,
         );
+
+        let analyze = analyze(*self.full_module, self.part.clone());
+
+        references.extend(analyze.references().owned().await?);
 
         Ok(Vc::cell(references))
     }
