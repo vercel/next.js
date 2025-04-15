@@ -9,7 +9,7 @@ Caching is a technique for storing the result of expensive work (rendering, data
 In this deep dive, you’ll learn:
 
 - [How caching works in Next.js](#how-caching-works-in-nextjs)
-- How to define cache boundaries with `"use cache"`
+- [How to define cache boundaries with `"use cache"`](#how-use-cache-works)
 - How to define update semantics with `cacheLife` and `cacheTag`
 - How to configure a remote, persistent cache (coming soon)
 
@@ -81,30 +81,38 @@ In Next.js, in addition to caching entire pages, you can more granularly cache:
 
 There are three main APIs used for caching:
 
-- [`"use cache"`](#use-cache): Defines a cache **boundary** for an async component or function.
-- [`cacheLife()`](#cacheLife): Defines the cache lifetime for a component or function. You can specify `stale`, `revalidate`, and `expire` values, or use profiles like `'minutes'`, `'hours'`, `'days'`.
-- [`cacheTag()`](#cacheTag): Defines a cache tag across multiple boundaries to be invalidated together. This allows coordination between boundaries or external triggers.
+- [`"use cache"`](#how-use-cache-works): Defines a cache **boundary** for an async Server Component or function.
+- [`cacheLife()`](#how-cacheLife-works): Defines the cache lifetime for a component or function.
+- [`cacheTag()`](#how-cacheTag-works): Defines a cache tag across multiple boundaries to be invalidated together.
 
-> **Good to know**: The experimental [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes) config option can be used to adjust the automatic invalidation times mentioned above.
+## How `"use cache"` works
 
-### Invalidation
+`"use cache"` is a Next.js directive you can place inside an async [Server Component](https://react.dev/reference/rsc/server-components) or function to declare a **cache boundary**. This tells Next.js to cache the **return value** of that function or component based on its inputs.
 
-There are two ways you can invalidate the Router Cache:
+```tsx filename="app/lib/data.ts" switcher
+export async function getUser(id: string) {
+  'use cache'
+  // Fetch data
+}
+```
 
-- In a **Server Action**:
-  - Revalidating data on-demand by path with ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) or by cache tag with ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag))
-  - Using [`cookies.set`](/docs/app/api-reference/functions/cookies#setting-a-cookie) or [`cookies.delete`](/docs/app/api-reference/functions/cookies#deleting-cookies) invalidates the Router Cache to prevent routes that use cookies from becoming stale (e.g. authentication).
-- Calling [`router.refresh`](/docs/app/api-reference/functions/use-router) will invalidate the Router Cache and make a new request to the server for the current route.
+```jsx filename="app/lib/data.js" switcher
+export async function getUser(id) {
+  'use cache'
+  // Fetch data
+}
+```
 
-### Opting out
+Similar to React's [`"use server"`](https://react.dev/reference/rsc/use-server) directive, functions annotated with `"use cache"` are compiled into [Server Functions](https://react.dev/reference/rsc/server-functions).
 
-As of Next.js 15, page segments are opted out by default.
+Behind-the-scenes, Next.js:
 
-> **Good to know:** You can also opt out of [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) by setting the `prefetch` prop of the `<Link>` component to `false`.
+1. Wraps the Server Function with a [Higher Order Component](https://legacy.reactjs.org/docs/higher-order-components.html) that integrates the necessary caching behaviors.
+2. Generates an unique [cache key](#cache-keys) for the entry.
+3. Deduplicates identical calls using React’s [`cache`](https://react.dev/reference/react/cache) function.
+4. Annotates the Server Component Payload and sends it to the client with the necessary semantics for how it should treat the cached content.
 
-## Cache Interactions
-
-When configuring the different caching mechanisms, it's important to understand how they interact with each other:
+On the client, the payload is reused during navigation—leading to faster page transitions.
 
 ### Data Cache and Full Route Cache
 
