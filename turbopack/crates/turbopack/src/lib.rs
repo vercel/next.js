@@ -174,7 +174,6 @@ async fn apply_module_type(
                                     if *module.get_exports().needs_facade().await? {
                                         Vc::upcast(EcmascriptModuleFacadeModule::new(
                                             Vc::upcast(module),
-                                            parsed,
                                             part,
                                         ))
                                     } else {
@@ -192,7 +191,6 @@ async fn apply_module_type(
                                             Vc::upcast(
                                                 EcmascriptModuleFacadeModule::new(
                                                     Vc::upcast(module),
-                                                    parsed,
                                                     ModulePart::exports(),
                                                 )
                                                 .resolve()
@@ -220,7 +218,6 @@ async fn apply_module_type(
                         } else if *module.get_exports().needs_facade().await? {
                             Vc::upcast(EcmascriptModuleFacadeModule::new(
                                 Vc::upcast(module),
-                                parsed,
                                 ModulePart::facade(),
                             ))
                         } else {
@@ -299,14 +296,12 @@ async fn apply_reexport_tree_shaking(
             } else {
                 Vc::upcast(EcmascriptModuleFacadeModule::new(
                     **final_module,
-                    parsed,
                     ModulePart::renamed_export(new_export.clone(), export.clone()),
                 ))
             }
         } else {
             Vc::upcast(EcmascriptModuleFacadeModule::new(
                 **final_module,
-                parsed,
                 ModulePart::renamed_namespace(export.clone()),
             ))
         };
