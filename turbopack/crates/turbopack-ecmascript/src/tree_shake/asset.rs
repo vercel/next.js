@@ -312,15 +312,13 @@ impl Module for EcmascriptModulePartAsset {
 
         let mut references = vec![];
 
-        let deps = {
-            let part_id = get_part_id(&split_data, &self.part)
-                .await
-                .with_context(|| format!("part {:?} is not found in the module", self.part))?;
+        let part_id = get_part_id(&split_data, &self.part)
+            .await
+            .with_context(|| format!("part {:?} is not found in the module", self.part))?;
 
-            match deps.get(&part_id) {
-                Some(v) => &**v,
-                None => &[],
-            }
+        let deps = match deps.get(&part_id) {
+            Some(v) => &**v,
+            None => &[],
         };
 
         references.extend(
