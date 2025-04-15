@@ -1,6 +1,6 @@
 use std::{env, sync::Arc};
 
-use rustc_hash::FxHashMap;
+use hashbrown::HashMap;
 
 use crate::{
     span::{SpanBottomUp, SpanIndex},
@@ -10,7 +10,7 @@ use crate::{
 pub struct SpanBottomUpBuilder {
     // These values won't change after creation:
     pub self_spans: Vec<SpanIndex>,
-    pub children: FxHashMap<String, SpanBottomUpBuilder>,
+    pub children: HashMap<String, SpanBottomUpBuilder>,
     pub example_span: SpanIndex,
 }
 
@@ -18,7 +18,7 @@ impl SpanBottomUpBuilder {
     pub fn new(example_span: SpanIndex) -> Self {
         Self {
             self_spans: vec![],
-            children: FxHashMap::default(),
+            children: HashMap::default(),
             example_span,
         }
     }
@@ -42,7 +42,7 @@ pub fn build_bottom_up_graph<'a>(
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(usize::MAX);
-    let mut roots = FxHashMap::default();
+    let mut roots: HashMap<String, SpanBottomUpBuilder> = HashMap::default();
 
     // unfortunately there is a rustc bug that fails the typechecking here
     // when using Either<impl Iterator, impl Iterator>. This error appears

@@ -329,22 +329,19 @@ pub async fn get_client_module_options_context(
     let enable_postcss_transform = Some(postcss_transform_options.resolved_cell());
     let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.resolved_cell());
 
+    let source_maps = if *next_config.client_source_maps(mode).await? {
+        SourceMapsType::Full
+    } else {
+        SourceMapsType::None
+    };
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Object),
-            source_maps: if *next_config.turbo_source_maps().await? {
-                SourceMapsType::Full
-            } else {
-                SourceMapsType::None
-            },
+            source_maps,
             ..Default::default()
         },
         css: CssOptionsContext {
-            source_maps: if *next_config.turbo_source_maps().await? {
-                SourceMapsType::Full
-            } else {
-                SourceMapsType::None
-            },
+            source_maps,
             ..Default::default()
         },
         preset_env_versions: Some(env),

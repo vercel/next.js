@@ -2009,6 +2009,7 @@
       "Error Overlay for server components Class component used in Server Component should show error when Class Component is used",
       "Error Overlay for server components Class component used in Server Component should show error when Component is rendered in external package",
       "Error Overlay for server components Class component used in Server Component should show error when React.PureComponent is rendered in external package",
+      "Error Overlay for server components Next.js link client hooks called in Server Component should show error when useLinkStatus is called",
       "Error Overlay for server components Next.js navigation client hooks called in Server Component should show error when useParams is called",
       "Error Overlay for server components Next.js navigation client hooks called in Server Component should show error when usePathname is called",
       "Error Overlay for server components Next.js navigation client hooks called in Server Component should show error when useRouter is called",
@@ -4901,6 +4902,19 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/back-forward-cache/back-forward-cache.test.ts": {
+    "passed": [
+      "back/forward cache React state is preserved when navigating back to a page with different search params than before ",
+      "back/forward cache React state is preserved when navigating back/forward with links",
+      "back/forward cache React state is preserved when navigating with back/forward buttons",
+      "back/forward cache bfcache only preserves up to N entries",
+      "back/forward cache navigate back and forth repeatedly between the same pages without evicting"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/binary/rsc-binary.test.ts": {
     "passed": [
       "RSC binary serialization should correctly encode/decode binaries and hydrate"
@@ -5551,6 +5565,7 @@
       "dynamic-io should not prerender pages that use `searchParams` in Server Components",
       "dynamic-io should not prerender pages that use at least one fetch without cache",
       "dynamic-io should prerender fully static pages",
+      "dynamic-io should prerender pages that cached the whole page",
       "dynamic-io should prerender pages that only use cached (\"use cache\") IO",
       "dynamic-io should prerender pages that only use cached (unstable_cache) IO",
       "dynamic-io should prerender pages that only use cached fetches",
@@ -5558,7 +5573,7 @@
       "dynamic-io should prerender static not-found pages"
     ],
     "failed": [],
-    "pending": ["dynamic-io should prerender pages that cached the whole page"],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -6292,6 +6307,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/metadata-streaming-parallel-routes/metadata-streaming-parallel-routes.test.ts": {
+    "passed": [
+      "app-dir - metadata-streaming should only insert metadata once for parallel routes when slots match",
+      "app-dir - metadata-streaming should only insert metadata once for parallel routes when there is a missing slot",
+      "app-dir - metadata-streaming should still render metadata if children is not rendered in parallel routes layout"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/metadata-streaming-static-generation/metadata-streaming-static-generation.test.ts": {
     "passed": [
       "app-dir - metadata-streaming-static-generation dynamic pages should contain async generated metadata in body for simple dynamics page",
@@ -6329,14 +6355,11 @@
       "app-dir - metadata-streaming navigation API should trigger redirection when call redirect",
       "app-dir - metadata-streaming should delay the metadata render to body",
       "app-dir - metadata-streaming should load the initial html without slow metadata during navigation",
-      "app-dir - metadata-streaming should only insert metadata once for parallel routes when slots match",
-      "app-dir - metadata-streaming should only insert metadata once for parallel routes when there is a missing slot",
       "app-dir - metadata-streaming should only insert metadata once into head or body",
       "app-dir - metadata-streaming should render the metadata in the browser",
       "app-dir - metadata-streaming should send streaming response for headless browser bots",
       "app-dir - metadata-streaming should send the blocking response for html limited bots",
       "app-dir - metadata-streaming should still load viewport meta tags even if metadata is delayed",
-      "app-dir - metadata-streaming should still render metadata if children is not rendered in parallel routes layout",
       "app-dir - metadata-streaming static should determine dynamic metadata in build and render in the body",
       "app-dir - metadata-streaming static should render static metadata in the head",
       "app-dir - metadata-streaming static should still render dynamic metadata in the head for html bots"
@@ -7008,6 +7031,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/not-found-with-pages-i18n/not-found-with-pages.test.ts": {
+    "passed": [
+      "not-found-with-pages should prefer the app router 404 over the pages router 404 when both are present"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/not-found/basic/index.test.ts": {
     "passed": [
       "app dir - not-found - basic should propagate notFound errors past a segment's error boundary",
@@ -7489,6 +7521,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/ppr-middleware-rewrite-force-dynamic-ssg-dynamic-params/ppr-middleware-rewrite-force-dynamic-ssg-dynamic-params.test.ts": {
+    "passed": [
+      "ppr-middleware-rewrite-force-dynamic-generate-static-params should have correct dynamic params"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/ppr-missing-root-params/ppr-missing-root-params.test.ts": {
     "passed": [
       "ppr-missing-root-params (multiple) should result in a build error",
@@ -7753,6 +7794,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/rewrite-with-search-params/rewrite-with-search-params.test.ts": {
+    "passed": [
+      "rewrite-with-search-params should not contain params in search params after rewrite"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/rewrites-redirects/rewrites-redirects.test.ts": {
     "passed": [
       "redirects and rewrites navigation using button should redirect from middleware correctly",
@@ -7850,6 +7900,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/rsc-basic/rsc-basic-react-experimental.test.ts": {
+    "passed": [
+      "react@experimental should opt into the react@experimental when enabling $flag"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/rsc-basic/rsc-basic.test.ts": {
     "passed": [
       "app dir - rsc basics client references with TLA (edge) should support TLA in lazy client reference",
@@ -7858,8 +7917,6 @@
       "app dir - rsc basics client references with TLA (node) should support TLA in sync client reference imports",
       "app dir - rsc basics next internal shared context should not error if just load next/navigation module in pages/api",
       "app dir - rsc basics next internal shared context should not error if just load next/router module in app page",
-      "app dir - rsc basics react@experimental should opt into the react@experimental when enabling ppr",
-      "app dir - rsc basics react@experimental should opt into the react@experimental when enabling taint",
       "app dir - rsc basics should be able to call legacy react-dom/server APIs in client components",
       "app dir - rsc basics should be able to navigate between rsc routes",
       "app dir - rsc basics should correctly render component returning null",
@@ -7896,6 +7953,16 @@
     "pending": [
       "app dir - rsc basics should support partial hydration with inlined server data in browser"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/rsc-query-routing/rsc-query-routing.test.ts": {
+    "passed": [
+      "rsc-query-routing should contain rsc query in rsc request when redirect the page",
+      "rsc-query-routing should contain rsc query in rsc request when rewrite the page"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -8973,6 +9040,7 @@
   },
   "test/e2e/app-dir/worker/worker.test.ts": {
     "passed": [
+      "app dir - workers should not bundle web workers with string specifiers",
       "app dir - workers should support module web workers with dynamic imports",
       "app dir - workers should support web workers with dynamic imports"
     ],
@@ -11177,6 +11245,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/swc-plugins/index.test.ts": {
+    "passed": [
+      "swcPlugins invalid plugin name shows a redbox in dev",
+      "swcPlugins supports swcPlugins basic case"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/swc-warnings/index.test.ts": {
     "passed": [],
     "failed": [],
@@ -11300,6 +11378,16 @@
       "specified tsconfig app router: allows a user-specific tsconfig via the next config",
       "specified tsconfig middleware: allows a user-specific tsconfig via the next config",
       "specified tsconfig pages router: allows a user-specific tsconfig via the next config"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/turbopack-turbo-config-compatibility/index.test.ts": {
+    "passed": [
+      "turbopack-turbo-config-compatibility including both turbopack and deprecated experimental turbo config prefers turbopack config over deprecated experimental turbo config",
+      "turbopack-turbo-config-compatibility only including deprecated experimental turbo config still uses the deprecated experimental turbo config"
     ],
     "failed": [],
     "pending": [],
@@ -14025,12 +14113,9 @@
     "runtimeError": false
   },
   "test/integration/edge-runtime-streaming-error/test/index.test.ts": {
-    "passed": [],
+    "passed": ["development mode logs the error correctly"],
     "failed": [],
-    "pending": [
-      "development mode logs the error correctly",
-      "production mode logs the error correctly"
-    ],
+    "pending": ["production mode logs the error correctly"],
     "flakey": [],
     "runtimeError": false
   },
@@ -17799,9 +17884,10 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/invalid-href/test/index.test.js": {
+  "test/integration/invalid-href/test/index.test.ts": {
     "passed": [
-      "Invalid hrefs development mode does not show error when https://google.com is used as href on Link",
+      "Invalid hrefs development mode does not show error when exotic protocols are used in href in Link",
+      "Invalid hrefs development mode does not show error when https:// is used as href in Link",
       "Invalid hrefs development mode does not show error when mailto: is used as href on Link",
       "Invalid hrefs development mode does not throw error when dynamic route mismatch is used on Link and params are manually provided",
       "Invalid hrefs development mode doesn't fail on invalid url",
@@ -17811,7 +17897,8 @@
     ],
     "failed": [],
     "pending": [
-      "Invalid hrefs production mode does not show error in production when https://google.com is used as href on Link",
+      "Invalid hrefs production mode does not show error in production when exotic protocols are used in href in Link",
+      "Invalid hrefs production mode does not show error in production when https:// is used in href on Link",
       "Invalid hrefs production mode does not show error in production when mailto: is used as href on Link",
       "Invalid hrefs production mode does not show error when internal href is used with external as",
       "Invalid hrefs production mode doesn't fail on invalid url",
@@ -18147,7 +18234,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/module-id-strategies/test/index.test.js": {
+  "test/integration/module-ids/test/index.test.js": {
     "passed": [
       "minified module ids development mode should have long module id for the next client runtime module",
       "minified module ids development mode should have long module ids for async loader modules",

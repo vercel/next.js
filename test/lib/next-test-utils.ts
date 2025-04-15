@@ -97,12 +97,12 @@ export function initNextServerScript(
       })
     }
 
-    instance.stdout.on('data', handleStdout)
-    instance.stderr.on('data', handleStderr)
+    instance.stdout!.on('data', handleStdout)
+    instance.stderr!.on('data', handleStderr)
 
     instance.on('close', () => {
-      instance.stdout.removeListener('data', handleStdout)
-      instance.stderr.removeListener('data', handleStderr)
+      instance.stdout!.removeListener('data', handleStdout)
+      instance.stderr!.removeListener('data', handleStderr)
     })
 
     instance.on('error', (err) => {
@@ -230,8 +230,8 @@ export function runNextCommand(
   argv: string[],
   options: NextOptions = {}
 ): Promise<{
-  code: number
-  signal: NodeJS.Signals
+  code: number | null
+  signal: NodeJS.Signals | null
   stdout: string
   stderr: string
 }> {
@@ -241,7 +241,8 @@ export function runNextCommand(
   // Let Next.js decide the environment
   const env = {
     ...process.env,
-    NODE_ENV: undefined,
+    // @ts-ignore packages/next/types/global.d.ts should allow undefined NODE_ENV
+    NODE_ENV: undefined as NodeJS.ProcessEnv['NODE_ENV'],
     __NEXT_TEST_MODE: 'true',
     ...options.env,
   }
@@ -267,7 +268,7 @@ export function runNextCommand(
 
     let stderrOutput = ''
     if (options.stderr || options.onStderr) {
-      instance.stderr.on('data', function (chunk) {
+      instance.stderr!.on('data', function (chunk) {
         mergedStdio += chunk
         stderrOutput += chunk
 
@@ -279,14 +280,14 @@ export function runNextCommand(
         }
       })
     } else {
-      instance.stderr.on('data', function (chunk) {
+      instance.stderr!.on('data', function (chunk) {
         mergedStdio += chunk
       })
     }
 
     let stdoutOutput = ''
     if (options.stdout || options.onStdout) {
-      instance.stdout.on('data', function (chunk) {
+      instance.stdout!.on('data', function (chunk) {
         mergedStdio += chunk
         stdoutOutput += chunk
 
@@ -298,7 +299,7 @@ export function runNextCommand(
         }
       })
     } else {
-      instance.stdout.on('data', function (chunk) {
+      instance.stdout!.on('data', function (chunk) {
         mergedStdio += chunk
       })
     }
@@ -363,7 +364,8 @@ export function runNextCommandDev(
   const cwd = opts.cwd || nextDir
   const env = {
     ...process.env,
-    NODE_ENV: undefined,
+    // @ts-ignore packages/next/types/global.d.ts should allow undefined NODE_ENV
+    NODE_ENV: undefined as NodeJS.ProcessEnv['NODE_ENV'],
     __NEXT_TEST_MODE: 'true',
     ...opts.env,
   }
@@ -425,12 +427,12 @@ export function runNextCommandDev(
       }
     }
 
-    instance.stderr.on('data', handleStderr)
-    instance.stdout.on('data', handleStdout)
+    instance.stderr!.on('data', handleStderr)
+    instance.stdout!.on('data', handleStdout)
 
     instance.on('close', () => {
-      instance.stderr.removeListener('data', handleStderr)
-      instance.stdout.removeListener('data', handleStdout)
+      instance.stderr!.removeListener('data', handleStderr)
+      instance.stdout!.removeListener('data', handleStdout)
       if (!didResolve) {
         didResolve = true
         resolve(undefined)
@@ -460,7 +462,7 @@ export function launchApp(
       port as string,
       '--hostname',
       '::',
-    ].filter(Boolean),
+    ].filter((flag: string | undefined): flag is string => Boolean(flag)),
     undefined,
     { ...options, turbo: useTurbo }
   )
@@ -534,8 +536,8 @@ export function buildTS(
       output += chunk.toString()
     }
 
-    instance.stdout.on('data', handleData)
-    instance.stderr.on('data', handleData)
+    instance.stdout!.on('data', handleData)
+    instance.stderr!.on('data', handleData)
 
     instance.on('exit', (code) => {
       if (code) {
@@ -741,7 +743,7 @@ export async function check(
 
 export class File {
   path: string
-  originalContent: string
+  originalContent: string | null
 
   constructor(path: string) {
     this.path = path
@@ -789,7 +791,7 @@ export class File {
   }
 
   restore() {
-    this.write(this.originalContent)
+    this.write(this.originalContent!)
   }
 }
 
@@ -823,6 +825,8 @@ export async function retry<T>(
       await waitFor(interval)
     }
   }
+
+  throw new Error('Duration cannot be less than 0.')
 }
 
 export async function assertHasRedbox(browser: BrowserInterface) {
@@ -932,27 +936,6 @@ export async function openRedbox(browser: BrowserInterface): Promise<void> {
     throw error
   }
   await assertHasRedbox(browser)
-}
-
-export async function goToNextErrorView(
-  browser: BrowserInterface
-): Promise<void> {
-  try {
-    const currentErrorIndex = await browser
-      .elementByCss('[data-nextjs-dialog-error-index]')
-      .text()
-    await browser.elementByCss('[data-nextjs-dialog-error-next]').click()
-    await retry(async () => {
-      const nextErrorIndex = await browser
-        .elementByCss('[data-nextjs-dialog-error-index]')
-        .text()
-      expect(nextErrorIndex).not.toBe(currentErrorIndex)
-    })
-  } catch (cause) {
-    const error = new Error('No Redbox to open.', { cause })
-    Error.captureStackTrace(error, openRedbox)
-    throw error
-  }
 }
 
 export async function openDevToolsIndicatorPopover(
@@ -1262,7 +1245,7 @@ function runSuite(
     stderr: string
     stdout: string
     appPort: number
-    code: number
+    code: number | null
     server: ChildProcess
   }>,
   options: {
@@ -1361,7 +1344,7 @@ export function findAllTelemetryEvents(output: string, eventName: string) {
   const regex = /\[telemetry\] ({.+?^})/gms
   // Pop the last element of each entry to retrieve contents of the capturing group
   const events = [...output.matchAll(regex)].map((entry) =>
-    JSON.parse(entry.pop())
+    JSON.parse(entry.pop()!)
   )
   return events.filter((e) => e.eventName === eventName).map((e) => e.payload)
 }
@@ -1514,7 +1497,7 @@ export function colorToRgb(color) {
 }
 
 export function getUrlFromBackgroundImage(backgroundImage: string) {
-  const matches = backgroundImage.match(/url\("[^)]+"\)/g).map((match) => {
+  const matches = backgroundImage.match(/url\("[^)]+"\)/g)!.map((match) => {
     // Extract the URL part from each match. The match includes 'url("' and '"")', so we remove those.
     return match.slice(5, -2)
   })

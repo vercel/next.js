@@ -3301,6 +3301,16 @@ export default async function build(
                     orig,
                     path.join(distDir, 'server', updatedRelativeDest)
                   )
+
+                  // since the app router not found is prioritized over pages router,
+                  // we have to ensure the app router entries are available for all locales
+                  if (i18n) {
+                    for (const locale of i18n.locales) {
+                      const curPath = `/${locale}/404`
+                      pagesManifest[curPath] = updatedRelativeDest
+                    }
+                  }
+
                   pagesManifest['/404'] = updatedRelativeDest
                 }
               })
@@ -3756,9 +3766,14 @@ function warnAboutTurbopackBuilds(config?: NextConfigComplete) {
       `We don't recommend deploying mission-critical applications to production.`
     )
   warningStr +=
-    '\n\n- It is expected that your bundle size might be different from `next build` with webpack. This will be improved as we work towards stability.'
+    '\n\n- ' +
+    bold(
+      'Turbopack currently always builds production source maps for the browser. This will include project source code if deployed to production.'
+    )
+  warningStr +=
+    '\n- It is expected that your bundle size might be different from `next build` with webpack. This will be improved as we work towards stability.'
 
-  if (!config?.experimental.turbo?.unstablePersistentCaching) {
+  if (!config?.experimental.turbopackPersistentCaching) {
     warningStr +=
       '\n- This build is without disk caching; subsequent builds will become faster when disk caching becomes available.'
   }

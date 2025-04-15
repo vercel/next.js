@@ -71,13 +71,13 @@ export class NextDevInstance extends NextInstance {
 
         this._cliOutput = ''
 
-        this.childProcess.stdout.on('data', (chunk) => {
+        this.childProcess.stdout!.on('data', (chunk) => {
           const msg = chunk.toString()
           if (!process.env.CI) process.stdout.write(chunk)
           this._cliOutput += msg
           this.emit('stdout', [msg])
         })
-        this.childProcess.stderr.on('data', (chunk) => {
+        this.childProcess.stderr!.on('data', (chunk) => {
           const msg = chunk.toString()
           if (!process.env.CI) process.stderr.write(chunk)
           this._cliOutput += msg

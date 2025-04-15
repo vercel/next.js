@@ -626,6 +626,7 @@ impl ReactServerComponentValidator {
                         "ServerInsertedHTMLContext",
                     ],
                 ),
+                ("next/link", vec!["useLinkStatus"]),
             ]),
             deprecated_apis_mapping: FxHashMap::from_iter([("next/server", vec!["ImageResponse"])]),
 
