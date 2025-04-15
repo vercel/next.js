@@ -382,7 +382,7 @@ pub async fn project_new(
             thread::spawn(move || {
                 turbopack_trace_server::start_turbopack_trace_server(trace_file);
             });
-            println!("Turbopack trace server started. View trace at https://turbo-trace-viewer.vercel.app/");
+            println!("Turbopack trace server started. View trace at https://trace.nextjs.org");
         }
 
         subscriber.init();
