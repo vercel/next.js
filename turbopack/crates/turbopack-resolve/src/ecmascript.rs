@@ -46,13 +46,12 @@ pub fn apply_esm_specific_options(
     options: Vc<ResolveOptions>,
     reference_type: ReferenceType,
 ) -> Vc<ResolveOptions> {
-    apply_esm_specific_options_internal(
-        options,
-        matches!(
-            reference_type,
-            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportWithType(_))
-        ),
-    )
+    let clear_extensions = matches!(
+        reference_type,
+        ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportWithType(_))
+    );
+
+    apply_esm_specific_options_internal(options, clear_extensions)
 }
 
 #[turbo_tasks::function]

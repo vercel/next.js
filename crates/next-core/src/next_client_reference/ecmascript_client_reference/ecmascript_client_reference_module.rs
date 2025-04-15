@@ -76,7 +76,7 @@ impl EcmascriptClientReferenceModule {
         // Adapted from https://github.com/facebook/react/blob/c5b9375767e2c4102d7e5559d383523736f1c902/packages/react-server-dom-webpack/src/ReactFlightWebpackNodeLoader.js#L323-L354
         if let EcmascriptExports::EsmExports(exports) = &*self.client_module.get_exports().await? {
             is_esm = true;
-            let exports = exports.expand_exports().await?;
+            let exports = exports.expand_exports(None).await?;
 
             if !exports.dynamic_exports.is_empty() {
                 // TODO: throw? warn?

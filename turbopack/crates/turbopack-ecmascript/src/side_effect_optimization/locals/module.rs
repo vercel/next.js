@@ -22,6 +22,7 @@ use crate::{
         async_module::OptionAsyncModule,
         esm::{EsmExport, EsmExports},
     },
+    simple_tree_shake::get_module_export_usages,
 };
 
 /// A module derived from an original ecmascript module that only contains the
@@ -108,6 +109,16 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
             .reference_module_source_maps(Vc::upcast(self))
             .await?;
 
+        let export_usage_info = if original_module.options().await?.remove_unused_exports {
+            Some(
+                get_module_export_usages(*module_graph, Vc::upcast(self))
+                    .to_resolved()
+                    .await?,
+            )
+        } else {
+            None
+        };
+
         Ok(EcmascriptModuleContentOptions {
             parsed,
             ident: self.ident().to_resolved().await?,
@@ -123,6 +134,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
             original_source_map: analyze_result.source_map,
             exports,
             async_module_info,
+            export_usage_info,
         }
         .cell())
     }

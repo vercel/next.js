@@ -797,6 +797,8 @@ pub struct ExperimentalConfig {
     turbopack_tree_shaking: Option<bool>,
     // Whether to enable the global-not-found convention
     global_not_found: Option<bool>,
+    /// Defaults to false in development mode, true in production mode.
+    turbopack_remove_unused_exports: Option<bool>,
 }
 
 #[derive(
@@ -1556,6 +1558,15 @@ impl NextConfig {
             None => Some(TreeShakingMode::ReexportsOnly),
         })
         .cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn turbopack_remove_unused_exports(&self, is_development: bool) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_remove_unused_exports
+                .unwrap_or(!is_development),
+        )
     }
 
     #[turbo_tasks::function]
