@@ -696,10 +696,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         .copied();
         let Some(max_id) = max_id else {
             add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
-            let task = ctx.task(task_id, TaskDataCategory::All);
             bail!(
-                "Cell {cell:?} no longer exists in task {} (no cell of this type \
-                 exists)\n{task:#?}",
+                "Cell {cell:?} no longer exists in task {} (no cell of this type exists)",
                 ctx.get_task_description(task_id)
             );
         };
