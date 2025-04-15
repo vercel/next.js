@@ -2366,6 +2366,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
+name = "foldhash"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
+
+[[package]]
 name = "foreign-types"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2760,6 +2766,11 @@ name = "hashbrown"
 version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf151400ff0baff5465007dd2f3e717f3fe502074ca563069ce3a6629d07b289"
+dependencies = [
+ "allocator-api2",
+ "equivalent",
+ "foldhash",
+]
 
 [[package]]
 name = "hdrhistogram"
@@ -5872,6 +5883,16 @@ dependencies = [
  "libc",
  "mach2",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "regress"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78ef7fa9ed0256d64a688a3747d0fef7a88851c18a5e1d57f115f38ec2e09366"
+dependencies = [
+ "hashbrown 0.15.2",
+ "memchr",
 ]
 
 [[package]]
@@ -9767,6 +9788,7 @@ dependencies = [
  "parking_lot",
  "petgraph 0.6.3",
  "regex",
+ "regress",
  "rustc-hash 2.1.0",
  "serde",
  "serde_json",
