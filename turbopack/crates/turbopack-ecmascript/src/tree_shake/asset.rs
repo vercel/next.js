@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use anyhow::{Context, Result};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
@@ -21,7 +23,9 @@ use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     parse::ParseResult,
     references::{
-        analyse_ecmascript_module, esm::FoundExportType, follow_reexports, FollowExportsResult,
+        analyse_ecmascript_module,
+        esm::{EsmExports, FoundExportType},
+        follow_reexports, FollowExportsResult,
     },
     side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
     tree_shake::{
@@ -369,6 +373,24 @@ impl Asset for EcmascriptModulePartAsset {
 impl EcmascriptChunkPlaceable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
+        let this = self.await?;
+
+        // These fragments cannot have exports
+        if let ModulePart::Evaluation
+        | ModulePart::Internal(..)
+        | ModulePart::InternalEvaluation(..) = this.part
+        {
+            let exports = EcmascriptExports::EsmExports(
+                EsmExports {
+                    exports: BTreeMap::new(),
+                    star_exports: vec![],
+                }
+                .resolved_cell(),
+            );
+
+            return Ok(exports.cell());
+        }
+
         Ok(*self.analyze().await?.exports)
     }
 
