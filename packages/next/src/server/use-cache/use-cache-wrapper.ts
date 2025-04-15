@@ -401,7 +401,9 @@ async function generateCacheEntryImpl(
   const [returnStream, savedStream] = stream.tee()
 
   const cacheSignal =
-    outerWorkUnitStore && outerWorkUnitStore.type === 'prerender'
+    outerWorkUnitStore &&
+    outerWorkUnitStore.type === 'prerender' &&
+    outerCacheStore?.type !== 'cache'
       ? outerWorkUnitStore.cacheSignal
       : null
 
@@ -637,7 +639,9 @@ export function cache(
 
       if (renderResumeDataCache) {
         const cacheSignal =
-          workUnitStore && workUnitStore.type === 'prerender'
+          workUnitStore &&
+          workUnitStore.type === 'prerender' &&
+          cacheStore?.type !== 'cache'
             ? workUnitStore.cacheSignal
             : null
 
@@ -686,7 +690,9 @@ export function cache(
 
       if (stream === undefined) {
         const cacheSignal =
-          workUnitStore && workUnitStore.type === 'prerender'
+          workUnitStore &&
+          workUnitStore.type === 'prerender' &&
+          cacheStore?.type !== 'cache'
             ? workUnitStore.cacheSignal
             : null
         if (cacheSignal) {
