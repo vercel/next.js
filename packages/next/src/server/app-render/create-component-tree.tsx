@@ -285,7 +285,7 @@ async function createComponentTreeInternal({
 
     const cacheStore = cacheAsyncStorage.getStore()
 
-    if (cacheStore) {
+    if (cacheStore && cacheStore.type !== 'unstable-cache') {
       if (cacheStore.revalidate > defaultRevalidate) {
         cacheStore.revalidate = defaultRevalidate
       }
