@@ -278,13 +278,6 @@ async function getFreshConfig(
       return false
     }
 
-    if (
-      loaderOptions.reactCompilerExclude &&
-      loaderOptions.reactCompilerExclude(filename)
-    ) {
-      return false
-    }
-
     if (!(await isReactCompilerRequired(filename))) {
       return false
     }
