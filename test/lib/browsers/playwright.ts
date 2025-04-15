@@ -523,6 +523,7 @@ export class Playwright<TCurrent = undefined> {
   private _pageState: PageState | null = null
   private state: 'uninitialized' | 'loading' | 'ready' | 'closing' | 'closed' =
     'uninitialized'
+  private closePromise: Promise<void> | null = null
 
   isClosed() {
     return this.state === 'closed'
@@ -591,19 +592,26 @@ export class Playwright<TCurrent = undefined> {
       return
     } else if (this.state === 'loading') {
       throw new Error('Cannot close Playwright while it is still loading')
-    } else if (this.state === 'closing' || this.state === 'closed') {
+    } else if (this.state === 'closing') {
+      await this.closePromise
+    } else if (this.state === 'closed') {
+      // be lenient for multiple .close() calls.
       console.error('Playwright is already ' + this.state)
       return
     }
 
     this.state = 'closing'
-    try {
-      await this.context.tracer?.endTrace()
-      await this.reset()
-      await this.context.reset()
-    } finally {
-      this.state = 'closed'
-    }
+    this.closePromise = (async () => {
+      try {
+        await this.context.tracer?.endTrace()
+        await this.reset()
+        await this.context.reset()
+        this.closePromise = null
+      } finally {
+        this.state = 'closed'
+      }
+    })()
+    await this.closePromise
   }
 
   async reset() {
