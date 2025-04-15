@@ -1,6 +1,6 @@
 ---
-title: App Router Incremental Adoption Guide
-nav_title: App Router Migration
+title: How to migrate from Pages to the App Router
+nav_title: App Router
 description: Learn how to upgrade your existing Next.js application from the Pages Router to the App Router.
 ---
 
@@ -55,8 +55,8 @@ In version 13, this new behavior is now the default for `next/image`.
 
 There are two codemods to help you migrate to the new Image Component:
 
-- [**`next-image-to-legacy-image` codemod**](/docs/app/building-your-application/upgrading/codemods#next-image-to-legacy-image): Safely and automatically renames `next/image` imports to `next/legacy/image`. Existing components will maintain the same behavior.
-- [**`next-image-experimental` codemod**](/docs/app/building-your-application/upgrading/codemods#next-image-experimental): Dangerously adds inline styles and removes unused props. This will change the behavior of existing components to match the new defaults. To use this codemod, you need to run the `next-image-to-legacy-image` codemod first.
+- [**`next-image-to-legacy-image` codemod**](/docs/app/guides/upgrading/codemods#next-image-to-legacy-image): Safely and automatically renames `next/image` imports to `next/legacy/image`. Existing components will maintain the same behavior.
+- [**`next-image-experimental` codemod**](/docs/app/guides/upgrading/codemods#next-image-experimental): Dangerously adds inline styles and removes unused props. This will change the behavior of existing components to match the new defaults. To use this codemod, you need to run the `next-image-to-legacy-image` codemod first.
 
 ### `<Link>` Component
 
@@ -78,7 +78,7 @@ import Link from 'next/link'
 </Link>
 ```
 
-To upgrade your links to Next.js 13, you can use the [`new-link` codemod](/docs/app/building-your-application/upgrading/codemods#new-link).
+To upgrade your links to Next.js 13, you can use the [`new-link` codemod](/docs/app/guides/upgrading/codemods#new-link).
 
 ### `<Script>` Component
 
@@ -880,7 +880,7 @@ export async function GET(request) {}
 
 #### Single-Page Applications
 
-If you are also migrating to Next.js from a Single-Page Application (SPA) at the same time, see our [documentation](/docs/app/building-your-application/upgrading/single-page-applications) to learn more.
+If you are also migrating to Next.js from a Single-Page Application (SPA) at the same time, see our [documentation](/docs/app/guides/single-page-applications) to learn more.
 
 ### Step 7: Styling
 
@@ -931,4 +931,4 @@ Instead, you can [optimize navigations](https://vercel.com/guides/optimizing-har
 
 ## Codemods
 
-Next.js provides Codemod transformations to help upgrade your codebase when a feature is deprecated. See [Codemods](/docs/app/building-your-application/upgrading/codemods) for more information.
+Next.js provides Codemod transformations to help upgrade your codebase when a feature is deprecated. See [Codemods](/docs/app/guides/upgrading/codemods) for more information.
