@@ -78,6 +78,8 @@ module.exports = {
 }
 ```
 
+Turbopack automatically analyzes imports and optimizes them. It does not require this configuration.
+
 ### 4. Check your Tailwind CSS setup
 
 If you're using Tailwind CSS, make sure it's set up correctly.
@@ -114,7 +116,7 @@ Tailwind CSS version 3.4.8 or newer will warn you about settings that might slow
 
 If you've added custom webpack settings, they might be slowing down compilation.
 
-Consider if you really need them for local development. You can optionally only include certain tools for production builds, or explore moving to Turbopack and using [loaders](/docs/app/api-reference/config/next-config-js/turbo#supported-loaders).
+Consider if you really need them for local development. You can optionally only include certain tools for production builds, or explore moving to Turbopack and using [loaders](/docs/app/api-reference/config/next-config-js/turbopack#supported-loaders).
 
 ### 6. Optimize memory usage
 
@@ -140,15 +142,36 @@ Use this command to see more detailed information about what's happening during 
 next dev --verbose
 ```
 
-## Still having problems?
+## Turbopack tracing
 
-If you've tried everything and still have issues:
+Turbopack tracing is a tool that helps you understand the performance of your application during local development.
+It provides detailed information about the time taken for each module to compile and how they are related.
 
-1. Create a simple version of your app that shows the problem.
-2. Generate a special file that shows what's happening:
+1. Make sure you have the latest version of Next.js installed.
+1. Generate a Turbopack trace file:
 
    ```bash
-   NEXT_CPU_PROF=1 npm run dev
+   NEXT_TURBOPACK_TRACING=1 npm run dev
    ```
 
-3. Share this file (found in your project's main folder) and the `.next/trace` file on GitHub as a new issue.
+1. Navigate around your application or make edits to files to reproduce the problem.
+1. Stop the Next.js development server.
+1. A file called `trace-turbopack` will be available in the `.next` folder.
+1. You can interpret the file using `next internal trace [path-to-file]`:
+
+   ```bash
+   next internal trace .next/trace-turbopack
+   ```
+
+   On versions where `trace` is not available, the command was named `turbo-trace-server`:
+
+   ```bash
+   next internal turbo-trace-server .next/trace-turbopack
+   ```
+
+1. Once the trace server is running you can view the trace at https://trace.nextjs.org/.
+1. By default the trace viewer will aggregate timings, in order to see each individual time you can switch from "Aggregated in order" to "Spans in order" at the top right of the viewer.
+
+## Still having problems?
+
+Share the trace file generated in the [Turbopack Tracing](#turbopack-tracing) section and share it on [GitHub Discussions](https://github.com/vercel/next.js/discussions) or [Discord](https://nextjs.org/discord).

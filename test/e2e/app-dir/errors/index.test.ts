@@ -176,7 +176,6 @@ describe('app-dir - errors', () => {
       if (isNextDev) {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Error: this is a test",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -216,7 +215,6 @@ describe('app-dir - errors', () => {
       if (isNextDev) {
         await expect(browser).toDisplayRedbox(`
           {
-            "count": 1,
             "description": "Error: custom server error",
             "environmentLabel": "Server",
             "label": "Runtime Error",

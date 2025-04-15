@@ -19,7 +19,6 @@ describe('ReactRefreshLogBox _app _document', () => {
     const { browser, session } = sandbox
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 1,
        "description": "Error: The default export is not a React Component in page: "/_app"",
        "environmentLabel": null,
        "label": "Runtime Error",
@@ -52,7 +51,6 @@ describe('ReactRefreshLogBox _app _document', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 1,
        "description": "Error: The default export is not a React Component in page: "/_document"",
        "environmentLabel": null,
        "label": "Runtime Error",
@@ -111,7 +109,6 @@ describe('ReactRefreshLogBox _app _document', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
@@ -125,7 +122,6 @@ describe('ReactRefreshLogBox _app _document', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "  × Module build failed:",
          "environmentLabel": null,
          "label": "Build Error",
@@ -158,7 +154,6 @@ describe('ReactRefreshLogBox _app _document', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error:   x Expression expected",
          "environmentLabel": null,
          "label": "Build Error",
@@ -235,7 +230,6 @@ describe('ReactRefreshLogBox _app _document', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
@@ -249,7 +243,6 @@ describe('ReactRefreshLogBox _app _document', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "  × Module build failed:",
          "environmentLabel": null,
          "label": "Build Error",
@@ -275,7 +268,6 @@ describe('ReactRefreshLogBox _app _document', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error:   x Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key",
          "environmentLabel": null,
          "label": "Build Error",

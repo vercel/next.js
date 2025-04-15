@@ -107,6 +107,7 @@ import {
   EVENT_BUILD_FEATURE_USAGE,
   eventPackageUsedInGetServerSideProps,
   eventBuildCompleted,
+  eventBuildFailed,
 } from '../telemetry/events'
 import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
@@ -210,6 +211,8 @@ import { isPersistentCachingEnabled } from '../shared/lib/turbopack/utils'
 import { inlineStaticEnv } from '../lib/inline-static-env'
 import { populateStaticEnv } from '../lib/static-env'
 import { durationToString } from './duration-to-string'
+import { traceGlobals } from '../trace/shared'
+import { extractNextErrorCode } from '../lib/error-telemetry-utils'
 
 type Fallback = null | boolean | string
 
@@ -826,6 +829,7 @@ export default async function build(
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
   NextBuildContext.isCompileMode = isCompileMode
+  const buildStartTime = Date.now()
 
   let loadedConfig: NextConfigComplete | undefined
   try {
@@ -1471,6 +1475,7 @@ export default async function build(
 
           telemetry.record(
             eventBuildCompleted(pagesPaths, {
+              bundler: 'turbopack',
               durationInSeconds: Math.round(compilerDuration),
               totalAppPagesCount,
             })
@@ -1558,6 +1563,7 @@ export default async function build(
 
             telemetry.record(
               eventBuildCompleted(pagesPaths, {
+                bundler: getBundlerForTelemetry(isTurbopack),
                 durationInSeconds,
                 totalAppPagesCount,
               })
@@ -1573,6 +1579,7 @@ export default async function build(
 
             telemetry.record(
               eventBuildCompleted(pagesPaths, {
+                bundler: getBundlerForTelemetry(isTurbopack),
                 durationInSeconds: compilerDuration,
                 totalAppPagesCount,
               })
@@ -3294,6 +3301,16 @@ export default async function build(
                     orig,
                     path.join(distDir, 'server', updatedRelativeDest)
                   )
+
+                  // since the app router not found is prioritized over pages router,
+                  // we have to ensure the app router entries are available for all locales
+                  if (i18n) {
+                    for (const locale of i18n.locales) {
+                      const curPath = `/${locale}/404`
+                      pagesManifest[curPath] = updatedRelativeDest
+                    }
+                  }
+
                   pagesManifest['/404'] = updatedRelativeDest
                 }
               })
@@ -3705,6 +3722,18 @@ export default async function build(
 
       await shutdownPromise
     })
+  } catch (e) {
+    const telemetry: Telemetry | undefined = traceGlobals.get('telemetry')
+    if (telemetry) {
+      telemetry.record(
+        eventBuildFailed({
+          bundler: getBundlerForTelemetry(isTurbopack),
+          errorCode: getErrorCodeForTelemetry(e),
+          durationInSeconds: Math.floor((Date.now() - buildStartTime) / 1000),
+        })
+      )
+    }
+    throw e
   } finally {
     // Ensure we wait for lockfile patching if present
     await lockfilePatchPromise.cur
@@ -3737,9 +3766,14 @@ function warnAboutTurbopackBuilds(config?: NextConfigComplete) {
       `We don't recommend deploying mission-critical applications to production.`
     )
   warningStr +=
-    '\n\n- It is expected that your bundle size might be different from `next build` with webpack. This will be improved as we work towards stability.'
+    '\n\n- ' +
+    bold(
+      'Turbopack currently always builds production source maps for the browser. This will include project source code if deployed to production.'
+    )
+  warningStr +=
+    '\n- It is expected that your bundle size might be different from `next build` with webpack. This will be improved as we work towards stability.'
 
-  if (!config?.experimental.turbo?.unstablePersistentCaching) {
+  if (!config?.experimental.turbopackPersistentCaching) {
     warningStr +=
       '\n- This build is without disk caching; subsequent builds will become faster when disk caching becomes available.'
   }
@@ -3750,4 +3784,33 @@ function warnAboutTurbopackBuilds(config?: NextConfigComplete) {
     '\n\nProvide feedback for Turbopack builds at https://github.com/vercel/next.js/discussions/77721'
 
   Log.warn(warningStr)
+}
+
+function getBundlerForTelemetry(isTurbopack: boolean) {
+  if (isTurbopack) {
+    return 'turbopack'
+  }
+
+  if (process.env.NEXT_RSPACK) {
+    return 'rspack'
+  }
+
+  return 'webpack'
+}
+
+function getErrorCodeForTelemetry(err: unknown) {
+  const code = extractNextErrorCode(err)
+  if (code != null) {
+    return code
+  }
+
+  if (err instanceof Error && 'code' in err && typeof err.code === 'string') {
+    return err.code
+  }
+
+  if (err instanceof Error) {
+    return err.name
+  }
+
+  return 'Unknown'
 }

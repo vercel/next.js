@@ -262,5 +262,5 @@ export function renderStyledStringToErrorAnsi(string: StyledString): string {
 export function isPersistentCachingEnabled(
   config: NextConfigComplete
 ): boolean {
-  return config.experimental.turbo?.unstablePersistentCaching || false
+  return config.experimental?.turbopackPersistentCaching || false
 }

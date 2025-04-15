@@ -209,7 +209,7 @@ export async function createHotReloaderTurbopack(
     {
       projectPath: projectPath,
       rootPath:
-        opts.nextConfig.experimental.turbo?.root ||
+        opts.nextConfig.turbopack?.root ||
         opts.nextConfig.outputFileTracingRoot ||
         projectPath,
       distDir,
@@ -240,7 +240,7 @@ export async function createHotReloaderTurbopack(
     },
     {
       persistentCaching: isPersistentCachingEnabled(opts.nextConfig),
-      memoryLimit: opts.nextConfig.experimental.turbo?.memoryLimit,
+      memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
     }
   )
   setBundlerFindSourceMapImplementation(

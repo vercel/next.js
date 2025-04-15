@@ -1,7 +1,10 @@
 // This file is only used in app router due to the specific error state handling.
 
 import type { ErrorInfo } from 'react'
-import { getReactStitchedError } from '../components/errors/stitched-error'
+import {
+  getReactStitchedError,
+  setComponentStack,
+} from '../components/errors/stitched-error'
 import { handleClientError } from '../components/errors/use-error-handler'
 import { isNextRouterError } from '../components/is-next-router-error'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
@@ -73,7 +76,7 @@ export function onCaughtError(
     // TODO: change to passing down errorInfo later
     // In development mode, pass along the component stack to the error
     if (errorInfo.componentStack) {
-      ;(stitchedError as any)._componentStack = errorInfo.componentStack
+      setComponentStack(stitchedError, errorInfo.componentStack)
     }
 
     // Log and report the error with location but without modifying the error stack
@@ -94,7 +97,7 @@ export function onUncaughtError(err: unknown, errorInfo: React.ErrorInfo) {
     // TODO: change to passing down errorInfo later
     // In development mode, pass along the component stack to the error
     if (errorInfo.componentStack) {
-      ;(stitchedError as any)._componentStack = errorInfo.componentStack
+      setComponentStack(stitchedError, errorInfo.componentStack)
     }
 
     // TODO: Add an adendum to the overlay telling people about custom error boundaries.

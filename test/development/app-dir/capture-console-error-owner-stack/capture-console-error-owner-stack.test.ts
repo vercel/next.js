@@ -12,7 +12,6 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "count": 1,
        "description": "trigger an console <error>",
        "environmentLabel": null,
        "label": "Console Error",
@@ -33,7 +32,6 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "count": 1,
        "description": "trigger an console.error in render",
        "environmentLabel": null,
        "label": "Console Error",
@@ -52,7 +50,6 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "count": 1,
        "description": "trigger an console.error in render",
        "environmentLabel": null,
        "label": "Console Error",
@@ -71,7 +68,6 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "count": 1,
        "description": "ssr console error:client",
        "environmentLabel": null,
        "label": "Console Error",
@@ -90,7 +86,6 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "count": 1,
        "description": "Error: page error",
        "environmentLabel": null,
        "label": "Console Error",
@@ -109,7 +104,6 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "count": 1,
          "description": "Error: boom",
          "environmentLabel": "Server",
          "label": "Console Error",

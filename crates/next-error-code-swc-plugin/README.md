@@ -9,7 +9,7 @@ This plugin transforms Next.js source code by:
 
 ## Error Code Mapping
 
-- **File Location:** `/packages/next/errors.json`
+- **File Location:** `packages/next/errors.json`
 - **Structure:** Append-only, increment-based mapping of error codes to messages.
 - **Automation:**
   - Running `pnpm build` automatically updates `errors.json` if new errors are introduced.
@@ -20,10 +20,10 @@ This plugin transforms Next.js source code by:
 - **Two-Pass Build:**
 
   1. **First Pass:**
-     - Extracts new errors and temporarily stores them in `/packages/next/.errors/*.json`.
+     - Extracts new errors and temporarily stores them in `packages/next/.errors/*.json`.
      - In CI, a build with new errors will fail.
   2. **Second Pass:**
-     - Updates `/packages/next/errors.json` and reruns the build step to confirm no further new errors.
+     - Updates `packages/next/errors.json` and reruns the build step to confirm no further new errors.
      - Inspired by React's [error mapping mechanism](https://github.com/facebook/react/tree/main/scripts/error-codes).
 
 - **Concurrency Handling:** The two-pass system ensures reliable ordering of inserted error codes during concurrent builds.
@@ -32,20 +32,7 @@ This plugin transforms Next.js source code by:
 
 - **WASM Rebuild Required:**
 
-  - After modifying the plugin, rebuild the WASM file and commit it to the repository.
-  - **Reason:** Pre-built artefacts simplify the build process (`pnpm build` runs without requiring `cargo`).
+  - After modifying the plugin, rebuild the WASM file via `pnpm build-error-code-plugin` and commit it to the repository.
+  - **Reason:** Pre-built artifacts simplify the build process (`pnpm build` runs without requiring `cargo`).
 
-- **Rebuild Script Example:**
-
-  ```bash
-  #!/usr/bin/env bash
-  set -e
-  NEXT_JS_ROOT="/Users/judegao/repos/next.js"
-  cd "$NEXT_JS_ROOT/crates/next-error-code-swc-plugin"
-  rustup target add wasm32-wasip1
-  CARGO_PROFILE_RELEASE_STRIP=true CARGO_PROFILE_RELEASE_LTO=true cargo build --target wasm32-wasip1 --release
-  mv "$NEXT_JS_ROOT/crates/next-error-code-swc-plugin/target/wasm32-wasip1/release/next_error_code_swc_plugin.wasm" "$NEXT_JS_ROOT/packages/next/"
-  echo "✨ Successfully built and moved WASM plugin! 🚀"
-  ```
-
-- **Testing:** Navigate to `/crates/next-error-code-swc-plugin` and run `cargo test` to test the plugin
+- **Testing:** Run `cargo test` inside the `crates/next-error-code-swc-plugin` directory to test the plugin.

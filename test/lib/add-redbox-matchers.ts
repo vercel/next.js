@@ -62,37 +62,28 @@ declare global {
   }
 }
 
-interface RedboxSnapshot {
-  environmentLabel: string
-  label: string
-  description: string
+interface ErrorSnapshot {
+  environmentLabel: string | null
+  label: string | null
+  description: string | null
   componentStack?: string
-  source: string
-  stack: string[]
-  count: number
+  source: string | null
+  stack: string[] | null
 }
 
-async function createRedboxSnapshot(
+async function createErrorSnapshot(
   browser: BrowserInterface,
   next: NextInstance | null
-): Promise<RedboxSnapshot> {
-  const [
-    label,
-    environmentLabel,
-    description,
-    source,
-    stack,
-    componentStack,
-    count,
-  ] = await Promise.all([
-    getRedboxLabel(browser),
-    getRedboxEnvironmentLabel(browser),
-    getRedboxDescription(browser),
-    getRedboxSource(browser),
-    getRedboxCallStack(browser),
-    getRedboxComponentStack(browser),
-    getRedboxTotalErrorCount(browser),
-  ])
+): Promise<ErrorSnapshot> {
+  const [label, environmentLabel, description, source, stack, componentStack] =
+    await Promise.all([
+      getRedboxLabel(browser),
+      getRedboxEnvironmentLabel(browser),
+      getRedboxDescription(browser),
+      getRedboxSource(browser),
+      getRedboxCallStack(browser),
+      getRedboxComponentStack(browser),
+    ])
 
   // We don't need to test the codeframe logic everywhere.
   // Here we focus on the cursor position of the top most frame
@@ -145,7 +136,7 @@ async function createRedboxSnapshot(
     }
   }
 
-  const snapshot: RedboxSnapshot = {
+  const snapshot: ErrorSnapshot = {
     environmentLabel,
     label,
     description:
@@ -154,13 +145,11 @@ async function createRedboxSnapshot(
         : description,
     source: focusedSource,
     stack:
-      next !== null
+      next !== null && stack !== null
         ? stack.map((stackframe) => {
             return stackframe.replace(next.testDir, '<FIXME-project-root>')
           })
         : stack,
-    // TODO(newDevOverlay): Always return `count`. Normalizing currently to avoid assertion forks.
-    count: label === 'Build Error' && count === -1 ? 1 : count,
   }
 
   // Hydration diffs are only relevant to some specific errors
@@ -172,6 +161,38 @@ async function createRedboxSnapshot(
   return snapshot
 }
 
+type RedboxSnapshot = ErrorSnapshot | ErrorSnapshot[]
+
+async function createRedboxSnapshot(
+  browser: BrowserInterface,
+  next: NextInstance | null
+): Promise<RedboxSnapshot> {
+  const errorTally = await getRedboxTotalErrorCount(browser)
+  const errorSnapshots: ErrorSnapshot[] = []
+
+  for (let errorIndex = 0; errorIndex < errorTally; errorIndex++) {
+    const errorSnapshot = await createErrorSnapshot(browser, next)
+    errorSnapshots.push(errorSnapshot)
+
+    if (errorIndex < errorTally - 1) {
+      // Go to next error
+      await browser
+        .waitForElementByCss('[data-nextjs-dialog-error-next]')
+        .click()
+      // TODO: Wait for suspended content if the click triggered it.
+      await browser.waitForElementByCss(
+        `[data-nextjs-dialog-error-index="${errorIndex + 1}"]`
+      )
+    }
+  }
+
+  return errorSnapshots.length === 1
+    ? // Most of the Redbox tests will just show a single error.
+      // We optimize display for that case.
+      errorSnapshots[0]
+    : errorSnapshots
+}
+
 expect.extend({
   async toDisplayRedbox(
     this: MatcherContext,
@@ -181,7 +202,7 @@ expect.extend({
     expectedRedboxSnapshot?: string
   ) {
     let browser: BrowserInterface
-    let next: NextInstance
+    let next: NextInstance | null
     if ('browser' in browserOrContext && 'next' in browserOrContext) {
       browser = browserOrContext.browser
       next = browserOrContext.next
