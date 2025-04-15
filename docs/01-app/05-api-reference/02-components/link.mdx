@@ -364,7 +364,7 @@ export default function Home() {
 
 ### `legacyBehavior`
 
-An `<a>` element is no longer required as a child of `<Link>`. Add the `legacyBehavior` prop to use the legacy behavior or remove the `<a>` to upgrade. A [codemod is available](/docs/app/building-your-application/upgrading/codemods#new-link) to automatically upgrade your code.
+An `<a>` element is no longer required as a child of `<Link>`. Add the `legacyBehavior` prop to use the legacy behavior or remove the `<a>` to upgrade. A [codemod is available](/docs/app/guides/upgrading/codemods#new-link) to automatically upgrade your code.
 
 > **Good to know**: when `legacyBehavior` is not set to `true`, all [`anchor`](https://developer.mozilla.org/docs/Web/HTML/Element/a) tag properties can be passed to `next/link` as well such as, `className`, `onClick`, etc.
 
@@ -1510,10 +1510,10 @@ When a user tries to navigate away using `CustomLink` while the form has unsaved
 
 ## Version history
 
-| Version   | Changes                                                                                                                                                                                         |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `v15.3.0` | Add `onNavigate` API                                                                                                                                                                            |
-| `v13.0.0` | No longer requires a child `<a>` tag. A [codemod](/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components) is provided to automatically update your codebase. |
-| `v10.0.0` | `href` props pointing to a dynamic route are automatically resolved and no longer require an `as` prop.                                                                                         |
-| `v8.0.0`  | Improved prefetching performance.                                                                                                                                                               |
-| `v1.0.0`  | `next/link` introduced.                                                                                                                                                                         |
+| Version   | Changes                                                                                                                                                                      |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v15.3.0` | Add `onNavigate` API                                                                                                                                                         |
+| `v13.0.0` | No longer requires a child `<a>` tag. A [codemod](/docs/app/guides/upgrading/codemods#remove-a-tags-from-link-components) is provided to automatically update your codebase. |
+| `v10.0.0` | `href` props pointing to a dynamic route are automatically resolved and no longer require an `as` prop.                                                                      |
+| `v8.0.0`  | Improved prefetching performance.                                                                                                                                            |
+| `v1.0.0`  | `next/link` introduced.                                                                                                                                                      |
