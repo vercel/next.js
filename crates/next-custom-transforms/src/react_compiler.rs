@@ -1,5 +1,5 @@
 use swc_core::ecma::{
-    ast::{Callee, Expr, FnDecl, Program, ReturnStmt},
+    ast::{Callee, Expr, FnDecl, FnExpr, Program, ReturnStmt},
     visit::{Visit, VisitWith},
 };
 
@@ -38,6 +38,18 @@ impl Visit for Finder {
         let old = self.is_interested;
         self.is_interested = node.ident.sym.starts_with("use")
             || node.ident.sym.starts_with(|c: char| c.is_ascii_uppercase());
+
+        node.visit_children_with(self);
+
+        self.is_interested = old;
+    }
+
+    fn visit_fn_expr(&mut self, node: &FnExpr) {
+        let old = self.is_interested;
+
+        self.is_interested = node.ident.as_ref().is_some_and(|ident| {
+            ident.sym.starts_with("use") || ident.sym.starts_with(|c: char| c.is_ascii_uppercase())
+        });
 
         node.visit_children_with(self);
 
