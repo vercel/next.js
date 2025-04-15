@@ -10,7 +10,7 @@ use turbo_tasks_testing::{register, run, Registration};
 static REGISTRATION: Registration = register!();
 
 #[tokio::test]
-async fn basic() {
+async fn random_change() {
     run(&REGISTRATION, || async {
         let state = make_state();
         let value = rand::thread_rng().gen_range(0..100);
