@@ -31,8 +31,8 @@ bun add next@13 react@latest react-dom@latest eslint-config-next@13
 - The minimum Node.js version has been bumped from 12.22.0 to 16.14.0, since 12.x and 14.x have reached end-of-life.
 - The minimum React version has been bumped from 17.0.2 to 18.2.0.
 - The `swcMinify` configuration property was changed from `false` to `true`. See [Next.js Compiler](/docs/architecture/nextjs-compiler) for more info.
-- The `next/image` import was renamed to `next/legacy/image`. The `next/future/image` import was renamed to `next/image`. A [codemod is available](/docs/pages/building-your-application/upgrading/codemods#next-image-to-legacy-image) to safely and automatically rename your imports.
-- The `next/link` child can no longer be `<a>`. Add the `legacyBehavior` prop to use the legacy behavior or remove the `<a>` to upgrade. A [codemod is available](/docs/pages/building-your-application/upgrading/codemods#new-link) to automatically upgrade your code.
+- The `next/image` import was renamed to `next/legacy/image`. The `next/future/image` import was renamed to `next/image`. A [codemod is available](/docs/pages/guides/upgrading/codemods#next-image-to-legacy-image) to safely and automatically rename your imports.
+- The `next/link` child can no longer be `<a>`. Add the `legacyBehavior` prop to use the legacy behavior or remove the `<a>` to upgrade. A [codemod is available](/docs/pages/guides/upgrading/codemods#new-link) to automatically upgrade your code.
 - The `target` configuration property has been removed and superseded by [Output File Tracing](/docs/pages/api-reference/config/next-config-js/output).
 
 ## Migrating shared features
@@ -49,10 +49,10 @@ Starting in Next.js 13, this new behavior is now the default for `next/image`.
 
 There are two codemods to help you migrate to the new Image Component:
 
-- [next-image-to-legacy-image](/docs/pages/building-your-application/upgrading/codemods#next-image-to-legacy-image): This codemod will safely and automatically rename `next/image` imports to `next/legacy/image` to maintain the same behavior as Next.js 12. We recommend running this codemod to quickly update to Next.js 13 automatically.
-- [next-image-experimental](/docs/pages/building-your-application/upgrading/codemods#next-image-experimental): After running the previous codemod, you can optionally run this experimental codemod to upgrade `next/legacy/image` to the new `next/image`, which will remove unused props and add inline styles. Please note this codemod is experimental and only covers static usage (such as `<Image src={img} layout="responsive" />`) but not dynamic usage (such as `<Image {...props} />`).
+- [next-image-to-legacy-image](/docs/pages/guides/upgrading/codemods#next-image-to-legacy-image): This codemod will safely and automatically rename `next/image` imports to `next/legacy/image` to maintain the same behavior as Next.js 12. We recommend running this codemod to quickly update to Next.js 13 automatically.
+- [next-image-experimental](/docs/pages/guides/upgrading/codemods#next-image-experimental): After running the previous codemod, you can optionally run this experimental codemod to upgrade `next/legacy/image` to the new `next/image`, which will remove unused props and add inline styles. Please note this codemod is experimental and only covers static usage (such as `<Image src={img} layout="responsive" />`) but not dynamic usage (such as `<Image {...props} />`).
 
-Alternatively, you can manually update by following the [migration guide](/docs/pages/building-your-application/upgrading/codemods#next-image-experimental) and also see the [legacy comparison](/docs/pages/api-reference/components/image-legacy#comparison).
+Alternatively, you can manually update by following the [migration guide](/docs/pages/guides/upgrading/codemods#next-image-experimental) and also see the [legacy comparison](/docs/pages/api-reference/components/image-legacy#comparison).
 
 ### `<Link>` Component
 
@@ -74,7 +74,7 @@ import Link from 'next/link'
 </Link>
 ```
 
-To upgrade your links to Next.js 13, you can use the [`new-link` codemod](/docs/pages/building-your-application/upgrading/codemods#new-link).
+To upgrade your links to Next.js 13, you can use the [`new-link` codemod](/docs/pages/guides/upgrading/codemods#new-link).
 
 ### `<Script>` Component
 

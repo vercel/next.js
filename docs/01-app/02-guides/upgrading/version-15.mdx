@@ -42,7 +42,7 @@ Previously synchronous Dynamic APIs that rely on runtime information are now **a
 - `params` in [`layout.js`](/docs/app/api-reference/file-conventions/layout), [`page.js`](/docs/app/api-reference/file-conventions/page), [`route.js`](/docs/app/api-reference/file-conventions/route), [`default.js`](/docs/app/api-reference/file-conventions/default), [`opengraph-image`](/docs/app/api-reference/file-conventions/metadata/opengraph-image), [`twitter-image`](/docs/app/api-reference/file-conventions/metadata/opengraph-image), [`icon`](/docs/app/api-reference/file-conventions/metadata/app-icons), and [`apple-icon`](/docs/app/api-reference/file-conventions/metadata/app-icons).
 - `searchParams` in [`page.js`](/docs/app/api-reference/file-conventions/page)
 
-To ease the burden of migration, a [codemod is available](/docs/app/building-your-application/upgrading/codemods#150) to automate the process and the APIs can temporarily be accessed synchronously.
+To ease the burden of migration, a [codemod is available](/docs/app/guides/upgrading/codemods#150) to automate the process and the APIs can temporarily be accessed synchronously.
 
 ### `cookies`
 
@@ -451,7 +451,7 @@ export async function GET(request, segmentData) {
 
 ## `runtime` configuration (Breaking change)
 
-The `runtime` [segment configuration](/docs/app/api-reference/file-conventions/route-segment-config#runtime) previously supported a value of `experimental-edge` in addition to `edge`. Both configurations refer to the same thing, and to simplify the options, we will now error if `experimental-edge` is used. To fix this, update your `runtime` configuration to `edge`. A [codemod](/docs/app/building-your-application/upgrading/codemods#app-dir-runtime-config-experimental-edge) is available to automatically do this.
+The `runtime` [segment configuration](/docs/app/api-reference/file-conventions/route-segment-config#runtime) previously supported a value of `experimental-edge` in addition to `edge`. Both configurations refer to the same thing, and to simplify the options, we will now error if `experimental-edge` is used. To fix this, update your `runtime` configuration to `edge`. A [codemod](/docs/app/guides/upgrading/codemods#app-dir-runtime-config-experimental-edge) is available to automatically do this.
 
 </AppOnly>
 
@@ -519,7 +519,7 @@ module.exports = nextConfig
 
 ## `next/font`
 
-The `@next/font` package has been removed in favor of the built-in [`next/font`](/docs/app/api-reference/components/font). A [codemod is available](/docs/app/building-your-application/upgrading/codemods#built-in-next-font) to safely and automatically rename your imports.
+The `@next/font` package has been removed in favor of the built-in [`next/font`](/docs/app/api-reference/components/font). A [codemod is available](/docs/app/guides/upgrading/codemods#built-in-next-font) to safely and automatically rename your imports.
 
 ```js filename="app/layout.js"
 // Before
@@ -575,7 +575,7 @@ To continue using Speed Insights, follow the [Vercel Speed Insights Quickstart](
 
 ## `NextRequest` Geolocation
 
-The `geo` and `ip` properties on `NextRequest` have been removed as these values are provided by your hosting provider. A [codemod](/docs/app/building-your-application/upgrading/codemods#150) is available to automate this migration.
+The `geo` and `ip` properties on `NextRequest` have been removed as these values are provided by your hosting provider. A [codemod](/docs/app/guides/upgrading/codemods#150) is available to automate this migration.
 
 If you are using Vercel, you can alternatively use the `geolocation` and `ipAddress` functions from [`@vercel/functions`](https://vercel.com/docs/functions/vercel-functions-package) instead:
 
