@@ -144,19 +144,41 @@ export async function getUser(id: string) {
 }
 ```
 
-By default, the `<Link>` component automatically prefetches routes from the Full Route Cache and adds the React Server Component Payload to the Router Cache.
+### Serialization
 
-To disable prefetching, you can set the `prefetch` prop to `false`. But this will not skip the cache permanently, the route segment will still be cached client-side when the user visits the route.
+The return value of the cacheable function must be [serializable](https://react.dev/reference/rsc/use-server#serializable-parameters-and-return-values). This ensures that the cached content can be stored and retrieved correctly.
 
-Learn more about the [`<Link>` component](/docs/app/api-reference/components/link).
+If you pass non-serializable values like functions, event handlers, or symbols, they are excluded from the [cache key](#cache-keys). Instead, they are treated as references and resolved at runtime. This makes it possible to cache a [layout](/docs/app/api-reference/file-conventions/layout) while allowing `{children}` to remain dynamic.
 
-### `router.prefetch`
+```tsx filename="app/dashboard/layout.tsx" switcher
+function Layout({ children }: { children: React.ReactNode }) {
+  'use cache'
 
-The `prefetch` option of the `useRouter` hook can be used to manually prefetch a route. This adds the React Server Component Payload to the Router Cache.
+  return (
+    <div>
+      {/* Navigation will be cached */}
+      <Navigation />
+      {/* Children will not be cached */}
+      <main>{children}</main>
+    </div>
+  )
+}
+```
 
-See the [`useRouter` hook](/docs/app/api-reference/functions/use-router) API reference.
+```jsx filename="app/layout.js" switcher
+function Layout({ children }: { children: React.ReactNode }) {
+  'use cache'
 
-### `router.refresh`
+  return (
+    <div>
+      {/* Navigation will be cached */}
+      <Navigation />
+      {/* Children will not be cached */}
+      <main>{children}</main>
+    </div>
+  )
+}
+```
 
 The `refresh` option of the `useRouter` hook can be used to manually refresh a route. This completely clears the Router Cache, and makes a new request to the server for the current route. `refresh` does not affect the Data or Full Route Cache.
 
