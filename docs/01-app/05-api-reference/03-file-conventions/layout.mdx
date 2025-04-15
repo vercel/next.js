@@ -119,6 +119,14 @@ export default function RootLayout({ children }) {
 
 ## Caveats
 
+### How can I access the request object in a layout?
+
+You intentionally cannot access the raw request object in a layout. However, you can access [`headers`](/docs/app/api-reference/functions/headers) and [`cookies`](/docs/app/api-reference/functions/cookies) through server-only functions.
+
+[Layouts](/docs/app/building-your-application/routing/layouts-and-templates#layouts) do not rerender. They can be cached and reused to avoid unnecessary computation when navigating between pages. By restricting layouts from accessing the raw request, Next.js can prevent the execution of potentially slow or expensive user code within the layout, which could negatively impact performance.
+
+This design also enforces consistent and predictable behavior for layouts across different pages, which simplifies development and debugging.
+
 ### Layouts do not receive `searchParams`
 
 Unlike [Pages](/docs/app/api-reference/file-conventions/page), Layout components **do not** receive the `searchParams` prop. This is because a shared layout is [not re-rendered during navigation](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering) which could lead to stale `searchParams` between navigations.
