@@ -305,7 +305,7 @@ impl Module for EcmascriptModulePartAsset {
 
         let split_data = split_module(*self.full_module).await?;
 
-        let SplitResult::Ok { deps, .. } = &*split_data else {
+        let SplitResult::Ok { deps, metadata, .. } = &*split_data else {
             // If the module is not split, we don't need to add any references
             return Ok(Vc::cell(vec![]));
         };
@@ -341,6 +341,13 @@ impl Module for EcmascriptModulePartAsset {
                 .try_join()
                 .await?,
         );
+
+        // If the part has no external references, we can skip the analysis
+        if let Some(metadata) = metadata.get(&part_id) {
+            if !metadata.have_external_references {
+                return Ok(Vc::cell(references));
+            }
+        }
 
         let analyze = analyze(*self.full_module, self.part.clone());
 

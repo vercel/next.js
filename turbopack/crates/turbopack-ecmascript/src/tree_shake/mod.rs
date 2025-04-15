@@ -449,6 +449,9 @@ pub(crate) enum SplitResult {
         modules: Vec<ResolvedVc<ParseResult>>,
 
         #[turbo_tasks(trace_ignore)]
+        metadata: FxHashMap<u32, PartMetadata>,
+
+        #[turbo_tasks(trace_ignore)]
         deps: FxHashMap<u32, Vec<PartId>>,
 
         #[turbo_tasks(debug_ignore, trace_ignore)]
@@ -457,6 +460,11 @@ pub(crate) enum SplitResult {
     Failed {
         parse_result: ResolvedVc<ParseResult>,
     },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub(crate) struct PartMetadata {
+    pub have_external_references: bool,
 }
 
 impl PartialEq for SplitResult {
