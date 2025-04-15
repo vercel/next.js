@@ -367,6 +367,10 @@ export declare function parse(
   filename?: string | undefined | null,
   signal?: AbortSignal | undefined | null
 ): Promise<string>
+export declare function isReactCompilerRequired(
+  filename: string,
+  signal?: AbortSignal | undefined | null
+): Promise<boolean>
 export declare function transform(
   src: string | Buffer | undefined,
   isModule: boolean,
