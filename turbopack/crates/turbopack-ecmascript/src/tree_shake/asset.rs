@@ -289,6 +289,21 @@ impl Module for EcmascriptModulePartAsset {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
+        let part_dep = |part: ModulePart| -> Vc<Box<dyn ModuleReference>> {
+            Vc::upcast(SingleModuleReference::new(
+                Vc::upcast(EcmascriptModulePartAsset::new(*self.full_module, part)),
+                Vc::cell("ecmascript module part".into()),
+            ))
+        };
+
+        if let ModulePart::Facade = self.part {
+            // Facade depends on evaluation and re-exports
+            let mut references = vec![];
+            references.push(part_dep(ModulePart::evaluation()).to_resolved().await?);
+            references.push(part_dep(ModulePart::exports()).to_resolved().await?);
+            return Ok(Vc::cell(references));
+        }
+
         let split_data = split_module(*self.full_module).await?;
 
         let analyze = analyze(*self.full_module, self.part.clone());
@@ -298,21 +313,7 @@ impl Module for EcmascriptModulePartAsset {
             SplitResult::Failed { .. } => return Ok(analyze.references()),
         };
 
-        let part_dep = |part: ModulePart| -> Vc<Box<dyn ModuleReference>> {
-            Vc::upcast(SingleModuleReference::new(
-                Vc::upcast(EcmascriptModulePartAsset::new(*self.full_module, part)),
-                Vc::cell("ecmascript module part".into()),
-            ))
-        };
-
         let mut references = analyze.references().owned().await?;
-
-        // Facade depends on evaluation and re-exports
-        if self.part == ModulePart::Facade {
-            references.push(part_dep(ModulePart::evaluation()).to_resolved().await?);
-            references.push(part_dep(ModulePart::exports()).to_resolved().await?);
-            return Ok(Vc::cell(references));
-        }
 
         let deps = {
             let part_id = get_part_id(&split_data, &self.part)
