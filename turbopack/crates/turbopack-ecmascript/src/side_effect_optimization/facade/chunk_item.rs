@@ -68,11 +68,7 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
 
         let esm_code_gens = self
             .module
-            .code_generation(
-                *self.module_graph,
-                *chunking_context,
-                *self.module.await?.parsed,
-            )
+            .code_generation(*self.module_graph, *chunking_context)
             .await?;
         let additional_code_gens = [
             self.module
@@ -84,11 +80,7 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
                 )
                 .await?,
             exports
-                .code_generation(
-                    *self.module_graph,
-                    *chunking_context,
-                    *self.module.await?.parsed,
-                )
+                .code_generation(*self.module_graph, *chunking_context, None)
                 .await?,
         ];
         let code_gens = esm_code_gens.iter().chain(additional_code_gens.iter());
