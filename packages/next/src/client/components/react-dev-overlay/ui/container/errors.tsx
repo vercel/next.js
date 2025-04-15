@@ -22,6 +22,7 @@ import {
 import type { ReadyRuntimeError } from '../../utils/get-error-by-type'
 import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 import { getSquashedHydrationErrorDetails } from '../../pages/hydration-error-state'
+import { isRecoverableError } from '../../../../react-client-callbacks/on-recoverable-error'
 
 export interface ErrorsProps extends ErrorBaseProps {
   runtimeErrors: ReadyRuntimeError[]
@@ -68,6 +69,9 @@ function GenericErrorDescription({ error }: { error: Error }) {
 }
 
 function getErrorType(error: Error): ErrorOverlayLayoutProps['errorType'] {
+  if (isRecoverableError(error)) {
+    return 'Recoverable Error'
+  }
   if (isConsoleError(error)) {
     return 'Console Error'
   }

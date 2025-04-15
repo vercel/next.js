@@ -10,6 +10,12 @@ import {
 import isError from '../../lib/is-error'
 import { reportGlobalError } from './report-global-error'
 
+const recoverableErrors = new WeakSet<Error>()
+
+export function isRecoverableError(error: Error): boolean {
+  return recoverableErrors.has(error)
+}
+
 export const onRecoverableError: HydrationOptions['onRecoverableError'] = (
   error,
   errorInfo
@@ -20,6 +26,7 @@ export const onRecoverableError: HydrationOptions['onRecoverableError'] = (
   if (isBailoutToCSRError(cause)) return
 
   const causeError = coerceError(cause)
+  recoverableErrors.add(causeError)
   setOwnerStackIfAvailable(causeError)
 
   if (process.env.NODE_ENV === 'development' && errorInfo.componentStack) {

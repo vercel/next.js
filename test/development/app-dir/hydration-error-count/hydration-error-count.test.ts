@@ -42,7 +42,7 @@ describe('hydration-error-count', () => {
        {
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Recoverable Error",
          "source": "app/bad-nesting/page.tsx (6:7) @ Page
      > 6 |       <p>nest</p>
          |       ^",
@@ -79,7 +79,7 @@ describe('hydration-error-count', () => {
                              ...",
        "description": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
-       "label": "Runtime Error",
+       "label": "Recoverable Error",
        "source": "app/html-diff/page.tsx (4:10) @ Page
      > 4 |   return <p>{typeof window === 'undefined' ? 'server' : 'client'}</p>
          |          ^",
@@ -146,7 +146,7 @@ describe('hydration-error-count', () => {
                              ...",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Recoverable Error",
          "source": "app/two-issues/page.tsx (10:7) @ Page
      > 10 |       <p>nest</p>
           |       ^",
@@ -196,7 +196,7 @@ describe('hydration-error-count', () => {
        {
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Recoverable Error",
          "source": "app/hydration-with-runtime-errors/page.tsx (12:14) @ Page
      > 12 |       sneaky <p>very sneaky</p>
           |              ^",
