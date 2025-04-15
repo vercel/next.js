@@ -917,10 +917,13 @@ export default class DevServer extends Server {
   }): Promise<FindComponentsResult | null> {
     await this.ready?.promise
 
-    const compilationErr = await this.getCompilationError(page)
-    if (compilationErr) {
-      // Wrap build errors so that they don't get logged again
-      throw new WrappedBuildError(compilationErr)
+    // When it's rendering App Router /_error page, skip rethrowing the compilation error.
+    if (page !== '/_error/page') {
+      const compilationErr = await this.getCompilationError(page)
+      if (compilationErr) {
+        // Wrap build errors so that they don't get logged again
+        throw new WrappedBuildError(compilationErr)
+      }
     }
     if (shouldEnsure || this.serverOptions.customServer) {
       await this.ensurePage({

@@ -65,7 +65,7 @@ export default class PagesManifestPlugin
             !file.includes('webpack-runtime') &&
             !file.includes('webpack-api-runtime') &&
             file.endsWith('.js')
-        )
+        )      
 
       // Skip entries which are empty
       if (!files.length) {
@@ -148,6 +148,8 @@ export default class PagesManifestPlugin
         )
       )
     }
+
+    console.log('')
 
     if (this.appDirEnabled) {
       if (this.distDir) {
