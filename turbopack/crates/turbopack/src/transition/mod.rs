@@ -57,6 +57,14 @@ pub trait Transition {
         resolve_options_context
     }
 
+    /// Apply modifications/wrapping to the transition options
+    fn process_transition_options(
+        self: Vc<Self>,
+        transition_options: Vc<TransitionOptions>,
+    ) -> Vc<TransitionOptions> {
+        transition_options
+    }
+
     /// Apply modifications/wrapping to the final asset
     fn process_module(
         self: Vc<Self>,
@@ -79,8 +87,9 @@ pub trait Transition {
         let resolve_options_context =
             self.process_resolve_options_context(*module_asset_context.resolve_options_context);
         let layer = self.process_layer(*module_asset_context.layer);
+        let transition_options = self.process_transition_options(*module_asset_context.transitions);
         let module_asset_context = ModuleAssetContext::new(
-            *module_asset_context.transitions,
+            transition_options,
             compile_time_info,
             module_options_context,
             resolve_options_context,

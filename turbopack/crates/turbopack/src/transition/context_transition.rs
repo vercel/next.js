@@ -3,7 +3,10 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::compile_time_info::CompileTimeInfo;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
-use crate::{module_options::ModuleOptionsContext, transition::Transition};
+use crate::{
+    module_options::ModuleOptionsContext,
+    transition::{Transition, TransitionOptions},
+};
 
 /// A transition that only affects the asset context.
 #[turbo_tasks::value(shared)]
@@ -11,6 +14,7 @@ pub struct ContextTransition {
     compile_time_info: ResolvedVc<CompileTimeInfo>,
     module_options_context: ResolvedVc<ModuleOptionsContext>,
     resolve_options_context: ResolvedVc<ResolveOptionsContext>,
+    transition_options: ResolvedVc<TransitionOptions>,
     layer: ResolvedVc<RcStr>,
 }
 
@@ -21,12 +25,14 @@ impl ContextTransition {
         compile_time_info: ResolvedVc<CompileTimeInfo>,
         module_options_context: ResolvedVc<ModuleOptionsContext>,
         resolve_options_context: ResolvedVc<ResolveOptionsContext>,
+        transition_options: ResolvedVc<TransitionOptions>,
         layer: ResolvedVc<RcStr>,
     ) -> Vc<ContextTransition> {
         ContextTransition {
             module_options_context,
             resolve_options_context,
             compile_time_info,
+            transition_options,
             layer,
         }
         .cell()
@@ -62,5 +68,13 @@ impl Transition for ContextTransition {
         _context: Vc<ResolveOptionsContext>,
     ) -> Vc<ResolveOptionsContext> {
         *self.resolve_options_context
+    }
+
+    #[turbo_tasks::function]
+    fn process_transition_options(
+        &self,
+        _transition_options: Vc<TransitionOptions>,
+    ) -> Vc<TransitionOptions> {
+        *self.transition_options
     }
 }
