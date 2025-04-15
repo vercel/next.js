@@ -1,7 +1,7 @@
 import type { Options as SWCOptions } from '@swc/core'
-import Module from 'node:module'
-import { readFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import Module from 'module'
+import { readFileSync } from 'fs'
+import { dirname } from 'path'
 
 const oldJSHook = require.extensions['.js']
 const extensions = ['.ts', '.cts', '.mts', '.cjs', '.mjs']
@@ -47,6 +47,7 @@ export function deregisterHook() {
   extensions.forEach((ext) => delete require.extensions[ext])
 }
 
+// FIXME: Errors with require does not bubble up to trycatch.
 export function requireFromString(code: string, filename: string) {
   const paths = (Module as any)._nodeModulePaths(dirname(filename))
   const m = new Module(filename, module.parent!) as any

@@ -49,42 +49,43 @@ describe('writeConfigurationDefaults()', () => {
       const tsConfig = await readFile(tsConfigPath, { encoding: 'utf8' })
 
       expect(JSON.parse(tsConfig)).toMatchInlineSnapshot(`
-      {
-        "compilerOptions": {
-          "allowJs": true,
-          "esModuleInterop": true,
-          "incremental": true,
-          "isolatedModules": true,
-          "jsx": "preserve",
-          "lib": [
-            "dom",
-            "dom.iterable",
-            "esnext",
+        {
+          "compilerOptions": {
+            "allowJs": true,
+            "esModuleInterop": true,
+            "incremental": true,
+            "isolatedModules": true,
+            "jsx": "preserve",
+            "lib": [
+              "dom",
+              "dom.iterable",
+              "esnext",
+            ],
+            "module": "esnext",
+            "moduleResolution": "node",
+            "noEmit": true,
+            "plugins": [
+              {
+                "name": "next",
+              },
+            ],
+            "resolveJsonModule": true,
+            "skipLibCheck": true,
+            "strict": false,
+            "target": "ES2017",
+          },
+          "exclude": [
+            "node_modules",
           ],
-          "module": "esnext",
-          "moduleResolution": "node",
-          "noEmit": true,
-          "plugins": [
-            {
-              "name": "next",
-            },
+          "include": [
+            "next-env.d.ts",
+            "next.config.*",
+            ".next/types/**/*.ts",
+            "**/*.ts",
+            "**/*.tsx",
           ],
-          "resolveJsonModule": true,
-          "skipLibCheck": true,
-          "strict": false,
-          "target": "ES2017",
-        },
-        "exclude": [
-          "node_modules",
-        ],
-        "include": [
-          "next-env.d.ts",
-          ".next/types/**/*.ts",
-          "**/*.ts",
-          "**/*.tsx",
-        ],
-      }
-    `)
+        }
+      `)
 
       expect(
         consoleLogSpy.mock.calls
@@ -104,7 +105,7 @@ describe('writeConfigurationDefaults()', () => {
            	- strict was set to false
            	- noEmit was set to true
            	- incremental was set to true
-           	- include was set to ['next-env.d.ts', '.next/types/**/*.ts', '**/*.ts', '**/*.tsx']
+           	- include was set to ['next-env.d.ts', 'next.config.*', '.next/types/**/*.ts', '**/*.ts', '**/*.tsx']
            	- plugins was updated to add { name: 'next' }
            	- exclude was set to ['node_modules']
 

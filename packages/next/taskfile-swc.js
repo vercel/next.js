@@ -32,6 +32,12 @@ module.exports = function (task) {
           : [[path.join(__dirname, 'next_error_code_swc_plugin.wasm'), {}]]),
       ]
 
+      const ext = path.extname(file.base)
+      const isMTS = ext === '.mts'
+      if (isMTS) {
+        esm = true
+      }
+
       const isClient = serverOrClient === 'client'
       /** @type {import('@swc/core').Options} */
       const swcClientOptions = {
@@ -139,7 +145,6 @@ module.exports = function (task) {
 
       const source = file.data.toString('utf-8')
       const output = yield transform(source, options)
-      const ext = path.extname(file.base)
 
       // Replace `.ts|.tsx` with `.js` in files with an extension
       if (ext) {
@@ -147,7 +152,7 @@ module.exports = function (task) {
         // Remove the extension if stripExtension is enabled or replace it with `.js`
         file.base = file.base.replace(
           extRegex,
-          stripExtension ? '' : `.${ext === '.mts' ? 'm' : ''}js`
+          stripExtension ? '' : `.${isMTS ? 'm' : ''}js`
         )
       }
 

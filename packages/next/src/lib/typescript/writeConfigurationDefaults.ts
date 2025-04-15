@@ -212,15 +212,15 @@ export async function writeConfigurationDefaults(
 
   if (!('include' in rawConfig)) {
     userTsConfig.include = hasAppDir
-      ? ['next-env.d.ts', nextAppTypes, '**/*.ts', '**/*.tsx']
-      : ['next-env.d.ts', '**/*.ts', '**/*.tsx']
+      ? ['next-env.d.ts', 'next.config.*', nextAppTypes, '**/*.ts', '**/*.tsx']
+      : ['next-env.d.ts', 'next.config.*', '**/*.ts', '**/*.tsx']
     suggestedActions.push(
       cyan('include') +
         ' was set to ' +
         bold(
           hasAppDir
-            ? `['next-env.d.ts', '${nextAppTypes}', '**/*.ts', '**/*.tsx']`
-            : `['next-env.d.ts', '**/*.ts', '**/*.tsx']`
+            ? `['next-env.d.ts', 'next.config.*', '${nextAppTypes}', '**/*.ts', '**/*.tsx']`
+            : `['next-env.d.ts', 'next.config.*', '**/*.ts', '**/*.tsx']`
         )
     )
   } else if (hasAppDir && !rawConfig.include.includes(nextAppTypes)) {

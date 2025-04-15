@@ -78,14 +78,14 @@
     "RUST_BACKTRACE": "0"
   },
   "cSpell.words": [
-    "codemod",
-    "codemods",
-    "Destructuring",
+    "backported",
     "buildtime",
     "callsites",
     "codemod",
+    "codemods",
     "datastream",
     "deduped",
+    "Destructuring",
     "draftmode",
     "Entrypoints",
     "jscodeshift",

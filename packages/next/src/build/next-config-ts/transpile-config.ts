@@ -1,15 +1,15 @@
 import type { Options as SWCOptions } from '@swc/core'
 import type { CompilerOptions } from 'typescript'
-import { join } from 'node:path'
-import { readFile } from 'node:fs/promises'
+import { resolve } from 'path'
+import { readFile } from 'fs/promises'
+import semver from 'next/dist/compiled/semver'
 import { deregisterHook, registerHook, requireFromString } from './require-hook'
-import { parseJsonFile } from '../load-jsconfig'
+import { lazilyGetTSConfig } from './utils'
 
-function resolveSWCOptions(
+function resolveSWCOptionsForNextConfigRequireHook(
   cwd: string,
   compilerOptions: CompilerOptions
 ): SWCOptions {
-  const resolvedBaseUrl = join(cwd, compilerOptions.baseUrl ?? '.')
   return {
     jsc: {
       target: 'es5',
@@ -17,7 +17,9 @@ function resolveSWCOptions(
         syntax: 'typescript',
       },
       paths: compilerOptions.paths,
-      baseUrl: resolvedBaseUrl,
+      // SWC requires `baseUrl` to be passed when `paths` are used.
+      // Also, `baseUrl` must be absolute.
+      baseUrl: resolve(cwd, compilerOptions.baseUrl ?? ''),
     },
     module: {
       type: 'commonjs',
@@ -26,32 +28,24 @@ function resolveSWCOptions(
   } satisfies SWCOptions
 }
 
-async function lazilyGetTSConfig(cwd: string) {
-  let tsConfig: { compilerOptions: CompilerOptions }
-  try {
-    tsConfig = parseJsonFile(join(cwd, 'tsconfig.json'))
-  } catch (error) {
-    // ignore if tsconfig.json does not exist
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-      throw error
-    }
-    tsConfig = { compilerOptions: {} }
-  }
-
-  return tsConfig
-}
-
 export async function transpileConfig({
   nextConfigPath,
+  configFileName,
   cwd,
+  isFallback,
 }: {
   nextConfigPath: string
+  configFileName: string
   cwd: string
+  isFallback: boolean
 }) {
   let hasRequire = false
   try {
-    const { compilerOptions } = await lazilyGetTSConfig(cwd)
-    const swcOptions = resolveSWCOptions(cwd, compilerOptions)
+    const tsConfig = lazilyGetTSConfig(cwd)
+    const swcOptions = resolveSWCOptionsForNextConfigRequireHook(
+      cwd,
+      tsConfig.compilerOptions ?? {}
+    )
 
     const nextConfigString = await readFile(nextConfigPath, 'utf8')
     // lazy require swc since it loads React before even setting NODE_ENV
@@ -66,8 +60,54 @@ export async function transpileConfig({
     }
 
     // filename & extension don't matter here
-    return requireFromString(code, join(cwd, 'next.config.compiled.js'))
+    return requireFromString(code, resolve(cwd, 'next.config.compiled.js'))
   } catch (error) {
+    // Fallback to the require hook because the loader was needed but the
+    // `module.register` is missing. Throw based on the Node.js version
+    // as it can be resolved when using the loader.
+    if (isFallback) {
+      // TODO: Remove the version detects that passed the current minimum Node.js version.
+      const nodeVersion = process?.versions?.node
+
+      // `process.versions.node` value may be missing in other runtimes.
+      if (!nodeVersion) {
+        throw new Error(
+          'Module.register is not available and cannot find Node.js version.\n' +
+            'Please upgrade to Node.js higher than 18.x with 18.19.0 or 20.x with 20.6.0.',
+          { cause: error }
+        )
+      }
+
+      const configErrorReason =
+        configFileName === 'next.config.mts'
+          ? configFileName
+          : `${configFileName} with Native ESM app (package.json type: module)`
+
+      // `module.register` was added in Node.js v18.19.0, v20.6.0
+      if (semver.lt(nodeVersion, '18.19.0')) {
+        throw new Error(
+          `${configErrorReason} requires Node.js 18.19.0 or higher (current: ${nodeVersion}).`,
+          { cause: error }
+        )
+      }
+      if (
+        semver.satisfies(nodeVersion, '20.x') &&
+        semver.lt(nodeVersion, '20.6.0')
+      ) {
+        throw new Error(
+          `${configErrorReason} requires Node.js 20.6.0 or higher (current: ${nodeVersion}).`,
+          { cause: error }
+        )
+      }
+      // `module.register` is not supported on Node.js v19.
+      if (semver.satisfies(nodeVersion, '19.x')) {
+        throw new Error(
+          `${configErrorReason} is not supported on Node.js v19 (current: ${nodeVersion}). Please upgrade to Node.js 20.6.0 or higher.`,
+          { cause: error }
+        )
+      }
+    }
+
     throw error
   } finally {
     if (hasRequire) {

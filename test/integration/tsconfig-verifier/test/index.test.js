@@ -53,6 +53,7 @@ import path from 'path'
           },
           "include": [
             "next-env.d.ts",
+            "next.config.*",
             ".next/types/**/*.ts",
             "**/*.ts",
             "**/*.tsx"
@@ -108,6 +109,7 @@ import path from 'path'
           },
           "include": [
             "next-env.d.ts",
+            "next.config.*",
             ".next/types/**/*.ts",
             "**/*.ts",
             "**/*.tsx"
@@ -182,6 +184,7 @@ import path from 'path'
           ,
           "include": [
             "next-env.d.ts",
+            "next.config.*",
             ".next/types/**/*.ts",
             "**/*.ts",
             "**/*.tsx"
@@ -235,6 +238,7 @@ import path from 'path'
           },
           "include": [
             "next-env.d.ts",
+            "next.config.*",
             ".next/types/**/*.ts",
             "**/*.ts",
             "**/*.tsx"
@@ -287,6 +291,7 @@ import path from 'path'
           },
           "include": [
             "next-env.d.ts",
+            "next.config.*",
             ".next/types/**/*.ts",
             "**/*.ts",
             "**/*.tsx"
@@ -343,6 +348,7 @@ import path from 'path'
           },
           "include": [
             "next-env.d.ts",
+            "next.config.*",
             ".next/types/**/*.ts",
             "**/*.ts",
             "**/*.tsx"
@@ -399,6 +405,7 @@ import path from 'path'
           },
           "include": [
             "next-env.d.ts",
+            "next.config.*",
             ".next/types/**/*.ts",
             "**/*.ts",
             "**/*.tsx"
@@ -424,44 +431,45 @@ import path from 'path'
       expect(code).toBe(0)
 
       expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
-              "{
-                "compilerOptions": {
-                  "target": "es2022",
-                  "lib": [
-                    "dom",
-                    "dom.iterable",
-                    "esnext"
-                  ],
-                  "allowJs": true,
-                  "skipLibCheck": true,
-                  "strict": false,
-                  "noEmit": true,
-                  "incremental": true,
-                  "module": "esnext",
-                  "esModuleInterop": true,
-                  "moduleResolution": "node",
-                  "resolveJsonModule": true,
-                  "isolatedModules": true,
-                  "jsx": "preserve",
-                  "plugins": [
-                    {
-                      "name": "next"
-                    }
-                  ],
-                  "strictNullChecks": true
-                },
-                "include": [
-                  "next-env.d.ts",
-                  ".next/types/**/*.ts",
-                  "**/*.ts",
-                  "**/*.tsx"
-                ],
-                "exclude": [
-                  "node_modules"
-                ]
+        "{
+          "compilerOptions": {
+            "target": "es2022",
+            "lib": [
+              "dom",
+              "dom.iterable",
+              "esnext"
+            ],
+            "allowJs": true,
+            "skipLibCheck": true,
+            "strict": false,
+            "noEmit": true,
+            "incremental": true,
+            "module": "esnext",
+            "esModuleInterop": true,
+            "moduleResolution": "node",
+            "resolveJsonModule": true,
+            "isolatedModules": true,
+            "jsx": "preserve",
+            "plugins": [
+              {
+                "name": "next"
               }
-              "
-          `)
+            ],
+            "strictNullChecks": true
+          },
+          "include": [
+            "next-env.d.ts",
+            "next.config.*",
+            ".next/types/**/*.ts",
+            "**/*.ts",
+            "**/*.tsx"
+          ],
+          "exclude": [
+            "node_modules"
+          ]
+        }
+        "
+      `)
     })
 
     it('allows you to set node16 module mode', async () => {
@@ -508,6 +516,7 @@ import path from 'path'
           },
           "include": [
             "next-env.d.ts",
+            "next.config.*",
             ".next/types/**/*.ts",
             "**/*.ts",
             "**/*.tsx"
@@ -564,6 +573,7 @@ import path from 'path'
           },
           "include": [
             "next-env.d.ts",
+            "next.config.*",
             ".next/types/**/*.ts",
             "**/*.ts",
             "**/*.tsx"
@@ -622,6 +632,7 @@ import path from 'path'
           },
           "include": [
             "next-env.d.ts",
+            "next.config.*",
             ".next/types/**/*.ts",
             "**/*.ts",
             "**/*.tsx"

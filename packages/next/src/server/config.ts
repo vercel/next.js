@@ -1,4 +1,5 @@
 import { existsSync } from 'fs'
+import { readFile } from 'fs/promises'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
@@ -1139,6 +1140,12 @@ export default async function loadConfig(
   }
 
   const path = await findUp(CONFIG_FILES, { cwd: dir })
+  const packageJsonPath = await findUp('package.json', {
+    cwd: dir,
+  })
+  const packageJson = packageJsonPath
+    ? JSON.parse(await readFile(packageJsonPath, 'utf-8'))
+    : {}
 
   if (process.env.__NEXT_TEST_MODE) {
     if (path) {
@@ -1152,6 +1159,31 @@ export default async function loadConfig(
   if (path?.length) {
     configFileName = basename(path)
 
+    // To resolve "next.config.(ts|cts)" and it's imports, register the require hook
+    // and transpile the config with SWC. The data will be directly "required" from
+    // the compiled string.
+    let shouldRegisterRequireHook =
+      extname(configFileName) === '.cts' ||
+      (extname(configFileName) === '.ts' && packageJson.type !== 'module')
+
+    // To resolve "next.config.(ts|mts)" ("ts" when package.json "type" is "module")
+    // and it's imports, register the loader hook and transpile the config with SWC.
+    // Node.js will then load the compiled source passed from the loader.
+    let shouldRegisterLoader =
+      extname(configFileName) === '.mts' ||
+      (extname(configFileName) === '.ts' && packageJson.type === 'module')
+
+    const { register } = require('module')
+
+    if (shouldRegisterLoader) {
+      // `module.register` was added in Node.js v18.19.0, v20.6.0 and is not
+      // supported on Node.js v19. If `module.register` is missing, fallback to
+      // the require hook. Will throw properly based on the Node.js version there.
+      if (typeof register !== 'function') {
+        shouldRegisterRequireHook = true
+      }
+    }
+
     let userConfigModule: any
     try {
       const envBefore = Object.assign({}, process.env)
@@ -1164,12 +1196,22 @@ export default async function loadConfig(
         // jest relies on so we fall back to require for this case
         // https://github.com/nodejs/node/issues/35889
         userConfigModule = require(path)
-      } else if (configFileName === 'next.config.ts') {
+      } else if (shouldRegisterRequireHook) {
         userConfigModule = await transpileConfig({
           nextConfigPath: path,
+          configFileName,
           cwd: dir,
+          isFallback: shouldRegisterLoader,
         })
       } else {
+        if (shouldRegisterLoader) {
+          register('../build/next-config-ts/loader.mjs', {
+            parentURL: pathToFileURL(__filename),
+            // data is passed to the loader "initialize" function
+            data: { cwd: dir },
+          })
+        }
+
         userConfigModule = await import(pathToFileURL(path).href)
       }
       const newEnv: typeof process.env = {} as any
