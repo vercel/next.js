@@ -424,6 +424,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         consistency: ReadConsistency,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<Result<RawVc, EventListener>> {
+        if let Some(reader) = reader {
+            self.assert_not_persistent_calling_transient(reader, task_id);
+        }
+
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
 
@@ -622,6 +626,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
+        if let Some(reader) = reader {
+            self.assert_not_persistent_calling_transient(reader, task_id);
+        }
+
         fn add_cell_dependency<B: BackingStorage>(
             backend: &TurboTasksBackendInner<B>,
             mut task: impl TaskGuard,
@@ -979,11 +987,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
         if !parent_task.is_transient() {
-            let parent_task_type = self.lookup_task_type(parent_task);
-            panic!(
-                "Calling transient function {} from persistent function {} is not allowed",
-                task_type.get_name(),
-                parent_task_type.map_or("unknown", |t| t.get_name())
+            panic_persistent_calling_transient(
+                self.lookup_task_type(parent_task).as_deref(),
+                Some(&task_type),
             );
         }
         if let Some(task_id) = self.task_cache.lookup_forward(&task_type) {
@@ -1984,6 +1990,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             root_state.all_clean_event.notify(usize::MAX);
         }
     }
+
+    fn assert_not_persistent_calling_transient(&self, parent_id: TaskId, child_id: TaskId) {
+        if !parent_id.is_transient() && child_id.is_transient() {
+            panic_persistent_calling_transient(
+                self.lookup_task_type(parent_id).as_deref(),
+                self.lookup_task_type(child_id).as_deref(),
+            );
+        }
+    }
 }
 
 impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
@@ -2259,6 +2274,17 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
     fn task_statistics(&self) -> &TaskStatisticsApi {
         &self.0.task_statistics
     }
+}
+
+fn panic_persistent_calling_transient(
+    parent: Option<&CachedTaskType>,
+    child: Option<&CachedTaskType>,
+) {
+    panic!(
+        "Persistent task {} is not allowed to call or read transient tasks {}",
+        parent.map_or("unknown", |t| t.get_name()),
+        child.map_or("unknown", |t| t.get_name()),
+    );
 }
 
 // from https://github.com/tokio-rs/tokio/blob/29cd6ec1ec6f90a7ee1ad641c03e0e00badbcb0e/tokio/src/time/instant.rs#L57-L63

@@ -12,7 +12,7 @@ export abstract class BrowserInterface<TCurrent = any> {
   readonly [Symbol.toStringTag]: string = 'BrowserInterface'
 
   protected chain<TNext>(
-    nextCall: (current: TCurrent) => TNext | Promise<TNext>
+    nextCall: (current: TCurrent | undefined) => TNext | Promise<TNext>
   ): BrowserInterface<TNext> & Promise<TNext> {
     const syncError = new Error('next-browser-base-chain-error')
     const promise = Promise.resolve(this.promise)
@@ -23,7 +23,7 @@ export abstract class BrowserInterface<TCurrent = any> {
           typeof reason === 'object' &&
           'stack' in reason
         ) {
-          const syncCallStack = syncError.stack.split(syncError.message)[1]
+          const syncCallStack = syncError.stack!.split(syncError.message)[1]
           reason.stack += `\n${syncCallStack}`
         }
         throw reason
@@ -100,12 +100,7 @@ export abstract class BrowserInterface<TCurrent = any> {
   abstract off(event: Event, cb: (...args: any[]) => void): void
   abstract loadPage(
     url: string,
-    {
-      disableCache,
-      cpuThrottleRate,
-      beforePageLoad,
-      pushErrorAsConsoleLog,
-    }?: {
+    options?: {
       disableCache?: boolean
       cpuThrottleRate?: number
       beforePageLoad?: Function
@@ -114,7 +109,7 @@ export abstract class BrowserInterface<TCurrent = any> {
   ): Promise<void>
   abstract get(url: string): Promise<void>
   abstract getValue(): Promise<string>
-  abstract getAttribute(name: string): Promise<string>
+  abstract getAttribute(name: string): Promise<string | null>
   abstract eval(snippet: string | Function, ...args: any[]): Promise<any>
   abstract evalAsync(snippet: string | Function, ...args: any[]): Promise<any>
   abstract text(): Promise<string>
