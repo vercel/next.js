@@ -32,7 +32,10 @@ import React from 'react'
 
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-import { workUnitAsyncStorage } from './work-unit-async-storage.external'
+import {
+  isInUncachedPrerenderScope,
+  workUnitAsyncStorage,
+} from './work-unit-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import {
@@ -586,7 +589,7 @@ export function useDynamicRouteParams(expression: string) {
     const workUnitStore = workUnitAsyncStorage.getStore()
     if (workUnitStore) {
       // We're prerendering with dynamicIO or PPR or both
-      if (workUnitStore.type === 'prerender') {
+      if (isInUncachedPrerenderScope(workUnitStore)) {
         // We are in a prerender with dynamicIO semantics
         // We are going to hang here and never resolve. This will cause the currently
         // rendering component to effectively be a dynamic hole

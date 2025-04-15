@@ -17,7 +17,10 @@ import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../client/components/app-router-headers'
-import { cacheAsyncStorage } from './cache-async-storage.external'
+import {
+  cacheAsyncStorage,
+  type CacheStore,
+} from './cache-async-storage.external'
 
 export type WorkUnitPhase = 'action' | 'render' | 'after'
 
@@ -188,7 +191,8 @@ export function getPrerenderResumeDataCache(
   if (
     (workUnitStore.type === 'prerender' ||
       workUnitStore.type === 'prerender-ppr') &&
-    cacheStore?.type !== 'cache'
+    cacheStore?.type !== 'cache' &&
+    cacheStore?.type !== 'unstable-cache'
   ) {
     return workUnitStore.prerenderResumeDataCache
   }
@@ -231,4 +235,31 @@ export function getHmrRefreshHash(
     : workUnitStore.type === 'request'
       ? workUnitStore.cookies.get(NEXT_HMR_REFRESH_HASH_COOKIE)?.value
       : undefined
+}
+
+export function isInUncachedPrerenderScope(
+  workUnitStore: WorkUnitStore | undefined,
+  cacheStore?: CacheStore | undefined
+): workUnitStore is PrerenderStoreModern {
+  if (arguments.length === 1) {
+    cacheStore = cacheAsyncStorage.getStore()
+  }
+
+  return (
+    workUnitStore?.type === 'prerender' &&
+    cacheStore?.type !== 'cache' &&
+    cacheStore?.type !== 'unstable-cache'
+  )
+}
+
+export function isInUncachedPrerenderRequestScope(
+  workUnitStore: WorkUnitStore | undefined,
+  cacheStore = cacheAsyncStorage.getStore()
+): workUnitStore is RequestStore {
+  return (
+    workUnitStore?.type === 'request' &&
+    workUnitStore.prerenderPhase === true &&
+    cacheStore?.type !== 'cache' &&
+    cacheStore?.type !== 'unstable-cache'
+  )
 }

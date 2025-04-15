@@ -1,5 +1,9 @@
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import {
+  isInUncachedPrerenderRequestScope,
+  isInUncachedPrerenderScope,
+  workUnitAsyncStorage,
+} from '../app-render/work-unit-async-storage.external'
 import {
   abortOnSynchronousPlatformIOAccess,
   trackSynchronousPlatformIOAccessInDev,
@@ -11,7 +15,7 @@ type ApiType = 'time' | 'random' | 'crypto'
 export function io(expression: string, type: ApiType) {
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
-    if (workUnitStore.type === 'prerender') {
+    if (isInUncachedPrerenderScope(workUnitStore)) {
       const prerenderSignal = workUnitStore.controller.signal
       if (prerenderSignal.aborted === false) {
         // If the prerender signal is already aborted we don't need to construct any stacks
@@ -44,10 +48,7 @@ export function io(expression: string, type: ApiType) {
           )
         }
       }
-    } else if (
-      workUnitStore.type === 'request' &&
-      workUnitStore.prerenderPhase === true
-    ) {
+    } else if (isInUncachedPrerenderRequestScope(workUnitStore)) {
       const requestStore = workUnitStore
       trackSynchronousPlatformIOAccessInDev(requestStore)
     }

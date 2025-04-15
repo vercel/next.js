@@ -16,6 +16,7 @@ import {
   type PrerenderStoreLegacy,
   type PrerenderStorePPR,
   type PrerenderStoreModern,
+  isInUncachedPrerenderRequestScope,
 } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
@@ -679,15 +680,10 @@ function syncIODev(
   }
 
   const workUnitStore = workUnitAsyncStorage.getStore()
-  if (
-    workUnitStore &&
-    workUnitStore.type === 'request' &&
-    workUnitStore.prerenderPhase === true
-  ) {
+  if (isInUncachedPrerenderRequestScope(workUnitStore)) {
     // When we're rendering dynamically in dev we need to advance out of the
     // Prerender environment when we read Request data synchronously
-    const requestStore = workUnitStore
-    trackSynchronousRequestDataAccessInDev(requestStore)
+    trackSynchronousRequestDataAccessInDev(workUnitStore)
   }
 }
 

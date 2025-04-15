@@ -3,7 +3,10 @@ import type { IncrementalCache } from '../../lib/incremental-cache'
 import { CACHE_ONE_YEAR, INFINITE_CACHE } from '../../../lib/constants'
 import { validateRevalidate, validateTags } from '../../lib/patch-fetch'
 import { workAsyncStorage } from '../../app-render/work-async-storage.external'
-import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.external'
+import {
+  isInUncachedPrerenderScope,
+  workUnitAsyncStorage,
+} from '../../app-render/work-unit-async-storage.external'
 import {
   CachedRouteKind,
   IncrementalCacheKind,
@@ -107,10 +110,9 @@ export function unstable_cache<T extends Callback>(
     }
     const incrementalCache = maybeIncrementalCache
 
-    const cacheSignal =
-      workUnitStore && workUnitStore.type === 'prerender'
-        ? workUnitStore.cacheSignal
-        : null
+    const cacheSignal = isInUncachedPrerenderScope(workUnitStore)
+      ? workUnitStore.cacheSignal
+      : null
     if (cacheSignal) {
       cacheSignal.beginRead()
     }

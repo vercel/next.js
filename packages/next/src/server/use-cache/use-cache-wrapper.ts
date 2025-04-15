@@ -21,6 +21,7 @@ import {
   getRenderResumeDataCache,
   getPrerenderResumeDataCache,
   workUnitAsyncStorage,
+  isInUncachedPrerenderScope,
 } from '../app-render/work-unit-async-storage.external'
 import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'
 
@@ -322,8 +323,7 @@ async function generateCacheEntryImpl(
               // so we intentionally keep the iterable alive. This is similar to
               // the halting trick that we do while rendering.
               if (
-                outerWorkUnitStore?.type === 'prerender' &&
-                outerCacheStore?.type !== 'cache'
+                isInUncachedPrerenderScope(outerWorkUnitStore, outerCacheStore)
               ) {
                 await new Promise<void>((resolve) => {
                   if (outerWorkUnitStore.renderSignal.aborted) {
@@ -356,10 +356,7 @@ async function generateCacheEntryImpl(
 
   let timer = undefined
   const controller = new AbortController()
-  if (
-    outerWorkUnitStore?.type === 'prerender' &&
-    outerCacheStore?.type !== 'cache'
-  ) {
+  if (isInUncachedPrerenderScope(outerWorkUnitStore, outerCacheStore)) {
     // If we're prerendering, we give you 50 seconds to fill a cache entry.
     // Otherwise we assume you stalled on hanging input and de-opt. This needs
     // to be lower than just the general timeout of 60 seconds.
@@ -406,12 +403,12 @@ async function generateCacheEntryImpl(
 
   const [returnStream, savedStream] = stream.tee()
 
-  const cacheSignal =
-    outerWorkUnitStore &&
-    outerWorkUnitStore.type === 'prerender' &&
-    outerCacheStore?.type !== 'cache'
-      ? outerWorkUnitStore.cacheSignal
-      : null
+  const cacheSignal = isInUncachedPrerenderScope(
+    outerWorkUnitStore,
+    outerCacheStore
+  )
+    ? outerWorkUnitStore.cacheSignal
+    : null
 
   const promiseOfCacheEntry = collectResult(
     savedStream,
@@ -558,10 +555,9 @@ export function cache(
       const hmrRefreshHash =
         workUnitStore && getHmrRefreshHash(workStore, workUnitStore)
 
-      const hangingInputAbortSignal =
-        workUnitStore?.type === 'prerender' && cacheStore?.type !== 'cache'
-          ? createHangingInputAbortSignal(workUnitStore)
-          : undefined
+      const hangingInputAbortSignal = isInUncachedPrerenderScope(workUnitStore)
+        ? createHangingInputAbortSignal(workUnitStore)
+        : undefined
 
       // When dynamicIO is not enabled, we can not encode searchParams as
       // hanging promises. To still avoid unused search params from making a
@@ -644,12 +640,9 @@ export function cache(
         : null
 
       if (renderResumeDataCache) {
-        const cacheSignal =
-          workUnitStore &&
-          workUnitStore.type === 'prerender' &&
-          cacheStore?.type !== 'cache'
-            ? workUnitStore.cacheSignal
-            : null
+        const cacheSignal = isInUncachedPrerenderScope(workUnitStore)
+          ? workUnitStore.cacheSignal
+          : null
 
         if (cacheSignal) {
           cacheSignal.beginRead()
@@ -659,9 +652,7 @@ export function cache(
           const existingEntry = await cachedEntry
           propagateCacheLifeAndTags(cacheStore, existingEntry)
           if (
-            workUnitStore !== undefined &&
-            workUnitStore.type === 'prerender' &&
-            cacheStore?.type !== 'cache' &&
+            isInUncachedPrerenderScope(workUnitStore) &&
             existingEntry !== undefined &&
             (existingEntry.revalidate === 0 ||
               existingEntry.expire < DYNAMIC_EXPIRE)
@@ -696,12 +687,9 @@ export function cache(
       }
 
       if (stream === undefined) {
-        const cacheSignal =
-          workUnitStore &&
-          workUnitStore.type === 'prerender' &&
-          cacheStore?.type !== 'cache'
-            ? workUnitStore.cacheSignal
-            : null
+        const cacheSignal = isInUncachedPrerenderScope(workUnitStore)
+          ? workUnitStore.cacheSignal
+          : null
         if (cacheSignal) {
           // Either the cache handler or the generation can be using I/O at this point.
           // We need to track when they start and when they complete.
@@ -758,9 +746,7 @@ export function cache(
 
         const currentTime = performance.timeOrigin + performance.now()
         if (
-          workUnitStore !== undefined &&
-          workUnitStore.type === 'prerender' &&
-          cacheStore?.type !== 'cache' &&
+          isInUncachedPrerenderScope(workUnitStore) &&
           entry !== undefined &&
           (entry.revalidate === 0 || entry.expire < DYNAMIC_EXPIRE)
         ) {

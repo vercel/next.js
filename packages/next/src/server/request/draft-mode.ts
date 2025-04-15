@@ -1,4 +1,7 @@
-import { throwForMissingRequestStore } from '../app-render/work-unit-async-storage.external'
+import {
+  isInUncachedPrerenderRequestScope,
+  throwForMissingRequestStore,
+} from '../app-render/work-unit-async-storage.external'
 
 import type { DraftModeProvider } from '../async-storage/draft-mode-provider'
 
@@ -191,15 +194,10 @@ class DraftMode {
 
 function syncIODev(route: string | undefined, expression: string) {
   const workUnitStore = workUnitAsyncStorage.getStore()
-  if (
-    workUnitStore &&
-    workUnitStore.type === 'request' &&
-    workUnitStore.prerenderPhase === true
-  ) {
+  if (isInUncachedPrerenderRequestScope(workUnitStore)) {
     // When we're rendering dynamically in dev we need to advance out of the
     // Prerender environment when we read Request data synchronously
-    const requestStore = workUnitStore
-    trackSynchronousRequestDataAccessInDev(requestStore)
+    trackSynchronousRequestDataAccessInDev(workUnitStore)
   }
   // In all cases we warn normally
   warnForSyncAccess(route, expression)

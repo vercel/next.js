@@ -19,6 +19,7 @@ import {
 import {
   getPrerenderResumeDataCache,
   getRenderResumeDataCache,
+  isInUncachedPrerenderScope,
   workUnitAsyncStorage,
 } from './work-unit-async-storage.external'
 import { createHangingInputAbortSignal } from './dynamic-rendering'
@@ -99,10 +100,9 @@ export const encryptActionBoundArgs = React.cache(
 
     const workUnitStore = workUnitAsyncStorage.getStore()
 
-    const hangingInputAbortSignal =
-      workUnitStore?.type === 'prerender'
-        ? createHangingInputAbortSignal(workUnitStore)
-        : undefined
+    const hangingInputAbortSignal = isInUncachedPrerenderScope(workUnitStore)
+      ? createHangingInputAbortSignal(workUnitStore)
+      : undefined
 
     // Using Flight to serialize the args into a string.
     const serialized = await streamToString(
@@ -158,8 +158,9 @@ export const encryptActionBoundArgs = React.cache(
       return cachedEncrypted
     }
 
-    const cacheSignal =
-      workUnitStore.type === 'prerender' ? workUnitStore.cacheSignal : undefined
+    const cacheSignal = isInUncachedPrerenderScope(workUnitStore)
+      ? workUnitStore.cacheSignal
+      : undefined
 
     cacheSignal?.beginRead()
 
@@ -183,8 +184,9 @@ export async function decryptActionBoundArgs(
   let decrypted: string | undefined
 
   if (workUnitStore) {
-    const cacheSignal =
-      workUnitStore.type === 'prerender' ? workUnitStore.cacheSignal : undefined
+    const cacheSignal = isInUncachedPrerenderScope(workUnitStore)
+      ? workUnitStore.cacheSignal
+      : undefined
 
     const prerenderResumeDataCache = getPrerenderResumeDataCache(workUnitStore)
     const renderResumeDataCache = getRenderResumeDataCache(workUnitStore)
@@ -212,7 +214,7 @@ export async function decryptActionBoundArgs(
       start(controller) {
         controller.enqueue(textEncoder.encode(decrypted))
 
-        if (workUnitStore?.type === 'prerender') {
+        if (isInUncachedPrerenderScope(workUnitStore)) {
           // Explicitly don't close the stream here (until prerendering is
           // complete) so that hanging promises are not rejected.
           if (workUnitStore.renderSignal.aborted) {

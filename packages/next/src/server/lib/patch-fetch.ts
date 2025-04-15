@@ -15,7 +15,10 @@ import { markCurrentScopeAsDynamic } from '../app-render/dynamic-rendering'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import type { FetchMetric } from '../base-http'
 import { createDedupeFetch } from './dedupe-fetch'
-import type { WorkUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import {
+  isInUncachedPrerenderScope,
+  type WorkUnitAsyncStorage,
+} from '../app-render/work-unit-async-storage.external'
 import {
   CachedRouteKind,
   IncrementalCacheKind,
@@ -187,10 +190,9 @@ export function createPatchedFetcher(
     const cacheStore = cacheAsyncStorage.getStore()
 
     // During static generation we track cache reads so we can reason about when they fill
-    let cacheSignal =
-      workUnitStore && workUnitStore.type === 'prerender'
-        ? workUnitStore.cacheSignal
-        : null
+    let cacheSignal = isInUncachedPrerenderScope(workUnitStore)
+      ? workUnitStore.cacheSignal
+      : null
     if (cacheSignal) {
       cacheSignal.beginRead()
     }
@@ -398,8 +400,7 @@ export function createPatchedFetcher(
 
         if (
           hasNoExplicitCacheConfig &&
-          workUnitStore !== undefined &&
-          workUnitStore.type === 'prerender'
+          isInUncachedPrerenderScope(workUnitStore)
         ) {
           // If we have no cache config, and we're in Dynamic I/O prerendering, it'll be a dynamic call.
           // We don't have to issue that dynamic call.
@@ -494,7 +495,7 @@ export function createPatchedFetcher(
           // If we were setting the revalidate value to 0, we should try to
           // postpone instead first.
           if (finalRevalidate === 0) {
-            if (workUnitStore && workUnitStore.type === 'prerender') {
+            if (isInUncachedPrerenderScope(workUnitStore)) {
               if (cacheSignal) {
                 cacheSignal.endRead()
                 cacheSignal = null
@@ -624,7 +625,7 @@ export function createPatchedFetcher(
                     ? CACHE_ONE_YEAR
                     : finalRevalidate
 
-                if (workUnitStore && workUnitStore.type === 'prerender') {
+                if (isInUncachedPrerenderScope(workUnitStore)) {
                   // We are prerendering at build time or revalidate time with dynamicIO so we need to
                   // buffer the response so we can guarantee it can be read in a microtask
                   const bodyBuffer = await res.arrayBuffer()
@@ -751,7 +752,7 @@ export function createPatchedFetcher(
               // We sometimes use the cache to dedupe fetches that do not specify a cache configuration
               // In these cases we want to make sure we still exclude them from prerenders if dynamicIO is on
               // so we introduce an artificial Task boundary here.
-              if (workUnitStore && workUnitStore.type === 'prerender') {
+              if (isInUncachedPrerenderScope(workUnitStore)) {
                 await waitAtLeastOneReactRenderTask()
               }
             }
@@ -834,7 +835,7 @@ export function createPatchedFetcher(
 
           if (cache === 'no-store') {
             // If enabled, we should bail out of static generation.
-            if (workUnitStore && workUnitStore.type === 'prerender') {
+            if (isInUncachedPrerenderScope(workUnitStore)) {
               if (cacheSignal) {
                 cacheSignal.endRead()
                 cacheSignal = null
@@ -861,7 +862,7 @@ export function createPatchedFetcher(
           ) {
             if (next.revalidate === 0) {
               // If enabled, we should bail out of static generation.
-              if (workUnitStore && workUnitStore.type === 'prerender') {
+              if (isInUncachedPrerenderScope(workUnitStore)) {
                 return makeHangingPromise<Response>(
                   workUnitStore.renderSignal,
                   'fetch()'

@@ -1,5 +1,8 @@
 import { workAsyncStorage } from '../../app-render/work-async-storage.external'
-import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.external'
+import {
+  isInUncachedPrerenderScope,
+  workUnitAsyncStorage,
+} from '../../app-render/work-unit-async-storage.external'
 import { markCurrentScopeAsDynamic } from '../../app-render/dynamic-rendering'
 
 /**
@@ -30,7 +33,7 @@ export function unstable_noStore() {
     return
   } else {
     store.isUnstableNoStore = true
-    if (workUnitStore && workUnitStore.type === 'prerender') {
+    if (isInUncachedPrerenderScope(workUnitStore)) {
       // unstable_noStore() is a noop in Dynamic I/O.
     } else {
       markCurrentScopeAsDynamic(store, workUnitStore, callingExpression)

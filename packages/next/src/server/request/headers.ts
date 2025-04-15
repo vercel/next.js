@@ -3,7 +3,10 @@ import {
   type ReadonlyHeaders,
 } from '../web/spec-extension/adapters/headers'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { getExpectedRequestStore } from '../app-render/work-unit-async-storage.external'
+import {
+  getExpectedRequestStore,
+  isInUncachedPrerenderRequestScope,
+} from '../app-render/work-unit-async-storage.external'
 import {
   workUnitAsyncStorage,
   type PrerenderStoreModern,
@@ -469,15 +472,10 @@ function describeNameArg(arg: unknown) {
 
 function syncIODev(route: string | undefined, expression: string) {
   const workUnitStore = workUnitAsyncStorage.getStore()
-  if (
-    workUnitStore &&
-    workUnitStore.type === 'request' &&
-    workUnitStore.prerenderPhase === true
-  ) {
+  if (isInUncachedPrerenderRequestScope(workUnitStore)) {
     // When we're rendering dynamically in dev we need to advance out of the
     // Prerender environment when we read Request data synchronously
-    const requestStore = workUnitStore
-    trackSynchronousRequestDataAccessInDev(requestStore)
+    trackSynchronousRequestDataAccessInDev(workUnitStore)
   }
   // In all cases we warn normally
   warnForSyncAccess(route, expression)

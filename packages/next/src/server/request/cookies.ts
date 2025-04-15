@@ -7,6 +7,7 @@ import {
 import { RequestCookies } from '../web/spec-extension/cookies'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import {
+  isInUncachedPrerenderRequestScope,
   workUnitAsyncStorage,
   type PrerenderStoreModern,
 } from '../app-render/work-unit-async-storage.external'
@@ -543,11 +544,7 @@ function describeNameArg(arg: unknown) {
 
 function syncIODev(route: string | undefined, expression: string) {
   const workUnitStore = workUnitAsyncStorage.getStore()
-  if (
-    workUnitStore &&
-    workUnitStore.type === 'request' &&
-    workUnitStore.prerenderPhase === true
-  ) {
+  if (isInUncachedPrerenderRequestScope(workUnitStore)) {
     // When we're rendering dynamically in dev we need to advance out of the
     // Prerender environment when we read Request data synchronously
     const requestStore = workUnitStore
