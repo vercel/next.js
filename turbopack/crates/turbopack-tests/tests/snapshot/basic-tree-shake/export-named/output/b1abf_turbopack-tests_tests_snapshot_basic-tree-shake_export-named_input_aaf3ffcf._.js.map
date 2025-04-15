@@ -11,5 +11,5 @@
     {"offset": {"line": 87, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
     {"offset": {"line": 105, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
     {"offset": {"line": 120, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
-    {"offset": {"line": 135, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/export-named/input/index.js"],"sourcesContent":["import { fakeCat } from \"./module\";\n\n\nconsole.log(fakeCat)\n"],"names":[],"mappings":";AAAA;;AAGA,QAAQ,GAAG,CAAC,mPAAA,CAAA,UAAO"}}]
+    {"offset": {"line": 135, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/export-named/input/index.js"],"sourcesContent":["import { fakeCat } from \"./module\";\n\n\nconsole.log(fakeCat)\n"],"names":[],"mappings":";AAAA;AAAA;;AAGA,QAAQ,GAAG,CAAC,mPAAA,CAAA,UAAO"}}]
 }
