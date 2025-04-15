@@ -194,15 +194,14 @@ At build time, Next.js prerenders functions annotated with `"use cache"`. The re
 
 If a `"use cache"` function uses [`cookies`](/docs/app/api-reference/functions/cookies), it’s marked as dynamic, and skips prerendering. It will only run at runtime, where cookie data is available in the request.
 
-```js
-let data = await fetch('https://api.vercel.app/blog', { cache: 'no-store' })
-```
+#### Runtime (resume render)
 
-See the [`fetch` API Reference](/docs/app/api-reference/functions/fetch) for more options.
+Runtime (resume render) refers to the phase where a user navigates to a route for the first time or the route is prefetched in the background.
 
-### `fetch options.cache`
+At this point, Next.js has [prerendered](#prerender-build-time) some or all of the route, and sends the RSC payload to the client.
 
-You can opt individual `fetch` into caching by setting the `cache` option to `force-cache`:
+- If a `"use cache"` entry was present in the Resume Data Cache, it's reused.
+- If it was missing or expired, the function re-runs on the server.
 
 ```jsx
 // Opt into caching
