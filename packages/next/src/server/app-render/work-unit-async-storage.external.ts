@@ -17,6 +17,7 @@ import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../client/components/app-router-headers'
+import { cacheAsyncStorage } from './cache-async-storage.external'
 
 export type WorkUnitPhase = 'action' | 'render' | 'after'
 
@@ -182,9 +183,12 @@ export function throwForMissingRequestStore(callingExpression: string): never {
 export function getPrerenderResumeDataCache(
   workUnitStore: WorkUnitStore
 ): PrerenderResumeDataCache | null {
+  const cacheStore = cacheAsyncStorage.getStore()
+
   if (
-    workUnitStore.type === 'prerender' ||
-    workUnitStore.type === 'prerender-ppr'
+    (workUnitStore.type === 'prerender' ||
+      workUnitStore.type === 'prerender-ppr') &&
+    cacheStore?.type !== 'cache'
   ) {
     return workUnitStore.prerenderResumeDataCache
   }
@@ -195,7 +199,13 @@ export function getPrerenderResumeDataCache(
 export function getRenderResumeDataCache(
   workUnitStore: WorkUnitStore
 ): RenderResumeDataCache | null {
-  if (workUnitStore.type !== 'prerender-legacy') {
+  const cacheStore = cacheAsyncStorage.getStore()
+
+  if (
+    workUnitStore.type !== 'prerender-legacy' &&
+    cacheStore?.type !== 'cache' &&
+    cacheStore?.type !== 'unstable-cache'
+  ) {
     if (workUnitStore.type === 'request') {
       return workUnitStore.renderResumeDataCache
     }
