@@ -132,7 +132,7 @@ import {
   createDynamicValidationState,
   getFirstDynamicReason,
   trackAllowedDynamicAccess,
-  throwIfDisallowedDynamic,
+  throwIfDisallowedEmptyShell,
   consumeDynamicAccess,
   type DynamicAccess,
 } from './dynamic-rendering'
@@ -154,7 +154,10 @@ import { getRevalidateReason } from '../instrumentation/utils'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { FallbackRouteParams } from '../request/fallback-params'
 import { DynamicServerError } from '../../client/components/hooks-server-context'
-import { ServerPrerenderStreamResult } from './app-render-prerender-utils'
+import {
+  ServerPrerenderStreamResult,
+  processPrelude,
+} from './app-render-prerender-utils'
 import {
   type ReactServerPrerenderResult,
   ReactServerResult,
@@ -2519,10 +2522,11 @@ async function spawnDynamicValidationInDev(
 
   let rootDidError = false
   const serverPhasedStream = serverPrerenderStreamResult.asPhasedStream()
+  let preludeIsEmpty = false
   try {
     const prerender = require('react-dom/static.edge')
       .prerender as (typeof import('react-dom/static.edge'))['prerender']
-    await prerenderClientWithPhases(
+    const { prelude: unprocessedPrelude } = await prerenderClientWithPhases(
       () =>
         workUnitAsyncStorage.run(
           finalClientPrerenderStore,
@@ -2561,9 +2565,7 @@ async function spawnDynamicValidationInDev(
                   trackAllowedDynamicAccess(
                     route,
                     componentStack,
-                    dynamicValidation,
-                    serverDynamicTracking,
-                    clientDynamicTracking
+                    dynamicValidation
                   )
                 }
                 return
@@ -2578,8 +2580,10 @@ async function spawnDynamicValidationInDev(
         serverPhasedStream.assertExhausted()
       }
     )
+    preludeIsEmpty = (await processPrelude(unprocessedPrelude)).preludeIsEmpty
   } catch (err) {
     rootDidError = true
+    preludeIsEmpty = true
     if (
       isPrerenderInterruptedError(err) ||
       finalClientController.signal.aborted
@@ -2596,12 +2600,14 @@ async function spawnDynamicValidationInDev(
 
   function LogDynamicValidation() {
     try {
-      throwIfDisallowedDynamic(
-        route,
-        dynamicValidation,
-        serverDynamicTracking,
-        clientDynamicTracking
-      )
+      if (preludeIsEmpty) {
+        throwIfDisallowedEmptyShell(
+          route,
+          dynamicValidation,
+          serverDynamicTracking,
+          clientDynamicTracking
+        )
+      }
     } catch {}
     return null
   }
@@ -3071,66 +3077,72 @@ async function prerenderToStream(
 
         const prerender = require('react-dom/static.edge')
           .prerender as (typeof import('react-dom/static.edge'))['prerender']
-        let { prelude, postponed } = await prerenderAndAbortInSequentialTasks(
-          () =>
-            workUnitAsyncStorage.run(
-              finalClientPrerenderStore,
-              prerender,
-              <App
-                reactServerStream={reactServerResult.asUnclosingStream()}
-                preinitScripts={preinitScripts}
-                clientReferenceManifest={clientReferenceManifest}
-                ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-                ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
-                gracefullyDegrade={!!ctx.renderOpts.botType}
-                nonce={nonce}
-              />,
-              {
-                signal: finalClientController.signal,
-                onError: (err: unknown, errorInfo: ErrorInfo) => {
-                  if (
-                    isPrerenderInterruptedError(err) ||
-                    finalClientController.signal.aborted
-                  ) {
-                    clientIsDynamic = true
-
-                    const componentStack: string | undefined = (
-                      errorInfo as any
-                    ).componentStack
-                    if (typeof componentStack === 'string') {
-                      trackAllowedDynamicAccess(
-                        workStore.route,
-                        componentStack,
-                        dynamicValidation,
-                        serverDynamicTracking,
-                        clientDynamicTracking
-                      )
-                    }
-                    return
+        let { prelude: unprocessedPrelude, postponed } =
+          await prerenderAndAbortInSequentialTasks(
+            () =>
+              workUnitAsyncStorage.run(
+                finalClientPrerenderStore,
+                prerender,
+                <App
+                  reactServerStream={reactServerResult.asUnclosingStream()}
+                  preinitScripts={preinitScripts}
+                  clientReferenceManifest={clientReferenceManifest}
+                  ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+                  ServerInsertedMetadataProvider={
+                    ServerInsertedMetadataProvider
                   }
+                  gracefullyDegrade={!!ctx.renderOpts.botType}
+                  nonce={nonce}
+                />,
+                {
+                  signal: finalClientController.signal,
+                  onError: (err: unknown, errorInfo: ErrorInfo) => {
+                    if (
+                      isPrerenderInterruptedError(err) ||
+                      finalClientController.signal.aborted
+                    ) {
+                      clientIsDynamic = true
 
-                  return htmlRendererErrorHandler(err, errorInfo)
-                },
-                onHeaders: (headers: Headers) => {
-                  headers.forEach((value, key) => {
-                    appendHeader(key, value)
-                  })
-                },
-                maxHeadersLength: renderOpts.reactMaxHeadersLength,
-                bootstrapScripts: [bootstrapScript],
-              }
-            ),
-          () => {
-            finalClientController.abort()
-          }
-        )
+                      const componentStack: string | undefined = (
+                        errorInfo as any
+                      ).componentStack
+                      if (typeof componentStack === 'string') {
+                        trackAllowedDynamicAccess(
+                          workStore.route,
+                          componentStack,
+                          dynamicValidation
+                        )
+                      }
+                      return
+                    }
 
-        throwIfDisallowedDynamic(
-          workStore.route,
-          dynamicValidation,
-          serverDynamicTracking,
-          clientDynamicTracking
-        )
+                    return htmlRendererErrorHandler(err, errorInfo)
+                  },
+                  onHeaders: (headers: Headers) => {
+                    headers.forEach((value, key) => {
+                      appendHeader(key, value)
+                    })
+                  },
+                  maxHeadersLength: renderOpts.reactMaxHeadersLength,
+                  bootstrapScripts: [bootstrapScript],
+                }
+              ),
+            () => {
+              finalClientController.abort()
+            }
+          )
+
+        const { prelude, preludeIsEmpty } =
+          await processPrelude(unprocessedPrelude)
+
+        if (preludeIsEmpty) {
+          throwIfDisallowedEmptyShell(
+            workStore.route,
+            dynamicValidation,
+            serverDynamicTracking,
+            clientDynamicTracking
+          )
+        }
 
         const getServerInsertedHTML = makeGetServerInsertedHTML({
           polyfills,
@@ -3538,7 +3550,7 @@ async function prerenderToStream(
             }
           ))
 
-        let htmlStream
+        let htmlStream, preludeIsEmpty
         const serverPhasedStream = serverPrerenderStreamResult.asPhasedStream()
         try {
           const prerender = require('react-dom/static.edge')
@@ -3575,9 +3587,7 @@ async function prerenderToStream(
                         trackAllowedDynamicAccess(
                           workStore.route,
                           componentStack,
-                          dynamicValidation,
-                          serverDynamicTracking,
-                          clientDynamicTracking
+                          dynamicValidation
                         )
                       }
                       return
@@ -3593,25 +3603,30 @@ async function prerenderToStream(
               serverPhasedStream.assertExhausted()
             }
           )
-          htmlStream = result.prelude
+          const processed = await processPrelude(result.prelude)
+          htmlStream = processed.prelude
+          preludeIsEmpty = processed.preludeIsEmpty
         } catch (err) {
           if (
             isPrerenderInterruptedError(err) ||
             finalClientController.signal.aborted
           ) {
-            // we don't have a root because the abort errored in the root. We can just ignore this error
+            preludeIsEmpty = true
           } else {
             // This error is something else and should bubble up
             throw err
           }
         }
 
-        throwIfDisallowedDynamic(
-          workStore.route,
-          dynamicValidation,
-          serverDynamicTracking,
-          clientDynamicTracking
-        )
+        if (preludeIsEmpty) {
+          // We don't have a shell because the root errored when we aborted.
+          throwIfDisallowedEmptyShell(
+            workStore.route,
+            dynamicValidation,
+            serverDynamicTracking,
+            clientDynamicTracking
+          )
+        }
 
         if (serverIsDynamic || clientIsDynamic) {
           const dynamicReason = serverIsDynamic

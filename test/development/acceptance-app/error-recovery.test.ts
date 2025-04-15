@@ -261,6 +261,7 @@ describe('Error recovery app', () => {
     ).toBe('1')
 
     if (isTurbopack) {
+      // TODO(veil): Location of Page should be app/page.js
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "description": "Error: oops",
@@ -280,7 +281,6 @@ describe('Error recovery app', () => {
        }
       `)
     } else {
-      // TODO(veil): Location of Page should be app/page.js
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "description": "Error: oops",
@@ -450,6 +450,8 @@ describe('Error recovery app', () => {
     )
 
     if (isTurbopack) {
+      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
+      // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
          "description": "Error: oops",
@@ -460,6 +462,9 @@ describe('Error recovery app', () => {
            |         ^",
          "stack": [
            "Child child.js (3:9)",
+           "Set.forEach <anonymous> (0:0)",
+           "<FIXME-file-protocol>",
+           "<FIXME-file-protocol>",
            "Index index.js (6:7)",
            "<FIXME-file-protocol>",
          ],
@@ -687,9 +692,11 @@ describe('Error recovery app', () => {
 
     // We get an error because Foo didn't import React. Fair.
     if (isTurbopack) {
+      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
+      // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: React is not defined",
+         "description": "ReferenceError: React is not defined",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "Foo.js (3:3) @ Foo
@@ -697,6 +704,9 @@ describe('Error recovery app', () => {
            |   ^",
          "stack": [
            "Foo Foo.js (3:3)",
+           "Set.forEach <anonymous> (0:0)",
+           "<FIXME-file-protocol>",
+           "<FIXME-file-protocol>",
            "FunctionDefault index.js (4:10)",
            "<FIXME-file-protocol>",
          ],
@@ -705,7 +715,7 @@ describe('Error recovery app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: React is not defined",
+         "description": "ReferenceError: React is not defined",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "Foo.js (3:3) @ Foo
@@ -888,6 +898,9 @@ describe('Error recovery app', () => {
       `
     )
     if (isTurbopack) {
+      // TODO(veil): Location of Page should be app/page.js
+      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
+      // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
          "description": "Error: nooo",
@@ -898,6 +911,9 @@ describe('Error recovery app', () => {
            |           ^",
          "stack": [
            "ClassDefault.render index.js (5:11)",
+           "Set.forEach <anonymous> (0:0)",
+           "<FIXME-file-protocol>",
+           "<FIXME-file-protocol>",
            "Page index.js (10:16)",
          ],
        }

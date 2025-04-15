@@ -1,7 +1,5 @@
 import { useEffect } from 'react'
-import { attachHydrationErrorState } from './attach-hydration-error-state'
 import { isNextRouterError } from '../is-next-router-error'
-import { storeHydrationErrorStateFromConsoleArgs } from './hydration-error-info'
 import { formatConsoleArgs, parseConsoleArgs } from '../../lib/console'
 import isError from '../../../lib/is-error'
 import { createConsoleError } from './console-error'
@@ -33,9 +31,6 @@ export function handleConsoleError(
   }
   error = getReactStitchedError(error)
 
-  storeHydrationErrorStateFromConsoleArgs(...consoleErrorArgs)
-  attachHydrationErrorState(error)
-
   errorQueue.push(error)
   for (const handler of errorHandlers) {
     // Delayed the error being passed to React Dev Overlay,
@@ -56,8 +51,6 @@ export function handleClientError(originError: unknown) {
     error = new Error(formattedErrorMessage)
   }
   error = getReactStitchedError(error)
-
-  attachHydrationErrorState(error)
 
   errorQueue.push(error)
   for (const handler of errorHandlers) {

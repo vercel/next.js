@@ -5865,17 +5865,16 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/error-on-next-codemod-comment/error-on-next-codemod-comment.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app-dir - error-on-next-codemod-comment should disappear the error when you replace with bypass comment",
       "app-dir - error-on-next-codemod-comment should disappear the error when you rre the codemod comment",
-      "app-dir - error-on-next-codemod-comment should error with inline comment as well"
-    ],
-    "failed": [
+      "app-dir - error-on-next-codemod-comment should error with inline comment as well",
       "app-dir - error-on-next-codemod-comment should error with swc if you have codemod comments left"
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/errors/index.test.ts": {
     "passed": [
@@ -6276,14 +6275,14 @@
       "app-dir - logging with verbose logging for edge runtime should not log _rsc query for client navigation RSC request",
       "app-dir - logging with verbose logging for edge runtime should only log requests in development mode",
       "app-dir - logging with verbose logging for edge runtime should respect request.init.cache when use with fetch input is instance",
-      "app-dir - logging with verbose logging for edge runtime should show cache reason of noStore when use with fetch"
+      "app-dir - logging with verbose logging for edge runtime should show cache reason of noStore when use with fetch",
+      "app-dir - logging with verbose logging for edge runtime when logging.fetches.hmrRefreshes is true should log requests for HMR refreshes"
     ],
     "failed": [
       "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
-      "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes",
-      "app-dir - logging with verbose logging for edge runtime when logging.fetches.hmrRefreshes is true should log requests for HMR refreshes"
+      "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes"
     ],
     "pending": [],
     "flakey": [],
@@ -6452,6 +6451,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/metadata-streaming-parallel-routes/metadata-streaming-parallel-routes.test.ts": {
+    "passed": [
+      "app-dir - metadata-streaming should only insert metadata once for parallel routes when slots match",
+      "app-dir - metadata-streaming should only insert metadata once for parallel routes when there is a missing slot",
+      "app-dir - metadata-streaming should still render metadata if children is not rendered in parallel routes layout"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/metadata-streaming-static-generation/metadata-streaming-static-generation.test.ts": {
     "passed": [
       "app-dir - metadata-streaming-static-generation dynamic pages should contain async generated metadata in body for simple dynamics page",
@@ -6489,14 +6499,11 @@
       "app-dir - metadata-streaming navigation API should trigger redirection when call redirect",
       "app-dir - metadata-streaming should delay the metadata render to body",
       "app-dir - metadata-streaming should load the initial html without slow metadata during navigation",
-      "app-dir - metadata-streaming should only insert metadata once for parallel routes when slots match",
-      "app-dir - metadata-streaming should only insert metadata once for parallel routes when there is a missing slot",
       "app-dir - metadata-streaming should only insert metadata once into head or body",
       "app-dir - metadata-streaming should render the metadata in the browser",
       "app-dir - metadata-streaming should send streaming response for headless browser bots",
       "app-dir - metadata-streaming should send the blocking response for html limited bots",
       "app-dir - metadata-streaming should still load viewport meta tags even if metadata is delayed",
-      "app-dir - metadata-streaming should still render metadata if children is not rendered in parallel routes layout",
       "app-dir - metadata-streaming static should determine dynamic metadata in build and render in the body",
       "app-dir - metadata-streaming static should render static metadata in the head",
       "app-dir - metadata-streaming static should still render dynamic metadata in the head for html bots"

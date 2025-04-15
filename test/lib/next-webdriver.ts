@@ -3,7 +3,7 @@ import os from 'os'
 import { BrowserInterface } from './browsers/base'
 
 if (!process.env.TEST_FILE_PATH) {
-  process.env.TEST_FILE_PATH = module.parent.filename
+  process.env.TEST_FILE_PATH = module.parent!.filename
 }
 
 let deviceIP: string
@@ -15,7 +15,7 @@ if (isBrowserStack) {
   for (const key of Object.keys(nets)) {
     let done = false
 
-    for (const item of nets[key]) {
+    for (const item of nets[key]!) {
       if (item.family === 'IPv4' && !item.internal) {
         deviceIP = item.address
         done = true
@@ -123,9 +123,9 @@ export default async function webdriver(
   const browserName = process.env.BROWSER_NAME || 'chrome'
   await browser.setup(
     browserName,
-    locale,
+    locale!,
     !disableJavaScript,
-    ignoreHTTPSErrors,
+    Boolean(ignoreHTTPSErrors),
     // allow headless to be overwritten for a particular test
     typeof headless !== 'undefined' ? headless : !!process.env.HEADLESS,
     userAgent

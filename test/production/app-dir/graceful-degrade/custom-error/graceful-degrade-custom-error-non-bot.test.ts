@@ -3,9 +3,9 @@
 // will not be closed and reset properly. TODO: investigate why browser.close didn't help.
 
 import { nextTestSetup } from 'e2e-utils'
-import { deleteBrowserDynamicChunks } from './delete-dynamic-chunk'
+import { deleteBrowserDynamicChunks } from '../delete-dynamic-chunk'
 
-describe('graceful-degrade-error - non bot', () => {
+describe('graceful-degrade - custom-error - non bot', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
@@ -16,7 +16,7 @@ describe('graceful-degrade-error - non bot', () => {
   })
 
   it('should not degrade to graceful error when chunk loading fails in ssr for non-bot user agents', async () => {
-    const browser = await next.browser('/')
+    const browser = await next.browser('/blog')
 
     const logs = await browser.log()
     const errors = logs
@@ -25,15 +25,16 @@ describe('graceful-degrade-error - non bot', () => {
       .join('\n')
 
     expect(errors).toMatch(/Failed to load resource./)
-    // Should not show the original content
+    // Should show the same layout content
     const html = await browser.elementByCss('html')
     const body = await browser.elementByCss('body')
-    expect(await html.getAttribute('class')).not.toBe('layout-cls')
-    expect(await body.getAttribute('class')).not.toBe('body-cls')
+    expect(await html.getAttribute('class')).toBe('layout-cls')
+    expect(await body.getAttribute('class')).toBe('body-cls')
 
-    const bodyText = await body.text()
-    expect(bodyText).toMatch(
-      /Application error: a client-side exception has occurred while loading/
-    )
+    // Show the custom error boundary text
+    const errorBoundaryText = await browser
+      .elementByCss('.error-boundary')
+      .text()
+    expect(errorBoundaryText).toMatch(/Custom error boundary/)
   })
 })
