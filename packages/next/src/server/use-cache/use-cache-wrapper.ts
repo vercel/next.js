@@ -156,7 +156,7 @@ function generateCacheEntryWithCacheContext(
   if (outerWorkUnitStore) {
     // This is the risky bit about separating the cache store from the work unit
     // store. It gives access to request-specific data to cache scopes, unless
-    // we guard it in all request APIs based on the existences of a cache store.
+    // we guard it in all request APIs based on the existence of a cache store.
     return cacheAsyncStorage.run(cacheStore, async () =>
       workUnitAsyncStorage.run(
         outerWorkUnitStore,
@@ -321,7 +321,10 @@ async function generateCacheEntryImpl(
               // case we don't want to reject with "Error: Connection closed.",
               // so we intentionally keep the iterable alive. This is similar to
               // the halting trick that we do while rendering.
-              if (outerWorkUnitStore?.type === 'prerender') {
+              if (
+                outerWorkUnitStore?.type === 'prerender' &&
+                outerCacheStore?.type !== 'cache'
+              ) {
                 await new Promise<void>((resolve) => {
                   if (outerWorkUnitStore.renderSignal.aborted) {
                     resolve()
@@ -353,7 +356,10 @@ async function generateCacheEntryImpl(
 
   let timer = undefined
   const controller = new AbortController()
-  if (outerWorkUnitStore?.type === 'prerender') {
+  if (
+    outerWorkUnitStore?.type === 'prerender' &&
+    outerCacheStore?.type !== 'cache'
+  ) {
     // If we're prerendering, we give you 50 seconds to fill a cache entry.
     // Otherwise we assume you stalled on hanging input and de-opt. This needs
     // to be lower than just the general timeout of 60 seconds.
@@ -553,7 +559,7 @@ export function cache(
         workUnitStore && getHmrRefreshHash(workStore, workUnitStore)
 
       const hangingInputAbortSignal =
-        workUnitStore?.type === 'prerender'
+        workUnitStore?.type === 'prerender' && cacheStore?.type !== 'cache'
           ? createHangingInputAbortSignal(workUnitStore)
           : undefined
 
@@ -655,6 +661,7 @@ export function cache(
           if (
             workUnitStore !== undefined &&
             workUnitStore.type === 'prerender' &&
+            cacheStore?.type !== 'cache' &&
             existingEntry !== undefined &&
             (existingEntry.revalidate === 0 ||
               existingEntry.expire < DYNAMIC_EXPIRE)
@@ -753,6 +760,7 @@ export function cache(
         if (
           workUnitStore !== undefined &&
           workUnitStore.type === 'prerender' &&
+          cacheStore?.type !== 'cache' &&
           entry !== undefined &&
           (entry.revalidate === 0 || entry.expire < DYNAMIC_EXPIRE)
         ) {
