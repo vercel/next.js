@@ -31,7 +31,6 @@ function findHeadInCacheImpl(
     parallelRoutesKeys.unshift('children')
   }
 
-  // if we didn't find metadata in the page slot, check the other parallel routes
   for (const key of parallelRoutesKeys) {
     const [segment, childParallelRoutes] = parallelRoutes[key]
     const childSegmentMap = cache.parallelRoutes.get(key)
