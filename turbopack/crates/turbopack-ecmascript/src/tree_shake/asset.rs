@@ -306,12 +306,13 @@ impl Module for EcmascriptModulePartAsset {
 
         let split_data = split_module(*self.full_module).await?;
 
-        let analyze = analyze(*self.full_module, self.part.clone());
-
         let deps = match &*split_data {
             SplitResult::Ok { deps, .. } => deps,
-            SplitResult::Failed { .. } => return Ok(analyze.references()),
+            // If the module is not split, we don't need to add any references
+            SplitResult::Failed { .. } => return Ok(Vc::cell(vec![])),
         };
+
+        let analyze = analyze(*self.full_module, self.part.clone());
 
         let mut references = analyze.references().owned().await?;
 
