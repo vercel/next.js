@@ -464,7 +464,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
 
     fn add(&mut self, item: CachedDataItem) -> bool {
         self.check_access(item.category());
-        if item.is_persistent() {
+        if !self.task_id.is_transient() && item.is_persistent() {
             self.task.track_modification();
         }
         self.task.add(item)
@@ -478,7 +478,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
 
     fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
         self.check_access(item.category());
-        if item.is_persistent() {
+        if !self.task_id.is_transient() && item.is_persistent() {
             self.task.track_modification();
         }
         self.task.insert(item)
@@ -490,7 +490,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
     ) {
         self.check_access(key.category());
-        if key.is_persistent() {
+        if !self.task_id.is_transient() && key.is_persistent() {
             self.task.track_modification();
         }
         self.task.update(key, update);
@@ -498,7 +498,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
 
     fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
         self.check_access(key.category());
-        if key.is_persistent() {
+        if !self.task_id.is_transient() && key.is_persistent() {
             self.task.track_modification();
         }
         self.task.remove(key)
@@ -511,7 +511,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
 
     fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>> {
         self.check_access(key.category());
-        if key.is_persistent() {
+        if !self.task_id.is_transient() && key.is_persistent() {
             self.task.track_modification();
         }
         self.task.get_mut(key)
@@ -523,7 +523,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         insert: impl FnOnce() -> CachedDataItemValue,
     ) -> CachedDataItemValueRefMut<'_> {
         self.check_access(key.category());
-        if key.is_persistent() {
+        if !self.task_id.is_transient() && key.is_persistent() {
             self.task.track_modification();
         }
         self.task.get_mut_or_insert_with(key, insert)
@@ -560,12 +560,16 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l,
     {
         self.check_access(ty.category());
-        self.task.track_modification();
+        if !self.task_id.is_transient() {
+            self.task.track_modification();
+        }
         self.task.extract_if(ty, f)
     }
 
     fn invalidate_serialization(&mut self) {
-        self.task.track_modification();
+        if !self.task_id.is_transient() {
+            self.task.track_modification();
+        }
     }
 }
 
