@@ -54,7 +54,6 @@ use turbopack_core::{
 pub use turbopack_css as css;
 pub use turbopack_ecmascript as ecmascript;
 use turbopack_ecmascript::{
-    parse::ParseResult,
     references::external_module::{CachedExternalModule, CachedExternalType},
     tree_shake::asset::EcmascriptModulePartAsset,
 };
@@ -167,14 +166,12 @@ async fn apply_module_type(
                         ))
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {
-                        let parsed = module.parse();
                         if let Some(part) = part {
                             match part {
                                 ModulePart::Evaluation => {
                                     if *module.get_exports().needs_facade().await? {
                                         Vc::upcast(EcmascriptModuleFacadeModule::new(
                                             Vc::upcast(module),
-                                            parsed,
                                             part,
                                         ))
                                     } else {
@@ -192,20 +189,17 @@ async fn apply_module_type(
                                             Vc::upcast(
                                                 EcmascriptModuleFacadeModule::new(
                                                     Vc::upcast(module),
-                                                    parsed,
                                                     ModulePart::exports(),
                                                 )
                                                 .resolve()
                                                 .await?,
                                             ),
-                                            parsed,
                                             part,
                                             side_effect_free_packages,
                                         )
                                     } else {
                                         apply_reexport_tree_shaking(
                                             Vc::upcast(module.resolve().await?),
-                                            parsed,
                                             part,
                                             side_effect_free_packages,
                                         )
@@ -220,7 +214,6 @@ async fn apply_module_type(
                         } else if *module.get_exports().needs_facade().await? {
                             Vc::upcast(EcmascriptModuleFacadeModule::new(
                                 Vc::upcast(module),
-                                parsed,
                                 ModulePart::facade(),
                             ))
                         } else {
@@ -283,7 +276,6 @@ async fn apply_module_type(
 #[turbo_tasks::function]
 async fn apply_reexport_tree_shaking(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-    parsed: Vc<ParseResult>,
     part: ModulePart,
     side_effect_free_packages: Vc<Glob>,
 ) -> Result<Vc<Box<dyn Module>>> {
@@ -299,14 +291,12 @@ async fn apply_reexport_tree_shaking(
             } else {
                 Vc::upcast(EcmascriptModuleFacadeModule::new(
                     **final_module,
-                    parsed,
                     ModulePart::renamed_export(new_export.clone(), export.clone()),
                 ))
             }
         } else {
             Vc::upcast(EcmascriptModuleFacadeModule::new(
                 **final_module,
-                parsed,
                 ModulePart::renamed_namespace(export.clone()),
             ))
         };
