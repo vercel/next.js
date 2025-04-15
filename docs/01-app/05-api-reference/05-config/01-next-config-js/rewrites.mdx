@@ -158,7 +158,7 @@ module.exports = {
 }
 ```
 
-> **Good to know**: The useSearchParams hook won't work in this case because the URL doesn't change. To access query parameters, you should use the searchParams argument provided to the page. For more details about page arguments, see the [page documentation](/docs/app/api-reference/file-conventions/page).
+> **Good to know**: The `useSearchParams` hook won't work in rewrites because the URL doesn't change. To access query parameters, you should use the `searchParams` prop passed to the page. See the [`page` documentation](/docs/app/api-reference/file-conventions/page) for more information.
 > **Good to know**: Static pages from [Automatic Static Optimization](/docs/pages/building-your-application/rendering/automatic-static-optimization) or [prerendering](/docs/pages/building-your-application/data-fetching/get-static-props) params from rewrites will be parsed on the client after hydration and provided in the query.
 
 ## Path Matching
