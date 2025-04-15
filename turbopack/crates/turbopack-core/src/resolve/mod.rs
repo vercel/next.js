@@ -3230,7 +3230,7 @@ impl Display for ModulePart {
                 write!(f, "export * as {}", export)
             }
             ModulePart::Internal(id) => write!(f, "internal part {}", id),
-            ModulePart::InternalEvaluation(id) => write!(f, "internal part {}", id),
+            ModulePart::InternalEvaluation(id) => write!(f, "internal eval part {}", id),
             ModulePart::Locals => f.write_str("locals"),
             ModulePart::Exports => f.write_str("exports"),
             ModulePart::Facade => f.write_str("facade"),
