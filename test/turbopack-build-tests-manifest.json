@@ -18486,10 +18486,10 @@
   },
   "test/production/edge-config-validations/index.test.ts": {
     "passed": [],
-    "failed": [],
-    "pending": [
+    "failed": [
       "Edge config validations fails to build when unstable_allowDynamic is not a string"
     ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
