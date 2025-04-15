@@ -1,8 +1,6 @@
-pub(crate) mod context_transition;
 pub(crate) mod full_context_transition;
 
 use anyhow::Result;
-pub use context_transition::ContextTransition;
 pub use full_context_transition::FullContextTransition;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
