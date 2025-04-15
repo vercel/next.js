@@ -12,7 +12,7 @@ There are several reasons why you might want to switch from Create React App to 
 
 ### Slow initial page loading time
 
-Create React App uses purely client-side React. Client-side only applications, also known as [single-page applications (SPAs)](/docs/app/guides/upgrading/single-page-applications), often experience slow initial page loading time. This happens due to a couple of reasons:
+Create React App uses purely client-side React. Client-side only applications, also known as [single-page applications (SPAs)](/docs/app/building-your-application/upgrading/single-page-applications), often experience slow initial page loading time. This happens due to a couple of reasons:
 
 1. The browser needs to wait for the React code and your entire application bundle to download and run before your code is able to send requests to load data.
 2. Your application code grows with every new feature and dependency you add.
@@ -23,7 +23,7 @@ The previous issue of slow loading times can be somewhat mitigated with code spl
 
 ### Network waterfalls
 
-A common cause of poor performance occurs when applications make sequential client-server requests to fetch data. One pattern for data fetching in a [SPA](/docs/app/guides/upgrading/single-page-applications) is to render a placeholder, and then fetch data after the component has mounted. Unfortunately, a child component can only begin fetching data after its parent has finished loading its own data, resulting in a “waterfall” of requests.
+A common cause of poor performance occurs when applications make sequential client-server requests to fetch data. One pattern for data fetching in a [SPA](/docs/app/building-your-application/upgrading/single-page-applications) is to render a placeholder, and then fetch data after the component has mounted. Unfortunately, a child component can only begin fetching data after its parent has finished loading its own data, resulting in a “waterfall” of requests.
 
 While client-side data fetching is supported in Next.js, Next.js also lets you move data fetching to the server. This often eliminates client-server waterfalls altogether.
 
@@ -47,7 +47,7 @@ Depending on your needs, Next.js allows you to choose your data fetching strateg
 
 ## Migration Steps
 
-Our goal is to get a working Next.js application as quickly as possible so that you can then adopt Next.js features incrementally. To begin with, we’ll treat your application as a purely client-side application ([SPA](/docs/app/guides/upgrading/single-page-applications)) without immediately replacing your existing router. This reduces complexity and merge conflicts.
+Our goal is to get a working Next.js application as quickly as possible so that you can then adopt Next.js features incrementally. To begin with, we’ll treat your application as a purely client-side application ([SPA](/docs/app/building-your-application/upgrading/single-page-applications)) without immediately replacing your existing router. This reduces complexity and merge conflicts.
 
 > **Note**: If you are using advanced CRA configurations such as a custom `homepage` field in your `package.json`, a custom service worker, or specific Babel/webpack tweaks, please see the **Additional Considerations** section at the end of this guide for tips on replicating or adapting these features in Next.js.
 
