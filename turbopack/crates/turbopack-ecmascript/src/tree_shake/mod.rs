@@ -559,6 +559,7 @@ pub(super) async fn split(
             let SplitModuleResult {
                 entrypoints,
                 part_deps,
+                metadata,
                 modules,
                 star_reexports,
             } = dep_graph.split_module(&directives, &items);
@@ -600,6 +601,7 @@ pub(super) async fn split(
                 asset_ident: ident,
                 entrypoints,
                 deps: part_deps,
+                metadata,
                 modules,
                 star_reexports,
             }

@@ -32,7 +32,10 @@ use super::{
     },
     Key, TURBOPACK_PART_IMPORT_SOURCE,
 };
-use crate::{magic_identifier, tree_shake::optimizations::GraphOptimizer};
+use crate::{
+    magic_identifier,
+    tree_shake::{optimizations::GraphOptimizer, PartMetadata},
+};
 
 /// The id of an item
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -232,8 +235,8 @@ pub(super) struct SplitModuleResult {
 
     /// Dependency between parts.
     pub part_deps: FxHashMap<u32, Vec<PartId>>,
+    pub metadata: FxHashMap<u32, PartMetadata>,
     pub modules: Vec<Module>,
-
     pub star_reexports: Vec<ExportAll>,
 }
 
@@ -273,6 +276,7 @@ impl DepGraph {
         let groups = self.finalize(data);
         let mut outputs = FxHashMap::default();
         let mut part_deps = FxHashMap::<_, Vec<PartId>>::default();
+        let mut metadata = FxHashMap::<_, PartMetadata>::default();
 
         let star_reexports: Vec<_> = data
             .values()
@@ -679,6 +683,26 @@ impl DepGraph {
                 }
             }
 
+            metadata.insert(
+                ix as u32,
+                PartMetadata {
+                    have_external_references: chunk.body.iter().any(|item| match item {
+                        ModuleItem::ModuleDecl(item) => match item {
+                            ModuleDecl::Import(import_decl) => {
+                                import_decl.src.value != TURBOPACK_PART_IMPORT_SOURCE
+                            }
+                            ModuleDecl::ExportNamed(NamedExport { src: Some(src), .. }) => {
+                                src.value != TURBOPACK_PART_IMPORT_SOURCE
+                            }
+                            ModuleDecl::ExportAll(export_all) => {
+                                export_all.src.value != TURBOPACK_PART_IMPORT_SOURCE
+                            }
+                            _ => false,
+                        },
+                        _ => false,
+                    }),
+                },
+            );
             modules.push(chunk);
         }
 
@@ -720,6 +744,7 @@ impl DepGraph {
         SplitModuleResult {
             entrypoints: outputs,
             part_deps,
+            metadata,
             modules,
             star_reexports,
         }
