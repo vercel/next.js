@@ -495,13 +495,13 @@ impl EsmExports {
         self: Vc<Self>,
         _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        parsed: Vc<ParseResult>,
+        parsed: Option<Vc<ParseResult>>,
     ) -> Result<CodeGeneration> {
         let expanded = self.expand_exports().await?;
-        let parsed = parsed.await?;
-        let eval_context = match &*parsed {
-            ParseResult::Ok { eval_context, .. } => Some(eval_context),
-            _ => None,
+        let parsed = if let Some(parsed) = parsed {
+            Some(parsed.await?)
+        } else {
+            None
         };
 
         let mut dynamic_exports = Vec::<Box<Expr>>::new();
@@ -529,9 +529,14 @@ impl EsmExports {
                     } else {
                         Cow::Borrowed(name.as_str())
                     };
-                    let ctxt = eval_context
-                        .and_then(|eval_context| {
-                            eval_context.imports.exports.get(name).map(|id| id.1)
+                    let ctxt = parsed
+                        .as_ref()
+                        .and_then(|parsed| {
+                            if let ParseResult::Ok { eval_context, .. } = &**parsed {
+                                eval_context.imports.exports.get(name).map(|id| id.1)
+                            } else {
+                                None
+                            }
                         })
                         .unwrap_or_default();
 

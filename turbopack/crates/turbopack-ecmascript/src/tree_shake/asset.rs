@@ -162,7 +162,6 @@ impl EcmascriptModulePartAsset {
                     export_name: new_export,
                     ..
                 } = &*result.await?;
-                let parsed = module.parse();
                 let final_module = if let Some(new_export) = new_export {
                     if *new_export == export {
                         *final_module
@@ -170,7 +169,6 @@ impl EcmascriptModulePartAsset {
                         ResolvedVc::upcast(
                             EcmascriptModuleFacadeModule::new(
                                 **final_module,
-                                parsed,
                                 ModulePart::renamed_export(new_export.clone(), export.clone()),
                             )
                             .to_resolved()
@@ -181,7 +179,6 @@ impl EcmascriptModulePartAsset {
                     ResolvedVc::upcast(
                         EcmascriptModuleFacadeModule::new(
                             **final_module,
-                            parsed,
                             ModulePart::renamed_namespace(export.clone()),
                         )
                         .to_resolved()

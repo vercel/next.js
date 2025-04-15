@@ -165,7 +165,7 @@ where
                     .css_env
                     .as_ref()
                     .map(|env| {
-                        targets_to_versions(env.targets.clone())
+                        targets_to_versions(env.targets.clone(), None)
                             .expect("failed to parse env.targets")
                     })
                     .unwrap_or_default();

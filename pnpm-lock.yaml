@@ -355,8 +355,8 @@ importers:
         specifier: 9.0.11
         version: 9.0.11
       image-size:
-        specifier: 1.1.1
-        version: 1.1.1
+        specifier: 1.2.1
+        version: 1.2.1
       is-animated:
         specifier: 2.0.2
         version: 2.0.2
@@ -826,7 +826,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 15.3.1-canary.7
+        specifier: 15.3.1-canary.8
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.10.3
@@ -890,7 +890,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 15.3.1-canary.7
+        specifier: 15.3.1-canary.8
         version: link:../next-env
       '@swc/counter':
         specifier: 0.1.3
@@ -1015,19 +1015,19 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/font':
-        specifier: 15.3.1-canary.7
+        specifier: 15.3.1-canary.8
         version: link:../font
       '@next/polyfill-module':
-        specifier: 15.3.1-canary.7
+        specifier: 15.3.1-canary.8
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 15.3.1-canary.7
+        specifier: 15.3.1-canary.8
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 15.3.1-canary.7
+        specifier: 15.3.1-canary.8
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 15.3.1-canary.7
+        specifier: 15.3.1-canary.8
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1330,8 +1330,8 @@ importers:
         specifier: 0.1.2
         version: 0.1.2
       image-size:
-        specifier: 1.1.1
-        version: 1.1.1
+        specifier: 1.2.1
+        version: 1.2.1
       is-docker:
         specifier: 2.0.0
         version: 2.0.0
@@ -1712,7 +1712,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 15.3.1-canary.7
+        specifier: 15.3.1-canary.8
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -10642,8 +10642,8 @@ packages:
     resolution: {integrity: sha512-InwqeHHN2XpumIkMvpl/DCJVrAHgCsG5+cn1XlnLWGwtZBm8QJfSusItfrwx81CTp5agNZqpKU2J/ccC5nGT4A==}
     engines: {node: '>= 4'}
 
-  image-size@1.1.1:
-    resolution: {integrity: sha512-541xKlUw6jr/6gGuk92F+mYM5zaFAc5ahphvkqvNe2bQ6gVBkd6bfrmVJ2t4KDAfikAYZyIqTnktX3i6/aQDrQ==}
+  image-size@1.2.1:
+    resolution: {integrity: sha512-rH+46sQJ2dlwfjfhCyNx5thzrv+dtmBIhPHk0zgRUukHzZ/kRueTJXoYYsclBaKcSMBWuGbOFXtioLpzTb5euw==}
     engines: {node: '>=16.x'}
     hasBin: true
 
@@ -28532,7 +28532,7 @@ snapshots:
 
   ignore@6.0.2: {}
 
-  image-size@1.1.1:
+  image-size@1.2.1:
     dependencies:
       queue: 6.0.2
 

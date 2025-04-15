@@ -828,7 +828,7 @@ impl EcmascriptModuleContent {
                 if let EcmascriptExports::EsmExports(exports) = *exports.await? {
                     Some(
                         exports
-                            .code_generation(*module_graph, *chunking_context, *parsed)
+                            .code_generation(*module_graph, *chunking_context, Some(*parsed))
                             .await?,
                     )
                 } else {
