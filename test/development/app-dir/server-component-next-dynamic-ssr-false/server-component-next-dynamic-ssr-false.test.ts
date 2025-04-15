@@ -37,7 +37,7 @@ describe('app-dir - server-component-next-dynamic-ssr-false', () => {
         `)
     } else {
       expect(redbox.description).toMatchInlineSnapshot(
-        `"Error:   x \`ssr: false\` is not allowed with \`next/dynamic\` in Server Components. Please move it into a client component."`
+        `"  x \`ssr: false\` is not allowed with \`next/dynamic\` in Server Components. Please move it into a client component."`
       )
       expect(redbox.source).toMatchInlineSnapshot(`
          "./app/page.js

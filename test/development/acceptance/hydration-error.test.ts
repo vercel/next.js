@@ -90,7 +90,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -196,7 +196,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -287,7 +287,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -362,7 +362,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -433,7 +433,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -525,7 +525,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -612,7 +612,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -709,7 +709,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating this Suspense boundary. Switched to client rendering.",
+           "description": "There was an error while hydrating this Suspense boundary. Switched to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -830,7 +830,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -926,7 +926,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -1010,7 +1010,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -1104,7 +1104,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
