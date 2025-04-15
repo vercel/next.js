@@ -484,12 +484,16 @@ export class AppRouteRouteModule extends RouteModule<
           res = await new Promise((resolve, reject) => {
             scheduleImmediate(async () => {
               try {
-                const result = await (this.workUnitAsyncStorage.run(
-                  finalRoutePrerenderStore,
-                  handler,
-                  request,
-                  handlerContext
-                ) as Promise<Response>)
+                const result = await cacheAsyncStorage.run(
+                  cacheStore,
+                  () =>
+                    this.workUnitAsyncStorage.run(
+                      finalRoutePrerenderStore,
+                      handler,
+                      request,
+                      handlerContext
+                    ) as Promise<Response>
+                )
                 if (responseHandled) {
                   // we already rejected in the followup task
                   return
@@ -551,11 +555,13 @@ export class AppRouteRouteModule extends RouteModule<
             implicitTags,
           }
 
-          res = await workUnitAsyncStorage.run(
-            prerenderLegacyStore,
-            handler,
-            request,
-            handlerContext
+          res = await cacheAsyncStorage.run(cacheStore, () =>
+            workUnitAsyncStorage.run(
+              prerenderLegacyStore,
+              handler,
+              request,
+              handlerContext
+            )
           )
         }
       } else {
