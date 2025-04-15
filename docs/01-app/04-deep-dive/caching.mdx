@@ -19,23 +19,23 @@ In Next.js, caching can be described as:
 
 - [Client-first](#client-first): The browser becomes an active participant in caching, and is the first place Next.js checks for cached data or UI.
 - [Declarative](#declarative): You describe when a cache should be updated, rather than how and where the cache is stored.
-- [Granular](#granular): Instead of splitting the cache by pages, you can cache parts of a route (segments), components, or individual async functions.
+- [Granular](#granular): You can cache components and individual async functions, rather than the entire page.
 
 ### Client-first
 
-Historically, web frameworks have been primarily concerned with **server-side** caching:
+Historically, web frameworks were primarily concerned with **server-side** caching:
 
-- Cache is coupled to infrastructure (e.g. [ISR](https://vercel.com/docs/incremental-static-regeneration), [Data Cache](https://vercel.com/docs/data-cache), CDNs, etc).
-- Pages are described as entirely static or dynamic:
-  - Static: Prerendered and cached on the server, improving initial page load.
+- Cache was coupled to infrastructure (e.g. [ISR](https://vercel.com/docs/incremental-static-regeneration), [Data Cache](https://vercel.com/docs/data-cache), CDNs, etc).
+- Pages were described as entirely static or dynamic:
+  - Static: Prerendered and cached on the server.
   - Dynamic: Re-rendered at request time.
-- Personalized data bypassees caching altogether.
+- Personalized data bypassed caching altogether.
 
 Next.js uses both the client and server environments for caching. When resolving a cache miss, it checks:
 
 1. The client cache (prefetched or previously visited content)
 2. The server in-memory cache (Lambda or Node runtime)
-3. A persistent remote cache, if defined (e.g. [ISR](https://vercel.com/docs/incremental-static-regeneration), [Data Cache](https://vercel.com/docs/data-cache))
+3. A persistent remote cache, if defined (e.g. [ISR](https://vercel.com/docs/incremental-static-regeneration) or [Data Cache](https://vercel.com/docs/data-cache))
 
 {/* TODO: Add diagram */}
 
@@ -60,7 +60,7 @@ You ask: _"When should this cache be updated?"_
 In other words:
 
 - You describe the [update semantics](#update-semantics): how long something is fresh, when it should revalidate, and what causes invalidation.
-- Next.js determines the most appropriate caching layer based on your declared semantics.
+- Next.js determines the most appropriate environment and layer based on your declared semantics.
 
 This declarative and agnostic approach allows Next.js to provide a consistent API regardless of your static or dynamic requirements and infrastructure setup.
 
@@ -68,24 +68,22 @@ This declarative and agnostic approach allows Next.js to provide a consistent AP
 
 Modern web applications are **dynamic**, **personalized**, **interactive**, and require a granular approach to caching, specifically for:
 
-1. **Dynamic route segments** - which can potentially create a large number of unique pages. Trying to prerender or cache all of them on the server can be time-consuming and server-intensive.
+1. [**Dynamic route segments**](/docs/app/building-your-application/routing/dynamic-routes) - which can potentially create a large number of unique pages. Trying to prerender or cache all of them on the server can be time-consuming and server-intensive.
 2. **Personalized content** - some content can only be fetched after authentication—once a browser session exists and cookies are available.
 
-In Next.js, rather than caching entire pages, you can cache:
+In Next.js, in addition to caching entire pages, you can more granularly cache:
 
-- Layouts (e.g. navigation, static shell)
+- Route Segments (e.g. layouts, static shell)
 - Nested UI components (e.g. user avatar and name)
 - Individual data fetching functions (e.g. `getUser()`)
-
-{/* TODO: Add examples */}
 
 ## Caching APIs
 
 There are three main APIs used for caching:
 
-- [`"use cache"`](/docs/app/api-reference/directives/use-cachee): Defines a cache boundary for a component or function. Cache boundaries are tied to serialized arguments and function identity.
-- [`cacheLife()`](/docs/app/api-reference/functions/cacheLife): Defines the cache lifetime for a component or function. You can specify `stale`, `revalidate`, and `expire` values, or use presets like `'minutes'`, `'hours'`, `'days'`.
-- [`cacheTag()`](/docs/app/api-reference/functions/cacheTag): Defines a cache tag across multiple boundaries to be invalidated together. This allows coordination between nested boundaries or external triggers (e.g. a CMS update).
+- [`"use cache"`](#use-cache): Defines a cache **boundary** for an async component or function.
+- [`cacheLife()`](#cacheLife): Defines the cache lifetime for a component or function. You can specify `stale`, `revalidate`, and `expire` values, or use profiles like `'minutes'`, `'hours'`, `'days'`.
+- [`cacheTag()`](#cacheTag): Defines a cache tag across multiple boundaries to be invalidated together. This allows coordination between boundaries or external triggers.
 
 > **Good to know**: The experimental [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes) config option can be used to adjust the automatic invalidation times mentioned above.
 
