@@ -189,6 +189,8 @@ async function createComponentTreeInternal({
     () => getLayoutOrPageModule(tree)
   )
 
+  const gracefullyDegrade = !!ctx.renderOpts.botType
+
   /**
    * Checks if the current segment is a root layout.
    */
@@ -541,6 +543,9 @@ async function createComponentTreeInternal({
             notFound={notFoundComponent}
             forbidden={forbiddenComponent}
             unauthorized={unauthorizedComponent}
+            // Since gracefullyDegrade only applies to bots, only
+            // pass it when we're in a bot context to avoid extra bytes.
+            {...(gracefullyDegrade && { gracefullyDegrade })}
           />,
           childCacheNodeSeedData,
         ]

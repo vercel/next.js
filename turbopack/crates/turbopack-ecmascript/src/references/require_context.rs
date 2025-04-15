@@ -74,8 +74,9 @@ impl DirList {
         recursive: bool,
         filter: Vc<Regex>,
     ) -> Result<Vc<Self>> {
-        let root_val = &*dir.await?;
-        let regex = &*filter.await?;
+        let root_val = &root.await?;
+        let dir_val = &dir.await?;
+        let regex = &filter.await?;
 
         let mut list = FxIndexMap::default();
 
@@ -95,7 +96,7 @@ impl DirList {
                     }
                 }
                 DirectoryEntry::Directory(path) if recursive => {
-                    if let Some(relative_path) = root_val.get_relative_path_to(&*path.await?) {
+                    if let Some(relative_path) = dir_val.get_relative_path_to(&*path.await?) {
                         list.insert(
                             relative_path,
                             DirListEntry::Dir(
@@ -182,25 +183,25 @@ impl RequireContextMap {
         let mut map = FxIndexMap::default();
 
         for (context_relative, path) in list {
-            if let Some(origin_relative) = origin_path.get_relative_path_to(&*path.await?) {
-                let request = Request::parse(Value::new(origin_relative.clone().into()))
-                    .to_resolved()
-                    .await?;
-                let result = cjs_resolve(origin, *request, issue_source.clone(), is_optional)
-                    .to_resolved()
-                    .await?;
-
-                map.insert(
-                    context_relative.clone(),
-                    RequireContextMapEntry {
-                        origin_relative,
-                        request,
-                        result,
-                    },
-                );
-            } else {
+            let Some(origin_relative) = origin_path.get_relative_path_to(&*path.await?) else {
                 bail!("invariant error: this was already checked in `list_dir`");
-            }
+            };
+
+            let request = Request::parse(Value::new(origin_relative.clone().into()))
+                .to_resolved()
+                .await?;
+            let result = cjs_resolve(origin, *request, issue_source.clone(), is_optional)
+                .to_resolved()
+                .await?;
+
+            map.insert(
+                context_relative.clone(),
+                RequireContextMapEntry {
+                    origin_relative,
+                    request,
+                    result,
+                },
+            );
         }
 
         Ok(Vc::cell(map))

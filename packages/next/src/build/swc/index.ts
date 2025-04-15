@@ -1104,6 +1104,11 @@ async function loadWasm(importPath = '') {
             return bindings.mdxCompileSync(src, getMdxOptions(options))
           },
         },
+        reactCompiler: {
+          isReactCompilerRequired(_filename: string) {
+            return Promise.resolve(true)
+          },
+        },
       }
       return wasmBindings
     } catch (e: any) {
@@ -1275,6 +1280,11 @@ function loadNative(importPath?: string) {
           },
         },
       },
+      reactCompiler: {
+        isReactCompilerRequired: (filename: string) => {
+          return bindings.isReactCompilerRequired(filename)
+        },
+      },
     }
     return nativeBindings
   }
@@ -1318,6 +1328,13 @@ export async function minify(
 ): Promise<{ code: string; map: any }> {
   let bindings = await loadBindings()
   return bindings.minify(src, options)
+}
+
+export async function isReactCompilerRequired(
+  filename: string
+): Promise<boolean> {
+  let bindings = await loadBindings()
+  return bindings.reactCompiler.isReactCompilerRequired(filename)
 }
 
 export async function parse(src: string, options: any): Promise<any> {

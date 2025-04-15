@@ -283,6 +283,7 @@ export type RenderOptsPartial = {
   isPossibleServerAction?: boolean
   isExperimentalCompile?: boolean
   isPrefetch?: boolean
+  isBot?: boolean
   expireTime?: number
   experimental: {
     clientTraceMetadata?: string[]

@@ -3301,6 +3301,16 @@ export default async function build(
                     orig,
                     path.join(distDir, 'server', updatedRelativeDest)
                   )
+
+                  // since the app router not found is prioritized over pages router,
+                  // we have to ensure the app router entries are available for all locales
+                  if (i18n) {
+                    for (const locale of i18n.locales) {
+                      const curPath = `/${locale}/404`
+                      pagesManifest[curPath] = updatedRelativeDest
+                    }
+                  }
+
                   pagesManifest['/404'] = updatedRelativeDest
                 }
               })

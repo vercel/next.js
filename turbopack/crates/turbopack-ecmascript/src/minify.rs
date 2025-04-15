@@ -121,7 +121,8 @@ pub fn minify(code: &Code, source_maps: bool, mangle: Option<MangleType>) -> Res
                     &comments as &dyn Comments,
                 ))))
             })
-        })?;
+        })
+        .map_err(|e| e.to_pretty_error())?;
 
         print_program(cm.clone(), program, source_maps.is_some())?
     };

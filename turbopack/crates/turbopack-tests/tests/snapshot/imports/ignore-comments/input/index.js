@@ -11,9 +11,8 @@ import(/* turbopackIgnore: true */ "./ignore.mjs");
 require(/* webpackIgnore: true */ "./ignore.cjs");
 require(/* turbopackIgnore: true */ "./ignore.cjs");
 
-// and for workers
-new Worker(/* webpackIgnore: true */ "./ignore.mjs");
-new Worker(/* turbopackIgnore: true */ "./ignore.cjs");
+new Worker(/* turbopackIgnore: true */ new URL("./ignore-worker.cjs", import.meta.url))
+new Worker(/* webpackIgnore: true */ new URL("./ignore-worker.cjs", import.meta.url))
 
 export function foo(plugin) {
   return require(/* turbopackIgnore: true */ plugin)
