@@ -33,10 +33,10 @@ describe('server-side dev errors', () => {
     app = await launchApp(appDir, appPort, {
       onStderr(msg) {
         stderr += msg
-        // All tests cause runtime errors which may lead to this message which
+        // All tests cause Runtime ReferenceErrors which may lead to this message which
         // is not relevant to this test.
         stderr = stderr.replace(
-          ' ⚠ Fast Refresh had to perform a full reload due to a runtime error.',
+          ' ⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.',
           ''
         )
       },
@@ -77,9 +77,9 @@ describe('server-side dev errors', () => {
 
       await expect(browser).toDisplayRedbox(`
         {
-          "description": "ReferenceError: missingVar is not defined",
+          "description": "missingVar is not defined",
           "environmentLabel": null,
-          "label": "Runtime Error",
+          "label": "Runtime ReferenceError",
           "source": "pages/gsp.js (6:3) @ getStaticProps
         > 6 |   missingVar;return {
             |   ^",
@@ -125,9 +125,9 @@ describe('server-side dev errors', () => {
 
       await expect(browser).toDisplayRedbox(`
         {
-          "description": "ReferenceError: missingVar is not defined",
+          "description": "missingVar is not defined",
           "environmentLabel": null,
-          "label": "Runtime Error",
+          "label": "Runtime ReferenceError",
           "source": "pages/gssp.js (6:3) @ getServerSideProps
         > 6 |   missingVar;return {
             |   ^",
@@ -173,9 +173,9 @@ describe('server-side dev errors', () => {
 
       await expect(browser).toDisplayRedbox(`
         {
-          "description": "ReferenceError: missingVar is not defined",
+          "description": "missingVar is not defined",
           "environmentLabel": null,
-          "label": "Runtime Error",
+          "label": "Runtime ReferenceError",
           "source": "pages/blog/[slug].js (6:3) @ getServerSideProps
         > 6 |   missingVar;return {
             |   ^",
@@ -233,9 +233,9 @@ describe('server-side dev errors', () => {
 
       await expect(browser).toDisplayRedbox(`
         {
-          "description": "ReferenceError: missingVar is not defined",
+          "description": "missingVar is not defined",
           "environmentLabel": null,
-          "label": "Runtime Error",
+          "label": "Runtime ReferenceError",
           "source": "pages/api/hello.js (2:3) @ handler
         > 2 |   missingVar;res.status(200).json({ hello: 'world' })
             |   ^",
@@ -249,9 +249,9 @@ describe('server-side dev errors', () => {
 
       await expect(browser).toDisplayRedbox(`
         {
-          "description": "ReferenceError: missingVar is not defined",
+          "description": "missingVar is not defined",
           "environmentLabel": null,
-          "label": "Runtime Error",
+          "label": "Runtime ReferenceError",
           "source": "pages/api/hello.js (2:3) @ handler
         > 2 |   missingVar;res.status(200).json({ hello: 'world' })
             |   ^",
@@ -307,9 +307,9 @@ describe('server-side dev errors', () => {
 
       await expect(browser).toDisplayRedbox(`
         {
-          "description": "ReferenceError: missingVar is not defined",
+          "description": "missingVar is not defined",
           "environmentLabel": null,
-          "label": "Runtime Error",
+          "label": "Runtime ReferenceError",
           "source": "pages/api/blog/[slug].js (2:3) @ handler
         > 2 |   missingVar;res.status(200).json({ slug: req.query.slug })
             |   ^",
@@ -323,9 +323,9 @@ describe('server-side dev errors', () => {
 
       await expect(browser).toDisplayRedbox(`
         {
-          "description": "ReferenceError: missingVar is not defined",
+          "description": "missingVar is not defined",
           "environmentLabel": null,
-          "label": "Runtime Error",
+          "label": "Runtime ReferenceError",
           "source": "pages/api/blog/[slug].js (2:3) @ handler
         > 2 |   missingVar;res.status(200).json({ slug: req.query.slug })
             |   ^",
@@ -349,7 +349,7 @@ describe('server-side dev errors', () => {
 
     const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
       .replace(
-        '⚠ Fast Refresh had to perform a full reload due to a runtime error.',
+        '⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.',
         ''
       )
       .trim()
@@ -428,7 +428,7 @@ describe('server-side dev errors', () => {
 
     const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
       .replace(
-        '⚠ Fast Refresh had to perform a full reload due to a runtime error.',
+        '⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.',
         ''
       )
       .trim()
@@ -506,7 +506,7 @@ describe('server-side dev errors', () => {
 
     const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
       .replace(
-        '⚠ Fast Refresh had to perform a full reload due to a runtime error.',
+        '⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.',
         ''
       )
       .trim()
@@ -584,7 +584,7 @@ describe('server-side dev errors', () => {
 
     const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
       .replace(
-        '⚠ Fast Refresh had to perform a full reload due to a runtime error.',
+        '⚠ Fast Refresh had to perform a full reload due to a Runtime ReferenceError.',
         ''
       )
       .trim()

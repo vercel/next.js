@@ -206,7 +206,7 @@ describe('hydration-error-count', () => {
          ],
        },
        {
-         "description": "Error: runtime error",
+         "description": "runtime error",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "app/hydration-with-runtime-errors/page.tsx (7:11) @ Page.useEffect
