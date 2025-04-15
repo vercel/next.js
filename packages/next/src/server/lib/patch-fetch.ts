@@ -254,13 +254,15 @@ export function createPatchedFetcher(
           `fetch ${input.toString()}`
         )
 
-        if (cacheStore) {
+        const revalidateStore =
+          cacheStore?.type === 'unstable-cache' ? undefined : cacheStore
+
+        if (revalidateStore) {
           if (Array.isArray(tags)) {
             // Collect tags onto parent caches or parent prerenders.
-            const collectedTags = cacheStore.tags ?? (cacheStore.tags = [])
             for (const tag of tags) {
-              if (!collectedTags.includes(tag)) {
-                collectedTags.push(tag)
+              if (!revalidateStore.tags.includes(tag)) {
+                revalidateStore.tags.push(tag)
               }
             }
           }
@@ -332,7 +334,7 @@ export function createPatchedFetcher(
           // if we are inside of "use cache"/"unstable_cache"
           // we shouldn't set the revalidate to 0 as it's overridden
           // by the cache context
-          !cacheStore &&
+          cacheStore?.type !== 'cache' &&
           (hasExplicitFetchCacheOptOut || noFetchConfigAndForceDynamic)
         ) {
           currentFetchRevalidate = 0
@@ -391,8 +393,8 @@ export function createPatchedFetcher(
             // leverage the fetch cache between SSG workers
             !workStore.isPrerendering) ||
           ((hasUnCacheableHeader || isUnCacheableMethod) &&
-            cacheStore &&
-            cacheStore.revalidate === 0)
+            revalidateStore &&
+            revalidateStore.revalidate === 0)
 
         if (
           hasNoExplicitCacheConfig &&
@@ -469,8 +471,8 @@ export function createPatchedFetcher(
           } else {
             // TODO: should we consider this case an invariant?
             cacheReason = 'auto cache'
-            finalRevalidate = cacheStore
-              ? cacheStore.revalidate
+            finalRevalidate = revalidateStore
+              ? revalidateStore.revalidate
               : INFINITE_CACHE
           }
         } else if (!cacheReason) {
@@ -486,8 +488,8 @@ export function createPatchedFetcher(
           // If the revalidate value isn't currently set or the value is less
           // than the current revalidate value, we should update the revalidate
           // value.
-          cacheStore &&
-          finalRevalidate < cacheStore.revalidate
+          revalidateStore &&
+          finalRevalidate < revalidateStore.revalidate
         ) {
           // If we were setting the revalidate value to 0, we should try to
           // postpone instead first.
@@ -512,8 +514,8 @@ export function createPatchedFetcher(
 
           // We only want to set the revalidate store's revalidate time if it
           // was explicitly set for the fetch call, i.e. currentFetchRevalidate.
-          if (cacheStore && currentFetchRevalidate === finalRevalidate) {
-            cacheStore.revalidate = finalRevalidate
+          if (revalidateStore && currentFetchRevalidate === finalRevalidate) {
+            revalidateStore.revalidate = finalRevalidate
           }
         }
 
@@ -854,8 +856,8 @@ export function createPatchedFetcher(
           const { next = {} } = init
           if (
             typeof next.revalidate === 'number' &&
-            cacheStore &&
-            next.revalidate < cacheStore.revalidate
+            revalidateStore &&
+            next.revalidate < revalidateStore.revalidate
           ) {
             if (next.revalidate === 0) {
               // If enabled, we should bail out of static generation.
@@ -874,7 +876,7 @@ export function createPatchedFetcher(
             }
 
             if (!workStore.forceStatic || next.revalidate !== 0) {
-              cacheStore.revalidate = next.revalidate
+              revalidateStore.revalidate = next.revalidate
             }
           }
           if (hasNextConfig) delete init.next
