@@ -1,6 +1,5 @@
 use std::{path::PathBuf, sync::Arc};
 
-use anyhow::Context as _;
 use napi::bindgen_prelude::*;
 use next_custom_transforms::react_compiler;
 use swc_core::{
@@ -10,8 +9,6 @@ use swc_core::{
         parser::{parse_file_as_program, Syntax, TsSyntax},
     },
 };
-
-use crate::util::MapErr;
 
 pub struct CheckTask {
     pub filename: PathBuf,
@@ -26,10 +23,9 @@ impl Task for CheckTask {
         GLOBALS.set(&Default::default(), || {
             //
             let cm = Arc::new(SourceMap::default());
-            let fm = cm
-                .load_file(&self.filename.clone())
-                .context("failed to load file")
-                .convert_err()?;
+            let Ok(fm) = cm.load_file(&self.filename.clone()) else {
+                return Ok(false);
+            };
             let mut errors = vec![];
             let Ok(program) = parse_file_as_program(
                 &fm,
