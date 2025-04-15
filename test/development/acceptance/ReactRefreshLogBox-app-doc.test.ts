@@ -19,16 +19,13 @@ describe('ReactRefreshLogBox _app _document', () => {
     const { browser, session } = sandbox
     await expect(browser).toDisplayRedbox(`
      {
-       "description": "Error: The default export is not a React Component in page: "/_app"",
+       "description": "The default export is not a React Component in page: "/_app"",
        "environmentLabel": null,
        "label": "Runtime Error",
        "source": null,
        "stack": [],
      }
     `)
-    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-      `"Error: The default export is not a React Component in page: "/_app""`
-    )
 
     await session.patch(
       'pages/_app.js',
@@ -51,7 +48,7 @@ describe('ReactRefreshLogBox _app _document', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "description": "Error: The default export is not a React Component in page: "/_document"",
+       "description": "The default export is not a React Component in page: "/_document"",
        "environmentLabel": null,
        "label": "Runtime Error",
        "source": null,
@@ -154,7 +151,7 @@ describe('ReactRefreshLogBox _app _document', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error:   x Expression expected",
+         "description": "  x Expression expected",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./pages/_app.js
@@ -247,7 +244,7 @@ describe('ReactRefreshLogBox _app _document', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./pages/_document.js
-         × Module build failed:
+         Error: × Module build failed:
          ├─▶   ×
          │     │   x Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key
          │     │    ,-[<FIXME-project-root>/pages/_document.js:3:1]
@@ -268,7 +265,7 @@ describe('ReactRefreshLogBox _app _document', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error:   x Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key",
+         "description": "  x Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./pages/_document.js

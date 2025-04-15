@@ -12,7 +12,7 @@ describe('ssr-only-error', () => {
     // TODO(veil): Missing Owner Stack (NDX-905)
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "description": "Error: SSR only error",
+       "description": "SSR only error",
        "environmentLabel": null,
        "label": "Runtime Error",
        "source": "app/page.tsx (5:11) @ Component
