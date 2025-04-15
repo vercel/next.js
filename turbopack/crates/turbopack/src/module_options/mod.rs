@@ -551,7 +551,7 @@ impl ModuleOptions {
                 ModuleRule::new_internal(
                     RuleCondition::all(vec![
                         RuleCondition::ReferenceType(ReferenceType::Css(
-                            CssReferenceSubType::InternalAnalyze,
+                            CssReferenceSubType::ModuleAnalyze,
                         )),
                         RuleCondition::Any(vec![
                             RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
