@@ -22,7 +22,13 @@ pub trait BackingStorage: 'static + Send + Sync {
         session_id: SessionId,
         operations: Vec<Arc<AnyOperation>>,
         task_cache_updates: Vec<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>,
-        tasks: Vec<Vec<(TaskId, Option<(Vec<CachedDataItem>, Vec<CachedDataItem>)>)>>,
+        tasks: Vec<
+            Vec<(
+                TaskId,
+                Option<Vec<CachedDataItem>>,
+                Option<Vec<CachedDataItem>>,
+            )>,
+        >,
     ) -> Result<()>;
     fn start_read_transaction(&self) -> Option<Self::ReadTransaction<'_>>;
     /// # Safety

@@ -115,6 +115,8 @@ pub struct InnerStorageSnapshot {
     output: OptionStorage<OutputValue>,
     upper: AutoMapStorage<TaskId, i32>,
     dynamic: DynamicStorage,
+    pub meta_restored: bool,
+    pub data_restored: bool,
 }
 
 impl From<&InnerStorage> for InnerStorageSnapshot {
@@ -125,6 +127,8 @@ impl From<&InnerStorage> for InnerStorageSnapshot {
             output: inner.output.clone(),
             upper: inner.upper.clone(),
             dynamic: inner.dynamic.snapshot_for_persisting(),
+            meta_restored: inner.state.meta_restored(),
+            data_restored: inner.state.data_restored(),
         }
     }
 }
@@ -688,6 +692,9 @@ impl Storage {
                 processed
             })
             .collect::<Vec<_>>();
+
+        let count = result.iter().map(|v| v.len()).sum::<usize>();
+        println!("take_snapshot with {} items", count);
 
         self.end_snapshot();
 

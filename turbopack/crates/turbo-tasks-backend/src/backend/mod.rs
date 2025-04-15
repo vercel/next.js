@@ -828,13 +828,19 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let snapshot_time = Instant::now();
         drop(snapshot_request);
 
-        let mut tasks: Vec<Vec<(TaskId, Option<(Vec<CachedDataItem>, Vec<CachedDataItem>)>)>> =
+        let mut tasks: Vec<
+            Vec<(
+                TaskId,
+                Option<Vec<CachedDataItem>>,
+                Option<Vec<CachedDataItem>>,
+            )>,
+        > =
             {
                 let _span = tracing::trace_span!("take snapshot");
                 self.storage.take_snapshot(
                     |task_id, inner| {
                         if task_id.is_transient() {
-                            return None;
+                            return (None, None);
                         }
                         let len = inner.len();
                         let mut meta = Vec::with_capacity(len);
@@ -852,12 +858,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         }
                         meta.shrink_to_fit();
                         data.shrink_to_fit();
-                        Some((meta, data))
+
+                        (
+                            inner.state().meta_restored().then_some(meta),
+                            inner.state().data_restored().then_some(data),
+                        )
                     },
-                    |task_id, result| (task_id, result),
+                    |task_id, (meta, data)| (task_id, meta, data),
                     |task_id, inner| {
                         if task_id.is_transient() {
-                            return (task_id, None);
+                            return (task_id, None, None);
                         }
                         let len = inner.len();
                         let mut meta = Vec::with_capacity(len);
@@ -875,13 +885,17 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         }
                         meta.shrink_to_fit();
                         data.shrink_to_fit();
-                        (task_id, Some((meta, data)))
+                        (
+                            task_id,
+                            inner.meta_restored.then_some(meta),
+                            inner.data_restored.then_some(data),
+                        )
                     },
                 )
             };
 
         swap_retain(&mut tasks, |data| {
-            swap_retain(data, |(_, data)| data.is_some());
+            swap_retain(data, |(_, meta, data)| meta.is_some() || data.is_some());
             !data.is_empty()
         });
 

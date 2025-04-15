@@ -159,7 +159,13 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
         session_id: SessionId,
         operations: Vec<Arc<AnyOperation>>,
         task_cache_updates: Vec<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>,
-        tasks: Vec<Vec<(TaskId, Option<(Vec<CachedDataItem>, Vec<CachedDataItem>)>)>>,
+        tasks: Vec<
+            Vec<(
+                TaskId,
+                Option<Vec<CachedDataItem>>,
+                Option<Vec<CachedDataItem>>,
+            )>,
+        >,
     ) -> Result<()> {
         let _span = tracing::trace_span!("save snapshot", session_id = ?session_id, operations = operations.len());
         let mut batch = self.database.write_batch()?;
@@ -175,7 +181,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                         task_meta_items_result = process_task_data(
                             KeySpace::TaskMeta,
                             &tasks,
-                            |(meta, _)| meta,
+                            |meta, _| meta,
                             Some(batch),
                         );
                     });
@@ -184,7 +190,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                         task_data_items_result = process_task_data(
                             KeySpace::TaskData,
                             &tasks,
-                            |(_, data)| data,
+                            |_, data| data,
                             Some(batch),
                         );
                     });
@@ -270,7 +276,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                         task_meta_items_result = process_task_data(
                             KeySpace::TaskMeta,
                             &tasks,
-                            |(meta, _)| meta,
+                            |meta, _| meta,
                             None::<&T::ConcurrentWriteBatch<'_>>,
                         );
                     });
@@ -278,7 +284,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                         task_data_items_result = process_task_data(
                             KeySpace::TaskData,
                             &tasks,
-                            |(_, data)| data,
+                            |_, data| data,
                             None::<&T::ConcurrentWriteBatch<'_>>,
                         );
                     });
@@ -554,12 +560,21 @@ type SerializedTasks = Vec<Vec<(TaskId, WriteBuffer<'static>)>>;
 
 fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync, S>(
     key_space: KeySpace,
-    tasks: &Vec<Vec<(TaskId, Option<(Vec<CachedDataItem>, Vec<CachedDataItem>)>)>>,
+    tasks: &Vec<
+        Vec<(
+            TaskId,
+            Option<Vec<CachedDataItem>>,
+            Option<Vec<CachedDataItem>>,
+        )>,
+    >,
     select: S,
     batch: Option<&B>,
 ) -> Result<SerializedTasks>
 where
-    S: for<'l> Fn(&'l (Vec<CachedDataItem>, Vec<CachedDataItem>)) -> &'l Vec<CachedDataItem>
+    S: for<'l> Fn(
+            &'l Option<Vec<CachedDataItem>>,
+            &'l Option<Vec<CachedDataItem>>,
+        ) -> &'l Option<Vec<CachedDataItem>>
         + Sync
         + Send,
 {
@@ -578,11 +593,11 @@ where
                 } else {
                     Vec::with_capacity(tasks.len())
                 };
-                for (task, data) in tasks {
+                for (task, meta, data) in tasks {
+                    let data = select(meta, data);
                     let Some(data) = data else {
                         continue;
                     };
-                    let data = select(data);
                     // Serialize new data
                     let value = serialize(*task, data)?;
 
