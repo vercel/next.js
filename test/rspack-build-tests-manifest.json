@@ -2010,18 +2010,18 @@
     "passed": [
       "Dynamic IO Errors - With Minification Dynamic Boundary should not error the build when all dynamic components are inside a Suspense boundary",
       "Dynamic IO Errors - With Minification Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Static Route With Suspense should error the build if generateMetadata is dynamic",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Static Route should error the build if generateMetadata is dynamic",
+      "Dynamic IO Errors - With Minification Dynamic Metadata - Static Route With Suspense should not error the build if generateMetadata is dynamic",
+      "Dynamic IO Errors - With Minification Dynamic Metadata - Static Route should not error the build if generateMetadata is dynamic",
       "Dynamic IO Errors - With Minification Dynamic Root should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - With Minification Dynamic Viewport - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
+      "Dynamic IO Errors - With Minification Dynamic Viewport - Dynamic Route should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page",
       "Dynamic IO Errors - With Minification Dynamic Viewport - Static Route should error the build if generateViewport is dynamic",
       "Dynamic IO Errors - With Minification Static Route should not error the build when all routes are static",
       "Dynamic IO Errors - Without Minification Dynamic Boundary should not error the build when all dynamic components are inside a Suspense boundary",
       "Dynamic IO Errors - Without Minification Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Static Route With Suspense should error the build if generateMetadata is dynamic",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Static Route should error the build if generateMetadata is dynamic",
+      "Dynamic IO Errors - Without Minification Dynamic Metadata - Static Route With Suspense should not error the build if generateMetadata is dynamic",
+      "Dynamic IO Errors - Without Minification Dynamic Metadata - Static Route should not error the build if generateMetadata is dynamic",
       "Dynamic IO Errors - Without Minification Dynamic Root should error the build if dynamic IO happens in the root (outside a Suspense)",
-      "Dynamic IO Errors - Without Minification Dynamic Viewport - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
+      "Dynamic IO Errors - Without Minification Dynamic Viewport - Dynamic Route should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page",
       "Dynamic IO Errors - Without Minification Dynamic Viewport - Static Route should error the build if generateViewport is dynamic",
       "Dynamic IO Errors - Without Minification Static Route should not error the build when all routes are static"
     ],
@@ -2946,6 +2946,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/metadata-streaming-parallel-routes/metadata-streaming-parallel-routes.test.ts": {
+    "passed": [
+      "app-dir - metadata-streaming should only insert metadata once for parallel routes when slots match",
+      "app-dir - metadata-streaming should only insert metadata once for parallel routes when there is a missing slot",
+      "app-dir - metadata-streaming should still render metadata if children is not rendered in parallel routes layout"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/metadata-streaming-static-generation/metadata-streaming-static-generation.test.ts": {
     "passed": [
       "app-dir - metadata-streaming-static-generation dynamic pages should contain async generated metadata in body for simple dynamics page",
@@ -2984,14 +2995,11 @@
       "app-dir - metadata-streaming navigation API should trigger redirection when call redirect",
       "app-dir - metadata-streaming should delay the metadata render to body",
       "app-dir - metadata-streaming should load the initial html without slow metadata during navigation",
-      "app-dir - metadata-streaming should only insert metadata once for parallel routes when slots match",
-      "app-dir - metadata-streaming should only insert metadata once for parallel routes when there is a missing slot",
       "app-dir - metadata-streaming should only insert metadata once into head or body",
       "app-dir - metadata-streaming should render the metadata in the browser",
       "app-dir - metadata-streaming should send streaming response for headless browser bots",
       "app-dir - metadata-streaming should send the blocking response for html limited bots",
       "app-dir - metadata-streaming should still load viewport meta tags even if metadata is delayed",
-      "app-dir - metadata-streaming should still render metadata if children is not rendered in parallel routes layout",
       "app-dir - metadata-streaming static should determine dynamic metadata in build and render in the body",
       "app-dir - metadata-streaming static should render static metadata in the head",
       "app-dir - metadata-streaming static should still render dynamic metadata in the head for html bots"
@@ -18212,18 +18220,36 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/production/app-dir/graceful-degrade-error/graceful-degrade-error-non-bot.test.ts": {
+  "test/production/app-dir/graceful-degrade/basic/graceful-degrade-non-bot.test.ts": {
     "passed": [
-      "graceful-degrade-error - non bot should not degrade to graceful error when chunk loading fails in ssr for non-bot user agents"
+      "graceful-degrade - non bot should not degrade to graceful error when chunk loading fails in ssr for non-bot user agents"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/production/app-dir/graceful-degrade-error/graceful-degrade-error.test.ts": {
+  "test/production/app-dir/graceful-degrade/basic/graceful-degrade.test.ts": {
     "passed": [
-      "graceful-degrade-error should degrade to graceful error when chunk loading fails in ssr for bot"
+      "graceful-degrade should degrade to graceful error when chunk loading fails in ssr for bot"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/graceful-degrade/custom-error/graceful-degrade-custom-error-non-bot.test.ts": {
+    "passed": [
+      "graceful-degrade - custom-error - non bot should not degrade to graceful error when chunk loading fails in ssr for non-bot user agents"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/graceful-degrade/custom-error/graceful-degrade-custom-error.test.ts": {
+    "passed": [
+      "graceful-degrade - custom error should degrade to graceful error when chunk loading fails in ssr for bot"
     ],
     "failed": [],
     "pending": [],
