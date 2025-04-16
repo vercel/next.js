@@ -47,7 +47,7 @@ impl UpdateOutputOperation {
         output: Result<Result<RawVc>, Option<Cow<'static, str>>>,
         mut ctx: impl ExecuteContext,
     ) {
-        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+        let mut task = ctx.task(task_id, TaskDataCategory::All);
         let Some(InProgressState::InProgress(box InProgressStateInner {
             stale,
             new_children,

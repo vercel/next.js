@@ -557,26 +557,26 @@ impl CachedDataItem {
 
     pub fn category(&self) -> TaskDataCategory {
         match self {
-            Self::Collectible { .. }
-            | Self::Child { .. }
-            | Self::CellData { .. }
+            Self::CellData { .. }
             | Self::CellTypeMaxIndex { .. }
             | Self::OutputDependency { .. }
             | Self::CellDependency { .. }
             | Self::CollectiblesDependency { .. }
             | Self::OutputDependent { .. }
-            | Self::CellDependent { .. }
-            | Self::CollectiblesDependent { .. } => TaskDataCategory::Data,
+            | Self::CellDependent { .. } => TaskDataCategory::Data,
 
-            Self::Output { .. }
+            Self::Collectible { .. }
+            | Self::Output { .. }
             | Self::AggregationNumber { .. }
             | Self::Dirty { .. }
             | Self::Follower { .. }
+            | Self::Child { .. }
             | Self::Upper { .. }
             | Self::AggregatedDirtyContainer { .. }
             | Self::AggregatedCollectible { .. }
             | Self::AggregatedDirtyContainerCount { .. }
-            | Self::Stateful { .. } => TaskDataCategory::Meta,
+            | Self::Stateful { .. }
+            | Self::CollectiblesDependent { .. } => TaskDataCategory::Meta,
 
             Self::OutdatedCollectible { .. }
             | Self::OutdatedOutputDependency { .. }
@@ -639,26 +639,26 @@ impl CachedDataItemKey {
 impl CachedDataItemType {
     pub fn category(&self) -> TaskDataCategory {
         match self {
-            Self::Collectible { .. }
-            | Self::Child { .. }
-            | Self::CellData { .. }
+            Self::CellData { .. }
             | Self::CellTypeMaxIndex { .. }
             | Self::OutputDependency { .. }
             | Self::CellDependency { .. }
             | Self::CollectiblesDependency { .. }
             | Self::OutputDependent { .. }
-            | Self::CellDependent { .. }
-            | Self::CollectiblesDependent { .. } => TaskDataCategory::Data,
+            | Self::CellDependent { .. } => TaskDataCategory::Data,
 
-            Self::Output { .. }
+            Self::Collectible { .. }
+            | Self::Output { .. }
             | Self::AggregationNumber { .. }
             | Self::Dirty { .. }
             | Self::Follower { .. }
+            | Self::Child { .. }
             | Self::Upper { .. }
             | Self::AggregatedDirtyContainer { .. }
             | Self::AggregatedCollectible { .. }
             | Self::AggregatedDirtyContainerCount { .. }
-            | Self::Stateful { .. } => TaskDataCategory::Meta,
+            | Self::Stateful { .. }
+            | Self::CollectiblesDependent { .. } => TaskDataCategory::Meta,
 
             Self::OutdatedCollectible { .. }
             | Self::OutdatedOutputDependency { .. }
