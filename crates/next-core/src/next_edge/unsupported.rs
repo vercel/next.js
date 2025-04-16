@@ -1,5 +1,6 @@
 use anyhow::Result;
 use indoc::formatdoc;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -56,27 +57,32 @@ impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
     ) -> Result<Vc<ImportMapResult>> {
         let request = &*request.await?;
         if let Request::Module { module, .. } = request {
-            // packages/next/src/server/web/globals.ts augments global with
-            // `__import_unsupported` and necessary functions.
-            let code = formatdoc! {
-              r#"
-              {TURBOPACK_EXPORT_NAMESPACE}(__import_unsupported(`{module}`));
-              "#
-            };
-            let content = AssetContent::file(File::from(code).into());
-            let source = VirtualSource::new_with_ident(
-                AssetIdent::from_path(root_path).with_modifier(Vc::cell(
-                    format!("unsupported edge import {}", module).into(),
-                )),
-                content,
-            )
-            .to_resolved()
-            .await?;
-            return Ok(
-                ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(source))).cell(),
-            );
-        };
-
-        Ok(ImportMapResult::NoEntry.cell())
+            // Call out to separate `unsupported_module_source` to only have a single Source cell
+            // for requests with different subpaths: `fs` and `fs/promises`.
+            let source = unsupported_module_source(root_path, module.clone())
+                .to_resolved()
+                .await?;
+            Ok(ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(source))).cell())
+        } else {
+            Ok(ImportMapResult::NoEntry.cell())
+        }
     }
+}
+
+#[turbo_tasks::function]
+fn unsupported_module_source(root_path: Vc<FileSystemPath>, module: RcStr) -> Vc<VirtualSource> {
+    // packages/next/src/server/web/globals.ts augments global with
+    // `__import_unsupported` and necessary functions.
+    let code = formatdoc! {
+        r#"
+        {TURBOPACK_EXPORT_NAMESPACE}(__import_unsupported(`{module}`));
+        "#
+    };
+    let content = AssetContent::file(File::from(code).into());
+    VirtualSource::new_with_ident(
+        AssetIdent::from_path(root_path).with_modifier(Vc::cell(
+            format!("unsupported edge import {}", module).into(),
+        )),
+        content,
+    )
 }
