@@ -560,7 +560,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l,
     {
         self.check_access(ty.category());
-        if !self.task_id.is_transient() {
+        if !self.task_id.is_transient() && ty.is_persistent() {
             self.task.track_modification();
         }
         self.task.extract_if(ty, f)

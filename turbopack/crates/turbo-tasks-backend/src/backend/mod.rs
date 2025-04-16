@@ -910,8 +910,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         }
 
-        // TODO
-
         Some((snapshot_time, new_items))
     }
 
