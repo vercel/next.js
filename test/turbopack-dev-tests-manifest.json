@@ -2468,6 +2468,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/hmr-symlink/hmr-symlink.test.ts": {
+    "passed": [
+      "HMR symlinks tracks updates to symlinked target",
+      "HMR symlinks tracks updates to the symlink",
+      "HMR symlinks tracks updates to the middle of a symlink chain"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/hook-function-names/hook-function-names.test.ts": {
     "passed": [
       "hook-function-names should show readable hook names in stacks",
