@@ -1,0 +1,2 @@
+
+(function() { throw window.good; })();
