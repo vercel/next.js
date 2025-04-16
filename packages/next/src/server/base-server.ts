@@ -4154,37 +4154,43 @@ export default abstract class Server<
       }
       res.statusCode = 500
 
-      // Search for App Router /_error page first
-      const appRouterErrorComponents = await this.findPageComponents({
-        locale: getRequestMeta(ctx.req, 'locale'),
-        page: '/_error/page',
-        query,
-        params: {},
-        isAppPath: true,
-        // Ensuring can't be done here because you never "match" an error
-        // route.
-        shouldEnsure: true,
-        url: ctx.req.url,
-      })
+      try {
+        // Search for App Router /_error page first
+        const appRouterErrorComponents = await this.findPageComponents({
+          locale: getRequestMeta(ctx.req, 'locale'),
+          page: '/_error/page',
+          query,
+          params: {},
+          isAppPath: true,
+          // Ensuring can't be done here because you never "match" an error
+          // route.
+          shouldEnsure: true,
+          url: ctx.req.url,
+        })
 
-      // If there's an App Router /_error page, render it.
-      if (appRouterErrorComponents) {
-        return this.renderToResponseWithComponents(
-          {
-            ...ctx,
-            pathname: '/_error',
-            renderOpts: {
-              ...ctx.renderOpts,
-              // We render `renderToHtmlError` here because `err` is
-              // already captured in the stacktrace.
-              err: isWrappedError
-                ? renderToHtmlError.innerError
-                : renderToHtmlError,
+        // If there's an App Router /_error page, render it.
+        if (appRouterErrorComponents) {
+          return this.renderToResponseWithComponents(
+            {
+              ...ctx,
+              pathname: '/_error',
+              renderOpts: {
+                ...ctx.renderOpts,
+                // We render `renderToHtmlError` here because `err` is
+                // already captured in the stacktrace.
+                err: isWrappedError
+                  ? renderToHtmlError.innerError
+                  : renderToHtmlError,
+              },
             },
-          },
-          appRouterErrorComponents
-        )
-      } else {
+            appRouterErrorComponents
+          )
+        }
+      } catch (e) {
+        if (!(e instanceof PageNotFoundError)) {
+          // If it doesn't exist, skip the error, otherwise throw it.
+          throw e
+        }
         // Otherwise fallback to Pages Router fallback /_error
         const fallbackComponents = await this.getFallbackErrorComponents(
           ctx.req.url
