@@ -23,7 +23,6 @@ const nextConfig = {
       test: /\.mp4/,
       use: require.resolve('./test-file-loader.js'),
     })
-
     return config
   },
 }
