@@ -89,7 +89,7 @@ async function createErrorSnapshot(
   // Here we focus on the cursor position of the top most frame
   // From
   //
-  // pages/index.js (3:11) @ eval
+  // pages/index.js (3:11)
   //
   //   1 | export default function Page() {
   //   2 |   [1, 2, 3].map(() => {
