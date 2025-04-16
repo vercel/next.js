@@ -9,7 +9,7 @@ import type {
   ExperimentalConfig,
   NextConfigComplete,
   NextConfig,
-  TurboLoaderItem,
+  TurbopackLoaderItem,
 } from './config-shared'
 
 import { loadWebpackHook } from './config-utils'
@@ -251,9 +251,9 @@ function assignDefaults(
       throw new CanaryOnlyError({ feature: 'experimental.ppr' })
     } else if (result.experimental?.dynamicIO) {
       throw new CanaryOnlyError({ feature: 'experimental.dynamicIO' })
-    } else if (result.experimental?.turbo?.unstablePersistentCaching) {
+    } else if (result.experimental?.turbopackPersistentCaching) {
       throw new CanaryOnlyError({
-        feature: 'experimental.turbo.unstablePersistentCaching',
+        feature: 'experimental.turbopackPersistentCaching',
       })
     } else if (result.experimental?.nodeMiddleware) {
       throw new CanaryOnlyError({ feature: 'experimental.nodeMiddleware' })
@@ -655,14 +655,11 @@ function assignDefaults(
     }
   }
 
-  if (
-    result?.experimental?.turbo?.root &&
-    !isAbsolute(result.experimental.turbo.root)
-  ) {
-    result.experimental.turbo.root = resolve(result.experimental.turbo.root)
+  if (result?.turbopack?.root && !isAbsolute(result.turbopack.root)) {
+    result.turbopack.root = resolve(result.turbopack.root)
     if (!silent) {
       Log.warn(
-        `experimental.turbo.root should be absolute, using: ${result.experimental.turbo.root}`
+        `turbopack.root should be absolute, using: ${result.turbopack.root}`
       )
     }
   }
@@ -672,27 +669,21 @@ function assignDefaults(
     result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
-  if (result?.outputFileTracingRoot && !result?.experimental?.turbo?.root) {
-    dset(
-      result,
-      ['experimental', 'turbo', 'root'],
-      result.outputFileTracingRoot
-    )
+  if (result?.outputFileTracingRoot && !result?.turbopack?.root) {
+    dset(result, ['turbopack', 'root'], result.outputFileTracingRoot)
   }
 
   // use the closest lockfile as tracing root
-  if (!result?.outputFileTracingRoot || !result?.experimental?.turbo?.root) {
+  if (!result?.outputFileTracingRoot || !result?.turbopack?.root) {
     let rootDir = findRootDir(dir)
 
     if (rootDir) {
       if (!result?.outputFileTracingRoot) {
         result.outputFileTracingRoot = rootDir
-        defaultConfig.outputFileTracingRoot = result.outputFileTracingRoot
       }
 
-      if (!result?.experimental?.turbo?.root) {
-        dset(result, ['experimental', 'turbo', 'root'], rootDir)
-        dset(defaultConfig, ['experimental', 'turbo', 'root'], rootDir)
+      if (!result?.turbopack?.root) {
+        dset(result, ['turbopack', 'root'], rootDir)
       }
     }
   }
@@ -1273,14 +1264,34 @@ export default async function loadConfig(
           'See more info here https://nextjs.org/docs/app/api-reference/next-config-js/turbo'
       )
 
-      const rules: Record<string, TurboLoaderItem[]> = {}
+      const rules: Record<string, TurbopackLoaderItem[]> = {}
       for (const [ext, loaders] of Object.entries(
         userConfig.experimental.turbo.loaders
       )) {
-        rules['*' + ext] = loaders as TurboLoaderItem[]
+        rules['*' + ext] = loaders as TurbopackLoaderItem[]
       }
 
       userConfig.experimental.turbo.rules = rules
+    }
+
+    if (userConfig.experimental?.turbo) {
+      curLog.warn(
+        'The config property `experimental.turbo` is deprecated. Move this setting to `config.turbopack` as Turbopack is now stable.'
+      )
+
+      // Merge the two configs, preferring values in `config.turbopack`.
+      userConfig.turbopack = {
+        ...userConfig.experimental.turbo,
+        ...userConfig.turbopack,
+      }
+      userConfig.experimental.turbopackMemoryLimit ??=
+        userConfig.experimental.turbo.memoryLimit
+      userConfig.experimental.turbopackMinify ??=
+        userConfig.experimental.turbo.minify
+      userConfig.experimental.turbopackTreeShaking ??=
+        userConfig.experimental.turbo.treeShaking
+      userConfig.experimental.turbopackSourceMaps ??=
+        userConfig.experimental.turbo.sourceMaps
     }
 
     if (userConfig.experimental?.useLightningcss) {

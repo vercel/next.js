@@ -24,14 +24,14 @@
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-0 -> 14 call = (...) => parent(???*0*, (???*2* ? ???*3* : ???*10*), (???*15* | {}){truthy})
+0 -> 14 call = (...) => parent(???*0*, (???*2* ? ???*3* : (???*10* | undefined)), (???*15* | {}){truthy})
 - *0* ???*1*[key]
   ⚠️  unknown object
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 - *2* arguments[1]
   ⚠️  function calls are not analysed yet
-- *3* `${???*4*}.${???*5*}`
+- *3* `${???*4*}.${(???*5* | undefined)}`
   ⚠️  nested operation
 - *4* arguments[1]
   ⚠️  function calls are not analysed yet

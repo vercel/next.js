@@ -23,7 +23,7 @@ This page will guide you through how to use each of these approaches.
 
 ## CSS Modules
 
-CSS Modules locally scope CSS by generating unique class names. This allows you to use the same class in different files without worrying about collisions.
+CSS Modules locally scope CSS by generating unique class names. This allows you to use the same class in different files without worrying about naming collisions.
 
 To start using CSS Modules, create a new file with the extension `.module.css` and import it into any component inside the `app` directory:
 
@@ -53,7 +53,7 @@ export default function Page({ children }) {
 
 You can use global CSS to apply styles across your application.
 
-To use global styles, create a new CSS file, for example `app/global.css`:
+To use global styles, create a `app/global.css` file and import it in the root layout to apply the styles to **every route** in your application:
 
 ```css filename="app/global.css"
 body {
@@ -62,8 +62,6 @@ body {
   margin: 0 auto;
 }
 ```
-
-Import the file in the root layout (`app/layout.js`) to apply the styles to **every route** in your application:
 
 ```tsx filename="app/layout.tsx" switcher
 // These styles apply to every route in the application
@@ -95,7 +93,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-> **Good to know:** Global styles can be imported into any layout, page, or component inside the `app` directory. However, since Next.js uses React's built-in support for stylesheets to integrate with Suspense. This built-in support currently does not remove stylesheets as you navigate between routes. Therefore, we recommend using global styles for _truly_ global CSS, and [CSS Modules](#css-modules) for scoped CSS.
+> **Good to know:** Global styles can be imported into any layout, page, or component inside the `app` directory. However, since Next.js uses React's built-in support for stylesheets to integrate with Suspense, this currently does not remove stylesheets as you navigate between routes which can lead to conflicts. We recommend using global styles for _truly_ global CSS, and [CSS Modules](#css-modules) for scoped CSS.
 
 ## Tailwind CSS
 
@@ -106,7 +104,7 @@ export default function RootLayout({ children }) {
 To start using Tailwind, install the necessary Tailwind CSS packages:
 
 ```bash filename="Terminal"
-npm install -D tailwindcss @tailwindcss/postcss postcss
+npm install tailwindcss @tailwindcss/postcss postcss
 ```
 
 ### Configuring Tailwind
@@ -134,7 +132,6 @@ Then, import the styles in the [root layout](/docs/app/api-reference/file-conven
 
 ```tsx filename="app/layout.tsx" switcher
 import type { Metadata } from 'next'
-
 // These styles apply to every route in the application
 import './globals.css'
 
@@ -174,7 +171,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Lastly, you can start writing Tailwind's utility classes in your application.
+You can then start writing Tailwind's utility classes in your application.
 
 ```tsx filename="app/page.tsx" switcher
 export default function Page() {

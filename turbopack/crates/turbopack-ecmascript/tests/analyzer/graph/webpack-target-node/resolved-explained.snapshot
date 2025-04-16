@@ -10,19 +10,21 @@ __unused_webpack_module = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-__webpack_exec__ = (...) => __webpack_require__(???*0*)
+__webpack_exec__ = ((...) => __webpack_require__(???*0*) | undefined)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-__webpack_exports__#3 = module<../../webpack-api-runtime.js, {}>(???*0*)
-- *0* unsupported expression
+__webpack_exports__#3 = (???*0* | undefined)
+- *0* ((...) => __webpack_require__(???*1*) | undefined)(5166)
+  ⚠️  non-function callee
+- *1* unsupported expression
   ⚠️  This value might have side effects
 
 __webpack_exports__#4 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-__webpack_require__#3 = module<../../webpack-api-runtime.js, {}>
+__webpack_require__#3 = (module<../../webpack-api-runtime.js, {}> | undefined)
 
 __webpack_require__#4 = ???*0*
 - *0* arguments[2]
@@ -32,7 +34,7 @@ _req = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-exports = {}
+exports = ({} | undefined)
 
 handler = (...) => undefined
 

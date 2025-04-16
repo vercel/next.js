@@ -23,7 +23,7 @@ export function log(message: string) {
 export function init(opts: {
   ts: TypeScript
   info: tsModule.server.PluginCreateInfo
-}) {
+}): boolean {
   const projectDir = opts.info.project.getCurrentDirectory()
   ts = opts.ts
   info = opts.info
@@ -48,14 +48,15 @@ export function init(opts: {
     compilerOptions
   )
 
-  if (virtualTsEnv) {
+  if (!virtualTsEnv) {
     log(
       'Failed to create virtual TypeScript environment. This is a bug in Next.js TypeScript plugin. Please report it by opening an issue at https://github.com/vercel/next.js/issues.'
     )
-    return
+    return false
   }
 
   log('Successfully initialized Next.js TypeScript plugin!')
+  return true
 }
 
 export function getTs() {

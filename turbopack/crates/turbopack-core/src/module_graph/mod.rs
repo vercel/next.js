@@ -325,6 +325,21 @@ impl SingleModuleGraph {
 
         graph.shrink_to_fit();
 
+        #[cfg(debug_assertions)]
+        {
+            let mut duplicates = Vec::new();
+            let mut set = FxHashSet::default();
+            for &module in modules.keys() {
+                let ident = module.ident().to_string().await?;
+                if !set.insert(ident.clone()) {
+                    duplicates.push(ident);
+                }
+            }
+            if !duplicates.is_empty() {
+                panic!("Duplicate module idents in graph: {:#?}", duplicates);
+            }
+        }
+
         Ok(SingleModuleGraph {
             graph: TracedDiGraph::new(graph),
             number_of_modules,

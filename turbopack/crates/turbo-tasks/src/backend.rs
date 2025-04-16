@@ -68,6 +68,8 @@ pub struct CachedTaskType {
 }
 
 impl CachedTaskType {
+    /// Get the name of the function from the registry. Equivalent to the
+    /// [`fmt::Display::to_string`] implementation, but does not allocate a `String`.
     pub fn get_name(&self) -> &'static str {
         &registry::get_function(self.fn_type).name
     }

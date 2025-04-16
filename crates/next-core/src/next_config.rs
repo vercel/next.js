@@ -94,6 +94,8 @@ pub struct NextConfig {
     pub cross_origin: Option<CrossOriginConfig>,
     pub dev_indicators: Option<DevIndicatorsConfig>,
     pub output: Option<OutputType>,
+    pub turbopack: Option<TurbopackConfig>,
+    production_browser_source_maps: bool,
 
     /// Enables the bundling of node_modules packages (externals) for pages
     /// server-side bundles.
@@ -129,7 +131,6 @@ pub struct NextConfig {
     http_agent_options: HttpAgentConfig,
     on_demand_entries: OnDemandEntriesConfig,
     powered_by_header: bool,
-    production_browser_source_maps: bool,
     public_runtime_config: FxIndexMap<String, serde_json::Value>,
     server_runtime_config: FxIndexMap<String, serde_json::Value>,
     static_page_generation_timeout: f64,
@@ -536,17 +537,13 @@ pub enum RemotePatternProtocal {
     OperationValue,
 )]
 #[serde(rename_all = "camelCase")]
-pub struct ExperimentalTurboConfig {
+pub struct TurbopackConfig {
     /// This option has been replaced by `rules`.
     pub loaders: Option<JsonValue>,
     pub rules: Option<FxIndexMap<RcStr, RuleConfigItemOrShortcut>>,
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
-    pub tree_shaking: Option<bool>,
-    pub module_id_strategy: Option<ModuleIdStrategy>,
-    pub minify: Option<bool>,
-    pub source_maps: Option<bool>,
-    pub unstable_persistent_caching: Option<bool>,
+    pub module_ids: Option<ModuleIds>,
 }
 
 #[derive(
@@ -590,13 +587,13 @@ pub enum LoaderItem {
 #[turbo_tasks::value(operation)]
 #[derive(Copy, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-pub enum ModuleIdStrategy {
+pub enum ModuleIds {
     Named,
     Deterministic,
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionModuleIdStrategy(pub Option<ModuleIdStrategy>);
+pub struct OptionModuleIds(pub Option<ModuleIds>);
 
 #[derive(
     Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
@@ -668,7 +665,6 @@ pub struct ExperimentalConfig {
     mdx_rs: Option<MdxRsOptions>,
     strict_next_head: Option<bool>,
     swc_plugins: Option<Vec<(RcStr, serde_json::Value)>>,
-    turbo: Option<ExperimentalTurboConfig>,
     external_middleware_rewrites_resolve: Option<bool>,
     scroll_restoration: Option<bool>,
     manual_client_base_path: Option<bool>,
@@ -729,7 +725,8 @@ pub struct ExperimentalConfig {
     /// directory.
     ppr: Option<ExperimentalPartialPrerendering>,
     taint: Option<bool>,
-    react_owner_stack: Option<bool>,
+    #[serde(rename = "routerBFCache")]
+    router_bfcache: Option<bool>,
     proxy_timeout: Option<f64>,
     /// enables the minification of server code.
     server_minification: Option<bool>,
@@ -748,6 +745,11 @@ pub struct ExperimentalConfig {
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
+
+    turbopack_minify: Option<bool>,
+    turbopack_persistent_caching: Option<bool>,
+    turbopack_source_maps: Option<bool>,
+    turbopack_tree_shaking: Option<bool>,
 }
 
 #[derive(
@@ -1144,12 +1146,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn webpack_rules(&self, active_conditions: Vec<RcStr>) -> Vc<OptionWebpackRules> {
-        let Some(turbo_rules) = self
-            .experimental
-            .turbo
-            .as_ref()
-            .and_then(|t| t.rules.as_ref())
-        else {
+        let Some(turbo_rules) = self.turbopack.as_ref().and_then(|t| t.rules.as_ref()) else {
             return Vc::cell(None);
         };
         if turbo_rules.is_empty() {
@@ -1234,9 +1231,7 @@ impl NextConfig {
     pub fn persistent_caching_enabled(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(
             self.experimental
-                .turbo
-                .as_ref()
-                .and_then(|t| t.unstable_persistent_caching)
+                .turbopack_persistent_caching
                 .unwrap_or_default(),
         ))
     }
@@ -1244,8 +1239,7 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn resolve_alias_options(&self) -> Result<Vc<ResolveAliasMap>> {
         let Some(resolve_alias) = self
-            .experimental
-            .turbo
+            .turbopack
             .as_ref()
             .and_then(|t| t.resolve_alias.as_ref())
         else {
@@ -1258,8 +1252,7 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn resolve_extension(&self) -> Vc<ResolveExtensions> {
         let Some(resolve_extensions) = self
-            .experimental
-            .turbo
+            .turbopack
             .as_ref()
             .and_then(|t| t.resolve_extensions.as_ref())
         else {
@@ -1424,8 +1417,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn enable_react_owner_stack(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.react_owner_stack.unwrap_or(false))
+    pub fn enable_router_bfcache(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.router_bfcache.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
@@ -1476,13 +1469,7 @@ impl NextConfig {
         &self,
         _is_development: bool,
     ) -> Vc<OptionTreeShaking> {
-        let tree_shaking = self
-            .experimental
-            .turbo
-            .as_ref()
-            .and_then(|v| v.tree_shaking);
-
-        OptionTreeShaking(match tree_shaking {
+        OptionTreeShaking(match self.experimental.turbopack_tree_shaking {
             Some(false) => Some(TreeShakingMode::ReexportsOnly),
             Some(true) => Some(TreeShakingMode::ModuleFragments),
             None => Some(TreeShakingMode::ReexportsOnly),
@@ -1492,13 +1479,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn tree_shaking_mode_for_user_code(&self, _is_development: bool) -> Vc<OptionTreeShaking> {
-        let tree_shaking = self
-            .experimental
-            .turbo
-            .as_ref()
-            .and_then(|v| v.tree_shaking);
-
-        OptionTreeShaking(match tree_shaking {
+        OptionTreeShaking(match self.experimental.turbopack_tree_shaking {
             Some(false) => Some(TreeShakingMode::ReexportsOnly),
             Some(true) => Some(TreeShakingMode::ModuleFragments),
             None => Some(TreeShakingMode::ReexportsOnly),
@@ -1507,31 +1488,33 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn module_id_strategy_config(&self) -> Vc<OptionModuleIdStrategy> {
-        let Some(module_id_strategy) = self
-            .experimental
-            .turbo
-            .as_ref()
-            .and_then(|t| t.module_id_strategy)
-        else {
+    pub fn module_ids(&self) -> Vc<OptionModuleIds> {
+        let Some(module_ids) = self.turbopack.as_ref().and_then(|t| t.module_ids) else {
             return Vc::cell(None);
         };
-        Vc::cell(Some(module_id_strategy))
+        Vc::cell(Some(module_ids))
     }
 
     #[turbo_tasks::function]
     pub async fn turbo_minify(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
-        let minify = self.experimental.turbo.as_ref().and_then(|t| t.minify);
-
+        let minify = self.experimental.turbopack_minify;
         Ok(Vc::cell(
             minify.unwrap_or(matches!(*mode.await?, NextMode::Build)),
         ))
     }
 
     #[turbo_tasks::function]
-    pub async fn turbo_source_maps(&self) -> Result<Vc<bool>> {
-        let source_maps = self.experimental.turbo.as_ref().and_then(|t| t.source_maps);
+    pub async fn client_source_maps(&self, _mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        // Temporarily always enable client source maps as tests regress.
+        // TODO: Respect both `self.experimental.turbopack_source_maps` and
+        //       `self.production_browser_source_maps`
+        let source_maps = self.experimental.turbopack_source_maps;
+        Ok(Vc::cell(source_maps.unwrap_or(true)))
+    }
 
+    #[turbo_tasks::function]
+    pub async fn server_source_maps(&self) -> Result<Vc<bool>> {
+        let source_maps = self.experimental.turbopack_source_maps;
         Ok(Vc::cell(source_maps.unwrap_or(true)))
     }
 

@@ -55,7 +55,7 @@ export default async function Page() {
 
 #### With an ORM or database
 
-You can fetch data with an ORM or database by turning your component into an asynchronous function, and awaiting the call:
+Since Server Components are rendered on the server, you can safely make database queries using an ORM or database client. Turn your component into an asynchronous function, and await the call:
 
 ```tsx filename="app/blog/page.tsx" switcher
 import { db, posts } from '@/lib/db'

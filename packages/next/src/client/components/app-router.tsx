@@ -198,10 +198,12 @@ function Router({
   actionQueue,
   assetPrefix,
   globalError,
+  gracefullyDegrade,
 }: {
   actionQueue: AppRouterActionQueue
   assetPrefix: string
   globalError: [GlobalErrorComponent, React.ReactNode]
+  gracefullyDegrade: boolean
 }) {
   const state = useActionQueue(actionQueue)
   const { canonicalUrl } = state
@@ -512,15 +514,18 @@ function Router({
       </HotReloader>
     )
   } else {
-    // In production, we only apply the user-customized global error boundary.
-    content = (
-      <ErrorBoundary
-        errorComponent={globalError[0]}
-        errorStyles={globalError[1]}
-      >
-        {content}
-      </ErrorBoundary>
-    )
+    // If gracefully degrading is applied in production,
+    // leave the app as it is rather than caught by GlobalError boundary.
+    if (!gracefullyDegrade) {
+      content = (
+        <ErrorBoundary
+          errorComponent={globalError[0]}
+          errorStyles={globalError[1]}
+        >
+          {content}
+        </ErrorBoundary>
+      )
+    }
   }
 
   return (
@@ -555,26 +560,37 @@ export default function AppRouter({
   actionQueue,
   globalErrorComponentAndStyles: [globalErrorComponent, globalErrorStyles],
   assetPrefix,
+  gracefullyDegrade,
 }: {
   actionQueue: AppRouterActionQueue
   globalErrorComponentAndStyles: [GlobalErrorComponent, React.ReactNode]
   assetPrefix: string
+  gracefullyDegrade: boolean
 }) {
   useNavFailureHandler()
 
-  return (
-    <ErrorBoundary
-      // At the very top level, use the default GlobalError component as the final fallback.
-      // When the app router itself fails, which means the framework itself fails, we show the default error.
-      errorComponent={DefaultGlobalError}
-    >
-      <Router
-        actionQueue={actionQueue}
-        assetPrefix={assetPrefix}
-        globalError={[globalErrorComponent, globalErrorStyles]}
-      />
-    </ErrorBoundary>
+  const router = (
+    <Router
+      actionQueue={actionQueue}
+      assetPrefix={assetPrefix}
+      globalError={[globalErrorComponent, globalErrorStyles]}
+      gracefullyDegrade={gracefullyDegrade}
+    />
   )
+
+  if (gracefullyDegrade) {
+    return router
+  } else {
+    return (
+      <ErrorBoundary
+        // At the very top level, use the default GlobalError component as the final fallback.
+        // When the app router itself fails, which means the framework itself fails, we show the default error.
+        errorComponent={DefaultGlobalError}
+      >
+        {router}
+      </ErrorBoundary>
+    )
+  }
 }
 
 const runtimeStyles = new Set<string>()

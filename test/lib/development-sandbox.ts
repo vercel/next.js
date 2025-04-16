@@ -35,7 +35,7 @@ export async function createSandbox(
   next: NextInstance,
   initialFiles?: Map<string, string | ((contents: string) => string)>,
   initialUrl: string = '/',
-  webDriverOptions: WebdriverOptions = undefined
+  webDriverOptions: WebdriverOptions | undefined = undefined
 ) {
   let unwrappedByTypeScriptUsingKeyword = false
 

@@ -16,13 +16,14 @@ import type {
 import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
+import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../client/components/app-router-headers'
 
 export type WorkUnitPhase = 'action' | 'render' | 'after'
 
 export interface CommonWorkUnitStore {
   /** NOTE: Will be mutated as phases change */
   phase: WorkUnitPhase
-  readonly implicitTags: ImplicitTags | undefined
+  readonly implicitTags: ImplicitTags
 }
 
 export interface RequestStore extends CommonWorkUnitStore {
@@ -116,11 +117,12 @@ export interface PrerenderStoreModern extends CommonWorkUnitStore {
    */
   prerenderResumeDataCache: PrerenderResumeDataCache | null
 
-  // DEV ONLY
-  // When used this flag informs certain APIs to skip logging because we're
-  // not part of the primary render path and are just prerendering to produce
-  // validation results
-  validating?: boolean
+  /**
+   * The HMR refresh hash is only provided in dev mode. It is needed for the dev
+   * warmup render to ensure that the cache keys will be identical for the
+   * subsequent dynamic render.
+   */
+  readonly hmrRefreshHash: string | undefined
 }
 
 export interface PrerenderStorePPR extends CommonWorkUnitStore {
@@ -154,7 +156,16 @@ export type PrerenderStore =
   | PrerenderStorePPR
   | PrerenderStoreModern
 
-export interface UseCacheStore extends CommonWorkUnitStore {
+export interface CommonCacheStore
+  extends Omit<CommonWorkUnitStore, 'implicitTags'> {
+  /**
+   * A cache work unit store might not always have an outer work unit store,
+   * from which implicit tags could be inherited.
+   */
+  readonly implicitTags: ImplicitTags | undefined
+}
+
+export interface UseCacheStore extends CommonCacheStore {
   type: 'cache'
   // Collected revalidate times and tags for this cache entry during the cache render.
   revalidate: number // implicit revalidate time from inner caches / fetches
@@ -173,7 +184,7 @@ export interface UseCacheStore extends CommonWorkUnitStore {
   readonly draftMode: DraftModeProvider | undefined
 }
 
-export interface UnstableCacheStore extends CommonWorkUnitStore {
+export interface UnstableCacheStore extends CommonCacheStore {
   type: 'unstable-cache'
   // Draft mode is only available if the outer work unit store is a request
   // store and draft mode is enabled.
@@ -276,10 +287,10 @@ export function getHmrRefreshHash(
     return undefined
   }
 
-  return workUnitStore.type === 'cache'
+  return workUnitStore.type === 'cache' || workUnitStore.type === 'prerender'
     ? workUnitStore.hmrRefreshHash
     : workUnitStore.type === 'request'
-      ? workUnitStore.cookies.get('__next_hmr_refresh_hash__')?.value
+      ? workUnitStore.cookies.get(NEXT_HMR_REFRESH_HASH_COOKIE)?.value
       : undefined
 }
 

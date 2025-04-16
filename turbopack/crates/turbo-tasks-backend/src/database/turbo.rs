@@ -1,5 +1,4 @@
 use std::{
-    borrow::Cow,
     path::PathBuf,
     sync::Arc,
     thread::{spawn, JoinHandle},
@@ -7,11 +6,11 @@ use std::{
 
 use anyhow::Result;
 use parking_lot::Mutex;
-use turbo_persistence::{ArcSlice, TurboPersistence};
+use turbo_persistence::{ArcSlice, KeyBase, StoreKey, TurboPersistence, ValueBuffer};
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
-    write_batch::{BaseWriteBatch, ConcurrentWriteBatch, WriteBatch},
+    write_batch::{BaseWriteBatch, ConcurrentWriteBatch, WriteBatch, WriteBuffer},
 };
 
 const COMPACT_MAX_COVERAGE: f32 = 20.0;
@@ -104,7 +103,7 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
 }
 
 pub struct TurboWriteBatch<'a> {
-    batch: turbo_persistence::WriteBatch<Vec<u8>, 5>,
+    batch: turbo_persistence::WriteBatch<WriteBuffer<'static>, 5>,
     db: &'a Arc<TurboPersistence>,
     compact_join_handle: &'a Mutex<Option<JoinHandle<Result<()>>>>,
 }
@@ -137,11 +136,60 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
 }
 
 impl<'a> ConcurrentWriteBatch<'a> for TurboWriteBatch<'a> {
-    fn put(&self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()> {
-        self.batch.put(key_space as usize, key.into_owned(), value)
+    fn put(&self, key_space: KeySpace, key: WriteBuffer<'_>, value: WriteBuffer<'_>) -> Result<()> {
+        self.batch
+            .put(key_space as usize, key.into_static(), value.into())
     }
 
-    fn delete(&self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()> {
-        self.batch.delete(key_space as usize, key.into_owned())
+    fn delete(&self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
+        self.batch.delete(key_space as usize, key.into_static())
+    }
+}
+
+impl KeyBase for WriteBuffer<'_> {
+    fn len(&self) -> usize {
+        (**self).len()
+    }
+
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        for item in &**self {
+            state.write_u8(*item);
+        }
+    }
+}
+
+impl StoreKey for WriteBuffer<'_> {
+    fn write_to(&self, buf: &mut Vec<u8>) {
+        buf.extend_from_slice(self);
+    }
+}
+
+impl PartialEq for WriteBuffer<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        **self == **other
+    }
+}
+
+impl Eq for WriteBuffer<'_> {}
+
+impl Ord for WriteBuffer<'_> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        (**self).cmp(&**other)
+    }
+}
+
+impl PartialOrd for WriteBuffer<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<'l> From<WriteBuffer<'l>> for ValueBuffer<'l> {
+    fn from(val: WriteBuffer<'l>) -> Self {
+        match val {
+            WriteBuffer::Borrowed(b) => ValueBuffer::Borrowed(b),
+            WriteBuffer::Vec(v) => ValueBuffer::Vec(v),
+            WriteBuffer::SmallVec(sv) => ValueBuffer::SmallVec(sv),
+        }
     }
 }

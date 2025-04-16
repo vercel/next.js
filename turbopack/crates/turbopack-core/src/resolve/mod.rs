@@ -3144,7 +3144,6 @@ async fn error_severity(resolve_options: Vc<ResolveOptions>) -> Result<ResolvedV
     })
 }
 
-// TODO this should become a TaskInput instead of a Vc
 /// ModulePart represents a part of a module.
 ///
 /// Currently this is used only for ESMs.

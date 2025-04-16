@@ -40,12 +40,13 @@ import type {
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
 import type { DebugInfo } from '../types'
 import { useUntrackedPathname } from '../../navigation-untracked'
-import { getReactStitchedError } from '../../errors/stitched-error'
+import { getComponentStack, getOwnerStack } from '../../errors/stitched-error'
 import { handleDevBuildIndicatorHmrEvents } from '../../../dev/dev-build-indicator/internal/handle-dev-build-indicator-hmr-events'
 import type { GlobalErrorComponent } from '../../error-boundary'
 import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
 import reportHmrLatency from '../utils/report-hmr-latency'
 import { TurbopackHmr } from '../utils/turbopack-hot-reloader-common'
+import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../app-router-headers'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -412,7 +413,7 @@ function processMessage(
 
       // Store the latest hash in a session cookie so that it's sent back to the
       // server with any subsequent requests.
-      document.cookie = `__next_hmr_refresh_hash__=${obj.hash}`
+      document.cookie = `${NEXT_HMR_REFRESH_HASH_COOKIE}=${obj.hash}`
 
       if (RuntimeErrorHandler.hadRuntimeError) {
         if (reloading) return
@@ -516,15 +517,16 @@ export default function HotReload({
   const handleOnUnhandledError = useCallback(
     (error: Error): void => {
       // Component stack is added to the error in use-error-handler in case there was a hydration error
-      const componentStackTrace = (error as any)._componentStack
+      const componentStack = getComponentStack(error)
+      const ownerStack = getOwnerStack(error)
 
       dispatch({
         type: ACTION_UNHANDLED_ERROR,
         reason: error,
-        frames: parseStack(error.stack || ''),
+        frames: parseStack((error.stack || '') + (ownerStack || '')),
         componentStackFrames:
-          typeof componentStackTrace === 'string'
-            ? parseComponentStack(componentStackTrace)
+          typeof componentStack === 'string'
+            ? parseComponentStack(componentStack)
             : undefined,
       })
     },
@@ -532,12 +534,12 @@ export default function HotReload({
   )
 
   const handleOnUnhandledRejection = useCallback(
-    (reason: Error): void => {
-      const stitchedError = getReactStitchedError(reason)
+    (error: Error): void => {
+      const ownerStack = getOwnerStack(error)
       dispatch({
         type: ACTION_UNHANDLED_REJECTION,
-        reason: stitchedError,
-        frames: parseStack(stitchedError.stack || ''),
+        reason: error,
+        frames: parseStack((error.stack || '') + (ownerStack || '')),
       })
     },
     [dispatch]
