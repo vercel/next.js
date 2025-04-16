@@ -370,7 +370,7 @@ lightningcss-napi = { version = "0.4.3", default-features = false, features = [
 markdown = "1.0.0-alpha.18"
 mime = "0.3.16"
 nohash-hasher = "0.2.0"
-notify = "6.1.1"
+notify = "8.0.0"
 once_cell = "1.17.1"
 owo-colors = "3.5.0"
 par-core = { version = "1.0.3", features = ["rayon"] }
