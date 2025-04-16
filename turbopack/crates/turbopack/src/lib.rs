@@ -799,6 +799,27 @@ impl AssetContext for ModuleAssetContext {
                                     let externals_context = externals_tracing_module_context(ty);
                                     let root_origin = tracing_root.join("_".into());
 
+                                    // Normalize reference type, there is no such thing as a
+                                    // `ReferenceType::EcmaScriptModules(ImportPart(Evaluation))`
+                                    // for externals (and otherwise, this causes duplicate
+                                    // CachedExternalModules for both `ImportPart(Evaluation)` and
+                                    // `ImportPart(Export("CacheProvider"))`)
+                                    let reference_type = Value::new(match &*reference_type {
+                                        ReferenceType::EcmaScriptModules(_) => {
+                                            ReferenceType::EcmaScriptModules(Default::default())
+                                        }
+                                        ReferenceType::CommonJs(_) => {
+                                            ReferenceType::CommonJs(Default::default())
+                                        }
+                                        ReferenceType::Css(_) => {
+                                            ReferenceType::Css(Default::default())
+                                        }
+                                        ReferenceType::Url(_) => {
+                                            ReferenceType::Url(Default::default())
+                                        }
+                                        _ => ReferenceType::Undefined,
+                                    });
+
                                     let external_result = externals_context
                                         .resolve_asset(
                                             root_origin,
@@ -822,6 +843,7 @@ impl AssetContext for ModuleAssetContext {
                                         );
 
                                     modules
+                                        .into_iter()
                                         .map(|s| {
                                             Vc::upcast::<Box<dyn ModuleReference>>(
                                                 TracedModuleReference::new(s),
