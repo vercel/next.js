@@ -4,6 +4,7 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
+    ident::AssetIdent,
     resolve::{
         options::{ImportMapResult, ImportMappingReplacement, ReplacedImportMapping},
         parse::Request,
@@ -63,7 +64,14 @@ impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
               "#
             };
             let content = AssetContent::file(File::from(code).into());
-            let source = VirtualSource::new(root_path, content).to_resolved().await?;
+            let source = VirtualSource::new_with_ident(
+                AssetIdent::from_path(root_path).with_modifier(Vc::cell(
+                    format!("unsupported edge import {}", module).into(),
+                )),
+                content,
+            )
+            .to_resolved()
+            .await?;
             return Ok(
                 ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(source))).cell(),
             );
