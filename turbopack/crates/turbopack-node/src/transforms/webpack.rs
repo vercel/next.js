@@ -2,10 +2,10 @@ use std::mem::take;
 
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
-use base64::{engine::general_purpose, Engine};
+use base64::Engine;
 use either::Either;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value as JsonValue};
+use serde_json::{json, Map as JsonMap, Value as JsonValue};
 use serde_with::serde_as;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -222,17 +222,17 @@ impl WebpackLoadersProcessedAsset {
             .cell());
         };
 
-        // If the content is not a valid string (e.g. binary file), handle the error and return
-        // a base64 string so the build process doesn't crash. e.g.
-        //      - failed to convert rope into string
-        //      - invalid utf-8 sequence of 1 bytes from index 35
-        let content = match file_content.content().to_str() {
-            Ok(utf8_str) => utf8_str.to_string(),
-            Err(_) => {
-                // Binary data is not valid UTF-8, encode as base64 instead
-                general_purpose::STANDARD
-                    .encode(file_content.content().to_bytes().unwrap().into_owned())
-            }
+        // If the content is not a valid string (e.g. binary file), handle the error and pass a
+        // Buffer to Webpack instead of a Base64 string so the build process doesn't crash.
+        let content: JsonValue = match file_content.content().to_str() {
+            Ok(utf8_str) => utf8_str.to_string().into(),
+            Err(_) => JsonValue::Object(JsonMap::from_iter(std::iter::once((
+                "binary".to_string(),
+                JsonValue::from(
+                    base64::engine::general_purpose::STANDARD
+                        .encode(file_content.content().to_bytes().unwrap()),
+                ),
+            )))),
         };
         let evaluate_context = transform.evaluate_context;
 
@@ -263,7 +263,7 @@ impl WebpackLoadersProcessedAsset {
             chunking_context,
             resolve_options_context: Some(transform.resolve_options_context),
             args: vec![
-                ResolvedVc::cell(content.into()),
+                ResolvedVc::cell(content),
                 // We need to pass the query string to the loader
                 ResolvedVc::cell(resource_path.to_string().into()),
                 ResolvedVc::cell(this.source.ident().query().await?.to_string().into()),
