@@ -34,7 +34,7 @@ use crate::{
 /// A reference to part of an ES module.
 ///
 /// This type is used for an advanced tree shkaing.
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 pub struct EcmascriptModulePartAsset {
     pub full_module: ResolvedVc<EcmascriptModuleAsset>,
     pub part: ModulePart,
