@@ -1176,9 +1176,6 @@ importers:
       '@types/ws':
         specifier: 8.2.0
         version: 8.2.0
-      '@typescript/vfs':
-        specifier: 1.6.1
-        version: 1.6.1(typescript@5.8.2)
       '@vercel/ncc':
         specifier: 0.34.0
         version: 0.34.0
@@ -6569,11 +6566,6 @@ packages:
   '@typescript-eslint/visitor-keys@8.29.1':
     resolution: {integrity: sha512-RGLh5CRaUEf02viP5c1Vh1cMGffQscyHe7HPAzGpfmfflFg1wUz2rYxd+OZqwpeypYvZ8UxSxuIpF++fmOzEcg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@typescript/vfs@1.6.1':
-    resolution: {integrity: sha512-JwoxboBh7Oz1v38tPbkrZ62ZXNHAk9bJ7c9x0eI5zBfBnBYGhURdbnh7Z4smN/MV48Y5OCcZb58n972UtbazsA==}
-    peerDependencies:
-      typescript: '*'
 
   '@ungap/structured-clone@1.2.0':
     resolution: {integrity: sha512-zuVdFrMJiuCDQUMCzQaD6KL28MjnqqN8XnAqiEq9PNm/hCPTSGfrXCOfwj1ow4LFb/tNymJPwsNbVePc1xFqrQ==}
@@ -23268,13 +23260,6 @@ snapshots:
       '@typescript-eslint/types': 8.29.1
       eslint-visitor-keys: 4.2.0
     optional: true
-
-  '@typescript/vfs@1.6.1(typescript@5.8.2)':
-    dependencies:
-      debug: 4.1.1
-      typescript: 5.8.2
-    transitivePeerDependencies:
-      - supports-color
 
   '@ungap/structured-clone@1.2.0': {}
 
