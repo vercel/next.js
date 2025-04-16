@@ -26,7 +26,7 @@ use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::{field::Empty, Instrument};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 pub use turbopack_core::condition;
 use turbopack_core::{
@@ -840,7 +840,8 @@ impl AssetContext for ModuleAssetContext {
                                             external_result
                                                 .primary_modules_raw_iter()
                                                 .map(|rvc| *rvc),
-                                        );
+                                        )
+                                        .collect::<FxIndexSet<_>>();
 
                                     modules
                                         .into_iter()
