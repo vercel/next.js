@@ -13,7 +13,7 @@ static REGISTRATION: Registration = register!();
 async fn random_change() {
     run(&REGISTRATION, || async {
         let state = make_state();
-        let value = rand::thread_rng().gen_range(0..100);
+        let value = rand::rng().random_range(0..100);
         state.await?.state.set(value);
 
         let result = func(state, 0).await?;
