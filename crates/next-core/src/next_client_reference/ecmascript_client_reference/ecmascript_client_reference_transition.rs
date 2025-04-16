@@ -43,7 +43,8 @@ impl Transition for NextEcmascriptClientReferenceTransition {
     #[turbo_tasks::function]
     async fn process(
         self: Vc<Self>,
-        source: Vc<Box<dyn Source>>,
+        original_source: Vc<Box<dyn Source>>,
+        _source: Vc<Box<dyn Source>>,
         module_asset_context: Vc<ModuleAssetContext>,
         reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ProcessResult>> {
@@ -59,8 +60,8 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         let this = self.await?;
 
         let ident = match part {
-            Some(part) => source.ident().with_part(part.clone()),
-            None => source.ident(),
+            Some(part) => original_source.ident().with_part(part.clone()),
+            None => original_source.ident(),
         };
         let ident_ref = ident.await?;
         let ident_path = ident_ref.path.await?;
@@ -73,9 +74,10 @@ impl Transition for NextEcmascriptClientReferenceTransition {
             );
             Vc::upcast(FileSource::new_with_query(path, *ident_ref.query))
         } else {
-            source
+            original_source
         };
         let client_module = this.client_transition.process(
+            client_source,
             client_source,
             module_asset_context,
             Value::new(ReferenceType::Entry(
@@ -87,7 +89,8 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         };
 
         let ssr_module = this.ssr_transition.process(
-            source,
+            original_source,
+            original_source,
             module_asset_context,
             Value::new(ReferenceType::Entry(
                 EntryReferenceSubType::AppClientComponent,

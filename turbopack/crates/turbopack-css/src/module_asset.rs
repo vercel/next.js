@@ -89,7 +89,7 @@ impl Module for ModuleCssAsset {
             .chain(
                 match *self
                     .inner(Value::new(ReferenceType::Css(
-                        CssReferenceSubType::Internal,
+                        CssReferenceSubType::ModuleStyles,
                     )))
                     .try_into_module()
                     .await?
@@ -172,7 +172,9 @@ impl ModuleCssAsset {
     #[turbo_tasks::function]
     async fn classes(self: Vc<Self>) -> Result<Vc<ModuleCssClasses>> {
         let inner = self
-            .inner(Value::new(ReferenceType::Css(CssReferenceSubType::Analyze)))
+            .inner(Value::new(ReferenceType::Css(
+                CssReferenceSubType::ModuleAnalyze,
+            )))
             .module();
 
         let inner = Vc::try_resolve_sidecast::<Box<dyn ProcessCss>>(inner)

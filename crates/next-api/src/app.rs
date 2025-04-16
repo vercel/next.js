@@ -47,7 +47,7 @@ use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
     module_options::{transition_rule::TransitionRule, ModuleOptionsContext, RuleCondition},
     resolve_options_context::ResolveOptionsContext,
-    transition::{ContextTransition, FullContextTransition, Transition, TransitionOptions},
+    transition::{ContextTransition, Transition, TransitionOptions},
     ModuleAssetContext,
 };
 use turbopack_core::{
@@ -102,27 +102,46 @@ impl AppProject {}
 pub(crate) const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
 
 fn styles_rule_condition() -> RuleCondition {
-    RuleCondition::any(vec![
-        RuleCondition::all(vec![
-            RuleCondition::ResourcePathEndsWith(".css".into()),
-            RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.css".into())),
-        ]),
-        RuleCondition::all(vec![
-            RuleCondition::ResourcePathEndsWith(".scss".into()),
-            RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.scss".into())),
-        ]),
-        RuleCondition::all(vec![
-            RuleCondition::ResourcePathEndsWith(".sass".into()),
-            RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.sass".into())),
-        ]),
+    RuleCondition::all(vec![
+        RuleCondition::ResourcePathEndsWith(".css".into()),
+        RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.css".into())),
     ])
 }
 fn module_styles_rule_condition() -> RuleCondition {
-    RuleCondition::any(vec![
-        RuleCondition::ResourcePathEndsWith(".module.css".into()),
-        RuleCondition::ResourcePathEndsWith(".module.scss".into()),
-        RuleCondition::ResourcePathEndsWith(".module.sass".into()),
-    ])
+    RuleCondition::ResourcePathEndsWith(".module.css".into())
+}
+
+#[turbo_tasks::value(shared)]
+pub struct ContextOriginalTransition {
+    module_context: ResolvedVc<ModuleAssetContext>,
+}
+
+#[turbo_tasks::value_impl]
+impl ContextOriginalTransition {
+    #[turbo_tasks::function]
+    pub fn new(module_context: ResolvedVc<ModuleAssetContext>) -> Vc<ContextOriginalTransition> {
+        ContextOriginalTransition { module_context }.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Transition for ContextOriginalTransition {
+    #[turbo_tasks::function]
+    fn process_source(
+        self: Vc<Self>,
+        original_source: Vc<Box<dyn Source>>,
+        _source: Vc<Box<dyn Source>>,
+    ) -> Vc<Box<dyn Source>> {
+        original_source
+    }
+
+    #[turbo_tasks::function]
+    fn process_context(
+        &self,
+        _module_asset_context: Vc<ModuleAssetContext>,
+    ) -> Vc<ModuleAssetContext> {
+        *self.module_context
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -221,9 +240,9 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn client_transition(self: Vc<Self>) -> Vc<FullContextTransition> {
+    fn client_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
         let module_context = self.client_module_context();
-        FullContextTransition::new(module_context)
+        Vc::upcast(ContextOriginalTransition::new(module_context))
     }
 
     #[turbo_tasks::function]
@@ -342,9 +361,14 @@ impl AppProject {
 
     #[turbo_tasks::function]
     pub fn css_client_reference_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
-        Vc::upcast(NextCssClientReferenceTransition::new(Vc::upcast(
+        Vc::upcast(NextCssClientReferenceTransition::new_client(Vc::upcast(
             self.client_transition(),
         )))
+    }
+
+    #[turbo_tasks::function]
+    pub fn css_client_reference_marker_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
+        Vc::upcast(NextCssClientReferenceTransition::new_marker())
     }
 
     #[turbo_tasks::function]
@@ -382,29 +406,14 @@ impl AppProject {
             .into_iter()
             .collect(),
             transition_rules: vec![
-                // Mark as client reference (and exclude from RSC chunking) the edge from the
-                // CSS Module to the actual CSS
-                TransitionRule::new_internal(
-                    RuleCondition::all(vec![
-                        RuleCondition::ReferenceType(ReferenceType::Css(
-                            CssReferenceSubType::Internal,
-                        )),
-                        module_styles_rule_condition(),
-                    ]),
-                    ResolvedVc::upcast(self.css_client_reference_transition().to_resolved().await?),
-                ),
-                // Don't wrap in marker module but change context, this is used to determine
-                // the list of CSS module classes.
+                // CSS Modules should be in the client layer but, the JS CSS Module should not be
+                // wrapped in the CssClientReferenceModule
                 TransitionRule::new(
-                    RuleCondition::all(vec![
-                        RuleCondition::ReferenceType(ReferenceType::Css(
-                            CssReferenceSubType::Analyze,
-                        )),
-                        module_styles_rule_condition(),
-                    ]),
+                    module_styles_rule_condition(),
                     ResolvedVc::upcast(self.client_transition().to_resolved().await?),
                 ),
-                // Mark as client reference all regular CSS imports
+                // Mark all regular CSS imports as client reference (transition and wrap
+                // CssClientReferenceModule)
                 TransitionRule::new(
                     styles_rule_condition(),
                     ResolvedVc::upcast(self.css_client_reference_transition().to_resolved().await?),
@@ -563,6 +572,24 @@ impl AppProject {
         Ok(ModuleAssetContext::new(
             TransitionOptions {
                 named_transitions: transitions,
+                transition_rules: vec![
+                    // The edge from the JS CSS Module to the actual CSS styles module should be
+                    // wrapped with a CssClientReferenceModule to mark it as a client reference
+                    // (and exclude it from RSC chunking).
+                    TransitionRule::new_internal(
+                        RuleCondition::all(vec![
+                            RuleCondition::ReferenceType(ReferenceType::Css(
+                                CssReferenceSubType::ModuleStyles,
+                            )),
+                            module_styles_rule_condition(),
+                        ]),
+                        ResolvedVc::upcast(
+                            self.css_client_reference_marker_transition()
+                                .to_resolved()
+                                .await?,
+                        ),
+                    ),
+                ],
                 ..Default::default()
             }
             .cell(),
@@ -657,9 +684,9 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn ssr_transition(self: Vc<Self>) -> Vc<FullContextTransition> {
+    fn ssr_transition(self: Vc<Self>) -> Vc<ContextOriginalTransition> {
         let module_context = self.ssr_module_context();
-        FullContextTransition::new(module_context)
+        ContextOriginalTransition::new(module_context)
     }
 
     #[turbo_tasks::function]
@@ -708,9 +735,9 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn edge_ssr_transition(self: Vc<Self>) -> Vc<FullContextTransition> {
+    fn edge_ssr_transition(self: Vc<Self>) -> Vc<ContextOriginalTransition> {
         let module_context = self.edge_ssr_module_context();
-        FullContextTransition::new(module_context)
+        ContextOriginalTransition::new(module_context)
     }
 
     #[turbo_tasks::function]

@@ -77,7 +77,7 @@ impl BaseLoaderTreeBuilder {
         ));
 
         self.server_component_transition
-            .process(source, *self.module_asset_context, reference_type)
+            .process(source, source, *self.module_asset_context, reference_type)
             .module()
     }
 

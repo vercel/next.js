@@ -548,10 +548,10 @@ impl ModuleOptions {
                     })],
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to list the classes
-                ModuleRule::new(
+                ModuleRule::new_internal(
                     RuleCondition::all(vec![
                         RuleCondition::ReferenceType(ReferenceType::Css(
-                            CssReferenceSubType::Analyze,
+                            CssReferenceSubType::ModuleAnalyze,
                         )),
                         RuleCondition::Any(vec![
                             RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
