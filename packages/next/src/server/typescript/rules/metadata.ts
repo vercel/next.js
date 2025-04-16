@@ -241,60 +241,135 @@ const metadata = {
 function hasCorrectType(
   node: tsModule.FunctionDeclaration | tsModule.VariableDeclaration
 ): boolean {
-  if (!node.type) {
-    return false
-  }
-
   const ts = getTs()
   const typeChecker = getTypeChecker()
   if (!typeChecker) {
     return false
   }
 
-  const type = typeChecker.getTypeFromTypeNode(node.type)
-  if (!type) {
-    return false
-  }
-
-  // Get the type name, handling aliases
-  const symbol = type.getSymbol()
-  if (!symbol) {
-    return false
-  }
-
   // For generateMetadata, check if it's Promise<Metadata> for async or Metadata for sync
   if (ts.isFunctionDeclaration(node)) {
-    const isAsync =
-      node.modifiers?.some((m) => m.kind === ts.SyntaxKind.AsyncKeyword) ??
-      false
-
-    if (isAsync) {
-      // For async functions, we need Promise<Metadata>
-      const typeSymbol = type.getSymbol()
-      if (!typeSymbol || typeSymbol.getName() !== 'Promise') {
-        return false
-      }
-
-      // Get the type argument of Promise<T>
-      if (!ts.isTypeReferenceNode(node.type)) {
-        return false
-      }
-      const typeArgs = typeChecker.getTypeArguments(
-        type as tsModule.TypeReference
-      )
-      if (!typeArgs || typeArgs.length !== 1) {
-        return false
-      }
-      const promiseType = typeArgs[0]
-      const promiseTypeSymbol = promiseType.getSymbol()
-      return promiseTypeSymbol?.getName() === 'Metadata'
-    } else {
-      // For sync functions, we need Metadata directly
-      return symbol.getName() === 'Metadata'
-    }
+    return checkFunctionReturnType(node, typeChecker)
   } else {
-    // For metadata export, we just need Metadata
-    return symbol.getName() === 'Metadata'
+    // For variable declarations (const/let/var)
+    const name = node.name.getText()
+
+    if (name === 'generateMetadata') {
+      // For generateMetadata as a variable, it must be a function expression or arrow function
+      if (
+        !node.initializer ||
+        (!ts.isFunctionExpression(node.initializer) &&
+          !ts.isArrowFunction(node.initializer))
+      ) {
+        return false
+      }
+
+      // Check the return type of the function expression/arrow function
+      if (node.initializer.type) {
+        // If it has an explicit return type annotation
+        return checkFunctionReturnType(node.initializer, typeChecker)
+      } else {
+        // If no explicit return type, infer it from the function
+        const signature = typeChecker.getSignatureFromDeclaration(
+          node.initializer
+        )
+        if (!signature) return false
+
+        const returnType = typeChecker.getReturnTypeOfSignature(signature)
+        if (!returnType) return false
+
+        const isAsync =
+          node.initializer.modifiers?.some(
+            (m) => m.kind === ts.SyntaxKind.AsyncKeyword
+          ) ?? false
+
+        if (isAsync) {
+          // For async functions, check if it's Promise<Metadata>
+          const typeSymbol = returnType.getSymbol()
+          if (!typeSymbol || typeSymbol.getName() !== 'Promise') return false
+
+          // Check if it's a reference type (like Promise<T>)
+          if (
+            !(returnType.flags & ts.TypeFlags.Object) ||
+            !('typeArguments' in returnType)
+          ) {
+            return false
+          }
+
+          const typeArgs = (
+            returnType as { typeArguments: readonly tsModule.Type[] }
+          ).typeArguments
+          if (!typeArgs || typeArgs.length !== 1) return false
+
+          const promiseType = typeArgs[0]
+          const promiseTypeSymbol = promiseType.getSymbol()
+          return promiseTypeSymbol?.getName() === 'Metadata'
+        } else {
+          // For sync functions, check if it returns Metadata
+          const returnTypeSymbol = returnType.getSymbol()
+          return returnTypeSymbol?.getName() === 'Metadata'
+        }
+      }
+    } else {
+      // For metadata export, we just need Metadata type
+      if (!node.type) return false
+      const type = typeChecker.getTypeFromTypeNode(node.type)
+      if (!type) return false
+      const symbol = type.getSymbol()
+      return symbol?.getName() === 'Metadata'
+    }
+  }
+}
+
+function checkFunctionReturnType(
+  node:
+    | tsModule.FunctionDeclaration
+    | tsModule.FunctionExpression
+    | tsModule.ArrowFunction,
+  typeChecker: tsModule.TypeChecker
+): boolean {
+  const ts = getTs()
+
+  if (!node.type) return false
+
+  const returnType = typeChecker.getTypeFromTypeNode(node.type)
+  if (!returnType) return false
+
+  const isAsync =
+    node.modifiers?.some((m) => m.kind === ts.SyntaxKind.AsyncKeyword) ?? false
+
+  if (isAsync) {
+    // For async functions, we need Promise<Metadata>
+    const typeSymbol = returnType.getSymbol()
+    if (!typeSymbol || typeSymbol.getName() !== 'Promise') {
+      return false
+    }
+
+    // Get the type argument of Promise<T>
+    if (!ts.isTypeReferenceNode(node.type)) {
+      return false
+    }
+
+    // Check if it's a reference type (like Promise<T>)
+    if (
+      !(returnType.flags & ts.TypeFlags.Object) ||
+      !('typeArguments' in returnType)
+    ) {
+      return false
+    }
+
+    const typeArgs = (returnType as { typeArguments: readonly tsModule.Type[] })
+      .typeArguments
+    if (!typeArgs || typeArgs.length !== 1) {
+      return false
+    }
+    const promiseType = typeArgs[0]
+    const promiseTypeSymbol = promiseType.getSymbol()
+    return promiseTypeSymbol?.getName() === 'Metadata'
+  } else {
+    // For sync functions, we need Metadata directly
+    const symbol = returnType.getSymbol()
+    return symbol?.getName() === 'Metadata'
   }
 }
 
