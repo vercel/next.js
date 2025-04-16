@@ -6351,18 +6351,7 @@ function updateOffscreenComponent(
         renderLanes
       );
     }
-    if (0 !== (renderLanes & 536870912))
-      (workInProgress.memoizedState = { baseLanes: 0, cachePool: null }),
-        null !== current &&
-          pushTransition(
-            workInProgress,
-            null !== prevState ? prevState.cachePool : null
-          ),
-        null !== prevState
-          ? pushHiddenContext(workInProgress, prevState)
-          : reuseHiddenContextOnStack(),
-        pushOffscreenSuspenseHandler(workInProgress);
-    else
+    if (0 === (renderLanes & 536870912) || isHydrating)
       return (
         (workInProgress.lanes = workInProgress.childLanes = 536870912),
         deferHiddenOffscreenComponent(
@@ -6372,6 +6361,16 @@ function updateOffscreenComponent(
           renderLanes
         )
       );
+    workInProgress.memoizedState = { baseLanes: 0, cachePool: null };
+    null !== current &&
+      pushTransition(
+        workInProgress,
+        null !== prevState ? prevState.cachePool : null
+      );
+    null !== prevState
+      ? pushHiddenContext(workInProgress, prevState)
+      : reuseHiddenContextOnStack();
+    pushOffscreenSuspenseHandler(workInProgress);
   } else
     null !== prevState
       ? (pushTransition(workInProgress, prevState.cachePool),
@@ -15992,14 +15991,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_1886 = React.version;
 if (
-  "19.2.0-canary-39cad7af-20250411" !==
+  "19.2.0-canary-b04254fd-20250415" !==
   isomorphicReactPackageVersion$jscomp$inline_1886
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_1886,
-      "19.2.0-canary-39cad7af-20250411"
+      "19.2.0-canary-b04254fd-20250415"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -16021,10 +16020,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_1893 = {
   bundleType: 0,
-  version: "19.2.0-canary-39cad7af-20250411",
+  version: "19.2.0-canary-b04254fd-20250415",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-canary-39cad7af-20250411",
+  reconcilerVersion: "19.2.0-canary-b04254fd-20250415",
   getLaneLabelMap: function () {
     for (
       var map = new Map(), lane = 1, index$286 = 0;
@@ -16304,7 +16303,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.2.0-canary-39cad7af-20250411";
+exports.version = "19.2.0-canary-b04254fd-20250415";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
