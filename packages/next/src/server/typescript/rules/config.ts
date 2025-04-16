@@ -395,9 +395,11 @@ const config = {
               if (specifier === '"next"' || specifier === "'next'") {
                 const namedImports = node.importClause?.namedBindings
                 if (namedImports && ts.isNamedImports(namedImports)) {
-                  hasMetadataImport = namedImports.elements.some(
-                    (element) => element.name.getText() === 'Metadata'
-                  )
+                  hasMetadataImport = namedImports.elements.some((element) => {
+                    const name = element.name.getText()
+                    const propertyName = element.propertyName?.getText()
+                    return name === 'Metadata' || propertyName === 'Metadata'
+                  })
                 }
               }
             }
