@@ -1379,12 +1379,41 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         }
         .resolved_cell();
 
+        // Use built-in global-error.js to create a `_error/page` route.
+        let error_tree = AppPageLoaderTree {
+            page: app_page.clone(),
+            segment: directory_name.clone(),
+            parallel_routes: fxindexmap! {
+                "children".into() => AppPageLoaderTree {
+                    page: app_page.clone(),
+                    segment: "__PAGE__".into(),
+                    parallel_routes: FxIndexMap::default(),
+                    modules: AppDirModules {
+                        page: Some(get_next_package(*app_dir)
+                            .join("dist/client/components/global-error.js".into())
+                            .to_resolved()
+                            .await?),
+                        ..Default::default()
+                    },
+                    global_metadata: global_metadata.to_resolved().await?,
+                }
+            },
+            modules: AppDirModules::default(),
+            global_metadata: global_metadata.to_resolved().await?,
+        }
+        .resolved_cell();
+
         {
-            let app_page = app_page
+            let app_not_found_page = app_page
                 .clone_push_str("_not-found")?
                 .complete(PageType::Page)?;
 
-            add_app_page(app_dir, &mut result, app_page, not_found_tree);
+            add_app_page(app_dir, &mut result, app_not_found_page, not_found_tree);
+
+            let app_error_page = app_page
+                .clone_push_str("_error")?
+                .complete(PageType::Page)?;
+            add_app_page(app_dir, &mut result, app_error_page, error_tree);
         }
     }
 
