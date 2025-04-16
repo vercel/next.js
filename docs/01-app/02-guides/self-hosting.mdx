@@ -51,9 +51,9 @@ Next.js through Docker supports all Next.js features.
 
 Next.js enables starting as a static site or Single-Page Application (SPA), then later optionally upgrading to use features that require a server.
 
-Since Next.js supports this [static export](/docs/app/building-your-application/deploying/static-exports), it can be deployed and hosted on any web server that can serve HTML/CSS/JS static assets. This includes tools like AWS S3, Nginx, or Apache.
+Since Next.js supports this [static export](/docs/app/guides/static-exports), it can be deployed and hosted on any web server that can serve HTML/CSS/JS static assets. This includes tools like AWS S3, Nginx, or Apache.
 
-Running as a [static export](/docs/app/building-your-application/deploying/static-exports) does not support Next.js features that require a server. [Learn more](/docs/app/building-your-application/deploying/static-exports#unsupported-features).
+Running as a [static export](/docs/app/guides/static-exports) does not support Next.js features that require a server. [Learn more](/docs/app/guides/static-exports#unsupported-features).
 
 > **Good to know:**
 >
@@ -65,7 +65,7 @@ Running as a [static export](/docs/app/building-your-application/deploying/stati
 
 [Image Optimization](/docs/app/building-your-application/optimizing/images) through `next/image` works self-hosted with zero configuration when deploying using `next start`. If you would prefer to have a separate service to optimize images, you can [configure an image loader](/docs/app/building-your-application/optimizing/images#loaders).
 
-Image Optimization can be used with a [static export](/docs/app/building-your-application/deploying/static-exports#image-optimization) by defining a custom image loader in `next.config.js`. Note that images are optimized at runtime, not during the build.
+Image Optimization can be used with a [static export](/docs/app/guides/static-exports#image-optimization) by defining a custom image loader in `next.config.js`. Note that images are optimized at runtime, not during the build.
 
 > **Good to know:**
 >
@@ -75,7 +75,7 @@ Image Optimization can be used with a [static export](/docs/app/building-your-ap
 
 ### Middleware
 
-[Middleware](/docs/app/building-your-application/routing/middleware) works self-hosted with zero configuration when deploying using `next start`. Since it requires access to the incoming request, it is not supported when using a [static export](/docs/app/building-your-application/deploying/static-exports).
+[Middleware](/docs/app/building-your-application/routing/middleware) works self-hosted with zero configuration when deploying using `next start`. Since it requires access to the incoming request, it is not supported when using a [static export](/docs/app/guides/static-exports).
 
 Middleware uses a [runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) that is a subset of all available Node.js APIs to help ensure low latency, since it may run in front of every route or asset in your application. This runtime does not require running “at the edge” and works in a single-region server. Additional configuration and infrastructure are required to run Middleware in multiple regions.
 
