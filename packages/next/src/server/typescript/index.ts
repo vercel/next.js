@@ -118,7 +118,8 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
     ) => {
       const entryCompletionEntryDetails = entryConfig.getCompletionEntryDetails(
         entryName,
-        data
+        data,
+        fileName
       )
       if (entryCompletionEntryDetails) return entryCompletionEntryDetails
 

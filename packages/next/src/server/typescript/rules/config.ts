@@ -22,6 +22,7 @@ const API_DOCS: Record<
     type?: string
     isValid?: (value: string) => boolean
     getHint?: (value: any) => string | undefined
+    insertText?: string
   }
 > = {
   dynamic: {
@@ -133,6 +134,12 @@ const API_DOCS: Record<
   metadata: {
     description: 'Next.js Metadata configurations',
     link: 'https://nextjs.org/docs/app/building-your-application/optimizing/metadata',
+    insertText: 'metadata: Metadata = {};',
+  },
+  generateMetadata: {
+    description: 'Next.js generateMetadata configurations',
+    link: 'https://nextjs.org/docs/app/api-reference/functions/generate-metadata',
+    insertText: 'generateMetadata = (): Metadata => { return {} };',
   },
   maxDuration: {
     description:
@@ -185,8 +192,10 @@ function visitEntryConfig(
 
 function createAutoCompletionOptionName(sort: number, name: string) {
   const ts = getTs()
+
   return {
     name,
+    insertText: API_DOCS[name].insertText,
     sortText: '!' + sort,
     kind: ts.ScriptElementKind.constElement,
     kindModifiers: ts.ScriptElementKindModifier.exportedModifier,
@@ -348,8 +357,9 @@ const config = {
   // Show details on the side when auto completing.
   getCompletionEntryDetails(
     entryName: string,
-    data: tsModule.CompletionEntryData
-  ) {
+    data: tsModule.CompletionEntryData,
+    fileName: string
+  ): tsModule.CompletionEntryDetails | undefined {
     const ts = getTs()
     if (
       data &&
@@ -364,6 +374,68 @@ const config = {
         if (!options) return
         content = options[entryName]
       }
+
+      if (entryName === 'metadata' || entryName === 'generateMetadata') {
+        const sourceFile = getSource(fileName)
+        let start = 0
+        let hasMetadataImport = false
+
+        if (sourceFile) {
+          ts.forEachChild(sourceFile, (node) => {
+            if (
+              ts.isExpressionStatement(node) &&
+              ts.isStringLiteral(node.expression)
+            ) {
+              const text = node.expression.text
+              if (text.startsWith('use ')) {
+                start = node.end + 1 // Position after the directive
+              }
+            } else if (ts.isImportDeclaration(node)) {
+              const specifier = node.moduleSpecifier.getText()
+              if (specifier === '"next"' || specifier === "'next'") {
+                const namedImports = node.importClause?.namedBindings
+                if (namedImports && ts.isNamedImports(namedImports)) {
+                  hasMetadataImport = namedImports.elements.some(
+                    (element) => element.name.getText() === 'Metadata'
+                  )
+                }
+              }
+            }
+          })
+        }
+
+        return {
+          name: entryName,
+          kind: ts.ScriptElementKind.enumElement,
+          kindModifiers: ts.ScriptElementKindModifier.none,
+          displayParts: [],
+          codeActions: hasMetadataImport
+            ? undefined
+            : [
+                {
+                  description: `Import type 'Metadata' from module 'next'`,
+                  changes: [
+                    {
+                      fileName,
+                      textChanges: [
+                        {
+                          span: { start, length: 0 },
+                          newText: `import type { Metadata } from 'next';\n`,
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+          documentation: [
+            {
+              kind: 'text',
+              text: content,
+            },
+          ],
+        }
+      }
+
       return {
         name: entryName,
         kind: ts.ScriptElementKind.enumElement,
