@@ -3843,9 +3843,8 @@ export default abstract class Server<
         await this.renderErrorToResponse(ctx, err)
         removeRequestMeta(ctx.req, 'customErrorRender')
       }
-      const hasErrorPage = await this.hasPage('/_error')
+
       await this.renderErrorToResponse(ctx, err)
-      
 
       const isWrappedError = err instanceof WrappedBuildError
 
@@ -4047,7 +4046,9 @@ export default abstract class Server<
         }
       }
 
-      if (!result) {
+      // Only search for App Router /_error in dev
+      // TODO: remove this once /_error/page is available for next build.
+      if (!result && ctx.renderOpts.dev) {
         result = await this.findPageComponents({
           locale: getRequestMeta(ctx.req, 'locale'),
           page: '/_error/page',
@@ -4173,10 +4174,10 @@ export default abstract class Server<
             renderOpts: {
               ...ctx.renderOpts,
               // We render `renderToHtmlError` here because `err` is
-                // already captured in the stacktrace.
-                err: isWrappedError
-                  ? renderToHtmlError.innerError
-                  : renderToHtmlError,
+              // already captured in the stacktrace.
+              err: isWrappedError
+                ? renderToHtmlError.innerError
+                : renderToHtmlError,
             },
           },
           appRouterErrorComponents
@@ -4186,7 +4187,7 @@ export default abstract class Server<
         const fallbackComponents = await this.getFallbackErrorComponents(
           ctx.req.url
         )
-  
+
         if (fallbackComponents) {
           // There was an error, so use it's definition from the route module
           // to add the match to the request.
@@ -4194,7 +4195,7 @@ export default abstract class Server<
             definition: fallbackComponents.routeModule!.definition,
             params: undefined,
           })
-  
+
           return this.renderToResponseWithComponents(
             {
               ...ctx,
