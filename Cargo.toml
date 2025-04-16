@@ -36,6 +36,7 @@ opt-level = 1
 opt-level = 3
 
 [profile.release]
+debug-assertions = true
 
 [profile.release.package]
 
