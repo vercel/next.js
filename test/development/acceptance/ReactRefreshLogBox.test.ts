@@ -1135,7 +1135,7 @@ describe('ReactRefreshLogBox', () => {
            {
              "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
              "environmentLabel": null,
-             "label": "Runtime Error",
+             "label": "Recoverable Error",
              "source": null,
              "stack": [],
            },
@@ -1173,7 +1173,7 @@ describe('ReactRefreshLogBox', () => {
            {
              "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
              "environmentLabel": null,
-             "label": "Runtime Error",
+             "label": "Recoverable Error",
              "source": null,
              "stack": [],
            },
