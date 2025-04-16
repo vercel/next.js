@@ -1,487 +1,20 @@
 import {
-  chromium,
-  webkit,
-  firefox,
-  Browser,
-  BrowserContext,
   Page,
   ElementHandle,
-  devices,
   Locator,
   Request as PlaywrightRequest,
   Response as PlaywrightResponse,
 } from 'playwright'
-import path from 'path'
-import { getCurrentTestTraceOutputDir } from '../test-trace-output'
+import { TimeoutGroup } from './utils/timeout-group'
+import { dedupeWhilePending } from './utils/dedupe-while-pending'
 import { isValidRelativeUrl } from './utils/relative-url'
-import { patchBrowserContextRemoveAllListeners } from './utils/patch-remove-all-listeners'
-import {
-  TestContext,
-  formatTestName,
-  getCurrentTestContext,
-} from '../jest-reflection'
+import { Closable, Closer } from './utils/closable'
+import { BrowserContextWrapper } from './utils/playwright-context-wrapper'
+import { maxCleanupDuration } from './utils/common'
 
 type EventType = 'request' | 'response'
 
-export type BrowserOptions = {
-  browserName: string
-  headless: boolean
-  enableTracing: boolean
-}
-
-export type BrowserContextOptions = {
-  locale: string | undefined
-  javaScriptEnabled: boolean
-  ignoreHTTPSErrors: boolean
-  userAgent: string | undefined
-  deviceName: string | undefined
-}
-
-export class SharedPlaywrightState {
-  private constructor(
-    public browser: Browser,
-    public defaultContext: BrowserContextWrapper,
-    public browserOptions: BrowserOptions
-  ) {}
-  private secondaryContexts = new Set<BrowserContextWrapper>()
-
-  static async create(
-    browserOptions: BrowserOptions,
-    contextOptions: BrowserContextOptions
-  ): Promise<SharedPlaywrightState> {
-    const { browserName, headless } = browserOptions
-    const browser = await launchBrowser(browserName, { headless })
-
-    const tracingEnabled = browserOptions.enableTracing
-    const defaultContext = await BrowserContextWrapper.create(
-      browser,
-      contextOptions,
-      tracingEnabled
-    )
-    return new SharedPlaywrightState(browser, defaultContext, browserOptions)
-  }
-
-  public async createSecondaryBrowserContext(options: BrowserContextOptions) {
-    const context = await BrowserContextWrapper.create(
-      this.browser,
-      options,
-      this.tracingEnabled()
-    )
-    this.secondaryContexts.add(context)
-    return context
-  }
-
-  canReuseBrowser(browserOptions: BrowserOptions) {
-    // if a browser configuration option changed, we have to recreate the whole state.
-    return !SharedPlaywrightState.optionChanged(
-      this.browserOptions,
-      browserOptions
-    )
-  }
-
-  async updateDefaultBrowserContext(newOptions: BrowserContextOptions) {
-    // if a browser context configuration option changed, we have to recreate the context.
-    if (
-      SharedPlaywrightState.optionChanged(
-        this.defaultContext.options,
-        newOptions
-      )
-    ) {
-      await this.defaultContext.close()
-      this.defaultContext = await BrowserContextWrapper.create(
-        this.browser,
-        newOptions,
-        this.tracingEnabled()
-      )
-    }
-    return this.defaultContext
-  }
-
-  private static optionChanged<T extends Record<string, any>>(
-    prev: T,
-    current: T
-  ): boolean {
-    for (const [key, prevValue] of Object.entries(prev)) {
-      const currentValue = current[key]
-      if (currentValue !== prevValue) {
-        return true
-      }
-    }
-    return false
-  }
-
-  async close() {
-    await this.closeAllContexts()
-    await this.browser.close()
-    this.browser = null!
-  }
-
-  async closeAllContexts() {
-    await Promise.all([
-      this.defaultContext.close().finally(() => {
-        this.defaultContext = null!
-      }),
-      ...Array.from(this.secondaryContexts).map((context) =>
-        context.close().finally(() => this.secondaryContexts.delete(context))
-      ),
-    ])
-  }
-
-  tracingEnabled() {
-    return this.browserOptions.enableTracing
-  }
-}
-
-export class BrowserContextWrapper {
-  private _isClosed = false
-  private closePromise: Promise<void> | null = null
-  isClosed() {
-    return this._isClosed
-  }
-
-  private constructor(
-    public context: BrowserContext,
-    public options: BrowserContextOptions,
-    public tracer: Tracer | null
-  ) {}
-
-  static async create(
-    browser: Browser,
-    options: BrowserContextOptions,
-    tracingEnabled: boolean
-  ): Promise<BrowserContextWrapper> {
-    const {
-      locale,
-      javaScriptEnabled,
-      ignoreHTTPSErrors,
-      userAgent,
-      deviceName,
-    } = options
-
-    type Devices = typeof import('playwright').devices
-    type Device = Devices[keyof Devices]
-    let device: Device | undefined
-
-    if (deviceName !== undefined) {
-      device = devices[deviceName]
-      if (!device) {
-        throw new Error(`Invalid Playwright device name ${deviceName}`)
-      }
-    }
-
-    const context = await browser.newContext({
-      locale,
-      javaScriptEnabled,
-      ignoreHTTPSErrors,
-      ...(userAgent ? { userAgent } : {}),
-      ...device,
-    })
-
-    const tracer = tracingEnabled ? await Tracer.start(context) : null
-
-    patchBrowserContextRemoveAllListeners(context)
-    return new BrowserContextWrapper(context, options, tracer)
-  }
-
-  async reset() {
-    const { context } = this
-    await closeBrowserContextPages(context)
-    await cleanupBrowserContext(context)
-  }
-
-  async close() {
-    if (this.isClosed()) {
-      return
-    } else if (this.closePromise) {
-      return this.closePromise
-    }
-
-    this.closePromise = (async () => {
-      if (this.tracer) {
-        await this.tracer.close()
-      }
-      await this.reset()
-      await this.context.close()
-
-      this._isClosed = true
-      this.closePromise = null
-    })()
-    return this.closePromise
-  }
-}
-
-type StartedTraceInfo = {
-  id: number
-  debugName: string
-  currentTest: TestContext | null
-}
-
-type TraceState =
-  | { kind: 'initial' }
-  | { kind: 'starting'; info: StartedTraceInfo; promise: Promise<void> }
-  | { kind: 'started'; info: StartedTraceInfo }
-  | { kind: 'ending'; info: StartedTraceInfo; promise: Promise<void> }
-  | { kind: 'ended' }
-
-// This is global so that it's shared for all browsers created in a test file
-// (even if the shared playwright state gets recreated)
-let nextTraceId = 0
-
-const moduleInitializationTime = Date.now()
-
-class Tracer {
-  private traceState: TraceState = { kind: 'initial' }
-
-  private constructor(private context: BrowserContext) {}
-
-  static async start(context: BrowserContext) {
-    await context.tracing.start({
-      screenshots: true,
-      snapshots: true,
-      sources: true,
-    })
-    return new Tracer(context)
-  }
-
-  async close() {
-    // if the trace didn't get ended normally for some reason, we should end it here to avoid dropping it.
-    const { traceState } = this
-    if (traceState.kind !== 'initial' && traceState.kind !== 'ended') {
-      try {
-        await this.ensureCurrentTraceEnded()
-      } catch (err) {
-        require('console').warn(
-          `Failed to end playwright trace '${traceState.info.debugName}' while tearing down`,
-          err
-        )
-      }
-    }
-
-    try {
-      await this.context.tracing.stop()
-    } catch (e) {
-      require('console').warn('Failed to teardown playwright tracing', e)
-    }
-  }
-
-  async startTrace(): Promise<void> {
-    const testContext = getCurrentTestContext()
-    const testName = testContext.currentTest
-      ? formatTestName(testContext.currentTest.nameStack)
-      : '(no test)'
-
-    const traceId = nextTraceId++
-    const debugName = `${traceId}. ${testName}`
-
-    const { traceState } = this
-    if (traceState.kind !== 'initial' && traceState.kind !== 'ended') {
-      // This shouldn't ever happen. We're going to error, but first, make sure we're in a consistent state
-      // to prevent cascading errors in other tests.
-      await this.ensureCurrentTraceEnded()
-      const stateDescription =
-        traceState.kind === 'started' ? 'still running' : traceState.kind
-      throw new Error(
-        `Cannot start a new trace '${debugName}' while the previous trace '${traceState.info.debugName}' is ${stateDescription}`
-      )
-    }
-
-    const traceTitle = `${testContext.testPathRelativeToRepo}: ${testName}`
-
-    const info: StartedTraceInfo = {
-      id: traceId,
-      debugName,
-      currentTest: testContext.currentTest,
-    }
-
-    try {
-      this.traceState = {
-        kind: 'starting',
-        info,
-        promise: this.context.tracing.startChunk({
-          title: traceTitle,
-        }),
-      }
-      await this.traceState.promise
-      this.traceState = { kind: 'started', info }
-    } catch (err) {
-      this.traceState = { kind: 'initial' }
-      throw new Error(`Failed to start playwright trace '${debugName}'`, {
-        cause: err,
-      })
-    }
-  }
-
-  async endTrace() {
-    const { traceState } = this
-    if (traceState.kind !== 'started') {
-      throw new Error('Cannot call endTrace with no active trace')
-    }
-
-    const fileName = this.generateTraceFilename(traceState.info)
-    const traceOutputDir = getCurrentTestTraceOutputDir()
-    const traceOutputPath = path.join(traceOutputDir, fileName)
-
-    try {
-      this.traceState = {
-        kind: 'ending',
-        info: traceState.info,
-        promise: this.context.tracing.stopChunk({ path: traceOutputPath }),
-      }
-      await this.traceState.promise
-    } catch (err) {
-      throw new Error(
-        `An error occurred while stopping playwright trace '${traceState.info.debugName}'`,
-        { cause: err }
-      )
-    } finally {
-      this.traceState = { kind: 'ended' }
-    }
-  }
-
-  private async ensureCurrentTraceEnded() {
-    const { traceState } = this
-    if (traceState.kind === 'starting') {
-      await traceState.promise
-      if (this.traceState.kind === 'started') {
-        await this.endTrace()
-      }
-    } else if (traceState.kind === 'started') {
-      await this.endTrace()
-    } else if (traceState.kind === 'ending') {
-      // finish shutdown
-      await traceState.promise
-    }
-  }
-
-  private generateTraceFilename(traceInfo: StartedTraceInfo) {
-    // Make sure that the filename doesn't exceed 255 characters,
-    // which is a common filename length limit.
-    // (exceeding it causes an ENAMETOOLONG when saving the trace)
-    // https://stackoverflow.com/a/54742403
-    const maxTotalLength = 255
-
-    const testContext = getCurrentTestContext()
-
-    const startTime = testContext?.suiteStartTime ?? moduleInitializationTime
-    const prefix = `pw-${startTime}-${traceInfo.id}-`
-    const suffix = `.zip`
-    const maxNameLength = maxTotalLength - (prefix.length + suffix.length)
-
-    const traceName = getTraceName(traceInfo, maxNameLength)
-    return prefix + traceName + suffix
-
-    function getTraceName(traceInfo: StartedTraceInfo, maxLength: number) {
-      const { currentTest } = traceInfo
-
-      let statusPrefix = ''
-      let unsafeName = traceInfo.debugName
-
-      if (currentTest) {
-        const testStatus =
-          currentTest.status === 'success'
-            ? 'PASS'
-            : currentTest.status === 'failure'
-              ? 'FAIL'
-              : // if a trace is closed while the test is still running, e.g. because of a manual `browser.close()`,
-                // then we might not have a useful test status
-                null
-        if (testStatus) {
-          statusPrefix = testStatus + '__'
-        }
-        unsafeName = formatTestName(currentTest.nameStack)
-      }
-
-      const safeName = middleOut(
-        replaceUnsafeChars(unsafeName),
-        maxLength - statusPrefix.length,
-        '...'
-      )
-
-      return statusPrefix + safeName
-    }
-
-    function replaceUnsafeChars(text: string) {
-      const chars = /[^a-zA-Z0-9\-_.]+/
-      return (
-        text
-          // strip leading unsafe chars to avoid a useless '_' at the start
-          .replace(new RegExp(`^${chars.source}`), '')
-          // strip trailing unsafe chars to avoid a useless '_' at the end
-          .replace(new RegExp(`${chars.source}$`), '')
-          // replace each run of unsafe chars with a '_'
-          .replaceAll(new RegExp(chars, 'g'), '_')
-      )
-    }
-
-    /**
-     * Truncate `text` to be at most `maxLen` characters,
-     * replacing the appropriate number of characters in the middle with `replacement`.
-     * */
-    function middleOut(text: string, maxLen: number, replacement: string) {
-      if (text.length <= maxLen) {
-        return text
-      }
-
-      // EXAMPLE
-      //
-      // maxLen = 10:
-      //   __________  (it looks like this)
-      // replacement (length: 3)
-      //   '...'
-      // input (length: 17):
-      //   '0123456789abcdefg'
-      //
-      // surplus = 17 - 10 + 3 = 10
-      // keep    = 17 - surplus = 7
-      // i.e. we need to replace 10 inner chars with: '...' (leaving 7 characters of the actual string)
-      //   '0123456789abcdefg'
-      //        ^^^^^^^^^^
-      // so we take the leading and traling parts:
-      //   '0123456789abcdefg'
-      //    ^^^^..........^^^
-      //     4     (10)    3
-      // result:
-      //   '0123...efg'
-      const surplus = text.length - maxLen + replacement.length
-      const keep = text.length - surplus
-
-      // if we have an odd length of characters remaining, prioritize the leading part.
-      const halfKeep = Math.floor(keep / 2)
-      const leading = keep % 2 === 0 ? halfKeep : halfKeep + 1
-      const trailing = halfKeep
-
-      return text.slice(0, leading) + replacement + text.slice(-trailing)
-    }
-  }
-}
-
-async function launchBrowser(
-  browserName: string,
-  launchOptions: Record<string, any>
-) {
-  if (browserName === 'safari') {
-    return await webkit.launch(launchOptions)
-  } else if (browserName === 'firefox') {
-    return await firefox.launch({
-      ...launchOptions,
-      firefoxUserPrefs: {
-        ...launchOptions.firefoxUserPrefs,
-        // The "fission.webContentIsolationStrategy" pref must be
-        // set to 1 on Firefox due to the bug where a new history
-        // state is pushed on a page reload.
-        // See https://github.com/microsoft/playwright/issues/22640
-        // See https://bugzilla.mozilla.org/show_bug.cgi?id=1832341
-        'fission.webContentIsolationStrategy': 1,
-      },
-    })
-  } else {
-    return await chromium.launch({
-      devtools: !launchOptions.headless,
-      ...launchOptions,
-      ignoreDefaultArgs: ['--disable-back-forward-cache'],
-    })
-  }
-}
+export { PlaywrightManager } from './utils/playwright-manager'
 
 const defaultTimeout = process.env.NEXT_E2E_TEST_TIMEOUT
   ? parseInt(process.env.NEXT_E2E_TEST_TIMEOUT, 10)
@@ -513,17 +46,22 @@ type PageState = {
   websocketFrames: Array<{ payload: string | Buffer }>
 }
 
-export class Playwright<TCurrent = undefined> {
+export class Playwright<TCurrent = undefined> implements Closable {
+  closer: Closer
+
+  private baseUrl: string | null = null
+  private pages: Set<Page> = new Set()
+
   constructor(
-    private sharedState: SharedPlaywrightState,
     private context: BrowserContextWrapper,
-    private baseUrl: string
-  ) {}
+    public instanceName: string
+  ) {
+    this.closer = new Closer(this, context)
+  }
 
   private _pageState: PageState | null = null
   private state: 'uninitialized' | 'loading' | 'ready' | 'closing' | 'closed' =
     'uninitialized'
-  private closePromise: Promise<void> | null = null
 
   isClosed() {
     return this.state === 'closed'
@@ -586,41 +124,59 @@ export class Playwright<TCurrent = undefined> {
     )
   }
 
-  async close(): Promise<void> {
+  async close() {
+    const group = TimeoutGroup.getIfAvailable()
+    if (!group) {
+      // This method can be called manually from a test.
+      // (and unfortunately, legacy tests do it a lot)
+      await TimeoutGroup.with(
+        {
+          description:
+            'closing playwright because of a manual browser.close() call',
+          maxDuration: maxCleanupDuration,
+        },
+        () => this.closeImpl()
+      )
+    } else {
+      await this.closeImpl()
+    }
+  }
+
+  async closeImpl() {
     if (this.state === 'uninitialized') {
       // Somehow, we got closed before we were initialized.
       return
     } else if (this.state === 'loading') {
       throw new Error('Cannot close Playwright while it is still loading')
-    } else if (this.state === 'closing') {
-      await this.closePromise
-    } else if (this.state === 'closed') {
-      // be lenient for multiple .close() calls.
-      console.error('Playwright is already ' + this.state)
-      return
     }
 
     this.state = 'closing'
-    this.closePromise = (async () => {
-      try {
-        await this.context.tracer?.endTrace()
-        await this.reset()
-        await this.context.reset()
-        this.closePromise = null
-      } finally {
-        this.state = 'closed'
-      }
-    })()
-    await this.closePromise
+    try {
+      await this.reset()
+      // we close Playwright after every test, but the context is preserved, so reset it.
+      await this.context.reset()
+    } finally {
+      this.state = 'closed'
+    }
   }
 
+  private resetting = dedupeWhilePending()
+
   async reset() {
-    if (!this._pageState) {
-      return
-    }
-    this._pageState = null
-    await closeBrowserContextPages(this.context.context)
-    this.state = 'uninitialized'
+    await this.resetting.run(async () => {
+      if (!this._pageState) {
+        return
+      }
+      this._pageState = null
+
+      const pages = this.pages
+      this.pages.clear()
+      await Promise.all(
+        Array.from(pages).map((page) => this.context.closePage(page))
+      )
+
+      this.state = 'uninitialized'
+    })
   }
 
   async get(url: string, opts?: NavigationOptions): Promise<void> {
@@ -647,7 +203,13 @@ export class Playwright<TCurrent = undefined> {
     if (this.state !== 'uninitialized') {
       // loadPage may be called multiple times within a single test.
       // in that case, we need to reset.
-      await this.reset()
+      await TimeoutGroup.with(
+        {
+          description: `resetting playwright ${this.instanceName} before loading new page`,
+          maxDuration: 1_000,
+        },
+        () => this.reset()
+      )
     } else {
       // if this is the first time loadPage is called in this test, start a trace.
       // otherwise, we should already have a trace running.
@@ -700,7 +262,7 @@ export class Playwright<TCurrent = undefined> {
       }
 
       page.on('websocket', (ws) => {
-        if (this.sharedState.tracingEnabled()) {
+        if (this.context.tracer) {
           page
             .evaluate(`console.log('connected to ws at ${ws.url()}')`)
             .catch(() => {})
@@ -714,7 +276,7 @@ export class Playwright<TCurrent = undefined> {
         ws.on('framereceived', (frame) => {
           websocketFrames.push({ payload: frame.payload })
 
-          if (this.sharedState.tracingEnabled()) {
+          if (this.context.tracer) {
             page
               .evaluate(`console.log('received ws message ${frame.payload}')`)
               .catch(() => {})
@@ -740,6 +302,7 @@ export class Playwright<TCurrent = undefined> {
       throw err
     }
 
+    this.pages.add(newPageState.page)
     this._pageState = newPageState
     this.state = 'ready'
 
@@ -1143,31 +706,4 @@ export class Playwright<TCurrent = undefined> {
       get,
     })
   }
-}
-
-async function cleanupBrowserContext(context: BrowserContext) {
-  // Clean up the existing browser context as best we can.
-  await Promise.all([
-    // NOTE: this uses the patched version installed in patchBrowserContextRemoveAllListeners
-    context.removeAllListeners(undefined, { behavior: 'wait' }),
-    context.unrouteAll({ behavior: 'wait' }),
-    context.clearCookies(),
-    context.clearPermissions(),
-  ])
-}
-
-async function closeBrowserContextPages(context: BrowserContext) {
-  const pages = context.pages()
-  await Promise.all(pages.map((page) => closePage(page)))
-}
-
-async function closePage(page: Page) {
-  if (page.isClosed()) {
-    return
-  }
-  await Promise.all([
-    page.removeAllListeners(undefined, { behavior: 'wait' }),
-    page.unrouteAll({ behavior: 'wait' }),
-  ])
-  await page.close()
 }

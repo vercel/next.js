@@ -1,68 +1,29 @@
 import { getFullUrl, waitFor } from 'next-test-utils'
-import os from 'os'
-import type {
-  BrowserContextOptions,
-  BrowserContextWrapper,
-  BrowserOptions,
-  Playwright,
-  SharedPlaywrightState,
-  NavigationOptions,
-} from './browsers/playwright'
+import type { Playwright, NavigationOptions } from './browsers/playwright'
 import type { Page } from 'playwright'
+import type {
+  PlaywrightManager,
+  BrowserOptions,
+  BrowserContextOptions,
+} from './browsers/utils/playwright-manager'
+import { createAfterCurrentTest } from './browsers/utils/after-current-test'
 
 export type { Playwright }
 
-let deviceIP: string
-const isBrowserStack = !!process.env.BROWSERSTACK
-;(global as any).browserName = process.env.BROWSER_NAME || 'chrome'
-
-if (isBrowserStack) {
-  const nets = os.networkInterfaces()
-  for (const key of Object.keys(nets)) {
-    let done = false
-
-    for (const item of nets[key]!) {
-      if (item.family === 'IPv4' && !item.internal) {
-        deviceIP = item.address
-        done = true
-        break
-      }
-    }
-    if (done) break
-  }
-}
-
-function createAfterCurrentTest() {
-  const afterCurrentTestCallbacks = new Set<() => Promise<void>>()
-
-  afterEach(async () => {
-    for (const callback of afterCurrentTestCallbacks) {
-      await callback()
-    }
-    afterCurrentTestCallbacks.clear()
-  })
-
-  return function afterCurrentTest(cb: () => void | Promise<void>) {
-    const wrapped = async () => {
-      try {
-        await cb()
-      } finally {
-        afterCurrentTestCallbacks.delete(wrapped)
-      }
-    }
-    afterCurrentTestCallbacks.add(wrapped)
-  }
+let playwrightManager: PlaywrightManager | null = null
+const lazilyInitializePlaywrightManager = async () => {
+  const { PlaywrightManager } = await import('./browsers/playwright')
+  playwrightManager = new PlaywrightManager()
+  return playwrightManager
 }
 
 const afterCurrentTest = createAfterCurrentTest()
 
-let sharedState: SharedPlaywrightState | null = null
-let previousBrowser: Playwright | null = null
-
 afterAll(async () => {
-  if (sharedState) {
-    await sharedState.close()
-    sharedState = null
+  if (playwrightManager) {
+    await playwrightManager.closeWithReason(
+      'cleaning up playwright after all tests are finished'
+    )
   }
 })
 
@@ -110,117 +71,46 @@ export default async function webdriver(
     retryWaitHydration = false,
     disableCache = false,
     beforePageLoad,
-    locale = undefined,
-    disableJavaScript = false,
-    ignoreHTTPSErrors = false,
-    headless = !!process.env.HEADLESS,
     cpuThrottleRate = undefined,
     pushErrorAsConsoleLog = false,
-    userAgent = undefined,
+
+    disableJavaScript = false,
     inefficientlyCreateAdditionalBrowserInstance:
       createSecondaryInstance = false,
+    ...rest
   } = options
 
-  if (previousBrowser && !createSecondaryInstance) {
-    // the previous browser will be cleaned up after the current test
-    // (or by manually calling `browser.close()` in legacy tests),
-    // so we don't need to do any cleanup here
-    throw new Error(
-      'Calling `next.browser()` multiple times in a single test is not recommended. ' +
-        'If you need to navigate to a new page, use `browser.get(path)` instead. \n' +
-        'If you REALLY need multiple browsers running in parallel, pass `inefficientlyCreateAdditionalBrowserInstance: true` when creating the second browser.'
-    )
-  } else if (!previousBrowser && createSecondaryInstance) {
-    throw new Error(
-      '`inefficientlyCreateAdditionalBrowserInstance: true` can only be passed to the second browser created within a test.'
-    )
-  }
-  const { Playwright, SharedPlaywrightState } = await import(
-    './browsers/playwright'
-  )
-
-  const browserOptions: BrowserOptions = {
-    browserName: process.env.BROWSER_NAME || 'chrome',
-    headless,
-    enableTracing: !!process.env.TRACE_PLAYWRIGHT,
-  }
-  const browserContextOptions: BrowserContextOptions = {
-    locale,
-    javaScriptEnabled: !disableJavaScript,
-    ignoreHTTPSErrors,
-    userAgent,
-    deviceName: process.env.DEVICE_NAME || undefined,
-  }
-
-  let context: BrowserContextWrapper
-  if (!sharedState) {
-    sharedState = await SharedPlaywrightState.create(
-      browserOptions,
-      browserContextOptions
-    )
-    context = sharedState.defaultContext
-  } else {
-    if (createSecondaryInstance) {
-      if (!sharedState.canReuseBrowser(browserOptions)) {
-        throw new Error(
-          `Changing the following options for a secondary browser is not supported: ${Object.keys(
-            browserOptions
-          )
-            .map((name) => JSON.stringify(name))
-            .join(', ')}`
-        )
-      }
-      context = await sharedState.createSecondaryBrowserContext(
-        browserContextOptions
-      )
-    } else {
-      if (sharedState.canReuseBrowser(browserOptions)) {
-        context = await sharedState.updateDefaultBrowserContext(
-          browserContextOptions
-        )
-      } else {
-        await sharedState.close()
-        sharedState = await SharedPlaywrightState.create(
-          browserOptions,
-          browserContextOptions
-        )
-        context = sharedState.defaultContext
-      }
-    }
-  }
+  const playwrightManager = await lazilyInitializePlaywrightManager()
 
   // TODO: this can change if the next server is stopped and started again
   // we have some tests work around this:
   // - test/development/app-dir/dev-indicator/hide-button.test.ts
   // - test/e2e/persistent-caching/persistent-caching.test.ts
-  const baseUrl = getFullUrl(
-    appPortOrUrl,
-    '',
-    isBrowserStack ? deviceIP : 'localhost'
-  )
+  const baseUrl = getFullUrl(appPortOrUrl, '', 'localhost')
 
-  const browser = new Playwright(sharedState, context, baseUrl)
-  previousBrowser = browser
+  const browser = await playwrightManager.createInstance({
+    ...rest,
+    javaScriptEnabled: !disableJavaScript,
+    createSecondaryInstance,
+  })
+  browser.setBaseUrl(baseUrl)
 
   afterCurrentTest(async () => {
     if (!browser.isClosed()) {
-      await browser.close()
-    }
-    if (previousBrowser === browser) {
-      previousBrowser = null
+      await playwrightManager.closeInstance(
+        browser,
+        'cleaning up playwright after the test is finished'
+      )
     }
   })
-  ;(global as any).browserName = browserOptions.browserName
+  ;(global as any).browserName =
+    playwrightManager.sharedState!.browserOptions.browserName
 
   // TODO: `appPortOrUrl` can change if the next server is stopped and started again
   // some tests work around this:
   // - test/production/prerender-prefetch/index.test.ts
   // - test/development/app-dir/dev-indicator/hide-button.test.ts
-  const fullUrl = getFullUrl(
-    appPortOrUrl,
-    url,
-    isBrowserStack ? deviceIP : 'localhost'
-  )
+  const fullUrl = getFullUrl(appPortOrUrl, url, 'localhost')
 
   console.log(`\n> Loading browser with ${fullUrl}\n`)
 
