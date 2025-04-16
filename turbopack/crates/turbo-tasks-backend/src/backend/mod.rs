@@ -1212,7 +1212,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
         {
             let mut ctx = self.execute_context(turbo_tasks);
-            let mut task = ctx.task(task_id, TaskDataCategory::Data);
+            let mut task = ctx.task(task_id, TaskDataCategory::All);
             let in_progress = remove!(task, InProgress)?;
             let InProgressState::Scheduled { done_event } = in_progress else {
                 task.add_new(CachedDataItem::InProgress { value: in_progress });
