@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
-  'turbopack-loader-resource-query',
+  'webpack-loader-resource-query',
   () => {
     const { next } = nextTestSetup({
       files: __dirname,
