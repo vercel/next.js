@@ -76,10 +76,10 @@ export const cancelPrefetchTask: typeof import('./segment-cache-impl/scheduler')
       }
     : notEnabled
 
-export const bumpPrefetchTask: typeof import('./segment-cache-impl/scheduler').bumpPrefetchTask =
+export const reschedulePrefetchTask: typeof import('./segment-cache-impl/scheduler').reschedulePrefetchTask =
   process.env.__NEXT_CLIENT_SEGMENT_CACHE
     ? function (...args) {
-        return require('./segment-cache-impl/scheduler').bumpPrefetchTask(
+        return require('./segment-cache-impl/scheduler').reschedulePrefetchTask(
           ...args
         )
       }

@@ -127,14 +127,12 @@ describe('loadConfig', () => {
         loadConfig('', __dirname, {
           customConfig: {
             experimental: {
-              turbo: {
-                unstablePersistentCaching: true,
-              },
+              turbopackPersistentCaching: true,
             },
           },
         })
       ).rejects.toThrow(
-        /The experimental feature "experimental.turbo.unstablePersistentCaching" can only be enabled when using the latest canary version of Next.js./
+        /The experimental feature "experimental.turbopackPersistentCaching" can only be enabled when using the latest canary version of Next.js./
       )
     })
   })

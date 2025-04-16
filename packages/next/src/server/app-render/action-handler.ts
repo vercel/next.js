@@ -483,11 +483,13 @@ export async function handleAction({
     isURLEncodedAction,
     isMultipartAction,
     isFetchAction,
-    isServerAction,
+    isPossibleServerAction,
   } = getServerActionRequestMetadata(req)
 
-  // If it's not a Server Action, skip handling.
-  if (!isServerAction) {
+  // If it can't be a Server Action, skip handling.
+  // Note that this can be a false positive -- any multipart/urlencoded POST can get us here,
+  // But won't know if it's an MPA action or not until we call `decodeAction` below.
+  if (!isPossibleServerAction) {
     return
   }
 
@@ -510,12 +512,8 @@ export async function handleAction({
     // that in the work store to be up-to-date for subsequent rendering.
     workStore.isDraftMode = requestStore.draftMode.isEnabled
 
-    requestStore.phase = 'render'
-
     return generateFlight(...args)
   }
-
-  requestStore.phase = 'action'
 
   // When running actions the default is no-store, you can still `cache: 'force-cache'`
   workStore.fetchCache = 'default-no-store'
@@ -674,18 +672,22 @@ export async function handleAction({
               // Only warn if it's a server action, otherwise skip for other post requests
               warnBadServerActionRequest()
 
-              const actionReturnedState = await workUnitAsyncStorage.run(
-                requestStore,
-                action
-              )
+              let actionReturnedState: unknown
+              requestStore.phase = 'action'
+              try {
+                actionReturnedState = await workUnitAsyncStorage.run(
+                  requestStore,
+                  action
+                )
+              } finally {
+                requestStore.phase = 'render'
+              }
 
               formState = await decodeFormState(
                 actionReturnedState,
                 formData,
                 serverModuleMap
               )
-
-              requestStore.phase = 'render'
             }
 
             // Skip the fetch path
@@ -829,18 +831,22 @@ export async function handleAction({
               // Only warn if it's a server action, otherwise skip for other post requests
               warnBadServerActionRequest()
 
-              const actionReturnedState = await workUnitAsyncStorage.run(
-                requestStore,
-                action
-              )
+              let actionReturnedState: unknown
+              requestStore.phase = 'action'
+              try {
+                actionReturnedState = await workUnitAsyncStorage.run(
+                  requestStore,
+                  action
+                )
+              } finally {
+                requestStore.phase = 'render'
+              }
 
               formState = await decodeFormState(
                 actionReturnedState,
                 formData,
                 serverModuleMap
               )
-
-              requestStore.phase = 'render'
             }
 
             // Skip the fetch path
@@ -917,9 +923,15 @@ export async function handleAction({
           actionId!
         ]
 
-      const returnVal = await workUnitAsyncStorage.run(requestStore, () =>
-        actionHandler.apply(null, boundActionArguments)
-      )
+      let returnVal: unknown
+      requestStore.phase = 'action'
+      try {
+        returnVal = await workUnitAsyncStorage.run(requestStore, () =>
+          actionHandler.apply(null, boundActionArguments)
+        )
+      } finally {
+        requestStore.phase = 'render'
+      }
 
       // For form actions, we need to continue rendering the page.
       if (isFetchAction) {
@@ -1017,7 +1029,6 @@ export async function handleAction({
         // swallow error, it's gonna be handled on the client
       }
 
-      requestStore.phase = 'render'
       return {
         type: 'done',
         result: await generateFlight(req, ctx, requestStore, {

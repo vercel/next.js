@@ -17,7 +17,7 @@ describe('Dynamic Code Evaluation (DCE)', () => {
       `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime`
     )
   })
-  ;(process.env.TURBOPACK ? it.skip : it)(
+  ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
     "should show the user's import trace",
     async () => {
       await next.patchFile(

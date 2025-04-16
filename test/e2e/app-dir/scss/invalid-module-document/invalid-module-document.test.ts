@@ -7,7 +7,7 @@ import { join } from 'path'
 import 'e2e-utils'
 
 // TODO: Implement warning for Turbopack
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Invalid SCSS in _document',
   () => {
     ;(Boolean((global as any).isNextStart) ? describe : describe.skip)(

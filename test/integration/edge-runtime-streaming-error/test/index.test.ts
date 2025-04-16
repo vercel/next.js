@@ -50,8 +50,7 @@ function createContext() {
   return ctx
 }
 
-// TODO(veil): Missing `cause` in Turbopack
-;(process.env.TURBOPACK ? describe.skip : describe)('development mode', () => {
+describe('development mode', () => {
   const context = createContext()
 
   beforeAll(async () => {
@@ -66,6 +65,8 @@ function createContext() {
 
   it('logs the error correctly', test(context))
 })
+
+// This test setups fails for unrelated reasons when TURBOPACK_DEV is set
 ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
   'production mode',
   () => {

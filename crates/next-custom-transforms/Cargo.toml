@@ -63,9 +63,9 @@ turbopack-ecmascript-plugins = { workspace = true, optional = true }
 turbo-rcstr = { workspace = true }
 urlencoding = { workspace = true }
 
-react_remove_properties = "0.33.0"
-remove_console = "0.34.0"
-preset_env_base = "2.0.1"
+react_remove_properties = "0.36.0"
+remove_console = "0.37.0"
+preset_env_base = "3.0.0"
 
 [dev-dependencies]
 swc_core = { workspace = true, features = ["testing_transform"]}

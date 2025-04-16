@@ -14,7 +14,7 @@ export function shouldRunTurboDevTest(): boolean {
     return false
   }
 
-  const shouldRunTurboDev = !!process.env.TURBOPACK
+  const shouldRunTurboDev = !!process.env.IS_TURBOPACK_TEST
   if (shouldRunTurboDev && !loggedTurbopack) {
     require('console').log(
       `Running tests with turbopack because environment variable TURBOPACK is set`
@@ -26,7 +26,7 @@ export function shouldRunTurboDevTest(): boolean {
 }
 
 export function getTurbopackFlag(): string {
-  if (!!process.env.TURBOPACK) {
+  if (!!process.env.IS_TURBOPACK_TEST) {
     return '--turbo'
   } else {
     throw Error(`Cannot get the flag for running turbopack`)

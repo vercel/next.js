@@ -220,8 +220,10 @@ export function cancelPrefetchTask(task: PrefetchTask): void {
   heapDelete(taskHeap, task)
 }
 
-export function bumpPrefetchTask(
+export function reschedulePrefetchTask(
   task: PrefetchTask,
+  treeAtTimeOfPrefetch: FlightRouterState,
+  includeDynamicData: boolean,
   priority: PrefetchPriority
 ): void {
   // Bump the prefetch task to the top of the queue, as if it were a fresh
@@ -233,11 +235,15 @@ export function bumpPrefetchTask(
 
   // Un-cancel the task, in case it was previously canceled.
   task.isCanceled = false
+  task.phase = PrefetchPhase.RouteTree
 
   // Assign a new sort ID to move it ahead of all other tasks at the same
   // priority level. (Higher sort IDs are processed first.)
   task.sortId = sortIdCounter++
   task.priority = priority
+
+  task.treeAtTimeOfPrefetch = treeAtTimeOfPrefetch
+  task.includeDynamicData = includeDynamicData
 
   if (task._heapIndex !== -1) {
     // The task is already in the queue.

@@ -309,7 +309,13 @@ pub struct InProgressStateInner {
     #[allow(dead_code)]
     pub once_task: bool,
     pub session_dependent: bool,
+    /// Early marking as completed. This is set before the output is available and will ignore full
+    /// task completion of the task for strongly consistent reads.
     pub marked_as_completed: bool,
+    /// Task execution has completed and the output is available.
+    pub done: bool,
+    /// Event that is triggered when the task output is available (completed flag set).
+    /// This is used to wait for completion when reading the task output before it's available.
     pub done_event: Event,
     /// Children that should be connected to the task and have their active_count decremented
     /// once the task completes.
@@ -551,26 +557,26 @@ impl CachedDataItem {
 
     pub fn category(&self) -> TaskDataCategory {
         match self {
-            Self::Collectible { .. }
-            | Self::Child { .. }
-            | Self::CellData { .. }
+            Self::CellData { .. }
             | Self::CellTypeMaxIndex { .. }
             | Self::OutputDependency { .. }
             | Self::CellDependency { .. }
             | Self::CollectiblesDependency { .. }
             | Self::OutputDependent { .. }
-            | Self::CellDependent { .. }
-            | Self::CollectiblesDependent { .. } => TaskDataCategory::Data,
+            | Self::CellDependent { .. } => TaskDataCategory::Data,
 
-            Self::Output { .. }
+            Self::Collectible { .. }
+            | Self::Output { .. }
             | Self::AggregationNumber { .. }
             | Self::Dirty { .. }
             | Self::Follower { .. }
+            | Self::Child { .. }
             | Self::Upper { .. }
             | Self::AggregatedDirtyContainer { .. }
             | Self::AggregatedCollectible { .. }
             | Self::AggregatedDirtyContainerCount { .. }
-            | Self::Stateful { .. } => TaskDataCategory::Meta,
+            | Self::Stateful { .. }
+            | Self::CollectiblesDependent { .. } => TaskDataCategory::Meta,
 
             Self::OutdatedCollectible { .. }
             | Self::OutdatedOutputDependency { .. }
@@ -633,26 +639,26 @@ impl CachedDataItemKey {
 impl CachedDataItemType {
     pub fn category(&self) -> TaskDataCategory {
         match self {
-            Self::Collectible { .. }
-            | Self::Child { .. }
-            | Self::CellData { .. }
+            Self::CellData { .. }
             | Self::CellTypeMaxIndex { .. }
             | Self::OutputDependency { .. }
             | Self::CellDependency { .. }
             | Self::CollectiblesDependency { .. }
             | Self::OutputDependent { .. }
-            | Self::CellDependent { .. }
-            | Self::CollectiblesDependent { .. } => TaskDataCategory::Data,
+            | Self::CellDependent { .. } => TaskDataCategory::Data,
 
-            Self::Output { .. }
+            Self::Collectible { .. }
+            | Self::Output { .. }
             | Self::AggregationNumber { .. }
             | Self::Dirty { .. }
             | Self::Follower { .. }
+            | Self::Child { .. }
             | Self::Upper { .. }
             | Self::AggregatedDirtyContainer { .. }
             | Self::AggregatedCollectible { .. }
             | Self::AggregatedDirtyContainerCount { .. }
-            | Self::Stateful { .. } => TaskDataCategory::Meta,
+            | Self::Stateful { .. }
+            | Self::CollectiblesDependent { .. } => TaskDataCategory::Meta,
 
             Self::OutdatedCollectible { .. }
             | Self::OutdatedOutputDependency { .. }

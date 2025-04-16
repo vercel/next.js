@@ -7,7 +7,9 @@ use thread_local::ThreadLocal;
 
 use crate::database::{
     key_value_database::KeyValueDatabase,
-    write_batch::{BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch},
+    write_batch::{
+        BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch, WriteBuffer,
+    },
 };
 
 struct ThreadLocalReadTransactionsContainer<T: KeyValueDatabase + 'static>(
@@ -184,15 +186,15 @@ impl<'a, T: KeyValueDatabase, B: SerialWriteBatch<'a>> SerialWriteBatch<'a>
     fn put(
         &mut self,
         key_space: super::key_value_database::KeySpace,
-        key: std::borrow::Cow<[u8]>,
-        value: std::borrow::Cow<[u8]>,
+        key: WriteBuffer<'_>,
+        value: WriteBuffer<'_>,
     ) -> Result<()> {
         self.write_batch.put(key_space, key, value)
     }
     fn delete(
         &mut self,
         key_space: super::key_value_database::KeySpace,
-        key: std::borrow::Cow<[u8]>,
+        key: WriteBuffer<'_>,
     ) -> Result<()> {
         self.write_batch.delete(key_space, key)
     }
@@ -204,15 +206,15 @@ impl<'a, T: KeyValueDatabase, B: ConcurrentWriteBatch<'a>> ConcurrentWriteBatch<
     fn put(
         &self,
         key_space: super::key_value_database::KeySpace,
-        key: std::borrow::Cow<[u8]>,
-        value: std::borrow::Cow<[u8]>,
+        key: WriteBuffer<'_>,
+        value: WriteBuffer<'_>,
     ) -> Result<()> {
         self.write_batch.put(key_space, key, value)
     }
     fn delete(
         &self,
         key_space: super::key_value_database::KeySpace,
-        key: std::borrow::Cow<[u8]>,
+        key: WriteBuffer<'_>,
     ) -> Result<()> {
         self.write_batch.delete(key_space, key)
     }

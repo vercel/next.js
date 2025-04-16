@@ -11,6 +11,8 @@ const importAddSuffix = (key) => import("./dir/" + key + ".js");
 const importConcat = (key) => import("./dir/".concat(key));
 const importConcatSuffix = (key) => import("./dir/".concat(key, ".js"));
 
+const requireSingleSuffix = (key) => require(`./dir/${key}.ts`);
+
 it("should support dynamic requests in require with template literals", () => {
   expect(requireTemplate("a.js")).toBe(a);
   expect(requireTemplate("b.ts")).toBe(b);
@@ -102,4 +104,9 @@ it("should not support dynamic requests with double extension", async () => {
   await expect(importAddSuffix("d.js")).rejects.toThrowError();
   await expect(importConcatSuffix("a.js")).rejects.toThrowError();
   await expect(importConcatSuffix("d.js")).rejects.toThrowError();
+});
+
+it("should still interpolate even with a single match", async () => {
+  expect(requireSingleSuffix("b")).toBe(b)
+  expect(() => requireSingleSuffix("non-existent")).toThrowError()
 });

@@ -421,7 +421,8 @@ const internal = program
   )
 
 internal
-  .command('turbo-trace-server')
+  .command('trace')
+  .alias('turbo-trace-server')
   .argument('[file]', 'Trace file to serve.')
   .action((file: string) => {
     return import('../cli/internal/turbo-trace-server.js').then((mod) =>

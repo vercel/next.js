@@ -747,6 +747,11 @@ declare module 'next/dist/compiled/zod-validation-error' {
   export = zve
 }
 
+declare module 'next/dist/compiled/@typescript/vfs' {
+  import m from '@typescript/vfs'
+  export = m
+}
+
 declare module 'mini-css-extract-plugin'
 declare module 'next/dist/compiled/loader-utils3'
 

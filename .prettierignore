@@ -13,6 +13,7 @@ pnpm-lock.yaml
 
 packages/next/src/bundles/webpack/packages/*.runtime.js
 packages/next/src/bundles/webpack/packages/lazy-compilation-*.js
+packages/next/wasm/@next
 packages/next/errors.json
 
 .github/actions/next-stats-action/.work
@@ -48,6 +49,7 @@ bench/nested-deps/components/**/*
 **/.tina/__generated__/**
 test/lib/amp-validator-wasm.js
 test/production/pages-dir/production/fixture/amp-validator-wasm.js
+test/e2e/app-dir/server-source-maps/fixtures/default/app/bad-sourcemap/page.js
 test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/ignored.js
 test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/sourcemapped.js
 test/e2e/app-dir/server-source-maps/fixtures/default/external-pkg/sourcemapped.js

@@ -150,6 +150,8 @@ impl DiskWatcher {
         // Create a watcher object, delivering debounced events.
         // The notification back-end is selected based on the platform.
         let config = Config::default();
+        // we should track and invalidate each part of a symlink chain ourselves in turbo-tasks-fs
+        config.with_follow_symlinks(false);
 
         let mut watcher = if let Some(poll_interval) = poll_interval {
             let config = config.with_poll_interval(poll_interval);

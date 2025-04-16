@@ -49,7 +49,9 @@
     ],
     "created-by: Turbopack team": [
       { "type": "user", "pattern": "bgw" },
+      { "type": "user", "pattern": "Cy-Tek" },
       { "type": "user", "pattern": "kdy1" },
+      { "type": "user", "pattern": "lukesandberg" },
       { "type": "user", "pattern": "mischnic" },
       { "type": "user", "pattern": "padmaia" },
       { "type": "user", "pattern": "sokra" },

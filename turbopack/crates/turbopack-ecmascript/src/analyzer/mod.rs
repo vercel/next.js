@@ -11,12 +11,11 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use graph::VarGraph;
 use num_bigint::BigInt;
 use num_traits::identities::Zero;
 use once_cell::sync::Lazy;
-use regex::Regex;
 use rustc_hash::FxHasher;
 use swc_core::{
     common::Mark,
@@ -33,9 +32,12 @@ use turbopack_core::compile_time_info::{
 
 use self::imports::ImportAnnotations;
 pub(crate) use self::imports::ImportMap;
-use crate::{references::require_context::RequireContextMap, utils::StringifyJs};
+use crate::{
+    analyzer::es_regex::EsRegex, references::require_context::RequireContextMap, utils::StringifyJs,
+};
 
 pub mod builtin;
+pub mod es_regex;
 pub mod graph;
 pub mod imports;
 pub mod linker;
@@ -108,6 +110,13 @@ impl ConstantString {
         match self {
             Self::Atom(s) => s,
             Self::RcStr(s) => s,
+        }
+    }
+
+    pub fn as_atom(&self) -> Cow<Atom> {
+        match self {
+            Self::Atom(s) => Cow::Borrowed(s),
+            Self::RcStr(s) => Cow::Owned(s.as_str().into()),
         }
     }
 
@@ -482,6 +491,12 @@ pub enum JsValue {
     /// A tenary operator `test ? cons : alt`
     /// `(total_node_count, test, cons, alt)`
     Tenary(u32, Box<JsValue>, Box<JsValue>, Box<JsValue>),
+    /// A promise resolving to some value
+    /// `(total_node_count, value)`
+    Promise(u32, Box<JsValue>),
+    /// An await call (potentially) unwrapping a promise.
+    /// `(total_node_count, value)`
+    Awaited(u32, Box<JsValue>),
 
     /// A for-of loop
     ///
@@ -734,6 +749,8 @@ impl Display for JsValue {
             }
             JsValue::Iterated(_, iterable) => write!(f, "Iterated({})", iterable),
             JsValue::TypeOf(_, operand) => write!(f, "typeof({})", operand),
+            JsValue::Promise(_, operand) => write!(f, "Promise<{}>", operand),
+            JsValue::Awaited(_, operand) => write!(f, "await({})", operand),
         }
     }
 }
@@ -795,6 +812,7 @@ impl JsValue {
             | JsValue::Object { .. }
             | JsValue::Alternatives { .. }
             | JsValue::Function(..)
+            | JsValue::Promise(..)
             | JsValue::Member(..) => JsValueMetaKind::Nested,
             JsValue::Concat(..)
             | JsValue::Add(..)
@@ -807,6 +825,7 @@ impl JsValue {
             | JsValue::Tenary(..)
             | JsValue::MemberCall(..)
             | JsValue::Iterated(..)
+            | JsValue::Awaited(..)
             | JsValue::TypeOf(..) => JsValueMetaKind::Operation,
             JsValue::Variable(..)
             | JsValue::Argument(..)
@@ -991,6 +1010,14 @@ impl JsValue {
         Self::Member(1 + o.total_nodes() + p.total_nodes(), o, p)
     }
 
+    pub fn promise(operand: Box<JsValue>) -> Self {
+        Self::Promise(1 + operand.total_nodes(), operand)
+    }
+
+    pub fn awaited(operand: Box<JsValue>) -> Self {
+        Self::Awaited(1 + operand.total_nodes(), operand)
+    }
+
     pub fn unknown(
         value: impl Into<Arc<JsValue>>,
         side_effects: bool,
@@ -1063,6 +1090,8 @@ impl JsValue {
             | JsValue::Member(c, _, _)
             | JsValue::Function(c, _, _)
             | JsValue::Iterated(c, ..)
+            | JsValue::Promise(c, ..)
+            | JsValue::Awaited(c, ..)
             | JsValue::TypeOf(c, ..) => *c,
         }
     }
@@ -1102,6 +1131,12 @@ impl JsValue {
                 *c = 1 + test.total_nodes() + cons.total_nodes() + alt.total_nodes();
             }
             JsValue::Not(c, r) => {
+                *c = 1 + r.total_nodes();
+            }
+            JsValue::Promise(c, r) => {
+                *c = 1 + r.total_nodes();
+            }
+            JsValue::Awaited(c, r) => {
                 *c = 1 + r.total_nodes();
             }
 
@@ -1250,6 +1285,12 @@ impl JsValue {
                     iterable.make_unknown_without_content(false, "node limit reached");
                 }
                 JsValue::TypeOf(_, operand) => {
+                    operand.make_unknown_without_content(false, "node limit reached");
+                }
+                JsValue::Awaited(_, operand) => {
+                    operand.make_unknown_without_content(false, "node limit reached");
+                }
+                JsValue::Promise(_, operand) => {
                     operand.make_unknown_without_content(false, "node limit reached");
                 }
                 JsValue::Member(_, o, p) => {
@@ -1491,6 +1532,18 @@ impl JsValue {
             JsValue::TypeOf(_, operand) => {
                 format!(
                     "typeof({})",
+                    operand.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
+                )
+            }
+            JsValue::Promise(_, operand) => {
+                format!(
+                    "Promise<{}>",
+                    operand.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
+                )
+            }
+            JsValue::Awaited(_, operand) => {
+                format!(
+                    "await({})",
                     operand.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
                 )
             }
@@ -2111,6 +2164,8 @@ impl JsValue {
             JsValue::Argument(_, _) => false,
             JsValue::Iterated(_, iterable) => iterable.has_side_effects(),
             JsValue::TypeOf(_, operand) => operand.has_side_effects(),
+            JsValue::Promise(_, operand) => operand.has_side_effects(),
+            JsValue::Awaited(_, operand) => operand.has_side_effects(),
         }
     }
 
@@ -2307,7 +2362,8 @@ impl JsValue {
             | JsValue::Module(..)
             | JsValue::Function(..)
             | JsValue::WellKnownObject(_)
-            | JsValue::WellKnownFunction(_) => Some(false),
+            | JsValue::WellKnownFunction(_)
+            | JsValue::Promise(_, _) => Some(false),
 
             // Booleans are not strings
             JsValue::Not(..) | JsValue::Binary(..) => Some(false),
@@ -2345,6 +2401,11 @@ impl JsValue {
                 ),
                 _,
             ) => Some(true),
+
+            JsValue::Awaited(_, operand) => match &**operand {
+                JsValue::Promise(_, v) => v.is_string(),
+                v => v.is_string(),
+            },
 
             JsValue::FreeVar(..)
             | JsValue::Variable(_)
@@ -2650,14 +2711,10 @@ macro_rules! for_each_children_async {
                 $value.update_total_nodes();
                 ($value, m1 || m2)
             }
-            JsValue::Iterated(_, box iterable) => {
-                let (new_iterable, modified) = $visit_fn(take(iterable), $($args),+).await?;
-                *iterable = new_iterable;
-
-                $value.update_total_nodes();
-                ($value, modified)
-            }
-            JsValue::TypeOf(_, box operand) => {
+            JsValue::Iterated(_, box operand)
+            | JsValue::TypeOf(_, box operand)
+            | JsValue::Promise(_, box operand)
+            | JsValue::Awaited(_, box operand) => {
                 let (new_operand, modified) = $visit_fn(take(operand), $($args),+).await?;
                 *operand = new_operand;
 
@@ -2962,15 +3019,10 @@ impl JsValue {
                 modified
             }
 
-            JsValue::Iterated(_, iterable) => {
-                let modified = visitor(iterable);
-                if modified {
-                    self.update_total_nodes();
-                }
-                modified
-            }
-
-            JsValue::TypeOf(_, operand) => {
+            JsValue::Iterated(_, operand)
+            | JsValue::TypeOf(_, operand)
+            | JsValue::Promise(_, operand)
+            | JsValue::Awaited(_, operand) => {
                 let modified = visitor(operand);
                 if modified {
                     self.update_total_nodes();
@@ -3164,11 +3216,10 @@ impl JsValue {
                 visitor(alt);
             }
 
-            JsValue::Iterated(_, iterable) => {
-                visitor(iterable);
-            }
-
-            JsValue::TypeOf(_, operand) => {
+            JsValue::Iterated(_, operand)
+            | JsValue::TypeOf(_, operand)
+            | JsValue::Promise(_, operand)
+            | JsValue::Awaited(_, operand) => {
                 visitor(operand);
             }
 
@@ -3566,10 +3617,10 @@ impl JsValue {
                 cons.similar_hash(state, depth - 1);
                 alt.similar_hash(state, depth - 1);
             }
-            JsValue::Iterated(_, iterable) => {
-                iterable.similar_hash(state, depth - 1);
-            }
-            JsValue::TypeOf(_, operand) => {
+            JsValue::Iterated(_, operand)
+            | JsValue::TypeOf(_, operand)
+            | JsValue::Promise(_, operand)
+            | JsValue::Awaited(_, operand) => {
                 operand.similar_hash(state, depth - 1);
             }
             JsValue::Module(ModuleValue {
@@ -3673,42 +3724,7 @@ pub struct RequireContextOptions {
     pub dir: RcStr,
     pub include_subdirs: bool,
     /// this is a regex (pattern, flags)
-    pub filter: Regex,
-}
-
-/// Convert an ECMAScript regex to a Rust regex.
-fn regex_from_js(pattern: &str, flags: &str) -> Result<Regex> {
-    // rust regex doesn't allow escaped slashes, but they are necessary in js
-    let pattern = pattern.replace("\\/", "/");
-
-    let mut applied_flags = String::new();
-    for flag in flags.chars() {
-        match flag {
-            // indices for substring matches: not relevant for the regex itself
-            'd' => {}
-            // global: default in rust, ignore
-            'g' => {}
-            // case-insensitive: letters match both upper and lower case
-            'i' => applied_flags.push('i'),
-            // multi-line mode: ^ and $ match begin/end of line
-            'm' => applied_flags.push('m'),
-            // allow . to match \n
-            's' => applied_flags.push('s'),
-            // Unicode support (enabled by default)
-            'u' => applied_flags.push('u'),
-            // sticky search: not relevant for the regex itself
-            'y' => {}
-            _ => bail!("unsupported flag `{}` in regex", flag),
-        }
-    }
-
-    let regex = if !applied_flags.is_empty() {
-        format!("(?{}){}", applied_flags, pattern)
-    } else {
-        pattern
-    };
-
-    Regex::new(&regex).context("could not convert ECMAScript regex to Rust regex")
+    pub filter: EsRegex,
 }
 
 /// Parse the arguments passed to a require.context invocation, validate them
@@ -3738,14 +3754,14 @@ pub fn parse_require_context(args: &[JsValue]) -> Result<RequireContextOptions> 
 
     let filter = if let Some(filter) = args.get(2) {
         if let JsValue::Constant(ConstantValue::Regex(box (pattern, flags))) = filter {
-            regex_from_js(pattern, flags)?
+            EsRegex::new(pattern, flags)?
         } else {
             bail!("require.context(..., ..., filter) requires filter to be a regex");
         }
     } else {
         // https://webpack.js.org/api/module-methods/#requirecontext
         // > optional, default /^\.\/.*$/, any file
-        static DEFAULT_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\\./.*$").unwrap());
+        static DEFAULT_REGEX: Lazy<EsRegex> = Lazy::new(|| EsRegex::new(r"^\\./.*$", "").unwrap());
 
         DEFAULT_REGEX.clone()
     };
@@ -3879,10 +3895,12 @@ pub mod test_utils {
                 box JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
                 ref args,
             ) => match &args[0] {
-                JsValue::Constant(v) => JsValue::Module(ModuleValue {
-                    module: v.to_string().into(),
-                    annotations: ImportAnnotations::default(),
-                }),
+                JsValue::Constant(ConstantValue::Str(v)) => {
+                    JsValue::promise(Box::new(JsValue::Module(ModuleValue {
+                        module: v.as_atom().into_owned(),
+                        annotations: ImportAnnotations::default(),
+                    })))
+                }
                 _ => v.into_unknown(true, "import() non constant"),
             },
             JsValue::Call(
@@ -4260,7 +4278,8 @@ mod tests {
                                     }
                                     ConditionalKind::And { expr }
                                     | ConditionalKind::Or { expr }
-                                    | ConditionalKind::NullishCoalescing { expr } => {
+                                    | ConditionalKind::NullishCoalescing { expr }
+                                    | ConditionalKind::Labeled { body: expr } => {
                                         queue
                                             .extend(expr.effects.into_iter().rev().map(|e| (i, e)));
                                     }

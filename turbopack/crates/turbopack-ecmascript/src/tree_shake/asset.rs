@@ -9,7 +9,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
-    reference::{ModuleReference, ModuleReferences, SingleModuleReference},
+    reference::{ModuleReference, ModuleReferences},
     resolve::{origin::ResolveOrigin, ModulePart},
 };
 
@@ -24,7 +24,9 @@ use crate::{
         analyse_ecmascript_module, esm::FoundExportType, follow_reexports, FollowExportsResult,
     },
     side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
-    tree_shake::{side_effect_module::SideEffectsModule, Key},
+    tree_shake::{
+        reference::EcmascriptModulePartReference, side_effect_module::SideEffectsModule, Key,
+    },
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
     EcmascriptModuleAssetType, EcmascriptModuleContent, EcmascriptParsable,
 };
@@ -162,7 +164,6 @@ impl EcmascriptModulePartAsset {
                     export_name: new_export,
                     ..
                 } = &*result.await?;
-                let parsed = module.parse();
                 let final_module = if let Some(new_export) = new_export {
                     if *new_export == export {
                         *final_module
@@ -170,7 +171,6 @@ impl EcmascriptModulePartAsset {
                         ResolvedVc::upcast(
                             EcmascriptModuleFacadeModule::new(
                                 **final_module,
-                                parsed,
                                 ModulePart::renamed_export(new_export.clone(), export.clone()),
                             )
                             .to_resolved()
@@ -181,7 +181,6 @@ impl EcmascriptModulePartAsset {
                     ResolvedVc::upcast(
                         EcmascriptModuleFacadeModule::new(
                             **final_module,
-                            parsed,
                             ModulePart::renamed_namespace(export.clone()),
                         )
                         .to_resolved()
@@ -292,40 +291,34 @@ impl Module for EcmascriptModulePartAsset {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        let split_data = split_module(*self.full_module).await?;
-
-        let analyze = analyze(*self.full_module, self.part.clone());
-
-        let deps = match &*split_data {
-            SplitResult::Ok { deps, .. } => deps,
-            SplitResult::Failed { .. } => return Ok(analyze.references()),
-        };
-
         let part_dep = |part: ModulePart| -> Vc<Box<dyn ModuleReference>> {
-            Vc::upcast(SingleModuleReference::new(
-                Vc::upcast(EcmascriptModulePartAsset::new(*self.full_module, part)),
-                Vc::cell("ecmascript module part".into()),
-            ))
+            Vc::upcast(EcmascriptModulePartReference::new(*self.full_module, part))
         };
 
-        let mut references = analyze.references().owned().await?;
-
-        // Facade depends on evaluation and re-exports
-        if self.part == ModulePart::Facade {
+        if let ModulePart::Facade = self.part {
+            // Facade depends on evaluation and re-exports
+            let mut references = vec![];
             references.push(part_dep(ModulePart::evaluation()).to_resolved().await?);
             references.push(part_dep(ModulePart::exports()).to_resolved().await?);
             return Ok(Vc::cell(references));
         }
 
-        let deps = {
-            let part_id = get_part_id(&split_data, &self.part)
-                .await
-                .with_context(|| format!("part {:?} is not found in the module", self.part))?;
+        let split_data = split_module(*self.full_module).await?;
 
-            match deps.get(&part_id) {
-                Some(v) => &**v,
-                None => &[],
-            }
+        let SplitResult::Ok { deps, .. } = &*split_data else {
+            // If the module is not split, we don't need to add any references
+            return Ok(Vc::cell(vec![]));
+        };
+
+        let mut references = vec![];
+
+        let part_id = get_part_id(&split_data, &self.part)
+            .await
+            .with_context(|| format!("part {:?} is not found in the module", self.part))?;
+
+        let deps = match deps.get(&part_id) {
+            Some(v) => &**v,
+            None => &[],
         };
 
         references.extend(
@@ -348,6 +341,10 @@ impl Module for EcmascriptModulePartAsset {
                 .try_join()
                 .await?,
         );
+
+        let analyze = analyze(*self.full_module, self.part.clone());
+
+        references.extend(analyze.references().owned().await?);
 
         Ok(Vc::cell(references))
     }

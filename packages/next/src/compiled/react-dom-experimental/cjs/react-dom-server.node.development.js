@@ -269,6 +269,17 @@
         );
       return content;
     }
+    function readAsDataURL(blob) {
+      return blob.arrayBuffer().then(function (arrayBuffer) {
+        arrayBuffer = Buffer.from(arrayBuffer).toString("base64");
+        return (
+          "data:" +
+          (blob.type || "application/octet-stream") +
+          ";base64," +
+          arrayBuffer
+        );
+      });
+    }
     function typeName(value) {
       return (
         ("function" === typeof Symbol &&
@@ -983,12 +994,7 @@
       };
     }
     function createPreambleState() {
-      return {
-        htmlChunks: null,
-        headChunks: null,
-        bodyChunks: null,
-        contribution: NoContribution
-      };
+      return { htmlChunks: null, headChunks: null, bodyChunks: null };
     }
     function createFormatContext(insertionMode, selectedValue, tagScope) {
       return {
@@ -1308,6 +1314,33 @@
       null != formTarget && pushAttribute(target, "formTarget", formTarget);
       return formData;
     }
+    function pushSrcObjectAttribute(target, blob) {
+      null === blobCache && (blobCache = new WeakMap());
+      var suspenseCache = blobCache,
+        thenable = suspenseCache.get(blob);
+      void 0 === thenable &&
+        ((thenable = readAsDataURL(blob)),
+        thenable.then(
+          function (result) {
+            thenable.status = "fulfilled";
+            thenable.value = result;
+          },
+          function (error) {
+            thenable.status = "rejected";
+            thenable.reason = error;
+          }
+        ),
+        suspenseCache.set(blob, thenable));
+      if ("rejected" === thenable.status) throw thenable.reason;
+      if ("fulfilled" !== thenable.status) throw thenable;
+      target.push(
+        attributeSeparator,
+        "src",
+        attributeAssign,
+        escapeTextForBrowser(thenable.value),
+        attributeEnd
+      );
+    }
     function pushAttribute(target, name, value) {
       switch (name) {
         case "className":
@@ -1327,6 +1360,15 @@
           pushStyleAttribute(target, value);
           break;
         case "src":
+          if (
+            "object" === typeof value &&
+            null !== value &&
+            "function" === typeof Blob &&
+            value instanceof Blob
+          ) {
+            pushSrcObjectAttribute(target, value);
+            break;
+          }
         case "href":
           if ("" === value) {
             "src" === name
@@ -2939,6 +2981,8 @@
             var preamble = preambleState || renderState.preamble;
             if (preamble.headChunks)
               throw Error("The `<head>` tag may only be rendered once.");
+            null !== preambleState &&
+              target$jscomp$0.push(headPreambleContributionChunk);
             preamble.headChunks = [];
             var JSCompiler_inline_result$jscomp$9 = pushStartSingletonElement(
               preamble.headChunks,
@@ -2957,6 +3001,8 @@
             var preamble$jscomp$0 = preambleState || renderState.preamble;
             if (preamble$jscomp$0.bodyChunks)
               throw Error("The `<body>` tag may only be rendered once.");
+            null !== preambleState &&
+              target$jscomp$0.push(bodyPreambleContributionChunk);
             preamble$jscomp$0.bodyChunks = [];
             var JSCompiler_inline_result$jscomp$10 = pushStartSingletonElement(
               preamble$jscomp$0.bodyChunks,
@@ -2975,6 +3021,8 @@
             var preamble$jscomp$1 = preambleState || renderState.preamble;
             if (preamble$jscomp$1.htmlChunks)
               throw Error("The `<html>` tag may only be rendered once.");
+            null !== preambleState &&
+              target$jscomp$0.push(htmlPreambleContributionChunk);
             preamble$jscomp$1.htmlChunks = [doctypeChunk];
             var JSCompiler_inline_result$jscomp$11 = pushStartSingletonElement(
               preamble$jscomp$1.htmlChunks,
@@ -3059,16 +3107,13 @@
       renderState = renderState.preamble;
       null === renderState.htmlChunks &&
         preambleState.htmlChunks &&
-        ((renderState.htmlChunks = preambleState.htmlChunks),
-        (preambleState.contribution |= 1));
+        (renderState.htmlChunks = preambleState.htmlChunks);
       null === renderState.headChunks &&
         preambleState.headChunks &&
-        ((renderState.headChunks = preambleState.headChunks),
-        (preambleState.contribution |= 4));
+        (renderState.headChunks = preambleState.headChunks);
       null === renderState.bodyChunks &&
         preambleState.bodyChunks &&
-        ((renderState.bodyChunks = preambleState.bodyChunks),
-        (preambleState.contribution |= 2));
+        (renderState.bodyChunks = preambleState.bodyChunks);
     }
     function writeBootstrap(destination, renderState) {
       renderState = renderState.bootstrapChunks;
@@ -3089,13 +3134,6 @@
       writeChunk(destination, renderState.boundaryPrefix);
       writeChunk(destination, id.toString(16));
       return writeChunkAndReturn(destination, startPendingSuspenseBoundary2);
-    }
-    function writePreambleContribution(destination, preambleState) {
-      preambleState = preambleState.contribution;
-      preambleState !== NoContribution &&
-        (writeChunk(destination, boundaryPreambleContributionChunkStart),
-        writeChunk(destination, "" + preambleState),
-        writeChunk(destination, boundaryPreambleContributionChunkEnd));
     }
     function writeStartSegment(destination, renderState, formatContext, id) {
       switch (formatContext.insertionMode) {
@@ -4155,9 +4193,6 @@
     }
     function unsupportedRefresh() {
       throw Error("Cache cannot be refreshed during server rendering.");
-    }
-    function unsupportedStartGesture() {
-      throw Error("startGesture cannot be called during server rendering.");
     }
     function noop$1() {}
     function disabledLog() {}
@@ -5695,18 +5730,32 @@
             task.keyPath = prevKeyPath$jscomp$1;
             return;
           case REACT_ACTIVITY_TYPE:
-            if ("hidden" !== props.mode) {
-              var prevKeyPath$jscomp$2 = task.keyPath;
-              task.keyPath = keyPath;
-              renderNodeDestructive(request, task, props.children, -1);
-              task.keyPath = prevKeyPath$jscomp$2;
+            var segment$jscomp$0 = task.blockedSegment;
+            if (null === segment$jscomp$0) {
+              if ("hidden" !== props.mode) {
+                var prevKeyPath$jscomp$2 = task.keyPath;
+                task.keyPath = keyPath;
+                renderNode(request, task, props.children, -1);
+                task.keyPath = prevKeyPath$jscomp$2;
+              }
+            } else {
+              segment$jscomp$0.chunks.push(startActivityBoundary);
+              segment$jscomp$0.lastPushedText = !1;
+              if ("hidden" !== props.mode) {
+                var _prevKeyPath3 = task.keyPath;
+                task.keyPath = keyPath;
+                renderNode(request, task, props.children, -1);
+                task.keyPath = _prevKeyPath3;
+              }
+              segment$jscomp$0.chunks.push(endActivityBoundary);
+              segment$jscomp$0.lastPushedText = !1;
             }
             return;
           case REACT_SUSPENSE_LIST_TYPE:
-            var _prevKeyPath3 = task.keyPath;
+            var _prevKeyPath4 = task.keyPath;
             task.keyPath = keyPath;
             renderNodeDestructive(request, task, props.children, -1);
-            task.keyPath = _prevKeyPath3;
+            task.keyPath = _prevKeyPath4;
             return;
           case REACT_VIEW_TRANSITION_TYPE:
             var prevKeyPath$jscomp$3 = task.keyPath;
@@ -7677,8 +7726,8 @@
       if (boundary.status === CLIENT_RENDERED) {
         var errorDigest = boundary.errorDigest,
           errorMessage = boundary.errorMessage,
-          errorStack = boundary.errorStack,
-          errorComponentStack = boundary.errorComponentStack;
+          errorStack = boundary.errorStack;
+        boundary = boundary.errorComponentStack;
         writeChunkAndReturn(destination, startClientRenderedSuspenseBoundary);
         writeChunk(destination, clientRenderedSuspenseBoundaryError1);
         errorDigest &&
@@ -7702,23 +7751,18 @@
             destination,
             clientRenderedSuspenseBoundaryErrorAttrInterstitial
           ));
-        errorComponentStack &&
+        boundary &&
           (writeChunk(destination, clientRenderedSuspenseBoundaryError1D),
-          writeChunk(destination, escapeTextForBrowser(errorComponentStack)),
+          writeChunk(destination, escapeTextForBrowser(boundary)),
           writeChunk(
             destination,
             clientRenderedSuspenseBoundaryErrorAttrInterstitial
           ));
         writeChunkAndReturn(destination, clientRenderedSuspenseBoundaryError2);
         flushSubtree(request, destination, segment, hoistableState);
-        (request = boundary.fallbackPreamble) &&
-          writePreambleContribution(destination, request);
-        return writeChunkAndReturn(destination, endSuspenseBoundary);
-      }
-      if (boundary.status !== COMPLETED)
-        return (
-          boundary.status === PENDING &&
-            (boundary.rootSegmentID = request.nextSegmentId++),
+      } else if (boundary.status !== COMPLETED)
+        boundary.status === PENDING &&
+          (boundary.rootSegmentID = request.nextSegmentId++),
           0 < boundary.completedSegments.length &&
             request.partialBoundaries.push(boundary),
           writeStartPendingSuspenseBoundary(
@@ -7733,34 +7777,32 @@
               hoistStylesheetDependency,
               hoistableState
             )),
-          flushSubtree(request, destination, segment, hoistableState),
-          writeChunkAndReturn(destination, endSuspenseBoundary)
-        );
-      if (boundary.byteSize > request.progressiveChunkSize)
-        return (
-          (boundary.rootSegmentID = request.nextSegmentId++),
+          flushSubtree(request, destination, segment, hoistableState);
+      else if (boundary.byteSize > request.progressiveChunkSize)
+        (boundary.rootSegmentID = request.nextSegmentId++),
           request.completedBoundaries.push(boundary),
           writeStartPendingSuspenseBoundary(
             destination,
             request.renderState,
             boundary.rootSegmentID
           ),
-          flushSubtree(request, destination, segment, hoistableState),
-          writeChunkAndReturn(destination, endSuspenseBoundary)
-        );
-      hoistableState &&
-        ((segment = boundary.contentState),
-        segment.styles.forEach(hoistStyleQueueDependency, hoistableState),
-        segment.stylesheets.forEach(hoistStylesheetDependency, hoistableState));
-      writeChunkAndReturn(destination, startCompletedSuspenseBoundary);
-      segment = boundary.completedSegments;
-      if (1 !== segment.length)
-        throw Error(
-          "A previously unvisited boundary must have exactly one root segment. This is a bug in React."
-        );
-      flushSegment(request, destination, segment[0], hoistableState);
-      (request = boundary.contentPreamble) &&
-        writePreambleContribution(destination, request);
+          flushSubtree(request, destination, segment, hoistableState);
+      else {
+        hoistableState &&
+          ((segment = boundary.contentState),
+          segment.styles.forEach(hoistStyleQueueDependency, hoistableState),
+          segment.stylesheets.forEach(
+            hoistStylesheetDependency,
+            hoistableState
+          ));
+        writeChunkAndReturn(destination, startCompletedSuspenseBoundary);
+        segment = boundary.completedSegments;
+        if (1 !== segment.length)
+          throw Error(
+            "A previously unvisited boundary must have exactly one root segment. This is a bug in React."
+          );
+        flushSegment(request, destination, segment[0], hoistableState);
+      }
       return writeChunkAndReturn(destination, endSuspenseBoundary);
     }
     function flushSegmentContainer(
@@ -8407,11 +8449,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-experimental-63779030-20250328" !== isomorphicReactPackageVersion)
+      if ("19.2.0-experimental-b04254fd-20250415" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-experimental-63779030-20250328\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-experimental-b04254fd-20250415\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     function createDrainHandler(destination, request) {
@@ -9586,8 +9628,7 @@
       ),
       importMapScriptEnd = stringToPrecomputedChunk("\x3c/script>");
     var didWarnForNewBooleanPropsWithEmptyValue = {};
-    var NoContribution = 0,
-      ROOT_HTML_MODE = 0,
+    var ROOT_HTML_MODE = 0,
       HTML_HTML_MODE = 1,
       HTML_MODE = 2,
       HTML_HEAD_MODE = 3,
@@ -9612,6 +9653,7 @@
         )
       ),
       startHiddenInputChunk = stringToPrecomputedChunk('<input type="hidden"'),
+      blobCache = null,
       endOfStartTag = stringToPrecomputedChunk(">"),
       endOfStartTagSelfClosing = stringToPrecomputedChunk("/>"),
       didWarnDefaultInputValue = !1,
@@ -9632,6 +9674,12 @@
       formStateMarkerIsMatching = stringToPrecomputedChunk("\x3c!--F!--\x3e"),
       formStateMarkerIsNotMatching = stringToPrecomputedChunk("\x3c!--F--\x3e"),
       styleRegex = /(<\/|<)(s)(tyle)/gi,
+      headPreambleContributionChunk =
+        stringToPrecomputedChunk("\x3c!--head--\x3e"),
+      bodyPreambleContributionChunk =
+        stringToPrecomputedChunk("\x3c!--body--\x3e"),
+      htmlPreambleContributionChunk =
+        stringToPrecomputedChunk("\x3c!--html--\x3e"),
       leadingNewline = stringToPrecomputedChunk("\n"),
       VALID_TAG_REGEX = /^[a-zA-Z][a-zA-Z:_\.\-\d]*$/,
       validatedTagCache = new Map(),
@@ -9639,6 +9687,8 @@
       endTagCache = new Map(),
       placeholder1 = stringToPrecomputedChunk('<template id="'),
       placeholder2 = stringToPrecomputedChunk('"></template>'),
+      startActivityBoundary = stringToPrecomputedChunk("\x3c!--&--\x3e"),
+      endActivityBoundary = stringToPrecomputedChunk("\x3c!--/&--\x3e"),
       startCompletedSuspenseBoundary =
         stringToPrecomputedChunk("\x3c!--$--\x3e"),
       startPendingSuspenseBoundary1 = stringToPrecomputedChunk(
@@ -9662,9 +9712,6 @@
         stringToPrecomputedChunk(' data-cstck="'),
       clientRenderedSuspenseBoundaryError2 =
         stringToPrecomputedChunk("></template>"),
-      boundaryPreambleContributionChunkStart =
-        stringToPrecomputedChunk("\x3c!--"),
-      boundaryPreambleContributionChunkEnd = stringToPrecomputedChunk("--\x3e"),
       startSegmentHTML = stringToPrecomputedChunk('<div hidden id="'),
       startSegmentHTML2 = stringToPrecomputedChunk('">'),
       endSegmentHTML = stringToPrecomputedChunk("</div>"),
@@ -9942,10 +9989,6 @@
         },
         useEffectEvent: function () {
           return throwOnUseEffectEventCall;
-        },
-        useSwipeTransition: function (previous, current) {
-          resolveCurrentlyRenderingComponent();
-          return [current, unsupportedStartGesture];
         }
       },
       currentResumableState = null,
@@ -10206,5 +10249,5 @@
         }
       };
     };
-    exports.version = "19.2.0-experimental-63779030-20250328";
+    exports.version = "19.2.0-experimental-b04254fd-20250415";
   })();
