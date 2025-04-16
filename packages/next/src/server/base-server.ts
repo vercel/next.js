@@ -4154,9 +4154,10 @@ export default abstract class Server<
       }
       res.statusCode = 500
 
+      let appRouterErrorComponents: null | FindComponentsResult = null
       try {
         // Search for App Router /_error page first
-        const appRouterErrorComponents = await this.findPageComponents({
+        appRouterErrorComponents = await this.findPageComponents({
           locale: getRequestMeta(ctx.req, 'locale'),
           page: '/_error/page',
           query,
@@ -4167,63 +4168,64 @@ export default abstract class Server<
           shouldEnsure: true,
           url: ctx.req.url,
         })
-
-        // If there's an App Router /_error page, render it.
-        if (appRouterErrorComponents) {
-          return this.renderToResponseWithComponents(
-            {
-              ...ctx,
-              pathname: '/_error',
-              renderOpts: {
-                ...ctx.renderOpts,
-                // We render `renderToHtmlError` here because `err` is
-                // already captured in the stacktrace.
-                err: isWrappedError
-                  ? renderToHtmlError.innerError
-                  : renderToHtmlError,
-              },
-            },
-            appRouterErrorComponents
-          )
-        }
       } catch (e) {
         if (!(e instanceof PageNotFoundError)) {
           // If it doesn't exist, skip the error, otherwise throw it.
           throw e
         }
-        // Otherwise fallback to Pages Router fallback /_error
-        const fallbackComponents = await this.getFallbackErrorComponents(
-          ctx.req.url
-        )
-
-        if (fallbackComponents) {
-          // There was an error, so use it's definition from the route module
-          // to add the match to the request.
-          addRequestMeta(ctx.req, 'match', {
-            definition: fallbackComponents.routeModule!.definition,
-            params: undefined,
-          })
-
-          return this.renderToResponseWithComponents(
-            {
-              ...ctx,
-              pathname: '/_error',
-              renderOpts: {
-                ...ctx.renderOpts,
-                // We render `renderToHtmlError` here because `err` is
-                // already captured in the stacktrace.
-                err: isWrappedError
-                  ? renderToHtmlError.innerError
-                  : renderToHtmlError,
-              },
-            },
-            {
-              query,
-              components: fallbackComponents,
-            }
-          )
-        }
       }
+
+      // If there's an App Router /_error page, render it.
+      if (appRouterErrorComponents) {
+        return this.renderToResponseWithComponents(
+          {
+            ...ctx,
+            pathname: '/_error',
+            renderOpts: {
+              ...ctx.renderOpts,
+              // We render `renderToHtmlError` here because `err` is
+              // already captured in the stacktrace.
+              err: isWrappedError
+                ? renderToHtmlError.innerError
+                : renderToHtmlError,
+            },
+          },
+          appRouterErrorComponents
+        )
+      }
+      // Otherwise fallback to Pages Router fallback /_error
+      const fallbackComponents = await this.getFallbackErrorComponents(
+        ctx.req.url
+      )
+
+      if (fallbackComponents) {
+        // There was an error, so use it's definition from the route module
+        // to add the match to the request.
+        addRequestMeta(ctx.req, 'match', {
+          definition: fallbackComponents.routeModule!.definition,
+          params: undefined,
+        })
+
+        return this.renderToResponseWithComponents(
+          {
+            ...ctx,
+            pathname: '/_error',
+            renderOpts: {
+              ...ctx.renderOpts,
+              // We render `renderToHtmlError` here because `err` is
+              // already captured in the stacktrace.
+              err: isWrappedError
+                ? renderToHtmlError.innerError
+                : renderToHtmlError,
+            },
+          },
+          {
+            query,
+            components: fallbackComponents,
+          }
+        )
+      }
+
       return {
         type: 'html',
         body: RenderResult.fromStatic('Internal Server Error'),

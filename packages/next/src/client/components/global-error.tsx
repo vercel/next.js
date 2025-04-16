@@ -36,8 +36,9 @@ function GlobalError({ error }: { error: any }) {
           <div>
             <h2 style={styles.text}>
               Application error: a {digest ? 'server' : 'client'}-side exception
-              has occurred while loading {window.location.hostname} (see the{' '}
-              {digest ? 'server logs' : 'browser console'} for more
+              has occurred while loading{' '}
+              {typeof window !== 'undefined' ? window.location.hostname : ''}{' '}
+              (see the {digest ? 'server logs' : 'browser console'} for more
               information).
             </h2>
             {digest ? <p style={styles.text}>{`Digest: ${digest}`}</p> : null}
