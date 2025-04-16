@@ -1915,7 +1915,9 @@
   "test/development/acceptance-app/hydration-error.test.ts": {
     "passed": [
       "Error overlay for hydration errors in App router includes a React docs link when hydration error does occur",
-      "Error overlay for hydration errors in App router should not show a hydration error when using `useId` in a client component",
+      "Error overlay for hydration errors in App router should not show a hydration error when using `useId` in a client component"
+    ],
+    "failed": [
       "Error overlay for hydration errors in App router should only show one hydration error when bad nesting happened - div > tr",
       "Error overlay for hydration errors in App router should only show one hydration error when bad nesting happened - div under p",
       "Error overlay for hydration errors in App router should only show one hydration error when bad nesting happened - p under p",
@@ -1931,7 +1933,6 @@
       "Error overlay for hydration errors in App router should show error if script is directly placed under html instead of body",
       "Error overlay for hydration errors in App router should show the highlighted bad nesting html snippet when bad nesting happened"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5865,16 +5866,17 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/error-on-next-codemod-comment/error-on-next-codemod-comment.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app-dir - error-on-next-codemod-comment should disappear the error when you replace with bypass comment",
+      "app-dir - error-on-next-codemod-comment should error with inline comment as well"
+    ],
+    "failed": [
       "app-dir - error-on-next-codemod-comment should disappear the error when you rre the codemod comment",
-      "app-dir - error-on-next-codemod-comment should error with inline comment as well",
       "app-dir - error-on-next-codemod-comment should error with swc if you have codemod comments left"
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/errors/index.test.ts": {
     "passed": [
@@ -7858,6 +7860,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/require-context/require-context.test.ts": {
+    "passed": [
+      "require-context should get correct require context when using regex filtering"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/resolve-extensions/resolve-extensions.test.ts": {
     "passed": [
       "turbo-resolve-extensions should SSR",
@@ -8063,6 +8074,7 @@
       "app dir - rsc basics client references with TLA (node) should support TLA in sync client reference imports",
       "app dir - rsc basics next internal shared context should not error if just load next/navigation module in pages/api",
       "app dir - rsc basics next internal shared context should not error if just load next/router module in app page",
+      "app dir - rsc basics should be able to call legacy react-dom/server APIs in client components",
       "app dir - rsc basics should be able to navigate between rsc routes",
       "app dir - rsc basics should correctly render component returning null",
       "app dir - rsc basics should correctly render component returning undefined",
@@ -8095,9 +8107,7 @@
       "app dir - rsc basics should track client components in dynamic imports",
       "app dir - rsc basics should use canary react for app"
     ],
-    "failed": [
-      "app dir - rsc basics should be able to call legacy react-dom/server APIs in client components"
-    ],
+    "failed": [],
     "pending": [
       "app dir - rsc basics should support partial hydration with inlined server data in browser"
     ],
