@@ -7712,6 +7712,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/require-context/require-context.test.ts": {
+    "passed": [
+      "require-context should get correct require context when using regex filtering"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/resolve-extensions/resolve-extensions.test.ts": {
     "passed": [
       "turbo-resolve-extensions should SSR",
