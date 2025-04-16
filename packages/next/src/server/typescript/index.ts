@@ -223,11 +223,14 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
                 node
               )
             const metadataDiagnostics = isClientEntry
-              ? metadata.getSemanticDiagnosticsForExportVariableStatementInClientEntry(
+              ? metadata.client.getSemanticDiagnosticsForExportVariableStatement(
                   fileName,
                   node
                 )
-              : []
+              : metadata.server.getSemanticDiagnosticsForExportVariableStatement(
+                  fileName,
+                  node
+                )
             prior.push(...diagnostics, ...metadataDiagnostics)
           }
 
@@ -283,11 +286,14 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
           // export function ...
           if (isAppEntry) {
             const metadataDiagnostics = isClientEntry
-              ? metadata.getSemanticDiagnosticsForExportVariableStatementInClientEntry(
+              ? metadata.client.getSemanticDiagnosticsForExportVariableStatement(
                   fileName,
                   node
                 )
-              : []
+              : metadata.server.getSemanticDiagnosticsForExportVariableStatement(
+                  fileName,
+                  node
+                )
             prior.push(...metadataDiagnostics)
           }
 
@@ -312,11 +318,11 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
           // export { ... }
           if (isAppEntry) {
             const metadataDiagnostics = isClientEntry
-              ? metadata.getSemanticDiagnosticsForExportDeclarationInClientEntry(
+              ? metadata.client.getSemanticDiagnosticsForExportDeclaration(
                   fileName,
                   node
                 )
-              : metadata.getSemanticDiagnosticsForExportDeclaration(
+              : metadata.server.getSemanticDiagnosticsForExportDeclaration(
                   fileName,
                   node
                 )
