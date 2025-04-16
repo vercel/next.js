@@ -134,6 +134,10 @@ const API_DOCS: Record<
     description: 'Next.js Metadata configurations',
     link: 'https://nextjs.org/docs/app/building-your-application/optimizing/metadata',
   },
+  generateMetadata: {
+    description: 'Next.js generateMetadata configurations',
+    link: 'https://nextjs.org/docs/app/api-reference/functions/generate-metadata',
+  },
   maxDuration: {
     description:
       '`maxDuration` allows you to set max default execution time for your function. If it is not specified, the default value is dependent on your deployment platform and plan.',
