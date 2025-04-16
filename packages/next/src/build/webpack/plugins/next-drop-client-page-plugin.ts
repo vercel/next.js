@@ -20,7 +20,7 @@ export class DropClientPage implements webpack.WebpackPluginInstance {
         Object.keys(compilation.assets).forEach((assetKey) => {
           const asset = compilation.assets[assetKey]
 
-          if (asset?._value?.includes?.('__NEXT_DROP_CLIENT_FILE__')) {
+          if (asset?._value?.includes?.(STRING_LITERAL_DROP_BUNDLE)) {
             const cleanAssetKey = assetKey.replace(/\\/g, '/')
             const page = '/' + cleanAssetKey.split('pages/')[1]
             const pageNoExt = page.split(extname(page))[0]
