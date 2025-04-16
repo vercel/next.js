@@ -34,6 +34,7 @@ import {
   DecodeError,
   normalizeRepeatedSlashes,
   MissingStaticPage,
+  PageNotFoundError,
 } from '../shared/lib/utils'
 import type { PreviewData } from '../types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -3983,7 +3984,7 @@ export default abstract class Server<
     try {
       let result: null | FindComponentsResult = null
 
-      const is404 = res.statusCode === 404 && ctx.pathname !== '/_error'
+      const is404 = res.statusCode === 404
       let using404Page = false
 
       if (is404) {
@@ -4017,10 +4018,6 @@ export default abstract class Server<
       }
       let statusPage = `/${res.statusCode}`
 
-      if (ctx.pathname === '/_error') {
-        res.statusCode = 500
-        statusPage = '/_error/page'
-      }
       if (
         !getRequestMeta(ctx.req, 'customErrorRender') &&
         !result &&
@@ -4043,20 +4040,27 @@ export default abstract class Server<
         }
       }
 
-      // Only search for App Router /_error in dev
+      // Look for App Router /_error in dev
       // TODO: remove this once /_error/page is available for next build.
       if (!result && ctx.renderOpts.dev) {
-        result = await this.findPageComponents({
-          locale: getRequestMeta(ctx.req, 'locale'),
-          page: '/_error/page',
-          query,
-          params: {},
-          isAppPath: true,
-          // Ensuring can't be done here because you never "match" an error
-          // route.
-          shouldEnsure: true,
-          url: ctx.req.url,
-        })
+        try {
+          result = await this.findPageComponents({
+            locale: getRequestMeta(ctx.req, 'locale'),
+            page: '/_error/page',
+            query,
+            params: {},
+            isAppPath: true,
+            // Ensuring can't be done here because you never "match" an error
+            // route.
+            shouldEnsure: true,
+            url: ctx.req.url,
+          })
+        } catch (e: unknown) {
+          // If it doesn't exist, skip the error, otherwise throw it.
+          if (!(e instanceof PageNotFoundError)) {
+            throw e
+          }
+        }
       }
       if (!result) {
         result = await this.findPageComponents({
@@ -4070,6 +4074,7 @@ export default abstract class Server<
           shouldEnsure: true,
           url: ctx.req.url,
         })
+        statusPage = '/_error'
       }
 
       if (

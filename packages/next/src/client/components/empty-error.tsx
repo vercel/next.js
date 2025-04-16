@@ -2,7 +2,7 @@
 
 import { globalErrorStyles as styles } from './global-error'
 
-function EmptyError() {
+export default function EmptyError() {
   return (
     <html id="__next_error__">
       <head></head>
@@ -18,5 +18,3 @@ function EmptyError() {
     </html>
   )
 }
-
-export default EmptyError

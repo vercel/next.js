@@ -253,9 +253,6 @@ export async function createPagesMapping({
       if (pageKey === '/not-found') {
         pageKey = UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
       }
-      if (pageKey === '/_error') {
-        pageKey = '/_error/page'
-      }
     }
 
     const normalizedPath = normalizePathSep(
