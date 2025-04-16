@@ -1379,7 +1379,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         }
         .resolved_cell();
 
-        // Use built-in global-error.js to create a `_error/page` route.
+        // Use built-in empty-error.js to create a `_error/page` route.
         let error_tree = AppPageLoaderTree {
             page: app_page.clone(),
             segment: directory_name.clone(),
@@ -1390,7 +1390,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                     parallel_routes: FxIndexMap::default(),
                     modules: AppDirModules {
                         page: Some(get_next_package(*app_dir)
-                            .join("dist/client/components/global-error.js".into())
+                            .join("dist/client/components/empty-error.js".into())
                             .to_resolved()
                             .await?),
                         ..Default::default()

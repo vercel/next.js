@@ -51,3 +51,4 @@ function GlobalError({ error }: { error: any }) {
 // Exported so that the import signature in the loaders can be identical to user
 // supplied custom global error signatures.
 export default GlobalError
+export { styles as globalErrorStyles }
