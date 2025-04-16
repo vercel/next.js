@@ -537,7 +537,10 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${roboto_mono.variable} antialiased`}>
+    <html
+      lang="en"
+      className={`${inter.variable} ${roboto_mono.variable} antialiased`}
+    >
       <body>{children}</body>
     </html>
   )
@@ -561,7 +564,10 @@ const roboto_mono = Roboto_Mono({
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${inter.variable} ${roboto_mono.variable} antialiased`}>
+    <html
+      lang="en"
+      className={`${inter.variable} ${roboto_mono.variable} antialiased`}
+    >
       <body>{children}</body>
     </html>
   )
@@ -640,7 +646,6 @@ You can now use the `font-sans` and `font-mono` utility classes to apply the fon
 <p class="font-sans ...">The quick brown fox ...</p>
 <p class="font-mono ...">The quick brown fox ...</p>
 ```
-
 
 ## Preloading
 
