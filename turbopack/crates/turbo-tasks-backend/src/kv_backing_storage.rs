@@ -11,7 +11,7 @@ use turbo_tasks::{backend::CachedTaskType, turbo_tasks_scope, SessionId, TaskId}
 
 use crate::{
     backend::{AnyOperation, TaskDataCategory},
-    backing_storage::BackingStorage,
+    backing_storage::{BackingStorage, TaskDataSnapshots},
     data::CachedDataItem,
     database::{
         key_value_database::{KeySpace, KeyValueDatabase},
@@ -159,13 +159,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
         session_id: SessionId,
         operations: Vec<Arc<AnyOperation>>,
         task_cache_updates: Vec<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>,
-        tasks: Vec<
-            Vec<(
-                TaskId,
-                Option<Vec<CachedDataItem>>,
-                Option<Vec<CachedDataItem>>,
-            )>,
-        >,
+        task_snapshots: TaskDataSnapshots,
     ) -> Result<()> {
         let _span = tracing::trace_span!("save snapshot", session_id = ?session_id, operations = operations.len());
         let mut batch = self.database.write_batch()?;
@@ -180,7 +174,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                         let _span = tracing::trace_span!("update task meta").entered();
                         task_meta_items_result = process_task_data(
                             KeySpace::TaskMeta,
-                            &tasks,
+                            &task_snapshots,
                             |meta, _| meta,
                             Some(batch),
                         );
@@ -189,7 +183,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                         let _span = tracing::trace_span!("update task data").entered();
                         task_data_items_result = process_task_data(
                             KeySpace::TaskData,
-                            &tasks,
+                            &task_snapshots,
                             |_, data| data,
                             Some(batch),
                         );
@@ -275,7 +269,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                     s.spawn(|_| {
                         task_meta_items_result = process_task_data(
                             KeySpace::TaskMeta,
-                            &tasks,
+                            &task_snapshots,
                             |meta, _| meta,
                             None::<&T::ConcurrentWriteBatch<'_>>,
                         );
@@ -283,7 +277,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                     s.spawn(|_| {
                         task_data_items_result = process_task_data(
                             KeySpace::TaskData,
-                            &tasks,
+                            &task_snapshots,
                             |_, data| data,
                             None::<&T::ConcurrentWriteBatch<'_>>,
                         );
@@ -560,13 +554,7 @@ type SerializedTasks = Vec<Vec<(TaskId, WriteBuffer<'static>)>>;
 
 fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync, S>(
     key_space: KeySpace,
-    tasks: &Vec<
-        Vec<(
-            TaskId,
-            Option<Vec<CachedDataItem>>,
-            Option<Vec<CachedDataItem>>,
-        )>,
-    >,
+    tasks: &TaskDataSnapshots,
     select: S,
     batch: Option<&B>,
 ) -> Result<SerializedTasks>

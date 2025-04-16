@@ -50,7 +50,7 @@ use crate::{
         },
         storage::{get, get_many, get_mut, get_mut_or_insert_with, iter_many, remove, Storage},
     },
-    backing_storage::BackingStorage,
+    backing_storage::{BackingStorage, TaskDataSnapshots},
     data::{
         ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
         CachedDataItemValue, CachedDataItemValueRef, CellRef, CollectibleRef, CollectiblesRef,
@@ -828,13 +828,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let snapshot_time = Instant::now();
         drop(snapshot_request);
 
-        let mut tasks: Vec<
-            Vec<(
-                TaskId,
-                Option<Vec<CachedDataItem>>,
-                Option<Vec<CachedDataItem>>,
-            )>,
-        > =
+        let mut task_snapshots: TaskDataSnapshots =
             {
                 let _span = tracing::trace_span!("take snapshot");
                 self.storage.take_snapshot(
@@ -894,7 +888,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 )
             };
 
-        swap_retain(&mut tasks, |data| {
+        swap_retain(&mut task_snapshots, |data| {
             swap_retain(data, |(_, meta, data)| meta.is_some() || data.is_some());
             !data.is_empty()
         });
@@ -903,13 +897,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let mut new_items = false;
 
-        if !persisted_task_cache_log.is_empty() || !tasks.is_empty() {
+        if !persisted_task_cache_log.is_empty() || !task_snapshots.is_empty() {
             new_items = true;
             if let Err(err) = self.backing_storage.save_snapshot(
                 self.session_id,
                 suspended_operations,
                 persisted_task_cache_log,
-                tasks,
+                task_snapshots,
             ) {
                 println!("Persisting failed: {:?}", err);
                 return None;
