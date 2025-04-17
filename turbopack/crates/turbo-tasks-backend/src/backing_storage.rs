@@ -18,6 +18,7 @@ pub trait BackingStorage: 'static + Send + Sync {
     fn next_free_task_id(&self) -> TaskId;
     fn next_session_id(&self) -> SessionId;
     fn uncompleted_operations(&self) -> Vec<AnyOperation>;
+    #[allow(clippy::ptr_arg)]
     fn serialize(task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 16]>>;
     fn save_snapshot<I>(
         &self,

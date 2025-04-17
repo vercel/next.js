@@ -708,14 +708,10 @@ impl Storage {
             .store(false, std::sync::atomic::Ordering::Release);
 
         // We can change all the snapshots to modified now.
-        let mut full_snapsnots = 0;
         let mut removed_snapshots = Vec::new();
         for mut item in self.modified.iter_mut() {
             match item.value() {
-                ModifiedState::Snapshot(s) => {
-                    if s.is_some() {
-                        full_snapsnots += 1;
-                    }
+                ModifiedState::Snapshot(_) => {
                     removed_snapshots.push(*item.key());
                     *item.value_mut() = ModifiedState::Modified;
                 }

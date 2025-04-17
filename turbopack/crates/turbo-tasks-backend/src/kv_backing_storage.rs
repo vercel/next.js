@@ -153,7 +153,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
     }
 
     fn serialize(task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 16]>> {
-        Ok(serialize(task, data)?)
+        serialize(task, data)
     }
 
     fn save_snapshot<I>(

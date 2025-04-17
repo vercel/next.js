@@ -907,37 +907,35 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             Option<Result<SmallVec<_>>>,
                             Option<Result<SmallVec<_>>>,
                         )| {
-                            Some((
-                                task_id,
-                                match meta {
-                                    Some(Ok(meta)) => Some(meta),
-                                    None => None,
-                                    Some(Err(err)) => {
-                                        println!(
-                                            "Serializing task {} failed (meta): {:?}",
-                                            self.get_task_description(task_id),
-                                            err
-                                        );
-                                        None
-                                    }
-                                },
-                                match data {
-                                    Some(Ok(data)) => Some(data),
-                                    None => None,
-                                    Some(Err(err)) => {
-                                        println!(
-                                            "Serializing task {} failed (data): {:?}",
-                                            self.get_task_description(task_id),
-                                            err
-                                        );
-                                        None
-                                    }
-                                },
-                            ))
+                            let meta = match meta {
+                                Some(Ok(meta)) => Some(meta),
+                                None => None,
+                                Some(Err(err)) => {
+                                    println!(
+                                        "Serializing task {} failed (meta): {:?}",
+                                        self.get_task_description(task_id),
+                                        err
+                                    );
+                                    None
+                                }
+                            };
+                            let data = match data {
+                                Some(Ok(data)) => Some(data),
+                                None => None,
+                                Some(Err(err)) => {
+                                    println!(
+                                        "Serializing task {} failed (data): {:?}",
+                                        self.get_task_description(task_id),
+                                        err
+                                    );
+                                    None
+                                }
+                            };
+                            (meta.is_some() || data.is_some()).then_some((task_id, meta, data))
                         },
                     )
                     .peekable();
-                iter.peek().is_some().then(|| iter)
+                iter.peek().is_some().then_some(iter)
             })
             .collect::<Vec<_>>();
 
