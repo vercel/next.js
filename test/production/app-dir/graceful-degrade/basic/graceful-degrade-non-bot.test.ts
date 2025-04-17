@@ -16,7 +16,7 @@ describe('graceful-degrade - non bot', () => {
   })
 
   it('should not degrade to graceful error when chunk loading fails in ssr for non-bot user agents', async () => {
-    const browser = await next.browser('/')
+    const browser = await next.browser('/chunk-loading-failed')
 
     const logs = await browser.log()
     const errors = logs
@@ -35,5 +35,21 @@ describe('graceful-degrade - non bot', () => {
     expect(bodyText).toMatch(
       /Application error: a client-side exception has occurred while loading/
     )
+  })
+
+  it('should show error boundary when browser errors when error boundary is defined', async () => {
+    const browser = await next.browser('/browser-crash-error-boundary')
+
+    const logs = await browser.log()
+    const errors = logs
+      .filter((x) => x.source === 'error')
+      .map((x) => x.message)
+      .join('\n')
+
+    expect(errors).toMatch(/Error: boom/)
+
+    const bodyText = await browser.elementByCss('body').text()
+    expect(bodyText).toMatch(/Custom error boundary/)
+    expect(bodyText).not.toMatch(/fine/)
   })
 })

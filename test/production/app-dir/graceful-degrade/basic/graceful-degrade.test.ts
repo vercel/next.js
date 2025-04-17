@@ -12,7 +12,7 @@ describe('graceful-degrade', () => {
   })
 
   it('should degrade to graceful error when chunk loading fails in ssr for bot', async () => {
-    const browser = await next.browser('/', {
+    const browser = await next.browser('/chunk-loading-failed', {
       userAgent: 'Googlebot',
     })
 
@@ -37,7 +37,7 @@ describe('graceful-degrade', () => {
   })
 
   it('should preserve the ssr html when browser errors for bot', async () => {
-    const browser = await next.browser('/browser-error', {
+    const browser = await next.browser('/browser-crash', {
       userAgent: 'Googlebot',
     })
 
@@ -47,7 +47,7 @@ describe('graceful-degrade', () => {
       .map((x) => x.message)
       .join('\n')
 
-    expect(errors).toMatch(/Uncaught Error: boom/)
+    expect(errors).toMatch(/Error: boom/)
 
     const bodyText = await browser.elementByCss('body').text()
     expect(bodyText).not.toMatch(
