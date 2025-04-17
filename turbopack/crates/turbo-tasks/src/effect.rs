@@ -168,15 +168,18 @@ pub async fn apply_effects(source: impl CollectiblesSource) -> Result<()> {
     }
     let span = tracing::info_span!("apply effects", count = effects.len());
     async move {
-        let mut first_error = anyhow::Ok(());
-        for effect in effects {
-            let Some(effect) = Vc::try_resolve_downcast_type::<EffectInstance>(effect).await?
-            else {
-                panic!("Effect must only be implemented by EffectInstance");
-            };
-            apply_effect(&effect.await?, &mut first_error).await;
-        }
-        first_error
+        effects
+            .into_iter()
+            .map(async |effect| {
+                let Some(effect) = Vc::try_resolve_downcast_type::<EffectInstance>(effect).await?
+                else {
+                    panic!("Effect must only be implemented by EffectInstance");
+                };
+                effect.await?.apply().await
+            })
+            .try_join()
+            .await?;
+        Ok(())
     }
     .instrument(span)
     .await
@@ -249,26 +252,15 @@ impl Effects {
     pub async fn apply(&self) -> Result<()> {
         let span = tracing::info_span!("apply effects", count = self.effects.len());
         async move {
-            let mut first_error = anyhow::Ok(());
-            for effect in self.effects.iter() {
-                apply_effect(effect, &mut first_error).await;
-            }
-            first_error
+            self.effects
+                .iter()
+                .map(async |effect| effect.apply().await)
+                .try_join()
+                .await?;
+            Ok(())
         }
         .instrument(span)
         .await
-    }
-}
-
-async fn apply_effect(
-    effect: &ReadRef<EffectInstance>,
-    first_error: &mut std::result::Result<(), anyhow::Error>,
-) {
-    match effect.apply().await {
-        Err(err) if first_error.is_ok() => {
-            *first_error = Err(err);
-        }
-        _ => {}
     }
 }
 
