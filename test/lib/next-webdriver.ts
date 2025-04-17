@@ -46,6 +46,12 @@ if (typeof afterAll === 'function') {
 
 export interface WebdriverOptions {
   /**
+   * When to consider the initial page load succeeded.
+   *
+   * @default "load"
+   */
+  waitUntil?: 'domcontentloaded' | 'load' | 'networkidle' | 'commit'
+  /**
    * whether to wait for React hydration to finish
    */
   waitHydration?: boolean
@@ -103,6 +109,7 @@ export default async function webdriver(
   }
   options = Object.assign(defaultOptions, options)
   const {
+    waitUntil,
     waitHydration,
     retryWaitHydration,
     disableCache,
@@ -145,8 +152,12 @@ export default async function webdriver(
     cpuThrottleRate,
     beforePageLoad,
     pushErrorAsConsoleLog,
+    waitUntil,
   })
-  console.log(`\n> Loaded browser with ${fullUrl}\n`)
+
+  console.log(
+    `\n> Loaded browser with ${fullUrl} (waitUntil: ${JSON.stringify(waitUntil)})\n`
+  )
 
   browserTeardown.push(browser.close.bind(browser))
 

@@ -1,6 +1,6 @@
 'use cache'
 
-import { cookies, draftMode } from 'next/headers'
+import { draftMode, headers } from 'next/headers'
 import { Button } from './button'
 
 async function getCachedValue(
@@ -34,15 +34,15 @@ export default async function Page() {
 
   const { isEnabled } = await draftMode()
 
-  // Accessing request-scoped data in "use cache" should not be allowed, even if
-  // draft mode is enabled. We expect the access to throw.
-  let isAccessingRequestScopedDataAllowedInUseCache = isEnabled
+  // Accessing headers in "use cache" should not be allowed, even if draft mode
+  // is enabled. We expect the access to throw.
+  let isAccessingHeadersAllowedInUseCache = isEnabled
 
-  if (isAccessingRequestScopedDataAllowedInUseCache) {
+  if (isAccessingHeadersAllowedInUseCache) {
     try {
-      await cookies()
+      await headers()
     } catch {
-      isAccessingRequestScopedDataAllowedInUseCache = false
+      isAccessingHeadersAllowedInUseCache = false
     }
   }
 
@@ -71,8 +71,8 @@ export default async function Page() {
     >
       <p id="top-level">{cachedValue}</p>
       <p id="closure">{await cachedClosure()}</p>
-      <p id="is-accessing-request-scoped-data-allowed-in-use-cache">
-        {isAccessingRequestScopedDataAllowedInUseCache.toString()}
+      <p id="is-accessing-headers-allowed-in-use-cache">
+        {isAccessingHeadersAllowedInUseCache.toString()}
       </p>
       <p>{passthroughFn()}</p>
       <Button id="toggle">{isEnabled ? 'Disable' : 'Enable'} Draft Mode</Button>
