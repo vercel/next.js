@@ -219,7 +219,8 @@ async function createTreeCodeFromPath(
     const routerDirPath = `${appDirPrefix}${segmentPath}`
     const resolvedRouteDir = resolveDir(routerDirPath)
 
-    if (resolvedRouteDir) {
+    const isAppErrorRoute = page === '/_error/page'
+    if (resolvedRouteDir && !isAppErrorRoute) {
       metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
         basePath,
         segment: segmentPath,
