@@ -137,10 +137,12 @@ impl EcmascriptModulePartAsset {
             ModulePart::Evaluation => {
                 // We resolve the module evaluation here to prevent duplicate assets.
                 let idx = *entrypoints.get(&Key::ModuleEvaluation).unwrap();
-                return Ok(Vc::upcast(EcmascriptModulePartAsset::new_with_resolved_part(
-                    module,
-                    ModulePart::InternalEvaluation(idx),
-                )));
+                return Ok(Vc::upcast(
+                    EcmascriptModulePartAsset::new_with_resolved_part(
+                        module,
+                        ModulePart::InternalEvaluation(idx),
+                    ),
+                ));
             }
 
             ModulePart::Export(export) => {
