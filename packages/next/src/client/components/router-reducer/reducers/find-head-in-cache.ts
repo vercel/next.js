@@ -1,5 +1,6 @@
 import type { FlightRouterState } from '../../../../server/app-render/types'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/segment'
 import { createRouterCacheKey } from '../create-router-cache-key'
 
 export function findHeadInCache(
@@ -33,6 +34,11 @@ function findHeadInCacheImpl(
 
   for (const key of parallelRoutesKeys) {
     const [segment, childParallelRoutes] = parallelRoutes[key]
+    // If the parallel is not matched and using the default segment,
+    // skip searching the head from it.
+    if (segment === DEFAULT_SEGMENT_KEY) {
+      continue
+    }
     const childSegmentMap = cache.parallelRoutes.get(key)
     if (!childSegmentMap) {
       continue
