@@ -1,7 +1,7 @@
 use std::{
     hash::Hash,
     ops::{Deref, DerefMut},
-    sync::atomic::AtomicBool,
+    sync::{atomic::AtomicBool, Arc},
     thread::available_parallelism,
 };
 
@@ -16,10 +16,7 @@ use crate::{
         CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, OutputValue,
     },
     data_storage::{AutoMapStorage, OptionStorage},
-    utils::{
-        dash_map_multi::{get_multiple_mut, RefMut},
-        swap_retain,
-    },
+    utils::dash_map_multi::{get_multiple_mut, RefMut},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -609,23 +606,32 @@ impl Storage {
     /// the results. Ends snapshot mode afterwards.
     /// preprocess is potentially called within a lock, so it should be fast.
     /// process is called outside of locks, so it could do more expensive operations.
-    pub fn take_snapshot<T, R: Send>(
-        &self,
-        preprocess: impl for<'a> Fn(TaskId, &'a InnerStorage) -> T + Sync,
-        process: impl Fn(TaskId, T) -> R + Sync,
-        process_snapshot: impl for<'a> Fn(TaskId, Box<InnerStorageSnapshot>) -> R + Sync,
-    ) -> Vec<Vec<R>> {
+    pub fn take_snapshot<
+        'l,
+        T,
+        R,
+        PP: for<'a> Fn(TaskId, &'a InnerStorage) -> T + Sync,
+        P: Fn(TaskId, T) -> R + Sync,
+        PS: Fn(TaskId, Box<InnerStorageSnapshot>) -> R + Sync,
+    >(
+        &'l self,
+        preprocess: &'l PP,
+        process: &'l P,
+        process_snapshot: &'l PS,
+    ) -> Vec<SnapshotShard<'l, PP, P, PS>> {
         if !self.snapshot_mode() {
             self.start_snapshot();
         }
 
-        let result = self
+        let guard = Arc::new(SnapshotGuard { storage: self });
+
+        let shards = self
             .modified
             .shards()
             .par_iter()
             .with_max_len(1)
             .map(|shard| {
-                let mut unprocessed: Vec<(TaskId, Box<InnerStorageSnapshot>)> = Vec::new();
+                let mut direct_snapshots: Vec<(TaskId, Box<InnerStorageSnapshot>)> = Vec::new();
                 let mut modified: Vec<TaskId> = Vec::new();
                 {
                     // Take the snapshots from the modified map
@@ -642,7 +648,7 @@ impl Storage {
                             }
                             ModifiedState::Snapshot(snapshot) => {
                                 if let Some(snapshot) = snapshot.take() {
-                                    unprocessed.push((*key, snapshot));
+                                    direct_snapshots.push((*key, snapshot));
                                 }
                             }
                         }
@@ -651,54 +657,19 @@ impl Storage {
                     drop(guard);
                 }
 
-                let mut processed: Vec<R> = Vec::with_capacity(unprocessed.len() + modified.len());
-
-                // Try to take snapshots from the modified items
-                swap_retain(&mut modified, |&mut key| {
-                    let inner = self.map.get(&key).unwrap();
-                    if !inner.state().snapshot() {
-                        let preprocessed = preprocess(key, &inner);
-                        drop(inner);
-                        processed.push(process(key, preprocessed));
-                        false
-                    } else {
-                        // It was modified in the meantime, so we need to look at the modified map
-                        // again
-                        true
-                    }
-                });
-
-                // Serialize the snapshots taken so far
-                for (key, snapshot) in unprocessed {
-                    processed.push(process_snapshot(key, snapshot));
+                SnapshotShard {
+                    direct_snapshots,
+                    modified,
+                    storage: self,
+                    guard: Some(guard.clone()),
+                    process,
+                    preprocess,
+                    process_snapshot,
                 }
-
-                // Take snapshots from the modified map
-                for key in modified {
-                    let maybe_snapshot = {
-                        let mut modified_state = self.modified.get_mut(&key).unwrap();
-                        let ModifiedState::Snapshot(snapshot) = &mut *modified_state else {
-                            unreachable!(
-                                "The snapshot bit was set, so it must be in Snapshot state"
-                            );
-                        };
-                        snapshot.take()
-                    };
-                    if let Some(snapshot) = maybe_snapshot {
-                        processed.push(process_snapshot(key, snapshot));
-                    }
-                }
-
-                processed
             })
             .collect::<Vec<_>>();
 
-        let count = result.iter().map(|v| v.len()).sum::<usize>();
-        println!("take_snapshot with {} items", count);
-
-        self.end_snapshot();
-
-        result
+        shards
     }
 
     /// Start snapshot mode.
@@ -1059,3 +1030,60 @@ pub(crate) use iter_many;
 pub(crate) use remove;
 pub(crate) use update;
 pub(crate) use update_count;
+
+pub struct SnapshotGuard<'l> {
+    storage: &'l Storage,
+}
+
+impl Drop for SnapshotGuard<'_> {
+    fn drop(&mut self) {
+        self.storage.end_snapshot();
+    }
+}
+
+pub struct SnapshotShard<'l, PP, P, PS> {
+    direct_snapshots: Vec<(TaskId, Box<InnerStorageSnapshot>)>,
+    modified: Vec<TaskId>,
+    storage: &'l Storage,
+    guard: Option<Arc<SnapshotGuard<'l>>>,
+    process: &'l P,
+    preprocess: &'l PP,
+    process_snapshot: &'l PS,
+}
+
+impl<'l, T, R, PP, P, PS> Iterator for SnapshotShard<'l, PP, P, PS>
+where
+    PP: for<'a> Fn(TaskId, &'a InnerStorage) -> T + Sync,
+    P: Fn(TaskId, T) -> R + Sync,
+    PS: Fn(TaskId, Box<InnerStorageSnapshot>) -> R + Sync,
+{
+    type Item = R;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some((task_id, snapshot)) = self.direct_snapshots.pop() {
+            return Some((self.process_snapshot)(task_id, snapshot));
+        }
+        while let Some(task_id) = self.modified.pop() {
+            let inner = self.storage.map.get(&task_id).unwrap();
+            if !inner.state().snapshot() {
+                let preprocessed = (self.preprocess)(task_id, &inner);
+                drop(inner);
+                return Some((self.process)(task_id, preprocessed));
+            } else {
+                drop(inner);
+                let maybe_snapshot = {
+                    let mut modified_state = self.storage.modified.get_mut(&task_id).unwrap();
+                    let ModifiedState::Snapshot(snapshot) = &mut *modified_state else {
+                        unreachable!("The snapshot bit was set, so it must be in Snapshot state");
+                    };
+                    snapshot.take()
+                };
+                if let Some(snapshot) = maybe_snapshot {
+                    return Some((self.process_snapshot)(task_id, snapshot));
+                }
+            }
+        }
+        self.guard = None;
+        None
+    }
+}

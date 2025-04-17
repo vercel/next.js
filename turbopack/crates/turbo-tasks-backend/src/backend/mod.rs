@@ -21,7 +21,7 @@ use auto_hash_map::{AutoMap, AutoSet};
 use indexmap::IndexSet;
 use parking_lot::{Condvar, Mutex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
-use smallvec::smallvec;
+use smallvec::{smallvec, SmallVec};
 use tokio::time::{Duration, Instant};
 use turbo_tasks::{
     backend::{
@@ -48,9 +48,12 @@ use crate::{
             CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
             Operation, OutdatedEdge, TaskGuard,
         },
-        storage::{get, get_many, get_mut, get_mut_or_insert_with, iter_many, remove, Storage},
+        storage::{
+            get, get_many, get_mut, get_mut_or_insert_with, iter_many, remove,
+            InnerStorageSnapshot, Storage,
+        },
     },
-    backing_storage::{BackingStorage, TaskDataSnapshots},
+    backing_storage::BackingStorage,
     data::{
         ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
         CachedDataItemValue, CachedDataItemValueRef, CellRef, CollectibleRef, CollectiblesRef,
@@ -828,70 +831,115 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let snapshot_time = Instant::now();
         drop(snapshot_request);
 
-        let mut task_snapshots: TaskDataSnapshots =
-            {
-                let _span = tracing::trace_span!("take snapshot");
-                self.storage.take_snapshot(
-                    |task_id, inner| {
-                        if task_id.is_transient() {
-                            return (None, None);
+        let preprocess = |task_id: TaskId, inner: &storage::InnerStorage| {
+            if task_id.is_transient() {
+                return (None, None);
+            }
+            let len = inner.len();
+            let mut meta = Vec::with_capacity(len);
+            let mut data = Vec::with_capacity(len);
+            for (key, value) in inner.iter_all() {
+                if key.is_persistent() && value.is_persistent() {
+                    match key.category() {
+                        TaskDataCategory::Meta => {
+                            meta.push(CachedDataItem::from_key_and_value_ref(key, value))
                         }
-                        let len = inner.len();
-                        let mut meta = Vec::with_capacity(len);
-                        let mut data = Vec::with_capacity(len);
-                        for (key, value) in inner.iter_all() {
-                            if key.is_persistent() && value.is_persistent() {
-                                match key.category() {
-                                    TaskDataCategory::Meta => meta
-                                        .push(CachedDataItem::from_key_and_value_ref(key, value)),
-                                    TaskDataCategory::Data => data
-                                        .push(CachedDataItem::from_key_and_value_ref(key, value)),
-                                    _ => {}
-                                }
-                            }
+                        TaskDataCategory::Data => {
+                            data.push(CachedDataItem::from_key_and_value_ref(key, value))
                         }
-                        meta.shrink_to_fit();
-                        data.shrink_to_fit();
+                        _ => {}
+                    }
+                }
+            }
 
-                        (
-                            inner.state().meta_restored().then_some(meta),
-                            inner.state().data_restored().then_some(data),
-                        )
-                    },
-                    |task_id, (meta, data)| (task_id, meta, data),
-                    |task_id, inner| {
-                        if task_id.is_transient() {
-                            return (task_id, None, None);
+            (
+                inner.state().meta_restored().then_some(meta),
+                inner.state().data_restored().then_some(data),
+            )
+        };
+        let process = |task_id: TaskId, (meta, data): (Option<Vec<_>>, Option<Vec<_>>)| {
+            (
+                task_id,
+                meta.map(|d| B::serialize(task_id, &d)),
+                data.map(|d| B::serialize(task_id, &d)),
+            )
+        };
+        let process_snapshot = |task_id: TaskId, inner: Box<InnerStorageSnapshot>| {
+            if task_id.is_transient() {
+                return (task_id, None, None);
+            }
+            let len = inner.len();
+            let mut meta = Vec::with_capacity(len);
+            let mut data = Vec::with_capacity(len);
+            for (key, value) in inner.iter_all() {
+                if key.is_persistent() && value.is_persistent() {
+                    match key.category() {
+                        TaskDataCategory::Meta => {
+                            meta.push(CachedDataItem::from_key_and_value_ref(key, value))
                         }
-                        let len = inner.len();
-                        let mut meta = Vec::with_capacity(len);
-                        let mut data = Vec::with_capacity(len);
-                        for (key, value) in inner.iter_all() {
-                            if key.is_persistent() && value.is_persistent() {
-                                match key.category() {
-                                    TaskDataCategory::Meta => meta
-                                        .push(CachedDataItem::from_key_and_value_ref(key, value)),
-                                    TaskDataCategory::Data => data
-                                        .push(CachedDataItem::from_key_and_value_ref(key, value)),
-                                    _ => {}
-                                }
-                            }
+                        TaskDataCategory::Data => {
+                            data.push(CachedDataItem::from_key_and_value_ref(key, value))
                         }
-                        meta.shrink_to_fit();
-                        data.shrink_to_fit();
-                        (
-                            task_id,
-                            inner.meta_restored.then_some(meta),
-                            inner.data_restored.then_some(data),
-                        )
-                    },
-                )
-            };
+                        _ => {}
+                    }
+                }
+            }
+            (
+                task_id,
+                inner.meta_restored.then(|| B::serialize(task_id, &meta)),
+                inner.data_restored.then(|| B::serialize(task_id, &data)),
+            )
+        };
 
-        swap_retain(&mut task_snapshots, |data| {
-            swap_retain(data, |(_, meta, data)| meta.is_some() || data.is_some());
-            !data.is_empty()
-        });
+        let snapshot = {
+            let _span = tracing::trace_span!("take snapshot");
+            self.storage
+                .take_snapshot(&preprocess, &process, &process_snapshot)
+        };
+
+        let task_snapshots = snapshot
+            .into_iter()
+            .filter_map(|iter| {
+                let mut iter = iter
+                    .filter_map(
+                        |(task_id, meta, data): (
+                            _,
+                            Option<Result<SmallVec<_>>>,
+                            Option<Result<SmallVec<_>>>,
+                        )| {
+                            Some((
+                                task_id,
+                                match meta {
+                                    Some(Ok(meta)) => Some(meta),
+                                    None => None,
+                                    Some(Err(err)) => {
+                                        println!(
+                                            "Serializing task {} failed (meta): {:?}",
+                                            self.get_task_description(task_id),
+                                            err
+                                        );
+                                        None
+                                    }
+                                },
+                                match data {
+                                    Some(Ok(data)) => Some(data),
+                                    None => None,
+                                    Some(Err(err)) => {
+                                        println!(
+                                            "Serializing task {} failed (data): {:?}",
+                                            self.get_task_description(task_id),
+                                            err
+                                        );
+                                        None
+                                    }
+                                },
+                            ))
+                        },
+                    )
+                    .peekable();
+                iter.peek().is_some().then(|| iter)
+            })
+            .collect::<Vec<_>>();
 
         swap_retain(&mut persisted_task_cache_log, |shard| !shard.is_empty());
 
