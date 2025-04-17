@@ -44,6 +44,7 @@ export class GracefulDegradeBoundary extends Component<
     if (this.state.hasError && htmlNode) {
       // Reapply the cached HTML attributes to the root element
       Object.entries(this.htmlAttributes).forEach(([key, value]) => {
+        // @ts-ignore skip TS21228: [ban-element-setattribute]
         htmlNode.setAttribute(key, value)
       })
     }
