@@ -15,7 +15,6 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::runtime_functions::TURBOPACK_EXPORT_NAMESPACE;
-use turbopack_node::execution_context::ExecutionContext;
 
 /// Intercepts requests for the given request to `unsupported` error messages
 /// by returning a VirtualSource proxies to any import request to raise a
@@ -23,22 +22,13 @@ use turbopack_node::execution_context::ExecutionContext;
 ///
 /// This can be used by import map alias, refer `next_import_map` for the setup.
 #[turbo_tasks::value(shared)]
-pub struct NextEdgeUnsupportedModuleReplacer {
-    project_path: ResolvedVc<FileSystemPath>,
-    execution_context: ResolvedVc<ExecutionContext>,
-}
+pub struct NextEdgeUnsupportedModuleReplacer {}
 
 #[turbo_tasks::value_impl]
 impl NextEdgeUnsupportedModuleReplacer {
     #[turbo_tasks::function]
-    pub fn new(
-        project_path: ResolvedVc<FileSystemPath>,
-        execution_context: ResolvedVc<ExecutionContext>,
-    ) -> Vc<Self> {
-        Self::cell(NextEdgeUnsupportedModuleReplacer {
-            project_path,
-            execution_context,
-        })
+    pub fn new() -> Vc<Self> {
+        NextEdgeUnsupportedModuleReplacer {}.cell()
     }
 }
 
@@ -52,14 +42,14 @@ impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
     #[turbo_tasks::function]
     async fn result(
         &self,
-        root_path: Vc<FileSystemPath>,
+        lookup_path: Vc<FileSystemPath>,
         request: Vc<Request>,
     ) -> Result<Vc<ImportMapResult>> {
         let request = &*request.await?;
         if let Request::Module { module, .. } = request {
             // Call out to separate `unsupported_module_source` to only have a single Source cell
             // for requests with different subpaths: `fs` and `fs/promises`.
-            let source = unsupported_module_source(root_path, module.clone())
+            let source = unsupported_module_source(lookup_path.root(), module.clone())
                 .to_resolved()
                 .await?;
             Ok(ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(source))).cell())
