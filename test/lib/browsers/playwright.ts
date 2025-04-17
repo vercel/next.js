@@ -316,25 +316,30 @@ export class Playwright<TCurrent = undefined> {
   }
 
   back(options?: Parameters<Page['goBack']>[0]) {
-    return this.chain(async () => {
+    // do not preserve the previous chained value, it might be invalid after a navigation.
+    return this.startChain(async () => {
       await page.goBack(options)
     })
   }
   forward(options?: Parameters<Page['goForward']>[0]) {
-    return this.chain(async () => {
+    // do not preserve the previous chained value, it might be invalid after a navigation.
+    return this.startChain(async () => {
       await page.goForward(options)
     })
   }
   refresh() {
-    return this.chain(async () => {
+    // do not preserve the previous chained value, it's likely to be invalid after a reload.
+    return this.startChain(async () => {
       await page.reload()
     })
   }
   setDimensions({ width, height }: { height: number; width: number }) {
-    return this.chain(() => page.setViewportSize({ width, height }))
+    return this.startOrPreserveChain(() =>
+      page.setViewportSize({ width, height })
+    )
   }
   addCookie(opts: { name: string; value: string }) {
-    return this.chain(async () =>
+    return this.startOrPreserveChain(async () =>
       context!.addCookies([
         {
           path: '/',
@@ -345,11 +350,7 @@ export class Playwright<TCurrent = undefined> {
     )
   }
   deleteCookies() {
-    return this.chain(async () => context!.clearCookies())
-  }
-
-  focusPage() {
-    return this.chain(() => page.bringToFront())
+    return this.startOrPreserveChain(async () => context!.clearCookies())
   }
 
   private wrapElement(el: ElementHandle, selector: string): ElementHandleExt {
@@ -379,31 +380,33 @@ export class Playwright<TCurrent = undefined> {
   }
 
   getValue(this: Playwright<ElementHandleExt>) {
-    return this.chain((el) => el.inputValue())
+    return this.continueChain((el) => el.inputValue())
   }
 
   text(this: Playwright<ElementHandleExt>) {
-    return this.chain((el) => el.innerText())
+    return this.continueChain((el) => el.innerText())
   }
 
   type(this: Playwright<ElementHandleExt>, text: string) {
-    return this.chain((el) => el.type(text))
+    return this.continueChain(async (el) => {
+      await el.type(text)
+      return el
+    })
   }
 
   moveTo(this: Playwright<ElementHandleExt>) {
-    return this.chain((el) => {
-      return el.hover().then(() => el)
+    return this.continueChain(async (el) => {
+      await el.hover()
+      return el
     })
   }
 
   async getComputedCss(this: Playwright<ElementHandleExt>, prop: string) {
-    return this.chain((el) => {
-      return el.getComputedCss(prop)
-    })
+    return this.continueChain((el) => el.getComputedCss(prop))
   }
 
   async getAttribute(this: Playwright<ElementHandleExt>, attr: string) {
-    return this.chain((el) => el.getAttribute(attr))
+    return this.continueChain((el) => el.getAttribute(attr))
   }
 
   hasElementByCssSelector(selector: string) {
@@ -411,31 +414,29 @@ export class Playwright<TCurrent = undefined> {
   }
 
   keydown(key: string) {
-    return this.chain((el) => {
-      return page.keyboard.down(key).then(() => el)
-    })
+    return this.startOrPreserveChain(() => page.keyboard.down(key))
   }
 
   keyup(key: string) {
-    return this.chain((el) => {
-      return page.keyboard.up(key).then(() => el)
-    })
+    return this.startOrPreserveChain(() => page.keyboard.up(key))
   }
 
   click(this: Playwright<ElementHandleExt>) {
-    return this.chain((el) => {
-      return el.click().then(() => el)
+    return this.continueChain(async (el) => {
+      await el.click()
+      return el
     })
   }
 
   touchStart(this: Playwright<ElementHandleExt>) {
-    return this.chain((el) => {
-      return el.dispatchEvent('touchstart').then(() => el)
+    return this.continueChain(async (el) => {
+      await el.dispatchEvent('touchstart')
+      return el
     })
   }
 
   elementsByCss(selector: string) {
-    return this.chain(() =>
+    return this.startChain(() =>
       page.$$(selector).then((els) => {
         return els.map((el) => {
           const origGetAttribute = el.getAttribute.bind(el)
@@ -451,26 +452,26 @@ export class Playwright<TCurrent = undefined> {
   }
 
   waitForElementByCss(selector: string, timeout = 10_000) {
-    return this.chain(() => {
-      return page
-        .waitForSelector(selector, { timeout, state: 'attached' })
-        .then(async (el) => {
-          // it seems selenium waits longer and tests rely on this behavior
-          // so we wait for the load event fire before returning
-          await page.waitForLoadState()
-          return this.wrapElement(el, selector)
-        })
+    return this.startChain(async () => {
+      const el = await page.waitForSelector(selector, {
+        timeout,
+        state: 'attached',
+      })
+      // it seems selenium waits longer and tests rely on this behavior
+      // so we wait for the load event fire before returning
+      await page.waitForLoadState()
+      return this.wrapElement(el, selector)
     })
   }
 
   waitForCondition(snippet: string, timeout?: number) {
-    return this.chain((el) => {
-      return page.waitForFunction(snippet, { timeout }).then(() => el)
+    return this.startOrPreserveChain(async () => {
+      await page.waitForFunction(snippet, { timeout })
     })
   }
 
   eval<T = any>(fn: any, ...args: any[]) {
-    return this.chain(() =>
+    return this.startChain(async () =>
       page
         .evaluate(fn, ...args)
         .catch((err) => {
@@ -506,7 +507,7 @@ export class Playwright<TCurrent = undefined> {
   }
 
   async log<T extends boolean = false>(options?: { includeArgs?: T }) {
-    return this.chain(
+    return this.startChain(
       () =>
         options?.includeArgs
           ? Promise.all(pageLogs)
@@ -522,16 +523,16 @@ export class Playwright<TCurrent = undefined> {
   }
 
   async websocketFrames() {
-    return this.chain(() => websocketFrames)
+    return this.startChain(() => websocketFrames)
   }
 
   async url() {
-    return this.chain(() => page.url())
+    return this.startChain(() => page.url())
   }
 
   async waitForIdleNetwork() {
-    return this.chain((el) => {
-      return page.waitForLoadState('networkidle').then(() => el)
+    return this.startOrPreserveChain(() => {
+      return page.waitForLoadState('networkidle')
     })
   }
 
@@ -545,33 +546,67 @@ export class Playwright<TCurrent = undefined> {
     return page.locator('nextjs-portal [data-nextjs-dev-tools-button]')
   }
 
-  private promise?: Promise<TCurrent>;
+  /** A call that expects to be chained after a previous call, because it needs its value. */
+  private continueChain<TNext>(nextCall: (value: TCurrent) => Promise<TNext>) {
+    return this._chain(true, nextCall)
+  }
+
+  /** Start a chain. If continuing, it overwrites the current chained value. */
+  private startChain<TNext>(nextCall: () => TNext | Promise<TNext>) {
+    return this._chain(false, nextCall)
+  }
+
+  /** Either start or continue a chain. If continuing, it preserves the current chained value. */
+  private startOrPreserveChain(nextCall: () => Promise<void>) {
+    return this._chain(false, async (value) => {
+      await nextCall()
+      return value
+    })
+  }
 
   // necessary for the type of the function below
   readonly [Symbol.toStringTag]: string = 'Playwright'
 
-  private chain<TNext>(
+  private _chain<TNext>(
     this: Playwright<TCurrent>,
+    mustBeChained: boolean,
     nextCall: (current: TCurrent) => TNext | Promise<TNext>
   ): Playwright<TNext> & Promise<TNext> {
     const syncError = new Error('next-browser-base-chain-error')
 
-    // `TCurrent` is `undefined` by default, and only changes as a result of a `chain` call.
-    // if the promise is undefined, then we haven't done any `chain` calls yet,
-    // so `TCurrent` must be at its initial value of `undefined`.
-    // this means that defaulting to a blank promise should(TM) still be typesafe.
-    const currentPromise = (this.promise ??
-      Promise.resolve(undefined)) as Promise<TCurrent>
+    // If `this` is actually a proxy created by a previous chained call, it'll act like it has a `promise` property.
+    // (see proxy code below)
+    type MaybeChained<T> = Playwright<T> & {
+      promise?: Promise<T>
+    }
+    const self = this as MaybeChained<TCurrent>
 
-    const promise = currentPromise.then(nextCall).catch((reason) => {
-      if (reason !== null && typeof reason === 'object' && 'stack' in reason) {
+    let currentPromise = self.promise
+    if (!currentPromise) {
+      if (mustBeChained) {
+        // Note that this should also be enforced by the type system
+        // by adding appropriate `(this: Playwright<PreviousValue>)` type annotations
+        // to methods that expect to be chained, but tests can bypass this (or not be checked because they use JS)
+        throw new Error(
+          'Expected this call to be chained after a previous call'
+        )
+      } else {
+        // We're handling a call that does not expect to be chained after a previous one,
+        // so it's safe to default the current value to undefined -- we don't need a value to invoke `nextCall`
+        currentPromise = Promise.resolve(undefined as TCurrent)
+      }
+    }
+
+    const promise = currentPromise.then(nextCall).catch((reason: unknown) => {
+      // TODO: only patch the stacktrace if the sync callstack is missing from it
+      if (reason && typeof reason === 'object' && 'stack' in reason) {
         const syncCallStack = syncError.stack!.split(syncError.message)[1]
         reason.stack += `\n${syncCallStack}`
       }
       throw reason
     })
 
-    function get(target: Playwright<TNext>, p: string | symbol): any {
+    function get(target: Playwright<TCurrent>, p: string | symbol): any {
       switch (p) {
         case 'promise':
           return promise
@@ -586,7 +621,8 @@ export class Playwright<TCurrent = undefined> {
       }
     }
 
-    return new Proxy<any>(this, {
+    // @ts-expect-error: we're changing `TCurrent` into TNext via proxy hacks
+    return new Proxy(this, {
       get,
     })
   }
