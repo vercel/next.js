@@ -3201,7 +3201,7 @@ impl ModulePart {
     }
 
     pub fn internal_evaluation(id: u32) -> Self {
-        ModulePart::InternalEvaluation(id)
+        ModulePart::Internal(id)
     }
 
     pub fn locals() -> Self {
