@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { deleteBrowserDynamicChunks } from '../delete-dynamic-chunk'
+import { deleteBrowserDynamicChunks } from './delete-dynamic-chunk'
 
 describe('graceful-degrade', () => {
   const { next } = nextTestSetup({

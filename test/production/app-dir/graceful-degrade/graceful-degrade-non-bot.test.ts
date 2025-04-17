@@ -3,7 +3,7 @@
 // will not be closed and reset properly. TODO: investigate why browser.close didn't help.
 
 import { nextTestSetup } from 'e2e-utils'
-import { deleteBrowserDynamicChunks } from '../delete-dynamic-chunk'
+import { deleteBrowserDynamicChunks } from './delete-dynamic-chunk'
 
 describe('graceful-degrade - non bot', () => {
   const { next } = nextTestSetup({

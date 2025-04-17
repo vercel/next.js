@@ -517,11 +517,7 @@ function Router({
     // If gracefully degrading is applied in production,
     // leave the app as it is rather than caught by GlobalError boundary.
     if (gracefullyDegrade) {
-      content = (
-        <GracefulDegradeBoundary>
-          {content}
-        </GracefulDegradeBoundary>
-      )
+      content = <GracefulDegradeBoundary>{content}</GracefulDegradeBoundary>
     } else {
       content = (
         <ErrorBoundary
