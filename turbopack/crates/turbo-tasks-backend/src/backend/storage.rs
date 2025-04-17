@@ -674,7 +674,6 @@ impl Storage {
 
     /// Start snapshot mode.
     pub fn start_snapshot(&self) {
-        println!("start snapshot");
         self.snapshot_mode
             .store(true, std::sync::atomic::Ordering::Release);
     }
@@ -684,7 +683,6 @@ impl Storage {
     /// snapshot mode. Items that are modified will be removed and considered as unmodified.
     /// When items are accessed in future they will be marked as modified.
     fn end_snapshot(&self) {
-        println!("end snapshot");
         // We are still in snapshot mode, so all accessed items would be stored as snapshot.
         // This means we can start by removing all modified items.
         let mut removed_modified = Vec::new();
@@ -696,7 +694,6 @@ impl Storage {
                 true
             }
         });
-        println!("removed modified: {:?}", removed_modified.len());
 
         // We also need to unset all the modified flags.
         for key in removed_modified {
@@ -707,7 +704,6 @@ impl Storage {
 
         // Now modified only contains snapshots.
         // We leave snapshot mode. Any access would be stored as modified and not as snapshot.
-        println!("leave snapshot mode");
         self.snapshot_mode
             .store(false, std::sync::atomic::Ordering::Release);
 
@@ -729,11 +725,6 @@ impl Storage {
                 }
             }
         }
-        println!(
-            "removed snapshots: {:?} ({} with data)",
-            removed_snapshots.len(),
-            full_snapsnots
-        );
 
         // And update the flags
         for key in removed_snapshots {

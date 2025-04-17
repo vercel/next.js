@@ -173,7 +173,6 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             > + Send
             + Sync,
     {
-        println!("save_snapshot...");
         let _span = tracing::trace_span!("save snapshot", session_id = ?session_id, operations = operations.len());
         let mut batch = self.database.write_batch()?;
         let mut task_items_result = Ok(Vec::new());
@@ -341,13 +340,11 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
         }
 
         {
-            println!("save_snapshot commit...");
             let _span = tracing::trace_span!("commit").entered();
             batch
                 .commit()
                 .with_context(|| anyhow!("Unable to commit operations"))?;
         }
-        println!("save_snapshot done");
         Ok(())
     }
 
