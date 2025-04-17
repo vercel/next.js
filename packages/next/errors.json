@@ -674,5 +674,7 @@
   "673": "Thrown value was ignored. This is a bug in Next.js.",
   "674": "Route \"%s\" has a \\`generateViewport\\` that depends on Request data (\\`cookies()\\`, etc...) or uncached external data (\\`fetch(...)\\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
   "675": "Expected `generateMetadata` not to block the application shell but it did.",
-  "676": "Invariant: missing internal router-server-methods this is an internal bug"
+  "676": "Invariant: missing internal router-server-methods this is an internal bug",
+  "677": "Accessed \\`cookies()\\` in \\`\"use cache\"\\` during prerendering.",
+  "678": "Route %s used \"cookies\" inside \"use cache: %s\". Accessing Dynamic data sources inside this kind of cache scope is not supported. If you need this data inside a cached function use \"cookies\" outside of the cached function and pass the required dynamic data in as an argument, or use the default \"use cache\" which does allow accessing cookies. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache"
 }

@@ -20,6 +20,7 @@ import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { scheduleImmediate } from '../../lib/scheduler'
 import { isRequestAPICallableInsideAfter } from './utils'
+import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 
 /**
  * In this version of Next.js `headers()` returns a Promise however you can still reference the properties of the underlying Headers instance
@@ -147,146 +148,64 @@ function makeDynamicallyTrackedExoticHeaders(
     return cachedHeaders
   }
 
+  const abortAndThrow = (property: string) => {
+    const expression = `\`headers()${property}\``
+    const error = createHeadersAccessError(route, expression)
+    abortAndThrowOnSynchronousRequestDataAccess(
+      route,
+      expression,
+      error,
+      prerenderStore
+    )
+  }
+
   const promise = makeHangingPromise<ReadonlyHeaders>(
     prerenderStore.renderSignal,
-    '`headers()`'
+    '`headers()`',
+    {
+      get: function get(target, prop, receiver) {
+        switch (prop) {
+          case Symbol.iterator:
+            return function () {
+              abortAndThrow('[Symbol.iterator]')
+            }
+          case 'delete':
+          case 'get':
+          case 'has':
+            return function () {
+              abortAndThrow(
+                arguments.length === 0
+                  ? `.${prop}()`
+                  : `.${prop}(${describeNameArg(arguments[0])})`
+              )
+            }
+          case 'append':
+          case 'set':
+            return function () {
+              abortAndThrow(
+                arguments[0]
+                  ? `.${prop}(${describeNameArg(arguments[0])}, ...)`
+                  : `.${prop}(...)`
+              )
+            }
+          case 'forEach':
+            return function () {
+              abortAndThrow(`.${prop}(...)`)
+            }
+          case 'entries':
+          case 'getSetCookie':
+          case 'keys':
+          case 'values':
+            return function () {
+              abortAndThrow(`.${prop}()`)
+            }
+          default:
+            return ReflectAdapter.get(target, prop, receiver)
+        }
+      },
+    }
   )
   CachedHeaders.set(prerenderStore, promise)
-
-  Object.defineProperties(promise, {
-    append: {
-      value: function append() {
-        const expression = `\`headers().append(${describeNameArg(arguments[0])}, ...)\``
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    delete: {
-      value: function _delete() {
-        const expression = `\`headers().delete(${describeNameArg(arguments[0])})\``
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    get: {
-      value: function get() {
-        const expression = `\`headers().get(${describeNameArg(arguments[0])})\``
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    has: {
-      value: function has() {
-        const expression = `\`headers().has(${describeNameArg(arguments[0])})\``
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    set: {
-      value: function set() {
-        const expression = `\`headers().set(${describeNameArg(arguments[0])}, ...)\``
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    getSetCookie: {
-      value: function getSetCookie() {
-        const expression = '`headers().getSetCookie()`'
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    forEach: {
-      value: function forEach() {
-        const expression = '`headers().forEach(...)`'
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    keys: {
-      value: function keys() {
-        const expression = '`headers().keys()`'
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    values: {
-      value: function values() {
-        const expression = '`headers().values()`'
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    entries: {
-      value: function entries() {
-        const expression = '`headers().entries()`'
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    [Symbol.iterator]: {
-      value: function () {
-        const expression = '`headers()[Symbol.iterator]()`'
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-  } satisfies HeadersExtensions)
 
   return promise
 }
