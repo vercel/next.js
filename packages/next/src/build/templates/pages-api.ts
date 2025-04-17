@@ -67,7 +67,7 @@ async function loadManifest(key: string, loader: () => Promise<any>) {
 export async function handler(
   req: IncomingMessage,
   res: ServerResponse,
-  _ctx: {
+  ctx: {
     waitUntil?: (prom: Promise<void>) => void
   }
 ): Promise<void> {
@@ -270,5 +270,10 @@ export async function handler(
     // this is technically an invariant as error handling
     // should be done inside of api-resolver onError
     sendError(res as NextApiResponse, 500, 'Internal Server Error')
+  } finally {
+    // We don't allow any waitUntil work in pages API routes currently
+    // so if callback is present return with resolved promise since no
+    // pending work
+    ctx.waitUntil?.(Promise.resolve())
   }
 }
