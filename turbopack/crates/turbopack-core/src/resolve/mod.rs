@@ -3198,10 +3198,6 @@ impl ModulePart {
         ModulePart::Internal(id)
     }
 
-    pub fn internal_evaluation(id: u32) -> Self {
-        ModulePart::Internal(id)
-    }
-
     pub fn locals() -> Self {
         ModulePart::Locals
     }

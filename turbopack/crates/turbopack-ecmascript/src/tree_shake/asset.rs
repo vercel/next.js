@@ -136,7 +136,7 @@ impl EcmascriptModulePartAsset {
                 return Ok(Vc::upcast(
                     EcmascriptModulePartAsset::new_with_resolved_part(
                         module,
-                        ModulePart::internal_evaluation(idx),
+                        ModulePart::internal(idx),
                     ),
                 ));
             }
