@@ -307,11 +307,20 @@ impl DiskWatcher {
                     Ok(Ok(event)) => {
                         // TODO: We might benefit from some user-facing diagnostics if it rescans
                         // occur frequently (i.e. more than X times in Y minutes)
+                        //
+                        // You can test rescans on Linux by reducing the inotify queue to something
+                        // really small:
+                        //
+                        // ```
+                        // echo 3 | sudo tee /proc/sys/fs/inotify/max_queued_events
+                        // ```
                         if event.need_rescan() {
                             let _lock = inner.invalidation_lock.blocking_write();
 
                             #[cfg(not(any(target_os = "macos", target_os = "windows")))]
                             {
+                                // we can't narrow this down to a smaller set of paths: Rescan
+                                // events (at least when tested on Linux) come with no `paths`.
                                 self.restore_all_watching(inner.root_path());
                                 batched_new_paths.clear();
                             }
