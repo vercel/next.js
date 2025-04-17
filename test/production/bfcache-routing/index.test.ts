@@ -49,14 +49,14 @@ describe('bfcache-routing', () => {
       'window.location.origin.includes("localhost")'
     )
 
-    let html = await browser.evalAsync('document.documentElement.innerHTML')
+    let html = await browser.eval<string>('document.documentElement.innerHTML')
 
     expect(html).toContain('BFCache Test')
 
-    await browser.evalAsync(`document.querySelector('button').click()`)
+    await browser.eval(`document.querySelector('button').click()`)
 
     // we should still be on the test page
-    html = await browser.evalAsync('document.documentElement.innerHTML')
+    html = await browser.eval<string>('document.documentElement.innerHTML')
     expect(html).toContain('BFCache Test')
 
     await browser.forward(bfOptions)
@@ -67,13 +67,13 @@ describe('bfcache-routing', () => {
     )
 
     // we should be back on the test page with no errors
-    html = await browser.evalAsync('document.documentElement.innerHTML')
+    html = await browser.eval<string>('document.documentElement.innerHTML')
     expect(html).toContain('BFCache Test')
 
     // After restoring from bfcache, a subsequent mpa navigation to the same URL should work
-    // We trigger the click via `evalAsync` because when restoring from bfcache, our internal
+    // We trigger the click via `eval` because when restoring from bfcache, our internal
     // 'waitForElementByCss' method doesn't think the element is attached to the DOM.
-    await browser.evalAsync(
+    await browser.eval(
       `document.querySelector('a[href="https://example.vercel.sh"]').click()`
     )
     await browser.waitForCondition(

@@ -470,40 +470,33 @@ export class Playwright<TCurrent = undefined> {
     })
   }
 
-  eval<T = any>(fn: any, ...args: any[]) {
+  // TODO: this should default to unknown, but a lot of tests use and rely on the result being `any`
+  eval<TFn extends (...args: any[]) => any>(
+    fn: TFn,
+    ...args: Parameters<TFn>
+  ): Playwright<ReturnType<TFn>> & Promise<ReturnType<TFn>>
+  // TODO: this is ugly, the type parameter is basically a hidden cast
+  eval<T = any>(fn: string, ...args: any[]): Playwright<T> & Promise<T>
+  eval<T = any>(
+    fn: string | ((...args: any[]) => any),
+    ...args: any[]
+  ): Playwright<T> & Promise<T>
+  eval(
+    fn: string | ((...args: any[]) => any),
+    ...args: any[]
+  ): Playwright<any> & Promise<any> {
     return this.startChain(async () =>
       page
         .evaluate(fn, ...args)
         .catch((err) => {
+          // TODO: gross, why are we doing this
           console.error('eval error:', err)
-          return null
+          return null!
         })
-        .then(async (val) => {
+        .finally(async () => {
           await page.waitForLoadState()
-          return val as T
         })
     )
-  }
-
-  async evalAsync<T = any>(fn: any) {
-    if (typeof fn === 'function') {
-      fn = fn.toString()
-    }
-
-    if (fn.includes(`var callback = arguments[arguments.length - 1]`)) {
-      fn = `(function() {
-        return new Promise((resolve, reject) => {
-          const origFunc = ${fn}
-          try {
-            origFunc(resolve)
-          } catch (err) {
-            reject(err)
-          }
-        })
-      })()`
-    }
-
-    return page.evaluate<T>(fn).catch(() => null)
   }
 
   async log<T extends boolean = false>(options?: { includeArgs?: T }) {

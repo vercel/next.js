@@ -1125,7 +1125,9 @@ export function getRedboxErrorLink(
 }
 
 export function getBrowserBodyText(browser: Playwright) {
-  return browser.eval('document.getElementsByTagName("body")[0].innerText')
+  return browser.eval<string>(
+    'document.getElementsByTagName("body")[0].innerText'
+  )
 }
 
 export function normalizeRegEx(src: string) {
@@ -1489,7 +1491,7 @@ async function checkMeta(
   tag: string = 'meta',
   domAttributeField: string = 'content'
 ) {
-  const values = await browser.eval(
+  const values = await browser.eval<(string | null)[]>(
     `[...document.querySelectorAll('${tag}[${queryKey}="${queryValue}"]')].map((el) => el.getAttribute("${domAttributeField}"))`
   )
   if (expected instanceof RegExp) {
@@ -1710,7 +1712,9 @@ export async function getHighlightedDiffLines(
   )
   return Promise.all(
     lines.map(async (line) => [
-      await line.getAttribute('data-nextjs-container-errors-pseudo-html--diff'),
+      (await line.getAttribute(
+        'data-nextjs-container-errors-pseudo-html--diff'
+      ))!,
       (await line.innerText())[0],
     ])
   )

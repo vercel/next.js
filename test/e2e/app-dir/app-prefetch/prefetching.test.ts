@@ -112,7 +112,7 @@ describe('app dir - prefetching', () => {
       requests.push(new URL(req.url()).pathname)
     })
 
-    await browser.evalAsync('window.next.router.prefetch("/dashboard/123")')
+    await browser.eval('window.next.router.prefetch("/dashboard/123")')
     await browser.waitForIdleNetwork()
 
     expect(requests).toInclude('/dashboard/123')
