@@ -35,4 +35,24 @@ describe('graceful-degrade', () => {
       /Application error: a client-side exception has occurred while loading/
     )
   })
+
+  it('should preserve the ssr html when browser errors for bot', async () => {
+    const browser = await next.browser('/browser-error', {
+      userAgent: 'Googlebot',
+    })
+
+    const logs = await browser.log()
+    const errors = logs
+      .filter((x) => x.source === 'error')
+      .map((x) => x.message)
+      .join('\n')
+
+    expect(errors).toMatch(/Uncaught Error: boom/)
+
+    const bodyText = await browser.elementByCss('body').text()
+    expect(bodyText).not.toMatch(
+      /Application error: a client-side exception has occurred while loading/
+    )
+    expect(bodyText).toMatch(/fine/)
+  })
 })
