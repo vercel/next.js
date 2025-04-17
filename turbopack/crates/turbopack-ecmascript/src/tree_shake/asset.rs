@@ -92,7 +92,6 @@ impl EcmascriptModulePartAsset {
     /// Create a new instance of [Vc<EcmascriptModulePartAsset>], whcih consists
     /// of a pointer to the full module and the [ModulePart] pointing the part
     /// of the module.
-    /// #[turbo_tasks::function]
     #[turbo_tasks::function]
     fn new_raw(module: ResolvedVc<EcmascriptModuleAsset>, part: ModulePart) -> Vc<Self> {
         Self {
