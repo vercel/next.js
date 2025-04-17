@@ -83,9 +83,7 @@ impl ModuleReference for EcmascriptModulePartReference {
                 | ModulePart::RenamedNamespace { .. } => Vc::upcast(
                     EcmascriptModuleFacadeModule::new(*self.module, part.clone()),
                 ),
-                ModulePart::Export(..)
-                | ModulePart::Internal(..)
-                | ModulePart::InternalEvaluation(..) => {
+                ModulePart::Export(..) | ModulePart::Internal(..) => {
                     bail!(
                         "Unexpected ModulePart \"{}\" for EcmascriptModulePartReference",
                         part

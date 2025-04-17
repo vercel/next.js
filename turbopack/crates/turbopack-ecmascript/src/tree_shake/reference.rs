@@ -37,9 +37,10 @@ impl ValueToString for EcmascriptModulePartReference {
 impl ModuleReference for EcmascriptModulePartReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let module = EcmascriptModulePartAsset::new(*self.module, self.part.clone())
-            .to_resolved()
-            .await?;
+        let module =
+            EcmascriptModulePartAsset::new_with_resolved_part(*self.module, self.part.clone())
+                .to_resolved()
+                .await?;
 
         Ok(*ModuleResolveResult::module(ResolvedVc::upcast(module)))
     }
