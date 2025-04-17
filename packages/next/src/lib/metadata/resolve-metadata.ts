@@ -56,6 +56,7 @@ import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
 import { createServerParamsForMetadata } from '../../server/request/params'
+import { isClientReference } from '../client-and-server-references'
 
 type StaticIcons = Pick<ResolvedIcons, 'icon' | 'apple'>
 
@@ -349,6 +350,10 @@ function getDefinedViewport(
   props: any,
   tracingProps: { route: string }
 ): Viewport | ViewportResolver | null {
+  // In turbopack the module itself could be a client reference
+  if (isClientReference(mod)) {
+    return null
+  }
   if (typeof mod.generateViewport === 'function') {
     const { route } = tracingProps
     return (parent: ResolvingViewport) =>
@@ -371,6 +376,10 @@ function getDefinedMetadata(
   props: any,
   tracingProps: { route: string }
 ): Metadata | MetadataResolver | null {
+  // In turbopack the module itself could be a client reference
+  if (isClientReference(mod)) {
+    return null
+  }
   if (typeof mod.generateMetadata === 'function') {
     const { route } = tracingProps
     return (parent: ResolvingMetadata) =>
