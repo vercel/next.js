@@ -11,10 +11,8 @@ import { isNextRouterError } from '../components/is-next-router-error'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { reportGlobalError } from './report-global-error'
 import { originConsoleError } from '../components/globals/intercept-console-error'
-import {
-  ErrorBoundaryHandler,
-  GlobalError as DefaultErrorBoundary,
-} from '../components/error-boundary'
+import { ErrorBoundaryHandler } from '../components/error-boundary'
+import DefaultErrorBoundary from '../components/global-error'
 
 export function onCaughtError(
   thrownValue: unknown,
