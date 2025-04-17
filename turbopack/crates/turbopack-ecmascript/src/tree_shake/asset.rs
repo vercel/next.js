@@ -34,7 +34,7 @@ use crate::{
 /// A reference to part of an ES module.
 ///
 /// This type is used for an advanced tree shkaing.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value]
 pub struct EcmascriptModulePartAsset {
     pub full_module: ResolvedVc<EcmascriptModuleAsset>,
     pub part: ModulePart,
@@ -92,8 +92,18 @@ impl EcmascriptModulePartAsset {
     /// Create a new instance of [Vc<EcmascriptModulePartAsset>], whcih consists
     /// of a pointer to the full module and the [ModulePart] pointing the part
     /// of the module.
+    /// #[turbo_tasks::function]
     #[turbo_tasks::function]
-    pub async fn new(
+    fn new_raw(module: ResolvedVc<EcmascriptModuleAsset>, part: ModulePart) -> Vc<Self> {
+        Self {
+            full_module: module,
+            part,
+        }
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    pub async fn new_with_resolved_part(
         module: ResolvedVc<EcmascriptModuleAsset>,
         part: ModulePart,
     ) -> Result<Vc<Self>> {
@@ -104,22 +114,14 @@ impl EcmascriptModulePartAsset {
                 | ModulePart::Facade
                 | ModulePart::Exports
         ) {
-            return Ok(EcmascriptModulePartAsset {
-                full_module: module,
-                part,
-            }
-            .cell());
+            return Ok(Self::new_raw(*module, part));
         }
 
         // This is a workaround to avoid creating duplicate assets for internal parts.
         let split_result = split_module(*module).await?;
         let part_id = get_part_id(&split_result, &part).await?;
 
-        Ok(EcmascriptModulePartAsset {
-            full_module: module,
-            part: ModulePart::internal(part_id),
-        }
-        .cell())
+        Ok(Self::new_raw(*module, ModulePart::internal(part_id)))
     }
 
     #[turbo_tasks::function]
@@ -135,7 +137,7 @@ impl EcmascriptModulePartAsset {
             ModulePart::Evaluation => {
                 // We resolve the module evaluation here to prevent duplicate assets.
                 let idx = *entrypoints.get(&Key::ModuleEvaluation).unwrap();
-                return Ok(Vc::upcast(EcmascriptModulePartAsset::new(
+                return Ok(Vc::upcast(EcmascriptModulePartAsset::new_with_resolved_part(
                     module,
                     ModulePart::InternalEvaluation(idx),
                 )));
@@ -143,10 +145,12 @@ impl EcmascriptModulePartAsset {
 
             ModulePart::Export(export) => {
                 if entrypoints.contains_key(&Key::Export(export.clone())) {
-                    return Ok(Vc::upcast(EcmascriptModulePartAsset::new(
-                        module,
-                        ModulePart::Export(export),
-                    )));
+                    return Ok(Vc::upcast(
+                        EcmascriptModulePartAsset::new_with_resolved_part(
+                            module,
+                            ModulePart::Export(export),
+                        ),
+                    ));
                 }
                 let side_effect_free_packages = module.asset_context().side_effect_free_packages();
                 let source_module = Vc::upcast(module);
@@ -201,10 +205,9 @@ impl EcmascriptModulePartAsset {
             _ => (),
         }
 
-        Ok(Vc::upcast(EcmascriptModulePartAsset::new(
-            module,
-            part.clone(),
-        )))
+        Ok(Vc::upcast(
+            EcmascriptModulePartAsset::new_with_resolved_part(module, part.clone()),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -424,7 +427,8 @@ async fn only_effects(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
     if let Some(module) = Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await? {
-        let module = EcmascriptModulePartAsset::new(module, ModulePart::evaluation());
+        let module =
+            EcmascriptModulePartAsset::new_with_resolved_part(module, ModulePart::evaluation());
         return Ok(Vc::upcast(module));
     }
 
