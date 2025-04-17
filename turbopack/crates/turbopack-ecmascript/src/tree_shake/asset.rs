@@ -109,10 +109,7 @@ impl EcmascriptModulePartAsset {
     ) -> Result<Vc<Self>> {
         if matches!(
             part,
-            ModulePart::Internal(..)
-                | ModulePart::InternalEvaluation(..)
-                | ModulePart::Facade
-                | ModulePart::Exports
+            ModulePart::Internal(..) | ModulePart::Facade | ModulePart::Exports
         ) {
             return Ok(Self::new_raw(*module, part));
         }
@@ -333,9 +330,9 @@ impl Module for EcmascriptModulePartAsset {
                         // This is an internal part that is not for evaluation, so we don't need to
                         // force-add it.
                         PartId::Internal(.., false) => return None,
-                        PartId::Internal(part_id, true) => {
-                            ModulePart::internal_evaluation(*part_id)
-                        }
+                        // Because of this we still need `PartId::Internal` to have `is_for_eval`
+                        // flag.
+                        PartId::Internal(part_id, true) => ModulePart::internal(*part_id),
                         PartId::Export(name) => ModulePart::export(name.clone()),
                         _ => unreachable!(
                             "PartId other than Internal and Export should not be used here"

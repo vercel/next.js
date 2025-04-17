@@ -139,10 +139,7 @@ async fn apply_module_type(
                 ResolvedVc::upcast(builder.build().to_resolved().await?)
             } else {
                 let module = builder.build().resolve().await?;
-                if matches!(
-                    &part,
-                    Some(ModulePart::Evaluation | ModulePart::InternalEvaluation(..))
-                ) {
+                if matches!(&part, Some(ModulePart::Evaluation)) {
                     // Skip the evaluation part if the module is marked as side effect free.
                     let side_effect_free_packages = module_asset_context
                         .side_effect_free_packages()
