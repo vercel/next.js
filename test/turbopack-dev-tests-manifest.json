@@ -2471,8 +2471,8 @@
   "test/development/app-dir/hmr-symlink/hmr-symlink.test.ts": {
     "passed": [
       "HMR symlinks tracks updates to symlinked target",
-      "HMR symlinks tracks updates to the symlink",
-      "HMR symlinks tracks updates to the middle of a symlink chain"
+      "HMR symlinks tracks updates to the middle of a symlink chain",
+      "HMR symlinks tracks updates to the symlink"
     ],
     "failed": [],
     "pending": [],
@@ -7836,7 +7836,9 @@
       "redirects and rewrites navigation using link should redirect from next.config.js correctly with empty query params",
       "redirects and rewrites navigation using link should redirect using catchall from next.config.js correctly",
       "redirects and rewrites navigation using link should rewrite from middleware correctly",
-      "redirects and rewrites navigation using link should rewrite from next.config.js correctly"
+      "redirects and rewrites navigation using link should rewrite from next.config.js correctly",
+      "redirects and rewrites redirects to exotic url schemes preserving slashes",
+      "redirects and rewrites redirects to exotic url schemes without adding unwanted slashes"
     ],
     "failed": [],
     "pending": [],
@@ -10968,7 +10970,9 @@
   },
   "test/e2e/persistent-caching/persistent-caching.test.ts": {
     "passed": [
-      "persistent-caching should allow to change files while stopped",
+      "persistent-caching should allow to change files while stopped (run 1)",
+      "persistent-caching should allow to change files while stopped (run 2)",
+      "persistent-caching should allow to change files while stopped (run 3)",
       "persistent-caching should persistent cache loaders"
     ],
     "failed": [],

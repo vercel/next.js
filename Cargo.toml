@@ -388,6 +388,7 @@ quote = "1.0.23"
 rand = "0.9.0"
 rayon = "1.10.0"
 regex = "1.10.6"
+regress = "0.10.3"
 reqwest = { version = "=0.11.17", default-features = false }
 rstest = "0.16.0"
 rustc-hash = "2.1.0"

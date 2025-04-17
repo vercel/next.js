@@ -252,7 +252,7 @@ To use it, you can import `ImageResponse` from `next/og`:
 ```jsx filename="app/about/opengraph-image.js"
 import { ImageResponse } from 'next/og'
 
-export async function GET() {
+export default function OG() {
   return new ImageResponse(
     (
       <div

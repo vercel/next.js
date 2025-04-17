@@ -1857,7 +1857,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     origin,
                     options.dir,
                     options.include_subdirs,
-                    Vc::cell(options.filter),
+                    options.filter.cell(),
                     Some(issue_source(source, span)),
                     in_try,
                 )
@@ -3025,7 +3025,7 @@ async fn require_context_visitor(
         origin,
         dir,
         options.include_subdirs,
-        Vc::cell(options.filter),
+        options.filter.cell(),
         None,
         true,
     );

@@ -57,4 +57,29 @@ describe('app-dir - metadata-streaming', () => {
     expect($('title').length).toBe(1)
     expect($('body title').text()).toBe('parallel-routes-default layout title')
   })
+
+  it('should change metadata when navigating between two pages under a slot when children is not rendered', async () => {
+    // first page is /parallel-routes-no-children/first,
+    // second page is /parallel-routes-no-children/second
+    // navigating between them should change the title metadata
+    const browser = await next.browser('/parallel-routes-no-children/first')
+    await retry(async () => {
+      expect(await browser.elementByCss('title').text()).toBe(
+        'first page - @bar'
+      )
+    })
+    // go to second page
+    await browser
+      .elementByCss('[href="/parallel-routes-no-children/second"]')
+      .click()
+    // wait for navigation to finish
+    await retry(async () => {
+      expect(await browser.elementByCss('#bar-page').text()).toBe(
+        'test-page @bar - 2'
+      )
+    })
+    expect(await browser.elementByCss('title').text()).toBe(
+      'second page - @bar'
+    )
+  })
 })

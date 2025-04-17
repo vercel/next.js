@@ -11,12 +11,11 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use graph::VarGraph;
 use num_bigint::BigInt;
 use num_traits::identities::Zero;
 use once_cell::sync::Lazy;
-use regex::Regex;
 use rustc_hash::FxHasher;
 use swc_core::{
     common::Mark,
@@ -33,9 +32,12 @@ use turbopack_core::compile_time_info::{
 
 use self::imports::ImportAnnotations;
 pub(crate) use self::imports::ImportMap;
-use crate::{references::require_context::RequireContextMap, utils::StringifyJs};
+use crate::{
+    analyzer::es_regex::EsRegex, references::require_context::RequireContextMap, utils::StringifyJs,
+};
 
 pub mod builtin;
+pub mod es_regex;
 pub mod graph;
 pub mod imports;
 pub mod linker;
@@ -3722,42 +3724,7 @@ pub struct RequireContextOptions {
     pub dir: RcStr,
     pub include_subdirs: bool,
     /// this is a regex (pattern, flags)
-    pub filter: Regex,
-}
-
-/// Convert an ECMAScript regex to a Rust regex.
-fn regex_from_js(pattern: &str, flags: &str) -> Result<Regex> {
-    // rust regex doesn't allow escaped slashes, but they are necessary in js
-    let pattern = pattern.replace("\\/", "/");
-
-    let mut applied_flags = String::new();
-    for flag in flags.chars() {
-        match flag {
-            // indices for substring matches: not relevant for the regex itself
-            'd' => {}
-            // global: default in rust, ignore
-            'g' => {}
-            // case-insensitive: letters match both upper and lower case
-            'i' => applied_flags.push('i'),
-            // multi-line mode: ^ and $ match begin/end of line
-            'm' => applied_flags.push('m'),
-            // allow . to match \n
-            's' => applied_flags.push('s'),
-            // Unicode support (enabled by default)
-            'u' => applied_flags.push('u'),
-            // sticky search: not relevant for the regex itself
-            'y' => {}
-            _ => bail!("unsupported flag `{}` in regex", flag),
-        }
-    }
-
-    let regex = if !applied_flags.is_empty() {
-        format!("(?{}){}", applied_flags, pattern)
-    } else {
-        pattern
-    };
-
-    Regex::new(&regex).context("could not convert ECMAScript regex to Rust regex")
+    pub filter: EsRegex,
 }
 
 /// Parse the arguments passed to a require.context invocation, validate them
@@ -3787,14 +3754,14 @@ pub fn parse_require_context(args: &[JsValue]) -> Result<RequireContextOptions> 
 
     let filter = if let Some(filter) = args.get(2) {
         if let JsValue::Constant(ConstantValue::Regex(box (pattern, flags))) = filter {
-            regex_from_js(pattern, flags)?
+            EsRegex::new(pattern, flags)?
         } else {
             bail!("require.context(..., ..., filter) requires filter to be a regex");
         }
     } else {
         // https://webpack.js.org/api/module-methods/#requirecontext
         // > optional, default /^\.\/.*$/, any file
-        static DEFAULT_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\\./.*$").unwrap());
+        static DEFAULT_REGEX: Lazy<EsRegex> = Lazy::new(|| EsRegex::new(r"^\\./.*$", "").unwrap());
 
         DEFAULT_REGEX.clone()
     };
