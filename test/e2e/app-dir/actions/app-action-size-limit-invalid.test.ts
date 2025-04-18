@@ -1,7 +1,8 @@
-import { nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { accountForOverhead } from './account-for-overhead'
+import { join } from 'path'
 
 const CONFIG_ERROR =
   'Server Actions Size Limit must be a valid number or filesize format larger than 1MB'
@@ -9,6 +10,11 @@ const CONFIG_ERROR =
 describe('app-dir action size limit invalid config', () => {
   const { next, isNextStart, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
+    overrideFiles: process.env.TEST_NODE_MIDDLEWARE
+      ? {
+          'middleware.js': new FileRef(join(__dirname, 'middleware-node.js')),
+        }
+      : {},
     skipDeployment: true,
     skipStart: true,
     dependencies: {
