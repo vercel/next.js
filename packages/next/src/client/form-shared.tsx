@@ -1,4 +1,5 @@
 import type { HTMLProps } from 'react'
+import { createFormData } from './form-data-submitter-polyfill'
 
 export const DISALLOWED_FORM_PROPS = ['method', 'encType', 'target'] as const
 
@@ -49,9 +50,25 @@ type InternalFormProps = {
 export type FormProps<RouteInferType = any> = InternalFormProps
 
 export function createFormSubmitDestinationUrl(
-  action: string,
-  formElement: HTMLFormElement
+  actionHref: string,
+  formElement: HTMLFormElement,
+  submitterElement: HTMLElement | null
 ) {
+  let action = actionHref
+  if (submitterElement) {
+    // If the submitter specified an alternate formAction,
+    // use that URL instead -- this is what a native form would do.
+    // NOTE: `submitter.formAction` is unreliable, because it will give us `location.href` if it *wasn't* set
+    // NOTE: this should not have `basePath` added, because we can't add it before hydration
+    const submitterFormAction = submitterElement.getAttribute('formAction')
+    if (submitterFormAction !== null) {
+      if (process.env.NODE_ENV === 'development') {
+        checkFormActionUrl(submitterFormAction, 'formAction')
+      }
+      action = submitterFormAction
+    }
+  }
+
   let targetUrl: URL
   try {
     // NOTE: It might be more correct to resolve URLs relative to `document.baseURI`,
@@ -77,7 +94,7 @@ export function createFormSubmitDestinationUrl(
     targetUrl.search = ''
   }
 
-  const formData = new FormData(formElement)
+  const formData = createFormData(formElement, submitterElement)
 
   for (let [name, value] of formData) {
     if (typeof value !== 'string') {

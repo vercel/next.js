@@ -208,7 +208,7 @@ export class Playwright extends BrowserInterface {
       disableCache: boolean
       cpuThrottleRate: number
       pushErrorAsConsoleLog?: boolean
-      beforePageLoad?: (...args: any[]) => void
+      beforePageLoad?: (page: Page) => void | Promise<void>
     }
   ) {
     await this.close()
@@ -290,7 +290,7 @@ export class Playwright extends BrowserInterface {
       })
     })
 
-    opts?.beforePageLoad?.(page)
+    await opts?.beforePageLoad?.(page)
 
     await page.goto(url, { waitUntil: 'load' })
   }
