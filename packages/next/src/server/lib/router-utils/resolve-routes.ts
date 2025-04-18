@@ -461,11 +461,19 @@ export function getResolveRoutes(
 
         if (!opts.minimalMode && route.name === 'middleware') {
           const match = fsChecker.getMiddlewareMatchers()
+          let maybeDecodedPathname = parsedUrl.pathname || '/'
+
+          try {
+            maybeDecodedPathname = decodeURIComponent(maybeDecodedPathname)
+          } catch {
+            /* non-fatal we can't decode so can't match it */
+          }
+
           if (
             // @ts-expect-error BaseNextRequest stuff
             match?.(parsedUrl.pathname, req, parsedUrl.query) ||
             match?.(
-              decodeURIComponent(parsedUrl.pathname || '/'),
+              maybeDecodedPathname,
               // @ts-expect-error BaseNextRequest stuff
               req,
               parsedUrl.query
