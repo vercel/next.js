@@ -219,9 +219,6 @@ importers:
       alex:
         specifier: 9.1.0
         version: 9.1.0
-      amphtml-validator:
-        specifier: 1.0.38
-        version: 1.0.38
       async-sema:
         specifier: 3.0.1
         version: 3.0.1
