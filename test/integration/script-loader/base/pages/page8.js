@@ -6,7 +6,7 @@ const url =
 
 const Page = () => {
   return (
-    <div class="container">
+    <div className="container">
       <Link href="/page9">Page 9</Link>
       <div id="text"></div>
       <Script

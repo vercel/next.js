@@ -2,7 +2,7 @@ import Script from 'next/script'
 
 const Page = () => {
   return (
-    <div class="container">
+    <div className="container">
       <Script
         id="beforeInteractiveInlineScript"
         strategy="beforeInteractive"

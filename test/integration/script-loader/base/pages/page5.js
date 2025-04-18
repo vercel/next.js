@@ -3,7 +3,7 @@ import Script from 'next/script'
 
 const Page = () => {
   return (
-    <div class="container">
+    <div className="container">
       <Script id="inline-script">{`document.getElementById('text').textContent += 'abc'`}</Script>
       <div>page5</div>
       <div>

@@ -7,7 +7,7 @@ const url =
 
 const Page = () => {
   return (
-    <div class="container">
+    <div className="container">
       <div id="onload-div-1" />
       <Link href="/page9">Page 9</Link>
       <Script

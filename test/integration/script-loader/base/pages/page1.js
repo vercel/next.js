@@ -2,7 +2,7 @@ import Script from 'next/script'
 
 const Page = () => {
   return (
-    <div class="container">
+    <div className="container">
       <div>page1</div>
     </div>
   )
