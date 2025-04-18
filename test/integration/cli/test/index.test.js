@@ -50,20 +50,21 @@ const runAndCaptureOutput = async ({ port }) => {
 }
 
 const testExitSignal = async (
-  killSignal = '',
+  killSignal = undefined,
   args = [],
   readyRegex = /Creating an optimized production/,
   expectedCode = 0
 ) => {
+  /** @type {import('child_process').ChildProcess} */
   let instance
-  const killSigint = (inst) => {
+  const onInstance = (inst) => {
     instance = inst
   }
   let output = ''
 
   let cmdPromise = runNextCommand(args, {
     ignoreFail: true,
-    instance: killSigint,
+    instance: onInstance,
     onStdout: (msg) => {
       output += stripAnsi(msg)
     },
@@ -529,11 +530,9 @@ describe('CLI Usage', () => {
         await check(() => output, /- Local:/)
         // without --hostname, do not log Network: xxx
         const matches = /Network:\s*http:\/\/\[::\]:(\d+)/.exec(output)
-        const _port = parseInt(matches)
-        expect(matches).toBe(null)
         // Regression test: port 0 was interpreted as if no port had been
         // provided, falling back to 3000.
-        expect(_port).not.toBe(3000)
+        expect(matches).toBe(null)
       } finally {
         await killApp(app)
       }

@@ -30,11 +30,16 @@ const runTests = () => {
       ['/en/redirect-1', '/destination-1'],
       ['/fr/redirect-1', '/fr/destination-1'],
       ['/nl-NL/redirect-2', '/destination-2'],
-      ['/fr/redirect-2', false],
+      ['/fr/redirect-2', null],
     ]) {
-      const res = await fetchViaHTTP(appPort, path, undefined, {
-        redirect: 'manual',
-      })
+      const res = await fetchViaHTTP(
+        appPort,
+        typeof path !== 'string' ? `${path}` : path,
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
 
       expect(res.status).toBe(dest ? 307 : 404)
 
