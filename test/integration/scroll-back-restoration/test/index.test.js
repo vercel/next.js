@@ -33,20 +33,33 @@ const runTests = () => {
     expect(scrollX).not.toBe(0)
     expect(scrollY).not.toBe(0)
 
-    await browser.eval(() => window.next.router.push('/another'))
+    await browser.eval(
+      // @ts-expect-error untyped property on `window`
+      () => window.next.router.push('/another')
+    )
 
     await check(
       () => browser.eval(() => document.documentElement.innerHTML),
       /hi from another/
     )
-    await browser.eval(() => (window.didHydrate = false))
+    await browser.eval(
+      // @ts-expect-error untyped property on `window`
+      () => (window.didHydrate = false)
+    )
 
     await browser.eval(() => window.history.back())
-    await check(() => browser.eval(() => window.didHydrate), {
-      test(content) {
-        return content
-      },
-    })
+    await check(
+      () =>
+        browser.eval(
+          // @ts-expect-error untyped property on `window`
+          () => window.didHydrate
+        ),
+      {
+        test(content) {
+          return content
+        },
+      }
+    )
 
     const newScrollX = Math.floor(await browser.eval(() => window.scrollX))
     const newScrollY = Math.floor(await browser.eval(() => window.scrollY))

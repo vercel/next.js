@@ -64,9 +64,11 @@ describe('Prefetching Links in viewport', () => {
         nextDataRequests = []
         const browser = await webdriver(appPort, '/')
         await browser.eval(function navigate() {
-          window.next.router.push('/ssg/slow')
-          window.next.router.push('/ssg/slow')
-          window.next.router.push('/ssg/slow')
+          // @ts-expect-error untyped property on `window`
+          const next = window.next
+          next.router.push('/ssg/slow')
+          next.router.push('/ssg/slow')
+          next.router.push('/ssg/slow')
         })
         await browser.waitForElementByCss('#content')
         expect(

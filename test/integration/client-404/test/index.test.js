@@ -37,10 +37,18 @@ const clientNavigation = (context, isProd = false) => {
 
     it('should hard navigate to URL on failing to load bundle', async () => {
       const browser = await webdriver(context.appPort, '/invalid-link')
-      await browser.eval(() => (window.beforeNav = 'hi'))
+      await browser.eval(() => {
+        // @ts-expect-error untyped property on `window`
+        window.beforeNav = 'hi'
+      })
       await browser.elementByCss('#to-nonexistent').click()
       await check(() => browser.elementByCss('#errorStatusCode').text(), /404/)
-      expect(await browser.eval(() => window.beforeNav)).not.toBe('hi')
+      expect(
+        await browser.eval(
+          // @ts-expect-error untyped property on `window`
+          () => window.beforeNav
+        )
+      ).not.toBe('hi')
     })
 
     if (isProd) {
@@ -52,14 +60,22 @@ const clientNavigation = (context, isProd = false) => {
             })
           },
         })
-        await browser.eval(() => (window.beforeNav = 'hi'))
+        await browser.eval(() => {
+          // @ts-expect-error untyped property on `window`
+          window.beforeNav = 'hi'
+        })
         await browser.elementByCss('#to-missing').click()
 
         await retry(async () => {
           expect(await browser.url()).toContain('/missing')
         })
         expect(await browser.elementByCss('#missing').text()).toBe('poof')
-        expect(await browser.eval(() => window.beforeNav)).not.toBe('hi')
+        expect(
+          await browser.eval(
+            // @ts-expect-error untyped property on `window`
+            () => window.beforeNav
+          )
+        ).not.toBe('hi')
       })
     }
   })
