@@ -13,10 +13,7 @@ describe('typeof window replace', () => {
     () => {
       beforeAll(async () => {
         await nextBuild(appDir)
-        buildManifest = require(path.join(
-          appDir,
-          '.next/build-manifest.json'
-        ), 'utf8')
+        buildManifest = require(path.join(appDir, '.next/build-manifest.json'))
       })
 
       it('Replaces `typeof window` with object for client code', async () => {

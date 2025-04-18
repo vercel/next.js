@@ -80,7 +80,7 @@ function runTests(startServer = nextStart) {
     expect(res.status).toBe(200)
 
     const originalCookies = res.headers.get('set-cookie').split(',')
-    const cookies = originalCookies.map(cookie.parse)
+    const cookies = originalCookies.map((s) => cookie.parse(s))
 
     expect(originalCookies.every((c) => c.includes('; Secure;'))).toBe(true)
 
@@ -106,7 +106,7 @@ function runTests(startServer = nextStart) {
     expect(res.status).toBe(200)
 
     const originalCookies = res.headers.get('set-cookie').split(',')
-    const cookies = originalCookies.map(cookie.parse)
+    const cookies = originalCookies.map((s) => cookie.parse(s))
 
     expect(originalCookies.every((c) => c.includes('; Secure;'))).toBe(true)
 
@@ -126,7 +126,7 @@ function runTests(startServer = nextStart) {
     expect(res.status).toBe(200)
 
     const originalCookies = res.headers.get('set-cookie').split(',')
-    const cookies = originalCookies.map(cookie.parse)
+    const cookies = originalCookies.map((s) => cookie.parse(s))
 
     expect(originalCookies.every((c) => c.includes('; Secure;'))).toBe(true)
 
@@ -189,7 +189,7 @@ function runTests(startServer = nextStart) {
       .get('set-cookie')
       .replace(/(=(?!Lax)\w{3}),/g, '$1')
       .split(',')
-      .map(cookie.parse)
+      .map((s) => cookie.parse(s))
 
     expect(cookies.length).toBe(2)
     expect(cookies[0]).toMatchObject({
@@ -221,7 +221,7 @@ function runTests(startServer = nextStart) {
       .get('set-cookie')
       .replace(/(=(?!Lax)\w{3}),/g, '$1')
       .split(',')
-      .map(cookie.parse)
+      .map((s) => cookie.parse(s))
 
     expect(cookies.length).toBe(2)
     expect(cookies[0]).toMatchObject({
@@ -286,7 +286,7 @@ describe('Prerender Preview Mode', () => {
         const cookies = res.headers
           .get('set-cookie')
           .split(',')
-          .map(cookie.parse)
+          .map((s) => cookie.parse(s))
 
         expect(cookies.length).toBe(2)
         previewCookieString =
@@ -324,7 +324,7 @@ describe('Prerender Preview Mode', () => {
           .get('set-cookie')
           .replace(/(=(?!Lax)\w{3}),/g, '$1')
           .split(',')
-          .map(cookie.parse)
+          .map((s) => cookie.parse(s))
 
         expect(cookies.length).toBe(2)
       })

@@ -306,7 +306,7 @@ describe.each([
   })
 
   describe('with middleware $title', () => {
-    beforeAll(() => startServer(undefined, undefined, useHttps))
+    beforeAll(() => startServer(undefined, undefined))
     afterAll(() => killApp(server))
 
     it('should read the expected url protocol in middleware', async () => {
