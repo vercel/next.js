@@ -5,7 +5,7 @@ use std::{
     thread::available_parallelism,
 };
 
-use bitfield::*;
+use bitfield::bitfield;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use turbo_tasks::{FxDashMap, TaskId};
 
@@ -70,6 +70,7 @@ impl Iterator for TaskDataCategoryIterator {
 }
 
 bitfield! {
+    // Note: Due to alignment in InnerStorage it doesn't matter if this struct is 1 or 4 bytes.
     #[derive(Clone, Default)]
     pub struct InnerStorageState(u32);
     impl Debug;
@@ -625,6 +626,8 @@ impl Storage {
 
         let guard = Arc::new(SnapshotGuard { storage: self });
 
+        // The number of shards is much larger than the number of threads, so the effect of the
+        // locks held is negligible.
         let shards = self
             .modified
             .shards()
@@ -679,7 +682,7 @@ impl Storage {
     }
 
     /// End snapshot mode.
-    /// Items that have snapshots will be kepts as modified since they have been accessed during the
+    /// Items that have snapshots will be kept as modified since they have been accessed during the
     /// snapshot mode. Items that are modified will be removed and considered as unmodified.
     /// When items are accessed in future they will be marked as modified.
     fn end_snapshot(&self) {
