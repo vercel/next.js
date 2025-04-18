@@ -191,7 +191,10 @@ describe.each([
           basePath + '/hmr/style-dynamic-component'
         )
         const secondBrowser = await next.browser(
-          basePath + '/hmr/style-dynamic-component'
+          basePath + '/hmr/style-dynamic-component',
+          {
+            inefficientlyCreateAdditionalBrowserInstance: true,
+          }
         )
         const pagePath = join('components', 'hmr', 'dynamic.js')
         const originalContent = await next.readFile(pagePath)

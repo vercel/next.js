@@ -373,10 +373,10 @@ describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
             }
           `,
           ],
-        ])
+        ]),
+        pathPrefix + path
       )
 
-      await next.browser(pathPrefix + path)
       await retry(() => {
         const logs = getLogs()
         expect(logs).toContainEqual(

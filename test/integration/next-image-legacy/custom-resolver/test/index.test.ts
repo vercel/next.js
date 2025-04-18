@@ -7,15 +7,16 @@ import webdriver from 'next-webdriver'
 const appDir = join(__dirname, '../')
 let appPort
 let app
-let browser
 
-function runTests() {
+function runTests(href: string) {
   it('Should use a custom resolver for image URL', async () => {
+    const browser = await webdriver(appPort, href)
     expect(await browser.elementById('basic-image').getAttribute('src')).toBe(
       'https://customresolver.com/foo.jpg?w~~1024,q~~60'
     )
   })
   it('should add a srcset based on the custom resolver', async () => {
+    const browser = await webdriver(appPort, href)
     expect(
       await browser.elementById('basic-image').getAttribute('srcset')
     ).toBe(
@@ -23,6 +24,7 @@ function runTests() {
     )
   })
   it('should support the unoptimized attribute', async () => {
+    const browser = await webdriver(appPort, href)
     expect(
       await browser.elementById('unoptimized-image').getAttribute('src')
     ).toBe('https://arbitraryurl.com/foo.jpg')
@@ -40,22 +42,10 @@ describe('Custom Resolver Tests', () => {
       })
       afterAll(() => killApp(app))
       describe('SSR Custom Loader Tests', () => {
-        beforeAll(async () => {
-          browser = await webdriver(appPort, '/')
-        })
-        afterAll(async () => {
-          browser = null
-        })
-        runTests()
+        runTests('/')
       })
       describe('Client-side Custom Loader Tests', () => {
-        beforeAll(async () => {
-          browser = await webdriver(appPort, '/client-side')
-        })
-        afterAll(async () => {
-          browser = null
-        })
-        runTests()
+        runTests('/client-side')
       })
     }
   )

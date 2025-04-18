@@ -19,7 +19,7 @@ describe('i18-preferred-locale-redirect', () => {
     })
 
     const goToIndex = async () => {
-      await browser.get(next.url)
+      await browser.get('/')
     }
 
     await expect(goToIndex()).resolves.not.toThrow(/ERR_TOO_MANY_REDIRECTS/)

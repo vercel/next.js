@@ -210,7 +210,7 @@ describe('app dir - basic', () => {
   ])(
     'should match redirects in pages correctly $path',
     async ({ pathname }) => {
-      let browser = await next.browser('/')
+      const browser = await next.browser('/')
 
       await browser.eval(`next.router.push("${pathname}")`)
       await check(async () => {
@@ -219,7 +219,7 @@ describe('app dir - basic', () => {
       }, 'yes')
 
       if (pathname.includes('/blog')) {
-        browser = await next.browser('/blog/first')
+        await browser.get('/blog/first')
         await browser.eval('window.beforeNav = 1')
 
         // check 5 times to ensure a reload didn't occur
@@ -1483,8 +1483,9 @@ describe('app dir - basic', () => {
       it('server component', async () => {
         // trigger compilation of 404 here first.
         // Any other page being compiled between refresh of a page would get us fresh modules i.e. not catch previous regressions where we restored the wrong fetch.
-        await next.browser('/_not-found')
-        const browser = await next.browser('/react-fetch/server-component')
+        const browser = await next.browser('/_not-found')
+
+        await browser.get('/react-fetch/server-component')
         const val1 = await browser.elementByCss('#value-1').text()
         const val2 = await browser.elementByCss('#value-2').text()
         expect(val1).toBe(val2)
@@ -1788,7 +1789,7 @@ describe('app dir - basic', () => {
       next.buildCommand = `pnpm next build --experimental-build-mode=generate`
       await next.start()
 
-      let browser = await next.browser('/')
+      const browser = await next.browser('/')
 
       expect(await browser.elementByCss('#my-env').text()).toBe(
         next.env.NEXT_PUBLIC_TEST_ID
@@ -1797,7 +1798,7 @@ describe('app dir - basic', () => {
         `${next.env.NEXT_PUBLIC_TEST_ID}-suffix`
       )
 
-      browser = await next.browser('/dashboard/deployments/123')
+      await browser.get('/dashboard/deployments/123')
 
       expect(await browser.elementByCss('#my-env').text()).toBe(
         next.env.NEXT_PUBLIC_TEST_ID

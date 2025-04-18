@@ -14,13 +14,12 @@ import { join } from 'path'
 const appDir = join(__dirname, '../')
 let appPort
 let app
-let browser
-let html
 
 const indexPage = new File(join(appDir, 'pages/static-img.js'))
 
 const runTests = () => {
   it('Should allow an image with a static src to omit height and width', async () => {
+    const browser = await webdriver(appPort, '/static-img')
     expect(await browser.elementById('basic-static')).toBeTruthy()
     expect(await browser.elementById('blur-png')).toBeTruthy()
     expect(await browser.elementById('blur-webp')).toBeTruthy()
@@ -33,6 +32,7 @@ const runTests = () => {
     expect(await browser.elementById('static-unoptimized')).toBeTruthy()
   })
   it('Should use immutable cache-control header for static import', async () => {
+    const browser = await webdriver(appPort, '/static-img')
     await browser.eval(
       `document.getElementById("basic-static").scrollIntoView()`
     )
@@ -46,6 +46,7 @@ const runTests = () => {
     )
   })
   it('Should use immutable cache-control header even when unoptimized', async () => {
+    const browser = await webdriver(appPort, '/static-img')
     await browser.eval(
       `document.getElementById("static-unoptimized").scrollIntoView()`
     )
@@ -59,13 +60,16 @@ const runTests = () => {
     )
   })
   it('Should automatically provide an image height and width', async () => {
+    const html = await renderViaHTTP(appPort, '/static-img')
     expect(html).toContain('width:400px;height:300px')
   })
   it('Should allow provided width and height to override intrinsic', async () => {
+    const html = await renderViaHTTP(appPort, '/static-img')
     expect(html).toContain('width:200px;height:200px')
     expect(html).not.toContain('width:400px;height:400px')
   })
   it('Should add a blur placeholder to statically imported jpg', async () => {
+    const html = await renderViaHTTP(appPort, '/static-img')
     const $ = cheerio.load(html)
     if (process.env.IS_TURBOPACK_TEST) {
       expect($('#basic-static').attr('style')).toMatchInlineSnapshot(
@@ -78,6 +82,7 @@ const runTests = () => {
     }
   })
   it('Should add a blur placeholder to statically imported png', async () => {
+    const html = await renderViaHTTP(appPort, '/static-img')
     const $ = cheerio.load(html)
     if (process.env.IS_TURBOPACK_TEST) {
       expect($('#basic-static')[2].attribs.style).toMatchInlineSnapshot(
@@ -91,6 +96,7 @@ const runTests = () => {
   })
 
   it('should load direct imported image', async () => {
+    const browser = await webdriver(appPort, '/static-img')
     const src = await browser.elementById('basic-static').getAttribute('src')
     expect(src).toMatch(
       /_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest-rect(.+)\.jpg&w=828&q=75/
@@ -101,6 +107,7 @@ const runTests = () => {
   })
 
   it('should load staticprops imported image', async () => {
+    const browser = await webdriver(appPort, '/static-img')
     const src = await browser
       .elementById('basic-staticprop')
       .getAttribute('src')
@@ -150,8 +157,6 @@ describe('Static Image Component Tests', () => {
         await nextBuild(appDir)
         appPort = await findPort()
         app = await nextStart(appDir, appPort)
-        html = await renderViaHTTP(appPort, '/static-img')
-        browser = await webdriver(appPort, '/static-img')
       })
       afterAll(async () => {
         await killApp(app)

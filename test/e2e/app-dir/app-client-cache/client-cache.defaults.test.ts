@@ -17,7 +17,7 @@ describe('app dir client cache semantics (default semantics)', () => {
   if (isNextDev) {
     // dev doesn't support prefetch={true}, so this just performs a basic test to make sure data is reused for 30s
     it('should return fresh data every navigation', async () => {
-      let browser = await next.browser('/', browserConfigWithFixedTime)
+      const browser = await next.browser('/', browserConfigWithFixedTime)
 
       // navigate to prefetch-auto page
       await browser.elementByCss('[href="/1"]').click()

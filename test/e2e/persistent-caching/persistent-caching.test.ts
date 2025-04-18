@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { waitFor } from 'next-test-utils'
+import type { Playwright } from 'next-webdriver'
 
 describe('persistent-caching', () => {
   process.env.NEXT_DEPLOYMENT_ID = '' + Date.now()
@@ -12,9 +13,11 @@ describe('persistent-caching', () => {
     return
   }
 
-  async function restartCycle() {
+  async function restartCycle(browser: Playwright) {
     await stop()
     await start()
+    // TODO: handle changed ports automatically when restarting the server
+    browser.setBaseUrl(next.url)
   }
 
   async function stop() {
@@ -35,68 +38,49 @@ describe('persistent-caching', () => {
   }
 
   it('should persistent cache loaders', async () => {
-    let appTimestamp, appClientTimestamp, pagesTimestamp
-    {
-      const browser = await next.browser('/')
-      appTimestamp = await browser.elementByCss('main').text()
-      await browser.close()
-    }
-    {
-      const browser = await next.browser('/client')
-      appClientTimestamp = await browser.elementByCss('main').text()
-      await browser.close()
-    }
-    {
-      const browser = await next.browser('/pages')
-      pagesTimestamp = await browser.elementByCss('main').text()
-      await browser.close()
-    }
-    await restartCycle()
+    const browser = await next.browser('/')
 
-    {
-      const browser = await next.browser('/')
-      // TODO Persistent Caching for webpack dev server is broken
-      expect(await browser.elementByCss('main').text()).toBe(appTimestamp)
-      await browser.close()
-    }
-    {
-      const browser = await next.browser('/client')
-      // TODO Persistent Caching for webpack dev server is broken
-      expect(await browser.elementByCss('main').text()).toBe(appClientTimestamp)
-      await browser.close()
-    }
-    {
-      const browser = await next.browser('/pages')
-      // TODO Persistent Caching for webpack dev server is broken
-      expect(await browser.elementByCss('main').text()).toBe(pagesTimestamp)
-      await browser.close()
-    }
+    const appTimestamp = await browser.elementByCss('main').text()
+
+    await browser.get('/client')
+    const appClientTimestamp = await browser.elementByCss('main').text()
+
+    await browser.get('/pages')
+    const pagesTimestamp = await browser.elementByCss('main').text()
+
+    await restartCycle(browser)
+
+    await browser.get('/')
+    // TODO Persistent Caching for webpack dev server is broken
+    expect(await browser.elementByCss('main').text()).toBe(appTimestamp)
+
+    await browser.get('/client')
+    // TODO Persistent Caching for webpack dev server is broken
+    expect(await browser.elementByCss('main').text()).toBe(appClientTimestamp)
+
+    await browser.get('/pages')
+    // TODO Persistent Caching for webpack dev server is broken
+    expect(await browser.elementByCss('main').text()).toBe(pagesTimestamp)
   })
 
   it.each([1, 2, 3])(
     'should allow to change files while stopped (run %d)',
     async (_i) => {
+      // TODO: is navigating to this page before the first assertion (which navigates to it again) valid?
+      const browser = await next.browser('/', { waitHydration: false })
+
       async function checkInitial() {
-        {
-          const browser = await next.browser('/')
-          expect(await browser.elementByCss('p').text()).toBe('hello world')
-          await browser.close()
-        }
-        {
-          const browser = await next.browser('/client')
-          expect(await browser.elementByCss('p').text()).toBe('hello world')
-          await browser.close()
-        }
-        {
-          const browser = await next.browser('/pages')
-          expect(await browser.elementByCss('p').text()).toBe('hello world')
-          await browser.close()
-        }
-        {
-          const browser = await next.browser('/remove-me')
-          expect(await browser.elementByCss('p').text()).toBe('hello world')
-          await browser.close()
-        }
+        await browser.get('/')
+        expect(await browser.elementByCss('p').text()).toBe('hello world')
+
+        await browser.get('/client')
+        expect(await browser.elementByCss('p').text()).toBe('hello world')
+
+        await browser.get('/pages')
+        expect(await browser.elementByCss('p').text()).toBe('hello world')
+
+        await browser.get('/remove-me')
+        expect(await browser.elementByCss('p').text()).toBe('hello world')
       }
 
       await checkInitial()
@@ -104,32 +88,24 @@ describe('persistent-caching', () => {
       await stop()
 
       async function checkChanges() {
-        {
-          const browser = await next.browser('/')
-          expect(await browser.elementByCss('p').text()).toBe(
-            'hello persistent caching'
-          )
-          await browser.close()
-        }
-        {
-          const browser = await next.browser('/client')
-          expect(await browser.elementByCss('p').text()).toBe(
-            'hello persistent caching'
-          )
-          await browser.close()
-        }
-        {
-          const browser = await next.browser('/pages')
-          expect(await browser.elementByCss('p').text()).toBe(
-            'hello persistent caching'
-          )
-          await browser.close()
-        }
-        {
-          const browser = await next.browser('/add-me')
-          expect(await browser.elementByCss('p').text()).toBe('hello world')
-          await browser.close()
-        }
+        await browser.get('/')
+        expect(await browser.elementByCss('p').text()).toBe(
+          'hello persistent caching'
+        )
+
+        await browser.get('/client')
+        expect(await browser.elementByCss('p').text()).toBe(
+          'hello persistent caching'
+        )
+
+        await browser.get('/pages')
+        expect(await browser.elementByCss('p').text()).toBe(
+          'hello persistent caching'
+        )
+
+        await browser.get('/add-me')
+        expect(await browser.elementByCss('p').text()).toBe('hello world')
+        await browser.close()
       }
 
       await next.patchFile(
@@ -159,7 +135,7 @@ describe('persistent-caching', () => {
                     await checkChanges()
                     // Some no-op change builds
                     for (let i = 0; i < 2; i++) {
-                      await restartCycle()
+                      await restartCycle(browser)
                       await checkChanges()
                     }
                     await stop()

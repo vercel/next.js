@@ -87,6 +87,8 @@ function runTests(isDev) {
         encodeURIComponent('商業日語商業日語'),
       ]
 
+      const browser = await webdriver(appPort, '/')
+
       for (const mode of modePaths) {
         for (let i = 0; i < urlPaths.length; i++) {
           const testSlug = urlPaths[i]
@@ -127,7 +129,7 @@ function runTests(isDev) {
               )
             }
 
-            const browser = await webdriver(appPort, `/${mode}/${testSlug}`)
+            await browser.get(`/${mode}/${testSlug}`)
 
             expect(
               JSON.parse(await browser.elementByCss('#props').text()).params
@@ -207,11 +209,12 @@ function runTests(isDev) {
   })
 
   it('should render correctly in the browser for prerender paths', async () => {
+    const browser = await webdriver(appPort, `/`)
     for (let i = 0; i < urlPaths.length; i++) {
       const testSlug = urlPaths[i]
 
       for (const mode of modePaths) {
-        const browser = await webdriver(appPort, `/${mode}/${testSlug}`)
+        await browser.get(`/${mode}/${testSlug}`)
 
         expect(
           JSON.parse(await browser.elementByCss('#props').text()).params
@@ -233,9 +236,10 @@ function runTests(isDev) {
   })
 
   it('should navigate client-side correctly with interpolating', async () => {
+    const browser = await webdriver(appPort, '/')
     for (const mode of modePaths) {
       const testSlug = urlPaths[0]
-      const browser = await webdriver(appPort, `/${mode}/${testSlug}`)
+      await browser.get(`/${mode}/${testSlug}`)
 
       expect(
         JSON.parse(await browser.elementByCss('#props').text()).params
@@ -280,9 +284,10 @@ function runTests(isDev) {
   })
 
   it('should navigate client-side correctly with string href', async () => {
+    const browser = await webdriver(appPort, '/')
     for (const mode of modePaths) {
       const testSlug = urlPaths[0]
-      const browser = await webdriver(appPort, `/${mode}/${testSlug}`)
+      await browser.get(`/${mode}/${testSlug}`)
 
       expect(
         JSON.parse(await browser.elementByCss('#props').text()).params

@@ -101,7 +101,7 @@ describe('searchparams-reuse-loading', () => {
       )
 
       // The other link would have attempted to use the aliased entry. Ensure the browser ends up on the correct page
-      await browser.loadPage(`${next.url}/mpa-navs`)
+      await browser.loadPage('/mpa-navs')
       await retry(async () => {
         expect(await browser.url()).toContain('/mpa-navs')
       })
@@ -121,7 +121,7 @@ describe('searchparams-reuse-loading', () => {
         expect(await browser.url()).toContain('/route-handler?param=1')
       })
 
-      await browser.loadPage(`${next.url}/mpa-navs`)
+      await browser.loadPage('/mpa-navs')
       await retry(async () => {
         expect(await browser.url()).toContain('/mpa-navs')
       })
@@ -148,7 +148,8 @@ describe('searchparams-reuse-loading', () => {
         'Waiting for pages-dir?param=1 to load'
       )
 
-      await browser.loadPage(`${next.url}/mpa-navs`)
+      // TODO: get()
+      await browser.loadPage('/mpa-navs')
       await browser.elementByCss("[href='/pages-dir?param=2']").click()
 
       await retry(

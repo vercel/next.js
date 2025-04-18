@@ -1,58 +1,33 @@
 import { getFullUrl, waitFor } from 'next-test-utils'
-import os from 'os'
-import { Playwright } from './browsers/playwright'
-import { Page } from 'playwright'
+import type { Playwright, NavigationOptions } from './browsers/playwright'
+import type { Page } from 'playwright'
+import type {
+  PlaywrightManager,
+  BrowserOptions,
+  BrowserContextOptions,
+} from './browsers/utils/playwright-manager'
+import { createAfterCurrentTest } from './browsers/utils/after-current-test'
 
 export type { Playwright }
 
-if (!process.env.TEST_FILE_PATH) {
-  process.env.TEST_FILE_PATH = module.parent!.filename
+let playwrightManager: PlaywrightManager | null = null
+const lazilyInitializePlaywrightManager = async () => {
+  const { PlaywrightManager } = await import('./browsers/playwright')
+  playwrightManager = new PlaywrightManager()
+  return playwrightManager
 }
 
-let deviceIP: string
-const isBrowserStack = !!process.env.BROWSERSTACK
-;(global as any).browserName = process.env.BROWSER_NAME || 'chrome'
+const afterCurrentTest = createAfterCurrentTest()
 
-if (isBrowserStack) {
-  const nets = os.networkInterfaces()
-  for (const key of Object.keys(nets)) {
-    let done = false
-
-    for (const item of nets[key]!) {
-      if (item.family === 'IPv4' && !item.internal) {
-        deviceIP = item.address
-        done = true
-        break
-      }
-    }
-    if (done) break
-  }
-}
-
-let browserTeardown: (() => Promise<void>)[] = []
-let browserQuit: (() => Promise<void>) | undefined
-
-if (typeof afterAll === 'function') {
-  afterAll(async () => {
-    await Promise.all(browserTeardown.map((f) => f())).catch((e) =>
-      console.error('browser teardown', e)
+afterAll(async () => {
+  if (playwrightManager) {
+    await playwrightManager.closeWithReason(
+      'cleaning up playwright after all tests are finished'
     )
+  }
+})
 
-    if (browserQuit) {
-      await browserQuit()
-    }
-  })
-}
-
-export interface WebdriverOptions {
-  /**
-   * whether to wait for React hydration to finish
-   */
-  waitHydration?: boolean
-  /**
-   * allow retrying hydration wait if reload occurs
-   */
-  retryWaitHydration?: boolean
+export type WebdriverOptions = {
   /**
    * disable cache for page load
    */
@@ -64,26 +39,21 @@ export interface WebdriverOptions {
    */
   beforePageLoad?: (page: Page) => void
   /**
-   * browser locale
-   */
-  locale?: string
-  /**
    * disable javascript
    */
   disableJavaScript?: boolean
-  headless?: boolean
-  /**
-   * ignore https errors
-   */
-  ignoreHTTPSErrors?: boolean
   cpuThrottleRate?: number
   pushErrorAsConsoleLog?: boolean
-
   /**
-   * Override the user agent
+   * @deprecated Calling `next.browser()` multiple times in a single test is not recommended.
+   * If you need to navigate to a new page, use `browser.get(path)`
+   *
+   * If you REALLY need multiple browsers running in parallel, set this option to true.
    */
-  userAgent?: string
-}
+  inefficientlyCreateAdditionalBrowserInstance?: boolean
+} & Partial<Omit<BrowserOptions, 'enableTracing'>> &
+  Partial<Omit<BrowserContextOptions, 'javaScriptEnabled'>> &
+  NavigationOptions
 
 /**
  *
@@ -94,49 +64,53 @@ export interface WebdriverOptions {
 export default async function webdriver(
   appPortOrUrl: string | number,
   url: string,
-  options?: WebdriverOptions
+  options: WebdriverOptions = {}
 ): Promise<Playwright> {
-  const defaultOptions = {
-    waitHydration: true,
-    retryWaitHydration: false,
-    disableCache: false,
-  }
-  options = Object.assign(defaultOptions, options)
   const {
-    waitHydration,
-    retryWaitHydration,
-    disableCache,
+    waitHydration = true,
+    retryWaitHydration = false,
+    disableCache = false,
     beforePageLoad,
-    locale,
-    disableJavaScript,
-    ignoreHTTPSErrors,
-    headless,
-    cpuThrottleRate,
-    pushErrorAsConsoleLog,
-    userAgent,
+    cpuThrottleRate = undefined,
+    pushErrorAsConsoleLog = false,
+
+    disableJavaScript = false,
+    inefficientlyCreateAdditionalBrowserInstance:
+      createSecondaryInstance = false,
+    ...rest
   } = options
 
-  const { Playwright, quit } = await import('./browsers/playwright')
-  browserQuit = quit
+  const playwrightManager = await lazilyInitializePlaywrightManager()
 
-  const browser = new Playwright()
-  const browserName = process.env.BROWSER_NAME || 'chrome'
-  await browser.setup(
-    browserName,
-    locale!,
-    !disableJavaScript,
-    Boolean(ignoreHTTPSErrors),
-    // allow headless to be overwritten for a particular test
-    typeof headless !== 'undefined' ? headless : !!process.env.HEADLESS,
-    userAgent
-  )
-  ;(global as any).browserName = browserName
+  // TODO: this can change if the next server is stopped and started again
+  // we have some tests work around this:
+  // - test/development/app-dir/dev-indicator/hide-button.test.ts
+  // - test/e2e/persistent-caching/persistent-caching.test.ts
+  const baseUrl = getFullUrl(appPortOrUrl, '', 'localhost')
 
-  const fullUrl = getFullUrl(
-    appPortOrUrl,
-    url,
-    isBrowserStack ? deviceIP : 'localhost'
-  )
+  const browser = await playwrightManager.createInstance({
+    ...rest,
+    javaScriptEnabled: !disableJavaScript,
+    createSecondaryInstance,
+  })
+  browser.setBaseUrl(baseUrl)
+
+  afterCurrentTest(async () => {
+    if (!browser.isClosed()) {
+      await playwrightManager.closeInstance(
+        browser,
+        'cleaning up playwright after the test is finished'
+      )
+    }
+  })
+  ;(global as any).browserName =
+    playwrightManager.sharedState!.browserOptions.browserName
+
+  // TODO: `appPortOrUrl` can change if the next server is stopped and started again
+  // some tests work around this:
+  // - test/production/prerender-prefetch/index.test.ts
+  // - test/development/app-dir/dev-indicator/hide-button.test.ts
+  const fullUrl = getFullUrl(appPortOrUrl, url, 'localhost')
 
   console.log(`\n> Loading browser with ${fullUrl}\n`)
 
@@ -145,61 +119,10 @@ export default async function webdriver(
     cpuThrottleRate,
     beforePageLoad,
     pushErrorAsConsoleLog,
+    waitHydration,
+    retryWaitHydration,
   })
   console.log(`\n> Loaded browser with ${fullUrl}\n`)
-
-  browserTeardown.push(browser.close.bind(browser))
-
-  // Wait for application to hydrate
-  if (waitHydration) {
-    console.log(`\n> Waiting hydration for ${fullUrl}\n`)
-
-    const checkHydrated = async () => {
-      await browser.eval(() => {
-        return new Promise<void>((callback) => {
-          // if it's not a Next.js app return
-          if (
-            !document.documentElement.innerHTML.includes('__NEXT_DATA__') &&
-            // @ts-ignore next exists on window if it's a Next.js page.
-            typeof ((window as any).next && (window as any).next.version) ===
-              'undefined'
-          ) {
-            console.log('Not a next.js page, resolving hydrate check')
-            callback()
-          }
-
-          // TODO: should we also ensure router.isReady is true
-          // by default before resolving?
-          if ((window as any).__NEXT_HYDRATED) {
-            console.log('Next.js page already hydrated')
-            callback()
-          } else {
-            let timeout = setTimeout(callback, 10 * 1000)
-            ;(window as any).__NEXT_HYDRATED_CB = function () {
-              clearTimeout(timeout)
-              console.log('Next.js hydrate callback fired')
-              callback()
-            }
-          }
-        })
-      })
-    }
-
-    try {
-      await checkHydrated()
-    } catch (err) {
-      if (retryWaitHydration) {
-        // re-try in case the page reloaded during check
-        await new Promise((resolve) => setTimeout(resolve, 2000))
-        await checkHydrated()
-      } else {
-        console.error('failed to check hydration')
-        throw err
-      }
-    }
-
-    console.log(`\n> Hydration complete for ${fullUrl}\n`)
-  }
 
   // This is a temporary workaround for turbopack starting watching too late.
   // So we delay file changes to give it some time

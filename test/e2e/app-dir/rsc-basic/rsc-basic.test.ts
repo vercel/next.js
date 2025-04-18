@@ -373,7 +373,7 @@ describe('app dir - rsc basics', () => {
     const browser = await next.browser('/edge/dynamic')
     const indexUrl = await browser.url()
 
-    await browser.loadPage(`${next.url}/edge/dynamic/123`, {
+    await browser.loadPage('/edge/dynamic/123', {
       disableCache: false,
     })
 
@@ -470,7 +470,7 @@ describe('app dir - rsc basics', () => {
       ]
     `)
 
-    await browser.loadPage(next.url + '/edge-pages-react')
+    await browser.loadPage('/edge-pages-react')
     const browserEdgePagesReactVersions = await browser.eval(`
       [
         document.querySelector('#react').innerText,

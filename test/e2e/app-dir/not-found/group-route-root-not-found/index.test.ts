@@ -20,7 +20,7 @@ describe('app dir - group routes with root not-found', () => {
     const browser = await next.browser('/group-dynamic/123')
     expect(await browser.elementByCss('p').text()).toBe('group-dynamic [id]')
 
-    await browser.loadPage(next.url + '/group-dynamic/404')
+    await browser.loadPage('/group-dynamic/404')
     expect(await browser.elementByCss('p').text()).toBe('Not found placeholder')
     expect(await browser.elementByCss('h1').text()).toBe('Root layout')
   })

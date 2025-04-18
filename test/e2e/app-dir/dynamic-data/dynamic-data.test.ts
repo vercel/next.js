@@ -175,45 +175,29 @@ describe('dynamic-data with dynamic = "error"', () => {
     })
 
     it('displays redbox when `dynamic = "error"` and dynamic data is read in dev', async () => {
-      let browser = await next.browser('/cookies?foo=foosearch')
-      try {
-        await assertHasRedbox(browser)
-        expect(await getRedboxHeader(browser)).toMatch(
-          'Error: Route /cookies with `dynamic = "error"` couldn\'t be rendered statically because it used `cookies`'
-        )
-      } finally {
-        await browser.close()
-      }
+      const browser = await next.browser('/cookies?foo=foosearch')
+      await assertHasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toMatch(
+        'Error: Route /cookies with `dynamic = "error"` couldn\'t be rendered statically because it used `cookies`'
+      )
 
-      browser = await next.browser('/connection')
-      try {
-        await assertHasRedbox(browser)
-        expect(await getRedboxHeader(browser)).toMatch(
-          'Error: Route /connection with `dynamic = "error"` couldn\'t be rendered statically because it used `connection`'
-        )
-      } finally {
-        await browser.close()
-      }
+      await browser.get('/connection')
+      await assertHasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toMatch(
+        'Error: Route /connection with `dynamic = "error"` couldn\'t be rendered statically because it used `connection`'
+      )
 
-      browser = await next.browser('/headers?foo=foosearch')
-      try {
-        await assertHasRedbox(browser)
-        expect(await getRedboxHeader(browser)).toMatch(
-          'Error: Route /headers with `dynamic = "error"` couldn\'t be rendered statically because it used `headers`'
-        )
-      } finally {
-        await browser.close()
-      }
+      await browser.get('/headers?foo=foosearch')
+      await assertHasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toMatch(
+        'Error: Route /headers with `dynamic = "error"` couldn\'t be rendered statically because it used `headers`'
+      )
 
-      browser = await next.browser('/search?foo=foosearch')
-      try {
-        await assertHasRedbox(browser)
-        expect(await getRedboxHeader(browser)).toMatch(
-          'Error: Route /search with `dynamic = "error"` couldn\'t be rendered statically because it used `searchParams.then`'
-        )
-      } finally {
-        await browser.close()
-      }
+      await browser.get('/search?foo=foosearch')
+      await assertHasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toMatch(
+        'Error: Route /search with `dynamic = "error"` couldn\'t be rendered statically because it used `searchParams.then`'
+      )
     })
   } else {
     it('error when the build when `dynamic = "error"` and dynamic data is read', async () => {
@@ -266,35 +250,23 @@ describe('dynamic-data inside cache scope', () => {
     })
 
     it('displays redbox when accessing dynamic data inside a cache scope', async () => {
-      let browser = await next.browser('/cookies')
-      try {
-        await assertHasRedbox(browser)
-        expect(await getRedboxHeader(browser)).toMatch(
-          'Error: Route /cookies used "cookies" inside a function cached with "unstable_cache(...)".'
-        )
-      } finally {
-        await browser.close()
-      }
+      const browser = await next.browser('/cookies')
+      await assertHasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toMatch(
+        'Error: Route /cookies used "cookies" inside a function cached with "unstable_cache(...)".'
+      )
 
-      browser = await next.browser('/connection')
-      try {
-        await assertHasRedbox(browser)
-        expect(await getRedboxHeader(browser)).toMatch(
-          'Error: Route /connection used "connection" inside a function cached with "unstable_cache(...)".'
-        )
-      } finally {
-        await browser.close()
-      }
+      await browser.get('/connection')
+      await assertHasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toMatch(
+        'Error: Route /connection used "connection" inside a function cached with "unstable_cache(...)".'
+      )
 
-      browser = await next.browser('/headers')
-      try {
-        await assertHasRedbox(browser)
-        expect(await getRedboxHeader(browser)).toMatch(
-          'Error: Route /headers used "headers" inside a function cached with "unstable_cache(...)".'
-        )
-      } finally {
-        await browser.close()
-      }
+      await browser.get('/headers')
+      await assertHasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toMatch(
+        'Error: Route /headers used "headers" inside a function cached with "unstable_cache(...)".'
+      )
     })
   } else {
     it('error when the build when accessing dynamic data inside a cache scope', async () => {

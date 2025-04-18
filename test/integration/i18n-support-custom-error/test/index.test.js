@@ -16,8 +16,9 @@ let appPort
 let app
 
 const runTests = () => {
-  it('should localized [slug] routes render correctly', async () => {
-    for (const locale of locales) {
+  it.each(locales)(
+    'should localized [slug] routes render correctly - %s',
+    async (locale) => {
       const browser = await webdriver(
         appPort,
         `${locale === 'en' ? '' : `/${locale}`}/my-custom-path-1`
@@ -31,10 +32,11 @@ const runTests = () => {
         title: 'my-custom-path-1',
       })
     }
-  })
+  )
 
-  it('handle custom http status maintaining locale props in custom _error page', async () => {
-    for (const locale of locales) {
+  it.each(locales)(
+    'handle custom http status maintaining locale props in custom _error page - %s',
+    async (locale) => {
       const browser = await webdriver(
         appPort,
         `${locale === 'en' ? '' : `/${locale}`}/my-custom-gone-path`
@@ -49,10 +51,11 @@ const runTests = () => {
         })
       )
     }
-  })
+  )
 
-  it('handle default http status maintaining locale props in custom _error page', async () => {
-    for (const locale of locales) {
+  it.each(locales)(
+    'handle default http status maintaining locale props in custom _error page - %s',
+    async (locale) => {
       const browser = await webdriver(
         appPort,
         `${locale === 'en' ? '' : `/${locale}`}/my-custom-gone-path/other-path`
@@ -67,10 +70,11 @@ const runTests = () => {
         })
       )
     }
-  })
+  )
 
-  it('should work also on client side routing', async () => {
-    for (const locale of locales) {
+  it.each(locales)(
+    'should work also on client side routing',
+    async (locale) => {
       const browser = await webdriver(
         appPort,
         `${locale === 'en' ? '' : `/${locale}`}/my-custom-path-1`
@@ -104,7 +108,7 @@ const runTests = () => {
         })
       )
     }
-  })
+  )
 }
 
 describe('Custom routes i18n custom error', () => {

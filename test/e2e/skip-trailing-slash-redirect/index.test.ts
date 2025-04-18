@@ -352,12 +352,12 @@ describe('skip-trailing-slash-redirect', () => {
   })
 
   it('should not apply trailing slash on load on client', async () => {
-    let browser = await webdriver(next.url, '/another')
+    const browser = await webdriver(next.url, '/another')
     await check(() => browser.eval('next.router.isReady ? "yes": "no"'), 'yes')
 
     expect(await browser.eval('location.pathname')).toBe('/another')
 
-    browser = await webdriver(next.url, '/another/')
+    await browser.get('/another/')
     await check(() => browser.eval('next.router.isReady ? "yes": "no"'), 'yes')
 
     expect(await browser.eval('location.pathname')).toBe('/another/')

@@ -3,6 +3,7 @@ import {
   assertHasDevToolsIndicator,
   assertNoDevToolsIndicator,
   openDevToolsIndicatorPopover,
+  retry,
   waitFor,
 } from 'next-test-utils'
 
@@ -27,10 +28,16 @@ describe('dev indicator - Hide DevTools Button', () => {
 
     await next.stop()
     await next.start()
+    // TODO: handle changed ports automatically when restarting the server
+    browser.setBaseUrl(next.url)
 
-    const browser2 = await next.browser('/')
-    await browser2.refresh()
-    await assertHasDevToolsIndicator(browser2)
+    await retry(
+      () => browser.get('/'),
+      undefined,
+      undefined,
+      'wait for dev server to start up again'
+    )
+    await assertHasDevToolsIndicator(browser)
   })
 
   it('should still hide the dev indicator after reloading the page', async () => {

@@ -13,6 +13,7 @@ import cheerio from 'cheerio'
 import { once } from 'events'
 import { Playwright } from 'next-webdriver'
 import escapeStringRegexp from 'escape-string-regexp'
+import { getCurrentTestTraceOutputDir } from '../test-trace-output'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
 export type InstallCommand =
@@ -486,25 +487,23 @@ export class NextInstance {
       await this.stop().catch(console.error)
 
       if (process.env.TRACE_PLAYWRIGHT) {
-        await fs
-          .cp(
-            path.join(this.testDir, '.next/trace'),
-            path.join(
-              __dirname,
-              '../../traces',
-              `${path
-                .relative(
-                  path.join(__dirname, '../../'),
-                  process.env.TEST_FILE_PATH!
-                )
-                .replace(/\//g, '-')}`,
-              `next-trace`
-            ),
-            { recursive: true }
-          )
-          .catch((e) => {
-            require('console').error(e)
-          })
+        const nextTraceFile = path.join(this.testDir, '.next/trace')
+        const traceFileExists = await fs
+          .stat(nextTraceFile)
+          .then((stat) => stat.isFile())
+          .catch(() => false)
+        if (traceFileExists) {
+          const traceOutputDir = getCurrentTestTraceOutputDir()
+          await fs.mkdir(traceOutputDir, { recursive: true })
+          await fs
+            .cp(nextTraceFile, path.join(traceOutputDir, `next-trace`))
+            .catch((err) => {
+              require('console').error(
+                'Failed to copy next trace to trace output dir:',
+                err
+              )
+            })
+        }
       }
 
       if (!process.env.NEXT_TEST_SKIP_CLEANUP) {

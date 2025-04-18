@@ -15,14 +15,12 @@ import { join } from 'path'
 const appDir = join(__dirname, '../')
 let appPort
 let app
-let browser
-let html
-let $
 
 const indexPage = new File(join(appDir, 'app/static-img/page.js'))
 
 const runTests = (isDev) => {
   it('Should allow an image with a static src to omit height and width', async () => {
+    const browser = await webdriver(appPort, '/static-img')
     expect(await browser.elementById('basic-static')).toBeTruthy()
     expect(await browser.elementById('blur-png')).toBeTruthy()
     expect(await browser.elementById('blur-webp')).toBeTruthy()
@@ -42,6 +40,7 @@ const runTests = (isDev) => {
   if (!isDev) {
     // cache-control is set to "0, no-store" in development mode
     it('Should use immutable cache-control header for static import', async () => {
+      const browser = await webdriver(appPort, '/static-img')
       await browser.eval(
         `document.getElementById("basic-static").scrollIntoView()`
       )
@@ -56,6 +55,7 @@ const runTests = (isDev) => {
     })
 
     it('Should use immutable cache-control header even when unoptimized', async () => {
+      const browser = await webdriver(appPort, '/static-img')
       await browser.eval(
         `document.getElementById("static-unoptimized").scrollIntoView()`
       )
@@ -70,6 +70,8 @@ const runTests = (isDev) => {
     })
   }
   it('should have <head> containing <meta name="viewport"> followed by <link rel="preload"> for priority image', async () => {
+    const html = await renderViaHTTP(appPort, '/static-img')
+    const $ = cheerio.load(html)
     let metaViewport = { index: 0, attribs: {} as any }
     let linkPreload = { index: 0, attribs: {} as any }
     $('head')
@@ -94,27 +96,37 @@ const runTests = (isDev) => {
     expect(metaViewport.index).toBeLessThan(linkPreload.index)
   })
   it('Should automatically provide an image height and width', async () => {
+    const html = await renderViaHTTP(appPort, '/static-img')
+    const $ = cheerio.load(html)
     const img = $('#basic-non-static')
     expect(img.attr('width')).toBe('400')
     expect(img.attr('height')).toBe('300')
   })
   it('should use width and height prop to override import', async () => {
+    const html = await renderViaHTTP(appPort, '/static-img')
+    const $ = cheerio.load(html)
     const img = $('#defined-width-and-height')
     expect(img.attr('width')).toBe('150')
     expect(img.attr('height')).toBe('150')
   })
   it('should use height prop to adjust both width and height', async () => {
+    const html = await renderViaHTTP(appPort, '/static-img')
+    const $ = cheerio.load(html)
     const img = $('#defined-height-only')
     expect(img.attr('width')).toBe('600')
     expect(img.attr('height')).toBe('350')
   })
   it('should use width prop to adjust both width and height', async () => {
+    const html = await renderViaHTTP(appPort, '/static-img')
+    const $ = cheerio.load(html)
     const img = $('#defined-width-only')
     expect(img.attr('width')).toBe('400')
     expect(img.attr('height')).toBe('233')
   })
 
   it('should add a data URL placeholder to an image', async () => {
+    const html = await renderViaHTTP(appPort, '/static-img')
+    const $ = cheerio.load(html)
     const style = $('#data-url-placeholder').attr('style')
     expect(style).toBe(
       `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;base64,Cjxzdmcgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImciPgogICAgICA8c3RvcCBzdG9wLWNvbG9yPSIjMzMzIiBvZmZzZXQ9IjIwJSIgLz4KICAgICAgPHN0b3Agc3RvcC1jb2xvcj0iIzIyMiIgb2Zmc2V0PSI1MCUiIC8+CiAgICAgIDxzdG9wIHN0b3AtY29sb3I9IiMzMzMiIG9mZnNldD0iNzAlIiAvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiMzMzMiIC8+CiAgPHJlY3QgaWQ9InIiIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSJ1cmwoI2cpIiAvPgogIDxhbmltYXRlIHhsaW5rOmhyZWY9IiNyIiBhdHRyaWJ1dGVOYW1lPSJ4IiBmcm9tPSItMjAwIiB0bz0iMjAwIiBkdXI9IjFzIiByZXBlYXRDb3VudD0iaW5kZWZpbml0ZSIgIC8+Cjwvc3ZnPg==")`
@@ -122,6 +134,8 @@ const runTests = (isDev) => {
   })
 
   it('should add a blur placeholder a statically imported jpg', async () => {
+    const html = await renderViaHTTP(appPort, '/static-img')
+    const $ = cheerio.load(html)
     const style = $('#basic-static').attr('style')
     if (isDev) {
       if (process.env.IS_TURBOPACK_TEST) {
@@ -147,6 +161,8 @@ const runTests = (isDev) => {
   })
 
   it('should add a blur placeholder a statically imported png', async () => {
+    const html = await renderViaHTTP(appPort, '/static-img')
+    const $ = cheerio.load(html)
     const style = $('#blur-png').attr('style')
     if (isDev) {
       if (process.env.IS_TURBOPACK_TEST) {
@@ -172,6 +188,8 @@ const runTests = (isDev) => {
   })
 
   it('should add a blur placeholder a statically imported png with fill', async () => {
+    const html = await renderViaHTTP(appPort, '/static-img')
+    const $ = cheerio.load(html)
     const style = $('#blur-png-fill').attr('style')
     if (isDev) {
       if (process.env.IS_TURBOPACK_TEST) {
@@ -197,6 +215,8 @@ const runTests = (isDev) => {
   })
 
   it('should add placeholder with blurDataURL and fill', async () => {
+    const html = await renderViaHTTP(appPort, '/static-img')
+    const $ = cheerio.load(html)
     const style = $('#blurdataurl-fill').attr('style')
     expect(style).toBe(
       `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' %3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3CfeColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/%3E%3CfeFlood x='0' y='0' width='100%25' height='100%25'/%3E%3CfeComposite operator='out' in='s'/%3E%3CfeComposite in2='SourceGraphic'/%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage width='100%25' height='100%25' x='0' y='0' preserveAspectRatio='none' style='filter: url(%23b);' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNM/s/wBwAFjwJgf8HDLgAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
@@ -204,6 +224,8 @@ const runTests = (isDev) => {
   })
 
   it('should add placeholder even when blurDataURL aspect ratio does not match width/height ratio', async () => {
+    const html = await renderViaHTTP(appPort, '/static-img')
+    const $ = cheerio.load(html)
     const style = $('#blurdataurl-ratio').attr('style')
     expect(style).toBe(
       `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 200'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3CfeColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/%3E%3CfeFlood x='0' y='0' width='100%25' height='100%25'/%3E%3CfeComposite operator='out' in='s'/%3E%3CfeComposite in2='SourceGraphic'/%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage width='100%25' height='100%25' x='0' y='0' preserveAspectRatio='none' style='filter: url(%23b);' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNM/s/wBwAFjwJgf8HDLgAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
@@ -211,6 +233,7 @@ const runTests = (isDev) => {
   })
 
   it('should load direct imported image', async () => {
+    const browser = await webdriver(appPort, '/static-img')
     const src = await browser.elementById('basic-static').getAttribute('src')
     expect(src).toMatch(
       /_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest-rect(.+)\.jpg&w=828&q=75/
@@ -258,9 +281,6 @@ describe('Static Image Component Tests', () => {
         await nextBuild(appDir)
         appPort = await findPort()
         app = await nextStart(appDir, appPort)
-        html = await renderViaHTTP(appPort, '/static-img')
-        $ = cheerio.load(html)
-        browser = await webdriver(appPort, '/static-img')
       })
       afterAll(async () => {
         await killApp(app)
@@ -274,9 +294,6 @@ describe('Static Image Component Tests', () => {
       beforeAll(async () => {
         appPort = await findPort()
         app = await launchApp(appDir, appPort)
-        html = await renderViaHTTP(appPort, '/static-img')
-        $ = cheerio.load(html)
-        browser = await webdriver(appPort, '/static-img')
       })
       afterAll(async () => {
         await killApp(app)

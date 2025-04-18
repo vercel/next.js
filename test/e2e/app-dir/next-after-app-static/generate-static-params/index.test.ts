@@ -38,7 +38,7 @@ describe('after() in generateStaticParams', () => {
         })
       })
 
-      await browser.get(new URL('/two/d', next.url).href)
+      await browser.get('/two/d')
       expect(await browser.elementByCss('body').text()).toBe('Param: d')
       await assertNoRedbox(browser)
       await retry(async () => {

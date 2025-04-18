@@ -16,6 +16,7 @@ import {
   nextStart,
   normalizeRegEx,
   check,
+  retry,
   getRedboxHeader,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
@@ -45,37 +46,40 @@ function runTests({ dev }) {
           .sort()
       }
 
-      const cacheKeys = await getCacheKeys()
-      expect(cacheKeys).toEqual(
-        process.env.__MIDDLEWARE_TEST
-          ? [
-              '/_next/data/BUILD_ID/[name].json?another=value&name=%5Bname%5D',
-              '/_next/data/BUILD_ID/added-later/first.json?name=added-later&comment=first',
-              '/_next/data/BUILD_ID/blog/321/comment/123.json?name=321&id=123',
-              '/_next/data/BUILD_ID/d/dynamic-1.json?id=dynamic-1',
-              '/_next/data/BUILD_ID/on-mount/test-w-hash.json?post=test-w-hash',
-              '/_next/data/BUILD_ID/p1/p2/all-ssg/hello.json?rest=hello',
-              '/_next/data/BUILD_ID/p1/p2/all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
-              '/_next/data/BUILD_ID/p1/p2/all-ssr/:42.json?rest=%3A42',
-              '/_next/data/BUILD_ID/p1/p2/all-ssr/hello.json?rest=hello',
-              '/_next/data/BUILD_ID/p1/p2/all-ssr/hello1%2F/he%2Fllo2.json?rest=hello1%2F&rest=he%2Fllo2',
-              '/_next/data/BUILD_ID/p1/p2/all-ssr/hello1/hello2.json?rest=hello1&rest=hello2',
-              '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello.json?rest=hello',
-              '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
-              '/_next/data/BUILD_ID/post-1.json?fromHome=true&name=post-1',
-              '/_next/data/BUILD_ID/post-1.json?hidden=value&name=post-1',
-              '/_next/data/BUILD_ID/post-1.json?name=post-1',
-              '/_next/data/BUILD_ID/post-1.json?name=post-1&another=value',
-              '/_next/data/BUILD_ID/post-1/comment-1.json?name=post-1&comment=comment-1',
-              '/_next/data/BUILD_ID/post-1/comments.json?name=post-1',
-            ]
-          : [
-              '/_next/data/BUILD_ID/p1/p2/all-ssg/hello.json?rest=hello',
-              '/_next/data/BUILD_ID/p1/p2/all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
-              '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello.json?rest=hello',
-              '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
-            ]
-      )
+      const cacheKeys = await retry(async () => {
+        const cacheKeys = await getCacheKeys()
+        expect(cacheKeys).toEqual(
+          process.env.__MIDDLEWARE_TEST
+            ? [
+                '/_next/data/BUILD_ID/[name].json?another=value&name=%5Bname%5D',
+                '/_next/data/BUILD_ID/added-later/first.json?name=added-later&comment=first',
+                '/_next/data/BUILD_ID/blog/321/comment/123.json?name=321&id=123',
+                '/_next/data/BUILD_ID/d/dynamic-1.json?id=dynamic-1',
+                '/_next/data/BUILD_ID/on-mount/test-w-hash.json?post=test-w-hash',
+                '/_next/data/BUILD_ID/p1/p2/all-ssg/hello.json?rest=hello',
+                '/_next/data/BUILD_ID/p1/p2/all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
+                '/_next/data/BUILD_ID/p1/p2/all-ssr/:42.json?rest=%3A42',
+                '/_next/data/BUILD_ID/p1/p2/all-ssr/hello.json?rest=hello',
+                '/_next/data/BUILD_ID/p1/p2/all-ssr/hello1%2F/he%2Fllo2.json?rest=hello1%2F&rest=he%2Fllo2',
+                '/_next/data/BUILD_ID/p1/p2/all-ssr/hello1/hello2.json?rest=hello1&rest=hello2',
+                '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello.json?rest=hello',
+                '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
+                '/_next/data/BUILD_ID/post-1.json?fromHome=true&name=post-1',
+                '/_next/data/BUILD_ID/post-1.json?hidden=value&name=post-1',
+                '/_next/data/BUILD_ID/post-1.json?name=post-1',
+                '/_next/data/BUILD_ID/post-1.json?name=post-1&another=value',
+                '/_next/data/BUILD_ID/post-1/comment-1.json?name=post-1&comment=comment-1',
+                '/_next/data/BUILD_ID/post-1/comments.json?name=post-1',
+              ]
+            : [
+                '/_next/data/BUILD_ID/p1/p2/all-ssg/hello.json?rest=hello',
+                '/_next/data/BUILD_ID/p1/p2/all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
+                '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello.json?rest=hello',
+                '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
+              ]
+        )
+        return cacheKeys
+      })
 
       // ensure no new cache entries after navigation
       const links = [
@@ -593,11 +597,7 @@ function runTests({ dev }) {
 
   it('should allow calling Router.push on mount successfully', async () => {
     const browser = await webdriver(appPort, '/post-1/on-mount-redir')
-    try {
-      expect(await browser.waitForElementByCss('h3').text()).toBe('My blog')
-    } finally {
-      browser.close()
-    }
+    expect(await browser.waitForElementByCss('h3').text()).toBe('My blog')
   })
 
   it('should navigate optional dynamic page', async () => {

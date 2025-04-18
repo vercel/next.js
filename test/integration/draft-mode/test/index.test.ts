@@ -35,8 +35,8 @@ describe('Test Draft Mode', () => {
   ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
     'development mode',
     () => {
-      let appPort, app, browser, cookieString
-      it('should start development application', async () => {
+      let appPort, app, cookieString
+      beforeAll(async () => {
         appPort = await findPort()
         app = await launchApp(appDir, appPort)
       })
@@ -86,18 +86,16 @@ describe('Test Draft Mode', () => {
         expect(cookies[0]).toBeTruthy()
       })
 
-      it('should start the client-side browser', async () => {
-        browser = await webdriver(appPort, '/api/enable')
-      })
-
       it('should fetch draft data on SSR', async () => {
-        await browser.get(`http://localhost:${appPort}/`)
+        const browser = await webdriver(appPort, '/api/enable')
+        await browser.get('/')
         await browser.waitForElementByCss('#draft')
         expect(await browser.elementById('draft').text()).toBe('true')
       })
 
       it('should fetch draft data on CST', async () => {
-        await browser.get(`http://localhost:${appPort}/to-index`)
+        const browser = await webdriver(appPort, '/api/enable')
+        await browser.get('/to-index')
         await browser.waitForElementByCss('#to-index')
         await browser.eval('window.itdidnotrefresh = "yep"')
         await browser.elementById('to-index').click()
@@ -107,15 +105,15 @@ describe('Test Draft Mode', () => {
       })
 
       it('should disable draft mode', async () => {
-        await browser.get(`http://localhost:${appPort}/api/disable`)
+        const browser = await webdriver(appPort, '/api/enable')
+        await browser.get('/api/disable')
 
-        await browser.get(`http://localhost:${appPort}/`)
+        await browser.get('/')
         await browser.waitForElementByCss('#draft')
         expect(await browser.elementById('draft').text()).toBe('false')
       })
 
       afterAll(async () => {
-        await browser.close()
         await killApp(app)
       })
     }
@@ -126,16 +124,15 @@ describe('Test Draft Mode', () => {
       let appPort, app, cookieString, initialRand
       const getOpts = () => ({ headers: { Cookie: cookieString } })
 
-      it('should compile successfully', async () => {
+      beforeAll(async () => {
         await fs.remove(join(appDir, '.next'))
         const { code, stdout } = await nextBuild(appDir, [], {
           stdout: true,
         })
-        expect(code).toBe(0)
-        expect(stdout).toMatch(/Compiled successfully/)
-      })
-
-      it('should start production application', async () => {
+        if (code !== 0) {
+          console.error(stdout)
+          throw new Error('Failed to compile')
+        }
         appPort = await findPort()
         app = await nextStart(appDir, appPort)
       })

@@ -7,7 +7,7 @@ describe('hmr-app-and-pages', () => {
   })
 
   it('should do HMR when app router and pages router have shared CSS', async () => {
-    let browser = await next.browser('/')
+    const browser = await next.browser('/')
     await browser.eval('window.notReloaded = true')
 
     expect(
@@ -27,7 +27,7 @@ describe('hmr-app-and-pages', () => {
     ).toEqual('rgb(255, 0, 0)')
     expect(await browser.eval('window.notReloaded')).toBe(true)
 
-    browser = await next.browser('/pages-router')
+    await browser.get('/pages-router')
     await browser.eval('window.notReloaded = true')
 
     expect(

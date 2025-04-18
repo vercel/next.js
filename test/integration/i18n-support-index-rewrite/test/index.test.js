@@ -38,8 +38,9 @@ const runTests = () => {
     }
   })
 
-  it('should handle index rewrite on client correctly', async () => {
-    for (const locale of locales) {
+  it.each(locales)(
+    'should handle index rewrite on client correctly - %s',
+    async (locale) => {
       const browser = await webdriver(
         appPort,
         `${locale === 'en' ? '' : `/${locale}`}/hello`
@@ -72,7 +73,7 @@ const runTests = () => {
 
       expect(await browser.eval('window.beforeNav')).toBe(1)
     }
-  })
+  )
 }
 
 describe('Custom routes i18n support index rewrite', () => {

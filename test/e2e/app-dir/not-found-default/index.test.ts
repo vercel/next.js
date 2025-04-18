@@ -83,7 +83,7 @@ describe('app dir - not found with default 404 page', () => {
       'group-dynamic [id]'
     )
 
-    await browser.loadPage(next.url + '/group-dynamic/404')
+    await browser.loadPage('/group-dynamic/404')
     await assertNoRedbox(browser)
     await browser.waitForElementByCss('.group-root-layout')
     expect(await browser.elementByCss('.next-error-h1').text()).toBe('404')

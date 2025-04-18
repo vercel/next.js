@@ -329,17 +329,12 @@ describe('Prerender Preview Mode', () => {
         expect(cookies.length).toBe(2)
       })
 
-      /** @type {import('next-webdriver').Chain} */
-      let browser
-      it('should start the client-side browser', async () => {
-        browser = await webdriver(
+      it('should fetch preview data on SSR', async () => {
+        const browser = await webdriver(
           appPort,
           '/api/preview?' + qs.stringify({ client: 'mode' })
         )
-      })
-
-      it('should fetch preview data on SSR', async () => {
-        await browser.get(`http://localhost:${appPort}/`)
+        await browser.get('/')
         await browser.waitForElementByCss('#props-pre')
         // expect(await browser.elementById('props-pre').text()).toBe('Has No Props')
         // await new Promise(resolve => setTimeout(resolve, 2000))
@@ -349,7 +344,11 @@ describe('Prerender Preview Mode', () => {
       })
 
       it('should fetch preview data on CST', async () => {
-        await browser.get(`http://localhost:${appPort}/to-index`)
+        const browser = await webdriver(
+          appPort,
+          '/api/preview?' + qs.stringify({ client: 'mode' })
+        )
+        await browser.get('/to-index')
         await browser.waitForElementByCss('#to-index')
         await browser.eval('window.itdidnotrefresh = "hello"')
         await browser.elementById('to-index').click()
@@ -361,9 +360,13 @@ describe('Prerender Preview Mode', () => {
       })
 
       it('should fetch prerendered data', async () => {
-        await browser.get(`http://localhost:${appPort}/api/reset`)
+        const browser = await webdriver(
+          appPort,
+          '/api/preview?' + qs.stringify({ client: 'mode' })
+        )
+        await browser.get('/api/reset')
 
-        await browser.get(`http://localhost:${appPort}/`)
+        await browser.get('/')
         await browser.waitForElementByCss('#props-pre')
         expect(await browser.elementById('props-pre').text()).toBe(
           'false and null'
@@ -371,7 +374,11 @@ describe('Prerender Preview Mode', () => {
       })
 
       it('should fetch live static props with preview active', async () => {
-        await browser.get(`http://localhost:${appPort}/`)
+        const browser = await webdriver(
+          appPort,
+          '/api/preview?' + qs.stringify({ client: 'mode' })
+        )
+        await browser.get('/')
 
         await browser.waitForElementByCss('#ssg-random')
         const initialRandom = await browser.elementById('ssg-random').text()
@@ -389,7 +396,6 @@ describe('Prerender Preview Mode', () => {
       })
 
       afterAll(async () => {
-        await browser.close()
         await killApp(app)
       })
     }

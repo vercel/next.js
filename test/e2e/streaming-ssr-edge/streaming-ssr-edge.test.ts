@@ -25,8 +25,18 @@ describe('streaming-ssr-edge', () => {
     files: __dirname,
   })
 
-  it('should support streaming for fizz response', async () => {
-    async function testStreamingResponse(pathname) {
+  it.each([
+    {
+      description: 'export const runtime = "edge"',
+      pathname: '/streaming-single-export',
+    },
+    {
+      description: 'export const config = { runtime: "edge" }',
+      pathname: '/streaming',
+    },
+  ])(
+    'should support streaming for fizz response - $description',
+    async ({ pathname }) => {
       await next.fetch(pathname).then(async (response) => {
         let gotFallback = false
         let gotData = false
@@ -51,10 +61,7 @@ describe('streaming-ssr-edge', () => {
       const content = await browser.eval(`window.document.body.innerText`)
       expect(content).toMatchInlineSnapshot('"next_streaming_data"')
     }
-
-    await testStreamingResponse('/streaming')
-    await testStreamingResponse('/streaming-single-export')
-  })
+  )
 
   it('should not stream to crawlers or google pagerender bot', async () => {
     const res1 = await next.fetch('/streaming', {

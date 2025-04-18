@@ -475,7 +475,7 @@ describe('app-dir action handling', () => {
   })
 
   it('should not block navigation events while a server action is in flight', async () => {
-    let browser = await next.browser('/client')
+    const browser = await next.browser('/client')
 
     await browser.elementByCss('#slow-inc').click()
 
@@ -484,7 +484,7 @@ describe('app-dir action handling', () => {
     // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
     await check(() => browser.url(), `${next.url}/server`, true, 2)
 
-    browser = await next.browser('/server')
+    await browser.get('/server')
 
     await browser.elementByCss('#slow-inc').click()
 
@@ -495,7 +495,7 @@ describe('app-dir action handling', () => {
   })
 
   it('should not block router.back() while a server action is in flight', async () => {
-    let browser = await next.browser('/')
+    const browser = await next.browser('/')
 
     // click /client link to add a history entry
     await browser.elementByCss("[href='/client']").click()
@@ -508,7 +508,7 @@ describe('app-dir action handling', () => {
   })
 
   it('should trigger a refresh for a server action that gets discarded due to a navigation', async () => {
-    let browser = await next.browser('/client')
+    const browser = await next.browser('/client')
     const initialRandomNumber = await browser
       .elementByCss('#random-number')
       .text()
@@ -529,7 +529,7 @@ describe('app-dir action handling', () => {
   })
 
   it('should trigger a refresh for a server action that also dispatches a navigation event', async () => {
-    let browser = await next.browser('/revalidate')
+    const browser = await next.browser('/revalidate')
     let initialJustPutit = await browser.elementById('justputit').text()
 
     // this triggers a revalidate + redirect in a client component
@@ -542,7 +542,7 @@ describe('app-dir action handling', () => {
     })
 
     // this triggers a revalidate + redirect in a server component
-    browser = await next.browser('/revalidate')
+    await browser.get('/revalidate')
     initialJustPutit = await browser.elementById('justputit').text()
     await browser.elementById('redirect-revalidate').click()
     await retry(async () => {
@@ -1454,14 +1454,13 @@ describe('app-dir action handling', () => {
     // TODO: investigate flakey behavior with revalidate
     it('should revalidate when cookies.set is called in a client action', async () => {
       const browser = await next.browser('/revalidate')
-      await browser.refresh()
 
       let randomCookie
       await retry(async () => {
         randomCookie = JSON.parse(
           await browser.elementByCss('#random-cookie').text()
-        ).value
-        expect(randomCookie).toBeDefined()
+        )?.value
+        expect(randomCookie).toBeUndefined()
       })
 
       console.log(123, await browser.elementByCss('body').text())
@@ -1475,7 +1474,7 @@ describe('app-dir action handling', () => {
 
       const newRandomCookie = JSON.parse(
         await browser.elementByCss('#random-cookie').text()
-      ).value
+      )?.value
 
       console.log(456, await browser.elementByCss('body').text())
 
@@ -1492,7 +1491,8 @@ describe('app-dir action handling', () => {
       await retry(async () => {
         revalidatedRandomCookie = JSON.parse(
           await browser.elementByCss('#random-cookie').text()
-        ).value
+        )?.value
+        expect(revalidatedRandomCookie).toBeDefined()
         expect(revalidatedRandomCookie).not.toBe(randomCookie)
       })
 
@@ -1502,7 +1502,7 @@ describe('app-dir action handling', () => {
       await retry(async () => {
         const newRandomCookie = await JSON.parse(
           await browser.elementByCss('#random-cookie').text()
-        ).value
+        )?.value
         expect(revalidatedRandomCookie).toBe(newRandomCookie)
       })
     })

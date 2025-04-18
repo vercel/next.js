@@ -6,14 +6,14 @@ describe('parallel-routes-catchall-slotted-non-catchalls', () => {
   })
 
   it('should match default and dynamic segment paths before catch-all', async () => {
-    let browser = await next.browser('/en/catchall/page')
+    const browser = await next.browser('/en/catchall/page')
 
     // we have a top-level catch-all
     expect(await browser.elementById('children').text()).toBe(
       '/[locale]/[[...catchAll]]/page.tsx'
     )
 
-    browser = await next.browser('/en/nested')
+    await browser.get('/en/nested')
 
     // we're now at the /[locale]/nested segment, which overrides the top-level catch-all, and there is a page defined to be matched
     expect(await browser.elementById('nested-children').text()).toBe(
@@ -30,7 +30,7 @@ describe('parallel-routes-catchall-slotted-non-catchalls', () => {
       '/[locale]/nested/@slot1/default.tsx'
     )
 
-    browser = await next.browser('/en/nested/foo')
+    await browser.get('/en/nested/foo')
 
     // we're now at the /[locale]/nested/foo segment, which overrides the top-level catch-all, and there is a default page there to be matched
     expect(await browser.elementById('nested-children').text()).toBe(
@@ -47,7 +47,7 @@ describe('parallel-routes-catchall-slotted-non-catchalls', () => {
       '/[locale]/nested/@slot1/default.tsx'
     )
 
-    browser = await next.browser('/en/nested/bar')
+    await browser.get('/en/nested/bar')
 
     // we're now at the /[locale]/nested/bar segment, which overrides the top-level catch-all, and there is a default page there to be matched
     expect(await browser.elementById('nested-children').text()).toBe(
@@ -64,7 +64,7 @@ describe('parallel-routes-catchall-slotted-non-catchalls', () => {
       '/[locale]/nested/@slot1/default.tsx'
     )
 
-    browser = await next.browser('/en/nested/baz')
+    await browser.get('/en/nested/baz')
 
     // we're now at the /[locale]/nested/baz segment, which overrides the top-level catch-all, and there is a default page there to be matched
     expect(await browser.elementById('nested-children').text()).toBe(
@@ -81,7 +81,7 @@ describe('parallel-routes-catchall-slotted-non-catchalls', () => {
       '/[locale]/nested/@slot1/baz/page.tsx'
     )
 
-    browser = await next.browser('/en/nested/qux')
+    await browser.get('/en/nested/qux')
 
     // we do not have any /qux in any of the slots inside nested, so back to matching with top-level catch-all
     expect(await browser.elementById('children').text()).toBe(

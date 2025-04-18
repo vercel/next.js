@@ -153,7 +153,7 @@ describe('Middleware Rewrite', () => {
       if ((global as any).isNextDeploy) {
         return
       }
-      let browser = await webdriver(next.url, '/')
+      const browser = await webdriver(next.url, '/')
       await browser.eval(`next.router.push("/afterfiles-rewrite-ssg")`)
 
       await check(
@@ -165,7 +165,7 @@ describe('Middleware Rewrite', () => {
         /"slug":"first"/
       )
 
-      browser = await webdriver(next.url, '/afterfiles-rewrite-ssg')
+      await browser.get('/afterfiles-rewrite-ssg')
       await check(
         () => browser.eval('next.router.isReady ? "yup": "nope"'),
         'yup'

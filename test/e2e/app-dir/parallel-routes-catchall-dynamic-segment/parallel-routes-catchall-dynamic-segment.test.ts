@@ -6,7 +6,7 @@ describe('parallel-routes-catchall-dynamic-segment', () => {
   })
 
   it('should match default and dynamic segment paths before catch-all', async () => {
-    let browser = await next.browser('/en/nested')
+    const browser = await next.browser('/en/nested')
 
     // we have a top-level catch-all but the /nested dir doesn't have a default/page until the /[foo]/[bar] segment
     // so we expect the top-level catch-all to render
@@ -14,7 +14,7 @@ describe('parallel-routes-catchall-dynamic-segment', () => {
       '/[locale]/[[...catchAll]]/page.tsx'
     )
 
-    browser = await next.browser('/en/nested/foo/bar')
+    await browser.get('/en/nested/foo/bar')
 
     // we're now at the /[foo]/[bar] segment, so we expect the matched page to be the default (since there's no page defined)
     expect(await browser.elementById('nested-children').text()).toBe(
@@ -36,7 +36,7 @@ describe('parallel-routes-catchall-dynamic-segment', () => {
       '/[locale]/nested/[foo]/[bar]/@slot2/default.tsx'
     )
 
-    browser = await next.browser('/en/nested/foo/bar/baz')
+    await browser.get('/en/nested/foo/bar/baz')
 
     // the page slot should still be the one matched at the /[foo]/[bar] segment because it's the default and we
     // didn't define a page at the /[foo]/[bar]/[baz] segment
@@ -59,7 +59,7 @@ describe('parallel-routes-catchall-dynamic-segment', () => {
       '/[locale]/nested/[foo]/[bar]/@slot2/default.tsx'
     )
 
-    browser = await next.browser('/en/nested/foo/bar/baz/qux')
+    await browser.get('/en/nested/foo/bar/baz/qux')
 
     // the page slot should still be the one matched at the /[foo]/[bar] segment because it's the default and we
     // didn't define a page at the /[foo]/[bar]/[baz]/[qux] segment

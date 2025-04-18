@@ -22,6 +22,7 @@ describe('socket-io', () => {
           requestsCount++
         })
       },
+      inefficientlyCreateAdditionalBrowserInstance: true,
     })
 
     const input1 = await browser1.elementByCss('input')

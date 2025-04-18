@@ -86,8 +86,8 @@ describe('app-dir - client-actions-tree-shaking', () => {
       )
     })
 
-    const browser2 = await next.browser('/route-2')
-    await browser2.elementById('submit').click()
+    await browser.get('/route-2')
+    await browser.elementById('submit').click()
 
     await retry(() => {
       expect(logs).toEqual(

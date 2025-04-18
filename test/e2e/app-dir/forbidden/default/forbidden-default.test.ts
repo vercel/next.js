@@ -71,7 +71,7 @@ describe('app dir - forbidden with default forbidden boundary', () => {
       'group-dynamic [id]'
     )
 
-    await browser.loadPage(next.url + '/group-dynamic/403')
+    await browser.loadPage('/group-dynamic/403')
     await assertNoRedbox(browser)
     await browser.waitForElementByCss('.group-root-layout')
     expect(await browser.elementByCss('.next-error-h1').text()).toBe('403')

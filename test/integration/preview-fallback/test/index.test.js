@@ -209,7 +209,7 @@ function runTests(isDev) {
   })
 
   it('should not write preview dynamic non-prerendered SSG page to cache with fallback', async () => {
-    let browser = await webdriver(appPort, '/fallback/second')
+    const browser = await webdriver(appPort, '/fallback/second')
 
     await check(async () => {
       const props = JSON.parse(await browser.elementByCss('#props').text())
@@ -249,7 +249,7 @@ function runTests(isDev) {
       })
     }
 
-    browser = await webdriver(appPort, '/fallback/second')
+    await browser.get('/fallback/second')
 
     await check(async () => {
       const props = JSON.parse(await browser.elementByCss('#props').text())

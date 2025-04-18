@@ -85,7 +85,6 @@ describe('pnpm support', () => {
 
     let appPort
     let server
-    let browser
     try {
       appPort = await findPort()
       const standaloneDir = path.join(
@@ -116,17 +115,15 @@ describe('pnpm support', () => {
 
       await renderViaHTTP(appPort, '/')
 
-      browser = await webdriver(appPort, '/', {
+      const browser = await webdriver(appPort, '/', {
         waitHydration: false,
       })
       expect(await browser.waitForElementByCss('#world').text()).toBe('World')
-      await browser.close()
 
-      browser = await webdriver(appPort, '/about', {
+      await browser.get('/about', {
         waitHydration: false,
       })
       expect(await browser.waitForElementByCss('#world').text()).toBe('World')
-      await browser.close()
     } finally {
       if (server) {
         await killApp(server)

@@ -19,15 +19,16 @@ let appPort
 let app
 
 function runTests() {
-  it('should not rewrite for index page', async () => {
-    for (const [pathname, query] of [
-      ['/', {}],
-      ['/en', {}],
-      ['/fr', {}],
-      ['/', { hello: 'world' }],
-      ['/en', { hello: 'world' }],
-      ['/fr', { hello: 'world' }],
-    ]) {
+  it.each([
+    { pathname: '/', query: {} },
+    { pathname: '/en', query: {} },
+    { pathname: '/fr', query: {} },
+    { pathname: '/', query: { hello: 'world' } },
+    { pathname: '/en', query: { hello: 'world' } },
+    { pathname: '/fr', query: { hello: 'world' } },
+  ])(
+    'should not rewrite for index page - $pathname $query',
+    async ({ pathname, query }) => {
       const asPath = url.format({ pathname, query })
       const browser = await webdriver(appPort, asPath)
 
@@ -46,17 +47,18 @@ function runTests() {
         query,
       })
     }
-  })
+  )
 
-  it('should not rewrite for dynamic page', async () => {
-    for (const [pathname, query] of [
-      ['/dynamic/first', {}],
-      ['/en/dynamic/first', {}],
-      ['/fr/dynamic/first', {}],
-      ['/dynamic/first', { hello: 'world' }],
-      ['/en/dynamic/first', { hello: 'world' }],
-      ['/fr/dynamic/first', { hello: 'world' }],
-    ]) {
+  it.each([
+    { pathname: '/dynamic/first', query: {} },
+    { pathname: '/en/dynamic/first', query: {} },
+    { pathname: '/fr/dynamic/first', query: {} },
+    { pathname: '/dynamic/first', query: { hello: 'world' } },
+    { pathname: '/en/dynamic/first', query: { hello: 'world' } },
+    { pathname: '/fr/dynamic/first', query: { hello: 'world' } },
+  ])(
+    'should not rewrite for dynamic page - $pathname $query',
+    async ({ pathname, query }) => {
       const asPath = url.format({ pathname, query })
       const browser = await webdriver(appPort, asPath)
 
@@ -81,7 +83,7 @@ function runTests() {
         },
       })
     }
-  })
+  )
 }
 
 describe('i18n Support', () => {
