@@ -1,4 +1,5 @@
 use std::{
+    fmt,
     mem::take,
     path::{Path, PathBuf},
     sync::{
@@ -17,7 +18,11 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use turbo_tasks::{spawn_thread, Invalidator};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{
+    spawn_thread, util::StaticOrArc, FxIndexSet, InvalidationReason, InvalidationReasonKind,
+    Invalidator,
+};
 
 use crate::{
     format_absolute_fs_path,
@@ -76,7 +81,7 @@ impl DiskWatcher {
         }
     }
 
-    /// Called when a new file is found in a directory we're watching.
+    /// Called when a new directory is found in a parent directory we're watching.
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     pub(crate) fn restore_if_watching(&self, dir_path: &Path, root_path: &Path) -> Result<()> {
         if self.watching.contains(dir_path) {
@@ -129,23 +134,18 @@ impl DiskWatcher {
                     path.display()
                 ));
             };
-            loop {
-                match watcher
-                    .watch(path, RecursiveMode::NonRecursive)
-                    .map_err(map_notify_err)
-                {
-                    Ok(()) => break,
-                    Err(
-                        err @ notify::Error {
-                            kind: notify::ErrorKind::PathNotFound,
-                            ..
-                        },
-                    ) => {
+            while let Err(err) = watcher
+                .watch(path, RecursiveMode::NonRecursive)
+                .map_err(map_notify_err)
+            {
+                match err {
+                    notify::Error {
+                        kind: notify::ErrorKind::PathNotFound,
+                        ..
+                    } => {
                         // The path was probably deleted before we could process the event. That's
                         // okay, just make sure we're watching the parent directory, so we can know
                         // if it gets recreated.
-                        // TODO: We should probably also trigger an invalidation if this happens
-
                         let Some(parent_path) = path.parent() else {
                             // this should never happen as we break before we reach the root path
                             return err_with_context(err);
@@ -160,7 +160,7 @@ impl DiskWatcher {
                         }
                         path = parent_path;
                     }
-                    Err(err) => return err_with_context(err),
+                    _ => return err_with_context(err),
                 }
             }
         }
@@ -320,13 +320,16 @@ impl DiskWatcher {
                             #[cfg(not(any(target_os = "macos", target_os = "windows")))]
                             {
                                 // we can't narrow this down to a smaller set of paths: Rescan
-                                // events (at least when tested on Linux) come with no `paths`.
+                                // events (at least when tested on Linux) come with no `paths`, and
+                                // we use only one global `notify::Watcher` instance.
                                 self.restore_all_watching(inner.root_path());
                                 batched_new_paths.clear();
                             }
 
                             if report_invalidation_reason {
-                                inner.invalidate_with_reason();
+                                inner.invalidate_with_reason(|path| InvalidateRescan {
+                                    path: RcStr::from(path),
+                                });
                             } else {
                                 inner.invalidate();
                             }
@@ -579,5 +582,49 @@ fn invalidate_path_and_children_execute(
                 .into_iter()
                 .for_each(|(i, _)| invalidate(inner, report_invalidation_reason, &path, i));
         }
+    }
+}
+
+/// Invalidation was caused by a watcher rescan event. This will likely invalidate *every* watched
+/// file.
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct InvalidateRescan {
+    path: RcStr,
+}
+
+impl InvalidationReason for InvalidateRescan {
+    fn kind(&self) -> Option<StaticOrArc<dyn InvalidationReasonKind>> {
+        Some(StaticOrArc::Static(&INVALIDATE_RESCAN_KIND))
+    }
+}
+
+impl fmt::Display for InvalidateRescan {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} in filesystem invalidated", self.path)
+    }
+}
+
+/// [Invalidation kind][InvalidationReasonKind] for [`InvalidateRescan`].
+#[derive(PartialEq, Eq, Hash)]
+struct InvalidateRescanKind;
+
+static INVALIDATE_RESCAN_KIND: InvalidateRescanKind = InvalidateRescanKind;
+
+impl InvalidationReasonKind for InvalidateRescanKind {
+    fn fmt(
+        &self,
+        reasons: &FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
+        f: &mut fmt::Formatter<'_>,
+    ) -> fmt::Result {
+        write!(
+            f,
+            "{} items in filesystem invalidated due to notify::Watcher rescan event ({}, ...)",
+            reasons.len(),
+            reasons[0]
+                .as_any()
+                .downcast_ref::<InvalidateRescan>()
+                .unwrap()
+                .path
+        )
     }
 }
