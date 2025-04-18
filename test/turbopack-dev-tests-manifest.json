@@ -6320,6 +6320,7 @@
   },
   "test/e2e/app-dir/metadata-streaming-parallel-routes/metadata-streaming-parallel-routes.test.ts": {
     "passed": [
+      "app-dir - metadata-streaming should change metadata when navigating between two pages under a slot when children is not rendered",
       "app-dir - metadata-streaming should only insert metadata once for parallel routes when slots match",
       "app-dir - metadata-streaming should only insert metadata once for parallel routes when there is a missing slot",
       "app-dir - metadata-streaming should still render metadata if children is not rendered in parallel routes layout"
