@@ -412,7 +412,7 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
 describe('404 handling', () => {
   let nextOpts = {}
   beforeAll(async () => {
-    const hasLocalNext = await fs.exists(join(appDir, 'node_modules/next'))
+    const hasLocalNext = fs.existsSync(join(appDir, 'node_modules/next'))
 
     if (hasLocalNext) {
       nextOpts = {

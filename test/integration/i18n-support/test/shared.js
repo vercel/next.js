@@ -2998,8 +2998,8 @@ export function runTests(ctx) {
         const pagePath = join(ctx.buildPagesDir, locale, 'not-found.html')
         const dataPath = join(ctx.buildPagesDir, locale, 'not-found.json')
         console.log(pagePath)
-        expect(await fs.exists(pagePath)).toBe(!skippedLocales.includes(locale))
-        expect(await fs.exists(dataPath)).toBe(!skippedLocales.includes(locale))
+        expect(fs.existsSync(pagePath)).toBe(!skippedLocales.includes(locale))
+        expect(fs.existsSync(dataPath)).toBe(!skippedLocales.includes(locale))
       }
     })
   }

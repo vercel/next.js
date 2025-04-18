@@ -24,14 +24,10 @@ const locales = ['en-US', 'nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en']
 function runTests(isDev) {
   if (!isDev) {
     it('should output prerendered index routes correctly', async () => {
-      expect(await fs.exists(join(buildPagesDir, 'pages/en-US.html'))).toBe(
-        true
-      )
-      expect(await fs.exists(join(buildPagesDir, 'pages/en-US.json'))).toBe(
-        true
-      )
-      expect(await fs.exists(join(buildPagesDir, 'pages/fr.html'))).toBe(true)
-      expect(await fs.exists(join(buildPagesDir, 'pages/fr.json'))).toBe(true)
+      expect(fs.existsSync(join(buildPagesDir, 'pages/en-US.html'))).toBe(true)
+      expect(fs.existsSync(join(buildPagesDir, 'pages/en-US.json'))).toBe(true)
+      expect(fs.existsSync(join(buildPagesDir, 'pages/fr.html'))).toBe(true)
+      expect(fs.existsSync(join(buildPagesDir, 'pages/fr.json'))).toBe(true)
     })
   }
 

@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { createFile, exists, readFile, writeFile, remove } from 'fs-extra'
+import { createFile, existsSync, readFile, writeFile, remove } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 import path from 'path'
 ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
@@ -21,7 +21,7 @@ import path from 'path'
     })
 
     it('Creates a default tsconfig.json when one is missing', async () => {
-      expect(await exists(tsConfig)).toBe(false)
+      expect(existsSync(tsConfig)).toBe(false)
       const { code } = await nextBuild(appDir)
       expect(code).toBe(0)
       expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
@@ -66,7 +66,7 @@ import path from 'path'
     })
 
     it('Works with an empty tsconfig.json (docs)', async () => {
-      expect(await exists(tsConfig)).toBe(false)
+      expect(existsSync(tsConfig)).toBe(false)
 
       await createFile(tsConfig)
       await new Promise((resolve) => setTimeout(resolve, 500))
@@ -121,7 +121,7 @@ import path from 'path'
     })
 
     it('Updates an existing tsconfig.json without losing comments', async () => {
-      expect(await exists(tsConfig)).toBe(false)
+      expect(existsSync(tsConfig)).toBe(false)
 
       await writeFile(
         tsConfig,
@@ -196,7 +196,7 @@ import path from 'path'
     })
 
     it('allows you to set commonjs module mode', async () => {
-      expect(await exists(tsConfig)).toBe(false)
+      expect(existsSync(tsConfig)).toBe(false)
 
       await writeFile(
         tsConfig,
@@ -248,7 +248,7 @@ import path from 'path'
     })
 
     it('allows you to set es2020 module mode', async () => {
-      expect(await exists(tsConfig)).toBe(false)
+      expect(existsSync(tsConfig)).toBe(false)
 
       await writeFile(
         tsConfig,
@@ -300,7 +300,7 @@ import path from 'path'
     })
 
     it('allows you to set node16 moduleResolution mode', async () => {
-      expect(await exists(tsConfig)).toBe(false)
+      expect(existsSync(tsConfig)).toBe(false)
 
       await writeFile(
         tsConfig,
@@ -356,7 +356,7 @@ import path from 'path'
     })
 
     it('allows you to set bundler moduleResolution mode', async () => {
-      expect(await exists(tsConfig)).toBe(false)
+      expect(existsSync(tsConfig)).toBe(false)
 
       await writeFile(
         tsConfig,
@@ -412,7 +412,7 @@ import path from 'path'
     })
 
     it('allows you to set target mode', async () => {
-      expect(await exists(tsConfig)).toBe(false)
+      expect(existsSync(tsConfig)).toBe(false)
 
       await writeFile(tsConfig, `{ "compilerOptions": { "target": "es2022" } }`)
       await new Promise((resolve) => setTimeout(resolve, 500))
@@ -465,7 +465,7 @@ import path from 'path'
     })
 
     it('allows you to set node16 module mode', async () => {
-      expect(await exists(tsConfig)).toBe(false)
+      expect(existsSync(tsConfig)).toBe(false)
 
       await writeFile(
         tsConfig,
@@ -521,7 +521,7 @@ import path from 'path'
     })
 
     it('allows you to set verbatimModuleSyntax true without adding isolatedModules', async () => {
-      expect(await exists(tsConfig)).toBe(false)
+      expect(existsSync(tsConfig)).toBe(false)
 
       await writeFile(
         tsConfig,
@@ -577,8 +577,8 @@ import path from 'path'
     })
 
     it('allows you to set verbatimModuleSyntax true via extends without adding isolatedModules', async () => {
-      expect(await exists(tsConfig)).toBe(false)
-      expect(await exists(tsConfigBase)).toBe(false)
+      expect(existsSync(tsConfig)).toBe(false)
+      expect(existsSync(tsConfigBase)).toBe(false)
 
       await writeFile(
         tsConfigBase,
@@ -635,8 +635,8 @@ import path from 'path'
     })
 
     it('allows you to extend another configuration file', async () => {
-      expect(await exists(tsConfig)).toBe(false)
-      expect(await exists(tsConfigBase)).toBe(false)
+      expect(existsSync(tsConfig)).toBe(false)
+      expect(existsSync(tsConfigBase)).toBe(false)
 
       await writeFile(
         tsConfigBase,
@@ -703,8 +703,8 @@ import path from 'path'
     })
 
     it('creates compilerOptions when you extend another config', async () => {
-      expect(await exists(tsConfig)).toBe(false)
-      expect(await exists(tsConfigBase)).toBe(false)
+      expect(existsSync(tsConfig)).toBe(false)
+      expect(existsSync(tsConfigBase)).toBe(false)
 
       await writeFile(
         tsConfigBase,
@@ -772,7 +772,7 @@ import path from 'path'
 
     // TODO: Enable this test when repo has upgraded to TypeScript 5.4. Currently tested as E2E: tsconfig-module-preserve
     it.skip('allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using "module: preserve"', async () => {
-      expect(await exists(tsConfig)).toBe(false)
+      expect(existsSync(tsConfig)).toBe(false)
 
       await writeFile(
         tsConfig,

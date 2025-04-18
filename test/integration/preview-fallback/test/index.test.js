@@ -155,9 +155,7 @@ function runTests(isDev) {
     })
 
     if (!isDev) {
-      expect(await fs.exists(getCacheFile('no-fallback/second.html'))).toBe(
-        false
-      )
+      expect(fs.existsSync(getCacheFile('no-fallback/second.html'))).toBe(false)
     }
 
     const res2 = await fetchViaHTTP(appPort, '/no-fallback/second')
