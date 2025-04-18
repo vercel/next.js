@@ -1,8 +1,14 @@
 /* eslint-env jest */
-import amphtmlValidator from 'amphtml-validator'
+import amphtmlValidator from 'next/dist/compiled/amphtml-validator'
 
-export async function validateAMP(html) {
-  const validator = await amphtmlValidator.getInstance()
+// Use the same validator that we use for builds.
+// This avoids trying to load one from the network, which can cause random test flakiness.
+// (duplicated from 'packages/next/src/export/routes/pages.ts')
+const validatorPath = require.resolve(
+  'next/dist/compiled/amphtml-validator/validator_wasm.js'
+)
+export async function validateAMP(/** @type {string} */ html) {
+  const validator = await amphtmlValidator.getInstance(validatorPath)
   const result = validator.validateString(html)
   if (result.status !== 'PASS') {
     for (let ii = 0; ii < result.errors.length; ii++) {
