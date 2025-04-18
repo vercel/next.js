@@ -46,6 +46,7 @@ import {
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { isRedirectError, RedirectType } from './redirect-error'
 import { pingVisibleLinks } from './links'
+import GracefulDegradeBoundary from './errors/graceful-degrade-boundary'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -515,7 +516,9 @@ function Router({
   } else {
     // If gracefully degrading is applied in production,
     // leave the app as it is rather than caught by GlobalError boundary.
-    if (!gracefullyDegrade) {
+    if (gracefullyDegrade) {
+      content = <GracefulDegradeBoundary>{content}</GracefulDegradeBoundary>
+    } else {
       content = (
         <ErrorBoundary
           errorComponent={globalError[0]}

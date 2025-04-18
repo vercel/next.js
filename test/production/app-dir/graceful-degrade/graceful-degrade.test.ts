@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { deleteBrowserDynamicChunks } from '../delete-dynamic-chunk'
+import { deleteBrowserDynamicChunks } from './delete-dynamic-chunk'
 
 describe('graceful-degrade', () => {
   const { next } = nextTestSetup({
@@ -12,7 +12,7 @@ describe('graceful-degrade', () => {
   })
 
   it('should degrade to graceful error when chunk loading fails in ssr for bot', async () => {
-    const browser = await next.browser('/', {
+    const browser = await next.browser('/chunk-loading-failed', {
       userAgent: 'Googlebot',
     })
 
@@ -34,5 +34,25 @@ describe('graceful-degrade', () => {
     expect(bodyText).not.toMatch(
       /Application error: a client-side exception has occurred while loading/
     )
+  })
+
+  it('should preserve the ssr html when browser errors for bot', async () => {
+    const browser = await next.browser('/browser-crash', {
+      userAgent: 'Googlebot',
+    })
+
+    const logs = await browser.log()
+    const errors = logs
+      .filter((x) => x.source === 'error')
+      .map((x) => x.message)
+      .join('\n')
+
+    expect(errors).toMatch(/Error: boom/)
+
+    const bodyText = await browser.elementByCss('body').text()
+    expect(bodyText).not.toMatch(
+      /Application error: a client-side exception has occurred while loading/
+    )
+    expect(bodyText).toMatch(/fine/)
   })
 })
