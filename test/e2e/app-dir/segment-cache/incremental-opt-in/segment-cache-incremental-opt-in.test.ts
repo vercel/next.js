@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import type * as Playwright from 'playwright'
 import { createRouterAct } from '../router-act'
 
 describe('segment cache (incremental opt in)', () => {
@@ -25,9 +24,9 @@ describe('segment cache (incremental opt in)', () => {
 
     let act
     const browser = await next.browser('/', {
-      async beforePageLoad(page: Playwright.Page) {
+      async beforePageLoad(page) {
         act = createRouterAct(page)
-        await page.route('**/*', async (route: Playwright.Route) => {
+        await page.route('**/*', async (route) => {
           const request = route.request()
           const isPrefetch =
             request.headerValue('rsc') !== null &&
@@ -99,7 +98,7 @@ describe('segment cache (incremental opt in)', () => {
     async () => {
       let act
       const browser = await next.browser('/mixed-fetch-strategies', {
-        beforePageLoad(p: Playwright.Page) {
+        beforePageLoad(p) {
           act = createRouterAct(p)
         },
       })
@@ -138,7 +137,7 @@ describe('segment cache (incremental opt in)', () => {
     async () => {
       let act
       const browser = await next.browser('/mixed-fetch-strategies', {
-        beforePageLoad(p: Playwright.Page) {
+        beforePageLoad(p) {
           act = createRouterAct(p)
         },
       })
@@ -177,7 +176,7 @@ describe('segment cache (incremental opt in)', () => {
     async () => {
       let act
       const browser = await next.browser('/mixed-fetch-strategies', {
-        beforePageLoad(p: Playwright.Page) {
+        beforePageLoad(p) {
           act = createRouterAct(p)
         },
       })
@@ -238,7 +237,7 @@ describe('segment cache (incremental opt in)', () => {
 
       let act
       const browser = await next.browser('/mixed-fetch-strategies', {
-        beforePageLoad(p: Playwright.Page) {
+        beforePageLoad(p) {
           act = createRouterAct(p)
         },
       })
