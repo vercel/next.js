@@ -30,7 +30,7 @@ describe('Client Navigation accessibility', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
     context.server = await launchApp(appDir, context.appPort, {
-      env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+      env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
     })
 
     const prerender = [

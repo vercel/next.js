@@ -519,7 +519,7 @@ describe('CLI Usage', () => {
       let output = ''
       const app = await runNextCommandDev([dirBasic], undefined, {
         env: {
-          PORT: 0,
+          PORT: '0',
         },
         onStdout(msg) {
           output += stripAnsi(msg)

@@ -29,7 +29,7 @@ describe('PORT environment variable', () => {
         appPort = await findPort()
         app = await runNextCommandDev([appDir], undefined, {
           env: {
-            PORT: appPort,
+            PORT: appPort + '',
           },
         })
       })
@@ -46,7 +46,7 @@ describe('PORT environment variable', () => {
         appPort = await findPort()
         app = await runNextCommandDev(['start', appDir], undefined, {
           env: {
-            PORT: appPort,
+            PORT: appPort + '',
           },
           nextStart: true,
         })

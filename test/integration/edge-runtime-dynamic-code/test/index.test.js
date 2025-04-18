@@ -30,7 +30,7 @@ describe('Page using eval in development mode', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
     context.app = await launchApp(context.appDir, context.appPort, {
-      env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+      env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
       onStdout(msg) {
         output += msg
       },
@@ -84,7 +84,7 @@ describe.each([
         beforeAll(async () => {
           context.appPort = await findPort()
           context.app = await launchApp(context.appDir, context.appPort, {
-            env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+            env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
             onStdout(msg) {
               output += msg
             },

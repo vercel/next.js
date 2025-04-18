@@ -22,7 +22,7 @@ const appDir = join(__dirname, '../')
 
       const appPort = await findPort()
       const app = await launchApp(appDir, appPort, {
-        env: { __NEXT_TEST_WITH_DEVTOOL: true },
+        env: { __NEXT_TEST_WITH_DEVTOOL: 'true' },
         onStderr(msg) {
           stderr += msg || ''
         },

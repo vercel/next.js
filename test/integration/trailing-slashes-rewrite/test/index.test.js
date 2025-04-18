@@ -56,7 +56,7 @@ describe('Trailing Slash Rewrite Proxying', () => {
           /ready on/i,
           {
             ...process.env,
-            PORT: proxyPort,
+            PORT: proxyPort + '',
           }
         )
 
@@ -85,7 +85,7 @@ describe('Trailing Slash Rewrite Proxying', () => {
           /ready on/i,
           {
             ...process.env,
-            PORT: proxyPort,
+            PORT: proxyPort + '',
           }
         )
 
