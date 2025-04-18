@@ -21,7 +21,7 @@ const { getTestFilter } = require('./test/get-test-filter')
 // prettier-ignore
 const nextjsReactPeerVersion = "19.1.0";
 
-let argv = require('yargs/yargs')(process.argv.slice(2))
+let argv = require('yargs')(process.argv.slice(2))
   .string('type')
   .string('test-pattern')
   .boolean('timings')
@@ -88,11 +88,18 @@ const testFilters = {
   e2e: 'test/e2e/',
 }
 
-const mockTrace = () => ({
-  traceAsyncFn: (fn) => fn(mockTrace()),
-  traceFn: (fn) => fn(mockTrace()),
-  traceChild: () => mockTrace(),
-})
+/** @typedef {import('next/dist/trace').Span} Span */
+
+/** @returns {Span} */
+const mockTrace = () => {
+  /** @type {Partial<Span>} */
+  const partial = {
+    traceAsyncFn: async (fn) => fn(mockTrace()),
+    traceFn: (fn) => fn(mockTrace()),
+    traceChild: () => mockTrace(),
+  }
+  return /** @type {Span} */ (partial)
+}
 
 // which types we have configured to run separate
 const configuredTestTypes = Object.values(testFilters)
@@ -253,20 +260,6 @@ async function main() {
 
     if (options.testPattern && typeof options.testPattern === 'string') {
       testPatternRegex = new RegExp(options.testPattern)
-    }
-
-    if (options.related) {
-      const { getRelatedTests } = await import('./scripts/run-related-test.mjs')
-      const tests = await getRelatedTests()
-      if (tests.length)
-        testPatternRegex = new RegExp(tests.map(escapeRegexp).join('|'))
-
-      if (testPatternRegex) {
-        console.log('Running related tests:', testPatternRegex.toString())
-      } else {
-        console.log('No matching related tests, exiting.')
-        process.exit(0)
-      }
     }
 
     tests = (
@@ -493,7 +486,6 @@ ${ENDGROUP}`)
               // Format the output of junit report to include the test name
               // For the debugging purpose to compare actual run list to the generated reports
               // [NOTE]: This won't affect if junit reporter is not enabled
-              // @ts-expect-error .replaceAll() does exist. Follow-up why TS is not recognizing it
               JEST_JUNIT_OUTPUT_NAME: test.file.replaceAll('/', '_'),
               // Specify suite name for the test to avoid unexpected merging across different env / grouped tests
               // This is not individual suites name (corresponding 'describe'), top level suite name which have redundant names by default
@@ -512,8 +504,8 @@ ${ENDGROUP}`)
               // Events can be finicky in CI. This switches to a more
               // reliable polling method.
               // CHOKIDAR_USEPOLLING: 'true',
-              // CHOKIDAR_INTERVAL: 500,
-              // WATCHPACK_POLLING: 500,
+              // CHOKIDAR_INTERVAL: '500',
+              // WATCHPACK_POLLING: '500',
             }
           : {}),
       }
