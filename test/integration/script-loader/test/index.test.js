@@ -24,82 +24,68 @@ const runTests = (isDev) => {
   // TODO: We will refactor the next/script to be strict mode resilient
   // Don't skip the test case for development mode (strict mode) once refactoring is finished
   it('priority afterInteractive', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/')
-      await waitFor(1000)
+    const browser = await webdriver(appPort, '/')
+    await waitFor(1000)
 
-      async function test(id) {
-        const script = await browser.elementById(id)
-        const dataAttr = await script.getAttribute('data-nscript')
-        const endScripts = await browser.elementsByCss(
-          `#__NEXT_DATA__ ~ #${id}`
-        )
+    async function test(id) {
+      const script = await browser.elementById(id)
+      const dataAttr = await script.getAttribute('data-nscript')
+      const endScripts = await browser.elementsByCss(`#__NEXT_DATA__ ~ #${id}`)
 
-        // Renders script tag
-        expect(script).toBeDefined()
-        expect(dataAttr).toBeDefined()
+      // Renders script tag
+      expect(script).toBeDefined()
+      expect(dataAttr).toBeDefined()
 
-        // Script is inserted at the end
-        expect(endScripts.length).toBe(1)
-      }
-
-      // afterInteractive script in page
-      await test('scriptAfterInteractive')
-      // afterInteractive script in _document
-      await test('documentAfterInteractive')
-    } finally {
-      if (browser) await browser.close()
+      // Script is inserted at the end
+      expect(endScripts.length).toBe(1)
     }
+
+    // afterInteractive script in page
+    await test('scriptAfterInteractive')
+    // afterInteractive script in _document
+    await test('documentAfterInteractive')
   })
 
   it('priority lazyOnload', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/page3')
+    const browser = await webdriver(appPort, '/page3')
 
-      await browser.waitForElementByCss('#onload-div')
-      await waitFor(1000)
+    await browser.waitForElementByCss('#onload-div')
+    await waitFor(1000)
 
-      const logs = await browser.log()
-      const filteredLogs = logs.filter(
-        (log) =>
-          !log.message.includes('Failed to load resource') &&
-          !log.message === 'error' &&
-          !log.message === 'Event'
-      )
-      expect(filteredLogs.length).toBe(0)
+    const logs = await browser.log()
+    const filteredLogs = logs.filter(
+      (log) =>
+        !log.message.includes('Failed to load resource') &&
+        !log.message === 'error' &&
+        !log.message === 'Event'
+    )
+    expect(filteredLogs.length).toBe(0)
 
-      async function test(id, css) {
-        const script = await browser.elementById(id)
-        const dataAttr = await script.getAttribute('data-nscript')
-        const endScripts = await browser.elementsByCss(
-          `#__NEXT_DATA__ ~ #${id}`
-        )
+    async function test(id, css) {
+      const script = await browser.elementById(id)
+      const dataAttr = await script.getAttribute('data-nscript')
+      const endScripts = await browser.elementsByCss(`#__NEXT_DATA__ ~ #${id}`)
 
-        // Renders script tag
-        expect(script).toBeDefined()
-        expect(dataAttr).toBeDefined()
+      // Renders script tag
+      expect(script).toBeDefined()
+      expect(dataAttr).toBeDefined()
 
-        if (css) {
-          const cssTag = await browser.elementByCss(`link[href="${css}"]`)
-          expect(cssTag).toBeDefined()
-        }
-
-        // Script is inserted at the end
-        expect(endScripts.length).toBe(1)
+      if (css) {
+        const cssTag = await browser.elementByCss(`link[href="${css}"]`)
+        expect(cssTag).toBeDefined()
       }
 
-      // lazyOnload script in page
-      await test(
-        'scriptLazyOnload',
-        'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css'
-      )
-      // lazyOnload script in _document
-      await test('documentLazyOnload')
-    } finally {
-      if (browser) await browser.close()
+      // Script is inserted at the end
+      expect(endScripts.length).toBe(1)
     }
+
+    // lazyOnload script in page
+    await test(
+      'scriptLazyOnload',
+      'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css'
+    )
+    // lazyOnload script in _document
+    await test('documentLazyOnload')
   })
 
   it('priority beforeInteractive', async () => {
@@ -176,50 +162,40 @@ const runTests = (isDev) => {
   })
 
   it('priority beforeInteractive on navigate', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/')
+    const browser = await webdriver(appPort, '/')
 
-      // beforeInteractive scripts should load once
-      let documentBIScripts = await browser.elementsByCss(
-        '[src$="scriptBeforeInteractive"]'
-      )
-      expect(documentBIScripts.length).toBe(2)
+    // beforeInteractive scripts should load once
+    let documentBIScripts = await browser.elementsByCss(
+      '[src$="scriptBeforeInteractive"]'
+    )
+    expect(documentBIScripts.length).toBe(2)
 
-      await browser.waitForElementByCss('[href="/page1"]').click()
+    await browser.waitForElementByCss('[href="/page1"]').click()
 
-      await browser.waitForElementByCss('.container')
+    await browser.waitForElementByCss('.container')
 
-      // Ensure beforeInteractive script isn't duplicated on navigation
-      documentBIScripts = await browser.elementsByCss(
-        '[src$="scriptBeforeInteractive"]'
-      )
-      expect(documentBIScripts.length).toBe(2)
-    } finally {
-      if (browser) await browser.close()
-    }
+    // Ensure beforeInteractive script isn't duplicated on navigation
+    documentBIScripts = await browser.elementsByCss(
+      '[src$="scriptBeforeInteractive"]'
+    )
+    expect(documentBIScripts.length).toBe(2)
   })
 
   it('onload fires correctly', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/page4')
-      await waitFor(3000)
+    const browser = await webdriver(appPort, '/page4')
+    await waitFor(3000)
 
-      const text = await browser.elementById('onload-div-1').text()
-      expect(text).toBe('aaabbbccc')
+    const text = await browser.elementById('onload-div-1').text()
+    expect(text).toBe('aaabbbccc')
 
-      // Navigate to different page and back
-      await browser.waitForElementByCss('[href="/page9"]').click()
-      await browser.waitForElementByCss('[href="/page4"]').click()
+    // Navigate to different page and back
+    await browser.waitForElementByCss('[href="/page9"]').click()
+    await browser.waitForElementByCss('[href="/page4"]').click()
 
-      await browser.waitForElementByCss('#onload-div-1')
-      const sameText = await browser.elementById('onload-div-1').text()
-      // onload should only be fired once, not on sequential re-mount
-      expect(sameText).toBe('')
-    } finally {
-      if (browser) await browser.close()
-    }
+    await browser.waitForElementByCss('#onload-div-1')
+    const sameText = await browser.elementById('onload-div-1').text()
+    // onload should only be fired once, not on sequential re-mount
+    expect(sameText).toBe('')
   })
 
   it('priority beforeInteractive with inline script', async () => {
@@ -241,42 +217,32 @@ const runTests = (isDev) => {
   })
 
   it('priority beforeInteractive with inline script should execute', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/page7')
-      await waitFor(1000)
+    const browser = await webdriver(appPort, '/page7')
+    await waitFor(1000)
 
-      const logs = await browser.log()
-      // not only should inline script run, but also should only run once
-      expect(
-        logs.filter((log) =>
-          log.message.includes('beforeInteractive inline script run')
-        ).length
-      ).toBe(1)
-    } finally {
-      if (browser) await browser.close()
-    }
+    const logs = await browser.log()
+    // not only should inline script run, but also should only run once
+    expect(
+      logs.filter((log) =>
+        log.message.includes('beforeInteractive inline script run')
+      ).length
+    ).toBe(1)
   })
 
   it('Does not duplicate inline scripts', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/')
+    const browser = await webdriver(appPort, '/')
 
-      // Navigate away and back to page
-      await browser.waitForElementByCss('[href="/page5"]').click()
-      await browser.waitForElementByCss('[href="/"]').click()
-      await browser.waitForElementByCss('[href="/page5"]').click()
+    // Navigate away and back to page
+    await browser.waitForElementByCss('[href="/page5"]').click()
+    await browser.waitForElementByCss('[href="/"]').click()
+    await browser.waitForElementByCss('[href="/page5"]').click()
 
-      await browser.waitForElementByCss('.container')
-      await waitFor(1000)
+    await browser.waitForElementByCss('.container')
+    await waitFor(1000)
 
-      const text = await browser.elementById('text').text()
+    const text = await browser.elementById('text').text()
 
-      expect(text).toBe('abc')
-    } finally {
-      if (browser) await browser.close()
-    }
+    expect(text).toBe('abc')
   })
 
   if (!isDev) {
@@ -298,40 +264,30 @@ const runTests = (isDev) => {
   }
 
   it('onReady fires after load event and then on every subsequent re-mount', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/page8')
+    const browser = await webdriver(appPort, '/page8')
 
-      const text = await browser.elementById('text').text()
+    const text = await browser.elementById('text').text()
 
-      expect(text).toBe('aaa')
+    expect(text).toBe('aaa')
 
-      // Navigate to different page and back
-      await browser.waitForElementByCss('[href="/page9"]').click()
-      await browser.waitForElementByCss('[href="/page8"]').click()
+    // Navigate to different page and back
+    await browser.waitForElementByCss('[href="/page9"]').click()
+    await browser.waitForElementByCss('[href="/page8"]').click()
 
-      await browser.waitForElementByCss('.container')
-      const sameText = await browser.elementById('text').text()
+    await browser.waitForElementByCss('.container')
+    const sameText = await browser.elementById('text').text()
 
-      expect(sameText).toBe('aaa') // onReady should fire again
-    } finally {
-      if (browser) await browser.close()
-    }
+    expect(sameText).toBe('aaa') // onReady should fire again
   })
 
   // https://github.com/vercel/next.js/issues/39993
   it('onReady should only fires once after loaded (issue #39993)', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/page10')
+    const browser = await webdriver(appPort, '/page10')
 
-      // wait for remote script to be loaded
-      await waitFor(1000)
-      expect(await browser.eval(`window.remoteScriptsOnReadyCalls`)).toBe(1)
-      expect(await browser.eval(`window.inlineScriptsOnReadyCalls`)).toBe(1)
-    } finally {
-      if (browser) await browser.close()
-    }
+    // wait for remote script to be loaded
+    await waitFor(1000)
+    expect(await browser.eval(`window.remoteScriptsOnReadyCalls`)).toBe(1)
+    expect(await browser.eval(`window.inlineScriptsOnReadyCalls`)).toBe(1)
   })
 }
 

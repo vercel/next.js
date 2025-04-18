@@ -23,26 +23,19 @@ describe('styled-components SWC transform', () => {
   }
 
   it('should not have hydration mismatch with styled-components transform enabled', async () => {
-    let browser
-    try {
-      browser = await webdriver(next.url, '/')
+    const browser = await webdriver(next.url, '/')
 
-      // Compile /_error
-      await fetchViaHTTP(next.url, '/404')
+    // Compile /_error
+    await fetchViaHTTP(next.url, '/404')
 
-      // Try 4 times to be sure there is no mismatch
-      expect(await matchLogs$(browser)).toBe(false)
-      await browser.refresh()
-      expect(await matchLogs$(browser)).toBe(false)
-      await browser.refresh()
-      expect(await matchLogs$(browser)).toBe(false)
-      await browser.refresh()
-      expect(await matchLogs$(browser)).toBe(false)
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
+    // Try 4 times to be sure there is no mismatch
+    expect(await matchLogs$(browser)).toBe(false)
+    await browser.refresh()
+    expect(await matchLogs$(browser)).toBe(false)
+    await browser.refresh()
+    expect(await matchLogs$(browser)).toBe(false)
+    await browser.refresh()
+    expect(await matchLogs$(browser)).toBe(false)
   })
 
   it('should render the page with correct styles', async () => {

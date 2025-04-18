@@ -29,23 +29,15 @@ function runTests() {
 
   it('should client render page /', async () => {
     const browser = await webdriver(appPort, '/')
-    try {
-      const text = await browser.elementByCss('#page').text()
-      expect(text).toBe('index')
-    } finally {
-      await browser.close()
-    }
+    const text = await browser.elementByCss('#page').text()
+    expect(text).toBe('index')
   })
 
   it('should follow link to /', async () => {
     const browser = await webdriver(appPort, '/links')
-    try {
-      await browser.elementByCss('#link1').click()
-      await waitFor(1000)
-      await check(() => browser.elementByCss('#page').text(), /^index$/)
-    } finally {
-      await browser.close()
-    }
+    await browser.elementByCss('#link1').click()
+    await waitFor(1000)
+    await check(() => browser.elementByCss('#page').text(), /^index$/)
   })
 
   it('should ssr page /index', async () => {
@@ -56,23 +48,15 @@ function runTests() {
 
   it('should client render page /index', async () => {
     const browser = await webdriver(appPort, '/index')
-    try {
-      const text = await browser.elementByCss('#page').text()
-      expect(text).toBe('index > index')
-    } finally {
-      await browser.close()
-    }
+    const text = await browser.elementByCss('#page').text()
+    expect(text).toBe('index > index')
   })
 
   it('should follow link to /index', async () => {
     const browser = await webdriver(appPort, '/links')
-    try {
-      await browser.elementByCss('#link2').click()
-      await waitFor(1000)
-      await check(() => browser.elementByCss('#page').text(), /^index > index$/)
-    } finally {
-      await browser.close()
-    }
+    await browser.elementByCss('#link2').click()
+    await waitFor(1000)
+    await check(() => browser.elementByCss('#page').text(), /^index > index$/)
   })
 
   it('should ssr page /index/user', async () => {
@@ -83,23 +67,15 @@ function runTests() {
 
   it('should client render page /index/user', async () => {
     const browser = await webdriver(appPort, '/index/user')
-    try {
-      const text = await browser.elementByCss('#page').text()
-      expect(text).toBe('index > user')
-    } finally {
-      await browser.close()
-    }
+    const text = await browser.elementByCss('#page').text()
+    expect(text).toBe('index > user')
   })
 
   it('should follow link to /index/user', async () => {
     const browser = await webdriver(appPort, '/links')
-    try {
-      await browser.elementByCss('#link5').click()
-      await waitFor(1000)
-      await check(() => browser.elementByCss('#page').text(), /^index > user$/)
-    } finally {
-      await browser.close()
-    }
+    await browser.elementByCss('#link5').click()
+    await waitFor(1000)
+    await check(() => browser.elementByCss('#page').text(), /^index > user$/)
   })
 
   it('should ssr page /index/project', async () => {
@@ -110,26 +86,15 @@ function runTests() {
 
   it('should client render page /index/project', async () => {
     const browser = await webdriver(appPort, '/index/project')
-    try {
-      const text = await browser.elementByCss('#page').text()
-      expect(text).toBe('index > project')
-    } finally {
-      await browser.close()
-    }
+    const text = await browser.elementByCss('#page').text()
+    expect(text).toBe('index > project')
   })
 
   it('should follow link to /index/project', async () => {
     const browser = await webdriver(appPort, '/links')
-    try {
-      await browser.elementByCss('#link6').click()
-      await waitFor(1000)
-      await check(
-        () => browser.elementByCss('#page').text(),
-        /^index > project$/
-      )
-    } finally {
-      await browser.close()
-    }
+    await browser.elementByCss('#link6').click()
+    await waitFor(1000)
+    await check(() => browser.elementByCss('#page').text(), /^index > project$/)
   })
 
   it('should ssr page /index/index', async () => {
@@ -140,26 +105,18 @@ function runTests() {
 
   it('should client render page /index/index', async () => {
     const browser = await webdriver(appPort, '/index/index')
-    try {
-      const text = await browser.elementByCss('#page').text()
-      expect(text).toBe('index > index > index')
-    } finally {
-      await browser.close()
-    }
+    const text = await browser.elementByCss('#page').text()
+    expect(text).toBe('index > index > index')
   })
 
   it('should follow link to /index/index', async () => {
     const browser = await webdriver(appPort, '/links')
-    try {
-      await browser.elementByCss('#link3').click()
-      await waitFor(1000)
-      await check(
-        () => browser.elementByCss('#page').text(),
-        /^index > index > index$/
-      )
-    } finally {
-      await browser.close()
-    }
+    await browser.elementByCss('#link3').click()
+    await waitFor(1000)
+    await check(
+      () => browser.elementByCss('#page').text(),
+      /^index > index > index$/
+    )
   })
 
   it('should 404 on /index/index/index', async () => {
@@ -169,13 +126,9 @@ function runTests() {
 
   it('should not find a link to /index/index/index', async () => {
     const browser = await webdriver(appPort, '/links')
-    try {
-      await browser.elementByCss('#link4').click()
-      await waitFor(1000)
-      await check(() => browser.elementByCss('h1').text(), /404/)
-    } finally {
-      await browser.close()
-    }
+    await browser.elementByCss('#link4').click()
+    await waitFor(1000)
+    await check(() => browser.elementByCss('h1').text(), /404/)
   })
 }
 

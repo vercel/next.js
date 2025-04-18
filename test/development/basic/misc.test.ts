@@ -27,7 +27,6 @@ describe.each([[''], ['/docs']])(
       const browser = await webdriver(next.url, basePath + '/process-env')
       const nodeEnv = await browser.elementByCss('#node-env').text()
       expect(nodeEnv).toBe('development')
-      await browser.close()
     })
 
     it('should allow access to public files', async () => {

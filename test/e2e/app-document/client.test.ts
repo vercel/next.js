@@ -92,7 +92,6 @@ describe('Document and App - Client side', () => {
         .text()
 
       expect(switchedRandomNumer).toBe(randomNumber)
-      await browser.close()
     })
   }
 })

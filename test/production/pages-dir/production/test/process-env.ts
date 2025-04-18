@@ -11,7 +11,6 @@ export default (next: NextInstance) => {
       const browser = await webdriver(next.appPort, '/process-env')
       const nodeEnv = await browser.elementByCss('#node-env').text()
       expect(nodeEnv).toBe('production')
-      await browser.close()
     })
   })
 

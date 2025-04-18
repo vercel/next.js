@@ -39,30 +39,26 @@ describe('ppr-navigations incremental', () => {
     const random = Math.random().toString(36).substring(7)
     await browser.eval(`window.random = ${JSON.stringify(random)}`)
 
-    try {
-      for (const { href } of links) {
-        // Find the link element for the href and click it.
-        await browser.waitForElementByCss(`a[href="${href}"]`).click()
+    for (const { href } of links) {
+      // Find the link element for the href and click it.
+      await browser.waitForElementByCss(`a[href="${href}"]`).click()
 
-        await browser.waitForIdleNetwork()
-        await waitForHydration(browser)
-        await setTimeout(500)
+      await browser.waitForIdleNetwork()
+      await waitForHydration(browser)
+      await setTimeout(500)
 
-        // Wait for that page to load.
-        if (href === '/') {
-          // The root page redirects to the first locale.
-          await browser.waitForElementByCss(`[data-value="/${locales[0]}"]`)
-        } else {
-          await browser.waitForElementByCss(`[data-value="${href}"]`)
-        }
-
-        await browser.waitForElementByCss('#dynamic', 1500)
-
-        // Check if the page navigated.
-        expect(await browser.eval(`window.random`)).toBe(random)
+      // Wait for that page to load.
+      if (href === '/') {
+        // The root page redirects to the first locale.
+        await browser.waitForElementByCss(`[data-value="/${locales[0]}"]`)
+      } else {
+        await browser.waitForElementByCss(`[data-value="${href}"]`)
       }
-    } finally {
-      await browser.close()
+
+      await browser.waitForElementByCss('#dynamic', 1500)
+
+      // Check if the page navigated.
+      expect(await browser.eval(`window.random`)).toBe(random)
     }
 
     if (!isNextDev && !isTurbopack && !isNextDeploy) {

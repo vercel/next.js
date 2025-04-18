@@ -316,7 +316,6 @@ describe.each(process.env.IS_TURBOPACK_TEST ? ['turbo'] : ['strict', true])(
           await navigate(page)
           await check(PAGES[page])
         }
-        await browser.close()
       })
     }
   }
@@ -369,7 +368,6 @@ describe.each(process.env.IS_TURBOPACK_TEST ? ['turbo'] : ['strict', 'loose'])(
           await navigate(page)
           await check(PAGES[page])
         }
-        await browser.close()
       })
     }
   }
@@ -407,7 +405,6 @@ describe.each(process.env.IS_TURBOPACK_TEST ? ['turbo'] : ['strict', 'loose'])(
               : pageInfo.requests
           )
         }
-        await browser.close()
       })
     }
   }

@@ -71,6 +71,5 @@ describe('Configuration', () => {
     expect(serverText).toBe('')
     expect(serverClientText).toBe('/static')
     expect(envValue).toBe('hello')
-    await browser.close()
   })
 })

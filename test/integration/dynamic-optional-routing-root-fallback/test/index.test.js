@@ -19,32 +19,20 @@ const appDir = join(__dirname, '../')
 function runTests() {
   it('should render optional catch-all top-level route with no segments', async () => {
     const browser = await webdriver(appPort, '/')
-    try {
-      await browser.waitForElementByCss('#success')
-      await check(() => browser.elementByCss('#success').text(), /yay/)
-    } finally {
-      await browser.close()
-    }
+    await browser.waitForElementByCss('#success')
+    await check(() => browser.elementByCss('#success').text(), /yay/)
   })
 
   it('should render optional catch-all top-level route with one segment', async () => {
     const browser = await webdriver(appPort, '/one')
-    try {
-      await browser.waitForElementByCss('#success')
-      await check(() => browser.elementByCss('#success').text(), /one/)
-    } finally {
-      await browser.close()
-    }
+    await browser.waitForElementByCss('#success')
+    await check(() => browser.elementByCss('#success').text(), /one/)
   })
 
   it('should render optional catch-all top-level route with two segments', async () => {
     const browser = await webdriver(appPort, '/one/two')
-    try {
-      await browser.waitForElementByCss('#success')
-      await check(() => browser.elementByCss('#success').text(), /one,two/)
-    } finally {
-      await browser.close()
-    }
+    await browser.waitForElementByCss('#success')
+    await check(() => browser.elementByCss('#success').text(), /one,two/)
   })
 }
 

@@ -98,41 +98,36 @@ describe('ppr', () => {
     it('should eventually render the dynamic part', async () => {
       const browser = await next.browser(pathname)
 
-      try {
-        // Wait for the page part to load.
-        await browser.waitForElementByCss('#page')
-        await browser.waitForIdleNetwork()
+      // Wait for the page part to load.
+      await browser.waitForElementByCss('#page')
+      await browser.waitForIdleNetwork()
 
-        // Wait for the dynamic part to load.
-        await browser.waitForElementByCss('#container > #dynamic > #state')
+      // Wait for the dynamic part to load.
+      await browser.waitForElementByCss('#container > #dynamic > #state')
 
-        // Ensure we've got the right dynamic part.
-        let dynamic = await browser
-          .elementByCss('#container > #dynamic > #state')
-          .text()
+      // Ensure we've got the right dynamic part.
+      let dynamic = await browser
+        .elementByCss('#container > #dynamic > #state')
+        .text()
 
-        expect(dynamic).toBe('Not Signed In')
+      expect(dynamic).toBe('Not Signed In')
 
-        // Re-visit the page with the cookie.
-        await browser.addCookie({ name: 'session', value: '1' }).refresh()
+      // Re-visit the page with the cookie.
+      await browser.addCookie({ name: 'session', value: '1' }).refresh()
 
-        // Wait for the page part to load.
-        await browser.waitForElementByCss('#page')
-        await browser.waitForIdleNetwork()
+      // Wait for the page part to load.
+      await browser.waitForElementByCss('#page')
+      await browser.waitForIdleNetwork()
 
-        // Wait for the dynamic part to load.
-        await browser.waitForElementByCss('#container > #dynamic > #state')
+      // Wait for the dynamic part to load.
+      await browser.waitForElementByCss('#container > #dynamic > #state')
 
-        // Ensure we've got the right dynamic part.
-        dynamic = await browser
-          .elementByCss('#container > #dynamic > #state')
-          .text()
+      // Ensure we've got the right dynamic part.
+      dynamic = await browser
+        .elementByCss('#container > #dynamic > #state')
+        .text()
 
-        expect(dynamic).toBe('Signed In')
-      } finally {
-        await browser.deleteCookies()
-        await browser.close()
-      }
+      expect(dynamic).toBe('Signed In')
     })
   })
 

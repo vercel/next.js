@@ -22,7 +22,6 @@ const didResolveAfterPrefetch = async () => {
     .waitForElementByCss('#hidden-until-click')
     .text()
   expect(text).toBe('visible')
-  await browser.close()
 }
 
 describe('Router prefetch', () => {
@@ -43,7 +42,6 @@ describe('Router prefetch', () => {
           .elementsByCss('link[rel=prefetch]')
 
         expect(links.length).toBe(0)
-        await browser.close()
       })
 
       it('should resolve prefetch promise', async () => {

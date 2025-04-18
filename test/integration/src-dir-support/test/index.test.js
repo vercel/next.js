@@ -42,31 +42,21 @@ function runTests() {
   })
 
   it('should navigate to a dynamic page successfully', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/')
-      await browser.elementByCss('#view-post-1').click()
-      await browser.waitForElementByCss('p#post-1')
+    const browser = await webdriver(appPort, '/')
+    await browser.elementByCss('#view-post-1').click()
+    await browser.waitForElementByCss('p#post-1')
 
-      const text = await browser.elementByCss('p#post-1').text()
-      expect(text).toMatch(/this is.*?post-1/i)
-    } finally {
-      if (browser) await browser.close()
-    }
+    const text = await browser.elementByCss('p#post-1').text()
+    expect(text).toMatch(/this is.*?post-1/i)
   })
 
   it('should navigate to a nested dynamic page successfully', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/')
-      await browser.elementByCss('#view-post-1-comment-1').click()
-      await browser.waitForElementByCss('p#comment-1')
+    const browser = await webdriver(appPort, '/')
+    await browser.elementByCss('#view-post-1-comment-1').click()
+    await browser.waitForElementByCss('p#comment-1')
 
-      const text = await browser.elementByCss('p#comment-1').text()
-      expect(text).toMatch(/i am.*comment-1.*on.*post-1/i)
-    } finally {
-      if (browser) await browser.close()
-    }
+    const text = await browser.elementByCss('p#comment-1').text()
+    expect(text).toMatch(/i am.*comment-1.*on.*post-1/i)
   })
 
   it('should pass params in getInitialProps during SSR', async () => {

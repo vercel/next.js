@@ -35,13 +35,9 @@ describe('Module Init Error', () => {
 
       it('should render error page', async () => {
         const browser = await webdriver(appPort, '/')
-        try {
-          await waitFor(2000)
-          const text = await browser.elementByCss('#error-p').text()
-          expect(text).toBe('Error Rendered')
-        } finally {
-          await browser.close()
-        }
+        await waitFor(2000)
+        const text = await browser.elementByCss('#error-p').text()
+        expect(text).toBe('Error Rendered')
       })
     }
   )

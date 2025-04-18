@@ -56,41 +56,29 @@ useLightningcss: ${useLightningcss}
 
       it('should have correct color on index page (on load)', async () => {
         const browser = await webdriver(appPort, '/')
-        try {
-          await checkGreenButton(browser)
-        } finally {
-          await browser.close()
-        }
+        await checkGreenButton(browser)
       })
 
       it('should have correct color on index page (on hover)', async () => {
         const browser = await webdriver(appPort, '/')
-        try {
-          await checkGreenButton(browser)
-          await browser.waitForElementByCss('#link-other').moveTo()
-          await waitFor(2000)
-          await checkGreenButton(browser)
-        } finally {
-          await browser.close()
-        }
+        await checkGreenButton(browser)
+        await browser.waitForElementByCss('#link-other').moveTo()
+        await waitFor(2000)
+        await checkGreenButton(browser)
       })
 
       it('should have correct color on index page (on nav)', async () => {
         const browser = await webdriver(appPort, '/')
-        try {
-          await checkGreenButton(browser)
-          await browser.waitForElementByCss('#link-other').click()
+        await checkGreenButton(browser)
+        await browser.waitForElementByCss('#link-other').click()
 
-          // Wait for navigation:
-          await browser.waitForElementByCss('#link-index')
-          await checkPinkButton(browser)
+        // Wait for navigation:
+        await browser.waitForElementByCss('#link-index')
+        await checkPinkButton(browser)
 
-          // Navigate back to index:
-          await browser.waitForElementByCss('#link-index').click()
-          await checkGreenButton(browser)
-        } finally {
-          await browser.close()
-        }
+        // Navigate back to index:
+        await browser.waitForElementByCss('#link-index').click()
+        await checkGreenButton(browser)
       })
     }
 
@@ -260,44 +248,37 @@ useLightningcss: ${useLightningcss}
     })
 
     it('should have the correct color (css ordering) during hot reloads', async () => {
-      let browser
+      const browser = await webdriver(appPort, '/')
+
+      const blueColor = await browser.eval(
+        `window.getComputedStyle(document.querySelector('#blueText')).color`
+      )
+      expect(blueColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+
+      const yellowColor = await browser.eval(
+        `window.getComputedStyle(document.querySelector('#yellowText')).color`
+      )
+      expect(yellowColor).toMatchInlineSnapshot(`"rgb(255, 255, 0)"`)
+
+      const cssFile = new File(join(appDir, 'pages/index.module.css'))
       try {
-        browser = await webdriver(appPort, '/')
-
-        const blueColor = await browser.eval(
-          `window.getComputedStyle(document.querySelector('#blueText')).color`
+        cssFile.replace('color: yellow;', 'color: rgb(1, 1, 1);')
+        await check(
+          () =>
+            browser.eval(
+              `window.getComputedStyle(document.querySelector('#yellowText')).color`
+            ),
+          'rgb(1, 1, 1)'
         )
-        expect(blueColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
-
-        const yellowColor = await browser.eval(
-          `window.getComputedStyle(document.querySelector('#yellowText')).color`
+        await check(
+          () =>
+            browser.eval(
+              `window.getComputedStyle(document.querySelector('#blueText')).color`
+            ),
+          'rgb(0, 0, 255)'
         )
-        expect(yellowColor).toMatchInlineSnapshot(`"rgb(255, 255, 0)"`)
-
-        const cssFile = new File(join(appDir, 'pages/index.module.css'))
-        try {
-          cssFile.replace('color: yellow;', 'color: rgb(1, 1, 1);')
-          await check(
-            () =>
-              browser.eval(
-                `window.getComputedStyle(document.querySelector('#yellowText')).color`
-              ),
-            'rgb(1, 1, 1)'
-          )
-          await check(
-            () =>
-              browser.eval(
-                `window.getComputedStyle(document.querySelector('#blueText')).color`
-              ),
-            'rgb(0, 0, 255)'
-          )
-        } finally {
-          cssFile.restore()
-        }
       } finally {
-        if (browser) {
-          await browser.close()
-        }
+        cssFile.restore()
       }
     })
   })
@@ -399,119 +380,95 @@ module.exports = {
 
         it('should have correct color on index page (on load)', async () => {
           const browser = await webdriver(appPort, '/')
-          try {
-            await checkBlackTitle(browser)
-          } finally {
-            await browser.close()
-          }
+          await checkBlackTitle(browser)
         })
 
         it('should have correct color on index page (on hover)', async () => {
           const browser = await webdriver(appPort, '/')
-          try {
-            await checkBlackTitle(browser)
-            await browser.waitForElementByCss('#link-other').moveTo()
-            await waitFor(2000)
-            await checkBlackTitle(browser)
-          } finally {
-            await browser.close()
-          }
+          await checkBlackTitle(browser)
+          await browser.waitForElementByCss('#link-other').moveTo()
+          await waitFor(2000)
+          await checkBlackTitle(browser)
         })
 
         if (!isDev) {
           it('should not change color on hover', async () => {
             const browser = await webdriver(appPort, '/')
-            try {
-              await checkBlackTitle(browser)
-              await browser.waitForElementByCss('#link-other').moveTo()
-              await waitFor(2000)
-              await checkBlackTitle(browser)
-            } finally {
-              await browser.close()
-            }
+            await checkBlackTitle(browser)
+            await browser.waitForElementByCss('#link-other').moveTo()
+            await waitFor(2000)
+            await checkBlackTitle(browser)
           })
 
           it('should have correct CSS injection order', async () => {
             const browser = await webdriver(appPort, '/')
-            try {
-              await checkBlackTitle(browser)
+            await checkBlackTitle(browser)
 
-              const prevSiblingHref = await browser.eval(
-                `document.querySelector('link[rel=stylesheet][data-n-p]').previousSibling.getAttribute('href')`
-              )
-              const currentPageHref = await browser.eval(
-                `document.querySelector('link[rel=stylesheet][data-n-p]').getAttribute('href')`
-              )
-              expect(prevSiblingHref).toBeDefined()
-              expect(prevSiblingHref).toBe(currentPageHref)
+            const prevSiblingHref = await browser.eval(
+              `document.querySelector('link[rel=stylesheet][data-n-p]').previousSibling.getAttribute('href')`
+            )
+            const currentPageHref = await browser.eval(
+              `document.querySelector('link[rel=stylesheet][data-n-p]').getAttribute('href')`
+            )
+            expect(prevSiblingHref).toBeDefined()
+            expect(prevSiblingHref).toBe(currentPageHref)
 
-              // Navigate to other:
-              await browser.waitForElementByCss('#link-other').click()
-              await checkRedTitle(browser)
+            // Navigate to other:
+            await browser.waitForElementByCss('#link-other').click()
+            await checkRedTitle(browser)
 
-              const newPrevSibling = await browser.eval(
-                `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
-              )
-              const newPageHref = await browser.eval(
-                `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
-              )
-              expect(newPrevSibling).toBe('')
-              expect(newPageHref).toBeDefined()
-              expect(newPageHref).not.toBe(currentPageHref)
+            const newPrevSibling = await browser.eval(
+              `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
+            )
+            const newPageHref = await browser.eval(
+              `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
+            )
+            expect(newPrevSibling).toBe('')
+            expect(newPageHref).toBeDefined()
+            expect(newPageHref).not.toBe(currentPageHref)
 
-              // Navigate to home:
-              await browser.waitForElementByCss('#link-index').click()
-              await checkBlackTitle(browser)
+            // Navigate to home:
+            await browser.waitForElementByCss('#link-index').click()
+            await checkBlackTitle(browser)
 
-              const newPrevSibling2 = await browser.eval(
-                `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
-              )
-              const newPageHref2 = await browser.eval(
-                `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
-              )
-              expect(newPrevSibling2).toBe('')
-              expect(newPageHref2).toBeDefined()
-              expect(newPageHref2).toBe(currentPageHref)
-            } finally {
-              await browser.close()
-            }
+            const newPrevSibling2 = await browser.eval(
+              `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
+            )
+            const newPageHref2 = await browser.eval(
+              `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
+            )
+            expect(newPrevSibling2).toBe('')
+            expect(newPageHref2).toBeDefined()
+            expect(newPageHref2).toBe(currentPageHref)
           })
         }
 
         it('should have correct color on index page (on nav from index)', async () => {
           const browser = await webdriver(appPort, '/')
-          try {
-            await checkBlackTitle(browser)
-            await browser.waitForElementByCss('#link-other').click()
+          await checkBlackTitle(browser)
+          await browser.waitForElementByCss('#link-other').click()
 
-            // Wait for navigation:
-            await browser.waitForElementByCss('#link-index')
-            await checkRedTitle(browser)
+          // Wait for navigation:
+          await browser.waitForElementByCss('#link-index')
+          await checkRedTitle(browser)
 
-            // Navigate back to index:
-            await browser.waitForElementByCss('#link-index').click()
-            await checkBlackTitle(browser)
-          } finally {
-            await browser.close()
-          }
+          // Navigate back to index:
+          await browser.waitForElementByCss('#link-index').click()
+          await checkBlackTitle(browser)
         })
 
         it('should have correct color on index page (on nav from other)', async () => {
           const browser = await webdriver(appPort, '/other')
-          try {
-            await checkRedTitle(browser)
-            await browser.waitForElementByCss('#link-index').click()
+          await checkRedTitle(browser)
+          await browser.waitForElementByCss('#link-index').click()
 
-            // Wait for navigation:
-            await browser.waitForElementByCss('#link-other')
-            await checkBlackTitle(browser)
+          // Wait for navigation:
+          await browser.waitForElementByCss('#link-other')
+          await checkBlackTitle(browser)
 
-            // Navigate back to other:
-            await browser.waitForElementByCss('#link-other').click()
-            await checkRedTitle(browser)
-          } finally {
-            await browser.close()
-          }
+          // Navigate back to other:
+          await browser.waitForElementByCss('#link-other').click()
+          await checkRedTitle(browser)
         })
       }
 

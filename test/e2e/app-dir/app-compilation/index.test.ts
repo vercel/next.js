@@ -52,7 +52,7 @@ describe('app dir', () => {
             retry(async () => {
               const headline = await browser.elementByCss('h1').text()
               expect(headline).toBe('hello from new page')
-              await browser.close()
+              // TODO: was this browser.close() important? can it use loadPage instead?
             })
         )
       })

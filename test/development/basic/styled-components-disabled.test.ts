@@ -29,30 +29,23 @@ import { retry } from 'next-test-utils'
     afterAll(() => next.destroy())
 
     it('should have hydration mismatch with styled-components transform disabled', async () => {
-      let browser
-      try {
-        // Compile /_error
-        browser = await webdriver(next.url, '/404')
-        await browser.loadPage('/')
+      // Compile /_error
+      const browser = await webdriver(next.url, '/404')
+      await browser.loadPage(new URL('/', next.url).toString())
 
-        await retry(async () => {
-          const logs = await browser.log()
-          expect(logs).toEqual(
-            expect.arrayContaining([
-              {
-                message: expect.stringContaining(
-                  'https://react.dev/link/hydration-mismatch'
-                ),
-                source: 'error',
-              },
-            ])
-          )
-        })
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
+      await retry(async () => {
+        const logs = await browser.log()
+        expect(logs).toEqual(
+          expect.arrayContaining([
+            {
+              message: expect.stringContaining(
+                'https://react.dev/link/hydration-mismatch'
+              ),
+              source: 'error',
+            },
+          ])
+        )
+      })
     })
   }
 )

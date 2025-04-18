@@ -26,11 +26,10 @@ jest.retryTimes(0)
 
 const showsError = async (pathname, regex, click = false, isWarn = false) => {
   const browser = await webdriver(appPort, pathname)
-  try {
-    // wait for page to be built and navigated to
-    await browser.waitForElementByCss('#click-me')
-    if (isWarn) {
-      await browser.eval(`(function() {
+  // wait for page to be built and navigated to
+  await browser.waitForElementByCss('#click-me')
+  if (isWarn) {
+    await browser.eval(`(function() {
         window.warnLogs = []
         var origWarn = window.console.warn
         window.console.warn = (...args) => {
@@ -38,30 +37,26 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
           origWarn.apply(window.console, args)
         }
       })()`)
-    }
-    if (click) {
-      await browser.elementByCss('#click-me').click()
-      await waitFor(500)
-    }
-    if (isWarn) {
-      await check(async () => {
-        const warnLogs = await browser.eval('window.warnLogs')
-        return warnLogs.join('\n')
-      }, regex)
-    } else {
-      await assertHasRedbox(browser)
-      const errorContent = await getRedboxHeader(browser)
-      expect(errorContent).toMatch(regex)
-    }
-  } finally {
-    await browser.close()
+  }
+  if (click) {
+    await browser.elementByCss('#click-me').click()
+    await waitFor(500)
+  }
+  if (isWarn) {
+    await check(async () => {
+      const warnLogs = await browser.eval('window.warnLogs')
+      return warnLogs.join('\n')
+    }, regex)
+  } else {
+    await assertHasRedbox(browser)
+    const errorContent = await getRedboxHeader(browser)
+    expect(errorContent).toMatch(regex)
   }
 }
 
 const noError = async (pathname, click = false) => {
   const browser = await webdriver(appPort, '/')
-  try {
-    await browser.eval(`(function() {
+  await browser.eval(`(function() {
       window.caughtErrors = []
       window.addEventListener('error', function (error) {
         window.caughtErrors.push(error.message || 1)
@@ -71,16 +66,13 @@ const noError = async (pathname, click = false) => {
       })
       window.next.router.replace('${pathname}')
     })()`)
-    await browser.waitForElementByCss('#click-me')
-    if (click) {
-      await browser.elementByCss('#click-me').click()
-      await waitFor(500)
-    }
-    const caughtErrors = await browser.eval(`window.caughtErrors`)
-    expect(caughtErrors).toHaveLength(0)
-  } finally {
-    await browser.close()
+  await browser.waitForElementByCss('#click-me')
+  if (click) {
+    await browser.elementByCss('#click-me').click()
+    await waitFor(500)
   }
+  const caughtErrors = await browser.eval(`window.caughtErrors`)
+  expect(caughtErrors).toHaveLength(0)
 }
 
 describe('Invalid hrefs', () => {
@@ -116,26 +108,22 @@ describe('Invalid hrefs', () => {
 
       it('shows error when dynamic route mismatch is used on Link', async () => {
         const browser = await webdriver(appPort, '/dynamic-route-mismatch')
-        try {
-          await browser.eval(`(function() {
+        await browser.eval(`(function() {
           window.caughtErrors = []
           window.addEventListener('unhandledrejection', (error) => {
             window.caughtErrors.push(error.reason.message)
           })
         })()`)
-          await browser.elementByCss('a').click()
-          await waitFor(500)
-          const errors = await browser.eval('window.caughtErrors')
-          expect(
-            errors.find((err) =>
-              err.includes(
-                'The provided `as` value (/blog/post-1) is incompatible with the `href` value (/[post]). Read more: https://nextjs.org/docs/messages/incompatible-href-as'
-              )
+        await browser.elementByCss('a').click()
+        await waitFor(500)
+        const errors = await browser.eval('window.caughtErrors')
+        expect(
+          errors.find((err) =>
+            err.includes(
+              'The provided `as` value (/blog/post-1) is incompatible with the `href` value (/[post]). Read more: https://nextjs.org/docs/messages/incompatible-href-as'
             )
-          ).toBeTruthy()
-        } finally {
-          await browser.close()
-        }
+          )
+        ).toBeTruthy()
       })
 
       it("doesn't fail on invalid url", async () => {

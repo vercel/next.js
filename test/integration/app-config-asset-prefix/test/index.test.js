@@ -23,13 +23,9 @@ describe('App assetPrefix config', () => {
 
   it('should render correctly with assetPrefix: "/"', async () => {
     const browser = await webdriver(appPort, '/')
-    try {
-      await waitFor(2000)
-      await assertNoRedbox(browser)
-      const title = await browser.elementById('title').text()
-      expect(title).toBe('IndexPage')
-    } finally {
-      await browser.close()
-    }
+    await waitFor(2000)
+    await assertNoRedbox(browser)
+    const title = await browser.elementById('title').text()
+    expect(title).toBe('IndexPage')
   })
 })

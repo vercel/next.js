@@ -85,22 +85,18 @@ describe('next/dynamic', () => {
       })
 
       it('should render even there are no physical chunk exists', async () => {
-        let browser
-        try {
-          browser = await webdriver(next.url, basePath + '/dynamic/no-chunk')
-          await check(
-            () => browser.elementByCss('body').text(),
-            /Welcome, normal/
-          )
-          await check(
-            () => browser.elementByCss('body').text(),
-            /Welcome, dynamic/
-          )
-        } finally {
-          if (browser) {
-            await browser.close()
-          }
-        }
+        const browser = await webdriver(
+          next.url,
+          basePath + '/dynamic/no-chunk'
+        )
+        await check(
+          () => browser.elementByCss('body').text(),
+          /Welcome, normal/
+        )
+        await check(
+          () => browser.elementByCss('body').text(),
+          /Welcome, dynamic/
+        )
       })
 
       it('should SSR nested dynamic components and skip nonSSR ones', async () => {
@@ -112,50 +108,36 @@ describe('next/dynamic', () => {
       })
 
       it('should hydrate nested chunks', async () => {
-        let browser
-        try {
-          browser = await webdriver(next.url, basePath + '/dynamic/nested')
-          await check(() => browser.elementByCss('body').text(), /Nested 1/)
-          await check(() => browser.elementByCss('body').text(), /Nested 2/)
-          await check(
-            () => browser.elementByCss('body').text(),
-            /Browser hydrated/
-          )
+        const browser = await webdriver(next.url, basePath + '/dynamic/nested')
+        await check(() => browser.elementByCss('body').text(), /Nested 1/)
+        await check(() => browser.elementByCss('body').text(), /Nested 2/)
+        await check(
+          () => browser.elementByCss('body').text(),
+          /Browser hydrated/
+        )
 
-          if ((global as any).browserName === 'chrome') {
-            const logs = await browser.log()
+        if ((global as any).browserName === 'chrome') {
+          const logs = await browser.log()
 
-            logs.forEach((logItem) => {
-              expect(logItem.message).not.toMatch(
-                /Expected server HTML to contain/
-              )
-            })
-          }
-        } finally {
-          if (browser) {
-            await browser.close()
-          }
+          logs.forEach((logItem) => {
+            expect(logItem.message).not.toMatch(
+              /Expected server HTML to contain/
+            )
+          })
         }
       })
 
       it('should render the component Head content', async () => {
-        let browser
-        try {
-          browser = await webdriver(next.url, basePath + '/dynamic/head')
-          await check(() => browser.elementByCss('body').text(), /test/)
-          const backgroundColor = await browser
-            .elementByCss('.dynamic-style')
-            .getComputedCss('background-color')
-          const height = await browser
-            .elementByCss('.dynamic-style')
-            .getComputedCss('height')
-          expect(height).toBe('200px')
-          expect(backgroundColor).toMatch(/rgba?\(0, 128, 0/)
-        } finally {
-          if (browser) {
-            await browser.close()
-          }
-        }
+        const browser = await webdriver(next.url, basePath + '/dynamic/head')
+        await check(() => browser.elementByCss('body').text(), /test/)
+        const backgroundColor = await browser
+          .elementByCss('.dynamic-style')
+          .getComputedCss('background-color')
+        const height = await browser
+          .elementByCss('.dynamic-style')
+          .getComputedCss('height')
+        expect(height).toBe('200px')
+        expect(backgroundColor).toMatch(/rgba?\(0, 128, 0/)
       })
     })
     describe('ssr:false option', () => {
@@ -166,29 +148,18 @@ describe('next/dynamic', () => {
       })
 
       it('should render the component on client side', async () => {
-        let browser
-        try {
-          browser = await webdriver(next.url, basePath + '/dynamic/no-ssr')
-          await check(() => browser.elementByCss('body').text(), /navigator/)
-          await assertNoRedbox(browser)
-        } finally {
-          if (browser) {
-            await browser.close()
-          }
-        }
+        const browser = await webdriver(next.url, basePath + '/dynamic/no-ssr')
+        await check(() => browser.elementByCss('body').text(), /navigator/)
+        await assertNoRedbox(browser)
       })
 
       it('should import and render the ESM module correctly on client side', async () => {
-        let browser
-        try {
-          browser = await webdriver(next.url, basePath + '/dynamic/no-ssr-esm')
-          await check(() => browser.elementByCss('body').text(), /esm.mjs/)
-          await assertNoRedbox(browser)
-        } finally {
-          if (browser) {
-            await browser.close()
-          }
-        }
+        const browser = await webdriver(
+          next.url,
+          basePath + '/dynamic/no-ssr-esm'
+        )
+        await check(() => browser.elementByCss('body').text(), /esm.mjs/)
+        await assertNoRedbox(browser)
       })
     })
 
@@ -200,18 +171,11 @@ describe('next/dynamic', () => {
       })
 
       it('should render the component on client side', async () => {
-        let browser
-        try {
-          browser = await webdriver(next.url, basePath + '/dynamic/ssr-true')
-          await check(
-            () => browser.elementByCss('body').text(),
-            /Hello World 1/
-          )
-        } finally {
-          if (browser) {
-            await browser.close()
-          }
-        }
+        const browser = await webdriver(
+          next.url,
+          basePath + '/dynamic/ssr-true'
+        )
+        await check(() => browser.elementByCss('body').text(), /Hello World 1/)
       })
 
       if (!(global as any).isNextDev) {
@@ -234,21 +198,14 @@ describe('next/dynamic', () => {
         })
 
         it('should render the component on client side', async () => {
-          let browser
-          try {
-            browser = await webdriver(
-              next.url,
-              basePath + '/dynamic/chunkfilename'
-            )
-            await check(
-              () => browser.elementByCss('body').text(),
-              /test chunkfilename/
-            )
-          } finally {
-            if (browser) {
-              await browser.close()
-            }
-          }
+          const browser = await webdriver(
+            next.url,
+            basePath + '/dynamic/chunkfilename'
+          )
+          await check(
+            () => browser.elementByCss('body').text(),
+            /test chunkfilename/
+          )
         })
       }
     )
@@ -260,21 +217,11 @@ describe('next/dynamic', () => {
       })
 
       it('should render the component on client side', async () => {
-        let browser
-        try {
-          browser = await webdriver(
-            next.url,
-            basePath + '/dynamic/no-ssr-custom-loading'
-          )
-          await check(
-            () => browser.elementByCss('body').text(),
-            /Hello World 1/
-          )
-        } finally {
-          if (browser) {
-            await browser.close()
-          }
-        }
+        const browser = await webdriver(
+          next.url,
+          basePath + '/dynamic/no-ssr-custom-loading'
+        )
+        await check(() => browser.elementByCss('body').text(), /Hello World 1/)
       })
     })
 
@@ -290,22 +237,13 @@ describe('next/dynamic', () => {
         })
 
         it('should only load the rendered module in the browser', async () => {
-          let browser
-          try {
-            browser = await webdriver(
-              next.url,
-              basePath + '/dynamic/multiple-modules'
-            )
-            const html = await browser.eval(
-              'document.documentElement.innerHTML'
-            )
-            expect(html).toMatch(/hello1\.js/)
-            expect(html).not.toMatch(/hello2\.js/)
-          } finally {
-            if (browser) {
-              await browser.close()
-            }
-          }
+          const browser = await webdriver(
+            next.url,
+            basePath + '/dynamic/multiple-modules'
+          )
+          const html = await browser.eval('document.documentElement.innerHTML')
+          expect(html).toMatch(/hello1\.js/)
+          expect(html).not.toMatch(/hello2\.js/)
         })
 
         it('should only render one bundle if component is used multiple times', async () => {

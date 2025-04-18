@@ -527,45 +527,37 @@ describe('app dir - basic', () => {
       await next.fetch('/exists-but-not-routed')
       const browser = await next.browser('/link-to-rewritten-path')
 
-      try {
-        // Click the link.
-        await check(async () => {
-          await browser.elementById('link-to-rewritten-path').click()
-          await browser.waitForElementByCss('#from-dashboard', 5000)
-
-          // Check to see that we were rewritten and not redirected.
-          // TODO-APP: rewrite url is broken
-          // expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
-
-          // Check to see that the page we navigated to is in fact the dashboard.
-          expect(await browser.elementByCss('#from-dashboard').text()).toBe(
-            'hello from app/dashboard'
-          )
-          return 'success'
-        }, 'success')
-      } finally {
-        await browser.close()
-      }
-    })
-
-    it('should support rewrites on client-side navigation', async () => {
-      const browser = await next.browser('/rewrites')
-
-      try {
-        // Click the link.
-        await browser.elementById('link').click()
-        await browser.waitForElementByCss('#from-dashboard')
+      // Click the link.
+      await check(async () => {
+        await browser.elementById('link-to-rewritten-path').click()
+        await browser.waitForElementByCss('#from-dashboard', 5000)
 
         // Check to see that we were rewritten and not redirected.
-        expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
+        // TODO-APP: rewrite url is broken
+        // expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
 
         // Check to see that the page we navigated to is in fact the dashboard.
         expect(await browser.elementByCss('#from-dashboard').text()).toBe(
           'hello from app/dashboard'
         )
-      } finally {
-        await browser.close()
-      }
+        return 'success'
+      }, 'success')
+    })
+
+    it('should support rewrites on client-side navigation', async () => {
+      const browser = await next.browser('/rewrites')
+
+      // Click the link.
+      await browser.elementById('link').click()
+      await browser.waitForElementByCss('#from-dashboard')
+
+      // Check to see that we were rewritten and not redirected.
+      expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
+
+      // Check to see that the page we navigated to is in fact the dashboard.
+      expect(await browser.elementByCss('#from-dashboard').text()).toBe(
+        'hello from app/dashboard'
+      )
     })
   })
 
@@ -580,87 +572,71 @@ describe('app dir - basic', () => {
     async () => {
       const browser = await next.browser('/same-layout/first')
 
-      try {
-        // Get the render id from the dom and click the first link.
-        const firstRenderID = await browser.elementById('render-id').text()
-        await browser.elementById('link').click()
-        await browser.waitForElementByCss('#second-page')
+      // Get the render id from the dom and click the first link.
+      const firstRenderID = await browser.elementById('render-id').text()
+      await browser.elementById('link').click()
+      await browser.waitForElementByCss('#second-page')
 
-        // Get the render id from the dom again, it should be the same!
-        const secondRenderID = await browser.elementById('render-id').text()
-        expect(secondRenderID).toBe(firstRenderID)
+      // Get the render id from the dom again, it should be the same!
+      const secondRenderID = await browser.elementById('render-id').text()
+      expect(secondRenderID).toBe(firstRenderID)
 
-        // Navigate back to the first page again by clicking the link.
-        await browser.elementById('link').click()
-        await browser.waitForElementByCss('#first-page')
+      // Navigate back to the first page again by clicking the link.
+      await browser.elementById('link').click()
+      await browser.waitForElementByCss('#first-page')
 
-        // Get the render id from the dom again, it should be the same!
-        const thirdRenderID = await browser.elementById('render-id').text()
-        expect(thirdRenderID).toBe(firstRenderID)
-      } finally {
-        await browser.close()
-      }
+      // Get the render id from the dom again, it should be the same!
+      const thirdRenderID = await browser.elementById('render-id').text()
+      expect(thirdRenderID).toBe(firstRenderID)
     }
   )
 
   it('should handle hash in initial url', async () => {
     const browser = await next.browser('/dashboard#abc')
 
-    try {
-      // Check if hash is preserved
-      expect(await browser.eval('window.location.hash')).toBe('#abc')
-      await waitFor(1000)
-      // Check again to be sure as it might be timed different
-      expect(await browser.eval('window.location.hash')).toBe('#abc')
-    } finally {
-      await browser.close()
-    }
+    // Check if hash is preserved
+    expect(await browser.eval('window.location.hash')).toBe('#abc')
+    await waitFor(1000)
+    // Check again to be sure as it might be timed different
+    expect(await browser.eval('window.location.hash')).toBe('#abc')
   })
 
   describe('<Link />', () => {
     it('should hard push', async () => {
       const browser = await next.browser('/link-hard-push/123')
 
-      try {
-        // Click the link on the page, and verify that the history entry was
-        // added.
-        expect(await browser.eval('window.history.length')).toBe(2)
-        await browser.elementById('link').click()
-        await browser.waitForElementByCss('#render-id-456')
-        expect(await browser.eval('window.history.length')).toBe(3)
+      // Click the link on the page, and verify that the history entry was
+      // added.
+      expect(await browser.eval('window.history.length')).toBe(2)
+      await browser.elementById('link').click()
+      await browser.waitForElementByCss('#render-id-456')
+      expect(await browser.eval('window.history.length')).toBe(3)
 
-        // Go back, and redo the navigation by clicking the link.
-        await browser.back()
-        await browser.elementById('link').click()
-        await browser.waitForElementByCss('#render-id-456')
-      } finally {
-        await browser.close()
-      }
+      // Go back, and redo the navigation by clicking the link.
+      await browser.back()
+      await browser.elementById('link').click()
+      await browser.waitForElementByCss('#render-id-456')
     })
 
     it('should hard replace', async () => {
       const browser = await next.browser('/link-hard-replace/123')
 
-      try {
-        // Click the link on the page, and verify that the history entry was NOT
-        // added.
-        expect(await browser.eval('window.history.length')).toBe(2)
-        await browser.elementById('link').click()
-        await browser.waitForElementByCss('#render-id-456')
-        expect(await browser.eval('window.history.length')).toBe(2)
+      // Click the link on the page, and verify that the history entry was NOT
+      // added.
+      expect(await browser.eval('window.history.length')).toBe(2)
+      await browser.elementById('link').click()
+      await browser.waitForElementByCss('#render-id-456')
+      expect(await browser.eval('window.history.length')).toBe(2)
 
-        // Navigate to the subpage, verify that the history entry was NOT added.
-        await browser.elementById('link').click()
-        await browser.waitForElementByCss('#render-id-123')
-        expect(await browser.eval('window.history.length')).toBe(2)
+      // Navigate to the subpage, verify that the history entry was NOT added.
+      await browser.elementById('link').click()
+      await browser.waitForElementByCss('#render-id-123')
+      expect(await browser.eval('window.history.length')).toBe(2)
 
-        // Navigate back again, verify that the history entry was NOT added.
-        await browser.elementById('link').click()
-        await browser.waitForElementByCss('#render-id-456')
-        expect(await browser.eval('window.history.length')).toBe(2)
-      } finally {
-        await browser.close()
-      }
+      // Navigate back again, verify that the history entry was NOT added.
+      await browser.elementById('link').click()
+      await browser.waitForElementByCss('#render-id-456')
+      expect(await browser.eval('window.history.length')).toBe(2)
     })
 
     it('should soft push', async () => {
@@ -669,32 +645,28 @@ describe('app dir - basic', () => {
       // set a flag once the page loads so we can track if a hard nav occurred (which would reset the flag)
       await browser.eval('window.__nextSoftPushTest = 1')
 
-      try {
-        // Click the link on the page, and verify that the history entry was
-        // added.
-        expect(await browser.eval('window.history.length')).toBe(2)
-        await browser.elementById('link').click()
-        await browser.waitForElementByCss('#render-id')
-        expect(await browser.eval('window.history.length')).toBe(3)
+      // Click the link on the page, and verify that the history entry was
+      // added.
+      expect(await browser.eval('window.history.length')).toBe(2)
+      await browser.elementById('link').click()
+      await browser.waitForElementByCss('#render-id')
+      expect(await browser.eval('window.history.length')).toBe(3)
 
-        // Get the id on the rendered page.
-        const firstID = await browser.elementById('render-id').text()
+      // Get the id on the rendered page.
+      const firstID = await browser.elementById('render-id').text()
 
-        // Go back, and redo the navigation by clicking the link.
-        await browser.back()
-        await browser.elementById('link').click()
+      // Go back, and redo the navigation by clicking the link.
+      await browser.back()
+      await browser.elementById('link').click()
 
-        // Get the ID again, and compare, they should be the same.
-        const secondID = await browser.elementById('render-id').text()
+      // Get the ID again, and compare, they should be the same.
+      const secondID = await browser.elementById('render-id').text()
 
-        // router cache should have invalidated the page content, so the IDs should be different
-        expect(firstID).not.toBe(secondID)
+      // router cache should have invalidated the page content, so the IDs should be different
+      expect(firstID).not.toBe(secondID)
 
-        // verify that the flag is still set
-        expect(await browser.eval('window.__nextSoftPushTest')).toBe(1)
-      } finally {
-        await browser.close()
-      }
+      // verify that the flag is still set
+      expect(await browser.eval('window.__nextSoftPushTest')).toBe(1)
     })
 
     it('should soft replace', async () => {
@@ -703,132 +675,112 @@ describe('app dir - basic', () => {
       // set a flag once the page loads so we can track if a hard nav occurred (which would reset the flag)
       await browser.eval('window.__nextSoftPushTest = 1')
 
-      try {
-        // Get the render ID so we can compare it.
-        const firstID = await browser.elementById('render-id').text()
+      // Get the render ID so we can compare it.
+      const firstID = await browser.elementById('render-id').text()
 
-        // Click the link on the page, and verify that the history entry was NOT
-        // added.
+      // Click the link on the page, and verify that the history entry was NOT
+      // added.
+      expect(await browser.eval('window.history.length')).toBe(2)
+      await browser.elementById('self-link').click()
+
+      await retry(async () => {
+        // Get the id on the rendered page.
+        const secondID = await browser.elementById('render-id').text()
+        expect(secondID).not.toBe(firstID)
+
         expect(await browser.eval('window.history.length')).toBe(2)
-        await browser.elementById('self-link').click()
+      })
 
-        await retry(async () => {
-          // Get the id on the rendered page.
-          const secondID = await browser.elementById('render-id').text()
-          expect(secondID).not.toBe(firstID)
+      // Navigate to the subpage, verify that the history entry was NOT added.
+      await browser.elementById('subpage-link').click()
+      await browser.waitForElementByCss('#back-link')
+      expect(await browser.eval('window.history.length')).toBe(2)
 
-          expect(await browser.eval('window.history.length')).toBe(2)
-        })
+      // Navigate back again, verify that the history entry was NOT added.
+      await browser.elementById('back-link').click()
+      await browser.waitForElementByCss('#render-id')
+      expect(await browser.eval('window.history.length')).toBe(2)
 
-        // Navigate to the subpage, verify that the history entry was NOT added.
-        await browser.elementById('subpage-link').click()
-        await browser.waitForElementByCss('#back-link')
-        expect(await browser.eval('window.history.length')).toBe(2)
+      await retry(async () => {
+        // Get the ID again, and compare, they should be the same.
+        const thirdID = await browser.elementById('render-id').text()
+        expect(thirdID).not.toBe(firstID)
+      })
 
-        // Navigate back again, verify that the history entry was NOT added.
-        await browser.elementById('back-link').click()
-        await browser.waitForElementByCss('#render-id')
-        expect(await browser.eval('window.history.length')).toBe(2)
-
-        await retry(async () => {
-          // Get the ID again, and compare, they should be the same.
-          const thirdID = await browser.elementById('render-id').text()
-          expect(thirdID).not.toBe(firstID)
-        })
-
-        // verify that the flag is still set
-        expect(await browser.eval('window.__nextSoftPushTest')).toBe(1)
-      } finally {
-        await browser.close()
-      }
+      // verify that the flag is still set
+      expect(await browser.eval('window.__nextSoftPushTest')).toBe(1)
     })
 
     it('should be soft for back navigation', async () => {
       const browser = await next.browser('/with-id')
 
-      try {
-        // Get the id on the rendered page.
-        const firstID = await browser.elementById('render-id').text()
+      // Get the id on the rendered page.
+      const firstID = await browser.elementById('render-id').text()
 
-        // Click the link, and go back.
-        await browser.elementById('link').click()
-        await browser.waitForElementByCss('#from-navigation')
-        await browser.back()
+      // Click the link, and go back.
+      await browser.elementById('link').click()
+      await browser.waitForElementByCss('#from-navigation')
+      await browser.back()
 
-        // Get the date again, and compare, they should be the same.
-        const secondID = await browser.elementById('render-id').text()
-        expect(firstID).toBe(secondID)
-      } finally {
-        await browser.close()
-      }
+      // Get the date again, and compare, they should be the same.
+      const secondID = await browser.elementById('render-id').text()
+      expect(firstID).toBe(secondID)
     })
 
     it('should be soft for forward navigation', async () => {
       const browser = await next.browser('/with-id')
 
-      try {
-        // Click the link.
-        await browser.elementById('link').click()
-        await browser.waitForElementByCss('#from-navigation')
+      // Click the link.
+      await browser.elementById('link').click()
+      await browser.waitForElementByCss('#from-navigation')
 
-        // Get the id on the rendered page.
-        const firstID = await browser.elementById('render-id').text()
+      // Get the id on the rendered page.
+      const firstID = await browser.elementById('render-id').text()
 
-        // Go back, then forward.
-        await browser.back()
-        await browser.forward()
+      // Go back, then forward.
+      await browser.back()
+      await browser.forward()
 
-        // Get the date again, and compare, they should be the same.
-        const secondID = await browser.elementById('render-id').text()
-        expect(firstID).toBe(secondID)
-      } finally {
-        await browser.close()
-      }
+      // Get the date again, and compare, they should be the same.
+      const secondID = await browser.elementById('render-id').text()
+      expect(firstID).toBe(secondID)
     })
 
     it('should allow linking from app page to pages page', async () => {
       const browser = await next.browser('/pages-linking')
 
-      try {
-        // Click the link.
-        await browser.elementById('app-link').click()
-        expect(await browser.waitForElementByCss('#pages-link').text()).toBe(
-          'To App Page'
-        )
+      // Click the link.
+      await browser.elementById('app-link').click()
+      expect(await browser.waitForElementByCss('#pages-link').text()).toBe(
+        'To App Page'
+      )
 
-        // Click the other link.
-        await browser.elementById('pages-link').click()
-        expect(await browser.waitForElementByCss('#app-link').text()).toBe(
-          'To Pages Page'
-        )
-      } finally {
-        await browser.close()
-      }
+      // Click the other link.
+      await browser.elementById('pages-link').click()
+      expect(await browser.waitForElementByCss('#app-link').text()).toBe(
+        'To Pages Page'
+      )
     })
 
     it('should navigate to pages dynamic route from pages page if it overlaps with an app page', async () => {
       await next.fetch('/dynamic-pages-route-app-overlap/app-dir')
       const browser = await next.browser('/dynamic-pages-route-app-overlap')
 
-      try {
-        // Click the link.
-        await check(async () => {
-          await browser.elementById('pages-link').click()
+      // Click the link.
+      await check(async () => {
+        await browser.elementById('pages-link').click()
 
-          expect(
-            await browser.waitForElementByCss('#app-text', 5000).text()
-          ).toBe('hello from app/dynamic-pages-route-app-overlap/app-dir/page')
+        expect(
+          await browser.waitForElementByCss('#app-text', 5000).text()
+        ).toBe('hello from app/dynamic-pages-route-app-overlap/app-dir/page')
 
-          // When refreshing the browser, the app page should be rendered
-          await browser.refresh()
-          expect(await browser.waitForElementByCss('#app-text').text()).toBe(
-            'hello from app/dynamic-pages-route-app-overlap/app-dir/page'
-          )
-          return 'success'
-        }, 'success')
-      } finally {
-        await browser.close()
-      }
+        // When refreshing the browser, the app page should be rendered
+        await browser.refresh()
+        expect(await browser.waitForElementByCss('#app-text').text()).toBe(
+          'hello from app/dynamic-pages-route-app-overlap/app-dir/page'
+        )
+        return 'success'
+      }, 'success')
     })
 
     it('should push to external url', async () => {
@@ -1108,30 +1060,26 @@ describe('app dir - basic', () => {
           firstMessage
         )
 
-        try {
-          const message2 = await browser
-            .waitForElementByCss('#to-other-page')
-            .click()
-            .waitForElementByCss('#message-2')
-            .text()
-          expect(message2).toBe(secondMessage)
+        const message2 = await browser
+          .waitForElementByCss('#to-other-page')
+          .click()
+          .waitForElementByCss('#message-2')
+          .text()
+        expect(message2).toBe(secondMessage)
 
-          const message1 = await browser
-            .waitForElementByCss('#back-button')
-            .click()
-            .waitForElementByCss('#message-1')
-            .text()
-          expect(message1).toBe(firstMessage)
+        const message1 = await browser
+          .waitForElementByCss('#back-button')
+          .click()
+          .waitForElementByCss('#message-1')
+          .text()
+        expect(message1).toBe(firstMessage)
 
-          const message2Again = await browser
-            .waitForElementByCss('#forward-button')
-            .click()
-            .waitForElementByCss('#message-2')
-            .text()
-          expect(message2Again).toBe(secondMessage)
-        } finally {
-          await browser.close()
-        }
+        const message2Again = await browser
+          .waitForElementByCss('#forward-button')
+          .click()
+          .waitForElementByCss('#message-2')
+          .text()
+        expect(message2Again).toBe(secondMessage)
       })
     })
 

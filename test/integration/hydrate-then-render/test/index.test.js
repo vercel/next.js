@@ -33,8 +33,6 @@ describe('hydrate/render ordering', () => {
           { name: 'Next.js-render' },
           { name: 'Next.js-route-change-to-render' },
         ])
-
-        await browser.close()
       })
     }
   )

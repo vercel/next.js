@@ -30,216 +30,152 @@ describe('Query String with Encoding', () => {
       describe('new line', () => {
         it('should have correct query on SSR', async () => {
           const browser = await webdriver(appPort, '/?test=abc%0A')
-          try {
-            const text = await browser.elementByCss('#query-content').text()
-            expect(text).toBe('{"test":"abc\\n"}')
-          } finally {
-            await browser.close()
-          }
+          const text = await browser.elementByCss('#query-content').text()
+          expect(text).toBe('{"test":"abc\\n"}')
         })
 
         it('should have correct query on Router#push', async () => {
           const browser = await webdriver(appPort, '/')
-          try {
-            await browser.waitForCondition('!!window.next.router')
-            await browser.eval(
-              `window.next.router.push({pathname:'/',query:{abc:'def\\n'}})`
-            )
-            const text = await browser
-              .waitForElementByCss('#query-content')
-              .text()
-            expect(text).toBe('{"abc":"def\\n"}')
-          } finally {
-            await browser.close()
-          }
+          await browser.waitForCondition('!!window.next.router')
+          await browser.eval(
+            `window.next.router.push({pathname:'/',query:{abc:'def\\n'}})`
+          )
+          const text = await browser
+            .waitForElementByCss('#query-content')
+            .text()
+          expect(text).toBe('{"abc":"def\\n"}')
         })
 
         it('should have correct query on simple client-side <Link>', async () => {
           const browser = await webdriver(appPort, '/newline')
-          try {
-            await browser.waitForElementByCss('#hello-lf').click()
-            const text = await browser
-              .waitForElementByCss('#query-content')
-              .text()
-            expect(text).toBe('{"another":"hello\\n"}')
-          } finally {
-            await browser.close()
-          }
+          await browser.waitForElementByCss('#hello-lf').click()
+          const text = await browser
+            .waitForElementByCss('#query-content')
+            .text()
+          expect(text).toBe('{"another":"hello\\n"}')
         })
 
         it('should have correct query on complex client-side <Link>', async () => {
           const browser = await webdriver(appPort, '/newline')
-          try {
-            await browser.waitForElementByCss('#hello-complex').click()
-            const text = await browser
-              .waitForElementByCss('#query-content')
-              .text()
-            expect(text).toBe('{"complex":"yes\\n"}')
-          } finally {
-            await browser.close()
-          }
+          await browser.waitForElementByCss('#hello-complex').click()
+          const text = await browser
+            .waitForElementByCss('#query-content')
+            .text()
+          expect(text).toBe('{"complex":"yes\\n"}')
         })
       })
 
       describe('trailing space', () => {
         it('should have correct query on SSR', async () => {
           const browser = await webdriver(appPort, '/?test=abc%20')
-          try {
-            const text = await browser.elementByCss('#query-content').text()
-            expect(text).toBe('{"test":"abc "}')
-          } finally {
-            await browser.close()
-          }
+          const text = await browser.elementByCss('#query-content').text()
+          expect(text).toBe('{"test":"abc "}')
         })
 
         it('should have correct query on Router#push', async () => {
           const browser = await webdriver(appPort, '/')
-          try {
-            await browser.waitForCondition('!!window.next.router')
-            await browser.eval(
-              `window.next.router.push({pathname:'/',query:{abc:'def '}})`
-            )
-            const text = await browser
-              .waitForElementByCss('#query-content')
-              .text()
-            expect(text).toBe('{"abc":"def "}')
-          } finally {
-            await browser.close()
-          }
+          await browser.waitForCondition('!!window.next.router')
+          await browser.eval(
+            `window.next.router.push({pathname:'/',query:{abc:'def '}})`
+          )
+          const text = await browser
+            .waitForElementByCss('#query-content')
+            .text()
+          expect(text).toBe('{"abc":"def "}')
         })
 
         it('should have correct query on simple client-side <Link>', async () => {
           const browser = await webdriver(appPort, '/space')
-          try {
-            await browser.waitForElementByCss('#hello-space').click()
-            const text = await browser
-              .waitForElementByCss('#query-content')
-              .text()
-            expect(text).toBe('{"another":"hello "}')
-          } finally {
-            await browser.close()
-          }
+          await browser.waitForElementByCss('#hello-space').click()
+          const text = await browser
+            .waitForElementByCss('#query-content')
+            .text()
+          expect(text).toBe('{"another":"hello "}')
         })
 
         it('should have correct query on complex client-side <Link>', async () => {
           const browser = await webdriver(appPort, '/space')
-          try {
-            await browser.waitForElementByCss('#hello-complex').click()
-            const text = await browser
-              .waitForElementByCss('#query-content')
-              .text()
-            expect(text).toBe('{"complex":"yes "}')
-          } finally {
-            await browser.close()
-          }
+          await browser.waitForElementByCss('#hello-complex').click()
+          const text = await browser
+            .waitForElementByCss('#query-content')
+            .text()
+          expect(text).toBe('{"complex":"yes "}')
         })
       })
 
       describe('percent', () => {
         it('should have correct query on SSR', async () => {
           const browser = await webdriver(appPort, '/?test=abc%25')
-          try {
-            const text = await browser.elementByCss('#query-content').text()
-            expect(text).toBe('{"test":"abc%"}')
-          } finally {
-            await browser.close()
-          }
+          const text = await browser.elementByCss('#query-content').text()
+          expect(text).toBe('{"test":"abc%"}')
         })
 
         it('should have correct query on Router#push', async () => {
           const browser = await webdriver(appPort, '/')
-          try {
-            await browser.waitForCondition('!!window.next.router')
-            await browser.eval(
-              `window.next.router.push({pathname:'/',query:{abc:'def%'}})`
-            )
-            const text = await browser
-              .waitForElementByCss('#query-content')
-              .text()
-            expect(text).toBe('{"abc":"def%"}')
-          } finally {
-            await browser.close()
-          }
+          await browser.waitForCondition('!!window.next.router')
+          await browser.eval(
+            `window.next.router.push({pathname:'/',query:{abc:'def%'}})`
+          )
+          const text = await browser
+            .waitForElementByCss('#query-content')
+            .text()
+          expect(text).toBe('{"abc":"def%"}')
         })
 
         it('should have correct query on simple client-side <Link>', async () => {
           const browser = await webdriver(appPort, '/percent')
-          try {
-            await browser.waitForElementByCss('#hello-percent').click()
-            const text = await browser
-              .waitForElementByCss('#query-content')
-              .text()
-            expect(text).toBe('{"another":"hello%"}')
-          } finally {
-            await browser.close()
-          }
+          await browser.waitForElementByCss('#hello-percent').click()
+          const text = await browser
+            .waitForElementByCss('#query-content')
+            .text()
+          expect(text).toBe('{"another":"hello%"}')
         })
 
         it('should have correct query on complex client-side <Link>', async () => {
           const browser = await webdriver(appPort, '/percent')
-          try {
-            await browser.waitForElementByCss('#hello-complex').click()
-            const text = await browser
-              .waitForElementByCss('#query-content')
-              .text()
-            expect(text).toBe('{"complex":"yes%"}')
-          } finally {
-            await browser.close()
-          }
+          await browser.waitForElementByCss('#hello-complex').click()
+          const text = await browser
+            .waitForElementByCss('#query-content')
+            .text()
+          expect(text).toBe('{"complex":"yes%"}')
         })
       })
 
       describe('plus', () => {
         it('should have correct query on SSR', async () => {
           const browser = await webdriver(appPort, '/?test=abc%2B')
-          try {
-            const text = await browser.elementByCss('#query-content').text()
-            expect(text).toBe('{"test":"abc+"}')
-          } finally {
-            await browser.close()
-          }
+          const text = await browser.elementByCss('#query-content').text()
+          expect(text).toBe('{"test":"abc+"}')
         })
 
         it('should have correct query on Router#push', async () => {
           const browser = await webdriver(appPort, '/')
-          try {
-            await browser.waitForCondition('!!window.next.router')
-            await browser.eval(
-              `window.next.router.push({pathname:'/',query:{abc:'def+'}})`
-            )
-            const text = await browser
-              .waitForElementByCss('#query-content')
-              .text()
-            expect(text).toBe('{"abc":"def+"}')
-          } finally {
-            await browser.close()
-          }
+          await browser.waitForCondition('!!window.next.router')
+          await browser.eval(
+            `window.next.router.push({pathname:'/',query:{abc:'def+'}})`
+          )
+          const text = await browser
+            .waitForElementByCss('#query-content')
+            .text()
+          expect(text).toBe('{"abc":"def+"}')
         })
 
         it('should have correct query on simple client-side <Link>', async () => {
           const browser = await webdriver(appPort, '/plus')
-          try {
-            await browser.waitForElementByCss('#hello-plus').click()
-            const text = await browser
-              .waitForElementByCss('#query-content')
-              .text()
-            expect(text).toBe('{"another":"hello+"}')
-          } finally {
-            await browser.close()
-          }
+          await browser.waitForElementByCss('#hello-plus').click()
+          const text = await browser
+            .waitForElementByCss('#query-content')
+            .text()
+          expect(text).toBe('{"another":"hello+"}')
         })
 
         it('should have correct query on complex client-side <Link>', async () => {
           const browser = await webdriver(appPort, '/plus')
-          try {
-            await browser.waitForElementByCss('#hello-complex').click()
-            const text = await browser
-              .waitForElementByCss('#query-content')
-              .text()
-            expect(text).toBe('{"complex":"yes+"}')
-          } finally {
-            await browser.close()
-          }
+          await browser.waitForElementByCss('#hello-complex').click()
+          const text = await browser
+            .waitForElementByCss('#query-content')
+            .text()
+          expect(text).toBe('{"complex":"yes+"}')
         })
       })
     }

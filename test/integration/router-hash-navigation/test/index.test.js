@@ -20,7 +20,6 @@ function runTests() {
     expect(await browser.eval(() => window.scrollY)).not.toBe(0)
     await browser.elementByCss('#top-link').click()
     expect(await browser.eval(() => window.scrollY)).toBe(0)
-    await browser.close()
   })
 }
 

@@ -32,7 +32,6 @@ describe('excludeDefaultMomentLocales', () => {
         const locales = await browser.eval('moment.locales()')
         expect(locales).toEqual(['en'])
         expect(locales.length).toBe(1)
-        await browser.close()
       })
     }
   )

@@ -17,18 +17,11 @@ let app
 
 const runTests = () => {
   it('should pass on both client and worker', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/')
-      await browser.waitForElementByCss('#web-status')
-      await check(() => browser.elementByCss('#web-status').text(), /PASS/i)
-      await browser.waitForElementByCss('#worker-status')
-      await check(() => browser.elementByCss('#worker-status').text(), /PASS/i)
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
+    const browser = await webdriver(appPort, '/')
+    await browser.waitForElementByCss('#web-status')
+    await check(() => browser.elementByCss('#web-status').text(), /PASS/i)
+    await browser.waitForElementByCss('#worker-status')
+    await check(() => browser.elementByCss('#worker-status').text(), /PASS/i)
   })
 }
 

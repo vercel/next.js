@@ -99,7 +99,6 @@ describe('Middleware Runtime trailing slash', () => {
           expect(textb).toEqual('AboutB')
         } finally {
           fs.writeFileSync(middlewarePath, originalContent)
-          await browser.close()
         }
       })
     }

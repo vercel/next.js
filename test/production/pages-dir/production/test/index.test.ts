@@ -729,7 +729,6 @@ describe('Production Usage', () => {
         .text()
 
       expect(text).toBe('About Page')
-      await browser.close()
     })
 
     it('should navigate to nested index via client side', async () => {
@@ -745,7 +744,6 @@ describe('Production Usage', () => {
 
       expect(text).toBe('Hello World')
       expect(await browser.eval('window.beforeNav')).toBe(1)
-      await browser.close()
     })
 
     it('should reload page successfully (on bad link)', async () => {
@@ -855,7 +853,6 @@ describe('Production Usage', () => {
       const headingText = await browser.elementByCss('h1').text()
       // This makes sure we render statusCode on the client side correctly
       expect(headingText).toBe('500')
-      await browser.close()
     })
 
     it('should render a client side component error', async () => {
@@ -865,7 +862,6 @@ describe('Production Usage', () => {
       expect(text).toMatch(
         /Application error: a client-side exception has occurred/
       )
-      await browser.close()
     })
 
     it('should call getInitialProps on _error page during a client side component error', async () => {
@@ -876,7 +872,6 @@ describe('Production Usage', () => {
       await waitFor(2000)
       const text = await browser.elementByCss('body').text()
       expect(text).toMatch(/This page could not be found\./)
-      await browser.close()
     })
   })
 
@@ -932,8 +927,6 @@ describe('Production Usage', () => {
           .elementByCss('#counter')
           .text()
         expect(counterAfter404Page).toBe('Counter: 0')
-
-        await browser.close()
       })
     }
 
@@ -1000,7 +993,6 @@ describe('Production Usage', () => {
           expect(as).toBe('script')
         }
       }
-      await browser.close()
     })
 
     // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
@@ -1019,7 +1011,6 @@ describe('Production Usage', () => {
         const src = await element.getAttribute('src')
         expect(src).not.toMatch(/\?ts=/)
       }
-      await browser.close()
     })
 
     if (global.browserName === 'chrome') {
@@ -1050,8 +1041,6 @@ describe('Production Usage', () => {
           .elementByCss('#counter')
           .text()
         expect(counterAfter404Page).toBe('Counter: 0')
-
-        await browser.close()
       })
     }
   })
@@ -1125,22 +1114,16 @@ describe('Production Usage', () => {
 
   it('should warn when prefetch is true', async () => {
     if (global.browserName !== 'chrome') return
-    let browser
-    try {
-      browser = await webdriver(next.appPort, '/development-logs')
-      const browserLogs = await browser.log()
-      let found = false
-      browserLogs.forEach((log) => {
-        if (log.message.includes('Next.js auto-prefetches automatically')) {
-          found = true
-        }
-      })
-      expect(found).toBe(false)
-    } finally {
-      if (browser) {
-        await browser.close()
+
+    const browser = await webdriver(next.appPort, '/development-logs')
+    const browserLogs = await browser.log()
+    let found = false
+    browserLogs.forEach((log) => {
+      if (log.message.includes('Next.js auto-prefetches automatically')) {
+        found = true
       }
-    }
+    })
+    expect(found).toBe(false)
   })
 
   it('should not emit stats', async () => {
@@ -1150,65 +1133,44 @@ describe('Production Usage', () => {
   })
 
   it('should contain the Next.js version in window export', async () => {
-    let browser
-    try {
-      browser = await webdriver(next.appPort, '/about')
-      const version = await browser.eval('window.next.version')
-      expect(version).toBeTruthy()
-      expect(version).toBe(
-        (await next.readJSON('node_modules/next/package.json')).version +
-          (process.env.IS_TURBOPACK_TEST ? '-turbo' : '')
-      )
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
+    const browser = await webdriver(next.appPort, '/about')
+    const version = await browser.eval('window.next.version')
+    expect(version).toBeTruthy()
+    expect(version).toBe(
+      (await next.readJSON('node_modules/next/package.json')).version +
+        (process.env.IS_TURBOPACK_TEST ? '-turbo' : '')
+    )
   })
 
   it('should clear all core performance marks', async () => {
-    let browser
-    try {
-      browser = await webdriver(next.appPort, '/fully-dynamic')
+    const browser = await webdriver(next.appPort, '/fully-dynamic')
 
-      const currentPerfMarks = await browser.eval(
-        `window.performance.getEntriesByType('mark')`
-      )
-      const allPerfMarks = [
-        'beforeRender',
-        'afterHydrate',
-        'afterRender',
-        'routeChange',
-      ]
+    const currentPerfMarks = await browser.eval(
+      `window.performance.getEntriesByType('mark')`
+    )
+    const allPerfMarks = [
+      'beforeRender',
+      'afterHydrate',
+      'afterRender',
+      'routeChange',
+    ]
 
-      allPerfMarks.forEach((name) =>
-        expect(currentPerfMarks).not.toContainEqual(
-          expect.objectContaining({ name })
-        )
+    allPerfMarks.forEach((name) =>
+      expect(currentPerfMarks).not.toContainEqual(
+        expect.objectContaining({ name })
       )
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
+    )
   })
 
   it('should not clear custom performance marks', async () => {
-    let browser
-    try {
-      browser = await webdriver(next.appPort, '/mark-in-head')
+    const browser = await webdriver(next.appPort, '/mark-in-head')
 
-      const customMarkFound = await browser.eval(
-        `window.performance.getEntriesByType('mark').filter(function(e) {
+    const customMarkFound = await browser.eval(
+      `window.performance.getEntriesByType('mark').filter(function(e) {
         return e.name === 'custom-mark'
       }).length === 1`
-      )
-      expect(customMarkFound).toBe(true)
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
+    )
+    expect(customMarkFound).toBe(true)
   })
 
   it('should have defer on all script tags', async () => {

@@ -87,13 +87,9 @@ describe('Middleware Redirect', () => {
       const html = await res.text()
       const $ = cheerio.load(html)
       const browser = await webdriver(next.url, `${locale}/old-home`)
-      try {
-        expect(await browser.eval(`window.location.pathname`)).toBe(
-          `${locale}/new-home`
-        )
-      } finally {
-        await browser.close()
-      }
+      expect(await browser.eval(`window.location.pathname`)).toBe(
+        `${locale}/new-home`
+      )
       expect($('.title').text()).toBe('Welcome to a new page')
     })
 
@@ -103,38 +99,26 @@ describe('Middleware Redirect', () => {
       await browser.elementByCss('#old-home').click()
       await browser.waitForElementByCss('#new-home-title')
       expect(await browser.eval('window.__SAME_PAGE')).toBe(true)
-      try {
-        expect(await browser.eval(`window.location.pathname`)).toBe(
-          `${locale}/new-home`
-        )
-      } finally {
-        await browser.close()
-      }
+      expect(await browser.eval(`window.location.pathname`)).toBe(
+        `${locale}/new-home`
+      )
     })
 
     it(`${label}should redirect cleanly with the original url param`, async () => {
       const browser = await webdriver(next.url, `${locale}/blank-page?foo=bar`)
-      try {
-        expect(
-          await browser.eval(
-            `window.location.href.replace(window.location.origin, '')`
-          )
-        ).toBe(`${locale}/new-home`)
-      } finally {
-        await browser.close()
-      }
+      expect(
+        await browser.eval(
+          `window.location.href.replace(window.location.origin, '')`
+        )
+      ).toBe(`${locale}/new-home`)
     })
 
     it(`${label}should redirect multiple times`, async () => {
       const res = await fetchViaHTTP(next.url, `${locale}/redirect-me-alot`)
       const browser = await webdriver(next.url, `${locale}/redirect-me-alot`)
-      try {
-        expect(await browser.eval(`window.location.pathname`)).toBe(
-          `${locale}/new-home`
-        )
-      } finally {
-        await browser.close()
-      }
+      expect(await browser.eval(`window.location.pathname`)).toBe(
+        `${locale}/new-home`
+      )
       const html = await res.text()
       const $ = cheerio.load(html)
       expect($('.title').text()).toBe('Welcome to a new page')
@@ -165,11 +149,7 @@ describe('Middleware Redirect', () => {
       const html = await res.text()
       const $ = cheerio.load(html)
       const browser = await webdriver(next.url, `${locale}/with-fragment`)
-      try {
-        expect(await browser.eval(`window.location.hash`)).toBe(`#fragment`)
-      } finally {
-        await browser.close()
-      }
+      expect(await browser.eval(`window.location.hash`)).toBe(`#fragment`)
       expect($('.title').text()).toBe('Welcome to a new page')
     })
   }

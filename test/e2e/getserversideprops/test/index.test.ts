@@ -284,8 +284,6 @@ const navigateTest = () => {
     text = await browser.elementByCss('p:nth-child(2)').text()
     expect(text).toMatch(/Comment:.*?comment-1/)
     expect(await browser.eval('window.didTransition')).toBe(1)
-
-    await browser.close()
   })
 }
 

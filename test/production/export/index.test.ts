@@ -130,7 +130,6 @@ describe('static export', () => {
       const text = await browser.elementByCss('#home-page p').text()
 
       expect(text).toBe('This is the home page')
-      await browser.close()
     })
 
     it('should add trailing slash on Link', async () => {
@@ -186,7 +185,6 @@ describe('static export', () => {
         .text()
 
       expect(text).toBe('This is the About page foo')
-      await browser.close()
     })
 
     it('should do navigations via Router', async () => {
@@ -199,7 +197,6 @@ describe('static export', () => {
         .text()
 
       expect(text).toBe('This is the About page foo')
-      await browser.close()
     })
 
     it('should do run client side javascript', async () => {
@@ -216,7 +213,6 @@ describe('static export', () => {
         .text()
 
       expect(text).toBe('Counter: 2')
-      await browser.close()
     })
 
     it('should render pages using getInitialProps', async () => {
@@ -229,7 +225,6 @@ describe('static export', () => {
         .text()
 
       expect(text).toBe('cool dynamic text')
-      await browser.close()
     })
 
     it('should render dynamic pages with custom urls', async () => {
@@ -242,7 +237,6 @@ describe('static export', () => {
         .text()
 
       expect(text).toBe('next export is nice')
-      await browser.close()
     })
 
     it('should support client side navigation', async () => {
@@ -272,8 +266,6 @@ describe('static export', () => {
         .text()
 
       expect(textNow).toBe('Counter: 2')
-
-      await browser.close()
     })
 
     it('should render dynamic import components in the client', async () => {
@@ -287,51 +279,35 @@ describe('static export', () => {
         () => getBrowserBodyText(browser),
         /Welcome to dynamic imports/
       )
-
-      await browser.close()
     })
 
     it('should render pages with url hash correctly', async () => {
-      let browser
-      try {
-        browser = await webdriver(port, '/')
+      const browser = await webdriver(port, '/')
 
-        // Check for the query string content
-        const text = await browser
-          .elementByCss('#with-hash')
-          .click()
-          .waitForElementByCss('#dynamic-page')
-          .elementByCss('#dynamic-page p')
-          .text()
+      // Check for the query string content
+      const text = await browser
+        .elementByCss('#with-hash')
+        .click()
+        .waitForElementByCss('#dynamic-page')
+        .elementByCss('#dynamic-page p')
+        .text()
 
-        expect(text).toBe('Vercel is awesome')
+      expect(text).toBe('Vercel is awesome')
 
-        await check(() => browser.elementByCss('#hash').text(), /cool/)
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
+      await check(() => browser.elementByCss('#hash').text(), /cool/)
     })
 
     it('should render 404 when visiting a page that returns notFound from gsp', async () => {
-      let browser
-      try {
-        browser = await webdriver(port, '/')
+      const browser = await webdriver(port, '/')
 
-        const text = await browser
-          .elementByCss('#gsp-notfound-link')
-          .click()
-          .waitForElementByCss('pre')
-          .elementByCss('pre')
-          .text()
+      const text = await browser
+        .elementByCss('#gsp-notfound-link')
+        .click()
+        .waitForElementByCss('pre')
+        .elementByCss('pre')
+        .text()
 
-        expect(text).toBe('Cannot GET /gsp-notfound/')
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
+      expect(text).toBe('Cannot GET /gsp-notfound/')
     })
 
     it('should navigate even if used a button inside <Link />', async () => {
@@ -345,14 +321,12 @@ describe('static export', () => {
         .text()
 
       expect(text).toBe('This is the home page')
-      await browser.close()
     })
 
     it('should update query after mount', async () => {
       const browser = await webdriver(port, '/query-update?hello=world')
       const query = await browser.elementByCss('#query').text()
       expect(JSON.parse(query)).toEqual({ hello: 'world', a: 'blue' })
-      await browser.close()
     })
 
     describe('pages in the nested level: level1', () => {
@@ -367,8 +341,6 @@ describe('static export', () => {
           () => getBrowserBodyText(browser),
           /This is the Level1 home page/
         )
-
-        await browser.close()
       })
 
       it('should render the about page', async () => {
@@ -382,8 +354,6 @@ describe('static export', () => {
           () => getBrowserBodyText(browser),
           /This is the Level1 about page/
         )
-
-        await browser.close()
       })
     })
   })

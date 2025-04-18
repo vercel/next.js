@@ -49,7 +49,6 @@ const appDir = join(__dirname, '../')
             8 | }"
         `)
       }
-      await browser.close()
 
       await killApp(app)
     })

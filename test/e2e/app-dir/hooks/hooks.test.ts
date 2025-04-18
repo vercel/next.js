@@ -22,16 +22,12 @@ describe('app dir - hooks', () => {
           pathname + (keyValue ? `?key=${keyValue}` : '')
         )
 
-        try {
-          await browser.waitForElementByCss('#router-ready')
-          expect(await browser.elementById('key-value').text()).toBe(keyValue)
-          expect(await browser.elementById('pathname').text()).toBe(pathname)
+        await browser.waitForElementByCss('#router-ready')
+        expect(await browser.elementById('key-value').text()).toBe(keyValue)
+        expect(await browser.elementById('pathname').text()).toBe(pathname)
 
-          await browser.elementByCss('button').click()
-          await browser.waitForElementByCss('#pushed')
-        } finally {
-          await browser.close()
-        }
+        await browser.elementByCss('button').click()
+        await browser.waitForElementByCss('#pushed')
       }
     )
   })
@@ -108,20 +104,16 @@ describe('app dir - hooks', () => {
     it('should allow access to the router', async () => {
       const browser = await next.browser('/hooks/use-router')
 
-      try {
-        // Wait for the page to load, click the button (which uses a method
-        // on the router) and then wait for the correct page to load.
-        await browser.waitForElementByCss('#router')
-        await browser.elementById('button-push').click()
-        await browser.waitForElementByCss('#router-sub-page')
+      // Wait for the page to load, click the button (which uses a method
+      // on the router) and then wait for the correct page to load.
+      await browser.waitForElementByCss('#router')
+      await browser.elementById('button-push').click()
+      await browser.waitForElementByCss('#router-sub-page')
 
-        // Go back (confirming we did do a hard push), and wait for the
-        // correct previous page.
-        await browser.back()
-        await browser.waitForElementByCss('#router')
-      } finally {
-        await browser.close()
-      }
+      // Go back (confirming we did do a hard push), and wait for the
+      // correct previous page.
+      await browser.back()
+      await browser.waitForElementByCss('#router')
     })
   })
 
