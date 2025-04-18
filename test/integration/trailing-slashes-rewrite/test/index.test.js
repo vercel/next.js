@@ -60,7 +60,7 @@ describe('Trailing Slash Rewrite Proxying', () => {
           }
         )
 
-        nextConfig.replace('__EXTERNAL_PORT__', proxyPort)
+        nextConfig.replace('__EXTERNAL_PORT__', proxyPort + '')
 
         await nextBuild(appDir)
         appPort = await findPort()
@@ -89,7 +89,7 @@ describe('Trailing Slash Rewrite Proxying', () => {
           }
         )
 
-        nextConfig.replace('__EXTERNAL_PORT__', proxyPort)
+        nextConfig.replace('__EXTERNAL_PORT__', proxyPort + '')
 
         appPort = await findPort()
         app = await launchApp(appDir, appPort)

@@ -29,6 +29,7 @@ let appDir = join(__dirname, '..')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const nextConfigPath = join(appDir, 'next.config.js')
 let externalServerHits = new Set()
+/** @type {string} */
 let nextConfigRestoreContent
 let nextConfigContent
 let externalServerPort
@@ -2636,7 +2637,10 @@ describe('Custom routes', () => {
     nextConfigRestoreContent = await fs.readFile(nextConfigPath, 'utf8')
     await fs.writeFile(
       nextConfigPath,
-      nextConfigRestoreContent.replace(/__EXTERNAL_PORT__/g, externalServerPort)
+      nextConfigRestoreContent.replace(
+        /__EXTERNAL_PORT__/g,
+        externalServerPort + ''
+      )
     )
   })
   afterAll(async () => {

@@ -65,7 +65,7 @@ describe('absolute assetPrefix with path prefix', () => {
           clientReq.pipe(proxyReq, { end: true })
         })
         await new Promise((resolve) => cdn.listen(cdnPort, resolve))
-        nextConfig.replace('__CDN_PORT__', cdnPort)
+        nextConfig.replace('__CDN_PORT__', cdnPort + '')
         await nextBuild(appDir)
         buildId = await fs.readFile(
           path.resolve(__dirname, '../.next/BUILD_ID'),
