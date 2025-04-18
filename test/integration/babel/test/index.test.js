@@ -1,33 +1,24 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import {
-  renderViaHTTP,
-  fetchViaHTTP,
-  findPort,
-  launchApp,
-  killApp,
-} from 'next-test-utils'
+import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
 
 // test suits
 import rendering from './rendering'
 
-const context = {}
-
+/** @type {number} */
+let appPort
+/** @type {import('child_process').ChildProcess} */
+let server
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)('Babel', () => {
   beforeAll(async () => {
-    context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+    appPort = await findPort()
+    server = await launchApp(join(__dirname, '../'), appPort)
 
     // pre-build all pages at the start
-    await Promise.all([renderViaHTTP(context.appPort, '/')])
+    await Promise.all([renderViaHTTP(appPort, '/')])
   })
-  afterAll(() => killApp(context.server))
+  afterAll(() => killApp(server))
 
-  rendering(
-    context,
-    'Rendering via HTTP',
-    (p, q) => renderViaHTTP(context.appPort, p, q),
-    (p, q) => fetchViaHTTP(context.appPort, p, q)
-  )
+  rendering('Rendering via HTTP', (p, q) => renderViaHTTP(appPort, p, q))
 })
