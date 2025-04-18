@@ -27,7 +27,7 @@ export function matchRemotePattern(
     }
   }
 
-  if (pattern.search !== undefined) {
+  if (pattern.search !== undefined && pattern.search !== "") {
     if (pattern.search !== url.search) {
       return false
     }
