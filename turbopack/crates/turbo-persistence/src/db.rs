@@ -554,6 +554,9 @@ impl TurboPersistence {
             );
         }
 
+        println!("Compaction started");
+        let start = std::time::Instant::now();
+
         let mut sequence_number;
         let mut new_sst_files = Vec::new();
         let mut indicies_to_delete = Vec::new();
@@ -581,6 +584,9 @@ impl TurboPersistence {
         }
 
         self.active_write_operation.store(false, Ordering::Release);
+
+        let elapsed = start.elapsed();
+        println!("Compaction finished in {}ms", elapsed.as_millis());
 
         Ok(())
     }
