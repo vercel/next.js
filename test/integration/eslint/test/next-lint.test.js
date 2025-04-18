@@ -395,7 +395,7 @@ describe('Next Lint', () => {
   test('max warnings flag errors when warnings exceed threshold', async () => {
     const { stdout, stderr } = await nextLint(
       dirMaxWarnings,
-      ['--max-warnings', 1],
+      ['--max-warnings', '1'],
       {
         stdout: true,
         stderr: true,
@@ -412,7 +412,7 @@ describe('Next Lint', () => {
   test('max warnings flag does not error when warnings do not exceed threshold', async () => {
     const { stdout, stderr } = await nextLint(
       dirMaxWarnings,
-      ['--max-warnings', 2],
+      ['--max-warnings', '2'],
       {
         stdout: true,
         stderr: true,

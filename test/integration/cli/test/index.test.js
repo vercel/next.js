@@ -143,7 +143,7 @@ describe('CLI Usage', () => {
 
           let stdout = ''
           const app = await runNextCommandDev(
-            ['start', dirBasic, '--hostname', '::', '--port', port],
+            ['start', dirBasic, '--hostname', '::', '--port', port + ''],
             undefined,
             {
               nextStart: true,
@@ -447,7 +447,7 @@ describe('CLI Usage', () => {
       const port = await findPort()
       let output = ''
       const app = await runNextCommandDev(
-        [dirBasic, '--port', port],
+        [dirBasic, '--port', port + ''],
         undefined,
         {
           onStdout(msg) {
@@ -466,7 +466,7 @@ describe('CLI Usage', () => {
       const port = await findPort()
       let output = ''
       const app = await runNextCommandDev(
-        [dirBasic, '--port', port],
+        [dirBasic, '--port', port + ''],
         undefined,
         {
           onStdout(msg) {
@@ -489,7 +489,7 @@ describe('CLI Usage', () => {
       const port = await findPort()
       let output = ''
       const app = await runNextCommandDev(
-        [dirBasic, '--port', port],
+        [dirBasic, '--port', port + ''],
         undefined,
         {
           onStdout(msg) {
@@ -544,7 +544,7 @@ describe('CLI Usage', () => {
       let output = ''
       let errOutput = ''
       const app = await runNextCommandDev(
-        [dirBasic, '--port', port],
+        [dirBasic, '--port', port + ''],
         undefined,
         {
           onStdout(msg) {
@@ -573,7 +573,7 @@ describe('CLI Usage', () => {
       let output = ''
       let errOutput = ''
       const app = await runNextCommandDev(
-        [dirBasic, '--port', port],
+        [dirBasic, '--port', port + ''],
         undefined,
         {
           cwd: dirBasic,
@@ -606,7 +606,7 @@ describe('CLI Usage', () => {
       let output = ''
       let errOutput = ''
       const app = await runNextCommandDev(
-        [dirBasic, '--port', port],
+        [dirBasic, '--port', port + ''],
         undefined,
         {
           cwd: dirBasic,
@@ -635,12 +635,16 @@ describe('CLI Usage', () => {
     test('-p', async () => {
       const port = await findPort()
       let output = ''
-      const app = await runNextCommandDev([dirBasic, '-p', port], undefined, {
-        onStdout(msg) {
-          output += stripAnsi(msg)
-        },
-        env: { NODE_OPTIONS: '--inspect' },
-      })
+      const app = await runNextCommandDev(
+        [dirBasic, '-p', port + ''],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+          env: { NODE_OPTIONS: '--inspect' },
+        }
+      )
       try {
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
@@ -655,7 +659,7 @@ describe('CLI Usage', () => {
       expect(stderr).toMatch('already in use')
       expect(stdout).not.toMatch(/ready/i)
       expect(stdout).not.toMatch('started')
-      expect(stdout).not.toMatch(`${port}`)
+      expect(stdout).not.toMatch(port + '')
     })
 
     test('Allow retry if default port is already in use', async () => {
@@ -696,7 +700,7 @@ describe('CLI Usage', () => {
       const port = await findPort()
       let output = ''
       const app = await runNextCommandDev(
-        [dirBasic, '--hostname', '0.0.0.0', '--port', port],
+        [dirBasic, '--hostname', '0.0.0.0', '--port', port + ''],
         undefined,
         {
           onStdout(msg) {
@@ -719,7 +723,7 @@ describe('CLI Usage', () => {
       const port = await findPort()
       let output = ''
       const app = await runNextCommandDev(
-        [dirBasic, '-H', '0.0.0.0', '--port', port],
+        [dirBasic, '-H', '0.0.0.0', '--port', port + ''],
         undefined,
         {
           onStdout(msg) {
@@ -751,7 +755,7 @@ describe('CLI Usage', () => {
       const port = await findPort()
       let output = ''
       const app = await runNextCommandDev(
-        [dirBasic, '--experimental-https', '--port', port],
+        [dirBasic, '--experimental-https', '--port', port + ''],
         undefined,
         {
           onStdout(msg) {
@@ -785,7 +789,7 @@ describe('CLI Usage', () => {
           '--experimental-https-cert',
           certFile,
           '--port',
-          port,
+          port + '',
         ],
         undefined,
         {
@@ -805,7 +809,7 @@ describe('CLI Usage', () => {
       const port = await findPort()
       let output = ''
       const app = await runNextCommandDev(
-        [dirBasic, '--hostname', '::', '--port', port],
+        [dirBasic, '--hostname', '::', '--port', port + ''],
         undefined,
         {
           onStdout(msg) {
