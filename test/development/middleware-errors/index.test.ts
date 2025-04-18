@@ -54,7 +54,6 @@ describe('middleware - development errors', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Error: boom",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -70,7 +69,6 @@ describe('middleware - development errors', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Error: boom",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -204,7 +202,6 @@ describe('middleware - development errors', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "ReferenceError: test is not defined",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -221,7 +218,6 @@ describe('middleware - development errors', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "ReferenceError: test is not defined",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -289,7 +285,6 @@ describe('middleware - development errors', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Error: booooom!",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -304,7 +299,6 @@ describe('middleware - development errors', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Error: booooom!",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -432,7 +426,6 @@ describe('middleware - development errors', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Parsing ecmascript source code failed",
            "environmentLabel": null,
            "label": "Build Error",
@@ -446,7 +439,6 @@ describe('middleware - development errors', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Error:   x Expected '{', got '}'",
            "environmentLabel": null,
            "label": "Build Error",
@@ -500,7 +492,6 @@ describe('middleware - development errors', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Parsing ecmascript source code failed",
            "environmentLabel": null,
            "label": "Build Error",
@@ -514,7 +505,6 @@ describe('middleware - development errors', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Error:   x Expected '{', got '}'",
            "environmentLabel": null,
            "label": "Build Error",

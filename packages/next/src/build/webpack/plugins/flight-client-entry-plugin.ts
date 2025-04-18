@@ -49,6 +49,7 @@ import {
 } from '../../../lib/metadata/is-metadata-route'
 import type { MetadataRouteLoaderOptions } from '../loaders/next-metadata-route-loader'
 import type { FlightActionEntryLoaderActions } from '../loaders/next-flight-action-entry-loader'
+import getWebpackBundler from '../../../shared/lib/get-webpack-bundler'
 
 interface Options {
   dev: boolean
@@ -784,6 +785,7 @@ export class FlightClientEntryPlugin {
     addRSCEntryPromise: Promise<void>,
     ssrDep: ReturnType<typeof webpack.EntryPlugin.createDependency>,
   ] {
+    const bundler = getWebpackBundler()
     let shouldInvalidate = false
 
     const modules = Object.keys(clientImports)
@@ -853,12 +855,12 @@ export class FlightClientEntryPlugin {
       pluginState.injectedClientEntries[bundlePath] = clientBrowserLoader
     }
 
-    const clientComponentSSREntryDep = webpack.EntryPlugin.createDependency(
+    const clientComponentSSREntryDep = bundler.EntryPlugin.createDependency(
       clientServerLoader,
       { name: bundlePath }
     )
 
-    const clientComponentRSCEntryDep = webpack.EntryPlugin.createDependency(
+    const clientComponentRSCEntryDep = bundler.EntryPlugin.createDependency(
       clientServerLoader,
       { name: bundlePath }
     )
@@ -897,6 +899,7 @@ export class FlightClientEntryPlugin {
     createdActionIds: Set<string>
     fromClient?: boolean
   }) {
+    const bundler = getWebpackBundler()
     const actionsArray = Array.from(actions.entries())
     for (const [, actionsFromModule] of actions) {
       for (const { id } of actionsFromModule) {
@@ -939,7 +942,7 @@ export class FlightClientEntryPlugin {
     }
 
     // Inject the entry to the server compiler
-    const actionEntryDep = webpack.EntryPlugin.createDependency(actionLoader, {
+    const actionEntryDep = bundler.EntryPlugin.createDependency(actionLoader, {
       name: bundlePath,
     })
 

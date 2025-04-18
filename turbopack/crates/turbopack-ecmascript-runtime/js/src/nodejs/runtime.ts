@@ -27,6 +27,8 @@ type SourceInfo =
       parentId: ModuleId;
     };
 
+process.env.TURBOPACK = '1';
+
 function stringifySourceInfo(source: SourceInfo): string {
   switch (source.type) {
     case SourceType.Runtime:
@@ -93,10 +95,16 @@ function loadChunk(chunkData: ChunkData, source?: SourceInfo): void {
   }
 }
 
+const loadedChunks = new Set<ChunkPath>();
+
 function loadChunkPath(chunkPath: ChunkPath, source?: SourceInfo): void {
   if (!isJs(chunkPath)) {
     // We only support loading JS chunks in Node.js.
     // This branch can be hit when trying to load a CSS chunk.
+    return;
+  }
+
+  if (loadedChunks.has(chunkPath)) {
     return;
   }
 
@@ -109,6 +117,7 @@ function loadChunkPath(chunkPath: ChunkPath, source?: SourceInfo): void {
         moduleFactories[moduleId] = moduleFactory;
       }
     }
+    loadedChunks.add(chunkPath);
   } catch (e) {
     let errorMessage = `Failed to load chunk ${chunkPath}`;
 
@@ -130,6 +139,10 @@ async function loadChunkAsync(
   if (!isJs(chunkPath)) {
     // We only support loading JS chunks in Node.js.
     // This branch can be hit when trying to load a CSS chunk.
+    return;
+  }
+
+  if (loadedChunks.has(chunkPath)) {
     return;
   }
 
@@ -160,6 +173,7 @@ async function loadChunkAsync(
         moduleFactories[moduleId] = moduleFactory;
       }
     }
+    loadedChunks.add(chunkPath);
   } catch (e) {
     let errorMessage = `Failed to load chunk ${chunkPath}`;
 

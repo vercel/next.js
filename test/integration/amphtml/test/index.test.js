@@ -25,7 +25,7 @@ let app
 const context = {}
 
 // Turbopack does not support AMP rendering.
-;(process.env.TURBOPACK ? describe.skip : describe)('AMP Usage', () => {
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)('AMP Usage', () => {
   describe('production mode', () => {
     let output = ''
 

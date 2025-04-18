@@ -12,7 +12,6 @@ describe('hook-function-names', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "count": 1,
        "description": "Error: Kaputt!",
        "environmentLabel": null,
        "label": "Runtime Error",
@@ -34,7 +33,6 @@ describe('hook-function-names', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 1,
        "description": "Error: error in useEffect",
        "environmentLabel": null,
        "label": "Runtime Error",

@@ -3981,7 +3981,6 @@
         }
       };
     HooksDispatcher.useEffectEvent = unsupportedHook;
-    HooksDispatcher.useSwipeTransition = unsupportedHook;
     var currentOwner = null,
       DefaultAsyncDispatcher = {
         getCacheForType: function (resourceType) {

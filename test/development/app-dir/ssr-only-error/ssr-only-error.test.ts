@@ -9,10 +9,9 @@ describe('ssr-only-error', () => {
   it('should show ssr only error in error overlay', async () => {
     const browser = await next.browser('/')
 
-    // TODO(veil): Missing Owner Stack
+    // TODO(veil): Missing Owner Stack (NDX-905)
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "count": 1,
        "description": "Error: SSR only error",
        "environmentLabel": null,
        "label": "Runtime Error",

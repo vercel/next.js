@@ -10,7 +10,7 @@ import {
   PrefetchPriority,
   schedulePrefetchTask as scheduleSegmentPrefetchTask,
   cancelPrefetchTask,
-  bumpPrefetchTask,
+  reschedulePrefetchTask,
 } from './segment-cache'
 import { startTransition } from 'react'
 
@@ -257,7 +257,10 @@ export function onLinkVisibilityChanged(element: Element, isVisible: boolean) {
   rescheduleLinkPrefetch(instance)
 }
 
-export function onNavigationIntent(element: HTMLAnchorElement | SVGAElement) {
+export function onNavigationIntent(
+  element: HTMLAnchorElement | SVGAElement,
+  unstable_upgradeToDynamicPrefetch: boolean
+) {
   const instance = prefetchable.get(element)
   if (instance === undefined) {
     return
@@ -265,6 +268,13 @@ export function onNavigationIntent(element: HTMLAnchorElement | SVGAElement) {
   // Prefetch the link on hover/touchstart.
   if (instance !== undefined) {
     instance.wasHoveredOrTouched = true
+    if (
+      process.env.__NEXT_DYNAMIC_ON_HOVER &&
+      unstable_upgradeToDynamicPrefetch
+    ) {
+      // Switch to a full, dynamic prefetch
+      instance.kind = PrefetchKind.FULL
+    }
     rescheduleLinkPrefetch(instance)
   }
 }
@@ -279,7 +289,7 @@ function rescheduleLinkPrefetch(instance: PrefetchableInstance) {
       cancelPrefetchTask(existingPrefetchTask)
     }
     // We don't need to reset the prefetchTask to null upon cancellation; an
-    // old task object can be rescheduled with bumpPrefetchTask. This is a
+    // old task object can be rescheduled with reschedulePrefetchTask. This is a
     // micro-optimization but also makes the code simpler (don't need to
     // worry about whether an old task object is stale).
     return
@@ -301,12 +311,12 @@ function rescheduleLinkPrefetch(instance: PrefetchableInstance) {
   const priority = instance.wasHoveredOrTouched
     ? PrefetchPriority.Intent
     : PrefetchPriority.Default
-  if (existingPrefetchTask === null) {
-    // Initiate a prefetch task.
-    const appRouterState = getCurrentAppRouterState()
-    if (appRouterState !== null) {
+  const appRouterState = getCurrentAppRouterState()
+  if (appRouterState !== null) {
+    const treeAtTimeOfPrefetch = appRouterState.tree
+    if (existingPrefetchTask === null) {
+      // Initiate a prefetch task.
       const nextUrl = appRouterState.nextUrl
-      const treeAtTimeOfPrefetch = appRouterState.tree
       const cacheKey = createCacheKey(instance.prefetchHref, nextUrl)
       instance.prefetchTask = scheduleSegmentPrefetchTask(
         cacheKey,
@@ -314,12 +324,20 @@ function rescheduleLinkPrefetch(instance: PrefetchableInstance) {
         instance.kind === PrefetchKind.FULL,
         priority
       )
-      instance.cacheVersion = getCurrentCacheVersion()
+    } else {
+      // We already have an old task object that we can reschedule. This is
+      // effectively the same as canceling the old task and creating a new one.
+      reschedulePrefetchTask(
+        existingPrefetchTask,
+        treeAtTimeOfPrefetch,
+        instance.kind === PrefetchKind.FULL,
+        priority
+      )
     }
-  } else {
-    // We already have an old task object that we can reschedule. This is
-    // effectively the same as canceling the old task and creating a new one.
-    bumpPrefetchTask(existingPrefetchTask, priority)
+
+    // Keep track of the cache version at the time the prefetch was requested.
+    // This is used to check if the prefetch is stale.
+    instance.cacheVersion = getCurrentCacheVersion()
   }
 }
 

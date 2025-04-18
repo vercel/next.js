@@ -45,7 +45,7 @@ describe.each([
           .replace(/\/\*.*?\*\//g, '')
           .trim()
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           if (dependencies.sass) {
             expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
               `".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
@@ -84,80 +84,28 @@ describe.each([
         delete sourceMapContentParsed.file
         delete sourceMapContentParsed.sources
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           if (dependencies.sass) {
             expect(sourceMapContentParsed).toMatchInlineSnapshot(`
-              {
-                "sections": [
-                  {
-                    "map": {
-                      "mappings": "AAAA,iCAAiC",
-                      "names": [],
-                      "sources": [
-                        "turbopack:///[project]/styles/global.scss.css",
-                      ],
-                      "sourcesContent": [
-                        ".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}",
-                      ],
-                      "version": 3,
-                    },
-                    "offset": {
-                      "column": 0,
-                      "line": 1,
-                    },
-                  },
-                  {
-                    "map": {
-                      "mappings": "A",
-                      "names": [],
-                      "sources": [],
-                      "version": 3,
-                    },
-                    "offset": {
-                      "column": 91,
-                      "line": 1,
-                    },
-                  },
-                ],
-                "version": 3,
-              }
+             {
+               "mappings": "AAAA,iCAAiC",
+               "names": [],
+               "sourcesContent": [
+                 ".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}",
+               ],
+               "version": 3,
+             }
             `)
           } else {
             expect(sourceMapContentParsed).toMatchInlineSnapshot(`
-              {
-                "sections": [
-                  {
-                    "map": {
-                      "mappings": "AAAA,iCAAiC",
-                      "names": [],
-                      "sources": [
-                        "turbopack:///[project]/styles/global.scss.css",
-                      ],
-                      "sourcesContent": [
-                        ".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}",
-                      ],
-                      "version": 3,
-                    },
-                    "offset": {
-                      "column": 0,
-                      "line": 1,
-                    },
-                  },
-                  {
-                    "map": {
-                      "mappings": "A",
-                      "names": [],
-                      "sources": [],
-                      "version": 3,
-                    },
-                    "offset": {
-                      "column": 91,
-                      "line": 1,
-                    },
-                  },
-                ],
-                "version": 3,
-              }
+             {
+               "mappings": "AAAA,iCAAiC",
+               "names": [],
+               "sourcesContent": [
+                 ".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}",
+               ],
+               "version": 3,
+             }
             `)
           }
         } else {

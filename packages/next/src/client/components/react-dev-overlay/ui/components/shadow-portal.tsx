@@ -7,7 +7,11 @@ export function ShadowPortal({ children }: { children: React.ReactNode }) {
   let shadowNode = React.useRef<ShadowRoot | null>(null)
   let [, forceUpdate] = React.useState<{} | undefined>()
 
-  React.useLayoutEffect(() => {
+  // Don't use useLayoutEffect here, as it will cause warnings during SSR in React 18.
+  // Don't use useSyncExternalStore as an SSR gate unless you verified it doesn't
+  // downgrade a Transition of the initial root render to a sync render or
+  // we can assure the root render is not a Transition.
+  React.useEffect(() => {
     const ownerDocument = document
     portalNode.current = ownerDocument.createElement('nextjs-portal')
     // load default color preference from localstorage

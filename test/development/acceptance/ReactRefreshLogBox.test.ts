@@ -46,7 +46,6 @@ describe('ReactRefreshLogBox', () => {
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: idk",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -63,7 +62,6 @@ describe('ReactRefreshLogBox', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: idk",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -124,7 +122,6 @@ describe('ReactRefreshLogBox', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Error: no",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -133,8 +130,8 @@ describe('ReactRefreshLogBox', () => {
              |       ^",
            "stack": [
              "[project]/index.js [ssr] (ecmascript) index.js (3:7)",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
+             "[project]/pages/index.js [ssr] (ecmascript) <module evaluation> pages/index.js (1:1)",
+             "[project]/pages/index.js [ssr] (ecmascript) pages/index.js (1:1)",
              "<FIXME-next-dist-dir>",
            ],
          }
@@ -142,7 +139,6 @@ describe('ReactRefreshLogBox', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Error: no",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -171,7 +167,6 @@ describe('ReactRefreshLogBox', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Error: no",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -180,8 +175,8 @@ describe('ReactRefreshLogBox', () => {
              |       ^",
            "stack": [
              "[project]/index.js [ssr] (ecmascript) index.js (3:7)",
-             "<FIXME-next-dist-dir>",
-             "<FIXME-next-dist-dir>",
+             "[project]/pages/index.js [ssr] (ecmascript) <module evaluation> pages/index.js (1:1)",
+             "[project]/pages/index.js [ssr] (ecmascript) pages/index.js (1:1)",
              "<FIXME-next-dist-dir>",
            ],
          }
@@ -189,7 +184,6 @@ describe('ReactRefreshLogBox', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
            "description": "Error: no",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -275,26 +269,40 @@ describe('ReactRefreshLogBox', () => {
 
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
-       {
-         "count": 2,
-         "description": "Error: no",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "FunctionDefault.js (1:51) @ FunctionDefault
+       [
+         {
+           "description": "Error: no",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "FunctionDefault.js (1:51) @ FunctionDefault
        > 1 | export default function FunctionDefault() { throw new Error('no'); }
            |                                                   ^",
-         "stack": [
-           "FunctionDefault FunctionDefault.js (1:51)",
-           "Set.forEach <anonymous> (0:0)",
-           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-         ],
-       }
+           "stack": [
+             "FunctionDefault FunctionDefault.js (1:51)",
+             "Set.forEach <anonymous> (0:0)",
+             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+           ],
+         },
+         {
+           "description": "Error: no",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "FunctionDefault.js (1:51) @ FunctionDefault
+       > 1 | export default function FunctionDefault() { throw new Error('no'); }
+           |                                                   ^",
+           "stack": [
+             "FunctionDefault FunctionDefault.js (1:51)",
+             "Set.forEach <anonymous> (0:0)",
+             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+           ],
+         },
+       ]
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: no",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -367,10 +375,9 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
@@ -384,7 +391,6 @@ describe('ReactRefreshLogBox', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?",
          "environmentLabel": null,
          "label": "Build Error",
@@ -464,26 +470,40 @@ describe('ReactRefreshLogBox', () => {
     // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
-       {
-         "count": 2,
-         "description": "Error: ",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "Child.js (4:11) @ ClickCount.render
+       [
+         {
+           "description": "Error: ",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "Child.js (4:11) @ ClickCount.render
        > 4 |     throw new Error()
            |           ^",
-         "stack": [
-           "ClickCount.render Child.js (4:11)",
-           "Set.forEach <anonymous> (0:0)",
-           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-           "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
-         ],
-       }
+           "stack": [
+             "ClickCount.render Child.js (4:11)",
+             "Set.forEach <anonymous> (0:0)",
+             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+           ],
+         },
+         {
+           "description": "Error: ",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "Child.js (4:11) @ ClickCount.render
+       > 4 |     throw new Error()
+           |           ^",
+           "stack": [
+             "ClickCount.render Child.js (4:11)",
+             "Set.forEach <anonymous> (0:0)",
+             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+             "${isTurbopack ? '<FIXME-file-protocol>' : '<FIXME-next-dist-dir>'}",
+           ],
+         },
+       ]
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: ",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -545,7 +565,6 @@ describe('ReactRefreshLogBox', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Parsing css source code failed",
          "environmentLabel": null,
          "label": "Build Error",
@@ -559,7 +578,6 @@ describe('ReactRefreshLogBox', () => {
     } else {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Syntax error: <FIXME-project-root>/index.module.css Unknown word",
          "environmentLabel": null,
          "label": "Build Error",
@@ -579,7 +597,6 @@ describe('ReactRefreshLogBox', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Parsing css source code failed",
          "environmentLabel": null,
          "label": "Build Error",
@@ -592,7 +609,6 @@ describe('ReactRefreshLogBox', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Syntax error: Selector "button" is not pure (pure selectors must contain at least one local class or id)",
          "environmentLabel": null,
          "label": "Build Error",
@@ -634,7 +650,6 @@ describe('ReactRefreshLogBox', () => {
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: end https://nextjs.org",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -651,7 +666,6 @@ describe('ReactRefreshLogBox', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: end https://nextjs.org",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -691,7 +705,6 @@ describe('ReactRefreshLogBox', () => {
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: https://nextjs.org start",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -708,7 +721,6 @@ describe('ReactRefreshLogBox', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: https://nextjs.org start",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -748,7 +760,6 @@ describe('ReactRefreshLogBox', () => {
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: middle https://nextjs.org end",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -765,7 +776,6 @@ describe('ReactRefreshLogBox', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: middle https://nextjs.org end",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -805,7 +815,6 @@ describe('ReactRefreshLogBox', () => {
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: multiple https://nextjs.org links http://example.com",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -822,7 +831,6 @@ describe('ReactRefreshLogBox', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: multiple https://nextjs.org links http://example.com",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -862,7 +870,6 @@ describe('ReactRefreshLogBox', () => {
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: multiple https://nextjs.org links (http://example.com)",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -879,7 +886,6 @@ describe('ReactRefreshLogBox', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: multiple https://nextjs.org links (http://example.com)",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -915,7 +921,6 @@ describe('ReactRefreshLogBox', () => {
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: {"a":1,"b":"x"}",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -926,7 +931,6 @@ describe('ReactRefreshLogBox', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: {"a":1,"b":"x"}",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -965,7 +969,6 @@ describe('ReactRefreshLogBox', () => {
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: class Hello {
        }",
          "environmentLabel": null,
@@ -977,7 +980,6 @@ describe('ReactRefreshLogBox', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: class Hello {
        }",
          "environmentLabel": null,
@@ -1015,7 +1017,6 @@ describe('ReactRefreshLogBox', () => {
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: string error",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -1026,7 +1027,6 @@ describe('ReactRefreshLogBox', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: string error",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -1063,7 +1063,6 @@ describe('ReactRefreshLogBox', () => {
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: A null error was thrown, see here for more info: https://nextjs.org/docs/messages/threw-undefined",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -1074,7 +1073,6 @@ describe('ReactRefreshLogBox', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: A null error was thrown, see here for more info: https://nextjs.org/docs/messages/threw-undefined",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -1111,18 +1109,37 @@ describe('ReactRefreshLogBox', () => {
           expect(await getRedboxTotalErrorCount(browser)).toBe(3)
         })
         await expect(browser).toDisplayRedbox(`
-         {
-           "count": 3,
-           "description": "Error: Client error",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "pages/index.js (3:11) @ Page
+         [
+           {
+             "description": "Error: Client error",
+             "environmentLabel": null,
+             "label": "Runtime Error",
+             "source": "pages/index.js (3:11) @ Page
          > 3 |     throw new Error('Client error')
              |           ^",
-           "stack": [
-             "Page pages/index.js (3:11)",
-           ],
-         }
+             "stack": [
+               "Page pages/index.js (3:11)",
+             ],
+           },
+           {
+             "description": "Error: Client error",
+             "environmentLabel": null,
+             "label": "Runtime Error",
+             "source": "pages/index.js (3:11) @ Page
+         > 3 |     throw new Error('Client error')
+             |           ^",
+             "stack": [
+               "Page pages/index.js (3:11)",
+             ],
+           },
+           {
+             "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+             "environmentLabel": null,
+             "label": "Recoverable Error",
+             "source": null,
+             "stack": [],
+           },
+         ]
         `)
       } else {
         // Wait for the error to reach the correct count
@@ -1130,24 +1147,42 @@ describe('ReactRefreshLogBox', () => {
           expect(await getRedboxTotalErrorCount(browser)).toBe(3)
         })
         await expect(browser).toDisplayRedbox(`
-         {
-           "count": 3,
-           "description": "Error: Client error",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "pages/index.js (3:11) @ Page
+         [
+           {
+             "description": "Error: Client error",
+             "environmentLabel": null,
+             "label": "Runtime Error",
+             "source": "pages/index.js (3:11) @ Page
          > 3 |     throw new Error('Client error')
              |           ^",
-           "stack": [
-             "Page pages/index.js (3:11)",
-           ],
-         }
+             "stack": [
+               "Page pages/index.js (3:11)",
+             ],
+           },
+           {
+             "description": "Error: Client error",
+             "environmentLabel": null,
+             "label": "Runtime Error",
+             "source": "pages/index.js (3:11) @ Page
+         > 3 |     throw new Error('Client error')
+             |           ^",
+             "stack": [
+               "Page pages/index.js (3:11)",
+             ],
+           },
+           {
+             "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+             "environmentLabel": null,
+             "label": "Recoverable Error",
+             "source": null,
+             "stack": [],
+           },
+         ]
         `)
       }
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: Client error",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -1193,7 +1228,6 @@ describe('ReactRefreshLogBox', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: anonymous error!",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -1210,7 +1244,6 @@ describe('ReactRefreshLogBox', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: anonymous error!",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -1252,7 +1285,6 @@ describe('ReactRefreshLogBox', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 1,
        "description": "TypeError: Invalid URL",
        "environmentLabel": null,
        "label": "Runtime Error",

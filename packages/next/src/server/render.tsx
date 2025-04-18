@@ -280,9 +280,10 @@ export type RenderOptsPartial = {
   largePageDataBytes?: number
   isOnDemandRevalidate?: boolean
   strictNextHead: boolean
-  isServerAction?: boolean
+  isPossibleServerAction?: boolean
   isExperimentalCompile?: boolean
   isPrefetch?: boolean
+  isBot?: boolean
   expireTime?: number
   experimental: {
     clientTraceMetadata?: string[]

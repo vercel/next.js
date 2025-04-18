@@ -17,8 +17,10 @@ mod write_batch;
 
 #[cfg(test)]
 mod tests;
+mod value_buf;
 
 pub use arc_slice::ArcSlice;
 pub use db::TurboPersistence;
-pub use key::{QueryKey, StoreKey};
+pub use key::{KeyBase, QueryKey, StoreKey};
+pub use value_buf::ValueBuffer;
 pub use write_batch::WriteBatch;

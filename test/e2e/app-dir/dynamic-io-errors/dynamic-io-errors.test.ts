@@ -39,7 +39,7 @@ function createExpectError(cliOutput: string) {
 }
 
 function runTests(options: { withMinification: boolean }) {
-  const isTurbopack = !!process.env.TURBOPACK
+  const isTurbopack = !!process.env.IS_TURBOPACK_TEST
   const { withMinification } = options
   describe(`Dynamic IO Errors - ${withMinification ? 'With Minification' : 'Without Minification'}`, () => {
     describe('Dynamic Metadata - Static Route', () => {
@@ -69,18 +69,22 @@ function runTests(options: { withMinification: boolean }) {
         }
       })
 
-      it('should error the build if generateMetadata is dynamic', async () => {
+      // This test used to assert the opposite but now that metadata is streaming during prerenders
+      // we don't have to error the build when it is dynamic
+      it('should not error the build if generateMetadata is dynamic', async () => {
         try {
           await next.start()
         } catch {
-          // we expect the build to fail
+          throw new Error('expected build not to fail')
         }
-        const expectError = createExpectError(next.cliOutput)
 
-        expectError('Error occurred prerendering page "/"')
-        expectError(
-          'Error: Route "/" has a `generateMetadata` that depends on Request data (`cookies()`, etc...) or external data (`fetch(...)`, etc...) but the rest of the route was static or only used cached data (`"use cache"`). If you expected this route to be prerenderable update your `generateMetadata` to not use Request data and only use cached external data. Otherwise, add `await connection()` somewhere within this route to indicate explicitly it should not be prerendered.'
-        )
+        if (WITH_PPR) {
+          expect(next.cliOutput).toContain('◐ / ')
+        } else {
+          expect(next.cliOutput).toContain('ƒ / ')
+        }
+        const $ = await next.render$('/')
+        expect($('#sentinel').text()).toBe('sentinel')
       })
     })
     describe('Dynamic Metadata - Static Route With Suspense', () => {
@@ -110,18 +114,22 @@ function runTests(options: { withMinification: boolean }) {
         }
       })
 
-      it('should error the build if generateMetadata is dynamic', async () => {
+      // This test used to assert the opposite but now that metadata is streaming during prerenders
+      // we don't have to error the build when it is dynamic
+      it('should not error the build if generateMetadata is dynamic', async () => {
         try {
           await next.start()
         } catch {
-          // we expect the build to fail
+          throw new Error('expected build not to fail')
         }
-        const expectError = createExpectError(next.cliOutput)
 
-        expectError('Error occurred prerendering page "/"')
-        expectError(
-          'Error: Route "/" has a `generateMetadata` that depends on Request data (`cookies()`, etc...) or external data (`fetch(...)`, etc...) but the rest of the route was static or only used cached data (`"use cache"`). If you expected this route to be prerenderable update your `generateMetadata` to not use Request data and only use cached external data. Otherwise, add `await connection()` somewhere within this route to indicate explicitly it should not be prerendered.'
-        )
+        if (WITH_PPR) {
+          expect(next.cliOutput).toContain('◐ / ')
+        } else {
+          expect(next.cliOutput).toContain('ƒ / ')
+        }
+        const $ = await next.render$('/')
+        expect($('#sentinel').text()).toBe('sentinel')
       })
     })
 
@@ -209,7 +217,7 @@ function runTests(options: { withMinification: boolean }) {
 
         expectError('Error occurred prerendering page "/"')
         expectError(
-          'Error: Route "/" has a `generateViewport` that depends on Request data (`cookies()`, etc...) or external data (`fetch(...)`, etc...) but the rest of the route was static or only used cached data (`"use cache"`). If you expected this route to be prerenderable update your `generateViewport` to not use Request data and only use cached external data. Otherwise, add `await connection()` somewhere within this route to indicate explicitly it should not be prerendered.'
+          'Route "/" has a `generateViewport` that depends on Request data (`cookies()`, etc...) or uncached external data (`fetch(...)`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport'
         )
       })
     })
@@ -241,17 +249,18 @@ function runTests(options: { withMinification: boolean }) {
         }
       })
 
-      it('should partially prerender when all dynamic components are inside a Suspense boundary', async () => {
+      it('should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page', async () => {
         try {
           await next.start()
         } catch {
-          throw new Error('expected build not to fail for fully static project')
+          // we expect the build to fail
         }
+        const expectError = createExpectError(next.cliOutput)
 
-        expect(next.cliOutput).toContain('ƒ / ')
-        const $ = await next.render$('/')
-        expect($('#dynamic').text()).toBe('Dynamic')
-        expect($('[data-fallback]').length).toBe(0)
+        expectError('Error occurred prerendering page "/"')
+        expectError(
+          'Route "/" has a `generateViewport` that depends on Request data (`cookies()`, etc...) or uncached external data (`fetch(...)`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport'
+        )
       })
     })
 

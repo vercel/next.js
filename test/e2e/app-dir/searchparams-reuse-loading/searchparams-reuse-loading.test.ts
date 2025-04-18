@@ -1,6 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
-import type { Route, Page } from 'playwright'
 
 describe('searchparams-reuse-loading', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -181,8 +180,8 @@ describe('searchparams-reuse-loading', () => {
 
         let interceptRequests = false
         const browser = await next.browser(path, {
-          beforePageLoad(page: Page) {
-            page.route('**/search-params*', async (route: Route) => {
+          beforePageLoad(page) {
+            page.route('**/search-params*', async (route) => {
               if (!interceptRequests) {
                 return route.continue()
               }
@@ -291,8 +290,8 @@ describe('searchparams-reuse-loading', () => {
 
       let interceptRequests = false
       const browser = await next.browser('/onclick-navs/version-1', {
-        beforePageLoad(page: Page) {
-          page.route('**/search-params*', async (route: Route) => {
+        beforePageLoad(page) {
+          page.route('**/search-params*', async (route) => {
             if (!interceptRequests) {
               return route.continue()
             }
@@ -377,8 +376,8 @@ describe('searchparams-reuse-loading', () => {
 
       let interceptRequests = false
       const browser = await next.browser('/onclick-navs/version-2', {
-        beforePageLoad(page: Page) {
-          page.route('**/search-params*', async (route: Route) => {
+        beforePageLoad(page) {
+          page.route('**/search-params*', async (route) => {
             if (!interceptRequests) {
               return route.continue()
             }
@@ -463,8 +462,8 @@ describe('searchparams-reuse-loading', () => {
 
       let interceptRequests = false
       const browser = await next.browser('/onclick-navs/version-3', {
-        beforePageLoad(page: Page) {
-          page.route('**/search-params*', async (route: Route) => {
+        beforePageLoad(page) {
+          page.route('**/search-params*', async (route) => {
             if (!interceptRequests) {
               return route.continue()
             }

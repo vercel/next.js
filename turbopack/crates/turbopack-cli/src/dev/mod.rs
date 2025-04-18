@@ -209,7 +209,7 @@ impl TurbopackDevServerBuilder {
             log_detail,
             log_level: self.log_level,
         });
-        let entry_requests = TransientInstance::new(self.entry_requests);
+        let entry_requests = Arc::new(self.entry_requests);
         let tasks = turbo_tasks.clone();
         let issue_provider = self.issue_reporter.unwrap_or_else(|| {
             // Initialize a ConsoleUi reporter if no custom reporter was provided
@@ -220,7 +220,7 @@ impl TurbopackDevServerBuilder {
         struct ServerSourceProvider {
             root_dir: RcStr,
             project_dir: RcStr,
-            entry_requests: TransientInstance<Vec<EntryRequest>>,
+            entry_requests: Arc<Vec<EntryRequest>>,
             eager_compile: bool,
             browserslist_query: RcStr,
         }
@@ -252,7 +252,7 @@ impl TurbopackDevServerBuilder {
 async fn source(
     root_dir: RcStr,
     project_dir: RcStr,
-    entry_requests: TransientInstance<Vec<EntryRequest>>,
+    entry_requests: Arc<Vec<EntryRequest>>,
     eager_compile: bool,
     browserslist_query: RcStr,
 ) -> Result<Vc<Box<dyn ContentSource>>> {

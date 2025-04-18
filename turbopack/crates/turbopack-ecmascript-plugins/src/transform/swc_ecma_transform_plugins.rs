@@ -206,6 +206,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                                 ctx.source_map,
                                 &ctx.unresolved_mark,
                                 &transform_metadata_context,
+                                None,
                                 plugin_module,
                                 Some(plugin_config),
                                 runtime,

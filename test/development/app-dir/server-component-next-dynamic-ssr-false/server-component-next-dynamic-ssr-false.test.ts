@@ -18,7 +18,7 @@ describe('app-dir - server-component-next-dynamic-ssr-false', () => {
       source: await getRedboxSource(browser),
     }
 
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       expect(redbox.description).toMatchInlineSnapshot(
         `"Ecmascript file had an error"`
       )

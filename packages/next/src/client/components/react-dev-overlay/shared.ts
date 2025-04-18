@@ -7,6 +7,7 @@ import type { ComponentStackFrame } from './utils/parse-component-stack'
 import type { DebugInfo } from './types'
 import type { DevIndicatorServerState } from '../../../server/dev/dev-indicator-server-state'
 import type { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
+import { getOwnerStack } from '../errors/stitched-error'
 
 type FastRefreshState =
   /** No refresh in progress. */
@@ -22,6 +23,7 @@ export interface OverlayState {
   versionInfo: VersionInfo
   notFound: boolean
   staticIndicator: boolean
+  showIndicator: boolean
   disableDevIndicator: boolean
   debugInfo: DebugInfo
   routerType: 'pages' | 'app'
@@ -100,17 +102,35 @@ export type BusEvent =
   | DebugInfoAction
   | DevIndicatorAction
 
+const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
+  // 1st group: v8
+  // 2nd group: SpiderMonkey, JavaScriptCore
+  /\s+(at react-stack-bottom-frame.*)|(react-stack-bottom-frame@.*)/
+
+// React calls user code starting from a special stack frame.
+// The basic stack will be different if the same error location is hit again
+// due to StrictMode.
+// This gets only the stack after React which is unaffected by StrictMode.
+function getStackIgnoringStrictMode(stack: string | undefined) {
+  return stack?.split(REACT_ERROR_STACK_BOTTOM_FRAME_REGEX)[0]
+}
+
 function pushErrorFilterDuplicates(
   errors: SupportedErrorEvent[],
   err: SupportedErrorEvent
 ): SupportedErrorEvent[] {
-  return [
-    ...errors.filter((e) => {
-      // Filter out duplicate errors
-      return e.event.reason.stack !== err.event.reason.stack
-    }),
-    err,
-  ]
+  const pendingErrors = errors.filter((e) => {
+    // Filter out duplicate errors
+    return (
+      (e.event.reason.stack !== err.event.reason.stack &&
+        // TODO: Let ReactDevTools control deduping instead?
+        getStackIgnoringStrictMode(e.event.reason.stack) !==
+          getStackIgnoringStrictMode(err.event.reason.stack)) ||
+      getOwnerStack(e.event.reason) !== getOwnerStack(err.event.reason)
+    )
+  })
+  pendingErrors.push(err)
+  return pendingErrors
 }
 
 const shouldDisableDevIndicator =
@@ -122,8 +142,13 @@ export const INITIAL_OVERLAY_STATE: Omit<OverlayState, 'routerType'> = {
   errors: [],
   notFound: false,
   staticIndicator: false,
-  // To prevent flickering, set the initial state to disabled.
-  disableDevIndicator: true,
+  /* 
+    This is set to `true` when we can reliably know
+    whether the indicator is in disabled state or not.  
+    Otherwise the surface would flicker because the disabled flag loads from the config.
+  */
+  showIndicator: false,
+  disableDevIndicator: false,
   refreshState: { type: 'idle' },
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
   debugInfo: { devtoolsFrontendUrl: undefined },
@@ -209,6 +234,7 @@ export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
       case ACTION_DEV_INDICATOR: {
         return {
           ...state,
+          showIndicator: true,
           disableDevIndicator:
             shouldDisableDevIndicator || !!action.devIndicator.disabledUntil,
         }

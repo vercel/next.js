@@ -1,4 +1,21 @@
 import {
+  a as a0,
+  b as b0,
+  c as c0,
+  d as d0,
+  e as e0,
+  def as def0,
+} from "package-named";
+it("should optimize named reexports from side effect free module", () => {
+  expect(a0).toBe("a");
+  expect(b0).toBe("b");
+  expect(c0).toBe("x");
+  expect(d0).toBe("y");
+  expect(e0).toBe("x");
+  expect(def0).toBe("default");
+});
+
+import {
   a as a1,
   b as b1,
   c as c1,
@@ -7,8 +24,8 @@ import {
   local as local1,
   default as default1,
   def as def1,
-} from "package-named";
-it("should optimize named reexports from side effect free module", () => {
+} from "package-named-local";
+it("should optimize named reexports with locals from side effect free module", () => {
   expect(a1).toBe("a");
   expect(b1).toBe("b");
   expect(c1).toBe("x");
@@ -19,11 +36,10 @@ it("should optimize named reexports from side effect free module", () => {
   expect(def1).toBe("default");
 });
 
-import { a as a2, b as b2, local as local2 } from "package-star";
+import { a as a2, b as b2 } from "package-star";
 it("should optimize star reexports from side effect free module", () => {
   expect(a2).toBe("a");
   expect(b2).toBe("b");
-  expect(local2).toBe("local");
 });
 
 import {
@@ -86,7 +102,12 @@ import { effects } from "package-partial/effect";
 it("should handle globs in sideEffects field", () => {
   expect(a9).toBe("a");
   expect(b9).toBe("b");
-  expect(effects).toEqual(["file.side.js", "dir/file.js"]);
+  expect(effects).toEqual([
+    "file.side.js",
+    "sub/file.side.js",
+    "sub/bare.js",
+    "dir/file.js"
+  ]);
 });
 
 it("should generate a correct facade from async modules", async () => {

@@ -264,7 +264,7 @@ mod tests {
     fn simulate_compactions() {
         let mut rnd = rand::rngs::SmallRng::from_seed([0; 32]);
         let mut keys = (0..1000)
-            .map(|_| rnd.gen_range(0..10000))
+            .map(|_| rnd.random_range(0..10000))
             .collect::<Vec<_>>();
 
         let mut containers = keys
@@ -274,7 +274,7 @@ mod tests {
 
         let mut warm_keys = (0..100)
             .map(|_| {
-                let i = rnd.gen_range(0..keys.len());
+                let i = rnd.random_range(0..keys.len());
                 keys.swap_remove(i)
             })
             .collect::<Vec<_>>();
@@ -310,8 +310,8 @@ mod tests {
 
             // Change some warm keys
             for _ in 0..10 {
-                let i = rnd.gen_range(0..warm_keys.len());
-                let j = rnd.gen_range(0..keys.len());
+                let i = rnd.random_range(0..warm_keys.len());
+                let j = rnd.random_range(0..keys.len());
                 swap(&mut warm_keys[i], &mut keys[j]);
             }
         }

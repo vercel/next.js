@@ -1,5 +1,4 @@
 import { isNextDev, isNextDeploy, createNext } from 'e2e-utils'
-import type * as Playwright from 'playwright'
 import { createRouterAct } from '../router-act'
 import { createTestDataServer } from 'test-data-service/writer'
 import { createTestLog } from 'test-log'
@@ -53,7 +52,7 @@ describe('segment cache (revalidation)', () => {
   it('evict client cache when Server Action calls revalidatePath', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -104,7 +103,7 @@ describe('segment cache (revalidation)', () => {
     // be sufficient.
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -153,7 +152,7 @@ describe('segment cache (revalidation)', () => {
   it('evict client cache when Server Action calls revalidateTag', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -200,7 +199,7 @@ describe('segment cache (revalidation)', () => {
   it('re-fetch visible links after a navigation, if needed', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/refetch-on-new-base-tree/a', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
