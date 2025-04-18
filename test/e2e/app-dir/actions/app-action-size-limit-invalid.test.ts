@@ -52,7 +52,8 @@ describe('app-dir action size limit invalid config', () => {
       `
       module.exports = {
         experimental: {
-          serverActions: { bodySizeLimit: -3000 }
+          serverActions: { bodySizeLimit: -3000 },
+          nodeMiddleware: true
         },
       }
       `
@@ -69,7 +70,8 @@ describe('app-dir action size limit invalid config', () => {
       `
       module.exports = {
         experimental: {
-          serverActions: { bodySizeLimit: 'testmb' }
+          serverActions: { bodySizeLimit: 'testmb' },
+          nodeMiddleware: true
         },
       }
       `
@@ -86,7 +88,8 @@ describe('app-dir action size limit invalid config', () => {
       `
       module.exports = {
         experimental: {
-          serverActions: { bodySizeLimit: '-3000mb' }
+          serverActions: { bodySizeLimit: '-3000mb' },
+          nodeMiddleware: true
         },
       }
       `
@@ -104,7 +107,8 @@ describe('app-dir action size limit invalid config', () => {
         `
       module.exports = {
         experimental: {
-          serverActions: { bodySizeLimit: '1.5mb' }
+          serverActions: { bodySizeLimit: '1.5mb' },
+          nodeMiddleware: true
         },
       }
       `
@@ -138,7 +142,8 @@ describe('app-dir action size limit invalid config', () => {
         `
       module.exports = {
         experimental: {
-          serverActions: { bodySizeLimit: '2mb' }
+          serverActions: { bodySizeLimit: '2mb' },
+          nodeMiddleware: true
         },
       }
       `
