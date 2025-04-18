@@ -214,7 +214,8 @@ describe('SSG Prerender export', () => {
           await fs.remove(exportDir)
           await nextBuild(appDir, undefined, { cwd: appDir })
           app = await startStaticServer(exportDir)
-          appPort = app.address().port
+          const address = app.address()
+          appPort = typeof address === 'string' ? address : address.port + ''
           buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
         })
 

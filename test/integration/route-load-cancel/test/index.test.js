@@ -60,7 +60,8 @@ describe('next/dynamic', () => {
         })
 
         server = await startApp(app)
-        appPort = server.address().port
+        appPort = /** @type {import('net').AddressInfo} */ (server.address())
+          .port
       })
       afterAll(() => stopApp(server))
 
