@@ -62,15 +62,8 @@ const runTests = (isDev) => {
       await waitFor(1000)
 
       const logs = await browser.log()
-      const filteredLogs = logs.filter(
-        (log) =>
-          !log.message.includes('Failed to load resource') &&
-          // @ts-expect-error: comparison is always true, should use !==
-          !log.message === 'error' &&
-          // @ts-expect-error: comparison is always true, should use !==
-          !log.message === 'Event'
-      )
-      expect(filteredLogs.length).toBe(0)
+      const loggedErrors = logs.filter((log) => log.source === 'error')
+      expect(loggedErrors).toEqual([])
 
       async function test(id, css) {
         const script = await browser.elementById(id)
