@@ -37,9 +37,9 @@ const defaultTimeout = process.env.NEXT_E2E_TEST_TIMEOUT
 // This is due to `quit` can be called anytime outside of Playwright's lifecycle,
 // which can create corrupted state by terminating the context.
 // [TODO] global `quit` might need to be removed, instead should introduce per-instance teardown
-const pendingTeardown: Array<() => Promise<void>> = []
+const pendingTeardowns = new Set<Promise<void>>()
 export async function quit() {
-  await Promise.all(pendingTeardown.map((fn) => fn()))
+  await Promise.all(pendingTeardowns)
   await context?.close()
   await browser?.close()
   context = undefined
@@ -47,9 +47,13 @@ export async function quit() {
 }
 
 async function teardown(tearDownFn: () => Promise<void>) {
-  pendingTeardown.push(tearDownFn)
-  await tearDownFn()
-  pendingTeardown.splice(pendingTeardown.indexOf(tearDownFn), 1)
+  const teardownPromise = tearDownFn()
+  pendingTeardowns.add(teardownPromise)
+  try {
+    await teardownPromise
+  } finally {
+    pendingTeardowns.delete(teardownPromise)
+  }
 }
 
 interface ElementHandleExt extends ElementHandle {
@@ -190,7 +194,18 @@ export class Playwright<TCurrent = undefined> {
 
   async close(): Promise<void> {
     await teardown(this.teardownTracing.bind(this))
-    await page?.close()
+    if (page && !page.isClosed()) {
+      await page.close()
+    }
+
+    // clean-up existing pages
+    await Promise.all(
+      context!.pages().map(async (oldPage) => {
+        if (!oldPage.isClosed()) {
+          await oldPage.close()
+        }
+      })
+    )
   }
 
   async launchBrowser(browserName: string, launchOptions: Record<string, any>) {
@@ -232,11 +247,6 @@ export class Playwright<TCurrent = undefined> {
     }
   ) {
     await this.close()
-
-    // clean-up existing pages
-    for (const oldPage of context!.pages()) {
-      await oldPage.close()
-    }
 
     await this.initContextTracing(url, context!)
     page = await context!.newPage()
