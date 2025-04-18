@@ -24,6 +24,10 @@ import {
 } from '../lib/constants'
 import { normalizeNextQueryParam } from './web/utils'
 import type { IncomingHttpHeaders } from 'http'
+import { parseAndValidateFlightRouterState } from './app-render/parse-and-validate-flight-router-state'
+import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
+import { NEXT_ROUTER_STATE_TREE_HEADER } from '../client/components/app-router-headers'
+import { getSelectedParams } from '../client/components/router-reducer/compute-changed-path'
 
 export function normalizeVercelUrl(
   req: BaseNextRequest,
@@ -238,6 +242,28 @@ export function getUtils({
       }
 
       if (params) {
+        try {
+          // An interception rewrite might reference a dynamic param for a route the user
+          // is currently on, which wouldn't be extractable from the matched route params.
+          // This attempts to extract the dynamic params from the provided router state.
+          if (isInterceptionRouteRewrite(rewrite)) {
+            const stateHeader =
+              req.headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()]
+
+            if (stateHeader) {
+              params = {
+                ...getSelectedParams(
+                  parseAndValidateFlightRouterState(stateHeader)
+                ),
+                ...params,
+              }
+            }
+          }
+        } catch (err) {
+          // this is a no-op -- we couldn't extract dynamic params from the provided router state,
+          // so we'll just use the params from the route matcher
+        }
+
         const { parsedDestination, destQuery } = prepareDestination({
           appendParamsToQuery: true,
           destination: rewrite.destination,
