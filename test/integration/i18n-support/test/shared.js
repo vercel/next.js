@@ -1891,13 +1891,15 @@ export function runTests(ctx) {
   })
 
   it('should apply trailingSlash redirect correctly', async () => {
-    for (const [testPath, path, hostname, query] of [
+    /** @type {[testPath: string, path: string, hostname: string, query: Record<string,string>][]} */
+    const cases = [
       ['/first/', '/first', 'localhost', {}],
       ['/en/', '/en', 'localhost', {}],
       ['/en/another/', '/en/another', 'localhost', {}],
       ['/fr/', '/fr', 'localhost', {}],
       ['/fr/another/', '/fr/another', 'localhost', {}],
-    ]) {
+    ]
+    for (const [testPath, path, hostname, query] of cases) {
       const res = await fetchViaHTTP(ctx.appPort, testPath, undefined, {
         redirect: 'manual',
       })
