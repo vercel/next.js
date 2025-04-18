@@ -6,7 +6,10 @@ const warningMessage =
 
 describe('Invalid server options', () => {
   test('next() called with no parameters should throw error', () => {
-    expect(() => next()).toThrow(
+    expect(() => {
+      // @ts-expect-error deliberately omitting required argument
+      return next()
+    }).toThrow(
       'The server has not been instantiated properly. https://nextjs.org/docs/messages/invalid-server-options'
     )
   })
@@ -26,6 +29,7 @@ describe('Invalid server options', () => {
   test('next() called with dev as string should send warning', () => {
     const consoleSpy = jest.spyOn(console, 'warn')
     const dev = 'string'
+    // @ts-expect-error deliberately passing incorrect value
     next({ dev, dir })
 
     expect(consoleSpy).toHaveBeenCalledWith(warningMessage)
@@ -34,6 +38,7 @@ describe('Invalid server options', () => {
   test('next() called with dev as number should send warning', () => {
     const consoleSpy = jest.spyOn(console, 'warn')
     const dev = 123
+    // @ts-expect-error deliberately passing incorrect value
     next({ dev, dir })
 
     expect(consoleSpy).toHaveBeenCalledWith(warningMessage)
@@ -42,6 +47,7 @@ describe('Invalid server options', () => {
   test('next() called with dev as array should send warning', () => {
     const consoleSpy = jest.spyOn(console, 'warn')
     const dev = ['array']
+    // @ts-expect-error deliberately passing incorrect value
     next({ dev, dir })
 
     expect(consoleSpy).toHaveBeenCalledWith(warningMessage)
@@ -50,6 +56,7 @@ describe('Invalid server options', () => {
   test('next() called with dev as object should send warning', () => {
     const consoleSpy = jest.spyOn(console, 'warn')
     const dev = { test: 'goes here' }
+    // @ts-expect-error deliberately passing incorrect value
     next({ dev, dir })
 
     expect(consoleSpy).toHaveBeenCalledWith(warningMessage)
@@ -58,6 +65,7 @@ describe('Invalid server options', () => {
   test('next() called with dev as function should send warning', () => {
     const consoleSpy = jest.spyOn(console, 'warn')
     const dev = () => console.log('test')
+    // @ts-expect-error deliberately passing incorrect value
     next({ dev, dir })
 
     expect(consoleSpy).toHaveBeenCalledWith(warningMessage)
