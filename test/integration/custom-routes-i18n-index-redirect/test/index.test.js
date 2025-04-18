@@ -68,7 +68,7 @@ describe('Custom routes i18n with index redirect', () => {
         app = await launchApp(appDir, appPort)
       })
       afterAll(() => killApp(app))
-      runTests(true)
+      runTests()
     }
   )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(

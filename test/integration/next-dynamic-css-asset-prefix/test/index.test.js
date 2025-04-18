@@ -105,7 +105,7 @@ describe('next/dynamic with assetPrefix', () => {
       afterAll(() => cdn.close())
       afterAll(() => nextConfig.restore())
 
-      runTests(true)
+      runTests()
     }
   )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
