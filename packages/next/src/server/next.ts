@@ -6,7 +6,9 @@ import type {
 import type { UrlWithParsedQuery } from 'url'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { Duplex } from 'stream'
-import type { NextUrlWithParsedQuery } from './request-meta'
+import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
+import type { ParsedUrlQuery } from 'querystring'
+import type { WorkerRequestHandler, WorkerUpgradeHandler } from './lib/types'
 
 import './require-hook'
 import './node-polyfill-crypto'
@@ -58,7 +60,7 @@ export type UpgradeHandler = (
 
 const SYMBOL_LOAD_CONFIG = Symbol('next.load_config')
 
-interface NextWrapperServer {
+interface NextWrapperServer extends LegacyServerMethods {
   // NOTE: the methods/properties here are the public API for custom servers.
   // Consider backwards compatibilty when changing something here!
 
@@ -73,30 +75,74 @@ interface NextWrapperServer {
 
   // used internally
   getUpgradeHandler(): UpgradeHandler
+}
 
-  // legacy methods that we left exposed in the past
+interface LegacyServerMethods {
+  /**
+   * This method is only public for backwards compatibility, and may change or be removed in a future release.
+   * @deprecated
+   */
+  logError(err: Error): void
 
-  logError(...args: Parameters<NextNodeServer['logError']>): void
-
+  /**
+   * This method is only public for backwards compatibility, and may change or be removed in a future release.
+   * @deprecated
+   */
   render(
-    ...args: Parameters<NextNodeServer['render']>
-  ): ReturnType<NextNodeServer['render']>
+    req: IncomingMessage,
+    res: ServerResponse,
+    pathname: string,
+    query?: NextParsedUrlQuery,
+    parsedUrl?: NextUrlWithParsedQuery,
+    internal?: boolean
+  ): Promise<void>
 
+  /**
+   * This method is only public for backwards compatibility, and may change or be removed in a future release.
+   * @deprecated
+   */
   renderToHTML(
-    ...args: Parameters<NextNodeServer['renderToHTML']>
-  ): ReturnType<NextNodeServer['renderToHTML']>
+    req: IncomingMessage,
+    res: ServerResponse,
+    pathname: string,
+    query?: ParsedUrlQuery
+  ): Promise<string | null>
 
+  /**
+   * This method is only public for backwards compatibility, and may change or be removed in a future release.
+   * @deprecated
+   */
   renderError(
-    ...args: Parameters<NextNodeServer['renderError']>
-  ): ReturnType<NextNodeServer['renderError']>
+    err: Error | null,
+    req: IncomingMessage,
+    res: ServerResponse,
+    pathname: string,
+    query?: NextParsedUrlQuery,
+    setHeaders?: boolean
+  ): Promise<void>
 
+  /**
+   * This method is only public for backwards compatibility, and may change or be removed in a future release.
+   * @deprecated
+   */
   renderErrorToHTML(
-    ...args: Parameters<NextNodeServer['renderErrorToHTML']>
-  ): ReturnType<NextNodeServer['renderErrorToHTML']>
+    err: Error | null,
+    req: IncomingMessage,
+    res: ServerResponse,
+    pathname: string,
+    query?: ParsedUrlQuery
+  ): Promise<string | null>
 
+  /**
+   * This method is only public for backwards compatibility, and may change or be removed in a future release.
+   * @deprecated
+   */
   render404(
-    ...args: Parameters<NextNodeServer['render404']>
-  ): ReturnType<NextNodeServer['render404']>
+    req: IncomingMessage,
+    res: ServerResponse,
+    parsedUrl?: NextUrlWithParsedQuery,
+    setHeaders?: boolean
+  ): Promise<void>
 }
 
 /** The wrapper server used by `next start` */
