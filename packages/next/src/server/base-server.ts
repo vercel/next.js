@@ -1389,7 +1389,7 @@ export default abstract class Server<
           }
 
           if (pageIsDynamic || didRewrite) {
-            utils.normalizeVercelUrl(req, [
+            utils.normalizeCdnUrl(req, [
               ...rewriteParamKeys,
               ...Object.keys(utils.defaultRouteRegex?.groups || {}),
             ])

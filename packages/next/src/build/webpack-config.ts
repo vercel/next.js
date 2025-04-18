@@ -96,6 +96,7 @@ import {
 import { getRspackCore, getRspackReactRefresh } from '../shared/lib/get-rspack'
 import { RspackProfilingPlugin } from './webpack/plugins/rspack-profiling-plugin'
 import getWebpackBundler from '../shared/lib/get-webpack-bundler'
+import type { NextBuildContext } from './build-context'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -312,9 +313,10 @@ export default async function getBaseWebpackConfig(
     supportedBrowsers,
     clientRouterFilters,
     fetchCacheKeyPrefix,
-    edgePreviewProps,
     isCompileMode,
+    previewProps,
   }: {
+    previewProps: NonNullable<(typeof NextBuildContext)['previewProps']>
     isCompileMode?: boolean
     buildId: string
     encryptionKey: string
@@ -336,7 +338,6 @@ export default async function getBaseWebpackConfig(
     jsConfigPath?: string
     resolvedBaseUrl: ResolvedBaseUrl
     supportedBrowsers: string[] | undefined
-    edgePreviewProps?: Record<string, string>
     clientRouterFilters?: {
       staticFilter: ReturnType<
         import('../shared/lib/bloom-filter').BloomFilter['export']
@@ -2010,7 +2011,10 @@ export default async function getBaseWebpackConfig(
           edgeEnvironments: {
             __NEXT_BUILD_ID: buildId,
             NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: encryptionKey,
-            ...edgePreviewProps,
+            __NEXT_PREVIEW_MODE_ID: previewProps.previewModeId,
+            __NEXT_PREVIEW_MODE_SIGNING_KEY: previewProps.previewModeSigningKey,
+            __NEXT_PREVIEW_MODE_ENCRYPTION_KEY:
+              previewProps.previewModeEncryptionKey,
           },
         }),
       isClient &&

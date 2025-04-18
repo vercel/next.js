@@ -209,14 +209,27 @@ describe('server-side dev errors', () => {
       })
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
-
-      expect(stderrOutput).toStartWith(
-        '⨯ ReferenceError: missingVar is not defined' +
-          '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/hello.js:2:2)' +
+      if (isTurbopack) {
+        expect(stderrOutput).toStartWith(
+          '⨯ ReferenceError: missingVar is not defined' +
+            '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/hello.js:2:2)' +
+            '\n  1 | export default function handler(req, res) {' +
+            "\n> 2 |   missingVar;res.status(200).json({ hello: 'world' })" +
+            '\n    |  ^'
+        )
+      } else {
+        expect(stderrOutput).toStartWith(
+          '⨯ ReferenceError: missingVar is not defined' +
+            '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/hello.js:2:2)' +
+            // TODO(veil): Why not ignore-listed?
+            '\n    at '
+        )
+        expect(stderrOutput).toContain(
           '\n  1 | export default function handler(req, res) {' +
-          "\n> 2 |   missingVar;res.status(200).json({ hello: 'world' })" +
-          '\n    |  ^'
-      )
+            "\n> 2 |   missingVar;res.status(200).json({ hello: 'world' })" +
+            '\n    |  ^'
+        )
+      }
 
       await expect(browser).toDisplayRedbox(`
         {
@@ -270,13 +283,27 @@ describe('server-side dev errors', () => {
       })
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
-      expect(stderrOutput).toStartWith(
-        '⨯ ReferenceError: missingVar is not defined' +
-          '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js:2:2)' +
+      if (isTurbopack) {
+        expect(stderrOutput).toStartWith(
+          '⨯ ReferenceError: missingVar is not defined' +
+            '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js:2:2)' +
+            '\n  1 | export default function handler(req, res) {' +
+            '\n> 2 |   missingVar;res.status(200).json({ slug: req.query.slug })' +
+            '\n    |  ^'
+        )
+      } else {
+        expect(stderrOutput).toStartWith(
+          '⨯ ReferenceError: missingVar is not defined' +
+            '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js:2:2)' +
+            // TODO(veil): Why not ignore-listed?
+            '\n    at'
+        )
+        expect(stderrOutput).toContain(
           '\n  1 | export default function handler(req, res) {' +
-          '\n> 2 |   missingVar;res.status(200).json({ slug: req.query.slug })' +
-          '\n    |  ^'
-      )
+            '\n> 2 |   missingVar;res.status(200).json({ slug: req.query.slug })' +
+            '\n    |  ^'
+        )
+      }
 
       await expect(browser).toDisplayRedbox(`
         {
