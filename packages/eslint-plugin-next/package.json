@@ -19,6 +19,7 @@
     "eslint": "8.56.0"
   },
   "scripts": {
+    "dev": "pnpm build",
     "build": "swc -d dist src && pnpm types",
     "types": "tsc src/index.ts --skipLibCheck --declaration --emitDeclarationOnly --declarationDir dist",
     "prepublishOnly": "cd ../../ && turbo run build"
