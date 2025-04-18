@@ -7,10 +7,11 @@ const CWD = process.cwd()
 
 async function webpackFinal(config) {
   const nextConfig = await loadConfig(PHASE_PRODUCTION_BUILD, CWD)
-  const { pagesDir } = findPagesDir(CWD, !!nextConfig.experimental.appDir)
+  const { pagesDir } = findPagesDir(CWD)
   const nextWebpackConfig = await getWebpackConfig(CWD, {
     pagesDir,
     entrypoints: {},
+    // @ts-expect-error seems like this field is no longer there, can it be removed?
     isServer: false,
     target: 'server',
     config: nextConfig,
