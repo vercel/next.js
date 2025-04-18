@@ -9,7 +9,8 @@ use napi::{
 use next_api::{
     entrypoints::Entrypoints,
     operation::{
-        EntrypointsOperation, InstrumentationOperation, MiddlewareOperation, RouteOperation,
+        EntrypointsOperation, InstrumentationOperation, MiddlewareOperation, OptionEndpoint,
+        RouteOperation,
     },
     project::{
         DefineEnv, DraftModeOptions, PartialProjectOptions, Project, ProjectContainer,
@@ -304,7 +305,7 @@ impl From<NapiDefineEnv> for DefineEnv {
 
 pub struct ProjectInstance {
     turbo_tasks: NextTurboTasks,
-    container: Vc<ProjectContainer>,
+    container: ResolvedVc<ProjectContainer>,
     exit_receiver: tokio::sync::Mutex<Option<ExitReceiver>>,
 }
 
@@ -373,7 +374,9 @@ pub async fn project_new(
         let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
         exit.on_exit(async move {
-            tokio::task::spawn_blocking(move || drop(trace_writer_guard));
+            tokio::task::spawn_blocking(move || drop(trace_writer_guard))
+                .await
+                .unwrap();
         });
 
         let trace_server = std::env::var("NEXT_TURBOPACK_TRACE_SERVER").ok();
@@ -381,7 +384,7 @@ pub async fn project_new(
             thread::spawn(move || {
                 turbopack_trace_server::start_turbopack_trace_server(trace_file);
             });
-            println!("Turbopack trace server started. View trace at https://turbo-trace-viewer.vercel.app/");
+            println!("Turbopack trace server started. View trace at https://trace.nextjs.org");
         }
 
         subscriber.init();
@@ -434,7 +437,7 @@ pub async fn project_new(
     Ok(External::new_with_size_hint(
         ProjectInstance {
             turbo_tasks,
-            container: *container,
+            container,
             exit_receiver: tokio::sync::Mutex::new(Some(exit_receiver)),
         },
         100,
@@ -465,7 +468,7 @@ async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completio
     ));
 
     let mut random_buffer = [0u8; 512];
-    rand::thread_rng().fill(&mut random_buffer[..]);
+    rand::rng().fill(&mut random_buffer[..]);
 
     // perform IO directly with tokio (skipping `tokio_tasks_fs`) to avoid the
     // additional noise/overhead of tasks caching, invalidation, file locks,
@@ -580,7 +583,7 @@ pub struct NapiRoute {
 
 impl NapiRoute {
     fn from_route(pathname: String, value: RouteOperation, turbo_tasks: &NextTurboTasks) -> Self {
-        let convert_endpoint = |endpoint: OperationVc<Box<dyn Endpoint>>| {
+        let convert_endpoint = |endpoint: OperationVc<OptionEndpoint>| {
             Some(External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
                 endpoint,
@@ -782,10 +785,8 @@ pub async fn project_write_all_entrypoints_to_disk(
     let turbo_tasks = project.turbo_tasks.clone();
     let (entrypoints, issues, diags) = turbo_tasks
         .run_once(async move {
-            let entrypoints_with_issues_op = get_all_written_entrypoints_with_issues_operation(
-                project.container.to_resolved().await?,
-                app_dir_only,
-            );
+            let entrypoints_with_issues_op =
+                get_all_written_entrypoints_with_issues_operation(project.container, app_dir_only);
 
             let EntrypointsWithIssues {
                 entrypoints,
@@ -879,8 +880,7 @@ pub fn project_entrypoints_subscribe(
         func,
         move || {
             async move {
-                let entrypoints_with_issues_op =
-                    get_entrypoints_with_issues_operation(container.to_resolved().await?);
+                let entrypoints_with_issues_op = get_entrypoints_with_issues_operation(container);
                 let EntrypointsWithIssues {
                     entrypoints,
                     issues,
@@ -1085,7 +1085,7 @@ pub fn project_hmr_identifiers_subscribe(
         func,
         move || async move {
             let hmr_identifiers_with_issues_op =
-                get_hmr_identifiers_with_issues_operation(container.to_resolved().await?);
+                get_hmr_identifiers_with_issues_operation(container);
             let HmrIdentifiersWithIssues {
                 identifiers,
                 issues,
@@ -1236,10 +1236,11 @@ pub struct StackFrame {
     pub method_name: Option<String>,
 }
 
+#[turbo_tasks::function]
 pub async fn get_source_map_rope(
     container: Vc<ProjectContainer>,
-    file_path: String,
-) -> Result<Option<Vc<OptionStringifiedSourceMap>>> {
+    file_path: RcStr,
+) -> Result<Vc<OptionStringifiedSourceMap>> {
     let (file, module) = match Url::parse(&file_path) {
         Ok(url) => match url.scheme() {
             "file" => {
@@ -1266,7 +1267,7 @@ pub async fn get_source_map_rope(
         )),
     ) else {
         // File doesn't exist within the dist dir
-        return Ok(None);
+        return Ok(OptionStringifiedSourceMap::none());
     };
 
     let server_path = container.project().node_root().join(chunk_base.into());
@@ -1284,24 +1285,29 @@ pub async fn get_source_map_rope(
         // Currently, this is inaccurate as it does not cover RSC server
         // chunks.
         map = container.get_source_map(client_path, module);
+        if map.await?.is_none() {
+            bail!("chunk/module '{}' is missing a sourcemap", file_path);
+        }
     }
 
-    if map.await?.is_none() {
-        bail!("chunk/module is missing a sourcemap");
-    }
-
-    Ok(Some(map))
+    Ok(map)
 }
 
-pub async fn get_source_map(
-    container: Vc<ProjectContainer>,
-    file_path: String,
-) -> Result<Option<ReadRef<OptionSourceMap>>> {
-    let Some(map) = get_source_map_rope(container, file_path).await? else {
-        return Ok(None);
-    };
-    let map = SourceMap::new_from_rope_cached(map).await?;
-    Ok(Some(map))
+#[turbo_tasks::function(operation)]
+pub fn get_source_map_rope_operation(
+    container: ResolvedVc<ProjectContainer>,
+    file_path: RcStr,
+) -> Vc<OptionStringifiedSourceMap> {
+    get_source_map_rope(*container, file_path)
+}
+
+#[turbo_tasks::function(operation)]
+pub fn get_source_map_operation(
+    container: ResolvedVc<ProjectContainer>,
+    file_path: RcStr,
+) -> Vc<OptionSourceMap> {
+    let map = get_source_map_rope(*container, file_path);
+    SourceMap::new_from_rope_cached(map)
 }
 
 #[napi]
@@ -1314,10 +1320,10 @@ pub async fn project_trace_source(
     let container = project.container;
     let traced_frame = turbo_tasks
         .run_once(async move {
-            let Some(map) = get_source_map(container, frame.file).await? else {
-                return Ok(None);
-            };
-            let Some(map) = &*map else {
+            let Some(map) = &*get_source_map_operation(container, RcStr::from(frame.file))
+                .read_strongly_consistent()
+                .await?
+            else {
                 return Ok(None);
             };
 
@@ -1445,10 +1451,10 @@ pub async fn project_get_source_map(
 
     let source_map = turbo_tasks
         .run_once(async move {
-            let Some(map) = get_source_map_rope(container, file_path).await? else {
-                return Ok(None);
-            };
-            let Some(map) = &*map.await? else {
+            let Some(map) = &*get_source_map_rope_operation(container, RcStr::from(file_path))
+                .read_strongly_consistent()
+                .await?
+            else {
                 return Ok(None);
             };
             Ok(Some(map.to_str()?.to_string()))

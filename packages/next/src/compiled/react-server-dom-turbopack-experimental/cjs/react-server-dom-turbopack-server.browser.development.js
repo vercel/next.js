@@ -13,6 +13,16 @@
   (function () {
     function voidHandler() {}
     function _defineProperty(obj, key, value) {
+      a: if ("object" == typeof key && key) {
+        var e = key[Symbol.toPrimitive];
+        if (void 0 !== e) {
+          key = e.call(key, "string");
+          if ("object" != typeof key) break a;
+          throw new TypeError("@@toPrimitive must return a primitive value.");
+        }
+        key = String(key);
+      }
+      key = "symbol" == typeof key ? key : key + "";
       key in obj
         ? Object.defineProperty(obj, key, {
             value: value,
@@ -312,6 +322,12 @@
     }
     function resolveOwner() {
       return currentOwner ? currentOwner : null;
+    }
+    function resetOwnerStackLimit() {
+      var now = getCurrentTime();
+      1e3 < now - lastResetTime &&
+        ((ReactSharedInternalsServer.recentlyCreatedOwnerStacks = 0),
+        (lastResetTime = now));
     }
     function isObjectPrototype(object) {
       if (!object) return !1;
@@ -711,6 +727,58 @@
       pingedTasks.push(model);
     }
     function noop() {}
+    function createRequest(
+      model,
+      bundlerConfig,
+      onError,
+      identifierPrefix,
+      onPostpone,
+      temporaryReferences,
+      environmentName,
+      filterStackFrame
+    ) {
+      resetOwnerStackLimit();
+      return new RequestInstance(
+        20,
+        model,
+        bundlerConfig,
+        onError,
+        identifierPrefix,
+        onPostpone,
+        temporaryReferences,
+        environmentName,
+        filterStackFrame,
+        noop,
+        noop
+      );
+    }
+    function createPrerenderRequest(
+      model,
+      bundlerConfig,
+      onAllReady,
+      onFatalError,
+      onError,
+      identifierPrefix,
+      onPostpone,
+      temporaryReferences,
+      environmentName,
+      filterStackFrame
+    ) {
+      resetOwnerStackLimit();
+      return new RequestInstance(
+        PRERENDER,
+        model,
+        bundlerConfig,
+        onError,
+        identifierPrefix,
+        onPostpone,
+        temporaryReferences,
+        environmentName,
+        filterStackFrame,
+        onAllReady,
+        onFatalError
+      );
+    }
     function serializeThenable(request, task, thenable) {
       var newTask = createTask(
         request,
@@ -3862,7 +3930,6 @@
         }
       };
     HooksDispatcher.useEffectEvent = unsupportedHook;
-    HooksDispatcher.useSwipeTransition = unsupportedHook;
     var currentOwner = null,
       DefaultAsyncDispatcher = {
         getCacheForType: function (resourceType) {
@@ -3884,6 +3951,21 @@
       );
     var prefix, suffix;
     new ("function" === typeof WeakMap ? WeakMap : Map)();
+    var lastResetTime = 0;
+    if (
+      "object" === typeof performance &&
+      "function" === typeof performance.now
+    ) {
+      var localPerformance = performance;
+      var getCurrentTime = function () {
+        return localPerformance.now();
+      };
+    } else {
+      var localDate = Date;
+      getCurrentTime = function () {
+        return localDate.now();
+      };
+    }
     var callComponent = {
         "react-stack-bottom-frame": function (
           Component,
@@ -4074,8 +4156,7 @@
       });
     };
     exports.renderToReadableStream = function (model, turbopackMap, options) {
-      var request = new RequestInstance(
-        20,
+      var request = createRequest(
         model,
         turbopackMap,
         options ? options.onError : void 0,
@@ -4083,9 +4164,7 @@
         options ? options.onPostpone : void 0,
         options ? options.temporaryReferences : void 0,
         options ? options.environmentName : void 0,
-        options ? options.filterStackFrame : void 0,
-        noop,
-        noop
+        options ? options.filterStackFrame : void 0
       );
       if (options && options.signal) {
         var signal = options.signal;
@@ -4117,16 +4196,9 @@
     };
     exports.unstable_prerender = function (model, turbopackMap, options) {
       return new Promise(function (resolve, reject) {
-        var request = new RequestInstance(
-          PRERENDER,
+        var request = createPrerenderRequest(
           model,
           turbopackMap,
-          options ? options.onError : void 0,
-          options ? options.identifierPrefix : void 0,
-          options ? options.onPostpone : void 0,
-          options ? options.temporaryReferences : void 0,
-          options ? options.environmentName : void 0,
-          options ? options.filterStackFrame : void 0,
           function () {
             var stream = new ReadableStream(
               {
@@ -4146,7 +4218,13 @@
             );
             resolve({ prelude: stream });
           },
-          reject
+          reject,
+          options ? options.onError : void 0,
+          options ? options.identifierPrefix : void 0,
+          options ? options.onPostpone : void 0,
+          options ? options.temporaryReferences : void 0,
+          options ? options.environmentName : void 0,
+          options ? options.filterStackFrame : void 0
         );
         if (options && options.signal) {
           var signal = options.signal;

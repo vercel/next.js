@@ -5,6 +5,7 @@ mod storage;
 
 use std::{
     borrow::Cow,
+    fmt::{self, Write},
     future::Future,
     hash::BuildHasherDefault,
     mem::take,
@@ -18,6 +19,7 @@ use std::{
 
 use anyhow::{bail, Result};
 use auto_hash_map::{AutoMap, AutoSet};
+use indexmap::IndexSet;
 use parking_lot::{Condvar, Mutex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::smallvec;
@@ -28,8 +30,9 @@ use turbo_tasks::{
         TransientTaskType, TypedCellContent,
     },
     event::{Event, EventListener},
-    registry,
+    registry::{self, get_value_type_global_name},
     task_statistics::TaskStatisticsApi,
+    trace::TraceRawVcs,
     util::IdFactoryWithReuse,
     CellId, FunctionId, FxDashMap, RawVc, ReadCellOptions, ReadConsistency, SessionId, TaskId,
     TraitTypeId, TurboTasksBackendApi, ValueTypeId, TRANSIENT_TASK_BIT,
@@ -424,6 +427,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         consistency: ReadConsistency,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<Result<RawVc, EventListener>> {
+        if let Some(reader) = reader {
+            self.assert_not_persistent_calling_transient(reader, task_id, /* cell_id */ None);
+        }
+
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
 
@@ -455,11 +462,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     Some(Ok(Err(listen_to_done_event(this, reader, done_event))))
                 }
                 Some(InProgressState::InProgress(box InProgressStateInner {
-                    marked_as_completed,
+                    done,
                     done_event,
                     ..
                 })) => {
-                    if !*marked_as_completed {
+                    if !*done {
                         Some(Ok(Err(listen_to_done_event(this, reader, done_event))))
                     } else {
                         None
@@ -606,6 +613,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // Output doesn't exist. We need to schedule the task to compute it.
         let (item, listener) =
             CachedDataItem::new_scheduled_with_listener(self.get_task_desc_fn(task_id), note);
+        // It's not possible that the task is InProgress at this point. If it is InProgress {
+        // done: true } it must have Output and would early return.
         task.add_new(item);
         turbo_tasks.schedule(task_id);
 
@@ -620,6 +629,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
+        if let Some(reader) = reader {
+            self.assert_not_persistent_calling_transient(reader, task_id, Some(cell));
+        }
+
         fn add_cell_dependency<B: BackingStorage>(
             backend: &TurboTasksBackendInner<B>,
             mut task: impl TaskGuard,
@@ -676,20 +689,32 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             )));
         }
 
+        let in_progress = get!(task, InProgress);
+        if matches!(
+            in_progress,
+            Some(InProgressState::InProgress(..) | InProgressState::Scheduled { .. })
+        ) {
+            return Ok(Err(self.listen_to_cell(&mut task, task_id, reader, cell).0));
+        }
+        let is_cancelled = matches!(in_progress, Some(InProgressState::Canceled));
+        let is_scheduled = matches!(in_progress, Some(InProgressState::Scheduled { .. }));
+
         // Check cell index range (cell might not exist at all)
-        let Some(max_id) = get!(
+        let max_id = get!(
             task,
             CellTypeMaxIndex {
                 cell_type: cell.type_id
             }
-        ) else {
+        )
+        .copied();
+        let Some(max_id) = max_id else {
             add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
             bail!(
                 "Cell {cell:?} no longer exists in task {} (no cell of this type exists)",
                 ctx.get_task_description(task_id)
             );
         };
-        if cell.index >= *max_id {
+        if cell.index >= max_id {
             add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
             bail!(
                 "Cell {cell:?} no longer exists in task {} (index out of bounds)",
@@ -700,19 +725,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // Cell should exist, but data was dropped or is not serializable. We need to recompute the
         // task the get the cell content.
 
-        let reader_desc = reader.map(|r| self.get_task_desc_fn(r));
-        let note = move || {
-            if let Some(reader_desc) = reader_desc.as_ref() {
-                format!("try_read_task_cell from {}", reader_desc())
-            } else {
-                "try_read_task_cell (untracked)".to_string()
-            }
-        };
-
-        // Register event listener for cell computation
-        if let Some(in_progress) = get!(task, InProgressCell { cell }) {
-            // Someone else is already computing the cell
-            let listener = in_progress.event.listen_with_note(note);
+        // Listen to the cell and potentially schedule the task
+        let (listener, new_listener) = self.listen_to_cell(&mut task, task_id, reader, cell);
+        if !new_listener {
             return Ok(Err(listener));
         }
 
@@ -723,58 +738,47 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         )
         .entered();
 
-        // We create the event and potentially schedule the task
-        let in_progress = InProgressCellState::new(task_id, cell);
+        // Schedule the task, if not already scheduled
+        if is_cancelled {
+            bail!("{} was canceled", ctx.get_task_description(task_id));
+        } else if !is_scheduled
+            && task.add(CachedDataItem::new_scheduled(
+                self.get_task_desc_fn(task_id),
+            ))
+        {
+            turbo_tasks.schedule(task_id);
+        }
 
+        Ok(Err(listener))
+    }
+
+    fn listen_to_cell(
+        &self,
+        task: &mut impl TaskGuard,
+        task_id: TaskId,
+        reader: Option<TaskId>,
+        cell: CellId,
+    ) -> (EventListener, bool) {
+        let reader_desc = reader.map(|r| self.get_task_desc_fn(r));
+        let note = move || {
+            if let Some(reader_desc) = reader_desc.as_ref() {
+                format!("try_read_task_cell (in progress) from {}", reader_desc())
+            } else {
+                "try_read_task_cell (in progress, untracked)".to_string()
+            }
+        };
+        if let Some(in_progress) = get!(task, InProgressCell { cell }) {
+            // Someone else is already computing the cell
+            let listener = in_progress.event.listen_with_note(note);
+            return (listener, false);
+        }
+        let in_progress = InProgressCellState::new(task_id, cell);
         let listener = in_progress.event.listen_with_note(note);
         task.add_new(CachedDataItem::InProgressCell {
             cell,
             value: in_progress,
         });
-
-        // Schedule the task, if not already scheduled
-        if let Some(existing) = get!(task, InProgress) {
-            match existing {
-                InProgressState::InProgress(box InProgressStateInner { stale, .. }) => {
-                    if !*stale {
-                        let idx = get!(
-                            task,
-                            CellTypeMaxIndex {
-                                cell_type: cell.type_id
-                            }
-                        )
-                        .copied()
-                        .unwrap_or_default();
-                        if cell.index <= idx {
-                            // The current execution is past the cell, so we need to reexecute.
-                            let Some(InProgressState::InProgress(box InProgressStateInner {
-                                stale,
-                                ..
-                            })) = get_mut!(task, InProgress)
-                            else {
-                                unreachable!();
-                            };
-                            *stale = true;
-                        } else {
-                            // The cell will still be written in the current execution, so we can
-                            // just continue here.
-                        }
-                    }
-                }
-                InProgressState::Scheduled { .. } => {
-                    // Already scheduled
-                }
-                InProgressState::Canceled => {
-                    bail!("{} was canceled", ctx.get_task_description(task_id));
-                }
-            }
-        } else if task.add(CachedDataItem::new_scheduled(
-            self.get_task_desc_fn(task_id),
-        )) {
-            turbo_tasks.schedule(task_id);
-        }
-
-        Ok(Err(listener))
+        (listener, true)
     }
 
     fn lookup_task_type(&self, task_id: TaskId) -> Option<Arc<CachedTaskType>> {
@@ -986,11 +990,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
         if !parent_task.is_transient() {
-            let parent_task_type = self.lookup_task_type(parent_task);
-            panic!(
-                "Calling transient function {} from persistent function function {} is not allowed",
-                task_type.get_name(),
-                parent_task_type.map_or("unknown", |t| t.get_name())
+            self.panic_persistent_calling_transient(
+                self.lookup_task_type(parent_task).as_deref(),
+                Some(&task_type),
+                /* cell_id */ None,
             );
         }
         if let Some(task_id) = self.task_cache.lookup_forward(&task_type) {
@@ -1014,6 +1017,84 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         self.connect_child(parent_task, task_id, turbo_tasks);
 
         task_id
+    }
+
+    /// Generate an object that implements [`fmt::Display`] explaining why the given
+    /// [`CachedTaskType`] is transient.
+    fn debug_trace_transient_task(
+        &self,
+        task_type: &CachedTaskType,
+        cell_id: Option<CellId>,
+    ) -> DebugTraceTransientTask {
+        // it shouldn't be possible to have cycles in tasks, but we could have an exponential blowup
+        // from tracing the same task many times, so use a visited_set
+        fn inner_id(
+            backend: &TurboTasksBackendInner<impl BackingStorage>,
+            task_id: TaskId,
+            cell_type_id: Option<ValueTypeId>,
+            visited_set: &mut FxHashSet<TaskId>,
+        ) -> DebugTraceTransientTask {
+            if let Some(task_type) = backend.lookup_task_type(task_id) {
+                if visited_set.contains(&task_id) {
+                    let task_name = task_type.get_name();
+                    DebugTraceTransientTask::Collapsed {
+                        task_name,
+                        cell_type_id,
+                    }
+                } else {
+                    inner_cached(backend, &task_type, cell_type_id, visited_set)
+                }
+            } else {
+                DebugTraceTransientTask::Uncached { cell_type_id }
+            }
+        }
+        fn inner_cached(
+            backend: &TurboTasksBackendInner<impl BackingStorage>,
+            task_type: &CachedTaskType,
+            cell_type_id: Option<ValueTypeId>,
+            visited_set: &mut FxHashSet<TaskId>,
+        ) -> DebugTraceTransientTask {
+            let task_name = task_type.get_name();
+
+            let cause_self = task_type.this.and_then(|cause_self_raw_vc| {
+                let task_id = cause_self_raw_vc.get_task_id();
+                if task_id.is_transient() {
+                    Some(Box::new(inner_id(
+                        backend,
+                        cause_self_raw_vc.get_task_id(),
+                        cause_self_raw_vc.try_get_type_id(),
+                        visited_set,
+                    )))
+                } else {
+                    None
+                }
+            });
+            let cause_args = task_type
+                .arg
+                .get_raw_vcs()
+                .into_iter()
+                .map(|raw_vc| (raw_vc.get_task_id(), raw_vc.try_get_type_id()))
+                .filter(|(task_id, _)| task_id.is_transient())
+                .collect::<IndexSet<_>>() // dedupe
+                .into_iter()
+                .map(|(task_id, cell_type_id)| {
+                    inner_id(backend, task_id, cell_type_id, visited_set)
+                })
+                .collect();
+
+            DebugTraceTransientTask::Cached {
+                task_name,
+                cell_type_id,
+                cause_self,
+                cause_args,
+            }
+        }
+        inner_cached(
+            self,
+            task_type,
+            cell_id.map(|c| c.type_id),
+            &mut FxHashSet::default(),
+        )
     }
 
     fn invalidate_task(
@@ -1077,7 +1158,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task.invalidate_serialization();
     }
 
-    fn get_task_description(&self, task_id: TaskId) -> std::string::String {
+    fn get_task_description(&self, task_id: TaskId) -> String {
         self.lookup_task_type(task_id).map_or_else(
             || format!("{task_id:?} transient"),
             |task_type| task_type.to_string(),
@@ -1131,7 +1212,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
         {
             let mut ctx = self.execute_context(turbo_tasks);
-            let mut task = ctx.task(task_id, TaskDataCategory::Data);
+            let mut task = ctx.task(task_id, TaskDataCategory::All);
             let in_progress = remove!(task, InProgress)?;
             let InProgressState::Scheduled { done_event } = in_progress else {
                 task.add_new(CachedDataItem::InProgress { value: in_progress });
@@ -1144,6 +1225,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     done_event,
                     session_dependent: false,
                     marked_as_completed: false,
+                    done: false,
                     new_children: Default::default(),
                 })),
             });
@@ -1286,7 +1368,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
         let &mut InProgressState::InProgress(box InProgressStateInner {
             stale,
-            ref mut marked_as_completed,
+            ref mut done,
             ref done_event,
             ref mut new_children,
             ..
@@ -1327,10 +1409,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         // mark the task as completed, so dependent tasks can continue working
-        if !*marked_as_completed {
-            *marked_as_completed = true;
-            done_event.notify(usize::MAX);
-        }
+        *done = true;
+        done_event.notify(usize::MAX);
 
         // take the children from the task to process them
         let mut new_children = take(new_children);
@@ -1341,10 +1421,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         // handle cell counters: update max index and remove cells that are no longer used
-        let mut old_counters: FxHashMap<_, _> =
+        let old_counters: FxHashMap<_, _> =
             get_many!(task, CellTypeMaxIndex { cell_type } max_index => (cell_type, *max_index));
+        let mut counters_to_remove = old_counters.clone();
         for (&cell_type, &max_index) in cell_counters.iter() {
-            if let Some(old_max_index) = old_counters.remove(&cell_type) {
+            if let Some(old_max_index) = counters_to_remove.remove(&cell_type) {
                 if old_max_index != max_index {
                     task.insert(CachedDataItem::CellTypeMaxIndex {
                         cell_type,
@@ -1358,7 +1439,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 });
             }
         }
-        for (cell_type, _) in old_counters {
+        for (cell_type, _) in counters_to_remove {
             task.remove(&CachedDataItemKey::CellTypeMaxIndex { cell_type });
         }
 
@@ -1385,25 +1466,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             old_edges.extend(iter_many!(task, Child { task } => task).map(OutdatedEdge::Child));
         }
 
-        // Remove no longer existing cells and notify in progress cells
+        // Remove no longer existing cells and
         // find all outdated data items (removed cells, outdated edges)
-        removed_data.extend(
-            task.extract_if(CachedDataItemType::InProgressCell, |key, value| {
-                match (key, value) {
-                    (
-                        CachedDataItemKey::InProgressCell { cell },
-                        CachedDataItemValueRef::InProgressCell { value },
-                    ) if cell_counters
-                        .get(&cell.type_id)
-                        .is_none_or(|start_index| cell.index >= *start_index) =>
-                    {
-                        value.event.notify(usize::MAX);
-                        true
-                    }
-                    _ => false,
-                }
-            }),
-        );
         removed_data.extend(task.extract_if(CachedDataItemType::CellData, |key, _| {
             matches!(key, CachedDataItemKey::CellData { cell } if cell_counters
                         .get(&cell.type_id).is_none_or(|start_index| cell.index >= *start_index))
@@ -1430,14 +1494,17 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             .get(&cell.type_id)
                             .is_none_or(|start_index| cell.index >= *start_index)
                         {
-                            Some(OutdatedEdge::RemovedCellDependent {
-                                task_id: task,
-                                #[cfg(feature = "trace_task_dirty")]
-                                value_type_id: cell.type_id,
-                            })
-                        } else {
-                            None
+                            if let Some(old_counter) = old_counters.get(&cell.type_id) {
+                                if cell.index < *old_counter {
+                                    return Some(OutdatedEdge::RemovedCellDependent {
+                                        task_id: task,
+                                        #[cfg(feature = "trace_task_dirty")]
+                                        value_type_id: cell.type_id,
+                                    });
+                                }
+                            }
                         }
+                        None
                     },
                 ),
             );
@@ -1524,6 +1591,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             once_task: _,
             stale,
             session_dependent,
+            done: _,
             marked_as_completed: _,
             new_children,
         }) = in_progress
@@ -1539,6 +1607,21 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             });
             return true;
         }
+
+        // Notify in progress cells
+        removed_data.extend(task.extract_if(
+            CachedDataItemType::InProgressCell,
+            |key, value| match (key, value) {
+                (
+                    CachedDataItemKey::InProgressCell { .. },
+                    CachedDataItemValueRef::InProgressCell { value },
+                ) => {
+                    value.event.notify(usize::MAX);
+                    true
+                }
+                _ => false,
+            },
+        ));
 
         // Update the dirty state
         let new_dirty_state = if session_dependent {
@@ -1893,12 +1976,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut task = ctx.task(task, TaskDataCategory::Data);
         if let Some(InProgressState::InProgress(box InProgressStateInner {
             marked_as_completed,
-            done_event,
             ..
         })) = get_mut!(task, InProgress)
         {
             *marked_as_completed = true;
-            done_event.notify(usize::MAX);
             // TODO this should remove the dirty state (also check session_dependent)
             // but this would break some assumptions for strongly consistent reads.
             // Client tasks are not connected yet, so we wouldn't wait for them.
@@ -1991,6 +2072,43 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             root_state.all_clean_event.notify(usize::MAX);
         }
     }
+
+    fn assert_not_persistent_calling_transient(
+        &self,
+        parent_id: TaskId,
+        child_id: TaskId,
+        cell_id: Option<CellId>,
+    ) {
+        if !parent_id.is_transient() && child_id.is_transient() {
+            self.panic_persistent_calling_transient(
+                self.lookup_task_type(parent_id).as_deref(),
+                self.lookup_task_type(child_id).as_deref(),
+                cell_id,
+            );
+        }
+    }
+
+    fn panic_persistent_calling_transient(
+        &self,
+        parent: Option<&CachedTaskType>,
+        child: Option<&CachedTaskType>,
+        cell_id: Option<CellId>,
+    ) {
+        let transient_reason = if let Some(child) = child {
+            format!(
+                " The callee is transient because it depends on:\n{}",
+                self.debug_trace_transient_task(child, cell_id),
+            )
+        } else {
+            String::new()
+        };
+        panic!(
+            "Persistent task {} is not allowed to call or read transient tasks {}.{}",
+            parent.map_or("unknown", |t| t.get_name()),
+            child.map_or("unknown", |t| t.get_name()),
+            transient_reason,
+        );
+    }
 }
 
 impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
@@ -2058,7 +2176,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         self.0.invalidate_serialization(task_id, turbo_tasks);
     }
 
-    fn get_task_description(&self, task: TaskId) -> std::string::String {
+    fn get_task_description(&self, task: TaskId) -> String {
         self.0.get_task_description(task)
     }
 
@@ -2265,6 +2383,92 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
 
     fn task_statistics(&self) -> &TaskStatisticsApi {
         &self.0.task_statistics
+    }
+}
+
+enum DebugTraceTransientTask {
+    Cached {
+        task_name: &'static str,
+        cell_type_id: Option<ValueTypeId>,
+        cause_self: Option<Box<DebugTraceTransientTask>>,
+        cause_args: Vec<DebugTraceTransientTask>,
+    },
+    /// This representation is used when this task is a duplicate of one previously shown
+    Collapsed {
+        task_name: &'static str,
+        cell_type_id: Option<ValueTypeId>,
+    },
+    Uncached {
+        cell_type_id: Option<ValueTypeId>,
+    },
+}
+
+impl DebugTraceTransientTask {
+    fn fmt_indented(&self, f: &mut fmt::Formatter<'_>, level: usize) -> fmt::Result {
+        let indent = "    ".repeat(level);
+        f.write_str(&indent)?;
+
+        fn fmt_cell_type_id(
+            f: &mut fmt::Formatter<'_>,
+            cell_type_id: Option<ValueTypeId>,
+        ) -> fmt::Result {
+            if let Some(ty) = cell_type_id {
+                write!(f, " (read cell of type {})", get_value_type_global_name(ty))
+            } else {
+                Ok(())
+            }
+        }
+
+        // write the name and type
+        match self {
+            Self::Cached {
+                task_name,
+                cell_type_id,
+                ..
+            }
+            | Self::Collapsed {
+                task_name,
+                cell_type_id,
+                ..
+            } => {
+                f.write_str(task_name)?;
+                fmt_cell_type_id(f, *cell_type_id)?;
+                if matches!(self, Self::Collapsed { .. }) {
+                    f.write_str(" (collapsed)")?;
+                }
+            }
+            Self::Uncached { cell_type_id } => {
+                f.write_str("unknown transient task")?;
+                fmt_cell_type_id(f, *cell_type_id)?;
+            }
+        }
+        f.write_char('\n')?;
+
+        // write any extra "cause" information we might have
+        if let Self::Cached {
+            cause_self,
+            cause_args,
+            ..
+        } = self
+        {
+            if let Some(c) = cause_self {
+                writeln!(f, "{indent}  self:")?;
+                c.fmt_indented(f, level + 1)?;
+            }
+            if !cause_args.is_empty() {
+                writeln!(f, "{indent}  args:")?;
+                for c in cause_args {
+                    c.fmt_indented(f, level + 1)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+impl fmt::Display for DebugTraceTransientTask {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.fmt_indented(f, 0)
     }
 }
 

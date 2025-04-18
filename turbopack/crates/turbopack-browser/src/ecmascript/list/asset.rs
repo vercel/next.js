@@ -91,11 +91,12 @@ fn chunk_key() -> Vc<RcStr> {
 #[turbo_tasks::value_impl]
 impl OutputAsset for EcmascriptDevChunkList {
     #[turbo_tasks::function]
-    async fn path(&self) -> Result<Vc<FileSystemPath>> {
-        let mut ident = self.ident.owned().await?;
+    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
+        let mut ident = this.ident.owned().await?;
         ident.add_modifier(modifier().to_resolved().await?);
 
-        match self.source {
+        match this.source {
             EcmascriptDevChunkListSource::Entry => {}
             EcmascriptDevChunkListSource::Dynamic => {
                 ident.add_modifier(dynamic_modifier().to_resolved().await?);
@@ -107,7 +108,9 @@ impl OutputAsset for EcmascriptDevChunkList {
         // removed from the list.
 
         let ident = AssetIdent::new(Value::new(ident));
-        Ok(self.chunking_context.chunk_path(ident, ".js".into()))
+        Ok(this
+            .chunking_context
+            .chunk_path(Some(Vc::upcast(self)), ident, ".js".into()))
     }
 
     #[turbo_tasks::function]

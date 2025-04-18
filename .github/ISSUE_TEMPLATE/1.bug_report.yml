@@ -103,6 +103,7 @@ body:
         - 'Metadata'
         - 'Middleware'
         - 'Module Resolution'
+        - 'Not Found'
         - 'Output'
         - 'Pages Router'
         - 'Parallel & Intercepting Routes'

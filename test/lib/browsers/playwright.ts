@@ -16,8 +16,8 @@ import path from 'path'
 type PageLog = { source: string; message: string; args: unknown[] }
 
 let page: Page
-let browser: Browser
-let context: BrowserContext
+let browser: Browser | undefined
+let context: BrowserContext | undefined
 let contextHasJSEnabled: boolean = true
 let pageLogs: Array<Promise<PageLog> | PageLog> = []
 let websocketFrames: Array<{ payload: string | Buffer }> = []
@@ -34,7 +34,7 @@ const defaultTimeout = process.env.NEXT_E2E_TEST_TIMEOUT
 // This is due to `quit` can be called anytime outside of BrowserInterface's lifecycle,
 // which can create corrupted state by terminating the context.
 // [TODO] global `quit` might need to be removed, instead should introduce per-instance teardown
-const pendingTeardown = []
+const pendingTeardown: Array<() => Promise<void>> = []
 export async function quit() {
   await Promise.all(pendingTeardown.map((fn) => fn()))
   await context?.close()
@@ -90,13 +90,13 @@ export class Playwright extends BrowserInterface {
       const traceOutputPath = path.join(
         traceDir,
         `${path
-          .relative(path.join(__dirname, '../../'), process.env.TEST_FILE_PATH)
+          .relative(path.join(__dirname, '../../'), process.env.TEST_FILE_PATH!)
           .replace(/\//g, '-')}`,
         `playwright-${this.activeTrace}-${Date.now()}.zip`
       )
 
       await fs.remove(traceOutputPath)
-      await context.tracing.stop({
+      await context!.tracing.stop({
         path: traceOutputPath,
       })
     } catch (e) {
@@ -125,7 +125,8 @@ export class Playwright extends BrowserInterface {
     locale: string,
     javaScriptEnabled: boolean,
     ignoreHTTPSErrors: boolean,
-    headless: boolean
+    headless: boolean,
+    userAgent: string | undefined
   ) {
     let device
 
@@ -148,6 +149,7 @@ export class Playwright extends BrowserInterface {
           locale,
           javaScriptEnabled,
           ignoreHTTPSErrors,
+          ...(userAgent ? { userAgent } : {}),
           ...device,
         })
         contextHasJSEnabled = javaScriptEnabled
@@ -160,6 +162,7 @@ export class Playwright extends BrowserInterface {
       locale,
       javaScriptEnabled,
       ignoreHTTPSErrors,
+      ...(userAgent ? { userAgent } : {}),
       ...device,
     })
     contextHasJSEnabled = javaScriptEnabled
@@ -211,12 +214,12 @@ export class Playwright extends BrowserInterface {
     await this.close()
 
     // clean-up existing pages
-    for (const oldPage of context.pages()) {
+    for (const oldPage of context!.pages()) {
       await oldPage.close()
     }
 
-    await this.initContextTracing(url, context)
-    page = await context.newPage()
+    await this.initContextTracing(url, context!)
+    page = await context!.newPage()
 
     page.setDefaultTimeout(defaultTimeout)
     page.setDefaultNavigationTimeout(defaultTimeout)
@@ -252,12 +255,12 @@ export class Playwright extends BrowserInterface {
 
     if (opts?.disableCache) {
       // TODO: this doesn't seem to work (dev tools does not check the box as expected)
-      const session = await context.newCDPSession(page)
+      const session = await context!.newCDPSession(page)
       session.send('Network.setCacheDisabled', { cacheDisabled: true })
     }
 
     if (opts?.cpuThrottleRate) {
-      const session = await context.newCDPSession(page)
+      const session = await context!.newCDPSession(page)
       // https://chromedevtools.github.io/devtools-protocol/tot/Emulation/#method-setCPUThrottlingRate
       session.send('Emulation.setCPUThrottlingRate', {
         rate: opts.cpuThrottleRate,
@@ -312,7 +315,7 @@ export class Playwright extends BrowserInterface {
   }
   addCookie(opts: { name: string; value: string }) {
     return this.chain(async () =>
-      context.addCookies([
+      context!.addCookies([
         {
           path: '/',
           domain: await page.evaluate('window.location.hostname'),
@@ -322,7 +325,7 @@ export class Playwright extends BrowserInterface {
     )
   }
   deleteCookies() {
-    return this.chain(async () => context.clearCookies())
+    return this.chain(async () => context!.clearCookies())
   }
 
   focusPage() {
@@ -333,7 +336,7 @@ export class Playwright extends BrowserInterface {
     function getComputedCss(prop: string) {
       return page.evaluate(
         function (args) {
-          const style = getComputedStyle(document.querySelector(args.selector))
+          const style = getComputedStyle(document.querySelector(args.selector)!)
           return style[args.prop] || null
         },
         { selector, prop }
@@ -348,7 +351,7 @@ export class Playwright extends BrowserInterface {
   }
 
   elementByCss(selector: string) {
-    return this.waitForElementByCss(selector)
+    return this.waitForElementByCss(selector, 5_000)
   }
 
   elementById(sel) {
@@ -427,7 +430,7 @@ export class Playwright extends BrowserInterface {
     )
   }
 
-  waitForElementByCss(selector, timeout?: number) {
+  waitForElementByCss(selector, timeout = 10_000) {
     return this.chain(() => {
       return page
         .waitForSelector(selector, { timeout, state: 'attached' })

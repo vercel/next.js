@@ -23,7 +23,7 @@ async function SubComponent() {
 
 export async function generateMetadata() {
   await connection()
-  await new Promise((resolve) => setTimeout(resolve, 3000))
+  await new Promise((resolve) => setTimeout(resolve, 800))
   return {
     title: `Dynamic api ${Math.random()}`,
   }

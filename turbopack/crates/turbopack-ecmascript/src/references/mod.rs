@@ -276,6 +276,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     /// If you're unsure about which function to use, use `add_reference()`
     pub fn add_esm_evaluation_reference(&mut self, idx: usize) {
         self.esm_references.insert(idx);
+        self.esm_local_references.insert(idx);
         self.esm_evaluation_references.insert(idx);
     }
 
@@ -693,6 +694,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
             let mut source_map_from_comment = false;
             if let Some((_, path)) = paths_by_pos.into_iter().max_by_key(|&(pos, _)| pos) {
+                lazy_static! {
+                    static ref JSON_DATA_URL_BASE64: Regex =
+                        Regex::new(r"^data:application\/json;(?:charset=utf-8;)?base64").unwrap();
+                }
                 let origin_path = origin.origin_path();
                 if path.ends_with(".map") {
                     let source_map_origin = origin_path.parent().join(path.into());
@@ -703,7 +708,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     let source_map = reference.generate_source_map();
                     analysis.set_source_map(source_map.to_resolved().await?);
                     source_map_from_comment = true;
-                } else if path.starts_with("data:application/json;base64,") {
+                } else if JSON_DATA_URL_BASE64.is_match(path) {
                     let source_map = maybe_decode_data_url(path.into());
                     let source_map =
                         resolve_source_map_sources(source_map.as_ref(), origin_path).await?;
@@ -760,7 +765,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
                         ImportedSymbol::PartEvaluation(part_id) => {
                             should_add_evaluation = true;
-                            Some(ModulePart::internal_evaluation(*part_id))
+                            Some(ModulePart::internal(*part_id))
                         }
                         ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id)),
                         ImportedSymbol::Exports => Some(ModulePart::exports()),
@@ -1211,6 +1216,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                                 }
                             }
                         }
+                        ConditionalKind::Labeled { body } => {
+                            active!(body);
+                        }
                     }
                 }
                 Effect::Call {
@@ -1633,14 +1641,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
 
                     return Ok(());
                 }
-                let (args, hints) = explain_args(&args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!("new Worker({args}) is not statically analyse-able{hints}",),
-                    DiagnosticId::Error(
-                        errors::failed_to_analyse::ecmascript::DYNAMIC_IMPORT.to_string(),
-                    ),
-                );
+                // Ignore (e.g. dynamic parameter or string literal), just as Webpack does
                 return Ok(());
             }
             _ => {}
@@ -1856,7 +1857,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     origin,
                     options.dir,
                     options.include_subdirs,
-                    Vc::cell(options.filter),
+                    options.filter.cell(),
                     Some(issue_source(source, span)),
                     in_try,
                 )
@@ -2452,12 +2453,7 @@ async fn handle_typeof(
 ) -> Result<()> {
     if let Some(value) = arg.match_free_var_reference(
         Some(state.var_graph),
-        &*state
-            .compile_time_info
-            .await?
-            .free_var_references
-            .individual()
-            .await?,
+        &*state.free_var_references,
         &DefineableNameSegment::TypeOf,
     ) {
         handle_free_var_reference(ast_path, &*value.await?, span, state, analysis).await?;
@@ -3029,7 +3025,7 @@ async fn require_context_visitor(
         origin,
         dir,
         options.include_subdirs,
-        Vc::cell(options.filter),
+        options.filter.cell(),
         None,
         true,
     );

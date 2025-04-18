@@ -20,10 +20,6 @@ const devModuleCache: ModuleCache<HotModule> = Object.create(null);
 type RefreshRuntimeGlobals =
   import("@next/react-refresh-utils/dist/runtime").RefreshRuntimeGlobals;
 
-// Workers are loaded via blob object urls and aren't relative to the main context, this gets
-// prefixed to chunk urls in the worker.
-// declare var TURBOPACK_WORKER_LOCATION: string;
-// declare var CHUNK_BASE_PATH: string;
 declare var $RefreshHelpers$: RefreshRuntimeGlobals["$RefreshHelpers$"];
 declare var $RefreshReg$: RefreshRuntimeGlobals["$RefreshReg$"];
 declare var $RefreshSig$: RefreshRuntimeGlobals["$RefreshSig$"];
@@ -1080,11 +1076,13 @@ function disposeChunk(chunkPath: ChunkPath): boolean {
  * Subscribes to chunk list updates from the update server and applies them.
  */
 function registerChunkList(
-  chunkUpdateProvider: ChunkUpdateProvider,
   chunkList: ChunkList
 ) {
-  const chunkListPath = chunkList.path;
-  chunkUpdateProvider.push([
+  const chunkListScript = chunkList.script;
+  const chunkListPath = getPathFromScript(chunkListScript);
+  // The "chunk" is also registered to finish the loading in the backend
+  BACKEND.registerChunk(chunkListPath as string as ChunkPath);
+  globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS!.push([
     chunkListPath,
     handleApply.bind(null, chunkListPath),
   ]);
@@ -1108,16 +1106,3 @@ function registerChunkList(
 }
 
 globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS ??= [];
-
-const chunkListsToRegister = globalThis.TURBOPACK_CHUNK_LISTS;
-if (Array.isArray(chunkListsToRegister)) {
-  for (const chunkList of chunkListsToRegister) {
-    registerChunkList(globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS, chunkList);
-  }
-}
-
-globalThis.TURBOPACK_CHUNK_LISTS = {
-  push: (chunkList) => {
-    registerChunkList(globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS!, chunkList);
-  },
-} satisfies ChunkListProvider;

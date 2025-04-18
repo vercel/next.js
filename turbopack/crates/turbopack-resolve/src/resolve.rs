@@ -293,12 +293,35 @@ pub async fn resolve_options(
     let resolve_options = base_resolve_options(resolve_path, options_context);
 
     let resolve_options = if options_context_value.enable_typescript {
-        let tsconfig = find_context_file(resolve_path, tsconfig()).await?;
-        match *tsconfig {
-            FindContextFileResult::Found(path, _) => {
-                apply_tsconfig_resolve_options(resolve_options, tsconfig_resolve_options(*path))
+        let find_tsconfig = async || {
+            // Otherwise, attempt to find a tsconfig up the file tree
+            let tsconfig = find_context_file(resolve_path, tsconfig()).await?;
+            anyhow::Ok::<Vc<ResolveOptions>>(match *tsconfig {
+                FindContextFileResult::Found(path, _) => {
+                    apply_tsconfig_resolve_options(resolve_options, tsconfig_resolve_options(*path))
+                }
+                FindContextFileResult::NotFound(_) => resolve_options,
+            })
+        };
+
+        // Use a specified tsconfig path if provided. In Next.js, this is always provided by the
+        // default config, at the very least.
+        if let Some(tsconfig_path) = options_context_value.tsconfig_path {
+            let meta = tsconfig_path.metadata().await;
+            if meta.is_ok() {
+                // If the file exists, use it.
+                apply_tsconfig_resolve_options(
+                    resolve_options,
+                    tsconfig_resolve_options(*tsconfig_path),
+                )
+            } else {
+                // Otherwise, try and find one.
+                // TODO: If the user provides a tsconfig.json explicitly, this should fail
+                // explicitly. Currently implemented this way for parity with webpack.
+                find_tsconfig().await?
             }
-            FindContextFileResult::NotFound(_) => resolve_options,
+        } else {
+            find_tsconfig().await?
         }
     } else {
         resolve_options

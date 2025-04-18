@@ -23,6 +23,7 @@ const state: OverlayState = {
   routerType: 'app',
   buildError: null,
   disableDevIndicator: false,
+  showIndicator: true,
   errors: [
     {
       id: 1,
@@ -73,7 +74,6 @@ const state: OverlayState = {
     },
   ],
   refreshState: { type: 'idle' },
-  rootLayoutMissingTags: [],
   notFound: false,
   staticIndicator: false,
   debugInfo: { devtoolsFrontendUrl: undefined },
@@ -92,9 +92,8 @@ export const Default: Story = {
           src={imgApp}
           style={{
             width: '100%',
-            height: '100%',
+            height: '100vh',
             objectFit: 'contain',
-            filter: 'invert(1)',
           }}
         />
         <DevOverlay

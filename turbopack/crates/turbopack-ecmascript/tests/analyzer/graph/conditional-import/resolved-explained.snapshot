@@ -1,6 +1,6 @@
-a = module<"a", {}>
+a = Promise<module<a, {}>>
 
-b = (???*0* | module<"a", {}> | module<"b", {}>)
+b = (???*0* | Promise<module<a, {}>> | Promise<module<b, {}>>)
 - *0* b
   ⚠️  pattern without value
 

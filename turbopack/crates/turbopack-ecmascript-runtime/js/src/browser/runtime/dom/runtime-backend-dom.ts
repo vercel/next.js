@@ -12,9 +12,10 @@
 
 type ChunkResolver = {
   resolved: boolean;
+  loadingStarted: boolean;
   resolve: () => void;
   reject: (error?: Error) => void;
-  promise: Promise<void>;
+  promise: Promise<any>;
 };
 
 let BACKEND: RuntimeBackend;
@@ -107,6 +108,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map();
       });
       resolver = {
         resolved: false,
+        loadingStarted: false,
         promise,
         resolve: () => {
           resolver!.resolved = true;
@@ -125,13 +127,14 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map();
     */
   function doLoadChunk(chunkUrl: ChunkUrl, source: SourceInfo) {
     const resolver = getOrCreateResolver(chunkUrl);
-    if (resolver.resolved) {
+    if (resolver.loadingStarted) {
       return resolver.promise;
     }
 
     if (source.type === SourceType.Runtime) {
       // We don't need to load chunks references from runtime code, as they're already
       // present in the DOM.
+      resolver.loadingStarted = true;
 
       if (isCss(chunkUrl)) {
         // CSS chunks do not register themselves, and as such must be marked as
@@ -151,6 +154,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map();
       if (isCss(chunkUrl)) {
         // ignore
       } else if (isJs(chunkUrl)) {
+        self.TURBOPACK_NEXT_CHUNK_URLS!.push(chunkUrl);
         importScripts(TURBOPACK_WORKER_LOCATION + chunkUrl);
       } else {
         throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
@@ -209,6 +213,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map();
       }
     }
 
+    resolver.loadingStarted = true;
     return resolver.promise;
   }
 

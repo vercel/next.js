@@ -21,7 +21,7 @@ describe('Undefined default export', () => {
     await expect(browser).toDisplayRedbox(`
      {
        "count": 1,
-       "description": "Ecmascript file had an error",
+       "description": "Error: The default export is not a React Component in "/specific-path/server/page"",
        "environmentLabel": null,
        "label": "Build Error",
        "source": "./app/(group)/specific-path/server/page.js
@@ -50,7 +50,7 @@ describe('Undefined default export', () => {
     await expect(browser).toDisplayRedbox(`
      {
        "count": 1,
-       "description": "Ecmascript file had an error",
+       "description": "Error: The default export is not a React Component in "/specific-path/server/layout"",
        "environmentLabel": null,
        "label": "Build Error",
        "source": "./app/(group)/specific-path/server/layout.js
@@ -106,7 +106,6 @@ describe('Undefined default export', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 1,
        "description": "Error: The default export is not a React Component in "/will-not-found/not-found"",
        "environmentLabel": null,
        "label": "Runtime Error",
@@ -129,7 +128,7 @@ describe('Undefined default export', () => {
     await expect(browser).toDisplayRedbox(`
      {
        "count": 1,
-       "description": "Ecmascript file had an error",
+       "description": "Error: The default export is not a React Component in "/page"",
        "environmentLabel": null,
        "label": "Build Error",
        "source": "./app/page.js
@@ -157,7 +156,7 @@ describe('Undefined default export', () => {
     await expect(browser).toDisplayRedbox(`
      {
        "count": 1,
-       "description": "Ecmascript file had an error",
+       "description": "Error: The default export is not a React Component in "/server-with-errors/page-export-initial-error/page"",
        "environmentLabel": null,
        "label": "Build Error",
        "source": "./app/server-with-errors/page-export-initial-error/page.js

@@ -15,8 +15,8 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, primitives::Regex, trace::TraceRawVcs, FxIndexMap, NonLocalValue,
-    ResolvedVc, Value, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc, Value,
+    ValueToString, Vc,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
@@ -36,6 +36,7 @@ use turbopack_core::{
 use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
+    analyzer::es_regex::EsRegex,
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports,
     },
@@ -63,7 +64,7 @@ pub(crate) struct DirList(FxIndexMap<RcStr, DirListEntry>);
 #[turbo_tasks::value_impl]
 impl DirList {
     #[turbo_tasks::function]
-    pub(crate) fn read(dir: Vc<FileSystemPath>, recursive: bool, filter: Vc<Regex>) -> Vc<Self> {
+    pub(crate) fn read(dir: Vc<FileSystemPath>, recursive: bool, filter: Vc<EsRegex>) -> Vc<Self> {
         Self::read_internal(dir, dir, recursive, filter)
     }
 
@@ -72,10 +73,11 @@ impl DirList {
         root: Vc<FileSystemPath>,
         dir: Vc<FileSystemPath>,
         recursive: bool,
-        filter: Vc<Regex>,
+        filter: Vc<EsRegex>,
     ) -> Result<Vc<Self>> {
-        let root_val = &*dir.await?;
-        let regex = &*filter.await?;
+        let root_val = &root.await?;
+        let dir_val = &dir.await?;
+        let regex = &filter.await?;
 
         let mut list = FxIndexMap::default();
 
@@ -95,7 +97,7 @@ impl DirList {
                     }
                 }
                 DirectoryEntry::Directory(path) if recursive => {
-                    if let Some(relative_path) = root_val.get_relative_path_to(&*path.await?) {
+                    if let Some(relative_path) = dir_val.get_relative_path_to(&*path.await?) {
                         list.insert(
                             relative_path,
                             DirListEntry::Dir(
@@ -147,7 +149,7 @@ pub(crate) struct FlatDirList(FxIndexMap<RcStr, ResolvedVc<FileSystemPath>>);
 #[turbo_tasks::value_impl]
 impl FlatDirList {
     #[turbo_tasks::function]
-    pub(crate) fn read(dir: Vc<FileSystemPath>, recursive: bool, filter: Vc<Regex>) -> Vc<Self> {
+    pub(crate) fn read(dir: Vc<FileSystemPath>, recursive: bool, filter: Vc<EsRegex>) -> Vc<Self> {
         DirList::read(dir, recursive, filter).flatten()
     }
 }
@@ -171,7 +173,7 @@ impl RequireContextMap {
         origin: Vc<Box<dyn ResolveOrigin>>,
         dir: Vc<FileSystemPath>,
         recursive: bool,
-        filter: Vc<Regex>,
+        filter: Vc<EsRegex>,
         issue_source: Option<IssueSource>,
         is_optional: bool,
     ) -> Result<Vc<Self>> {
@@ -182,25 +184,25 @@ impl RequireContextMap {
         let mut map = FxIndexMap::default();
 
         for (context_relative, path) in list {
-            if let Some(origin_relative) = origin_path.get_relative_path_to(&*path.await?) {
-                let request = Request::parse(Value::new(origin_relative.clone().into()))
-                    .to_resolved()
-                    .await?;
-                let result = cjs_resolve(origin, *request, issue_source.clone(), is_optional)
-                    .to_resolved()
-                    .await?;
-
-                map.insert(
-                    context_relative.clone(),
-                    RequireContextMapEntry {
-                        origin_relative,
-                        request,
-                        result,
-                    },
-                );
-            } else {
+            let Some(origin_relative) = origin_path.get_relative_path_to(&*path.await?) else {
                 bail!("invariant error: this was already checked in `list_dir`");
-            }
+            };
+
+            let request = Request::parse(Value::new(origin_relative.clone().into()))
+                .to_resolved()
+                .await?;
+            let result = cjs_resolve(origin, *request, issue_source.clone(), is_optional)
+                .to_resolved()
+                .await?;
+
+            map.insert(
+                context_relative.clone(),
+                RequireContextMapEntry {
+                    origin_relative,
+                    request,
+                    result,
+                },
+            );
         }
 
         Ok(Vc::cell(map))
@@ -226,7 +228,7 @@ impl RequireContextAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         dir: RcStr,
         include_subdirs: bool,
-        filter: Vc<Regex>,
+        filter: Vc<EsRegex>,
         issue_source: Option<IssueSource>,
         in_try: bool,
     ) -> Result<Self> {

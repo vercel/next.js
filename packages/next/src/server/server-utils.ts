@@ -17,10 +17,13 @@ import {
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { normalizeRscURL } from '../shared/lib/router/utils/app-paths'
 import {
+  NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
+  NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_INTERCEPTION_MARKER_PREFIX,
   NEXT_QUERY_PARAM_PREFIX,
 } from '../lib/constants'
 import { normalizeNextQueryParam } from './web/utils'
+import type { IncomingHttpHeaders } from 'http'
 
 export function normalizeVercelUrl(
   req: BaseNextRequest,
@@ -394,4 +397,14 @@ export function getUtils({
       params: Record<string, undefined | string | string[]>
     ) => interpolateDynamicPath(pathname, params, defaultRouteRegex),
   }
+}
+
+export function getPreviouslyRevalidatedTags(
+  headers: IncomingHttpHeaders,
+  previewModeId: string | undefined
+): string[] {
+  return typeof headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] === 'string' &&
+    headers[NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER] === previewModeId
+    ? headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER].split(',')
+    : []
 }

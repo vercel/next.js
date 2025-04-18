@@ -11,7 +11,7 @@ use next_core::{
     middleware::middleware_files,
     mode::NextMode,
     next_client::{get_client_chunking_context, get_client_compile_time_info},
-    next_config::{JsConfig, ModuleIdStrategy as ModuleIdStrategyConfig, NextConfig},
+    next_config::{JsConfig, ModuleIds as ModuleIdStrategyConfig, NextConfig},
     next_server::{
         get_server_chunking_context, get_server_chunking_context_with_client_assets,
         get_server_compile_time_info, get_server_module_options_context,
@@ -42,7 +42,7 @@ use turbopack_core::{
     changed::content_changed,
     chunk::{
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
-        ChunkGroupType, ChunkingContext, EvaluatableAssets, SourceMapsType,
+        ChunkingContext, EvaluatableAssets, SourceMapsType,
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
@@ -53,7 +53,10 @@ use turbopack_core::{
         StyledString,
     },
     module::Module,
-    module_graph::{GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules},
+    module_graph::{
+        chunk_group_info::ChunkGroupEntry, GraphEntries, ModuleGraph, SingleModuleGraph,
+        VisitedModules,
+    },
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{find_context_file, FindContextFileResult},
@@ -770,7 +773,7 @@ impl Project {
                 node_build_environment().to_resolved().await?,
                 next_mode.runtime_type(),
             )
-            .source_maps(if *self.next_config().turbo_source_maps().await? {
+            .source_maps(if *self.next_config().server_source_maps().await? {
                 SourceMapsType::Full
             } else {
                 SourceMapsType::None
@@ -883,20 +886,18 @@ impl Project {
     pub async fn module_graph(
         self: Vc<Self>,
         entry: ResolvedVc<Box<dyn Module>>,
-        chunk_group_type: ChunkGroupType,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(if *self.per_page_module_graph().await? {
-            ModuleGraph::from_module(*entry, chunk_group_type)
+            ModuleGraph::from_entry_module(*entry)
         } else {
             *self.whole_app_module_graphs().await?.full
         })
     }
 
     #[turbo_tasks::function]
-    pub async fn module_graph_for_entries(
+    pub async fn module_graph_for_modules(
         self: Vc<Self>,
         evaluatable_assets: Vc<EvaluatableAssets>,
-        chunk_group_type: ChunkGroupType,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(if *self.per_page_module_graph().await? {
             let entries = evaluatable_assets
@@ -905,7 +906,19 @@ impl Project {
                 .copied()
                 .map(ResolvedVc::upcast)
                 .collect();
-            ModuleGraph::from_modules(Vc::cell(vec![(entries, chunk_group_type)]))
+            ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(entries)]))
+        } else {
+            *self.whole_app_module_graphs().await?.full
+        })
+    }
+
+    #[turbo_tasks::function]
+    pub async fn module_graph_for_entries(
+        self: Vc<Self>,
+        entries: Vc<GraphEntries>,
+    ) -> Result<Vc<ModuleGraph>> {
+        Ok(if *self.per_page_module_graph().await? {
+            ModuleGraph::from_modules(entries)
         } else {
             *self.whole_app_module_graphs().await?.full
         })
@@ -915,7 +928,7 @@ impl Project {
     pub async fn whole_app_module_graphs(self: ResolvedVc<Self>) -> Result<Vc<ModuleGraphs>> {
         async move {
             let module_graphs_op = whole_app_module_graph_operation(self);
-            let module_graphs_vc = module_graphs_op.connect().resolve().await?;
+            let module_graphs_vc = module_graphs_op.resolve_strongly_consistent().await?;
             let _ = module_graphs_op.take_issues_with_path().await?;
 
             // At this point all modules have been computed and we can get rid of the node.js
@@ -926,7 +939,7 @@ impl Project {
                 turbopack_node::evaluate::scale_zero();
             }
 
-            Ok(module_graphs_vc)
+            Ok(*module_graphs_vc)
         }
         .instrument(tracing::info_span!("module graph for app"))
         .await
@@ -974,9 +987,9 @@ impl Project {
             self.next_config().chunk_suffix_path(),
             self.client_compile_time_info().environment(),
             self.next_mode(),
-            self.module_id_strategy(),
+            self.module_ids(),
             self.next_config().turbo_minify(self.next_mode()),
-            self.next_config().turbo_source_maps(),
+            self.next_config().client_source_maps(self.next_mode()),
             self.no_mangling(),
         )
     }
@@ -995,9 +1008,9 @@ impl Project {
                 self.client_relative_path(),
                 self.next_config().computed_asset_prefix(),
                 self.server_compile_time_info().environment(),
-                self.module_id_strategy(),
+                self.module_ids(),
                 self.next_config().turbo_minify(self.next_mode()),
-                self.next_config().turbo_source_maps(),
+                self.next_config().server_source_maps(),
                 self.no_mangling(),
             )
         } else {
@@ -1007,9 +1020,9 @@ impl Project {
                 self.node_root(),
                 self.node_root_to_root_path(),
                 self.server_compile_time_info().environment(),
-                self.module_id_strategy(),
+                self.module_ids(),
                 self.next_config().turbo_minify(self.next_mode()),
-                self.next_config().turbo_source_maps(),
+                self.next_config().server_source_maps(),
                 self.no_mangling(),
             )
         }
@@ -1029,9 +1042,9 @@ impl Project {
                 self.client_relative_path(),
                 self.next_config().computed_asset_prefix(),
                 self.edge_compile_time_info().environment(),
-                self.module_id_strategy(),
+                self.module_ids(),
                 self.next_config().turbo_minify(self.next_mode()),
-                self.next_config().turbo_source_maps(),
+                self.next_config().server_source_maps(),
                 self.no_mangling(),
             )
         } else {
@@ -1041,9 +1054,9 @@ impl Project {
                 self.node_root(),
                 self.node_root_to_root_path(),
                 self.edge_compile_time_info().environment(),
-                self.module_id_strategy(),
+                self.module_ids(),
                 self.next_config().turbo_minify(self.next_mode()),
-                self.next_config().turbo_source_maps(),
+                self.next_config().server_source_maps(),
                 self.no_mangling(),
             )
         }
@@ -1447,7 +1460,7 @@ impl Project {
                 self.next_config(),
                 self.execution_context(),
             ),
-            Vc::cell("instrumentation-edge".into()),
+            Vc::cell("instrumentation".into()),
         )))
     }
 
@@ -1502,7 +1515,7 @@ impl Project {
                 self.next_config(),
                 self.execution_context(),
             ),
-            Vc::cell("instrumentation".into()),
+            Vc::cell("instrumentation-edge".into()),
         )))
     }
 
@@ -1681,16 +1694,14 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn client_main_modules(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let pages_project = self.pages_project();
-        let mut modules = vec![(
-            vec![pages_project.client_main_module().to_resolved().await?],
-            ChunkGroupType::Evaluated,
-        )];
+        let mut modules = vec![ChunkGroupEntry::Entry(vec![
+            pages_project.client_main_module().to_resolved().await?,
+        ])];
 
         if let Some(app_project) = *self.app_project().await? {
-            modules.push((
-                vec![app_project.client_main_module().to_resolved().await?],
-                ChunkGroupType::Evaluated,
-            ));
+            modules.push(ChunkGroupEntry::Entry(vec![
+                app_project.client_main_module().to_resolved().await?,
+            ]));
         }
 
         Ok(Vc::cell(modules))
@@ -1698,17 +1709,16 @@ impl Project {
 
     /// Gets the module id strategy for the project.
     #[turbo_tasks::function]
-    pub async fn module_id_strategy(self: Vc<Self>) -> Result<Vc<Box<dyn ModuleIdStrategy>>> {
-        let module_id_strategy = if let Some(module_id_strategy) =
-            &*self.next_config().module_id_strategy_config().await?
-        {
-            *module_id_strategy
-        } else {
-            match *self.next_mode().await? {
-                NextMode::Development => ModuleIdStrategyConfig::Named,
-                NextMode::Build => ModuleIdStrategyConfig::Deterministic,
-            }
-        };
+    pub async fn module_ids(self: Vc<Self>) -> Result<Vc<Box<dyn ModuleIdStrategy>>> {
+        let module_id_strategy =
+            if let Some(module_id_strategy) = &*self.next_config().module_ids().await? {
+                *module_id_strategy
+            } else {
+                match *self.next_mode().await? {
+                    NextMode::Development => ModuleIdStrategyConfig::Named,
+                    NextMode::Build => ModuleIdStrategyConfig::Deterministic,
+                }
+            };
 
         match module_id_strategy {
             ModuleIdStrategyConfig::Named => Ok(Vc::upcast(DevModuleIdStrategy::new())),
@@ -1735,10 +1745,8 @@ async fn whole_app_module_graph_operation(
     let base = ModuleGraph::from_single_graph(base_single_module_graph);
     let additional_entries = project.get_all_additional_entries(base);
 
-    let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
-        additional_entries.owned().await?,
-        base_visited_modules,
-    );
+    let additional_module_graph =
+        SingleModuleGraph::new_with_entries_visited(additional_entries, base_visited_modules);
 
     let full = ModuleGraph::from_graphs(vec![base_single_module_graph, additional_module_graph]);
     Ok(ModuleGraphs {

@@ -366,6 +366,7 @@ where
 
 pub trait TaskGuard: Debug {
     fn id(&self) -> TaskId;
+    #[must_use]
     fn add(&mut self, item: CachedDataItem) -> bool;
     fn add_new(&mut self, item: CachedDataItem);
     fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue>;
@@ -421,14 +422,22 @@ impl<B: BackingStorage> TaskGuardImpl<'_, B> {
                     #[cfg(debug_assertions)]
                     debug_assert!(
                         self.category == TaskDataCategory::Data
-                            || self.category == TaskDataCategory::All
+                            || self.category == TaskDataCategory::All,
+                        "To read data of {:?} the task need to be accessed with this category \
+                         (It's accessed with {:?})",
+                        category,
+                        self.category
                     );
                 }
                 TaskDataCategory::Meta => {
                     #[cfg(debug_assertions)]
                     debug_assert!(
                         self.category == TaskDataCategory::Meta
-                            || self.category == TaskDataCategory::All
+                            || self.category == TaskDataCategory::All,
+                        "To read data of {:?} the task need to be accessed with this category \
+                         (It's accessed with {:?})",
+                        category,
+                        self.category
                     );
                 }
             }
@@ -455,7 +464,6 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task_id
     }
 
-    #[must_use]
     fn add(&mut self, item: CachedDataItem) -> bool {
         self.check_access(item.category());
         if !self.backend.should_persist() || self.task_id.is_transient() || !item.is_persistent() {
@@ -631,6 +639,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         &self,
         ty: CachedDataItemType,
     ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)> {
+        self.check_access(ty.category());
         self.task.iter(ty)
     }
 
@@ -646,6 +655,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     where
         F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l,
     {
+        self.check_access(ty.category());
         if !self.backend.should_persist() || self.task_id.is_transient() {
             return Either::Left(self.task.extract_if(ty, f));
         }

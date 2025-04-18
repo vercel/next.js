@@ -26,6 +26,7 @@ once_cell = { workspace = true }
 parking_lot = { workspace = true }
 petgraph = { workspace = true }
 regex = { workspace = true }
+regress = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -71,6 +72,7 @@ swc_core = { workspace = true, features = [
   "testing",
   "base",
 ] }
+par-core = { workspace = true, features = ["rayon"] }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

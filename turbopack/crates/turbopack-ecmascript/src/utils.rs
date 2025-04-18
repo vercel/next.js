@@ -114,11 +114,8 @@ where
         impl std::io::Write for DisplayWriter<'_, '_> {
             fn write(&mut self, bytes: &[u8]) -> std::result::Result<usize, std::io::Error> {
                 self.f
-                    .write_str(
-                        std::str::from_utf8(bytes)
-                            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?,
-                    )
-                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+                    .write_str(std::str::from_utf8(bytes).map_err(std::io::Error::other)?)
+                    .map_err(std::io::Error::other)?;
                 Ok(bytes.len())
             }
 

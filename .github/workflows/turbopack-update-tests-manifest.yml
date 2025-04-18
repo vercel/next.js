@@ -41,7 +41,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
           BRANCH_NAME: turbopack-manifest
-          SCRIPT: test/update_build_manifest.js --bundler turbopack --testSuite dev
+          SCRIPT: test/update-bundler-manifest.js --bundler turbopack --test-suite dev
           PR_TITLE: Update Turbopack development test manifest
           PR_BODY: This auto-generated PR updates the development integration test manifest used when testing Turbopack.
   update_build_manifest:
@@ -77,6 +77,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
           BRANCH_NAME: turbopack-manifest
-          SCRIPT: test/update_build_manifest.js --bundler turbopack --testSuite build
+          SCRIPT: test/update-bundler-manifest.js --bundler turbopack --test-suite build
           PR_TITLE: Update Turbopack production test manifest
           PR_BODY: This auto-generated PR updates the production integration test manifest used when testing Turbopack.

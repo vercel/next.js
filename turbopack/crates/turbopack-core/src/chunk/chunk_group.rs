@@ -147,11 +147,11 @@ pub async fn make_chunk_group(
     // Pass chunk items to chunking algorithm
     let chunks = make_chunks(
         module_graph,
-        *chunking_context,
+        chunking_context,
         chunk_items,
         chunk_item_batch_groups,
         "".into(),
-        Vc::cell(referenced_output_assets),
+        ResolvedVc::cell(referenced_output_assets),
     )
     .await?;
 

@@ -13,6 +13,8 @@ export type NextStartOptions = {
   port: number
   hostname?: string
   keepAliveTimeout?: number
+  turbo?: boolean
+  turbopack?: boolean
 }
 
 /**

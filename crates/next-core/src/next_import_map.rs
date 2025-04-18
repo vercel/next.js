@@ -120,8 +120,8 @@ pub async fn get_next_client_import_map(
         ClientContextType::App { app_dir } => {
             let react_flavor = if *next_config.enable_ppr().await?
                 || *next_config.enable_taint().await?
-                || *next_config.enable_react_owner_stack().await?
                 || *next_config.enable_view_transition().await?
+                || *next_config.enable_router_bfcache().await?
             {
                 "-experimental"
             } else {
@@ -244,37 +244,7 @@ pub async fn get_next_client_import_map(
     }
 
     insert_turbopack_dev_alias(&mut import_map).await?;
-
-    Ok(import_map.cell())
-}
-
-/// Computes the Next-specific client import map.
-#[turbo_tasks::function]
-pub async fn get_next_build_import_map() -> Result<Vc<ImportMap>> {
-    let mut import_map = ImportMap::empty();
-
-    insert_package_alias(
-        &mut import_map,
-        &format!("{VIRTUAL_PACKAGE_NAME}/"),
-        next_js_fs().root().to_resolved().await?,
-    );
-
-    let external = ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Traced)
-        .resolved_cell();
-
-    import_map.insert_exact_alias("next", external);
-    import_map.insert_wildcard_alias("next/", external);
-    import_map.insert_exact_alias("styled-jsx", external);
-    import_map.insert_exact_alias(
-        "styled-jsx/style",
-        ImportMapping::External(
-            Some("styled-jsx/style.js".into()),
-            ExternalType::CommonJs,
-            ExternalTraced::Traced,
-        )
-        .resolved_cell(),
-    );
-    import_map.insert_wildcard_alias("styled-jsx/", external);
+    insert_instrumentation_client_alias(&mut import_map, project_path).await?;
 
     Ok(import_map.cell())
 }
@@ -515,12 +485,7 @@ pub async fn get_next_edge_import_map(
         | ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. } => {
-            insert_unsupported_node_internal_aliases(
-                &mut import_map,
-                *project_path,
-                execution_context,
-            )
-            .await?;
+            insert_unsupported_node_internal_aliases(&mut import_map).await?;
         }
     }
 
@@ -530,13 +495,9 @@ pub async fn get_next_edge_import_map(
 /// Insert default aliases for the node.js's internal to raise unsupported
 /// runtime errors. User may provide polyfills for their own by setting user
 /// config's alias.
-async fn insert_unsupported_node_internal_aliases(
-    import_map: &mut ImportMap,
-    project_path: Vc<FileSystemPath>,
-    execution_context: Vc<ExecutionContext>,
-) -> Result<()> {
+async fn insert_unsupported_node_internal_aliases(import_map: &mut ImportMap) -> Result<()> {
     let unsupported_replacer = ImportMapping::Dynamic(ResolvedVc::upcast(
-        NextEdgeUnsupportedModuleReplacer::new(project_path, execution_context)
+        NextEdgeUnsupportedModuleReplacer::new()
             .to_resolved()
             .await?,
     ))
@@ -729,9 +690,9 @@ async fn rsc_aliases(
 ) -> Result<()> {
     let ppr = *next_config.enable_ppr().await?;
     let taint = *next_config.enable_taint().await?;
-    let react_owner_stack = *next_config.enable_react_owner_stack().await?;
+    let router_bfcache = *next_config.enable_router_bfcache().await?;
     let view_transition = *next_config.enable_view_transition().await?;
-    let react_channel = if ppr || taint || react_owner_stack || view_transition {
+    let react_channel = if ppr || taint || view_transition || router_bfcache {
         "-experimental"
     } else {
         ""
@@ -1140,6 +1101,26 @@ async fn insert_turbopack_dev_alias(import_map: &mut ImportMap) -> Result<()> {
             .to_resolved()
             .await?,
     );
+    Ok(())
+}
+
+/// Handles instrumentation-client.ts bundling logic
+async fn insert_instrumentation_client_alias(
+    import_map: &mut ImportMap,
+    project_path: ResolvedVc<FileSystemPath>,
+) -> Result<()> {
+    insert_alias_to_alternatives(
+        import_map,
+        "private-next-instrumentation-client",
+        vec![
+            request_to_import_mapping(project_path, "./src/instrumentation-client"),
+            request_to_import_mapping(project_path, "./src/instrumentation-client.ts"),
+            request_to_import_mapping(project_path, "./instrumentation-client"),
+            request_to_import_mapping(project_path, "./instrumentation-client.ts"),
+            ImportMapping::Ignore.resolved_cell(),
+        ],
+    );
+
     Ok(())
 }
 

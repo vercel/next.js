@@ -99,7 +99,7 @@ interface UninlinedCssFile {
 export interface ClientReferenceManifest extends ClientReferenceManifestForRsc {
   readonly moduleLoading: {
     prefix: string
-    crossOrigin: string | null
+    crossOrigin?: 'use-credentials' | ''
   }
   ssrModuleMapping: {
     [moduleId: string]: ManifestNode
@@ -246,8 +246,8 @@ export class ClientReferenceManifestPlugin {
       typeof configuredCrossOriginLoading === 'string'
         ? configuredCrossOriginLoading === 'use-credentials'
           ? configuredCrossOriginLoading
-          : 'anonymous'
-        : null
+          : '' // === 'anonymous'
+        : undefined
 
     if (typeof compilation.outputOptions.publicPath !== 'string') {
       throw new Error(
@@ -524,11 +524,7 @@ export class ClientReferenceManifestPlugin {
               } else {
                 // If this is a concatenation, register each child to the parent ID.
                 if (
-                  connection.module?.constructor.name ===
-                    'ConcatenatedModule' ||
-                  (Boolean(process.env.NEXT_RSPACK) &&
-                    (connection.module as any)?.constructorName ===
-                      'ConcatenatedModule')
+                  connection.module?.constructor.name === 'ConcatenatedModule'
                 ) {
                   const concatenatedMod = connection.module
                   const concatenatedModId =

@@ -218,10 +218,9 @@ describe('app-dir - server source maps', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Error: Boom",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "app/ssr-throw/Thrower.js (4:9) @ throwError
        > 4 |   throw new Error('Boom')
            |         ^",
@@ -270,7 +269,8 @@ describe('app-dir - server source maps', () => {
           // Node.js is fine with invalid URLs in index maps apparently.
           '' +
             '\nError: Boom!' +
-            '\n    at Page (custom://[badhost]/app/bad-sourcemap/page.js:9:15)' +
+            '\n    at logError (custom://[badhost]/app/bad-sourcemap/page.js:8:16)' +
+            '\n    at Page (custom://[badhost]/app/bad-sourcemap/page.js:13:2)' +
             // TODO: Remove blank line
             '\n'
         )
@@ -282,8 +282,15 @@ describe('app-dir - server source maps', () => {
           '' +
             `\nwebpack-internal:///(rsc)/./app/bad-sourcemap/page.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: TypeError [ERR_INVALID_ARG_TYPE]: The "payload" argument must be of type object. Received null` +
             '\nError: Boom!' +
-            '\n    at Page (webpack-internal:///(rsc)/./app/bad-sourcemap/page.js:15:19)'
+            '\n    at logError (webpack-internal:///(rsc)/./app/bad-sourcemap/page.js:14:19)' +
+            '\n    at Page (webpack-internal:///(rsc)/./app/bad-sourcemap/page.js:18:5)'
         )
+        // Expect the invalid sourcemap warning only once.
+        expect(
+          normalizeCliOutput(next.cliOutput.slice(outputIndex)).split(
+            'Invalid source map.'
+          ).length - 1
+        ).toEqual(1)
       }
     } else {
       // TODO: test `next start` with `--enable-source-maps`

@@ -57,11 +57,7 @@ pub async fn well_known_function_call(
         WellKnownFunctionKind::PathJoin => path_join(args),
         WellKnownFunctionKind::PathDirname => path_dirname(args),
         WellKnownFunctionKind::PathResolve(cwd) => path_resolve(*cwd, args),
-        WellKnownFunctionKind::Import => JsValue::unknown(
-            JsValue::call(Box::new(JsValue::WellKnownFunction(kind)), args),
-            true,
-            "import() is not supported",
-        ),
+        WellKnownFunctionKind::Import => import(args),
         WellKnownFunctionKind::Require => require(args),
         WellKnownFunctionKind::RequireContextRequire(value) => {
             require_context_require(value, args).await?
@@ -320,6 +316,27 @@ pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
         true,
         "path.dirname with unsupported arguments",
     )
+}
+
+/// Resolve the contents of an import call, throwing errors
+/// if we come across any unsupported syntax.
+pub fn import(args: Vec<JsValue>) -> JsValue {
+    match &args[..] {
+        [JsValue::Constant(ConstantValue::Str(v))] => {
+            JsValue::promise(Box::new(JsValue::Module(ModuleValue {
+                module: v.as_atom().into_owned(),
+                annotations: ImportAnnotations::default(),
+            })))
+        }
+        _ => JsValue::unknown(
+            JsValue::call(
+                Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::Import)),
+                args,
+            ),
+            true,
+            "only a single constant argument is supported",
+        ),
+    }
 }
 
 /// Resolve the contents of a require call, throwing errors

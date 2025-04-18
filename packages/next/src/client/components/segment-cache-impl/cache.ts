@@ -1028,6 +1028,7 @@ export async function fetchRouteOnCacheMiss(
 
       writeDynamicTreeResponseIntoCache(
         Date.now(),
+        task,
         response,
         serverData,
         entry,
@@ -1246,6 +1247,10 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       prefetchStream
     ) as Promise<NavigationFlightResponse>)
 
+    // Since we did not set the prefetch header, the response from the server
+    // will never contain dynamic holes.
+    const isResponsePartial = false
+
     // Aside from writing the data into the cache, this function also returns
     // the entries that were fulfilled, so we can streamingly update their sizes
     // in the LRU as more data comes in.
@@ -1254,6 +1259,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       task,
       response,
       serverData,
+      isResponsePartial,
       route,
       spawnedEntries
     )
@@ -1269,6 +1275,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
 
 function writeDynamicTreeResponseIntoCache(
   now: number,
+  task: PrefetchTask,
   response: Response,
   serverData: NavigationFlightResponse,
   entry: PendingRouteCacheEntry,
@@ -1311,15 +1318,42 @@ function writeDynamicTreeResponseIntoCache(
     staleTimeHeaderSeconds !== null
       ? parseInt(staleTimeHeaderSeconds, 10) * 1000
       : STATIC_STALETIME_MS
-  fulfillRouteCacheEntry(
+
+  // If the response contains dynamic holes, then we must conservatively assume
+  // that any individual segment might contain dynamic holes, and also the
+  // head. If it did not contain dynamic holes, then we can assume every segment
+  // and the head is completely static.
+  const isResponsePartial =
+    response.headers.get(NEXT_DID_POSTPONE_HEADER) === '1'
+
+  const fulfilledEntry = fulfillRouteCacheEntry(
     entry,
     convertRootFlightRouterStateToRouteTree(flightRouterState),
     flightData.head,
-    flightData.isHeadPartial,
+    isResponsePartial,
     now + staleTimeMs,
     couldBeIntercepted,
     canonicalUrl,
     routeIsPPREnabled
+  )
+
+  // If the server sent segment data as part of the response, we should write
+  // it into the cache to prevent a second, redundant prefetch request.
+  //
+  // TODO: When `clientSegmentCache` is enabled, the server does not include
+  // segment data when responding to a route tree prefetch request. However,
+  // when `clientSegmentCache` is set to "client-only", and PPR is enabled (or
+  // the page is fully static), the normal check is bypassed and the server
+  // responds with the full page. This is a temporary situation until we can
+  // remove the "client-only" option. Then, we can delete this function call.
+  writeDynamicRenderResponseIntoCache(
+    now,
+    task,
+    response,
+    serverData,
+    isResponsePartial,
+    fulfilledEntry,
+    null
   )
 }
 
@@ -1343,8 +1377,9 @@ function writeDynamicRenderResponseIntoCache(
   task: PrefetchTask,
   response: Response,
   serverData: NavigationFlightResponse,
+  isResponsePartial: boolean,
   route: FulfilledRouteCacheEntry,
-  spawnedEntries: Map<string, PendingSegmentCacheEntry>
+  spawnedEntries: Map<string, PendingSegmentCacheEntry> | null
 ): Array<FulfilledSegmentCacheEntry> | null {
   if (serverData.b !== getAppBuildId()) {
     // The server build does not match the client. Treat as a 404. During
@@ -1352,7 +1387,9 @@ function writeDynamicRenderResponseIntoCache(
     // TODO: Consider moving the build ID to a response header so we can check
     // it before decoding the response, and so there's one way of checking
     // across all response types.
-    rejectSegmentEntriesIfStillPending(spawnedEntries, now + 10 * 1000)
+    if (spawnedEntries !== null) {
+      rejectSegmentEntriesIfStillPending(spawnedEntries, now + 10 * 1000)
+    }
     return null
   }
   const flightDatas = normalizeFlightData(serverData.f)
@@ -1395,6 +1432,7 @@ function writeDynamicRenderResponseIntoCache(
         route,
         now + staleTimeMs,
         seedData,
+        isResponsePartial,
         segmentKey,
         spawnedEntries
       )
@@ -1408,11 +1446,14 @@ function writeDynamicRenderResponseIntoCache(
   // segments we're marking as rejected here. We should mark on the segment
   // somehow that the reason for the rejection is because of a non-PPR prefetch.
   // That way a per-segment prefetch knows to disregard the rejection.
-  const fulfilledEntries = rejectSegmentEntriesIfStillPending(
-    spawnedEntries,
-    now + 10 * 1000
-  )
-  return fulfilledEntries
+  if (spawnedEntries !== null) {
+    const fulfilledEntries = rejectSegmentEntriesIfStillPending(
+      spawnedEntries,
+      now + 10 * 1000
+    )
+    return fulfilledEntries
+  }
+  return null
 }
 
 function writeSeedDataIntoCache(
@@ -1421,8 +1462,9 @@ function writeSeedDataIntoCache(
   route: FulfilledRouteCacheEntry,
   staleAt: number,
   seedData: CacheNodeSeedData,
+  isResponsePartial: boolean,
   key: string,
-  entriesOwnedByCurrentTask: Map<string, PendingSegmentCacheEntry>
+  entriesOwnedByCurrentTask: Map<string, PendingSegmentCacheEntry> | null
 ) {
   // This function is used to write the result of a dynamic server request
   // (CacheNodeSeedData) into the prefetch cache. It's used in cases where we
@@ -1431,12 +1473,15 @@ function writeSeedDataIntoCache(
   // dynamic data into being static) and when prefetching a PPR-disabled route
   const rsc = seedData[1]
   const loading = seedData[3]
-  const isPartial = rsc === null
+  const isPartial = rsc === null || isResponsePartial
 
   // We should only write into cache entries that are owned by us. Or create
   // a new one and write into that. We must never write over an entry that was
   // created by a different task, because that causes data races.
-  const ownedEntry = entriesOwnedByCurrentTask.get(key)
+  const ownedEntry =
+    entriesOwnedByCurrentTask !== null
+      ? entriesOwnedByCurrentTask.get(key)
+      : undefined
   if (ownedEntry !== undefined) {
     fulfillSegmentCacheEntry(ownedEntry, rsc, loading, staleAt, isPartial)
   } else {
@@ -1481,6 +1526,7 @@ function writeSeedDataIntoCache(
           route,
           staleAt,
           childSeedData,
+          isResponsePartial,
           encodeChildSegmentKey(
             key,
             parallelRouteKey,

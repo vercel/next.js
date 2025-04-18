@@ -55,6 +55,7 @@ declare global {
   interface Window {
     /* test fns */
     __NEXT_HYDRATED?: boolean
+    __NEXT_HYDRATED_AT?: number
     __NEXT_HYDRATED_CB?: () => void
 
     /* prod */
@@ -612,6 +613,7 @@ function Root({
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
       window.__NEXT_HYDRATED = true
+      window.__NEXT_HYDRATED_AT = performance.now()
 
       if (window.__NEXT_HYDRATED_CB) {
         window.__NEXT_HYDRATED_CB()
