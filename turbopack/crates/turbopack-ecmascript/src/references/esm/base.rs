@@ -179,10 +179,7 @@ impl ModuleReference for EsmAssetReference {
                     // We handle this logic here because these references are already resolved as
                     // _module_ so we cannot return Ignore in resolve step. This causes a problem
                     // for side-effect optimization logic.w
-                    if matches!(
-                        part,
-                        ModulePart::Evaluation | ModulePart::InternalEvaluation(..)
-                    ) {
+                    if matches!(part, ModulePart::Evaluation) {
                         let side_effect_free_packages =
                             module.asset_context().side_effect_free_packages();
 
