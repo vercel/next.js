@@ -21,6 +21,7 @@ export type InstallCommand =
 
 export type PackageJson = {
   dependencies?: { [key: string]: string }
+  resolutions?: { [key: string]: string }
   [key: string]: unknown
 }
 

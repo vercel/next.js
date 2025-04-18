@@ -5,11 +5,18 @@ const exec = require('../util/exec')
 const logger = require('../util/logger')
 const execa = require('execa')
 
-const mockSpan = () => ({
-  traceAsyncFn: (fn) => fn(mockSpan()),
-  traceFn: (fn) => fn(mockSpan()),
-  traceChild: () => mockSpan(),
-})
+/** @typedef {import('next/dist/trace').Span} Span */
+
+/** @returns {Span} */
+const mockSpan = () => {
+  /** @type {Partial<Span>} */
+  const partial = {
+    traceAsyncFn: async (fn) => fn(mockSpan()),
+    traceFn: (fn) => fn(mockSpan()),
+    traceChild: () => mockSpan(),
+  }
+  return /** @type {Span} */ (partial)
+}
 
 module.exports = (actionInfo) => {
   return {
@@ -62,7 +69,7 @@ module.exports = (actionInfo) => {
     },
     /**
      * Runs `pnpm pack` on each package in the `packages` folder of the provided `repoDir`
-     * @param {{ repoDir: string, nextSwcVersion: null | string }} options Required options
+     * @param {{ repoDir: string, nextSwcVersion: null | string, parentSpan: import('next/dist/trace').Span }} options Required options
      * @returns {Promise<Map<string, string>>} List packages key is the package name, value is the path to the packed tar file.'
      */
     async linkPackages({
@@ -109,7 +116,9 @@ module.exports = (actionInfo) => {
             continue
           }
 
-          const packageJson = JSON.parse(fs.readFileSync(packageJsonPath))
+          const packageJson = JSON.parse(
+            fs.readFileSync(packageJsonPath, 'utf-8')
+          )
           const { name: packageName } = packageJson
 
           pkgDatas.set(packageName, {
@@ -210,7 +219,7 @@ module.exports = (actionInfo) => {
                 return packingSpan
                   .traceChild('handle-package', { packageName })
                   .traceAsyncFn(async (handlePackageSpan) => {
-                    /** @type {null | () => Promise<void>} */
+                    /** @type {null | (() => Promise<void>)} */
                     let cleanup = null
 
                     if (packageName === '@next/swc') {
