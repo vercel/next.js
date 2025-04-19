@@ -228,7 +228,7 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
             }
         }
 
-        #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+        #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
         #vis enum #type_name {
             #(
                 #variant_names,
@@ -455,6 +455,36 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                     #(
                         #storage_name::#variant_names { storage } => {
                             storage.len()
+                        }
+                    )*
+                }
+            }
+
+            pub fn capacity(&self) -> usize {
+                match self {
+                    #(
+                        #storage_name::#variant_names { storage } => {
+                            storage.capacity()
+                        }
+                    )*
+                }
+            }
+
+            pub fn size(&self) -> usize {
+                match self {
+                    #(
+                        #storage_name::#variant_names { storage } => {
+                            storage.size()
+                        }
+                    )*
+                }
+            }
+
+            pub fn capacity_size(&self) -> usize {
+                match self {
+                    #(
+                        #storage_name::#variant_names { storage } => {
+                            storage.capacity_size()
                         }
                     )*
                 }

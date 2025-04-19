@@ -918,6 +918,44 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     }
 
     fn stop(&self) {
+        {
+            let size = self.storage.size();
+            let capacity = self.storage.capacity_size();
+            let tasks = self.storage.tasks();
+            let data_len = self.storage.data_len();
+            let data_capacity = self.storage.data_capacity();
+            println!(
+                "Storage size {}MiB, capactiy {}MiB, {} tasks\nData entries {}M, capacity {}M",
+                size / 1024 / 1024,
+                capacity / 1024 / 1024,
+                tasks,
+                data_len / 1000 / 1000,
+                data_capacity / 1000 / 1000
+            );
+            {
+                let count_histograms = self.storage.count_histogram();
+                let mut count_histograms = count_histograms.into_iter().collect::<Vec<_>>();
+                count_histograms.sort_by_key(|(key, _)| *key);
+                for (key, mut histogram) in count_histograms {
+                    histogram.add_zero_by_total(tasks);
+                    println!("### {:?} count\n{:?}", key, histogram);
+                }
+            }
+            {
+                let sizes = self.storage.size_by_type();
+                let mut sizes = sizes.into_iter().collect::<Vec<_>>();
+                sizes.sort_by_key(|(key, _)| *key);
+                for (key, size) in sizes {
+                    println!(
+                        "{:?} = {} {:.2}MiB",
+                        key,
+                        size,
+                        size as f64 / 1024.0 / 1024.0
+                    );
+                }
+            }
+        }
+
         if let Err(err) = self.backing_storage.shutdown() {
             println!("Shutting down failed: {}", err);
         }

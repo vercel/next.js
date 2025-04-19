@@ -101,11 +101,39 @@ impl DynamicStorage {
         self.get_map(ty).map(|m| m.len()).unwrap_or_default()
     }
 
+    pub fn len(&self) -> usize {
+        self.map.iter().map(|m| m.len()).sum()
+    }
+
+    pub fn capacity(&self) -> usize {
+        self.map.iter().map(|m| m.capacity()).sum()
+    }
+
+    pub fn size(&self) -> usize {
+        self.map.iter().map(|m| m.size()).sum::<usize>()
+            + self.map.len() * size_of::<CachedDataItemStorage>()
+    }
+
+    pub fn size_of_type(&self, ty: CachedDataItemType) -> usize {
+        self.get_map(ty)
+            .map(|m| m.size() + size_of::<CachedDataItemStorage>())
+            .unwrap_or_default()
+    }
+
+    pub fn capacity_size(&self) -> usize {
+        self.map.iter().map(|m| m.capacity_size()).sum::<usize>()
+            + self.map.capacity() * size_of::<CachedDataItemStorage>()
+    }
+
     pub fn iter(
         &self,
         ty: CachedDataItemType,
     ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)> {
         self.get_map(ty).map(|m| m.iter()).into_iter().flatten()
+    }
+
+    pub fn types(&self) -> impl Iterator<Item = CachedDataItemType> + '_ {
+        self.map.iter().map(|storage| storage.ty())
     }
 
     pub fn iter_all(
