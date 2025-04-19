@@ -9385,7 +9385,7 @@ dependencies = [
  "glob",
  "quote",
  "rustc-hash 2.1.0",
- "syn 1.0.109",
+ "syn 2.0.100",
  "turbo-tasks-macros-shared",
 ]
 
@@ -9512,7 +9512,7 @@ dependencies = [
  "quote",
  "regex",
  "rustc-hash 2.1.0",
- "syn 1.0.109",
+ "syn 2.0.100",
  "turbo-tasks-macros-shared",
 ]
 
@@ -9522,7 +9522,7 @@ version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 1.0.109",
+ "syn 2.0.100",
 ]
 
 [[package]]

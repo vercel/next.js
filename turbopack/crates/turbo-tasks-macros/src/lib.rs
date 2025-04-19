@@ -2,6 +2,7 @@
 #![feature(proc_macro_diagnostic)]
 #![feature(allow_internal_unstable)]
 #![feature(box_patterns)]
+#![feature(log_syntax)]
 
 mod assert_fields;
 mod derive;

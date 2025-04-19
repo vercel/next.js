@@ -32,7 +32,8 @@ impl Parse for ValueTraitArguments {
             return Ok(result);
         }
 
-        let punctuated: Punctuated<Meta, Token![,]> = input.parse_terminated(Meta::parse)?;
+        let punctuated: Punctuated<Meta, Token![,]> =
+            input.parse_terminated(Meta::parse, Token![,])?;
         for meta in punctuated {
             match meta.path().get_ident().map(ToString::to_string).as_deref() {
                 Some("no_debug") => {

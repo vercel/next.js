@@ -410,7 +410,7 @@ sourcemap = "9.0.0"
 strsim = "0.11.1"
 shrink-to-fit = "0.2.10"
 swc-rustc-hash = { package = "rustc-hash", version = "1.1.0" } # used with swc
-syn = "1.0.107"
+syn = "2.0.100"
 tempfile = "3.3.0"
 thread_local = "1.1.8"
 thiserror = "1.0.48"

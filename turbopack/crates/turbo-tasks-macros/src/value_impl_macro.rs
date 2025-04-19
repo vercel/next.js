@@ -4,9 +4,8 @@ use quote::{quote, ToTokens};
 use syn::{
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
-    punctuated::Punctuated,
     spanned::Spanned,
-    Attribute, Error, Generics, ImplItem, ImplItemMethod, ItemImpl, Lit, LitStr, Meta,
+    Attribute, Error, Expr, ExprLit, Generics, ImplItem, ImplItemFn, ItemImpl, Lit, LitStr, Meta,
     MetaNameValue, Path, Result, Token, Type,
 };
 use turbo_tasks_macros_shared::{
@@ -16,12 +15,12 @@ use turbo_tasks_macros_shared::{
 };
 
 use crate::func::{
-    filter_inline_attributes, DefinitionContext, FunctionArguments, MaybeParenthesized, NativeFn,
-    TurboFn,
+    filter_inline_attributes, parse_with_optional_parens, DefinitionContext, FunctionArguments,
+    NativeFn, TurboFn,
 };
 
 fn is_attribute(attr: &Attribute, name: &str) -> bool {
-    let path = &attr.path;
+    let path = &attr.path();
     if path.leading_colon.is_some() {
         return false;
     }
@@ -45,8 +44,7 @@ fn split_function_attributes<'a>(
         .partition(|attr| is_attribute(attr, "function"));
     let func_args = if let Some(func_attr) = func_attrs_vec.first() {
         if func_attrs_vec.len() == 1 {
-            syn::parse2::<MaybeParenthesized<FunctionArguments>>(func_attr.tokens.clone())
-                .map(|a| a.parenthesized.map(|a| a.inner).unwrap_or_default())
+            parse_with_optional_parens::<FunctionArguments>(func_attr)
         } else {
             Err(syn::Error::new(
                 func_attr.span(),
@@ -69,7 +67,7 @@ struct ValueImplArguments {
 impl Parse for ValueImplArguments {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut result = ValueImplArguments { ident: None };
-        let punctuated: Punctuated<Meta, Token![,]> = input.parse_terminated(Meta::parse)?;
+        let punctuated = input.parse_terminated(Meta::parse, Token![,])?;
         for meta in punctuated {
             match (
                 meta.path()
@@ -82,7 +80,11 @@ impl Parse for ValueImplArguments {
                 (
                     "ident",
                     Meta::NameValue(MetaNameValue {
-                        lit: Lit::Str(lit), ..
+                        value:
+                            Expr::Lit(ExprLit {
+                                lit: Lit::Str(lit), ..
+                            }),
+                        ..
                     }),
                 ) => {
                     result.ident = Some(lit);
@@ -109,7 +111,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
         let mut errors = Vec::new();
 
         for item in items.iter() {
-            if let ImplItem::Method(ImplItemMethod {
+            if let ImplItem::Fn(ImplItemFn {
                 attrs,
                 vis,
                 defaultness: _,
@@ -212,7 +214,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
         let mut errors = Vec::new();
 
         for item in items.iter() {
-            if let ImplItem::Method(ImplItemMethod {
+            if let ImplItem::Fn(ImplItemFn {
                 sig, attrs, block, ..
             }) = item
             {

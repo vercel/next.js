@@ -29,6 +29,7 @@ use crate::func::{
 pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut errors = Vec::new();
 
+    // log_syntax!(args);
     let ItemFn {
         attrs,
         vis,
