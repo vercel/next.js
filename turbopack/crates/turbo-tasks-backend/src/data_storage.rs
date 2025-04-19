@@ -32,7 +32,7 @@ fn value_to_key_value<V>(value: &V) -> (&(), &V) {
     (&(), value)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct OptionStorage<V> {
     value: Option<V>,
 }
@@ -121,7 +121,7 @@ impl<V> Storage for OptionStorage<V> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AutoMapStorage<K, V> {
     map: AutoMap<K, V, BuildHasherDefault<FxHasher>, 1>,
 }

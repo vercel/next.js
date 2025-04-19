@@ -588,6 +588,10 @@ impl CachedDataItem {
             | Self::Activeness { .. } => TaskDataCategory::All,
         }
     }
+
+    pub fn is_optional(&self) -> bool {
+        matches!(self, CachedDataItem::CellData { .. })
+    }
 }
 
 impl CachedDataItemKey {
@@ -625,10 +629,6 @@ impl CachedDataItemKey {
             CachedDataItemKey::OutdatedCollectiblesDependency { .. } => false,
             CachedDataItemKey::Error { .. } => false,
         }
-    }
-
-    pub fn is_optional(&self) -> bool {
-        matches!(self, CachedDataItemKey::CellData { .. })
     }
 
     pub fn category(&self) -> TaskDataCategory {
@@ -670,6 +670,39 @@ impl CachedDataItemType {
             | Self::Activeness { .. } => TaskDataCategory::All,
         }
     }
+
+    pub fn is_persistent(&self) -> bool {
+        match self {
+            Self::Output
+            | Self::Collectible
+            | Self::Dirty
+            | Self::Child
+            | Self::CellData
+            | Self::CellTypeMaxIndex
+            | Self::OutputDependency
+            | Self::CellDependency
+            | Self::CollectiblesDependency
+            | Self::OutputDependent
+            | Self::CellDependent
+            | Self::CollectiblesDependent
+            | Self::AggregationNumber
+            | Self::Follower
+            | Self::Upper
+            | Self::AggregatedDirtyContainer
+            | Self::AggregatedCollectible
+            | Self::AggregatedDirtyContainerCount
+            | Self::Stateful => true,
+
+            Self::Activeness
+            | Self::InProgress
+            | Self::InProgressCell
+            | Self::OutdatedCollectible
+            | Self::OutdatedOutputDependency
+            | Self::OutdatedCellDependency
+            | Self::OutdatedCollectiblesDependency
+            | Self::Error => false,
+        }
+    }
 }
 
 /// Used by the [`get_mut`][crate::backend::storage::get_mut] macro to restrict mutable access to a
@@ -681,30 +714,16 @@ pub mod allow_mut_access {
     pub const Activeness: () = ();
 }
 
-impl CachedDataItemValue {
+impl CachedDataItemValueRef<'_> {
     pub fn is_persistent(&self) -> bool {
         match self {
-            CachedDataItemValue::Output { value } => !value.is_transient(),
-            CachedDataItemValue::CellData { value } => {
+            CachedDataItemValueRef::Output { value } => !value.is_transient(),
+            CachedDataItemValueRef::CellData { value } => {
                 registry::get_value_type(value.0).is_serializable()
             }
             _ => true,
         }
     }
-}
-
-#[derive(Debug)]
-pub enum CachedDataUpdate {
-    /// Sets the current task id.
-    Task { task: TaskId },
-    /// An item was added. There was no old value.
-    New { item: CachedDataItem },
-    /// An item was removed.
-    Removed { old_item: CachedDataItem },
-    /// An item was replaced. This is step 1 and tells about the key and the old value
-    Replace1 { old_item: CachedDataItem },
-    /// An item was replaced. This is step 2 and tells about the new value.
-    Replace2 { value: CachedDataItemValue },
 }
 
 #[cfg(test)]
@@ -716,6 +735,5 @@ mod tests {
         assert_eq!(std::mem::size_of::<super::CachedDataItemKey>(), 20);
         assert_eq!(std::mem::size_of::<super::CachedDataItemValue>(), 32);
         assert_eq!(std::mem::size_of::<super::CachedDataItemStorage>(), 48);
-        assert_eq!(std::mem::size_of::<super::CachedDataUpdate>(), 48);
     }
 }

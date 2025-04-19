@@ -25,6 +25,10 @@ unsafe impl<K: Eq + Hash + Sync, V: Sync> Send for RefMut<'_, K, V> {}
 unsafe impl<K: Eq + Hash + Sync, V: Sync> Sync for RefMut<'_, K, V> {}
 
 impl<K: Eq + Hash, V> RefMut<'_, K, V> {
+    pub fn key(&self) -> &K {
+        self.pair().0
+    }
+
     pub fn value(&self) -> &V {
         self.pair().1
     }
