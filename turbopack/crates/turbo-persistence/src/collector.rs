@@ -18,11 +18,6 @@ pub struct Collector<K: StoreKey, const SIZE_SHIFT: usize = 0> {
 impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
     /// Creates a new collector. Note that this allocates the full capacity for the entries.
     pub fn new() -> Self {
-        println!(
-            "Collector::new({} items, {} MiB)",
-            MAX_ENTRIES_PER_INITIAL_FILE >> SIZE_SHIFT,
-            (DATA_THRESHOLD_PER_INITIAL_FILE >> SIZE_SHIFT) / 1024 / 1024
-        );
         Self {
             total_key_size: 0,
             total_value_size: 0,
