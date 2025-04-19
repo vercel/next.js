@@ -61,7 +61,7 @@ pub enum RawVc {
 }
 
 impl RawVc {
-    pub(crate) fn is_resolved(&self) -> bool {
+    pub fn is_resolved(&self) -> bool {
         match self {
             RawVc::TaskOutput(_) => false,
             RawVc::TaskCell(_, _) => true,
@@ -69,7 +69,7 @@ impl RawVc {
         }
     }
 
-    pub(crate) fn is_local(&self) -> bool {
+    pub fn is_local(&self) -> bool {
         match self {
             RawVc::TaskOutput(_) => false,
             RawVc::TaskCell(_, _) => false,
