@@ -78,7 +78,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
             path,
             current_sequence_number: AtomicU32::new(current),
             thread_locals: ThreadLocal::new(),
-            collectors: [const { () }; FAMILIES].map(|_| Mutex::new(Collector::new())),
+            collectors: [(); FAMILIES].map(|_| Mutex::new(Collector::new())),
             new_sst_files: Mutex::new(Vec::new()),
             idle_collectors: Mutex::new(Vec::new()),
             idle_thread_local_collectors: Mutex::new(Vec::new()),
@@ -223,7 +223,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
 
         let collectors = replace(
             &mut self.collectors,
-            [const { () }; FAMILIES].map(|_| {
+            [(); FAMILIES].map(|_| {
                 Mutex::new(
                     self.idle_collectors
                         .lock()
