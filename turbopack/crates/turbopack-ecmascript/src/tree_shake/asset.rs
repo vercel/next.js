@@ -290,7 +290,7 @@ impl Module for EcmascriptModulePartAsset {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        le = |part: ModulePart| -> Vc<Box<dyn ModuleReference>> {
+        let part_dep = |part: ModulePart| -> Vc<Box<dyn ModuleReference>> {
             Vc::upcast(SingleChunkableModuleReference::new(
                 Vc::upcast(EcmascriptModulePartAsset::new_with_resolved_part(
                     *self.full_module,
