@@ -49,6 +49,10 @@ module.exports =
     if (process.env.TURBOPACK) {
       nextConfig.turbopack = Object.assign({}, nextConfig?.turbopack, {
         rules: Object.assign({}, nextConfig?.turbopack?.rules, {
+          '*.md': {
+            loaders: [loader],
+            as: '*.tsx',
+          },
           '*.mdx': {
             loaders: [loader],
             as: '*.tsx',
