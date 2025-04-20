@@ -51,6 +51,8 @@ const nextConfig = {
 }
 
 const withMDX = createMDX({
+  // Allow both .md and .mdx extensions
+  extension: /\.(md|mdx)$/,
   // Add markdown plugins here, as desired
 })
 
@@ -731,16 +733,16 @@ export default withMDX(nextConfig)
 
 ## Remote MDX
 
-If your MDX files or content lives _somewhere else_, you can fetch it dynamically on the server. This is useful for content stored in a CMS, database, or anywhere else. A popular community package for this use is [`next-mdx-remote`](https://github.com/hashicorp/next-mdx-remote#react-server-components-rsc--nextjs-app-directory-support).
+If your MDX files or content lives _somewhere else_, you can fetch it dynamically on the server. This is useful for content stored in a CMS, database, or anywhere else. A popular community package for this use is [`next-mdx-remote-client`](https://github.com/ipikuka/next-mdx-remote-client?tab=readme-ov-file#the-part-associated-with-nextjs-app-router).
 
 > **Good to know**: Please proceed with caution. MDX compiles to JavaScript and is executed on the server. You should only fetch MDX content from a trusted source, otherwise this can lead to remote code execution (RCE).
 
-The following example uses `next-mdx-remote`:
+The following example uses `next-mdx-remote-client`:
 
 <AppOnly>
 
 ```tsx filename="app/mdx-page-remote/page.tsx" switcher
-import { MDXRemote } from 'next-mdx-remote/rsc'
+import { MDXRemote } from 'next-mdx-remote-client/rsc'
 
 export default async function RemoteMdxPage() {
   // MDX text - can be from a database, CMS, fetch, anywhere...
@@ -751,7 +753,7 @@ export default async function RemoteMdxPage() {
 ```
 
 ```jsx filename="app/mdx-page-remote/page.js" switcher
-import { MDXRemote } from 'next-mdx-remote/rsc'
+import { MDXRemote } from 'next-mdx-remote-client/rsc'
 
 export default async function RemoteMdxPage() {
   // MDX text - can be from a database, CMS, fetch, anywhere...
@@ -766,39 +768,39 @@ export default async function RemoteMdxPage() {
 <PagesOnly>
 
 ```tsx filename="pages/mdx-page-remote.tsx" switcher
-import { serialize } from 'next-mdx-remote/serialize'
-import { MDXRemote, MDXRemoteSerializeResult } from 'next-mdx-remote'
+import { serialize, type SerializeResult } from 'next-mdx-remote-client/serialize'
+import { MDXClient } from 'next-mdx-remote-client'
 
-interface Props {
-  mdxSource: MDXRemoteSerializeResult
+type Props = {
+  mdxSource: SerializeResult
 }
 
 export default function RemoteMdxPage({ mdxSource }: Props) {
-  return <MDXRemote {...mdxSource} />
+  return <MDXClient {...mdxSource} />
 }
 
 export async function getStaticProps() {
   // MDX text - can be from a database, CMS, fetch, anywhere...
   const res = await fetch('https:...')
   const mdxText = await res.text()
-  const mdxSource = await serialize(mdxText)
+  const mdxSource = await serialize({ source: mdxText })
   return { props: { mdxSource } }
 }
 ```
 
 ```jsx filename="pages/mdx-page-remote.js" switcher
-import { serialize } from 'next-mdx-remote/serialize'
-import { MDXRemote } from 'next-mdx-remote'
+import { serialize } from 'next-mdx-remote-client/serialize'
+import { MDXClient } from 'next-mdx-remote-client'
 
 export default function RemoteMdxPage({ mdxSource }) {
-  return <MDXRemote {...mdxSource} />
+  return <MDXClient {...mdxSource} />
 }
 
 export async function getStaticProps() {
   // MDX text - can be from a database, CMS, fetch, anywhere...
   const res = await fetch('https:...')
   const mdxText = await res.text()
-  const mdxSource = await serialize(mdxText)
+  const mdxSource = await serialize({ source: mdxText })
   return { props: { mdxSource } }
 }
 ```
