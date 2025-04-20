@@ -9,7 +9,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use notify::{
     event::{MetadataKind, ModifyKind, RenameMode},
     Config, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,

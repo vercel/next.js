@@ -317,6 +317,32 @@ impl TurboFn<'_> {
         orig_block: &'a Block,
     ) -> (Signature, Cow<'a, Block>) {
         let mut shadow_self = None;
+
+        fn transform_from_task_input(
+            span: Span,
+            arg_id: Cow<'_, Ident>,
+            orig_ty: &Type,
+            pat: Pat,
+        ) -> Stmt {
+            Stmt::Local(Local {
+                attrs: Vec::new(),
+                let_token: Default::default(),
+                pat,
+                init: Some(LocalInit {
+                    eq_token: Default::default(),
+                    // we know the argument implements `FromTaskInput` because
+                    // `expand_task_input_type` returned `Cow::Owned`
+                    expr: parse_quote_spanned! {
+                        span =>
+                        <#orig_ty as turbo_tasks::task::FromTaskInput>::from_task_input(
+                            #arg_id
+                        )
+                    },
+                    diverge: None,
+                }),
+                semi_token: Default::default(),
+            })
+        }
         let (inputs, transform_stmts): (Punctuated<_, _>, Vec<Option<_>>) = self
             .orig_signature
             .inputs
@@ -331,84 +357,91 @@ impl TurboFn<'_> {
                 inline_inputs_identifier_filter(&pat_id.ident)
             })
             .enumerate()
-            .map(|(idx, arg)| match arg {
-                FnArg::Receiver(_) => (arg.clone(), None),
-                FnArg::Typed(pat_type) => {
-                    if self.operation {
-                        // operations shouldn't have their arguments rewritten, they require all
-                        // arguments are explicitly `NonLocalValue`s
-                        return (arg.clone(), None);
-                    }
-                    let Cow::Owned(expanded_ty) = expand_task_input_type(&pat_type.ty) else {
-                        // common-case: skip if no type conversion is needed
-                        return (arg.clone(), None);
-                    };
-
-                    let arg_id = if let Pat::Ident(pat_id) = &*pat_type.pat {
-                        // common case: argument is just an identifier
-                        Cow::Borrowed(&pat_id.ident)
-                    } else {
-                        // argument is a pattern, we need to rewrite it to a unique identifier
-                        Cow::Owned(Ident::new(
-                            &format!("arg{idx}"),
-                            pat_type.span().resolved_at(Span::mixed_site()),
-                        ))
-                    };
-
-                    let arg = FnArg::Typed(PatType {
-                        pat: Box::new(Pat::Ident(PatIdent {
+            .map(|(idx, arg)| {
+                if self.operation {
+                    // operations shouldn't have their arguments rewritten, they require all
+                    // arguments are explicitly `NonLocalValue`s
+                    return (arg.clone(), None);
+                }
+                let (FnArg::Receiver(Receiver { ty, .. }) | FnArg::Typed(PatType { ty, .. })) = arg;
+                let Cow::Owned(expanded_ty) = expand_task_input_type(&ty) else {
+                    // common-case: skip if no type conversion is needed
+                    return (arg.clone(), None);
+                };
+                match arg {
+                    FnArg::Receiver(
+                        receiver @ Receiver {
+                            attrs, self_token, ..
+                        },
+                    ) => {
+                        let arg = FnArg::Receiver(Receiver {
                             attrs: Vec::new(),
-                            by_ref: None,
                             mutability: None,
-                            ident: arg_id.clone().into_owned(),
+                            ty: Box::new(expanded_ty),
+                            ..receiver.clone()
+                        });
+
+                        // We can't shadow `self` variables, so it this argument is a `self`
+                        // argument, generate a new identifier, and rewrite
+                        // the body of the function later to use
+                        // that new identifier.
+                        // NOTE: arbitrary self types aren't `FnArg::Receiver` on syn 1.x (fixed in
+                        // 2.x)
+                        let shadow_self_id = Ident::new(
+                            "turbo_tasks_self",
+                            Span::mixed_site().located_at(self_token.span()),
+                        );
+                        shadow_self = Some(shadow_self_id.clone());
+                        let shadow_self_pattern = Pat::Ident(PatIdent {
+                            ident: shadow_self_id,
+                            attrs: attrs.clone(),
+                            mutability: None,
+                            by_ref: None,
                             subpat: None,
-                        })),
-                        ty: Box::new(expanded_ty),
-                        ..pat_type.clone()
-                    });
+                        });
+                        let self_ident = Cow::Owned(Ident::new("self", self_token.span()));
+                        let transform_stmt = transform_from_task_input(
+                            receiver.span(),
+                            self_ident,
+                            ty,
+                            shadow_self_pattern,
+                        );
 
-                    // We can't shadow `self` variables, so it this argument is a `self` argument,
-                    // generate a new identifier, and rewrite the body of the function later to use
-                    // that new identifier.
-                    // NOTE: arbitrary self types aren't `FnArg::Receiver` on syn 1.x (fixed in 2.x)
-                    let transform_pat = match &*pat_type.pat {
-                        Pat::Ident(pat_id) if pat_id.ident == "self" => {
-                            let shadow_self_id = Ident::new(
-                                "turbo_tasks_self",
-                                Span::mixed_site().located_at(pat_id.ident.span()),
-                            );
-                            shadow_self = Some(shadow_self_id.clone());
-                            Pat::Ident(PatIdent {
-                                ident: shadow_self_id,
-                                ..pat_id.clone()
-                            })
-                        }
-                        pat => pat.clone(),
-                    };
+                        (arg, Some(transform_stmt))
+                    }
+                    FnArg::Typed(pat_type) => {
+                        let arg_id = if let Pat::Ident(pat_id) = &*pat_type.pat {
+                            // common case: argument is just an identifier
+                            Cow::Borrowed(&pat_id.ident)
+                        } else {
+                            // argument is a pattern, we need to rewrite it to a unique identifier
+                            Cow::Owned(Ident::new(
+                                &format!("arg{idx}"),
+                                pat_type.span().resolved_at(Span::mixed_site()),
+                            ))
+                        };
 
-                    // convert an argument of type `FromTaskInput<T>::TaskInput` into `T`.
-                    // essentially, replace any instances of `Vc` with `ResolvedVc`.
-                    let orig_ty = &*pat_type.ty;
-                    let transform_stmt = Some(Stmt::Local(Local {
-                        attrs: Vec::new(),
-                        let_token: Default::default(),
-                        pat: transform_pat,
-                        init: Some(LocalInit {
-                            eq_token: Default::default(),
-                            // we know the argument implements `FromTaskInput` because
-                            // `expand_task_input_type` returned `Cow::Owned`
-                            expr: parse_quote_spanned! {
-                                pat_type.span() =>
-                                <#orig_ty as turbo_tasks::task::FromTaskInput>::from_task_input(
-                                    #arg_id
-                                )
-                            },
-                            diverge: None,
-                        }),
-                        semi_token: Default::default(),
-                    }));
+                        let arg = FnArg::Typed(PatType {
+                            pat: Box::new(Pat::Ident(PatIdent {
+                                attrs: Vec::new(),
+                                by_ref: None,
+                                mutability: None,
+                                ident: arg_id.clone().into_owned(),
+                                subpat: None,
+                            })),
+                            ty: Box::new(expanded_ty),
+                            ..pat_type.clone()
+                        });
 
-                    (arg, transform_stmt)
+                        // convert an argument of type `FromTaskInput<T>::TaskInput` into `T`.
+                        // essentially, replace any instances of `Vc` with `ResolvedVc`.
+                        let orig_ty = &*pat_type.ty;
+                        let pat = (&*pat_type.pat).clone();
+                        let transform_stmt =
+                            transform_from_task_input(pat_type.span(), arg_id, orig_ty, pat);
+
+                        (arg, Some(transform_stmt))
+                    }
                 }
             })
             .unzip();
