@@ -20,8 +20,13 @@ describe('use-cache-cookies', () => {
       })
 
       // The loading boundary is expected to be shown while the page is loading,
-      // and the dynamic cache function is evaluated.
-      expect(await browser.elementsByCss('#loading')).toHaveLength(1)
+      // and the dynamic cache function is evaluated. We're using `browser.eval`
+      // here to assert on the document as early as possible. The other
+      // Playwright APIs (incl. `page.$`) add a delay that sometimes leads to
+      // missing the ephemeral loading element.
+      expect(
+        await browser.eval('document.getElementById("loading")')
+      ).toBeDefined()
 
       const cachedInLayout = await browser
         .elementById('cached-in-layout')
@@ -34,7 +39,9 @@ describe('use-cache-cookies', () => {
       await browser.refresh({ waitUntil: 'commit' })
 
       // The login status is now cached, so no loading boundary is expected.
-      expect(await browser.elementsByCss('#loading')).toHaveLength(0)
+      expect(
+        await browser.eval('document.getElementById("loading")')
+      ).toBeNull()
 
       expect(await browser.elementById('cached-in-layout').text()).toBe(
         cachedInLayout
