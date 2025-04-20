@@ -1249,14 +1249,9 @@ export default abstract class Server<
           if (pageIsDynamic) {
             let params: ParsedUrlQuery | false = {}
 
-            // If we don't already have valid params, try to parse them from
-            // the query params.
-            if (!paramsResult.hasValidParams) {
-              paramsResult = utils.normalizeDynamicRouteParams(
-                queryParams,
-                false
-              )
-            }
+            // ensure we normalize the dynamic route params for encoding/
+            // default values
+            paramsResult = utils.normalizeDynamicRouteParams(queryParams, false)
 
             // for prerendered ISR paths we attempt parsing the route
             // params from the URL directly as route-matches may not
@@ -1389,7 +1384,7 @@ export default abstract class Server<
           }
 
           if (pageIsDynamic || didRewrite) {
-            utils.normalizeVercelUrl(req, [
+            utils.normalizeCdnUrl(req, [
               ...rewriteParamKeys,
               ...Object.keys(utils.defaultRouteRegex?.groups || {}),
             ])
@@ -1795,14 +1790,13 @@ export default abstract class Server<
     >
   ): Promise<void> {
     const ua = partialContext.req.headers['user-agent'] || ''
-    const isBotRequest = isBot(ua)
 
     const ctx: RequestContext<ServerRequest, ServerResponse> = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        supportsDynamicResponse: !isBotRequest,
-        botType: getBotType(ua),
+        // `renderOpts.botType` is accumulated in `this.renderImpl()`
+        supportsDynamicResponse: !this.renderOpts.botType,
         serveStreamingMetadata: shouldServeStreamingMetadata(
           ua,
           this.nextConfig.htmlLimitedBots
@@ -1932,6 +1926,9 @@ export default abstract class Server<
       // (see custom-server integration tests)
       pathname = '/'
     }
+
+    const ua = req.headers['user-agent'] || ''
+    this.renderOpts.botType = getBotType(ua)
 
     // we allow custom servers to call render for all URLs
     // so check if we need to serve a static _next file or not.

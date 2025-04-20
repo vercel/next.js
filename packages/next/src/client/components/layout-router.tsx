@@ -487,6 +487,10 @@ function LoadingBoundary({
   return <>{children}</>
 }
 
+function RenderChildren({ children }: { children: React.ReactNode }) {
+  return <>{children}</>
+}
+
 /**
  * OuterLayoutRouter handles the current segment as well as <Offscreen> rendering of other segments.
  * It can be rendered next to each other with a different `parallelRouterKey`, allowing for Parallel routes.
@@ -502,6 +506,7 @@ export default function OuterLayoutRouter({
   notFound,
   forbidden,
   unauthorized,
+  gracefullyDegrade,
 }: {
   parallelRouterKey: string
   error: ErrorComponent | undefined
@@ -513,6 +518,7 @@ export default function OuterLayoutRouter({
   notFound: React.ReactNode | undefined
   forbidden: React.ReactNode | undefined
   unauthorized: React.ReactNode | undefined
+  gracefullyDegrade?: boolean
 }) {
   const context = useContext(LayoutRouterContext)
   if (!context) {
@@ -596,11 +602,16 @@ export default function OuterLayoutRouter({
     - Error boundary
       - Only renders error boundary if error component is provided.
       - Rendered for each segment to ensure they have their own error state.
+      - When gracefully degrade for bots, skip rendering error boundary.
     - Loading boundary
       - Only renders suspense boundary if loading components is provided.
       - Rendered for each segment to ensure they have their own loading state.
       - Passed to the router during rendering to ensure it can be immediately rendered when suspending on a Flight fetch.
   */
+
+    const ErrorBoundaryComponent = gracefullyDegrade
+      ? RenderChildren
+      : ErrorBoundary
 
     // TODO: The loading module data for a segment is stored on the parent, then
     // applied to each of that parent segment's parallel route slots. In the
@@ -616,7 +627,7 @@ export default function OuterLayoutRouter({
         key={stateKey}
         value={
           <ScrollAndFocusHandler segmentPath={segmentPath}>
-            <ErrorBoundary
+            <ErrorBoundaryComponent
               errorComponent={error}
               errorStyles={errorStyles}
               errorScripts={errorScripts}
@@ -637,7 +648,7 @@ export default function OuterLayoutRouter({
                   </RedirectBoundary>
                 </HTTPAccessFallbackBoundary>
               </LoadingBoundary>
-            </ErrorBoundary>
+            </ErrorBoundaryComponent>
           </ScrollAndFocusHandler>
         }
       >

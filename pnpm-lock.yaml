@@ -13,13 +13,13 @@ overrides:
   '@babel/parser': 7.22.5
   '@babel/types': 7.22.5
   '@babel/traverse': 7.22.5
-  '@types/react': 19.0.8
-  '@types/react-dom': 19.0.3
+  '@types/react': ^19.1.1
+  '@types/react-dom': 19.1.2
   jest-snapshot: 30.0.0-alpha.6
-  react: 19.2.0-canary-c44e4a25-20250409
-  react-dom: 19.2.0-canary-c44e4a25-20250409
-  react-is: 19.2.0-canary-c44e4a25-20250409
-  scheduler: 0.27.0-canary-c44e4a25-20250409
+  react: 19.2.0-canary-4a36d3ea-20250416
+  react-dom: 19.2.0-canary-4a36d3ea-20250416
+  react-is: 19.2.0-canary-4a36d3ea-20250416
+  scheduler: 0.27.0-canary-4a36d3ea-20250416
 
 patchedDependencies:
   stacktrace-parser@0.1.10:
@@ -71,7 +71,7 @@ importers:
         version: 11.11.0
       '@emotion/react':
         specifier: 11.11.1
-        version: 11.11.1(@types/react@19.0.8)(react@19.2.0-canary-c44e4a25-20250409)
+        version: 11.11.1(@types/react@19.1.1)(react@19.2.0-canary-4a36d3ea-20250416)
       '@fullhuman/postcss-purgecss':
         specifier: 1.3.0
         version: 1.3.0
@@ -83,7 +83,7 @@ importers:
         version: 2.2.1(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15)))
       '@mdx-js/react':
         specifier: 2.2.1
-        version: 2.2.1(react@19.2.0-canary-c44e4a25-20250409)
+        version: 2.2.1(react@19.2.0-canary-4a36d3ea-20250416)
       '@next/bundle-analyzer':
         specifier: workspace:*
         version: link:packages/next-bundle-analyzer
@@ -149,7 +149,7 @@ importers:
         version: 6.1.2(@jest/globals@29.7.0)(@types/jest@29.5.5)(jest@29.7.0(@types/node@20.17.6)(babel-plugin-macros@3.1.0))(vitest@3.0.4(@types/node@20.17.6)(sass@1.54.0)(tsx@4.19.2))
       '@testing-library/react':
         specifier: ^15.0.5
-        version: 15.0.7(@types/react@19.0.8)(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)
+        version: 15.0.7(@types/react@19.1.1)(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)
       '@types/busboy':
         specifier: 1.5.3
         version: 1.5.3
@@ -184,11 +184,11 @@ importers:
         specifier: 2.6.1
         version: 2.6.1
       '@types/react':
-        specifier: 19.0.8
-        version: 19.0.8
+        specifier: ^19.1.1
+        version: 19.1.1
       '@types/react-dom':
-        specifier: 19.0.3
-        version: 19.0.3(@types/react@19.0.8)
+        specifier: 19.1.2
+        version: 19.1.2(@types/react@19.1.1)
       '@types/relay-runtime':
         specifier: 14.1.13
         version: 14.1.13
@@ -219,9 +219,6 @@ importers:
       alex:
         specifier: 9.1.0
         version: 9.1.0
-      amphtml-validator:
-        specifier: 1.0.38
-        version: 1.0.38
       async-sema:
         specifier: 3.0.1
         version: 3.0.1
@@ -355,8 +352,8 @@ importers:
         specifier: 9.0.11
         version: 9.0.11
       image-size:
-        specifier: 1.1.1
-        version: 1.1.1
+        specifier: 1.2.1
+        version: 1.2.1
       is-animated:
         specifier: 2.0.2
         version: 2.0.2
@@ -472,44 +469,44 @@ importers:
         specifier: 0.3.0
         version: 0.3.0
       react:
-        specifier: 19.2.0-canary-c44e4a25-20250409
-        version: 19.2.0-canary-c44e4a25-20250409
+        specifier: 19.2.0-canary-4a36d3ea-20250416
+        version: 19.2.0-canary-4a36d3ea-20250416
       react-builtin:
-        specifier: npm:react@19.2.0-canary-c44e4a25-20250409
-        version: react@19.2.0-canary-c44e4a25-20250409
+        specifier: npm:react@19.2.0-canary-4a36d3ea-20250416
+        version: react@19.2.0-canary-4a36d3ea-20250416
       react-dom:
-        specifier: 19.2.0-canary-c44e4a25-20250409
-        version: 19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409)
+        specifier: 19.2.0-canary-4a36d3ea-20250416
+        version: 19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416)
       react-dom-builtin:
-        specifier: npm:react-dom@19.2.0-canary-c44e4a25-20250409
-        version: react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409)
+        specifier: npm:react-dom@19.2.0-canary-4a36d3ea-20250416
+        version: react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416)
       react-dom-experimental-builtin:
-        specifier: npm:react-dom@0.0.0-experimental-c44e4a25-20250409
-        version: react-dom@0.0.0-experimental-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409)
+        specifier: npm:react-dom@0.0.0-experimental-4a36d3ea-20250416
+        version: react-dom@0.0.0-experimental-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416)
       react-experimental-builtin:
-        specifier: npm:react@0.0.0-experimental-c44e4a25-20250409
-        version: react@0.0.0-experimental-c44e4a25-20250409
+        specifier: npm:react@0.0.0-experimental-4a36d3ea-20250416
+        version: react@0.0.0-experimental-4a36d3ea-20250416
       react-is-builtin:
-        specifier: npm:react-is@19.2.0-canary-c44e4a25-20250409
-        version: react-is@19.2.0-canary-c44e4a25-20250409
+        specifier: npm:react-is@19.2.0-canary-4a36d3ea-20250416
+        version: react-is@19.2.0-canary-4a36d3ea-20250416
       react-server-dom-turbopack:
-        specifier: 19.2.0-canary-c44e4a25-20250409
-        version: 19.2.0-canary-c44e4a25-20250409(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)
+        specifier: 19.2.0-canary-4a36d3ea-20250416
+        version: 19.2.0-canary-4a36d3ea-20250416(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)
       react-server-dom-turbopack-experimental:
-        specifier: npm:react-server-dom-turbopack@0.0.0-experimental-c44e4a25-20250409
-        version: react-server-dom-turbopack@0.0.0-experimental-c44e4a25-20250409(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)
+        specifier: npm:react-server-dom-turbopack@0.0.0-experimental-4a36d3ea-20250416
+        version: react-server-dom-turbopack@0.0.0-experimental-4a36d3ea-20250416(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)
       react-server-dom-webpack:
-        specifier: 19.2.0-canary-c44e4a25-20250409
-        version: 19.2.0-canary-c44e4a25-20250409(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15)))
+        specifier: 19.2.0-canary-4a36d3ea-20250416
+        version: 19.2.0-canary-4a36d3ea-20250416(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15)))
       react-server-dom-webpack-experimental:
-        specifier: npm:react-server-dom-webpack@0.0.0-experimental-c44e4a25-20250409
-        version: react-server-dom-webpack@0.0.0-experimental-c44e4a25-20250409(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15)))
+        specifier: npm:react-server-dom-webpack@0.0.0-experimental-4a36d3ea-20250416
+        version: react-server-dom-webpack@0.0.0-experimental-4a36d3ea-20250416(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15)))
       react-ssr-prepass:
         specifier: 1.0.8
-        version: 1.0.8(react-is@19.2.0-canary-c44e4a25-20250409)(react@19.2.0-canary-c44e4a25-20250409)
+        version: 1.0.8(react-is@19.2.0-canary-c44e4a25-20250409)(react@19.2.0-canary-4a36d3ea-20250416)
       react-virtualized:
         specifier: 9.22.3
-        version: 9.22.3(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)
+        version: 9.22.3(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)
       relay-compiler:
         specifier: 13.0.2
         version: 13.0.2
@@ -532,11 +529,11 @@ importers:
         specifier: 0.12.2
         version: 0.12.2
       scheduler-builtin:
-        specifier: npm:scheduler@0.27.0-canary-c44e4a25-20250409
-        version: scheduler@0.27.0-canary-c44e4a25-20250409
+        specifier: npm:scheduler@0.27.0-canary-4a36d3ea-20250416
+        version: scheduler@0.27.0-canary-4a36d3ea-20250416
       scheduler-experimental-builtin:
-        specifier: npm:scheduler@0.0.0-experimental-c44e4a25-20250409
-        version: scheduler@0.0.0-experimental-c44e4a25-20250409
+        specifier: npm:scheduler@0.0.0-experimental-4a36d3ea-20250416
+        version: scheduler@0.0.0-experimental-4a36d3ea-20250416
       seedrandom:
         specifier: 3.0.5
         version: 3.0.5
@@ -551,13 +548,13 @@ importers:
         version: 6.0.0
       styled-jsx:
         specifier: 5.1.6
-        version: 5.1.6(@babel/core@7.22.5)(babel-plugin-macros@3.1.0)(react@19.2.0-canary-c44e4a25-20250409)
+        version: 5.1.6(@babel/core@7.22.5)(babel-plugin-macros@3.1.0)(react@19.2.0-canary-4a36d3ea-20250416)
       styled-jsx-plugin-postcss:
         specifier: 3.0.2
         version: 3.0.2
       swr:
         specifier: ^2.2.4
-        version: 2.2.4(react@19.2.0-canary-c44e4a25-20250409)
+        version: 2.2.4(react@19.2.0-canary-4a36d3ea-20250416)
       tailwindcss:
         specifier: 3.2.7
         version: 3.2.7(postcss@8.4.31)
@@ -638,7 +635,7 @@ importers:
     dependencies:
       '@mantine/core':
         specifier: ^7.10.1
-        version: 7.10.1(@mantine/hooks@7.11.2(react@19.2.0-canary-c44e4a25-20250409))(@types/react@19.0.8)(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)
+        version: 7.10.1(@mantine/hooks@7.11.2(react@19.2.0-canary-c44e4a25-20250409))(@types/react@19.1.1)(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)
       lodash-es:
         specifier: ^4.17.21
         version: 4.17.21
@@ -826,7 +823,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 15.3.1-canary.5
+        specifier: 15.3.1-canary.15
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.10.3
@@ -890,7 +887,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 15.3.1-canary.5
+        specifier: 15.3.1-canary.15
         version: link:../next-env
       '@swc/counter':
         specifier: 0.1.3
@@ -908,17 +905,17 @@ importers:
         specifier: 8.4.31
         version: 8.4.31
       react:
-        specifier: 19.2.0-canary-c44e4a25-20250409
-        version: 19.2.0-canary-c44e4a25-20250409
+        specifier: 19.2.0-canary-4a36d3ea-20250416
+        version: 19.2.0-canary-4a36d3ea-20250416
       react-dom:
-        specifier: 19.2.0-canary-c44e4a25-20250409
-        version: 19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409)
+        specifier: 19.2.0-canary-4a36d3ea-20250416
+        version: 19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416)
       sass:
         specifier: ^1.3.0
         version: 1.77.8
       styled-jsx:
         specifier: 5.1.6
-        version: 5.1.6(@babel/core@7.22.5)(babel-plugin-macros@3.1.0)(react@19.2.0-canary-c44e4a25-20250409)
+        version: 5.1.6(@babel/core@7.22.5)(babel-plugin-macros@3.1.0)(react@19.2.0-canary-4a36d3ea-20250416)
     optionalDependencies:
       sharp:
         specifier: ^0.34.1
@@ -1015,19 +1012,19 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/font':
-        specifier: 15.3.1-canary.5
+        specifier: 15.3.1-canary.15
         version: link:../font
       '@next/polyfill-module':
-        specifier: 15.3.1-canary.5
+        specifier: 15.3.1-canary.15
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 15.3.1-canary.5
+        specifier: 15.3.1-canary.15
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 15.3.1-canary.5
+        specifier: 15.3.1-canary.15
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 15.3.1-canary.5
+        specifier: 15.3.1-canary.15
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1040,7 +1037,7 @@ importers:
         version: 8.6.0(storybook@8.6.0(prettier@3.3.3))
       '@storybook/addon-essentials':
         specifier: 8.6.0
-        version: 8.6.0(@types/react@19.0.8)(storybook@8.6.0(prettier@3.3.3))
+        version: 8.6.0(@types/react@19.1.1)(storybook@8.6.0(prettier@3.3.3))
       '@storybook/addon-interactions':
         specifier: 8.6.0
         version: 8.6.0(storybook@8.6.0(prettier@3.3.3))
@@ -1049,13 +1046,13 @@ importers:
         version: 1.0.5(@swc/helpers@0.5.15)(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2))
       '@storybook/blocks':
         specifier: 8.6.0
-        version: 8.6.0(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)(storybook@8.6.0(prettier@3.3.3))
+        version: 8.6.0(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)(storybook@8.6.0(prettier@3.3.3))
       '@storybook/react':
         specifier: 8.6.0
-        version: 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)
+        version: 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)
       '@storybook/react-webpack5':
         specifier: 8.6.0
-        version: 8.6.0(@rspack/core@1.3.4(@swc/helpers@0.5.15))(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)
+        version: 8.6.0(@rspack/core@1.3.4(@swc/helpers@0.5.15))(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)
       '@storybook/test':
         specifier: 8.6.0
         version: 8.6.0(storybook@8.6.0(prettier@3.3.3))
@@ -1144,11 +1141,11 @@ importers:
         specifier: 1.3.4
         version: 1.3.4
       '@types/react':
-        specifier: 19.0.8
-        version: 19.0.8
+        specifier: ^19.1.1
+        version: 19.1.1
       '@types/react-dom':
-        specifier: 19.0.3
-        version: 19.0.3(@types/react@19.0.8)
+        specifier: 19.1.2
+        version: 19.1.2(@types/react@19.1.1)
       '@types/react-is':
         specifier: 18.2.4
         version: 18.2.4
@@ -1330,8 +1327,8 @@ importers:
         specifier: 0.1.2
         version: 0.1.2
       image-size:
-        specifier: 1.1.1
-        version: 1.1.1
+        specifier: 1.2.1
+        version: 1.2.1
       is-docker:
         specifier: 2.0.0
         version: 2.0.0
@@ -1532,7 +1529,7 @@ importers:
         version: 1.0.35
       unistore:
         specifier: 3.4.1
-        version: 3.4.1(react@19.2.0-canary-c44e4a25-20250409)
+        version: 3.4.1(react@19.2.0-canary-4a36d3ea-20250416)
       util:
         specifier: 0.12.4
         version: 0.12.4
@@ -1705,14 +1702,14 @@ importers:
   packages/third-parties:
     dependencies:
       react:
-        specifier: 19.2.0-canary-c44e4a25-20250409
-        version: 19.2.0-canary-c44e4a25-20250409
+        specifier: 19.2.0-canary-4a36d3ea-20250416
+        version: 19.2.0-canary-4a36d3ea-20250416
       third-party-capital:
         specifier: 1.0.20
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 15.3.1-canary.5
+        specifier: 15.3.1-canary.15
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -1769,14 +1766,14 @@ importers:
         specifier: 29.5.0
         version: 29.5.0
       react:
-        specifier: 19.2.0-canary-c44e4a25-20250409
-        version: 19.2.0-canary-c44e4a25-20250409
+        specifier: 19.2.0-canary-4a36d3ea-20250416
+        version: 19.2.0-canary-4a36d3ea-20250416
       react-test-renderer:
         specifier: 18.2.0
-        version: 18.2.0(react@19.2.0-canary-c44e4a25-20250409)
+        version: 18.2.0(react@19.2.0-canary-4a36d3ea-20250416)
       styled-jsx:
         specifier: ^5.1.2
-        version: 5.1.6(@babel/core@7.22.5)(babel-plugin-macros@3.1.0)(react@19.2.0-canary-c44e4a25-20250409)
+        version: 5.1.6(@babel/core@7.22.5)(babel-plugin-macros@3.1.0)(react@19.2.0-canary-4a36d3ea-20250416)
 
   turbopack/packages/devlow-bench:
     dependencies:
@@ -3506,7 +3503,7 @@ packages:
     resolution: {integrity: sha512-5mlW1DquU5HaxjLkfkGN1GA/fvVGdyHURRiX/0FHl2cfIfRxSOfmxEH5YS43edp0OldZrZ+dkBKbngxcNCdZvA==}
     peerDependencies:
       '@types/react': '*'
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -3523,7 +3520,7 @@ packages:
   '@emotion/use-insertion-effect-with-fallbacks@1.0.1':
     resolution: {integrity: sha512-jT/qyKZ9rzLErtrjGgdkMBn2OP8wl0G3sQlBb3YPryvKHsjvINUhVaPFfP+fpBcOkmrVOVEEHQFJ7nbj2TH2gw==}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
 
   '@emotion/utils@1.2.1':
     resolution: {integrity: sha512-Y2tGf3I+XVnajdItskUCn6LX+VUDmP6lTL4fcqsXAv43dnlbZiuW4MWQW38rW/BVWSE7Q/7+XQocmpnRYILUmg==}
@@ -4178,14 +4175,14 @@ packages:
   '@floating-ui/react-dom@2.1.0':
     resolution: {integrity: sha512-lNzj5EQmEKn5FFKc04+zasr09h/uX8RtJRNj5gUXsSQIXHVWTVh+hVAg1vOMCexkX8EgvemMvIFpQfkosnVNyA==}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416
 
   '@floating-ui/react@0.26.16':
     resolution: {integrity: sha512-HEf43zxZNAI/E781QIVpYSF3K2VH4TTYZpqecjdsFkjsaU1EbaWcM++kw0HXFffj7gDUcBFevX8s0rQGQpxkow==}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416
 
   '@floating-ui/utils@0.2.2':
     resolution: {integrity: sha512-J4yDIIthosAsRZ5CPYP/jQvUAQtlZTTD/4suA08/FEnlxqW3sKS9iAhgsa9VYLZ6vDHn/ixJgIqRQPotoBjxIw==}
@@ -4878,13 +4875,13 @@ packages:
     resolution: {integrity: sha512-l9ypojKN3PjwO1CSLIsqxi7mA25+7w+xc71Q+JuCCREI0tuGwkZsKbIOpuTATIJOjPh8ycLiW7QxX1LYsRTq6w==}
     peerDependencies:
       '@mantine/hooks': 7.10.1
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416
 
   '@mantine/hooks@7.11.2':
     resolution: {integrity: sha512-jhyVe/sbDEG2U8rr2lMecUPgQxcfr5hh9HazqGfkS7ZRIMDO7uJ947yAcTMGGkp5Lxtt5TBFt1Cb6tiB2/1agg==}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
 
   '@mapbox/node-pre-gyp@1.0.5':
     resolution: {integrity: sha512-4srsKPXWlIxp5Vbqz5uLfBN+du2fJChBoYn/f2h991WLdk7jUvcSk/McVLSv/X+xQIPI8eGD5GjrnygdyHnhPA==}
@@ -4901,13 +4898,13 @@ packages:
   '@mdx-js/react@2.2.1':
     resolution: {integrity: sha512-YdXcMcEnqZhzql98RNrqYo9cEhTTesBiCclEtoiQUbJwx87q9453GTapYU6kJ8ZZ2ek1Vp25SiAXEFy5O/eAPw==}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
 
   '@mdx-js/react@3.1.0':
     resolution: {integrity: sha512-QjHtSaoameoalGnKDT3FoIl4+9RwyTmo9ZJGBdLOks/YOiWHoRDI3PUwEzOE7kEmGcV3AFcp9K6dYu9rEuKLAQ==}
     peerDependencies:
-      '@types/react': 19.0.8
-      react: 19.2.0-canary-c44e4a25-20250409
+      '@types/react': ^19.1.1
+      react: 19.2.0-canary-4a36d3ea-20250416
 
   '@module-federation/error-codes@0.11.2':
     resolution: {integrity: sha512-ik1Qnn0I+WyEdprTck9WGlH41vGsVdUg8cfO+ZM02qOb2cZm5Vu3SlxGAobj6g7uAj0g8yINnd7h7Dci40BxQA==}
@@ -5592,8 +5589,8 @@ packages:
   '@storybook/blocks@8.6.0':
     resolution: {integrity: sha512-3PNxlB5Ooj8CIhttbDxeV6kW7ui+2GEdTngtqhnsUHVjzeTKpilsk2lviOeUzqlyq5FDK+rhpZ3L3DJ9pDvioA==}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416
       storybook: ^8.6.0
     peerDependenciesMeta:
       react:
@@ -5643,8 +5640,8 @@ packages:
     resolution: {integrity: sha512-Nz/UzeYQdUZUhacrPyfkiiysSjydyjgg/p0P9HxB4p/WaJUUjMAcaoaLgy3EXx61zZJ3iD36WPuDkZs5QYrA0A==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416
 
   '@storybook/instrumenter@8.6.0':
     resolution: {integrity: sha512-eEY/Hfa3Vj5Nv4vHRHlSqjoyW6oAKNK3rKIXfL/eawQwb7rKhzijDLG5YBH44Hh7dEPIqUp0LEdgpyIY7GXezg==}
@@ -5660,8 +5657,8 @@ packages:
     resolution: {integrity: sha512-04T86VG0UJtiozgZkTR5sY1qM3E0Rgwqwllvyy7kFFdkV+Sv/VsPjW9sC38s9C8FtCYRL8pJZz81ey3oylpIMA==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416
       storybook: ^8.6.0
       typescript: '*'
     peerDependenciesMeta:
@@ -5682,16 +5679,16 @@ packages:
   '@storybook/react-dom-shim@8.6.0':
     resolution: {integrity: sha512-5Y+vMHhcx0xnaNsLQMbkmjc3zkDn/fGBNsiLH2e4POvW3ZQvOxjoyxAsEQaKwLtFgsdCFSd2tR89F6ItYrA2JQ==}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416
       storybook: ^8.6.0
 
   '@storybook/react-webpack5@8.6.0':
     resolution: {integrity: sha512-2L9CYDPn1OL0B8K5EU/Wpo9Slg8f0vkYPaPioQnmcK3Q4SJR4JAuDVWHUtNdxhaPOkHIy887Tfrf6BEC/blMaQ==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416
       storybook: ^8.6.0
       typescript: '>= 4.2.x'
     peerDependenciesMeta:
@@ -5703,8 +5700,8 @@ packages:
     engines: {node: '>=18.0.0'}
     peerDependencies:
       '@storybook/test': 8.6.0
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416
       storybook: ^8.6.0
       typescript: '>= 4.2.x'
     peerDependenciesMeta:
@@ -5939,9 +5936,9 @@ packages:
     resolution: {integrity: sha512-cg0RvEdD1TIhhkm1IeYMQxrzy0MtUNfa3minv4MjbgcYzJAZ7yD0i0lwoPOTPr+INtiXFezt2o8xMSnyHhEn2Q==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@types/react': 19.0.8
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409
+      '@types/react': ^19.1.1
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -6275,16 +6272,16 @@ packages:
   '@types/range-parser@1.2.3':
     resolution: {integrity: sha512-ewFXqrQHlFsgc09MK5jP5iR7vumV/BYayNC6PgJO2LPe8vrnNFyjQjSppfEngITi0qvfKtzFvgKymGheFM9UOA==}
 
-  '@types/react-dom@19.0.3':
-    resolution: {integrity: sha512-0Knk+HJiMP/qOZgMyNFamlIjw9OFCsyC2ZbigmEEyXXixgre6IQpm/4V+r3qH4GC1JPvRJKInw+on2rV6YZLeA==}
+  '@types/react-dom@19.1.2':
+    resolution: {integrity: sha512-XGJkWF41Qq305SKWEILa1O8vzhb3aOo3ogBlSmiqNko/WmRb6QIaweuZCXjKygVDXpzXb5wyxKTSOsmkuqj+Qw==}
     peerDependencies:
-      '@types/react': 19.0.8
+      '@types/react': ^19.1.1
 
   '@types/react-is@18.2.4':
     resolution: {integrity: sha512-wBc7HgmbCcrvw0fZjxbgz/xrrlZKzEqmABBMeSvpTvdm25u6KI6xdIi9pRE2G0C1Lw5ETFdcn4UbYZ4/rpqUYw==}
 
-  '@types/react@19.0.8':
-    resolution: {integrity: sha512-9P/o1IGdfmQxrujGbIMDyYaaCykhLKc0NGCtYcECNUr9UAaDe4gwvV9bR6tvd5Br1SG0j+PBpbKr2UYY8CwqSw==}
+  '@types/react@19.1.1':
+    resolution: {integrity: sha512-ePapxDL7qrgqSF67s0h9m412d9DbXyC1n59O2st+9rjuuamWsZuD2w55rqY12CbzsZ7uVXb5Nw0gEp9Z8MMutQ==}
 
   '@types/relay-runtime@14.1.13':
     resolution: {integrity: sha512-NODqEnGjERJr02M0YQclUnXWCldmerNUkpFfuO317h/od1uXuwAW5131vpeiROE11BizPC/Qhup5VrwKsENazw==}
@@ -10642,8 +10639,8 @@ packages:
     resolution: {integrity: sha512-InwqeHHN2XpumIkMvpl/DCJVrAHgCsG5+cn1XlnLWGwtZBm8QJfSusItfrwx81CTp5agNZqpKU2J/ccC5nGT4A==}
     engines: {node: '>= 4'}
 
-  image-size@1.1.1:
-    resolution: {integrity: sha512-541xKlUw6jr/6gGuk92F+mYM5zaFAc5ahphvkqvNe2bQ6gVBkd6bfrmVJ2t4KDAfikAYZyIqTnktX3i6/aQDrQ==}
+  image-size@1.2.1:
+    resolution: {integrity: sha512-rH+46sQJ2dlwfjfhCyNx5thzrv+dtmBIhPHk0zgRUukHzZ/kRueTJXoYYsclBaKcSMBWuGbOFXtioLpzTb5euw==}
     engines: {node: '>=16.x'}
     hasBin: true
 
@@ -12054,7 +12051,7 @@ packages:
   lucide-react@0.383.0:
     resolution: {integrity: sha512-13xlG0CQCJtzjSQYwwJ3WRqMHtRj3EXmLlorrARt7y+IHnxUCp3XyFNL1DfaGySWxHObDvnu1u1dV+0VMKHUSg==}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
 
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
@@ -14546,15 +14543,23 @@ packages:
     resolution: {integrity: sha512-APPU8HB2uZnpl6Vt/+0AFoVYgSRtfiP6FLrZgPPTDmqSb2R4qZRbgd0A3VzIFxDt5e+Fozjx79WjLWnF69DK8g==}
     engines: {node: '>=16.14.0'}
 
-  react-dom@0.0.0-experimental-c44e4a25-20250409:
-    resolution: {integrity: sha512-YWzlCutwbOB2irDIxsYx6iAfY7sBHpMp8Hdb8WheOTHq8X1dj2JUWp6B6tH7zFHWU8XjI3qW8aByqLoTGO0g+Q==}
+  react-dom@0.0.0-experimental-4a36d3ea-20250416:
+    resolution: {integrity: sha512-E8bUcRc76A8/5zl9DYjM8Ze1ynv2qRFz6PRBnHp3mgb60oNikJRdQ1FNkD8ViYmWgidQRm8fDtXjG0kMv8foUg==}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
+
+  react-dom@19.2.0-canary-4a36d3ea-20250416:
+    resolution: {integrity: sha512-6k1OMKIMBXijE5V4iNQXzhsTiTqZbDEAIqSq+lOp5qac45+HMfHpLXJ310t1WKwyjww/TIn16kf0fdD10tpkwQ==}
+    peerDependencies:
+      react: 19.2.0-canary-4a36d3ea-20250416
 
   react-dom@19.2.0-canary-c44e4a25-20250409:
     resolution: {integrity: sha512-H3k6JpW39XBogZz6ptprQ4MRwG83bRONkb+6DzHQChVLY+TWiGNBKJxnJN6VzRoqsBNZFwSu8WdhK5vLtj4h3A==}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
+
+  react-is@19.2.0-canary-4a36d3ea-20250416:
+    resolution: {integrity: sha512-mHKbmN7JQn5EigcJoUfT8KokOdkOb09LW+qrZ5HlU2UVu91tZ0x00S+PG1OyZQPKBP+Cv/uk0MCbqiEU4lMehQ==}
 
   react-is@19.2.0-canary-c44e4a25-20250409:
     resolution: {integrity: sha512-vF0L6mbn4Gx4TU7srrazt/6aBhLIRWttvNlh6GGI9nsqgvl1RrPKfDuybxjDP/8IZfuMj7/D5CkwwyZUa3i1AQ==}
@@ -14565,8 +14570,8 @@ packages:
   react-number-format@5.4.0:
     resolution: {integrity: sha512-NWdICrqLhI7rAS8yUeLVd6Wr4cN7UjJ9IBTS0f/a9i7UB4x4Ti70kGnksBtZ7o4Z7YRbvCMMR/jQmkoOBa/4fg==}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416
 
   react-refresh@0.12.0:
     resolution: {integrity: sha512-suLIhrU2IHKL5JEKR/fAwJv7bbeq4kJ+pJopf77jHwuR+HmJS/HbrPIGsTBUVfw7tXPOmYv7UJ7PCaN49e8x4A==}
@@ -14576,8 +14581,8 @@ packages:
     resolution: {integrity: sha512-DtSYaao4mBmX+HDo5YWYdBWQwYIQQshUV/dVxFxK+KM26Wjwp1gZ6rv6OC3oujI6Bfu6Xyg3TwK533AQutsn/g==}
     engines: {node: '>=10'}
     peerDependencies:
-      '@types/react': 19.0.8
-      react: 19.2.0-canary-c44e4a25-20250409
+      '@types/react': ^19.1.1
+      react: 19.2.0-canary-4a36d3ea-20250416
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -14586,59 +14591,59 @@ packages:
     resolution: {integrity: sha512-m3zvBRANPBw3qxVVjEIPEQinkcwlFZ4qyomuWVpNJdv4c6MvHfXV0C3L9Jx5rr3HeBHKNRX+1jreB5QloDIJjA==}
     engines: {node: '>=10'}
     peerDependencies:
-      '@types/react': 19.0.8
-      react: 19.2.0-canary-c44e4a25-20250409
+      '@types/react': ^19.1.1
+      react: 19.2.0-canary-4a36d3ea-20250416
     peerDependenciesMeta:
       '@types/react':
         optional: true
 
-  react-server-dom-turbopack@0.0.0-experimental-c44e4a25-20250409:
-    resolution: {integrity: sha512-e1eO8t9Lhh22+7WBdtUPyk3tG/R5do5MDGQcAGBJCVokKjVhC6V+dsCviUq5wDu1OGhmHkcSpd9Feu2kPs4f7w==}
+  react-server-dom-turbopack@0.0.0-experimental-4a36d3ea-20250416:
+    resolution: {integrity: sha512-7qg5sHjAsd20yz87ySoYizPIbeCdvv4Tu7u0Jy4Uakz4a2VAfR6LqZVPHyv7cEz2Jil8QyzBrKDib7Cpw+7ffA==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416
 
-  react-server-dom-turbopack@19.2.0-canary-c44e4a25-20250409:
-    resolution: {integrity: sha512-gKaAujzlRa5igYmK9amSKdV6fYdiyXEKe/jr5/m1t0UBxRhCCRnHonbipYOeEJnKtigNIuwSCKC5N2lWNenjjA==}
+  react-server-dom-turbopack@19.2.0-canary-4a36d3ea-20250416:
+    resolution: {integrity: sha512-Vf5JdH5pWrP5UAlFtANgw6clEtUZA+XBqdd8zFtR+gkl+LHgrn72i7SaSz4j5jUgqRYMdC5lcL9uVMLG7m9PcQ==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416
 
-  react-server-dom-webpack@0.0.0-experimental-c44e4a25-20250409:
-    resolution: {integrity: sha512-qLscXcBG9yBhHpW+2YS7WugdMsmugrFKpMDm/QaRSfEP3QpMosc6oFelMslNbUnAudxYqz5DnQq8bLUuYL7ohw==}
+  react-server-dom-webpack@0.0.0-experimental-4a36d3ea-20250416:
+    resolution: {integrity: sha512-X2iUx7YXDkjNWxAnzcCWaUidJ4mRipWJ6v7tSb1SaXlHC9Pk2ItC4vcBdnZO2g4EI9mTjQYPFjTCaid/xemagA==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416
       webpack: 5.98.0
 
-  react-server-dom-webpack@19.2.0-canary-c44e4a25-20250409:
-    resolution: {integrity: sha512-66N9XP4LRwtxCpmWHn1nI+uUYw1gjbqzdqOWqDDEY5t1zpNICOaY3PwAVo5CnQbAr/XwCEc2xOyv0liv6nkdng==}
+  react-server-dom-webpack@19.2.0-canary-4a36d3ea-20250416:
+    resolution: {integrity: sha512-QpHt3W+s7JcCfAlcXdBmpgXmW5Jxjfuo5T/6pxm0jRYSjhxBbgBbGAIqdYZ2FR+FGB1yNJNL/2qocmCUmj39zA==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416
       webpack: 5.98.0
 
   react-shallow-renderer@16.15.0:
     resolution: {integrity: sha512-oScf2FqQ9LFVQgA73vr86xl2NaOIX73rh+YFqcOp68CWj56tSfgtGKrEbyhCj0rSijyG9M1CYprTh39fBi5hzA==}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
 
   react-ssr-prepass@1.0.8:
     resolution: {integrity: sha512-O0gfRA1SaK+9ITKxqfnXsej2jF+OHGP/+GxD4unROQaM/0/UczGF9fuF+wTboxaQoKdIf4FvS3h/OigWh704VA==}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-is: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-is: 19.2.0-canary-4a36d3ea-20250416
 
   react-style-singleton@2.2.1:
     resolution: {integrity: sha512-ZWj0fHEMyWkHzKYUr2Bs/4zU6XLmq9HsgBURm7g5pAVfyn49DgUiNgY2d4lXRlYSiCif9YBGpQleewkcqddc7g==}
     engines: {node: '>=10'}
     peerDependencies:
-      '@types/react': 19.0.8
-      react: 19.2.0-canary-c44e4a25-20250409
+      '@types/react': ^19.1.1
+      react: 19.2.0-canary-4a36d3ea-20250416
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -14646,22 +14651,26 @@ packages:
   react-test-renderer@18.2.0:
     resolution: {integrity: sha512-JWD+aQ0lh2gvh4NM3bBM42Kx+XybOxCpgYK7F8ugAlpaTSnWsX+39Z4XkOykGZAHrjwwTZT3x3KxswVWxHPUqA==}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
 
   react-textarea-autosize@8.5.3:
     resolution: {integrity: sha512-XT1024o2pqCuZSuBt9FwHlaDeNtVrtCXu0Rnz88t1jUGheCLa3PhjE1GH8Ctm2axEtvdCl5SUHYschyQ0L5QHQ==}
     engines: {node: '>=10'}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
 
   react-virtualized@9.22.3:
     resolution: {integrity: sha512-MKovKMxWTcwPSxE1kK1HcheQTWfuCxAuBoSTf2gwyMM21NdX/PXUhnoP8Uc5dRKd+nKm8v41R36OellhdCpkrw==}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416
 
-  react@0.0.0-experimental-c44e4a25-20250409:
-    resolution: {integrity: sha512-mw5BtBSRlnsn/WN5C/w8Qq7Kwk99z8+3NRPasB8tRQMJ+riahoTdHp8LKq5kLPEgv5l4otM5IaLPK41rPmjkpw==}
+  react@0.0.0-experimental-4a36d3ea-20250416:
+    resolution: {integrity: sha512-bekAR6KGhUAWqM8o1AZmoAc494xgUZRPLQc2GmddzH0aILr92cgPsk74LQ1szF+MlNul9RZzGLDegC4dCQb9gw==}
+    engines: {node: '>=0.10.0'}
+
+  react@19.2.0-canary-4a36d3ea-20250416:
+    resolution: {integrity: sha512-pcVGvqHjEa5tyJ9empXClR3Xsq5C+Wb+Vp2WOH6z+oL45azbDvkEHuqzxbSTkigBr+It411rvld8q8O+lyl0nw==}
     engines: {node: '>=0.10.0'}
 
   react@19.2.0-canary-c44e4a25-20250409:
@@ -15215,11 +15224,11 @@ packages:
     resolution: {integrity: sha512-xAg7SOnEhrm5zI3puOOKyy1OMcMlIJZYNJY7xLBwSze0UjhPLnWfj2GF2EpT0jmzaJKIWKHLsaSSajf35bcYnA==}
     engines: {node: '>=v12.22.7'}
 
-  scheduler@0.0.0-experimental-c44e4a25-20250409:
-    resolution: {integrity: sha512-YLoY/a+xQWPrw0/khnMK7nyzU7DWNCAvruhIVKXh/dLllYvVzvijKa840ztLbN/VIsrp2KqXDyfsVZyOtQEGLA==}
+  scheduler@0.0.0-experimental-4a36d3ea-20250416:
+    resolution: {integrity: sha512-Vc7VE4CRYDEki5x7aO3wjpCiIikcWLsxhADF59o0/pH0bXsIRwKHzRuOSfOim7rDpLPipIdxhQw7gw+Cg/s+4g==}
 
-  scheduler@0.27.0-canary-c44e4a25-20250409:
-    resolution: {integrity: sha512-bjLWeGzy+H4oe+OsSjhfMkJuBZ6y/7Zwnt1FapgLnz0mWgZlyldlnKUJhtJepD/irrbHYlpz0fZ9GBOaDfHuAQ==}
+  scheduler@0.27.0-canary-4a36d3ea-20250416:
+    resolution: {integrity: sha512-YIS/ayW7a4UfiaNdVbEm7TMQf0W7/I1cfNMa5i8K8qEc+wjKYa4ELCtu65P5fz6YeWcLpfvhm/GGuguX/WJXBg==}
 
   schema-utils@2.7.1:
     resolution: {integrity: sha512-SHiNtMOUGWBQJwzISiVYKu82GiV4QYGePp3odlY1tuKO7gPtphAT5R/py0fA6xtbgLL/RvtJZnU9b8s0F1q0Xg==}
@@ -15862,7 +15871,7 @@ packages:
     peerDependencies:
       '@babel/core': '*'
       babel-plugin-macros: '*'
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
     peerDependenciesMeta:
       '@babel/core':
         optional: true
@@ -15946,7 +15955,7 @@ packages:
   swr@2.2.4:
     resolution: {integrity: sha512-njiZ/4RiIhoOlAaLYDqwz5qH/KZXVilRLvomrx83HjzCWTfa+InyfAjv05PSFxnmLzZkNO9ZfvgoqzAaEI4sGQ==}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
 
   symbol-observable@1.0.1:
     resolution: {integrity: sha512-Kb3PrPYz4HanVF1LVGuAdW6LoVgIwjUYJGzFe7NDrBLCN4lsV/5J0MFurV+ygS4bRVwrCEt2c7MQ1R2a72oJDw==}
@@ -16745,8 +16754,8 @@ packages:
     resolution: {integrity: sha512-elOQwe6Q8gqZgDA8mrh44qRTQqpIHDcZ3hXTLjBe1i4ph8XpNJnO+aQf3NaG+lriLopI4HMx9VjQLfPQ6vhnoA==}
     engines: {node: '>=10'}
     peerDependencies:
-      '@types/react': 19.0.8
-      react: 19.2.0-canary-c44e4a25-20250409
+      '@types/react': ^19.1.1
+      react: 19.2.0-canary-4a36d3ea-20250416
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -16754,13 +16763,13 @@ packages:
   use-composed-ref@1.3.0:
     resolution: {integrity: sha512-GLMG0Jc/jiKov/3Ulid1wbv3r54K9HlMW29IWcDFPEqFkSO2nS0MuefWgMJpeHQ9YJeXDL3ZUF+P3jdXlZX/cQ==}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
 
   use-isomorphic-layout-effect@1.1.2:
     resolution: {integrity: sha512-49L8yCO3iGT/ZF9QttjwLF/ZD9Iwto5LnH5LmEdk/6cFmXddqi2ulF0edxTwjj+7mqvpVVGQWvbXZdn32wRSHA==}
     peerDependencies:
       '@types/react': '*'
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -16769,7 +16778,7 @@ packages:
     resolution: {integrity: sha512-xA+AVm/Wlg3e2P/JiItTziwS7FK92LWrDB0p+hgXloIMuVCeJJ8v6f0eeHyPZaJrM+usM1FkFfbNCrJGs8A/zw==}
     peerDependencies:
       '@types/react': '*'
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -16778,8 +16787,8 @@ packages:
     resolution: {integrity: sha512-epTbsLuzZ7lPClpz2TyryBfztm7m+28DlEv2ZCQ3MDr5ssiwyOwGH/e5F9CkfWjJ1t4clvI58yF822/GUkjjhw==}
     engines: {node: '>=10'}
     peerDependencies:
-      '@types/react': 19.0.8
-      react: 19.2.0-canary-c44e4a25-20250409
+      '@types/react': ^19.1.1
+      react: 19.2.0-canary-4a36d3ea-20250416
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -16787,7 +16796,7 @@ packages:
   use-sync-external-store@1.2.0:
     resolution: {integrity: sha512-eEgnFxGQ1Ife9bzYs6VLi8/4X6CObHMw9Qr9tPY43iKwsPw8xE8+EFsf/2cFZ5S3esXgpWgtSCtLNS41F+sKPA==}
     peerDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
 
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
@@ -19576,19 +19585,19 @@ snapshots:
 
   '@emotion/memoize@0.8.1': {}
 
-  '@emotion/react@11.11.1(@types/react@19.0.8)(react@19.2.0-canary-c44e4a25-20250409)':
+  '@emotion/react@11.11.1(@types/react@19.1.1)(react@19.2.0-canary-4a36d3ea-20250416)':
     dependencies:
       '@babel/runtime': 7.22.5
       '@emotion/babel-plugin': 11.11.0
       '@emotion/cache': 11.11.0
       '@emotion/serialize': 1.1.2
-      '@emotion/use-insertion-effect-with-fallbacks': 1.0.1(react@19.2.0-canary-c44e4a25-20250409)
+      '@emotion/use-insertion-effect-with-fallbacks': 1.0.1(react@19.2.0-canary-4a36d3ea-20250416)
       '@emotion/utils': 1.2.1
       '@emotion/weak-memoize': 0.3.1
       hoist-non-react-statics: 3.3.2
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
     optionalDependencies:
-      '@types/react': 19.0.8
+      '@types/react': 19.1.1
     transitivePeerDependencies:
       - supports-color
 
@@ -19604,9 +19613,9 @@ snapshots:
 
   '@emotion/unitless@0.8.1': {}
 
-  '@emotion/use-insertion-effect-with-fallbacks@1.0.1(react@19.2.0-canary-c44e4a25-20250409)':
+  '@emotion/use-insertion-effect-with-fallbacks@1.0.1(react@19.2.0-canary-4a36d3ea-20250416)':
     dependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
 
   '@emotion/utils@1.2.1': {}
 
@@ -21171,7 +21180,7 @@ snapshots:
     dependencies:
       call-bind: 1.0.7
 
-  '@mantine/core@7.10.1(@mantine/hooks@7.11.2(react@19.2.0-canary-c44e4a25-20250409))(@types/react@19.0.8)(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)':
+  '@mantine/core@7.10.1(@mantine/hooks@7.11.2(react@19.2.0-canary-c44e4a25-20250409))(@types/react@19.1.1)(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)':
     dependencies:
       '@floating-ui/react': 0.26.16(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)
       '@mantine/hooks': 7.11.2(react@19.2.0-canary-c44e4a25-20250409)
@@ -21179,8 +21188,8 @@ snapshots:
       react: 19.2.0-canary-c44e4a25-20250409
       react-dom: 19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409)
       react-number-format: 5.4.0(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)
-      react-remove-scroll: 2.5.10(@types/react@19.0.8)(react@19.2.0-canary-c44e4a25-20250409)
-      react-textarea-autosize: 8.5.3(@types/react@19.0.8)(react@19.2.0-canary-c44e4a25-20250409)
+      react-remove-scroll: 2.5.10(@types/react@19.1.1)(react@19.2.0-canary-c44e4a25-20250409)
+      react-textarea-autosize: 8.5.3(@types/react@19.1.1)(react@19.2.0-canary-c44e4a25-20250409)
       type-fest: 4.18.3
     transitivePeerDependencies:
       - '@types/react'
@@ -21234,17 +21243,23 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@mdx-js/react@2.2.1(react@19.2.0-canary-4a36d3ea-20250416)':
+    dependencies:
+      '@types/mdx': 2.0.3
+      '@types/react': 19.1.1
+      react: 19.2.0-canary-4a36d3ea-20250416
+
   '@mdx-js/react@2.2.1(react@19.2.0-canary-c44e4a25-20250409)':
     dependencies:
       '@types/mdx': 2.0.3
-      '@types/react': 19.0.8
+      '@types/react': 19.1.1
       react: 19.2.0-canary-c44e4a25-20250409
 
-  '@mdx-js/react@3.1.0(@types/react@19.0.8)(react@19.2.0-canary-c44e4a25-20250409)':
+  '@mdx-js/react@3.1.0(@types/react@19.1.1)(react@19.2.0-canary-4a36d3ea-20250416)':
     dependencies:
       '@types/mdx': 2.0.3
-      '@types/react': 19.0.8
-      react: 19.2.0-canary-c44e4a25-20250409
+      '@types/react': 19.1.1
+      react: 19.2.0-canary-4a36d3ea-20250416
 
   '@module-federation/error-codes@0.11.2': {}
 
@@ -21967,25 +21982,25 @@ snapshots:
       storybook: 8.6.0(prettier@3.3.3)
       ts-dedent: 2.2.0
 
-  '@storybook/addon-docs@8.6.0(@types/react@19.0.8)(storybook@8.6.0(prettier@3.3.3))':
+  '@storybook/addon-docs@8.6.0(@types/react@19.1.1)(storybook@8.6.0(prettier@3.3.3))':
     dependencies:
-      '@mdx-js/react': 3.1.0(@types/react@19.0.8)(react@19.2.0-canary-c44e4a25-20250409)
-      '@storybook/blocks': 8.6.0(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)(storybook@8.6.0(prettier@3.3.3))
+      '@mdx-js/react': 3.1.0(@types/react@19.1.1)(react@19.2.0-canary-4a36d3ea-20250416)
+      '@storybook/blocks': 8.6.0(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)(storybook@8.6.0(prettier@3.3.3))
       '@storybook/csf-plugin': 8.6.0(storybook@8.6.0(prettier@3.3.3))
-      '@storybook/react-dom-shim': 8.6.0(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)(storybook@8.6.0(prettier@3.3.3))
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409)
+      '@storybook/react-dom-shim': 8.6.0(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)(storybook@8.6.0(prettier@3.3.3))
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416)
       storybook: 8.6.0(prettier@3.3.3)
       ts-dedent: 2.2.0
     transitivePeerDependencies:
       - '@types/react'
 
-  '@storybook/addon-essentials@8.6.0(@types/react@19.0.8)(storybook@8.6.0(prettier@3.3.3))':
+  '@storybook/addon-essentials@8.6.0(@types/react@19.1.1)(storybook@8.6.0(prettier@3.3.3))':
     dependencies:
       '@storybook/addon-actions': 8.6.0(storybook@8.6.0(prettier@3.3.3))
       '@storybook/addon-backgrounds': 8.6.0(storybook@8.6.0(prettier@3.3.3))
       '@storybook/addon-controls': 8.6.0(storybook@8.6.0(prettier@3.3.3))
-      '@storybook/addon-docs': 8.6.0(@types/react@19.0.8)(storybook@8.6.0(prettier@3.3.3))
+      '@storybook/addon-docs': 8.6.0(@types/react@19.1.1)(storybook@8.6.0(prettier@3.3.3))
       '@storybook/addon-highlight': 8.6.0(storybook@8.6.0(prettier@3.3.3))
       '@storybook/addon-measure': 8.6.0(storybook@8.6.0(prettier@3.3.3))
       '@storybook/addon-outline': 8.6.0(storybook@8.6.0(prettier@3.3.3))
@@ -22039,14 +22054,14 @@ snapshots:
       - '@swc/helpers'
       - webpack
 
-  '@storybook/blocks@8.6.0(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)(storybook@8.6.0(prettier@3.3.3))':
+  '@storybook/blocks@8.6.0(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)(storybook@8.6.0(prettier@3.3.3))':
     dependencies:
-      '@storybook/icons': 1.3.0(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)
+      '@storybook/icons': 1.3.0(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)
       storybook: 8.6.0(prettier@3.3.3)
       ts-dedent: 2.2.0
     optionalDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409)
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416)
 
   '@storybook/builder-webpack5@8.6.0(@rspack/core@1.3.4(@swc/helpers@0.5.15))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)':
     dependencies:
@@ -22125,10 +22140,10 @@ snapshots:
 
   '@storybook/global@5.0.0': {}
 
-  '@storybook/icons@1.3.0(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)':
+  '@storybook/icons@1.3.0(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)':
     dependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409)
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416)
 
   '@storybook/instrumenter@8.6.0(storybook@8.6.0(prettier@3.3.3))':
     dependencies:
@@ -22140,17 +22155,17 @@ snapshots:
     dependencies:
       storybook: 8.6.0(prettier@3.3.3)
 
-  '@storybook/preset-react-webpack@8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)':
+  '@storybook/preset-react-webpack@8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)':
     dependencies:
       '@storybook/core-webpack': 8.6.0(storybook@8.6.0(prettier@3.3.3))
-      '@storybook/react': 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)
+      '@storybook/react': 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)
       '@storybook/react-docgen-typescript-plugin': 1.0.6--canary.9.0c3f3b7.0(typescript@5.8.2)(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2))
       '@types/semver': 7.5.6
       find-up: 5.0.0
       magic-string: 0.30.17
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
       react-docgen: 7.1.0
-      react-dom: 19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409)
+      react-dom: 19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416)
       resolve: 1.22.8
       semver: 7.6.3
       storybook: 8.6.0(prettier@3.3.3)
@@ -22184,19 +22199,19 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@storybook/react-dom-shim@8.6.0(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)(storybook@8.6.0(prettier@3.3.3))':
+  '@storybook/react-dom-shim@8.6.0(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)(storybook@8.6.0(prettier@3.3.3))':
     dependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409)
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416)
       storybook: 8.6.0(prettier@3.3.3)
 
-  '@storybook/react-webpack5@8.6.0(@rspack/core@1.3.4(@swc/helpers@0.5.15))(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)':
+  '@storybook/react-webpack5@8.6.0(@rspack/core@1.3.4(@swc/helpers@0.5.15))(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)':
     dependencies:
       '@storybook/builder-webpack5': 8.6.0(@rspack/core@1.3.4(@swc/helpers@0.5.15))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)
-      '@storybook/preset-react-webpack': 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)
-      '@storybook/react': 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409)
+      '@storybook/preset-react-webpack': 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)
+      '@storybook/react': 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416)
       storybook: 8.6.0(prettier@3.3.3)
     optionalDependencies:
       typescript: 5.8.2
@@ -22209,16 +22224,16 @@ snapshots:
       - uglify-js
       - webpack-cli
 
-  '@storybook/react@8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)':
+  '@storybook/react@8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)':
     dependencies:
       '@storybook/components': 8.6.0(storybook@8.6.0(prettier@3.3.3))
       '@storybook/global': 5.0.0
       '@storybook/manager-api': 8.6.0(storybook@8.6.0(prettier@3.3.3))
       '@storybook/preview-api': 8.6.0(storybook@8.6.0(prettier@3.3.3))
-      '@storybook/react-dom-shim': 8.6.0(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)(storybook@8.6.0(prettier@3.3.3))
+      '@storybook/react-dom-shim': 8.6.0(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)(storybook@8.6.0(prettier@3.3.3))
       '@storybook/theming': 8.6.0(storybook@8.6.0(prettier@3.3.3))
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409)
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416)
       storybook: 8.6.0(prettier@3.3.3)
     optionalDependencies:
       '@storybook/test': 8.6.0(storybook@8.6.0(prettier@3.3.3))
@@ -22492,15 +22507,15 @@ snapshots:
       lodash: 4.17.21
       redent: 3.0.0
 
-  '@testing-library/react@15.0.7(@types/react@19.0.8)(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)':
+  '@testing-library/react@15.0.7(@types/react@19.1.1)(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)':
     dependencies:
       '@babel/runtime': 7.22.5
       '@testing-library/dom': 10.1.0
-      '@types/react-dom': 19.0.3(@types/react@19.0.8)
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409)
+      '@types/react-dom': 19.1.2(@types/react@19.1.1)
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416)
     optionalDependencies:
-      '@types/react': 19.0.8
+      '@types/react': 19.1.1
 
   '@testing-library/user-event@14.5.2(@testing-library/dom@10.4.0)':
     dependencies:
@@ -22865,15 +22880,15 @@ snapshots:
 
   '@types/range-parser@1.2.3': {}
 
-  '@types/react-dom@19.0.3(@types/react@19.0.8)':
+  '@types/react-dom@19.1.2(@types/react@19.1.1)':
     dependencies:
-      '@types/react': 19.0.8
+      '@types/react': 19.1.1
 
   '@types/react-is@18.2.4':
     dependencies:
-      '@types/react': 19.0.8
+      '@types/react': 19.1.1
 
-  '@types/react@19.0.8':
+  '@types/react@19.1.1':
     dependencies:
       csstype: 3.1.2
 
@@ -28245,7 +28260,7 @@ snapshots:
 
   hoist-non-react-statics@3.3.2:
     dependencies:
-      react-is: 19.2.0-canary-c44e4a25-20250409
+      react-is: 19.2.0-canary-4a36d3ea-20250416
 
   homedir-polyfill@1.0.3:
     dependencies:
@@ -28514,7 +28529,7 @@ snapshots:
 
   ignore@6.0.2: {}
 
-  image-size@1.1.1:
+  image-size@1.2.1:
     dependencies:
       queue: 6.0.2
 
@@ -33150,25 +33165,25 @@ snapshots:
     dependencies:
       ansi-regex: 5.0.1
       ansi-styles: 5.2.0
-      react-is: 19.2.0-canary-c44e4a25-20250409
+      react-is: 19.2.0-canary-4a36d3ea-20250416
 
   pretty-format@29.5.0:
     dependencies:
       '@jest/schemas': 29.4.3
       ansi-styles: 5.2.0
-      react-is: 19.2.0-canary-c44e4a25-20250409
+      react-is: 19.2.0-canary-4a36d3ea-20250416
 
   pretty-format@29.7.0:
     dependencies:
       '@jest/schemas': 29.6.3
       ansi-styles: 5.2.0
-      react-is: 19.2.0-canary-c44e4a25-20250409
+      react-is: 19.2.0-canary-4a36d3ea-20250416
 
   pretty-format@30.0.0-alpha.6:
     dependencies:
       '@jest/schemas': 30.0.0-alpha.6
       ansi-styles: 5.2.0
-      react-is: 19.2.0-canary-c44e4a25-20250409
+      react-is: 19.2.0-canary-4a36d3ea-20250416
 
   pretty-ms@7.0.0:
     dependencies:
@@ -33231,7 +33246,7 @@ snapshots:
     dependencies:
       loose-envify: 1.4.0
       object-assign: 4.1.1
-      react-is: 19.2.0-canary-c44e4a25-20250409
+      react-is: 19.2.0-canary-4a36d3ea-20250416
 
   property-information@5.6.0:
     dependencies:
@@ -33438,15 +33453,22 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  react-dom@0.0.0-experimental-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409):
+  react-dom@0.0.0-experimental-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416):
     dependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
-      scheduler: 0.27.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
+      scheduler: 0.27.0-canary-4a36d3ea-20250416
+
+  react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416):
+    dependencies:
+      react: 19.2.0-canary-4a36d3ea-20250416
+      scheduler: 0.27.0-canary-4a36d3ea-20250416
 
   react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409):
     dependencies:
       react: 19.2.0-canary-c44e4a25-20250409
-      scheduler: 0.27.0-canary-c44e4a25-20250409
+      scheduler: 0.27.0-canary-4a36d3ea-20250416
+
+  react-is@19.2.0-canary-4a36d3ea-20250416: {}
 
   react-is@19.2.0-canary-c44e4a25-20250409: {}
 
@@ -33460,106 +33482,108 @@ snapshots:
 
   react-refresh@0.12.0: {}
 
-  react-remove-scroll-bar@2.3.6(@types/react@19.0.8)(react@19.2.0-canary-c44e4a25-20250409):
+  react-remove-scroll-bar@2.3.6(@types/react@19.1.1)(react@19.2.0-canary-c44e4a25-20250409):
     dependencies:
       react: 19.2.0-canary-c44e4a25-20250409
-      react-style-singleton: 2.2.1(@types/react@19.0.8)(react@19.2.0-canary-c44e4a25-20250409)
+      react-style-singleton: 2.2.1(@types/react@19.1.1)(react@19.2.0-canary-c44e4a25-20250409)
       tslib: 2.8.1
     optionalDependencies:
-      '@types/react': 19.0.8
+      '@types/react': 19.1.1
 
-  react-remove-scroll@2.5.10(@types/react@19.0.8)(react@19.2.0-canary-c44e4a25-20250409):
+  react-remove-scroll@2.5.10(@types/react@19.1.1)(react@19.2.0-canary-c44e4a25-20250409):
     dependencies:
       react: 19.2.0-canary-c44e4a25-20250409
-      react-remove-scroll-bar: 2.3.6(@types/react@19.0.8)(react@19.2.0-canary-c44e4a25-20250409)
-      react-style-singleton: 2.2.1(@types/react@19.0.8)(react@19.2.0-canary-c44e4a25-20250409)
+      react-remove-scroll-bar: 2.3.6(@types/react@19.1.1)(react@19.2.0-canary-c44e4a25-20250409)
+      react-style-singleton: 2.2.1(@types/react@19.1.1)(react@19.2.0-canary-c44e4a25-20250409)
       tslib: 2.8.1
-      use-callback-ref: 1.3.2(@types/react@19.0.8)(react@19.2.0-canary-c44e4a25-20250409)
-      use-sidecar: 1.1.2(@types/react@19.0.8)(react@19.2.0-canary-c44e4a25-20250409)
+      use-callback-ref: 1.3.2(@types/react@19.1.1)(react@19.2.0-canary-c44e4a25-20250409)
+      use-sidecar: 1.1.2(@types/react@19.1.1)(react@19.2.0-canary-c44e4a25-20250409)
     optionalDependencies:
-      '@types/react': 19.0.8
+      '@types/react': 19.1.1
 
-  react-server-dom-turbopack@0.0.0-experimental-c44e4a25-20250409(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409):
+  react-server-dom-turbopack@0.0.0-experimental-4a36d3ea-20250416(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416):
     dependencies:
       acorn-loose: 8.3.0
       neo-async: 2.6.1
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409)
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416)
 
-  react-server-dom-turbopack@19.2.0-canary-c44e4a25-20250409(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409):
+  react-server-dom-turbopack@19.2.0-canary-4a36d3ea-20250416(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416):
     dependencies:
       acorn-loose: 8.3.0
       neo-async: 2.6.1
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409)
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416)
 
-  react-server-dom-webpack@0.0.0-experimental-c44e4a25-20250409(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))):
+  react-server-dom-webpack@0.0.0-experimental-4a36d3ea-20250416(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))):
     dependencies:
       acorn-loose: 8.3.0
       neo-async: 2.6.1
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409)
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416)
       webpack: 5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))
       webpack-sources: 3.2.3(patch_hash=jbynf5dc46ambamq3wuyho6hkq)
 
-  react-server-dom-webpack@19.2.0-canary-c44e4a25-20250409(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409)(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))):
+  react-server-dom-webpack@19.2.0-canary-4a36d3ea-20250416(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416)(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))):
     dependencies:
       acorn-loose: 8.3.0
       neo-async: 2.6.1
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409)
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416)
       webpack: 5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))
       webpack-sources: 3.2.3(patch_hash=jbynf5dc46ambamq3wuyho6hkq)
 
-  react-shallow-renderer@16.15.0(react@19.2.0-canary-c44e4a25-20250409):
+  react-shallow-renderer@16.15.0(react@19.2.0-canary-4a36d3ea-20250416):
     dependencies:
       object-assign: 4.1.1
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-is: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-is: 19.2.0-canary-4a36d3ea-20250416
 
-  react-ssr-prepass@1.0.8(react-is@19.2.0-canary-c44e4a25-20250409)(react@19.2.0-canary-c44e4a25-20250409):
+  react-ssr-prepass@1.0.8(react-is@19.2.0-canary-c44e4a25-20250409)(react@19.2.0-canary-4a36d3ea-20250416):
     dependencies:
       object-is: 1.0.2
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
       react-is: 19.2.0-canary-c44e4a25-20250409
 
-  react-style-singleton@2.2.1(@types/react@19.0.8)(react@19.2.0-canary-c44e4a25-20250409):
+  react-style-singleton@2.2.1(@types/react@19.1.1)(react@19.2.0-canary-c44e4a25-20250409):
     dependencies:
       get-nonce: 1.0.1
       invariant: 2.2.4
       react: 19.2.0-canary-c44e4a25-20250409
       tslib: 2.8.1
     optionalDependencies:
-      '@types/react': 19.0.8
+      '@types/react': 19.1.1
 
-  react-test-renderer@18.2.0(react@19.2.0-canary-c44e4a25-20250409):
+  react-test-renderer@18.2.0(react@19.2.0-canary-4a36d3ea-20250416):
     dependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-is: 19.2.0-canary-c44e4a25-20250409
-      react-shallow-renderer: 16.15.0(react@19.2.0-canary-c44e4a25-20250409)
-      scheduler: 0.27.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-is: 19.2.0-canary-4a36d3ea-20250416
+      react-shallow-renderer: 16.15.0(react@19.2.0-canary-4a36d3ea-20250416)
+      scheduler: 0.27.0-canary-4a36d3ea-20250416
 
-  react-textarea-autosize@8.5.3(@types/react@19.0.8)(react@19.2.0-canary-c44e4a25-20250409):
+  react-textarea-autosize@8.5.3(@types/react@19.1.1)(react@19.2.0-canary-c44e4a25-20250409):
     dependencies:
       '@babel/runtime': 7.22.5
       react: 19.2.0-canary-c44e4a25-20250409
       use-composed-ref: 1.3.0(react@19.2.0-canary-c44e4a25-20250409)
-      use-latest: 1.2.1(@types/react@19.0.8)(react@19.2.0-canary-c44e4a25-20250409)
+      use-latest: 1.2.1(@types/react@19.1.1)(react@19.2.0-canary-c44e4a25-20250409)
     transitivePeerDependencies:
       - '@types/react'
 
-  react-virtualized@9.22.3(react-dom@19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409))(react@19.2.0-canary-c44e4a25-20250409):
+  react-virtualized@9.22.3(react-dom@19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416))(react@19.2.0-canary-4a36d3ea-20250416):
     dependencies:
       '@babel/runtime': 7.22.5
       clsx: 1.1.1
       dom-helpers: 5.2.1
       loose-envify: 1.4.0
       prop-types: 15.8.1
-      react: 19.2.0-canary-c44e4a25-20250409
-      react-dom: 19.2.0-canary-c44e4a25-20250409(react@19.2.0-canary-c44e4a25-20250409)
+      react: 19.2.0-canary-4a36d3ea-20250416
+      react-dom: 19.2.0-canary-4a36d3ea-20250416(react@19.2.0-canary-4a36d3ea-20250416)
       react-lifecycles-compat: 3.0.4
 
-  react@0.0.0-experimental-c44e4a25-20250409: {}
+  react@0.0.0-experimental-4a36d3ea-20250416: {}
+
+  react@19.2.0-canary-4a36d3ea-20250416: {}
 
   react@19.2.0-canary-c44e4a25-20250409: {}
 
@@ -34327,9 +34351,9 @@ snapshots:
     dependencies:
       xmlchars: 2.2.0
 
-  scheduler@0.0.0-experimental-c44e4a25-20250409: {}
+  scheduler@0.0.0-experimental-4a36d3ea-20250416: {}
 
-  scheduler@0.27.0-canary-c44e4a25-20250409: {}
+  scheduler@0.27.0-canary-4a36d3ea-20250416: {}
 
   schema-utils@2.7.1:
     dependencies:
@@ -35091,10 +35115,10 @@ snapshots:
       postcss: 7.0.32
       postcss-load-plugins: 2.3.0
 
-  styled-jsx@5.1.6(@babel/core@7.22.5)(babel-plugin-macros@3.1.0)(react@19.2.0-canary-c44e4a25-20250409):
+  styled-jsx@5.1.6(@babel/core@7.22.5)(babel-plugin-macros@3.1.0)(react@19.2.0-canary-4a36d3ea-20250416):
     dependencies:
       client-only: 0.0.1
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
     optionalDependencies:
       '@babel/core': 7.22.5
       babel-plugin-macros: 3.1.0
@@ -35190,11 +35214,11 @@ snapshots:
       '@swc/counter': 0.1.3
       webpack: 5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)
 
-  swr@2.2.4(react@19.2.0-canary-c44e4a25-20250409):
+  swr@2.2.4(react@19.2.0-canary-4a36d3ea-20250416):
     dependencies:
       client-only: 0.0.1
-      react: 19.2.0-canary-c44e4a25-20250409
-      use-sync-external-store: 1.2.0(react@19.2.0-canary-c44e4a25-20250409)
+      react: 19.2.0-canary-4a36d3ea-20250416
+      use-sync-external-store: 1.2.0(react@19.2.0-canary-4a36d3ea-20250416)
 
   symbol-observable@1.0.1: {}
 
@@ -35996,9 +36020,9 @@ snapshots:
       unist-util-is: 6.0.0
       unist-util-visit-parents: 6.0.1
 
-  unistore@3.4.1(react@19.2.0-canary-c44e4a25-20250409):
+  unistore@3.4.1(react@19.2.0-canary-4a36d3ea-20250416):
     optionalDependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
 
   universal-github-app-jwt@1.1.1:
     dependencies:
@@ -36092,41 +36116,41 @@ snapshots:
       punycode: 1.4.1
       qs: 6.13.1
 
-  use-callback-ref@1.3.2(@types/react@19.0.8)(react@19.2.0-canary-c44e4a25-20250409):
+  use-callback-ref@1.3.2(@types/react@19.1.1)(react@19.2.0-canary-c44e4a25-20250409):
     dependencies:
       react: 19.2.0-canary-c44e4a25-20250409
       tslib: 2.8.1
     optionalDependencies:
-      '@types/react': 19.0.8
+      '@types/react': 19.1.1
 
   use-composed-ref@1.3.0(react@19.2.0-canary-c44e4a25-20250409):
     dependencies:
       react: 19.2.0-canary-c44e4a25-20250409
 
-  use-isomorphic-layout-effect@1.1.2(@types/react@19.0.8)(react@19.2.0-canary-c44e4a25-20250409):
+  use-isomorphic-layout-effect@1.1.2(@types/react@19.1.1)(react@19.2.0-canary-c44e4a25-20250409):
     dependencies:
       react: 19.2.0-canary-c44e4a25-20250409
     optionalDependencies:
-      '@types/react': 19.0.8
+      '@types/react': 19.1.1
 
-  use-latest@1.2.1(@types/react@19.0.8)(react@19.2.0-canary-c44e4a25-20250409):
+  use-latest@1.2.1(@types/react@19.1.1)(react@19.2.0-canary-c44e4a25-20250409):
     dependencies:
       react: 19.2.0-canary-c44e4a25-20250409
-      use-isomorphic-layout-effect: 1.1.2(@types/react@19.0.8)(react@19.2.0-canary-c44e4a25-20250409)
+      use-isomorphic-layout-effect: 1.1.2(@types/react@19.1.1)(react@19.2.0-canary-c44e4a25-20250409)
     optionalDependencies:
-      '@types/react': 19.0.8
+      '@types/react': 19.1.1
 
-  use-sidecar@1.1.2(@types/react@19.0.8)(react@19.2.0-canary-c44e4a25-20250409):
+  use-sidecar@1.1.2(@types/react@19.1.1)(react@19.2.0-canary-c44e4a25-20250409):
     dependencies:
       detect-node-es: 1.1.0
       react: 19.2.0-canary-c44e4a25-20250409
       tslib: 2.8.1
     optionalDependencies:
-      '@types/react': 19.0.8
+      '@types/react': 19.1.1
 
-  use-sync-external-store@1.2.0(react@19.2.0-canary-c44e4a25-20250409):
+  use-sync-external-store@1.2.0(react@19.2.0-canary-4a36d3ea-20250416):
     dependencies:
-      react: 19.2.0-canary-c44e4a25-20250409
+      react: 19.2.0-canary-4a36d3ea-20250416
 
   util-deprecate@1.0.2: {}
 

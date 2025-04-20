@@ -1,10 +1,10 @@
 mod dynamic_storage;
 mod operation;
-mod persisted_storage_log;
 mod storage;
 
 use std::{
     borrow::Cow,
+    fmt::{self, Write},
     future::Future,
     hash::BuildHasherDefault,
     mem::take,
@@ -18,9 +18,10 @@ use std::{
 
 use anyhow::{bail, Result};
 use auto_hash_map::{AutoMap, AutoSet};
+use indexmap::IndexSet;
 use parking_lot::{Condvar, Mutex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
-use smallvec::smallvec;
+use smallvec::{smallvec, SmallVec};
 use tokio::time::{Duration, Instant};
 use turbo_tasks::{
     backend::{
@@ -28,11 +29,12 @@ use turbo_tasks::{
         TransientTaskType, TypedCellContent,
     },
     event::{Event, EventListener},
-    registry,
+    registry::{self, get_value_type_global_name},
     task_statistics::TaskStatisticsApi,
+    trace::TraceRawVcs,
     util::IdFactoryWithReuse,
-    CellId, FunctionId, FxDashMap, RawVc, ReadCellOptions, ReadConsistency, SessionId, TaskId,
-    TraitTypeId, TurboTasksBackendApi, ValueTypeId, TRANSIENT_TASK_BIT,
+    CellId, FunctionId, FxDashMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency,
+    SessionId, TaskId, TraitTypeId, TurboTasksBackendApi, ValueTypeId, TRANSIENT_TASK_BIT,
 };
 
 pub use self::{operation::AnyOperation, storage::TaskDataCategory};
@@ -46,17 +48,21 @@ use crate::{
             CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
             Operation, OutdatedEdge, TaskGuard,
         },
-        persisted_storage_log::PersistedStorageLog,
-        storage::{get, get_many, get_mut, get_mut_or_insert_with, iter_many, remove, Storage},
+        storage::{
+            get, get_many, get_mut, get_mut_or_insert_with, iter_many, remove,
+            InnerStorageSnapshot, Storage,
+        },
     },
     backing_storage::BackingStorage,
     data::{
         ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
-        CachedDataItemValue, CachedDataItemValueRef, CachedDataUpdate, CellRef, CollectibleRef,
-        CollectiblesRef, DirtyState, InProgressCellState, InProgressState, InProgressStateInner,
-        OutputValue, RootType,
+        CachedDataItemValue, CachedDataItemValueRef, CellRef, CollectibleRef, CollectiblesRef,
+        DirtyState, InProgressCellState, InProgressState, InProgressStateInner, OutputValue,
+        RootType,
     },
-    utils::{bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc, sharded::Sharded},
+    utils::{
+        bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc, sharded::Sharded, swap_retain,
+    },
 };
 
 const BACKEND_JOB_INITIAL_SNAPSHOT: BackendJobId = unsafe { BackendJobId::new_unchecked(1) };
@@ -160,8 +166,6 @@ struct TurboTasksBackendInner<B: BackingStorage> {
     task_cache: BiMap<Arc<CachedTaskType>, TaskId>,
     transient_tasks: FxDashMap<TaskId, Arc<TransientTask>>,
 
-    persisted_storage_data_log: Option<PersistedStorageLog>,
-    persisted_storage_meta_log: Option<PersistedStorageLog>,
     storage: Storage,
 
     /// Number of executing operations + Highest bit is set when snapshot is
@@ -224,8 +228,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             persisted_task_cache_log: need_log.then(|| Sharded::new(shard_amount)),
             task_cache: BiMap::new(),
             transient_tasks: FxDashMap::default(),
-            persisted_storage_data_log: need_log.then(|| PersistedStorageLog::new(shard_amount)),
-            persisted_storage_meta_log: need_log.then(|| PersistedStorageLog::new(shard_amount)),
             storage: Storage::new(),
             in_progress_operations: AtomicUsize::new(0),
             snapshot_request: Mutex::new(SnapshotRequest::new()),
@@ -330,15 +332,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
     }
 
-    fn persisted_storage_log(&self, category: TaskDataCategory) -> Option<&PersistedStorageLog> {
-        match category {
-            TaskDataCategory::Data => &self.persisted_storage_data_log,
-            TaskDataCategory::Meta => &self.persisted_storage_meta_log,
-            TaskDataCategory::All => unreachable!(),
-        }
-        .as_ref()
-    }
-
     fn should_persist(&self) -> bool {
         matches!(self.options.storage_mode, Some(StorageMode::ReadWrite))
     }
@@ -424,6 +417,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         consistency: ReadConsistency,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<Result<RawVc, EventListener>> {
+        if let Some(reader) = reader {
+            self.assert_not_persistent_calling_transient(reader, task_id, /* cell_id */ None);
+        }
+
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
 
@@ -622,6 +619,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
+        if let Some(reader) = reader {
+            self.assert_not_persistent_calling_transient(reader, task_id, Some(cell));
+        }
+
         fn add_cell_dependency<B: BackingStorage>(
             backend: &TurboTasksBackendInner<B>,
             mut task: impl TaskGuard,
@@ -816,16 +817,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             .map(|op| op.arc().clone())
             .collect::<Vec<_>>();
         drop(snapshot_request);
-        fn take_from_log(log: &Option<PersistedStorageLog>) -> Vec<ChunkedVec<CachedDataUpdate>> {
-            log.as_ref().map(|l| l.take()).unwrap_or_default()
-        }
-        let persisted_storage_meta_log = take_from_log(&self.persisted_storage_meta_log);
-        let persisted_storage_data_log = take_from_log(&self.persisted_storage_data_log);
-        let persisted_task_cache_log = self
+        let mut persisted_task_cache_log = self
             .persisted_task_cache_log
             .as_ref()
             .map(|l| l.take(|i| i))
             .unwrap_or_default();
+        self.storage.start_snapshot();
         let mut snapshot_request = self.snapshot_request.lock();
         snapshot_request.snapshot_requested = false;
         self.in_progress_operations
@@ -834,49 +831,130 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let snapshot_time = Instant::now();
         drop(snapshot_request);
 
-        // TODO track which items are persisting
-        // TODO This is very inefficient, maybe the BackingStorage could compute that since it need
-        // to iterate items anyway.
-        // let mut counts: FxHashMap<TaskId, u32> =
-        // FxHashMap::with_capacity_and_hasher(); for log in persisted_storage_meta_log
-        //     .iter()
-        //     .chain(persisted_storage_data_log.iter())
-        // {
-        //     for CachedDataUpdate { task, .. } in log.iter() {
-        //         *counts.entry(*task).or_default() += 1;
-        //     }
-        // }
+        let preprocess = |task_id: TaskId, inner: &storage::InnerStorage| {
+            if task_id.is_transient() {
+                return (None, None);
+            }
+            let len = inner.len();
+            let mut meta = Vec::with_capacity(len);
+            let mut data = Vec::with_capacity(len);
+            for (key, value) in inner.iter_all() {
+                if key.is_persistent() && value.is_persistent() {
+                    match key.category() {
+                        TaskDataCategory::Meta => {
+                            meta.push(CachedDataItem::from_key_and_value_ref(key, value))
+                        }
+                        TaskDataCategory::Data => {
+                            data.push(CachedDataItem::from_key_and_value_ref(key, value))
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
+            (
+                inner.state().meta_restored().then_some(meta),
+                inner.state().data_restored().then_some(data),
+            )
+        };
+        let process = |task_id: TaskId, (meta, data): (Option<Vec<_>>, Option<Vec<_>>)| {
+            (
+                task_id,
+                meta.map(|d| B::serialize(task_id, &d)),
+                data.map(|d| B::serialize(task_id, &d)),
+            )
+        };
+        let process_snapshot = |task_id: TaskId, inner: Box<InnerStorageSnapshot>| {
+            if task_id.is_transient() {
+                return (task_id, None, None);
+            }
+            let len = inner.len();
+            let mut meta = Vec::with_capacity(len);
+            let mut data = Vec::with_capacity(len);
+            for (key, value) in inner.iter_all() {
+                if key.is_persistent() && value.is_persistent() {
+                    match key.category() {
+                        TaskDataCategory::Meta => {
+                            meta.push(CachedDataItem::from_key_and_value_ref(key, value))
+                        }
+                        TaskDataCategory::Data => {
+                            data.push(CachedDataItem::from_key_and_value_ref(key, value))
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            (
+                task_id,
+                inner.meta_restored.then(|| B::serialize(task_id, &meta)),
+                inner.data_restored.then(|| B::serialize(task_id, &data)),
+            )
+        };
+
+        let snapshot = {
+            let _span = tracing::trace_span!("take snapshot");
+            self.storage
+                .take_snapshot(&preprocess, &process, &process_snapshot)
+        };
+
+        let task_snapshots = snapshot
+            .into_iter()
+            .filter_map(|iter| {
+                let mut iter = iter
+                    .filter_map(
+                        |(task_id, meta, data): (
+                            _,
+                            Option<Result<SmallVec<_>>>,
+                            Option<Result<SmallVec<_>>>,
+                        )| {
+                            let meta = match meta {
+                                Some(Ok(meta)) => Some(meta),
+                                None => None,
+                                Some(Err(err)) => {
+                                    println!(
+                                        "Serializing task {} failed (meta): {:?}",
+                                        self.get_task_description(task_id),
+                                        err
+                                    );
+                                    None
+                                }
+                            };
+                            let data = match data {
+                                Some(Ok(data)) => Some(data),
+                                None => None,
+                                Some(Err(err)) => {
+                                    println!(
+                                        "Serializing task {} failed (data): {:?}",
+                                        self.get_task_description(task_id),
+                                        err
+                                    );
+                                    None
+                                }
+                            };
+                            (meta.is_some() || data.is_some()).then_some((task_id, meta, data))
+                        },
+                    )
+                    .peekable();
+                iter.peek().is_some().then_some(iter)
+            })
+            .collect::<Vec<_>>();
+
+        swap_retain(&mut persisted_task_cache_log, |shard| !shard.is_empty());
 
         let mut new_items = false;
 
-        fn shards_empty<T>(shards: &[ChunkedVec<T>]) -> bool {
-            shards.iter().all(|shard| shard.is_empty())
-        }
-
-        if !shards_empty(&persisted_task_cache_log)
-            || !shards_empty(&persisted_storage_meta_log)
-            || !shards_empty(&persisted_storage_data_log)
-        {
+        if !persisted_task_cache_log.is_empty() || !task_snapshots.is_empty() {
             new_items = true;
             if let Err(err) = self.backing_storage.save_snapshot(
                 self.session_id,
                 suspended_operations,
                 persisted_task_cache_log,
-                persisted_storage_meta_log,
-                persisted_storage_data_log,
+                task_snapshots,
             ) {
                 println!("Persisting failed: {:?}", err);
                 return None;
             }
         }
-
-        // TODO add when we need to track persisted items
-        // for (task_id, count) in counts {
-        //     self.storage
-        //         .access_mut(task_id)
-        //         .persistance_state_mut()
-        //         .finish_persisting_items(count);
-        // }
 
         Some((snapshot_time, new_items))
     }
@@ -979,11 +1057,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
         if !parent_task.is_transient() {
-            let parent_task_type = self.lookup_task_type(parent_task);
-            panic!(
-                "Calling transient function {} from persistent function {} is not allowed",
-                task_type.get_name(),
-                parent_task_type.map_or("unknown", |t| t.get_name())
+            self.panic_persistent_calling_transient(
+                self.lookup_task_type(parent_task).as_deref(),
+                Some(&task_type),
+                /* cell_id */ None,
             );
         }
         if let Some(task_id) = self.task_cache.lookup_forward(&task_type) {
@@ -1007,6 +1084,84 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         self.connect_child(parent_task, task_id, turbo_tasks);
 
         task_id
+    }
+
+    /// Generate an object that implements [`fmt::Display`] explaining why the given
+    /// [`CachedTaskType`] is transient.
+    fn debug_trace_transient_task(
+        &self,
+        task_type: &CachedTaskType,
+        cell_id: Option<CellId>,
+    ) -> DebugTraceTransientTask {
+        // it shouldn't be possible to have cycles in tasks, but we could have an exponential blowup
+        // from tracing the same task many times, so use a visited_set
+        fn inner_id(
+            backend: &TurboTasksBackendInner<impl BackingStorage>,
+            task_id: TaskId,
+            cell_type_id: Option<ValueTypeId>,
+            visited_set: &mut FxHashSet<TaskId>,
+        ) -> DebugTraceTransientTask {
+            if let Some(task_type) = backend.lookup_task_type(task_id) {
+                if visited_set.contains(&task_id) {
+                    let task_name = task_type.get_name();
+                    DebugTraceTransientTask::Collapsed {
+                        task_name,
+                        cell_type_id,
+                    }
+                } else {
+                    inner_cached(backend, &task_type, cell_type_id, visited_set)
+                }
+            } else {
+                DebugTraceTransientTask::Uncached { cell_type_id }
+            }
+        }
+        fn inner_cached(
+            backend: &TurboTasksBackendInner<impl BackingStorage>,
+            task_type: &CachedTaskType,
+            cell_type_id: Option<ValueTypeId>,
+            visited_set: &mut FxHashSet<TaskId>,
+        ) -> DebugTraceTransientTask {
+            let task_name = task_type.get_name();
+
+            let cause_self = task_type.this.and_then(|cause_self_raw_vc| {
+                let task_id = cause_self_raw_vc.get_task_id();
+                if task_id.is_transient() {
+                    Some(Box::new(inner_id(
+                        backend,
+                        cause_self_raw_vc.get_task_id(),
+                        cause_self_raw_vc.try_get_type_id(),
+                        visited_set,
+                    )))
+                } else {
+                    None
+                }
+            });
+            let cause_args = task_type
+                .arg
+                .get_raw_vcs()
+                .into_iter()
+                .map(|raw_vc| (raw_vc.get_task_id(), raw_vc.try_get_type_id()))
+                .filter(|(task_id, _)| task_id.is_transient())
+                .collect::<IndexSet<_>>() // dedupe
+                .into_iter()
+                .map(|(task_id, cell_type_id)| {
+                    inner_id(backend, task_id, cell_type_id, visited_set)
+                })
+                .collect();
+
+            DebugTraceTransientTask::Cached {
+                task_name,
+                cell_type_id,
+                cause_self,
+                cause_args,
+            }
+        }
+        inner_cached(
+            self,
+            task_type,
+            cell_id.map(|c| c.type_id),
+            &mut FxHashSet::default(),
+        )
     }
 
     fn invalidate_task(
@@ -1124,7 +1279,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
         {
             let mut ctx = self.execute_context(turbo_tasks);
-            let mut task = ctx.task(task_id, TaskDataCategory::Data);
+            let mut task = ctx.task(task_id, TaskDataCategory::All);
             let in_progress = remove!(task, InProgress)?;
             let InProgressState::Scheduled { done_event } = in_progress else {
                 task.add_new(CachedDataItem::InProgress { value: in_progress });
@@ -1984,6 +2139,43 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             root_state.all_clean_event.notify(usize::MAX);
         }
     }
+
+    fn assert_not_persistent_calling_transient(
+        &self,
+        parent_id: TaskId,
+        child_id: TaskId,
+        cell_id: Option<CellId>,
+    ) {
+        if !parent_id.is_transient() && child_id.is_transient() {
+            self.panic_persistent_calling_transient(
+                self.lookup_task_type(parent_id).as_deref(),
+                self.lookup_task_type(child_id).as_deref(),
+                cell_id,
+            );
+        }
+    }
+
+    fn panic_persistent_calling_transient(
+        &self,
+        parent: Option<&CachedTaskType>,
+        child: Option<&CachedTaskType>,
+        cell_id: Option<CellId>,
+    ) {
+        let transient_reason = if let Some(child) = child {
+            format!(
+                " The callee is transient because it depends on:\n{}",
+                self.debug_trace_transient_task(child, cell_id),
+            )
+        } else {
+            String::new()
+        };
+        panic!(
+            "Persistent task {} is not allowed to call or read transient tasks {}.{}",
+            parent.map_or("unknown", |t| t.get_name()),
+            child.map_or("unknown", |t| t.get_name()),
+            transient_reason,
+        );
+    }
 }
 
 impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
@@ -2258,6 +2450,92 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
 
     fn task_statistics(&self) -> &TaskStatisticsApi {
         &self.0.task_statistics
+    }
+}
+
+enum DebugTraceTransientTask {
+    Cached {
+        task_name: &'static str,
+        cell_type_id: Option<ValueTypeId>,
+        cause_self: Option<Box<DebugTraceTransientTask>>,
+        cause_args: Vec<DebugTraceTransientTask>,
+    },
+    /// This representation is used when this task is a duplicate of one previously shown
+    Collapsed {
+        task_name: &'static str,
+        cell_type_id: Option<ValueTypeId>,
+    },
+    Uncached {
+        cell_type_id: Option<ValueTypeId>,
+    },
+}
+
+impl DebugTraceTransientTask {
+    fn fmt_indented(&self, f: &mut fmt::Formatter<'_>, level: usize) -> fmt::Result {
+        let indent = "    ".repeat(level);
+        f.write_str(&indent)?;
+
+        fn fmt_cell_type_id(
+            f: &mut fmt::Formatter<'_>,
+            cell_type_id: Option<ValueTypeId>,
+        ) -> fmt::Result {
+            if let Some(ty) = cell_type_id {
+                write!(f, " (read cell of type {})", get_value_type_global_name(ty))
+            } else {
+                Ok(())
+            }
+        }
+
+        // write the name and type
+        match self {
+            Self::Cached {
+                task_name,
+                cell_type_id,
+                ..
+            }
+            | Self::Collapsed {
+                task_name,
+                cell_type_id,
+                ..
+            } => {
+                f.write_str(task_name)?;
+                fmt_cell_type_id(f, *cell_type_id)?;
+                if matches!(self, Self::Collapsed { .. }) {
+                    f.write_str(" (collapsed)")?;
+                }
+            }
+            Self::Uncached { cell_type_id } => {
+                f.write_str("unknown transient task")?;
+                fmt_cell_type_id(f, *cell_type_id)?;
+            }
+        }
+        f.write_char('\n')?;
+
+        // write any extra "cause" information we might have
+        if let Self::Cached {
+            cause_self,
+            cause_args,
+            ..
+        } = self
+        {
+            if let Some(c) = cause_self {
+                writeln!(f, "{indent}  self:")?;
+                c.fmt_indented(f, level + 1)?;
+            }
+            if !cause_args.is_empty() {
+                writeln!(f, "{indent}  args:")?;
+                for c in cause_args {
+                    c.fmt_indented(f, level + 1)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+impl fmt::Display for DebugTraceTransientTask {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.fmt_indented(f, 0)
     }
 }
 

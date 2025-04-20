@@ -411,19 +411,11 @@ module.exports = {
 }
 ```
 
-### Rewrites with i18n support
-
-<AppOnly>
-
-When leveraging [`i18n` support](/docs/app/building-your-application/routing/internationalization) with rewrites each `source` and `destination` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the rewrite. If `locale: false` is used you must prefix the `source` and `destination` with a locale for it to be matched correctly.
-
-</AppOnly>
-
 <PagesOnly>
 
-When leveraging [`i18n` support](/docs/pages/building-your-application/routing/internationalization) with rewrites each `source` and `destination` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the rewrite. If `locale: false` is used you must prefix the `source` and `destination` with a locale for it to be matched correctly.
+### Rewrites with i18n support
 
-</PagesOnly>
+When leveraging [`i18n` support](/docs/pages/building-your-application/routing/internationalization) with rewrites each `source` and `destination` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the rewrite. If `locale: false` is used you must prefix the `source` and `destination` with a locale for it to be matched correctly.
 
 ```js filename="next.config.js"
 module.exports = {
@@ -466,6 +458,8 @@ module.exports = {
   },
 }
 ```
+
+</PagesOnly>
 
 ## Version History
 

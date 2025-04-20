@@ -208,7 +208,6 @@ export function prepareDestination(args: {
   params: Params
   query: NextParsedUrlQuery
 }) {
-  const query = Object.assign({}, args.query)
   const parsedDestination = parseDestination(args)
 
   const { hostname: destHostname, query: destQuery } = parsedDestination
@@ -327,7 +326,7 @@ export function prepareDestination(args: {
   // 2. path segment values
   // 3. destination specified query values
   parsedDestination.query = {
-    ...query,
+    ...args.query,
     ...parsedDestination.query,
   }
 
