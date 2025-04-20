@@ -169,13 +169,15 @@ export type PrefetchSubtaskResult<T> = {
 
 const taskHeap: Array<PrefetchTask> = []
 
-// This is intentionally low so that when a navigation happens, the browser's
-// internal network queue is not already saturated with prefetch requests.
-const MAX_CONCURRENT_PREFETCH_REQUESTS = 3
 let inProgressRequests = 0
 
 let sortIdCounter = 0
 let didScheduleMicrotask = false
+
+// The most recently hovered (or touched, etc) link, i.e. the most recent task
+// scheduled at Intent priority. There's only ever a single task at Intent
+// priority at a time. We reserve special network bandwidth for this task only.
+let mostRecentlyHoveredLink: PrefetchTask | null = null
 
 /**
  * Initiates a prefetch task for the given URL. If a prefetch for the same URL
@@ -210,6 +212,9 @@ export function schedulePrefetchTask(
     onInvalidate,
     _heapIndex: -1,
   }
+
+  trackMostRecentlyHoveredLink(task)
+
   heapPush(taskHeap, task)
 
   // Schedule an async task to process the queue.
@@ -254,10 +259,15 @@ export function reschedulePrefetchTask(
   // Assign a new sort ID to move it ahead of all other tasks at the same
   // priority level. (Higher sort IDs are processed first.)
   task.sortId = sortIdCounter++
-  task.priority = priority
+  task.priority =
+    // If this task is the most recently hovered link, maintain its
+    // Intent priority, even if the rescheduled priority is lower.
+    task === mostRecentlyHoveredLink ? PrefetchPriority.Intent : priority
 
   task.treeAtTimeOfPrefetch = treeAtTimeOfPrefetch
   task.includeDynamicData = includeDynamicData
+
+  trackMostRecentlyHoveredLink(task)
 
   if (task._heapIndex !== -1) {
     // The task is already in the queue.
@@ -286,11 +296,27 @@ export function isPrefetchTaskDirty(
   )
 }
 
+function trackMostRecentlyHoveredLink(task: PrefetchTask) {
+  // Track the mostly recently hovered link, i.e. the most recently scheduled
+  // task at Intent priority. There must only be one such task at a time.
+  if (
+    task.priority === PrefetchPriority.Intent &&
+    task !== mostRecentlyHoveredLink
+  ) {
+    if (mostRecentlyHoveredLink !== null) {
+      // Bump the previously hovered link's priority down to Default.
+      if (mostRecentlyHoveredLink.priority !== PrefetchPriority.Background) {
+        mostRecentlyHoveredLink.priority = PrefetchPriority.Default
+        heapResift(taskHeap, mostRecentlyHoveredLink)
+      }
+    }
+    mostRecentlyHoveredLink = task
+  }
+}
+
 function ensureWorkIsScheduled() {
-  if (didScheduleMicrotask || !hasNetworkBandwidth()) {
-    // Either we already scheduled a task to process the queue, or there are
-    // too many concurrent requests in progress. In the latter case, the
-    // queue will resume processing once more bandwidth is available.
+  if (didScheduleMicrotask) {
+    // Already scheduled a task to process the queue
     return
   }
   didScheduleMicrotask = true
@@ -303,12 +329,28 @@ function ensureWorkIsScheduled() {
  * cooperative limit — prefetch tasks should check this before issuing
  * new requests.
  */
-function hasNetworkBandwidth(): boolean {
+function hasNetworkBandwidth(task: PrefetchTask): boolean {
   // TODO: Also check if there's an in-progress navigation. We should never
   // add prefetch requests to the network queue if an actual navigation is
   // taking place, to ensure there's sufficient bandwidth for render-blocking
   // data and resources.
-  return inProgressRequests < MAX_CONCURRENT_PREFETCH_REQUESTS
+
+  // TODO: Consider reserving some amount of bandwidth for static prefetches.
+
+  if (task.priority === PrefetchPriority.Intent) {
+    // The most recently hovered link is allowed to exceed the default limit.
+    //
+    // The goal is to always have enough bandwidth to start a new prefetch
+    // request when hovering over a link.
+    //
+    // However, because we don't abort in-progress requests, it's still possible
+    // we'll run out of bandwidth. When links are hovered in quick succession,
+    // there could be multiple hover requests running simultaneously.
+    return inProgressRequests < 12
+  }
+
+  // The default limit is lower than the limit for a hovered link.
+  return inProgressRequests < 4
 }
 
 function spawnPrefetchSubtask<T>(
@@ -375,7 +417,7 @@ function processQueueInMicrotask() {
 
   // Process the task queue until we run out of network bandwidth.
   let task = heapPeek(taskHeap)
-  while (task !== null && hasNetworkBandwidth()) {
+  while (task !== null && hasNetworkBandwidth(task)) {
     task.cacheVersion = getCurrentCacheVersion()
 
     const route = readOrCreateRouteCacheEntry(now, task)
@@ -496,7 +538,7 @@ function pingRootRouteTree(
         return PrefetchTaskExitStatus.Done
       }
       // Recursively fill in the segment tree.
-      if (!hasNetworkBandwidth()) {
+      if (!hasNetworkBandwidth(task)) {
         // Stop prefetching segments until there's more bandwidth.
         return PrefetchTaskExitStatus.InProgress
       }
@@ -565,7 +607,7 @@ function pingPPRRouteTree(
   const segment = readOrCreateSegmentCacheEntry(now, task, route, tree.key)
   pingPerSegment(now, task, route, segment, task.key, tree.key)
   if (tree.slots !== null) {
-    if (!hasNetworkBandwidth()) {
+    if (!hasNetworkBandwidth(task)) {
       // Stop prefetching segments until there's more bandwidth.
       return PrefetchTaskExitStatus.InProgress
     }

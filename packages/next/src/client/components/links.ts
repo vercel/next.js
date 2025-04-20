@@ -25,7 +25,6 @@ type LinkOrFormInstanceShared = {
   kind: PrefetchKind.AUTO | PrefetchKind.FULL
 
   isVisible: boolean
-  wasHoveredOrTouched: boolean
 
   // The most recently initiated prefetch task. It may or may not have
   // already completed. The same prefetch task object can be reused across
@@ -152,7 +151,6 @@ export function mountLinkInstance(
         router,
         kind,
         isVisible: false,
-        wasHoveredOrTouched: false,
         prefetchTask: null,
         prefetchHref: prefetchURL.href,
         setOptimisticLinkStatus,
@@ -169,7 +167,6 @@ export function mountLinkInstance(
     router,
     kind,
     isVisible: false,
-    wasHoveredOrTouched: false,
     prefetchTask: null,
     prefetchHref: null,
     setOptimisticLinkStatus,
@@ -195,7 +192,6 @@ export function mountFormInstance(
     router,
     kind,
     isVisible: false,
-    wasHoveredOrTouched: false,
     prefetchTask: null,
     prefetchHref: prefetchURL.href,
     setOptimisticLinkStatus: null,
@@ -247,7 +243,7 @@ export function onLinkVisibilityChanged(element: Element, isVisible: boolean) {
   } else {
     prefetchableAndVisible.delete(instance)
   }
-  rescheduleLinkPrefetch(instance)
+  rescheduleLinkPrefetch(instance, PrefetchPriority.Default)
 }
 
 export function onNavigationIntent(
@@ -260,7 +256,6 @@ export function onNavigationIntent(
   }
   // Prefetch the link on hover/touchstart.
   if (instance !== undefined) {
-    instance.wasHoveredOrTouched = true
     if (
       process.env.__NEXT_DYNAMIC_ON_HOVER &&
       unstable_upgradeToDynamicPrefetch
@@ -268,11 +263,14 @@ export function onNavigationIntent(
       // Switch to a full, dynamic prefetch
       instance.kind = PrefetchKind.FULL
     }
-    rescheduleLinkPrefetch(instance)
+    rescheduleLinkPrefetch(instance, PrefetchPriority.Intent)
   }
 }
 
-function rescheduleLinkPrefetch(instance: PrefetchableInstance) {
+function rescheduleLinkPrefetch(
+  instance: PrefetchableInstance,
+  priority: PrefetchPriority.Default | PrefetchPriority.Intent
+) {
   const existingPrefetchTask = instance.prefetchTask
 
   if (!instance.isVisible) {
@@ -295,15 +293,6 @@ function rescheduleLinkPrefetch(instance: PrefetchableInstance) {
     return
   }
 
-  // In the Segment Cache implementation, we assign a higher priority level to
-  // links that were at one point hovered or touched. Since the queue is last-
-  // in-first-out, the highest priority Link is whichever one was hovered last.
-  //
-  // We also increase the relative priority of links whenever they re-enter the
-  // viewport, as if they were being scheduled for the first time.
-  const priority = instance.wasHoveredOrTouched
-    ? PrefetchPriority.Intent
-    : PrefetchPriority.Default
   const appRouterState = getCurrentAppRouterState()
   if (appRouterState !== null) {
     const treeAtTimeOfPrefetch = appRouterState.tree
@@ -355,14 +344,11 @@ export function pingVisibleLinks(
       cancelPrefetchTask(task)
     }
     const cacheKey = createCacheKey(instance.prefetchHref, nextUrl)
-    const priority = instance.wasHoveredOrTouched
-      ? PrefetchPriority.Intent
-      : PrefetchPriority.Default
     instance.prefetchTask = scheduleSegmentPrefetchTask(
       cacheKey,
       tree,
       instance.kind === PrefetchKind.FULL,
-      priority,
+      PrefetchPriority.Default,
       null
     )
   }
