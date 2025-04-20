@@ -283,11 +283,6 @@ mod tests {
 
         for _ in 0..100 {
             let coverage = total_coverage(&containers, (0, 10000));
-            println!(
-                "{containers:#?} coverage: {}, items: {}",
-                coverage,
-                containers.len()
-            );
 
             if coverage > 10.0 {
                 let config = CompactConfig {
@@ -296,13 +291,9 @@ mod tests {
                 };
                 let jobs = get_compaction_jobs(&containers, &config);
                 if !jobs.is_empty() {
-                    println!("{jobs:?}");
-
                     do_compact(&mut containers, jobs);
                     number_of_compactions += 1;
                 }
-            } else {
-                println!("No compaction needed");
             }
 
             // Modify warm keys
@@ -315,7 +306,6 @@ mod tests {
                 swap(&mut warm_keys[i], &mut keys[j]);
             }
         }
-        println!("Number of compactions: {}", number_of_compactions);
 
         assert!(containers.len() < 40);
         let coverage = total_coverage(&containers, (0, 10000));
