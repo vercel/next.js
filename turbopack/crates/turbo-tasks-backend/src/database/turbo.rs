@@ -138,11 +138,11 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
 impl<'a> ConcurrentWriteBatch<'a> for TurboWriteBatch<'a> {
     fn put(&self, key_space: KeySpace, key: WriteBuffer<'_>, value: WriteBuffer<'_>) -> Result<()> {
         self.batch
-            .put(key_space as usize, key.into_static(), value.into())
+            .put(key_space as u32, key.into_static(), value.into())
     }
 
     fn delete(&self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
-        self.batch.delete(key_space as usize, key.into_static())
+        self.batch.delete(key_space as u32, key.into_static())
     }
 }
 
