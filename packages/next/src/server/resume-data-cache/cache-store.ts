@@ -64,6 +64,7 @@ export function parseUseCacheCacheStore(
     store.set(
       key,
       Promise.resolve({
+        key,
         // Create a ReadableStream from the Uint8Array
         value: new ReadableStream<Uint8Array>({
           start(controller) {

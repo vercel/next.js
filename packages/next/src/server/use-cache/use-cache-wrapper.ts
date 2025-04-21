@@ -17,7 +17,7 @@ import { unstable_prerender as prerender } from 'react-server-dom-webpack/static
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import type {
-  CommonUseCacheStore,
+  UseCacheRequestCookiesStore,
   UseCacheStore,
   WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
@@ -53,10 +53,8 @@ import {
 import type { Params } from '../request/params'
 import React from 'react'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
-import {
-  createCookiesForUseCacheStore,
-  type UseCacheRenderContext,
-} from '../request/cookies'
+import type { UseCacheRenderContext } from './types'
+import { createUseCacheCookiesStore } from '../request/cookies'
 
 type CacheKeyParts =
   | [buildId: string, id: string, args: unknown[]]
@@ -81,6 +79,7 @@ function generateCacheEntry(
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
+  cacheKey: string,
   timeoutError: UseCacheTimeoutError
 ) {
   // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
@@ -96,6 +95,7 @@ function generateCacheEntry(
     clientReferenceManifest,
     encodedArguments,
     fn,
+    cacheKey,
     timeoutError
   )
 }
@@ -107,6 +107,7 @@ function generateCacheEntryWithRestoredWorkStore(
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
+  cacheKey: string,
   timeoutError: UseCacheTimeoutError
 ) {
   // Since we cleared the AsyncLocalStorage we need to restore the workStore.
@@ -125,6 +126,7 @@ function generateCacheEntryWithRestoredWorkStore(
     clientReferenceManifest,
     encodedArguments,
     fn,
+    cacheKey,
     timeoutError
   )
 }
@@ -136,6 +138,7 @@ function generateCacheEntryWithCacheContext(
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
+  cacheKey: string,
   timeoutError: UseCacheTimeoutError
 ) {
   if (!workStore.cacheLifeProfiles) {
@@ -185,7 +188,7 @@ function generateCacheEntryWithCacheContext(
     draftMode:
       outerWorkUnitStore &&
       getDraftModeProviderForCacheScope(workStore, outerWorkUnitStore),
-    cookies: createCookiesForUseCacheStore(workStore, renderContext),
+    cookiesStore: createUseCacheCookiesStore(workStore, renderContext),
   }
 
   // const cacheStore: UseCacheStore | UseCacheWithCookiesStore = cookies
@@ -202,6 +205,7 @@ function generateCacheEntryWithCacheContext(
     clientReferenceManifest,
     encodedArguments,
     fn,
+    cacheKey,
     timeoutError
   )
 }
@@ -238,11 +242,29 @@ function propagateCacheLifeAndTags(
   }
 }
 
+// TODO: We should hash the cookies, or better yet hash the full cache key.
+function serializeCookies(cookiesStore: UseCacheRequestCookiesStore): string {
+  const { accessedCookieNames, underlyingCookies } = cookiesStore
+
+  if (accessedCookieNames === 'all') {
+    return underlyingCookies.toString()
+  }
+
+  return [...accessedCookieNames]
+    .sort()
+    .map(
+      (name) =>
+        `${encodeURIComponent(name)}=${encodeURIComponent(underlyingCookies.get(name)?.value ?? '')}`
+    )
+    .join('; ')
+}
+
 async function collectResult(
+  cacheKey: string,
   savedStream: ReadableStream,
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
-  innerCacheStore: CommonUseCacheStore,
+  innerCacheStore: UseCacheStore,
   startTime: number,
   errors: Array<unknown> // This is a live array that gets pushed into.
 ): Promise<CacheEntry> {
@@ -303,7 +325,12 @@ async function collectResult(
       ? innerCacheStore.explicitStale
       : innerCacheStore.stale
 
+  if (innerCacheStore.cookiesStore?.type === 'request') {
+    cacheKey += serializeCookies(innerCacheStore.cookiesStore)
+  }
+
   const entry: CacheEntry = {
+    key: cacheKey,
     value: bufferStream,
     timestamp: startTime,
     revalidate: collectedRevalidate,
@@ -346,6 +373,7 @@ async function generateCacheEntryImpl(
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
+  cacheKey: string,
   timeoutError: UseCacheTimeoutError
 ): Promise<GenerateCacheEntryResult> {
   const temporaryReferences = createServerTemporaryReferenceSet()
@@ -497,6 +525,7 @@ async function generateCacheEntryImpl(
   const [returnStream, savedStream] = stream.tee()
 
   const pendingCacheEntry = collectResult(
+    cacheKey,
     savedStream,
     workStore,
     renderContext.workUnitStore,
@@ -519,6 +548,7 @@ function cloneCacheEntry(entry: CacheEntry): [CacheEntry, CacheEntry] {
   const [streamA, streamB] = entry.value.tee()
   entry.value = streamA
   const clonedEntry: CacheEntry = {
+    key: entry.key,
     value: streamB,
     timestamp: entry.timestamp,
     revalidate: entry.revalidate,
@@ -903,6 +933,7 @@ export function cache(
             clientReferenceManifest,
             encodedCacheKeyParts,
             fn,
+            serializedCacheKey,
             timeoutError
           )
 
@@ -982,6 +1013,7 @@ export function cache(
               clientReferenceManifest,
               encodedCacheKeyParts,
               fn,
+              serializedCacheKey,
               timeoutError
             )
 

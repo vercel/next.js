@@ -123,6 +123,13 @@ export interface PrerenderStoreModern extends CommonWorkUnitStore {
    * subsequent dynamic render.
    */
   readonly hmrRefreshHash: string | undefined
+
+  /**
+   * The request cookies must only be provided during the dev warmup render to
+   * ensure that cache keys for cache functions that access cookies include the
+   * accessed cookies.
+   */
+  readonly cookies: ReadonlyRequestCookies | undefined
 }
 
 export interface PrerenderStorePPR extends CommonWorkUnitStore {
@@ -189,9 +196,25 @@ export interface CommonUseCacheStore extends CommonCacheStore {
   readonly forceRevalidate: boolean
 }
 
+export interface UseCachePrerenderCookiesStore {
+  readonly type: 'prerender'
+  readonly getUserspaceCookies: () => Promise<ReadonlyRequestCookies>
+}
+
+export interface UseCacheRequestCookiesStore {
+  readonly type: 'request'
+  readonly underlyingCookies: ReadonlyRequestCookies
+  readonly getUserspaceCookies: () => Promise<ReadonlyRequestCookies>
+  accessedCookieNames: Set<string> | 'all'
+}
+
+export type UseCacheCookiesStore =
+  | UseCachePrerenderCookiesStore
+  | UseCacheRequestCookiesStore
+
 export interface UseCacheStore extends CommonUseCacheStore {
   readonly type: 'cache'
-  readonly cookies: (() => Promise<ReadonlyRequestCookies>) | undefined
+  readonly cookiesStore: UseCacheCookiesStore | undefined
 }
 
 // export interface UseCacheWithCookiesStore extends CommonUseCacheStore {
