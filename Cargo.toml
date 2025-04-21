@@ -22,7 +22,7 @@ exclude = [
 too_many_arguments = "allow"
 
 # This crate is particularly sensitive to compiler optimizations
-[profile.dev.package.turbo-tasks-memory]
+[profile.dev.package.turbo-persistence]
 opt-level = 1
 
 # Set the options for dependencies (not crates in the workspace), this mostly impacts cold builds
