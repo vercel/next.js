@@ -12,7 +12,7 @@ import {
 import {
   workUnitAsyncStorage,
   type PrerenderStoreModern,
-  type WorkUnitStore,
+  type UseCacheCookiesStore,
 } from '../app-render/work-unit-async-storage.external'
 import {
   postponeWithTracking,
@@ -28,6 +28,8 @@ import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-b
 import { scheduleImmediate } from '../../lib/scheduler'
 import { isRequestAPICallableInsideAfter } from './utils'
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
+import type { RequestCookie } from '@edge-runtime/cookies'
+import type { UseCacheRenderContext } from '../use-cache/types'
 
 /**
  * In this version of Next.js `cookies()` returns a Promise however you can still reference the properties of the underlying cookies object
@@ -81,8 +83,8 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
       //   return workUnitStore.cookies
       // } else if (workUnitStore.type === 'cache') {
       if (workUnitStore.type === 'cache') {
-        if (workUnitStore.cookies) {
-          return workUnitStore.cookies()
+        if (workUnitStore.cookiesStore) {
+          return workUnitStore.cookiesStore.getUserspaceCookies()
         }
 
         throw new Error(
@@ -324,6 +326,57 @@ function makeDynamicallyTrackedExoticCookiesForUseCache(
   return promise
 }
 
+function createProxiedCookies(
+  underlyingCookies: ReadonlyRequestCookies
+): ReadonlyRequestCookies {
+  return new Proxy(underlyingCookies, {
+    get(target, prop, receiver) {
+      const workUnitStore = workUnitAsyncStorage.getStore()
+
+      if (
+        workUnitStore?.type === 'cache' &&
+        workUnitStore.cookiesStore?.type === 'request'
+      ) {
+        const { cookiesStore } = workUnitStore
+
+        // eslint-disable-next-line default-case
+        switch (prop) {
+          case 'get':
+          case 'getAll':
+            return function get(
+              ...args: [name: string] | [RequestCookie]
+            ): RequestCookie | undefined {
+              if (cookiesStore.accessedCookieNames !== 'all') {
+                for (const arg of args) {
+                  const cookieName = typeof arg === 'string' ? arg : arg.name
+                  cookiesStore.accessedCookieNames.add(cookieName)
+                }
+              }
+
+              return target.get.apply(target, args)
+            }
+          case 'has':
+            return function get(name: string): RequestCookie | undefined {
+              if (cookiesStore.accessedCookieNames !== 'all') {
+                cookiesStore.accessedCookieNames.add(name)
+              }
+
+              return target.get.call(target, name)
+            }
+          case 'toString':
+            return function get(name: string): RequestCookie | undefined {
+              cookiesStore.accessedCookieNames = 'all'
+
+              return target.get.call(target, name)
+            }
+        }
+      }
+
+      return ReflectAdapter.get(target, prop, receiver)
+    },
+  })
+}
+
 function makeUntrackedExoticCookies(
   underlyingCookies: ReadonlyRequestCookies
 ): Promise<ReadonlyRequestCookies> {
@@ -332,55 +385,56 @@ function makeUntrackedExoticCookies(
     return cachedCookies
   }
 
-  const promise = Promise.resolve(underlyingCookies)
-  CachedCookies.set(underlyingCookies, promise)
+  const proxiedCookies = createProxiedCookies(underlyingCookies)
+  const promise = Promise.resolve(proxiedCookies)
+  CachedCookies.set(proxiedCookies, promise)
 
   Object.defineProperties(promise, {
     [Symbol.iterator]: {
-      value: underlyingCookies[Symbol.iterator]
-        ? underlyingCookies[Symbol.iterator].bind(underlyingCookies)
+      value: proxiedCookies[Symbol.iterator]
+        ? proxiedCookies[Symbol.iterator].bind(proxiedCookies)
         : // TODO this is a polyfill for when the underlying type is ResponseCookies
           // We should remove this and unify our cookies types. We could just let this continue to throw lazily
           // but that's already a hard thing to debug so we may as well implement it consistently. The biggest problem with
           // implementing this in this way is the underlying cookie type is a ResponseCookie and not a RequestCookie and so it
           // has extra properties not available on RequestCookie instances.
-          polyfilledResponseCookiesIterator.bind(underlyingCookies),
+          polyfilledResponseCookiesIterator.bind(proxiedCookies),
     },
     size: {
       get(): number {
-        return underlyingCookies.size
+        return proxiedCookies.size
       },
     },
     get: {
-      value: underlyingCookies.get.bind(underlyingCookies),
+      value: proxiedCookies.get.bind(proxiedCookies),
     },
     getAll: {
-      value: underlyingCookies.getAll.bind(underlyingCookies),
+      value: proxiedCookies.getAll.bind(proxiedCookies),
     },
     has: {
-      value: underlyingCookies.has.bind(underlyingCookies),
+      value: proxiedCookies.has.bind(proxiedCookies),
     },
     set: {
-      value: underlyingCookies.set.bind(underlyingCookies),
+      value: proxiedCookies.set.bind(proxiedCookies),
     },
     delete: {
-      value: underlyingCookies.delete.bind(underlyingCookies),
+      value: proxiedCookies.delete.bind(proxiedCookies),
     },
     clear: {
       value:
         // @ts-expect-error clear is defined in RequestCookies implementation but not in the type
-        typeof underlyingCookies.clear === 'function'
+        typeof proxiedCookies.clear === 'function'
           ? // @ts-expect-error clear is defined in RequestCookies implementation but not in the type
-            underlyingCookies.clear.bind(underlyingCookies)
+            proxiedCookies.clear.bind(proxiedCookies)
           : // TODO this is a polyfill for when the underlying type is ResponseCookies
             // We should remove this and unify our cookies types. We could just let this continue to throw lazily
             // but that's already a hard thing to debug so we may as well implement it consistently. The biggest problem with
             // implementing this in this way is the underlying cookie type is a ResponseCookie and not a RequestCookie and so it
             // has extra properties not available on RequestCookie instances.
-            polyfilledResponseCookiesClear.bind(underlyingCookies, promise),
+            polyfilledResponseCookiesClear.bind(proxiedCookies, promise),
     },
     toString: {
-      value: underlyingCookies.toString.bind(underlyingCookies),
+      value: proxiedCookies.toString.bind(proxiedCookies),
     },
   } satisfies CookieExtensions)
 
@@ -396,19 +450,20 @@ function makeUntrackedExoticCookiesWithDevWarnings(
     return cachedCookies
   }
 
+  const proxiedCookies = createProxiedCookies(underlyingCookies)
   const promise = new Promise<ReadonlyRequestCookies>((resolve) =>
-    scheduleImmediate(() => resolve(underlyingCookies))
+    scheduleImmediate(() => resolve(proxiedCookies))
   )
-  CachedCookies.set(underlyingCookies, promise)
+  CachedCookies.set(proxiedCookies, promise)
 
   Object.defineProperties(promise, {
     [Symbol.iterator]: {
       value: function () {
         const expression = '`...cookies()` or similar iteration'
         syncIODev(route, expression)
-        return underlyingCookies[Symbol.iterator]
-          ? underlyingCookies[Symbol.iterator].apply(
-              underlyingCookies,
+        return proxiedCookies[Symbol.iterator]
+          ? proxiedCookies[Symbol.iterator].apply(
+              proxiedCookies,
               arguments as any
             )
           : // TODO this is a polyfill for when the underlying type is ResponseCookies
@@ -416,7 +471,7 @@ function makeUntrackedExoticCookiesWithDevWarnings(
             // but that's already a hard thing to debug so we may as well implement it consistently. The biggest problem with
             // implementing this in this way is the underlying cookie type is a ResponseCookie and not a RequestCookie and so it
             // has extra properties not available on RequestCookie instances.
-            polyfilledResponseCookiesIterator.call(underlyingCookies)
+            polyfilledResponseCookiesIterator.call(proxiedCookies)
       },
       writable: false,
     },
@@ -424,7 +479,7 @@ function makeUntrackedExoticCookiesWithDevWarnings(
       get(): number {
         const expression = '`cookies().size`'
         syncIODev(route, expression)
-        return underlyingCookies.size
+        return proxiedCookies.size
       },
     },
     get: {
@@ -436,7 +491,7 @@ function makeUntrackedExoticCookiesWithDevWarnings(
           expression = `\`cookies().get(${describeNameArg(arguments[0])})\``
         }
         syncIODev(route, expression)
-        return underlyingCookies.get.apply(underlyingCookies, arguments as any)
+        return proxiedCookies.get.apply(proxiedCookies, arguments as any)
       },
       writable: false,
     },
@@ -449,10 +504,7 @@ function makeUntrackedExoticCookiesWithDevWarnings(
           expression = `\`cookies().getAll(${describeNameArg(arguments[0])})\``
         }
         syncIODev(route, expression)
-        return underlyingCookies.getAll.apply(
-          underlyingCookies,
-          arguments as any
-        )
+        return proxiedCookies.getAll.apply(proxiedCookies, arguments as any)
       },
       writable: false,
     },
@@ -465,7 +517,7 @@ function makeUntrackedExoticCookiesWithDevWarnings(
           expression = `\`cookies().has(${describeNameArg(arguments[0])})\``
         }
         syncIODev(route, expression)
-        return underlyingCookies.has.apply(underlyingCookies, arguments as any)
+        return proxiedCookies.has.apply(proxiedCookies, arguments as any)
       },
       writable: false,
     },
@@ -483,7 +535,7 @@ function makeUntrackedExoticCookiesWithDevWarnings(
           }
         }
         syncIODev(route, expression)
-        return underlyingCookies.set.apply(underlyingCookies, arguments as any)
+        return proxiedCookies.set.apply(proxiedCookies, arguments as any)
       },
       writable: false,
     },
@@ -498,10 +550,7 @@ function makeUntrackedExoticCookiesWithDevWarnings(
           expression = `\`cookies().delete(${describeNameArg(arguments[0])}, ...)\``
         }
         syncIODev(route, expression)
-        return underlyingCookies.delete.apply(
-          underlyingCookies,
-          arguments as any
-        )
+        return proxiedCookies.delete.apply(proxiedCookies, arguments as any)
       },
       writable: false,
     },
@@ -510,15 +559,15 @@ function makeUntrackedExoticCookiesWithDevWarnings(
         const expression = '`cookies().clear()`'
         syncIODev(route, expression)
         // @ts-ignore clear is defined in RequestCookies implementation but not in the type
-        return typeof underlyingCookies.clear === 'function'
+        return typeof proxiedCookies.clear === 'function'
           ? // @ts-ignore clear is defined in RequestCookies implementation but not in the type
-            underlyingCookies.clear.apply(underlyingCookies, arguments)
+            proxiedCookies.clear.apply(proxiedCookies, arguments)
           : // TODO this is a polyfill for when the underlying type is ResponseCookies
             // We should remove this and unify our cookies types. We could just let this continue to throw lazily
             // but that's already a hard thing to debug so we may as well implement it consistently. The biggest problem with
             // implementing this in this way is the underlying cookie type is a ResponseCookie and not a RequestCookie and so it
             // has extra properties not available on RequestCookie instances.
-            polyfilledResponseCookiesClear.call(underlyingCookies, promise)
+            polyfilledResponseCookiesClear.call(proxiedCookies, promise)
       },
       writable: false,
     },
@@ -526,10 +575,7 @@ function makeUntrackedExoticCookiesWithDevWarnings(
       value: function toString() {
         const expression = '`cookies().toString()` or implicit casting'
         syncIODev(route, expression)
-        return underlyingCookies.toString.apply(
-          underlyingCookies,
-          arguments as any
-        )
+        return proxiedCookies.toString.apply(proxiedCookies, arguments as any)
       },
       writable: false,
     },
@@ -538,32 +584,37 @@ function makeUntrackedExoticCookiesWithDevWarnings(
   return promise
 }
 
-export type UseCacheRenderContext =
-  | {
-      readonly type: 'prerender'
-      readonly workUnitStore: PrerenderStoreModern
-      readonly dynamicAccessAbortController: AbortController
-    }
-  | {
-      readonly type: 'other'
-      readonly workUnitStore:
-        | Exclude<WorkUnitStore, PrerenderStoreModern>
-        | undefined
-    }
-
-export function createCookiesForUseCacheStore(
+export function createUseCacheCookiesStore(
   workStore: WorkStore,
   renderContext: UseCacheRenderContext
-): (() => Promise<ReadonlyRequestCookies>) | undefined {
+): UseCacheCookiesStore | undefined {
   if (renderContext.type === 'prerender') {
     const { workUnitStore, dynamicAccessAbortController } = renderContext
 
-    return () =>
-      makeDynamicallyTrackedExoticCookiesForUseCache(
-        workStore.route,
-        workUnitStore,
-        dynamicAccessAbortController
-      )
+    // If there are cookies defined on a prerender store, this means we're doing
+    // a dev warmup render, which is more akin to a dynamic request than a
+    // prerender request, despite using a prerender work unit store.
+    if (workUnitStore.cookies) {
+      const userspaceCookies = makeUntrackedExoticCookies(workUnitStore.cookies)
+
+      return {
+        type: 'request',
+        underlyingCookies: workUnitStore.cookies,
+        getUserspaceCookies: () => userspaceCookies,
+        accessedCookieNames: new Set(),
+      }
+    }
+
+    const userspaceCookies = makeDynamicallyTrackedExoticCookiesForUseCache(
+      workStore.route,
+      workUnitStore,
+      dynamicAccessAbortController
+    )
+
+    return {
+      type: 'prerender',
+      getUserspaceCookies: () => userspaceCookies,
+    }
   }
 
   if (!renderContext.workUnitStore) {
@@ -574,31 +625,47 @@ export function createCookiesForUseCacheStore(
 
   switch (workUnitStore.type) {
     case 'prerender-ppr':
-      return () =>
-        postponeWithTracking(
-          workStore.route,
-          'cookies',
-          workUnitStore.dynamicTracking
-        )
+      return {
+        type: 'prerender',
+        getUserspaceCookies: () =>
+          postponeWithTracking(
+            workStore.route,
+            'cookies',
+            workUnitStore.dynamicTracking
+          ),
+      }
     case 'prerender-legacy':
-      return () =>
-        throwToInterruptStaticGeneration('cookies', workStore, workUnitStore)
+      return {
+        type: 'prerender',
+        getUserspaceCookies: () =>
+          throwToInterruptStaticGeneration('cookies', workStore, workUnitStore),
+      }
     // case 'cache-with-cookies':
     //   return workUnitStore.cookies
     case 'cache':
-      return workUnitStore.cookies
+      return !workUnitStore.cookiesStore ||
+        workUnitStore.cookiesStore.type === 'prerender'
+        ? workUnitStore.cookiesStore
+        : {
+            ...workUnitStore.cookiesStore,
+            // Each cache scope starts with a new set of accessed cookie names.
+            accessedCookieNames: new Set(),
+          }
     case 'request':
-      if (
-        process.env.NODE_ENV === 'development' &&
-        !workStore.isPrefetchRequest
-      ) {
-        return () =>
-          makeUntrackedExoticCookiesWithDevWarnings(
-            workUnitStore.cookies,
-            workStore.route
-          )
+      const userspaceCookies =
+        process.env.NODE_ENV === 'development' && !workStore.isPrefetchRequest
+          ? makeUntrackedExoticCookiesWithDevWarnings(
+              workUnitStore.cookies,
+              workStore.route
+            )
+          : makeUntrackedExoticCookies(workUnitStore.cookies)
+
+      return {
+        type: 'request',
+        underlyingCookies: workUnitStore.cookies,
+        getUserspaceCookies: () => userspaceCookies,
+        accessedCookieNames: new Set(),
       }
-      return () => makeUntrackedExoticCookies(workUnitStore.cookies)
     default:
       return undefined
   }

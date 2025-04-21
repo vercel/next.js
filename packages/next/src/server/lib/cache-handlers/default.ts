@@ -39,7 +39,12 @@ const memoryCache = new LRUCache<PrivateCacheEntry>(
   50 * 1024 * 1024,
   (entry) => entry.size
 )
-const pendingSets = new Map<string, Promise<void>>()
+
+/**
+ * Maps an original cache key to the final cache key after a set operation has
+ * resolved.
+ */
+const pendingSets = new Map<string, Promise<string>>()
 
 const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
   ? console.debug.bind(console, 'DefaultCacheHandler:')
@@ -51,7 +56,9 @@ const DefaultCacheHandler: CacheHandlerV2 = {
 
     if (pendingPromise) {
       debug?.('get', cacheKey, 'pending')
-      await pendingPromise
+      const finalCacheKey = await pendingPromise
+      debug?.('get', cacheKey, 'resolved to', finalCacheKey)
+      cacheKey = finalCacheKey
     }
 
     const privateEntry = memoryCache.get(cacheKey)
@@ -98,13 +105,14 @@ const DefaultCacheHandler: CacheHandlerV2 = {
   async set(cacheKey, pendingEntry) {
     debug?.('set', cacheKey, 'start')
 
-    let resolvePending: () => void = () => {}
-    const pendingPromise = new Promise<void>((resolve) => {
+    let resolvePending: (finalCacheKey: string) => void = () => {}
+    const pendingPromise = new Promise<string>((resolve) => {
       resolvePending = resolve
     })
     pendingSets.set(cacheKey, pendingPromise)
 
     const entry = await pendingEntry
+    const finalCacheKey = entry.key
 
     let size = 0
 
@@ -117,19 +125,19 @@ const DefaultCacheHandler: CacheHandlerV2 = {
         size += Buffer.from(chunk.value).byteLength
       }
 
-      memoryCache.set(cacheKey, {
+      memoryCache.set(finalCacheKey, {
         entry,
         isErrored: false,
         errorRetryCount: 0,
         size,
       })
 
-      debug?.('set', cacheKey, 'done')
+      debug?.('set', finalCacheKey, 'done')
     } catch (err) {
       // TODO: store partial buffer with error after we retry 3 times
       debug?.('set', cacheKey, 'failed', err)
     } finally {
-      resolvePending()
+      resolvePending(finalCacheKey)
       pendingSets.delete(cacheKey)
     }
   },
