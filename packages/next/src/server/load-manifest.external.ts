@@ -1,5 +1,6 @@
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 
+import { join } from 'path'
 import { readFileSync } from 'fs'
 import { runInNewContext } from 'vm'
 import { deepFreeze } from '../shared/lib/deep-freeze'
@@ -97,6 +98,20 @@ export function evalManifest<T extends object>(
   }
 
   return contextObject as T
+}
+
+export function loadManifestFromRelativePath<T extends object>(
+  projectDir: string,
+  distDir: string,
+  manifest: string,
+  shouldCache = true,
+  cache?: Map<string, unknown>
+): DeepReadonly<T> {
+  return loadManifest<T>(
+    join(projectDir, distDir, manifest),
+    shouldCache,
+    cache
+  )
 }
 
 export function clearManifestCache(path: string, cache = sharedCache): boolean {

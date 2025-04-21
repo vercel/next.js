@@ -387,13 +387,11 @@ export type RoutesManifest = {
   pages404: boolean
   basePath: string
   redirects: Array<Redirect>
-  rewrites?:
-    | Array<ManifestRewriteRoute>
-    | {
-        beforeFiles: Array<ManifestRewriteRoute>
-        afterFiles: Array<ManifestRewriteRoute>
-        fallback: Array<ManifestRewriteRoute>
-      }
+  rewrites: {
+    beforeFiles: Array<ManifestRewriteRoute>
+    afterFiles: Array<ManifestRewriteRoute>
+    fallback: Array<ManifestRewriteRoute>
+  }
   headers: Array<ManifestHeaderRoute>
   staticRoutes: Array<ManifestRoute>
   dynamicRoutes: Array<ManifestRoute>
@@ -1345,6 +1343,11 @@ export default async function build(
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,
               queryHeader: NEXT_REWRITTEN_QUERY_HEADER,
             },
+            rewrites: {
+              beforeFiles: [],
+              afterFiles: [],
+              fallback: [],
+            },
             skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
             ppr: isAppPPREnabled
               ? {
@@ -1358,23 +1361,16 @@ export default async function build(
           } satisfies RoutesManifest
         })
 
-      if (rewrites.beforeFiles.length === 0 && rewrites.fallback.length === 0) {
-        routesManifest.rewrites = rewrites.afterFiles.map((r) =>
+      routesManifest.rewrites = {
+        beforeFiles: rewrites.beforeFiles.map((r) =>
           buildCustomRoute('rewrite', r)
-        )
-      } else {
-        routesManifest.rewrites = {
-          beforeFiles: rewrites.beforeFiles.map((r) =>
-            buildCustomRoute('rewrite', r)
-          ),
-          afterFiles: rewrites.afterFiles.map((r) =>
-            buildCustomRoute('rewrite', r)
-          ),
-          fallback: rewrites.fallback.map((r) =>
-            buildCustomRoute('rewrite', r)
-          ),
-        }
+        ),
+        afterFiles: rewrites.afterFiles.map((r) =>
+          buildCustomRoute('rewrite', r)
+        ),
+        fallback: rewrites.fallback.map((r) => buildCustomRoute('rewrite', r)),
       }
+
       let clientRouterFilters:
         | undefined
         | ReturnType<typeof createClientRouterFilter>
