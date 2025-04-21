@@ -351,8 +351,6 @@ program
       'Specify the maximum amount of milliseconds to wait before closing inactive connections.'
     ).argParser(parseValidPositiveInteger)
   )
-  .addOption(new Option('--turbo').hideHelp())
-  .option('--turbopack', 'Starts development mode using Turbopack.')
   .action((directory: string, options: NextStartOptions) =>
     import('../cli/next-start.js').then((mod) =>
       mod.nextStart(options, directory)
