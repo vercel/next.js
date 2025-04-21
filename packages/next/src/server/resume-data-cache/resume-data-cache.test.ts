@@ -11,6 +11,7 @@ function createCacheWithSingleEntry() {
   cache.cache.set(
     'success',
     Promise.resolve({
+      key: 'success',
       value: streamFromString('value'),
       tags: [],
       stale: 0,
