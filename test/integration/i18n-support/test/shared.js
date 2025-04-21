@@ -352,7 +352,8 @@ export function runTests(ctx) {
   // this test can not currently be tested in browser without modifying the
   // host resolution since it needs a domain to test locale domains behavior
   it.skip('should redirect to locale domain correctly client-side', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
+    const initUrl = `${ctx.basePath || '/'}`
+    const browser = await webdriver(ctx.appPort, initUrl)
 
     await browser.eval(`(function() {
       window.next.router.push(
@@ -369,7 +370,7 @@ export function runTests(ctx) {
       ctx.basePath || '/'
     )
 
-    await browser.get(browser.initUrl)
+    await browser.get(initUrl)
     await browser.waitForElementByCss('#index')
 
     await browser.eval(`(function() {
