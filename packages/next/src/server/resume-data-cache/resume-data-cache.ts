@@ -51,6 +51,8 @@ export interface PrerenderResumeDataCache {
    * Supports both 'get' and 'set' operations to build the cache during
    * pre-rendering.
    */
+  // TODO: For the dev warmup render, this needs to handle cache key changes
+  // during set operations, same as the default cache handler.
   readonly cache: UseCacheCacheStore
 
   /**

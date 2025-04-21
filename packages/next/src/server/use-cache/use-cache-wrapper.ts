@@ -17,7 +17,7 @@ import { unstable_prerender as prerender } from 'react-server-dom-webpack/static
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import type {
-  CommonUseCacheStore,
+  UseCacheRequestCookiesStore,
   UseCacheStore,
   WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
@@ -54,10 +54,8 @@ import {
 import type { Params } from '../request/params'
 import React from 'react'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
-import {
-  createCookiesForUseCacheStore,
-  type UseCacheRenderContext,
-} from '../request/cookies'
+import type { UseCacheRenderContext } from './types'
+import { createUseCacheCookiesStore } from '../request/cookies'
 
 type CacheKeyParts =
   | [buildId: string, id: string, args: unknown[]]
@@ -84,6 +82,7 @@ const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
   : undefined
 
 function generateCacheEntry(
+  cacheKey: string,
   fn: (...args: unknown[]) => Promise<unknown>,
   encodedCacheKeyParts: FormData | string,
   ctx: GenerateCacheEntryContext
@@ -95,6 +94,7 @@ function generateCacheEntry(
   // pop out of any stack specific contexts as well - aka "Sync" Local Storage.
   return runInCleanSnapshot(
     generateCacheEntryWithRestoredWorkStore,
+    cacheKey,
     fn,
     encodedCacheKeyParts,
     ctx
@@ -102,6 +102,7 @@ function generateCacheEntry(
 }
 
 function generateCacheEntryWithRestoredWorkStore(
+  cacheKey: string,
   fn: (...args: unknown[]) => Promise<unknown>,
   encodedCacheKeyParts: FormData | string,
   ctx: GenerateCacheEntryContext
@@ -116,6 +117,7 @@ function generateCacheEntryWithRestoredWorkStore(
   return workAsyncStorage.run(
     ctx.workStore,
     generateCacheEntryWithCacheContext,
+    cacheKey,
     fn,
     encodedCacheKeyParts,
     ctx
@@ -123,6 +125,7 @@ function generateCacheEntryWithRestoredWorkStore(
 }
 
 function generateCacheEntryWithCacheContext(
+  cacheKey: string,
   fn: (...args: unknown[]) => Promise<unknown>,
   encodedCacheKeyParts: FormData | string,
   ctx: GenerateCacheEntryContext
@@ -176,7 +179,7 @@ function generateCacheEntryWithCacheContext(
     draftMode:
       outerWorkUnitStore &&
       getDraftModeProviderForCacheScope(workStore, outerWorkUnitStore),
-    cookies: createCookiesForUseCacheStore(workStore, renderContext),
+    cookiesStore: createUseCacheCookiesStore(workStore, renderContext),
   }
 
   // const cacheStore: UseCacheStore | UseCacheWithCookiesStore = cookies
@@ -186,6 +189,7 @@ function generateCacheEntryWithCacheContext(
   return workUnitAsyncStorage.run(
     cacheStore,
     generateCacheEntryImpl,
+    cacheKey,
     cacheStore,
     fn,
     encodedCacheKeyParts,
@@ -225,11 +229,29 @@ function propagateCacheLifeAndTags(
   }
 }
 
+// TODO: We should hash the cookies, or better yet hash the full cache key.
+function serializeCookies(cookiesStore: UseCacheRequestCookiesStore): string {
+  const { accessedCookieNames, underlyingCookies } = cookiesStore
+
+  if (accessedCookieNames === 'all') {
+    return underlyingCookies.toString()
+  }
+
+  return [...accessedCookieNames]
+    .sort()
+    .map(
+      (name) =>
+        `${encodeURIComponent(name)}=${encodeURIComponent(underlyingCookies.get(name)?.value ?? '')}`
+    )
+    .join('; ')
+}
+
 async function collectResult(
+  cacheKey: string,
   savedStream: ReadableStream,
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
-  innerCacheStore: CommonUseCacheStore,
+  innerCacheStore: UseCacheStore,
   startTime: number,
   errors: Array<unknown> // This is a live array that gets pushed into.
 ): Promise<CacheEntry> {
@@ -290,7 +312,12 @@ async function collectResult(
       ? innerCacheStore.explicitStale
       : innerCacheStore.stale
 
+  if (innerCacheStore.cookiesStore?.type === 'request') {
+    cacheKey += serializeCookies(innerCacheStore.cookiesStore)
+  }
+
   const entry: CacheEntry = {
+    key: cacheKey,
     value: bufferStream,
     timestamp: startTime,
     revalidate: collectedRevalidate,
@@ -326,7 +353,8 @@ type GenerateCacheEntryResult =
     }
 
 async function generateCacheEntryImpl(
-  innerCacheStore: CommonUseCacheStore,
+  cacheKey: string,
+  innerCacheStore: UseCacheStore,
   fn: (...args: unknown[]) => Promise<unknown>,
   encodedCacheKeyParts: FormData | string,
   {
@@ -501,6 +529,7 @@ async function generateCacheEntryImpl(
   const [returnStream, savedStream] = stream.tee()
 
   const pendingCacheEntry = collectResult(
+    cacheKey,
     savedStream,
     workStore,
     renderContext.workUnitStore,
@@ -523,6 +552,7 @@ function cloneCacheEntry(entry: CacheEntry): [CacheEntry, CacheEntry] {
   const [streamA, streamB] = entry.value.tee()
   entry.value = streamA
   const clonedEntry: CacheEntry = {
+    key: entry.key,
     value: streamB,
     timestamp: entry.timestamp,
     revalidate: entry.revalidate,
@@ -905,13 +935,18 @@ export function cache(
 
           const renderContext = createRenderContext(workUnitStore)
 
-          const result = await generateCacheEntry(fn, encodedCacheKeyParts, {
-            workStore,
-            renderContext,
-            clientReferenceManifest,
-            timeoutError,
-            kind,
-          })
+          const result = await generateCacheEntry(
+            serializedCacheKey,
+            fn,
+            encodedCacheKeyParts,
+            {
+              workStore,
+              renderContext,
+              clientReferenceManifest,
+              timeoutError,
+              kind,
+            }
+          )
 
           if (result.type === 'prerender-dynamic') {
             return result.hangingPromise
@@ -976,19 +1011,24 @@ export function cache(
             // If this is stale, and we're not in a prerender (i.e. this is
             // dynamic render), then we should warm up the cache with a fresh
             // revalidated entry.
-            const result = await generateCacheEntry(fn, encodedCacheKeyParts, {
-              workStore,
-              renderContext: {
-                type: 'other',
-                // This is not running within the context of this unit.
-                // TODO: We may need to pass in a work unit store that
-                // includes the cookies though.
-                workUnitStore: undefined,
-              },
-              clientReferenceManifest,
-              timeoutError,
-              kind,
-            })
+            const result = await generateCacheEntry(
+              serializedCacheKey,
+              fn,
+              encodedCacheKeyParts,
+              {
+                workStore,
+                renderContext: {
+                  type: 'other',
+                  // This is not running within the context of this unit.
+                  // TODO: We may need to pass in a work unit store that
+                  // includes the cookies though.
+                  workUnitStore: undefined,
+                },
+                clientReferenceManifest,
+                timeoutError,
+                kind,
+              }
+            )
 
             if (result.type === 'cached') {
               const { stream: ignoredStream, pendingCacheEntry } = result
