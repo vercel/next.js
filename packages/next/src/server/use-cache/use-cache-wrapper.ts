@@ -63,6 +63,13 @@ export interface UseCachePageComponentProps {
   $$isPageComponent: true
 }
 
+interface GenerateCacheEntryContext {
+  readonly workStore: WorkStore
+  readonly outerWorkUnitStore: WorkUnitStore | undefined
+  readonly clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>
+  readonly timeoutError: UseCacheTimeoutError
+}
+
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
@@ -70,36 +77,27 @@ const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
   : undefined
 
 function generateCacheEntry(
-  workStore: WorkStore,
-  outerWorkUnitStore: WorkUnitStore | undefined,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
-  encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError
+  encodedCacheKeyParts: FormData | string,
+  ctx: GenerateCacheEntryContext
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
   // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
   // generation cannot read anything from the context we're currently executing which
   // might include request specific things like cookies() inside a React.cache().
   // Note: It is important that we await at least once before this because it lets us
   // pop out of any stack specific contexts as well - aka "Sync" Local Storage.
-  return workStore.runInCleanSnapshot(
+  return ctx.workStore.runInCleanSnapshot(
     generateCacheEntryWithRestoredWorkStore,
-    workStore,
-    outerWorkUnitStore,
-    clientReferenceManifest,
-    encodedArguments,
     fn,
-    timeoutError
+    encodedCacheKeyParts,
+    ctx
   )
 }
 
 function generateCacheEntryWithRestoredWorkStore(
-  workStore: WorkStore,
-  outerWorkUnitStore: WorkUnitStore | undefined,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
-  encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError
+  encodedCacheKeyParts: FormData | string,
+  ctx: GenerateCacheEntryContext
 ) {
   // Since we cleared the AsyncLocalStorage we need to restore the workStore.
   // Note: We explicitly don't restore the RequestStore nor the PrerenderStore.
@@ -109,25 +107,21 @@ function generateCacheEntryWithRestoredWorkStore(
   // PrerenderStore is not needed inside the cache scope because the outer most one will
   // be the one to report its result to the outer Prerender.
   return workAsyncStorage.run(
-    workStore,
+    ctx.workStore,
     generateCacheEntryWithCacheContext,
-    workStore,
-    outerWorkUnitStore,
-    clientReferenceManifest,
-    encodedArguments,
     fn,
-    timeoutError
+    encodedCacheKeyParts,
+    ctx
   )
 }
 
 function generateCacheEntryWithCacheContext(
-  workStore: WorkStore,
-  outerWorkUnitStore: WorkUnitStore | undefined,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
-  encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError
+  encodedCacheKeyParts: FormData | string,
+  ctx: GenerateCacheEntryContext
 ) {
+  const { workStore, outerWorkUnitStore } = ctx
+
   if (!workStore.cacheLifeProfiles) {
     throw new Error(
       'cacheLifeProfiles should always be provided. This is a bug in Next.js.'
@@ -176,13 +170,10 @@ function generateCacheEntryWithCacheContext(
   return workUnitAsyncStorage.run(
     cacheStore,
     generateCacheEntryImpl,
-    workStore,
-    outerWorkUnitStore,
     cacheStore,
-    clientReferenceManifest,
-    encodedArguments,
     fn,
-    timeoutError
+    encodedCacheKeyParts,
+    ctx
   )
 }
 
@@ -308,27 +299,29 @@ async function collectResult(
 }
 
 async function generateCacheEntryImpl(
-  workStore: WorkStore,
-  outerWorkUnitStore: WorkUnitStore | undefined,
   innerCacheStore: UseCacheStore,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
-  encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError
+  encodedCacheKeyParts: FormData | string,
+  {
+    workStore,
+    outerWorkUnitStore,
+    clientReferenceManifest,
+    timeoutError,
+  }: GenerateCacheEntryContext
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
   const temporaryReferences = createServerTemporaryReferenceSet()
 
   const [, , args] =
-    typeof encodedArguments === 'string'
+    typeof encodedCacheKeyParts === 'string'
       ? await decodeReply<CacheKeyParts>(
-          encodedArguments,
+          encodedCacheKeyParts,
           getServerModuleMap(),
           { temporaryReferences }
         )
       : await decodeReplyFromAsyncIterable<CacheKeyParts>(
           {
             async *[Symbol.asyncIterator]() {
-              for (const entry of encodedArguments) {
+              for (const entry of encodedCacheKeyParts) {
                 yield entry
               }
 
@@ -846,12 +839,14 @@ export function cache(
           }
 
           const [newStream, pendingCacheEntry] = await generateCacheEntry(
-            workStore,
-            workUnitStore,
-            clientReferenceManifest,
-            encodedCacheKeyParts,
             fn,
-            timeoutError
+            encodedCacheKeyParts,
+            {
+              workStore,
+              outerWorkUnitStore: workUnitStore,
+              clientReferenceManifest,
+              timeoutError,
+            }
           )
 
           // When draft mode is enabled, we must not save the cache entry.
@@ -911,12 +906,14 @@ export function cache(
             // If this is stale, and we're not in a prerender (i.e. this is dynamic render),
             // then we should warm up the cache with a fresh revalidated entry.
             const [ignoredStream, pendingCacheEntry] = await generateCacheEntry(
-              workStore,
-              undefined, // This is not running within the context of this unit.
-              clientReferenceManifest,
-              encodedCacheKeyParts,
               fn,
-              timeoutError
+              encodedCacheKeyParts,
+              {
+                workStore,
+                outerWorkUnitStore: undefined, // This is not running within the context of this unit.
+                clientReferenceManifest,
+                timeoutError,
+              }
             )
 
             let savedCacheEntry: Promise<CacheEntry>
