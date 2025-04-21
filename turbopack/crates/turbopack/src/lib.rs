@@ -17,10 +17,9 @@ pub(crate) mod unsupported_sass;
 use anyhow::{bail, Result};
 use css::{CssModuleAsset, ModuleCssAsset};
 use ecmascript::{
-    chunk::EcmascriptChunkPlaceable,
-    references::{follow_reexports, FollowExportsResult},
-    side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
-    EcmascriptModuleAsset, EcmascriptModuleAssetType, TreeShakingMode,
+    chunk::EcmascriptChunkPlaceable, references::FollowExportsResult,
+    side_effect_optimization::facade::module::EcmascriptModuleFacadeModule, EcmascriptModuleAsset,
+    EcmascriptModuleAssetType, TreeShakingMode,
 };
 use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
@@ -55,7 +54,13 @@ pub use turbopack_css as css;
 pub use turbopack_ecmascript as ecmascript;
 use turbopack_ecmascript::{
     references::external_module::{CachedExternalModule, CachedExternalType},
-    tree_shake::asset::EcmascriptModulePartAsset,
+    tree_shake::{
+        asset::{
+            follow_reexports_with_side_effects, EcmascriptModulePartAsset,
+            FollowExportsWithSideEffectsResult,
+        },
+        side_effect_module::SideEffectsModule,
+    },
 };
 use turbopack_json::JsonModuleAsset;
 pub use turbopack_resolve::{resolve::resolve_options, resolve_options_context};
@@ -272,16 +277,27 @@ async fn apply_module_type(
 
 #[turbo_tasks::function]
 async fn apply_reexport_tree_shaking(
-    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    orig_module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     part: ModulePart,
     side_effect_free_packages: Vc<Glob>,
 ) -> Result<Vc<Box<dyn Module>>> {
     if let ModulePart::Export(export) = &part {
+        let FollowExportsWithSideEffectsResult {
+            side_effects,
+            result,
+        } = &*follow_reexports_with_side_effects(
+            orig_module,
+            export.clone(),
+            side_effect_free_packages,
+        )
+        .await?;
+
         let FollowExportsResult {
             module: final_module,
             export_name: new_export,
             ..
-        } = &*follow_reexports(module, export.clone(), side_effect_free_packages, false).await?;
+        } = &*result.await?;
+
         let module = if let Some(new_export) = new_export {
             if *new_export == *export {
                 Vc::upcast(**final_module)
@@ -297,9 +313,19 @@ async fn apply_reexport_tree_shaking(
                 ModulePart::renamed_namespace(export.clone()),
             ))
         };
-        return Ok(module);
+
+        if side_effects.is_empty() {
+            return Ok(module);
+        }
+        let side_effects_module = SideEffectsModule::new(
+            orig_module,
+            ModulePart::Export(export.clone()),
+            **final_module,
+            side_effects.iter().map(|v| **v).collect(),
+        );
+        return Ok(Vc::upcast(side_effects_module));
     }
-    Ok(Vc::upcast(module))
+    Ok(Vc::upcast(orig_module))
 }
 
 #[turbo_tasks::value]

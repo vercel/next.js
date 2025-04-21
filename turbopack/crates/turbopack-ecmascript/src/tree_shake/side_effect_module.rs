@@ -15,13 +15,12 @@ use turbopack_core::{
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     tree_shake::chunk_item::SideEffectsModuleChunkItem,
-    EcmascriptModuleAsset,
 };
 
 #[turbo_tasks::value]
-pub(super) struct SideEffectsModule {
+pub struct SideEffectsModule {
     /// Original module
-    pub module: ResolvedVc<EcmascriptModuleAsset>,
+    pub module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     /// The part of the original module that is the binding
     pub part: ModulePart,
     /// The module that is the binding
@@ -34,7 +33,7 @@ pub(super) struct SideEffectsModule {
 impl SideEffectsModule {
     #[turbo_tasks::function]
     pub fn new(
-        module: ResolvedVc<EcmascriptModuleAsset>,
+        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         part: ModulePart,
         resolved_as: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         side_effects: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
