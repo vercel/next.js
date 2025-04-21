@@ -26,7 +26,7 @@ import {
   getSegmentKeypathForTask,
 } from './cache'
 import type { RouteCacheKey } from './cache-key'
-import { PrefetchPriority } from '../segment-cache'
+import { getCurrentCacheVersion, PrefetchPriority } from '../segment-cache'
 
 const scheduleMicrotask =
   typeof queueMicrotask === 'function'
@@ -49,6 +49,12 @@ export type PrefetchTask = {
    * the first loading boundary.
    */
   treeAtTimeOfPrefetch: FlightRouterState
+
+  /**
+   * The cache version at the time the task was initiated. This is used to
+   * determine if the cache was invalidated since the task was initiated.
+   */
+  cacheVersion: number
 
   /**
    * Whether to prefetch dynamic data, in addition to static data. This is
@@ -104,6 +110,11 @@ export type PrefetchTask = {
    * True if the prefetch was cancelled.
    */
   isCanceled: boolean
+
+  /**
+   * The callback passed to `router.prefetch`, if given.
+   */
+  onInvalidate: null | (() => void)
 
   /**
    * The index of the task in the heap's backing array. Used to efficiently
@@ -182,18 +193,21 @@ export function schedulePrefetchTask(
   key: RouteCacheKey,
   treeAtTimeOfPrefetch: FlightRouterState,
   includeDynamicData: boolean,
-  priority: PrefetchPriority
+  priority: PrefetchPriority,
+  onInvalidate: null | (() => void)
 ): PrefetchTask {
   // Spawn a new prefetch task
   const task: PrefetchTask = {
     key,
     treeAtTimeOfPrefetch,
+    cacheVersion: getCurrentCacheVersion(),
     priority,
     phase: PrefetchPhase.RouteTree,
     hasBackgroundWork: false,
     includeDynamicData,
     sortId: sortIdCounter++,
     isCanceled: false,
+    onInvalidate,
     _heapIndex: -1,
   }
   heapPush(taskHeap, task)
@@ -252,6 +266,24 @@ export function reschedulePrefetchTask(
     heapPush(taskHeap, task)
   }
   ensureWorkIsScheduled()
+}
+
+export function isPrefetchTaskDirty(
+  task: PrefetchTask,
+  nextUrl: string | null,
+  tree: FlightRouterState
+): boolean {
+  // This is used to quickly bail out of a prefetch task if the result is
+  // guaranteed to not have changed since the task was initiated. This is
+  // strictly an optimization — theoretically, if it always returned true, no
+  // behavior should change because a full prefetch task will effectively
+  // perform the same checks.
+  const currentCacheVersion = getCurrentCacheVersion()
+  return (
+    task.cacheVersion !== currentCacheVersion ||
+    task.treeAtTimeOfPrefetch !== tree ||
+    task.key.nextUrl !== nextUrl
+  )
 }
 
 function ensureWorkIsScheduled() {
@@ -344,6 +376,8 @@ function processQueueInMicrotask() {
   // Process the task queue until we run out of network bandwidth.
   let task = heapPeek(taskHeap)
   while (task !== null && hasNetworkBandwidth()) {
+    task.cacheVersion = getCurrentCacheVersion()
+
     const route = readOrCreateRouteCacheEntry(now, task)
     const exitStatus = pingRootRouteTree(now, task, route)
 
