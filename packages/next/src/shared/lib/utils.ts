@@ -30,8 +30,8 @@ export type DocumentType = NextComponentType<
 
 export type AppType<P = {}> = NextComponentType<
   AppContextType,
-  P,
-  AppPropsType<any, P>
+  P & { pageProps?: any }, // Our custom props + pageProps
+  AppPropsType<NextRouter, P> // P now correctly applies to root props
 >
 
 export type AppTreeType = ComponentType<
