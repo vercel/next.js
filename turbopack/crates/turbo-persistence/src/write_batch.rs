@@ -58,7 +58,9 @@ pub struct WriteBatch<K: StoreKey + Send, const FAMILIES: usize> {
 impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
     /// Creates a new write batch for a database.
     pub(crate) fn new(path: PathBuf, current: u32) -> Self {
-        assert!(FAMILIES <= usize_from_u32(u32::MAX));
+        const {
+            assert!(FAMILIES <= usize_from_u32(u32::MAX));
+        };
         Self {
             path,
             current_sequence_number: AtomicU32::new(current),
@@ -346,9 +348,8 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
 const fn usize_from_u32(value: u32) -> usize {
     // This should always be true, as we assume at least a 32-bit width architecture for Turbopack.
     // Since this is a const expression, we expect it to be compiled away.
-    #[expect(clippy::assertions_on_constants)]
-    {
+    const {
         assert!(u32::BITS < usize::BITS);
-    }
+    };
     value as usize
 }

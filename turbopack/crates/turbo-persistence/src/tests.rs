@@ -105,7 +105,7 @@ fn full_cycle() -> Result<()> {
         },
         |db| {
             for i in 0..2u8 {
-                let key_and_value = vec![i; 65 * 1024 * 1024];
+                let key_and_value = vec![i; BLOB_SIZE];
                 let Some(value) = db.get(0, &key_and_value)? else {
                     panic!("Value not found");
                 };
