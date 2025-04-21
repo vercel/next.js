@@ -217,6 +217,8 @@ declare module 'react-server-dom-webpack/server.node' {
   ): Promise<ReactFormState | null>
 }
 declare module 'react-server-dom-webpack/static.edge' {
+  export type TemporaryReferenceSet = WeakMap<any, string>
+
   export function unstable_prerender(
     children: any,
     webpackMap: {
@@ -232,6 +234,7 @@ declare module 'react-server-dom-webpack/static.edge' {
       filterStackFrame?: (url: string, functionName: string) => boolean
       identifierPrefix?: string
       signal?: AbortSignal
+      temporaryReferences?: TemporaryReferenceSet
       onError?: (error: unknown) => void
       onPostpone?: (reason: string) => void
     }

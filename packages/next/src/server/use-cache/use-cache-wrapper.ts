@@ -6,12 +6,13 @@ import {
   decodeReplyFromAsyncIterable,
   createTemporaryReferenceSet as createServerTemporaryReferenceSet,
 } from 'react-server-dom-webpack/server.edge'
-/* eslint-disable import/no-extraneous-dependencies */
 import {
   createFromReadableStream,
   encodeReply,
   createTemporaryReferenceSet as createClientTemporaryReferenceSet,
 } from 'react-server-dom-webpack/client.edge'
+import { unstable_prerender as prerender } from 'react-server-dom-webpack/static.edge'
+/* eslint-enable import/no-extraneous-dependencies */
 
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
@@ -224,8 +225,7 @@ async function collectResult(
   outerWorkUnitStore: WorkUnitStore | undefined,
   innerCacheStore: UseCacheStore,
   startTime: number,
-  errors: Array<unknown>, // This is a live array that gets pushed into.,
-  timer: any
+  errors: Array<unknown> // This is a live array that gets pushed into.
 ): Promise<CacheEntry> {
   // We create a buffered stream that collects all chunks until the end to
   // ensure that RSC has finished rendering and therefore we have collected
@@ -287,6 +287,7 @@ async function collectResult(
     stale: collectedStale,
     tags: collectedTags === null ? [] : collectedTags,
   }
+
   // Propagate tags/revalidate to the parent context.
   propagateCacheLifeAndTags(outerWorkUnitStore, entry)
 
@@ -294,12 +295,9 @@ async function collectResult(
     outerWorkUnitStore && outerWorkUnitStore.type === 'prerender'
       ? outerWorkUnitStore.cacheSignal
       : null
+
   if (cacheSignal) {
     cacheSignal.endRead()
-  }
-
-  if (timer !== undefined) {
-    clearTimeout(timer)
   }
 
   return entry
@@ -364,52 +362,75 @@ async function generateCacheEntryImpl(
 
   let errors: Array<unknown> = []
 
-  let timer = undefined
-  const controller = new AbortController()
+  // In the "Cache" environment, we only need to make sure that the error
+  // digests are handled correctly. Error formatting and reporting is not
+  // necessary here; the errors are encoded in the stream, and will be reported
+  // in the "Server" environment.
+  const handleError = (error: unknown): string | undefined => {
+    const digest = getDigestForWellKnownError(error)
+
+    if (digest) {
+      return digest
+    }
+
+    if (process.env.NODE_ENV !== 'development') {
+      // TODO: For now we're also reporting the error here, because in
+      // production, the "Server" environment will only get the obfuscated
+      // error (created by the Flight Client in the cache wrapper).
+      console.error(error)
+    }
+
+    errors.push(error)
+  }
+
+  let stream: ReadableStream<Uint8Array>
+
   if (outerWorkUnitStore?.type === 'prerender') {
+    const timeoutAbortController = new AbortController()
+
     // If we're prerendering, we give you 50 seconds to fill a cache entry.
     // Otherwise we assume you stalled on hanging input and de-opt. This needs
     // to be lower than just the general timeout of 60 seconds.
-    timer = setTimeout(() => {
-      controller.abort(timeoutError)
+    const timer = setTimeout(() => {
+      timeoutAbortController.abort(timeoutError)
     }, 50000)
+
+    const abortSignal = AbortSignal.any([
+      outerWorkUnitStore.renderSignal,
+      timeoutAbortController.signal,
+    ])
+
+    const { prelude } = await prerender(
+      resultPromise,
+      clientReferenceManifest.clientModules,
+      {
+        environmentName: 'Cache',
+        signal: abortSignal,
+        temporaryReferences,
+        onError(error) {
+          if (abortSignal.aborted && abortSignal.reason === error) {
+            return error === timeoutError ? timeoutError.digest : undefined
+          }
+
+          return handleError(error)
+        },
+      }
+    )
+
+    clearTimeout(timer)
+
+    stream = prelude
+  } else {
+    stream = renderToReadableStream(
+      resultPromise,
+      clientReferenceManifest.clientModules,
+      {
+        environmentName: 'Cache',
+        temporaryReferences,
+        onError: handleError,
+      }
+    )
   }
-
-  const stream = renderToReadableStream(
-    resultPromise,
-    clientReferenceManifest.clientModules,
-    {
-      environmentName: 'Cache',
-      signal: controller.signal,
-      temporaryReferences,
-      // In the "Cache" environment, we only need to make sure that the error
-      // digests are handled correctly. Error formatting and reporting is not
-      // necessary here; the errors are encoded in the stream, and will be
-      // reported in the "Server" environment.
-      onError: (error) => {
-        const digest = getDigestForWellKnownError(error)
-
-        if (digest) {
-          return digest
-        }
-
-        if (process.env.NODE_ENV !== 'development') {
-          // TODO: For now we're also reporting the error here, because in
-          // production, the "Server" environment will only get the obfuscated
-          // error (created by the Flight Client in the cache wrapper).
-          console.error(error)
-        }
-
-        if (error === timeoutError) {
-          // The timeout error already aborted the whole stream. We don't need
-          // to also push this error into the `errors` array.
-          return timeoutError.digest
-        }
-
-        errors.push(error)
-      },
-    }
-  )
 
   const [returnStream, savedStream] = stream.tee()
 
@@ -419,8 +440,7 @@ async function generateCacheEntryImpl(
     outerWorkUnitStore,
     innerCacheStore,
     startTime,
-    errors,
-    timer
+    errors
   )
 
   // Return the stream as we're creating it. This means that if it ends up
