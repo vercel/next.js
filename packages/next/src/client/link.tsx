@@ -246,36 +246,24 @@ function linkClicked(
 
       onNavigate(navigateEvent)
 
-      // Only proceed with navigation if preventDefault wasn't called
-      if (!isDefaultPrevented) {
-        // If the router is an NextRouter instance it will have `beforePopState`
-        const routerScroll = scroll ?? true
-        if ('beforePopState' in router) {
-          router[replace ? 'replace' : 'push'](href, as, {
-            shallow,
-            locale,
-            scroll: routerScroll,
-          })
-        } else {
-          router[replace ? 'replace' : 'push'](as || href, {
-            scroll: routerScroll,
-          })
-        }
+      // Skip navigation if preventDefault was called
+      if (isDefaultPrevented) {
+        return
       }
+    }
+
+    // Navigate if no onNavigate handler or preventDefault wasn't called
+    const routerScroll = scroll ?? true
+    if ('beforePopState' in router) {
+      router[replace ? 'replace' : 'push'](href, as, {
+        shallow,
+        locale,
+        scroll: routerScroll,
+      })
     } else {
-      // If the router is an NextRouter instance it will have `beforePopState`
-      const routerScroll = scroll ?? true
-      if ('beforePopState' in router) {
-        router[replace ? 'replace' : 'push'](href, as, {
-          shallow,
-          locale,
-          scroll: routerScroll,
-        })
-      } else {
-        router[replace ? 'replace' : 'push'](as || href, {
-          scroll: routerScroll,
-        })
-      }
+      router[replace ? 'replace' : 'push'](as || href, {
+        scroll: routerScroll,
+      })
     }
   })
 }
