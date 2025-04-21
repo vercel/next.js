@@ -234,37 +234,50 @@ function linkClicked(
 
   e.preventDefault()
 
-  const navigate = () => {
+  React.startTransition(() => {
     if (onNavigate) {
       let isDefaultPrevented = false
 
-      onNavigate({
+      const navigateEvent = {
         preventDefault: () => {
           isDefaultPrevented = true
         },
-      })
+      }
 
-      if (isDefaultPrevented) {
-        return
+      onNavigate(navigateEvent)
+
+      // Only proceed with navigation if preventDefault wasn't called
+      if (!isDefaultPrevented) {
+        // If the router is an NextRouter instance it will have `beforePopState`
+        const routerScroll = scroll ?? true
+        if ('beforePopState' in router) {
+          router[replace ? 'replace' : 'push'](href, as, {
+            shallow,
+            locale,
+            scroll: routerScroll,
+          })
+        } else {
+          router[replace ? 'replace' : 'push'](as || href, {
+            scroll: routerScroll,
+          })
+        }
+      }
+    } else {
+      // If the router is an NextRouter instance it will have `beforePopState`
+      const routerScroll = scroll ?? true
+      if ('beforePopState' in router) {
+        router[replace ? 'replace' : 'push'](href, as, {
+          shallow,
+          locale,
+          scroll: routerScroll,
+        })
+      } else {
+        router[replace ? 'replace' : 'push'](as || href, {
+          scroll: routerScroll,
+        })
       }
     }
-
-    // If the router is an NextRouter instance it will have `beforePopState`
-    const routerScroll = scroll ?? true
-    if ('beforePopState' in router) {
-      router[replace ? 'replace' : 'push'](href, as, {
-        shallow,
-        locale,
-        scroll: routerScroll,
-      })
-    } else {
-      router[replace ? 'replace' : 'push'](as || href, {
-        scroll: routerScroll,
-      })
-    }
-  }
-
-  navigate()
+  })
 }
 
 type LinkPropsReal = React.PropsWithChildren<

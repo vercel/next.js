@@ -271,30 +271,36 @@ function linkClicked(
 
   e.preventDefault()
 
-  const navigate = () => {
+  React.startTransition(() => {
     if (onNavigate) {
       let isDefaultPrevented = false
 
-      onNavigate({
+      const navigateEvent = {
         preventDefault: () => {
           isDefaultPrevented = true
         },
-      })
-
-      if (isDefaultPrevented) {
-        return
       }
+
+      onNavigate(navigateEvent)
+
+      // Only proceed with navigation if preventDefault wasn't called
+      if (!isDefaultPrevented) {
+        dispatchNavigateAction(
+          as || href,
+          replace ? 'replace' : 'push',
+          scroll ?? true,
+          linkInstanceRef.current
+        )
+      }
+    } else {
+      dispatchNavigateAction(
+        as || href,
+        replace ? 'replace' : 'push',
+        scroll ?? true,
+        linkInstanceRef.current
+      )
     }
-
-    dispatchNavigateAction(
-      as || href,
-      replace ? 'replace' : 'push',
-      scroll ?? true,
-      linkInstanceRef.current
-    )
-  }
-
-  React.startTransition(navigate)
+  })
 }
 
 function formatStringOrUrl(urlObjOrString: UrlObject | string): string {
