@@ -6,7 +6,7 @@ use syn::{
     parse_macro_input, parse_quote,
     spanned::Spanned,
     Attribute, Error, Expr, ExprLit, Generics, ImplItem, ImplItemFn, ItemImpl, Lit, LitStr, Meta,
-    MetaNameValue, Path, Result, Token, Type,
+    MetaNameValue, Path, Token, Type,
 };
 use turbo_tasks_macros_shared::{
     get_inherent_impl_function_id_ident, get_inherent_impl_function_ident, get_path_ident,
@@ -65,7 +65,7 @@ struct ValueImplArguments {
 }
 
 impl Parse for ValueImplArguments {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut result = ValueImplArguments { ident: None };
         let punctuated = input.parse_terminated(Meta::parse, Token![,])?;
         for meta in punctuated {

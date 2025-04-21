@@ -317,32 +317,6 @@ impl TurboFn<'_> {
         orig_block: &'a Block,
     ) -> (Signature, Cow<'a, Block>) {
         let mut shadow_self = None;
-
-        fn transform_from_task_input(
-            span: Span,
-            arg_id: Cow<'_, Ident>,
-            orig_ty: &Type,
-            pat: Pat,
-        ) -> Stmt {
-            Stmt::Local(Local {
-                attrs: Vec::new(),
-                let_token: Default::default(),
-                pat,
-                init: Some(LocalInit {
-                    eq_token: Default::default(),
-                    // we know the argument implements `FromTaskInput` because
-                    // `expand_task_input_type` returned `Cow::Owned`
-                    expr: parse_quote_spanned! {
-                        span =>
-                        <#orig_ty as turbo_tasks::task::FromTaskInput>::from_task_input(
-                            #arg_id
-                        )
-                    },
-                    diverge: None,
-                }),
-                semi_token: Default::default(),
-            })
-        }
         let (inputs, transform_stmts): (Punctuated<_, _>, Vec<Option<_>>) = self
             .orig_signature
             .inputs
@@ -367,6 +341,27 @@ impl TurboFn<'_> {
                 let Cow::Owned(expanded_ty) = expand_task_input_type(&ty) else {
                     // common-case: skip if no type conversion is needed
                     return (arg.clone(), None);
+                };
+                // Helper to produce the transform statement
+                let transform_from_task_input = |arg_id: Cow<'_, Ident>, pat: Pat| {
+                    Stmt::Local(Local {
+                        attrs: Vec::new(),
+                        let_token: Default::default(),
+                        pat,
+                        init: Some(LocalInit {
+                            eq_token: Default::default(),
+                            // we know the argument implements `FromTaskInput` because
+                            // `expand_task_input_type` returned `Cow::Owned`
+                            expr: parse_quote_spanned! {
+                                arg.span() =>
+                                <#ty as turbo_tasks::task::FromTaskInput>::from_task_input(
+                                    #arg_id
+                                )
+                            },
+                            diverge: None,
+                        }),
+                        semi_token: Default::default(),
+                    })
                 };
                 match arg {
                     FnArg::Receiver(
@@ -400,12 +395,8 @@ impl TurboFn<'_> {
                             subpat: None,
                         });
                         let self_ident = Cow::Owned(Ident::new("self", self_token.span()));
-                        let transform_stmt = transform_from_task_input(
-                            receiver.span(),
-                            self_ident,
-                            ty,
-                            shadow_self_pattern,
-                        );
+                        let transform_stmt =
+                            transform_from_task_input(self_ident, shadow_self_pattern);
 
                         (arg, Some(transform_stmt))
                     }
@@ -435,10 +426,8 @@ impl TurboFn<'_> {
 
                         // convert an argument of type `FromTaskInput<T>::TaskInput` into `T`.
                         // essentially, replace any instances of `Vc` with `ResolvedVc`.
-                        let orig_ty = &*pat_type.ty;
                         let pat = (&*pat_type.pat).clone();
-                        let transform_stmt =
-                            transform_from_task_input(pat_type.span(), arg_id, orig_ty, pat);
+                        let transform_stmt = transform_from_task_input(arg_id, pat);
 
                         (arg, Some(transform_stmt))
                     }
@@ -716,6 +705,7 @@ enum IoMarker {
     Network,
 }
 
+// Optionally parses `T` from a parethensized attributes, returns `T::default` otherwise.
 pub fn parse_with_optional_parens<T: Parse + Default>(attr: &Attribute) -> syn::Result<T> {
     match &attr.meta {
         Meta::Path(_) => Ok(T::default()),
