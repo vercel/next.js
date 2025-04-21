@@ -169,34 +169,34 @@ impl ModuleReference for EsmAssetReference {
             EcmaScriptModulesReferenceSubType::Import
         };
 
+        if let Some(ModulePart::Evaluation) = &self.export_name {
+            let module: ResolvedVc<crate::EcmascriptModuleAsset> =
+                ResolvedVc::try_downcast_type(self.origin)
+                    .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
+
+            // We handle this logic here because these references are already resolved as
+            // _module_ so we cannot return Ignore in resolve step. This causes a problem
+            // for side-effect optimization logic.w
+            let side_effect_free_packages = module.asset_context().side_effect_free_packages();
+
+            if *module
+                .is_marked_as_side_effect_free(side_effect_free_packages)
+                .await?
+            {
+                return Ok(ModuleResolveResult {
+                    primary: Box::new([(RequestKey::default(), ModuleResolveResultItem::Ignore)]),
+                    affecting_sources: Default::default(),
+                }
+                .cell());
+            }
+        }
+
         if let Request::Module { module, .. } = &*self.request.await? {
             if module == TURBOPACK_PART_IMPORT_SOURCE {
                 if let Some(part) = &self.export_name {
                     let module: ResolvedVc<crate::EcmascriptModuleAsset> =
                         ResolvedVc::try_downcast_type(self.origin)
                             .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
-
-                    // We handle this logic here because these references are already resolved as
-                    // _module_ so we cannot return Ignore in resolve step. This causes a problem
-                    // for side-effect optimization logic.w
-                    if matches!(part, ModulePart::Evaluation) {
-                        let side_effect_free_packages =
-                            module.asset_context().side_effect_free_packages();
-
-                        if *module
-                            .is_marked_as_side_effect_free(side_effect_free_packages)
-                            .await?
-                        {
-                            return Ok(ModuleResolveResult {
-                                primary: Box::new([(
-                                    RequestKey::default(),
-                                    ModuleResolveResultItem::Ignore,
-                                )]),
-                                affecting_sources: Default::default(),
-                            }
-                            .cell());
-                        }
-                    }
 
                     return Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
                         EcmascriptModulePartAsset::select_part(*module, part.clone())
