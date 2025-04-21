@@ -314,6 +314,17 @@ async function collectResult(
   return entry
 }
 
+type GenerateCacheEntryResult =
+  | {
+      type: 'cached'
+      stream: ReadableStream
+      pendingCacheEntry: Promise<CacheEntry>
+    }
+  | {
+      type: 'prerender-dynamic'
+      hangingPromise: Promise<never>
+    }
+
 async function generateCacheEntryImpl(
   innerCacheStore: CommonUseCacheStore,
   fn: (...args: unknown[]) => Promise<unknown>,
@@ -324,7 +335,7 @@ async function generateCacheEntryImpl(
     timeoutError,
     renderContext,
   }: GenerateCacheEntryContext
-): Promise<[ReadableStream, Promise<CacheEntry>] | [null, Promise<never>]> {
+): Promise<GenerateCacheEntryResult> {
   const temporaryReferences = createServerTemporaryReferenceSet()
 
   const [, , args] =
@@ -473,8 +484,7 @@ async function generateCacheEntryImpl(
         dynamicAccessAbortSignal.reason.message
       )
 
-      // TODO: A tuple is not the best way to return this.
-      return [null, hangingPromise]
+      return { type: 'prerender-dynamic', hangingPromise }
     }
   } else {
     stream = renderToReadableStream(
@@ -490,7 +500,7 @@ async function generateCacheEntryImpl(
 
   const [returnStream, savedStream] = stream.tee()
 
-  const promiseOfCacheEntry = collectResult(
+  const pendingCacheEntry = collectResult(
     savedStream,
     workStore,
     renderContext.workUnitStore,
@@ -499,10 +509,14 @@ async function generateCacheEntryImpl(
     errors
   )
 
-  // Return the stream as we're creating it. This means that if it ends up
-  // erroring we cannot return a stale-while-error version but it allows
-  // streaming back the result earlier.
-  return [returnStream, promiseOfCacheEntry]
+  return {
+    type: 'cached',
+    // Return the stream as we're creating it. This means that if it ends up
+    // erroring we cannot return a stale-if-error version but it allows
+    // streaming back the result earlier.
+    stream: returnStream,
+    pendingCacheEntry,
+  }
 }
 
 function cloneCacheEntry(entry: CacheEntry): [CacheEntry, CacheEntry] {
@@ -891,23 +905,19 @@ export function cache(
 
           const renderContext = createRenderContext(workUnitStore)
 
-          const [newStream, pendingCacheEntry] = await generateCacheEntry(
-            fn,
-            encodedCacheKeyParts,
-            {
-              workStore,
-              renderContext,
-              clientReferenceManifest,
-              timeoutError,
-              kind,
-            }
-          )
+          const result = await generateCacheEntry(fn, encodedCacheKeyParts, {
+            workStore,
+            renderContext,
+            clientReferenceManifest,
+            timeoutError,
+            kind,
+          })
 
-          if (newStream === null) {
-            // TODO: This is actually a hanging promise. Make this clearer by
-            // not returning a tuple from generateCacheEntry.
-            return pendingCacheEntry
+          if (result.type === 'prerender-dynamic') {
+            return result.hangingPromise
           }
+
+          const { stream: newStream, pendingCacheEntry } = result
 
           // When draft mode is enabled, we must not save the cache entry.
           if (!workStore.isDraftMode) {
@@ -963,26 +973,27 @@ export function cache(
           }
 
           if (currentTime > entry.timestamp + entry.revalidate * 1000) {
-            // If this is stale, and we're not in a prerender (i.e. this is dynamic render),
-            // then we should warm up the cache with a fresh revalidated entry.
-            const [ignoredStream, pendingCacheEntry] = await generateCacheEntry(
-              fn,
-              encodedCacheKeyParts,
-              {
-                workStore,
-                renderContext: {
-                  type: 'other',
-                  // This is not running within the context of this unit.
-                  workUnitStore: undefined,
-                },
-                clientReferenceManifest,
-                timeoutError,
-                kind,
-              }
-            )
+            // If this is stale, and we're not in a prerender (i.e. this is
+            // dynamic render), then we should warm up the cache with a fresh
+            // revalidated entry.
+            const result = await generateCacheEntry(fn, encodedCacheKeyParts, {
+              workStore,
+              renderContext: {
+                type: 'other',
+                // This is not running within the context of this unit.
+                // TODO: We may need to pass in a work unit store that
+                // includes the cookies though.
+                workUnitStore: undefined,
+              },
+              clientReferenceManifest,
+              timeoutError,
+              kind,
+            })
 
-            if (ignoredStream !== null) {
+            if (result.type === 'cached') {
+              const { stream: ignoredStream, pendingCacheEntry } = result
               let savedCacheEntry: Promise<CacheEntry>
+
               if (prerenderResumeDataCache) {
                 const split = clonePendingCacheEntry(pendingCacheEntry)
                 savedCacheEntry = getNthCacheEntry(split, 0)
@@ -999,9 +1010,7 @@ export function cache(
                 savedCacheEntry
               )
 
-              if (!workStore.pendingRevalidateWrites) {
-                workStore.pendingRevalidateWrites = []
-              }
+              workStore.pendingRevalidateWrites ??= []
               workStore.pendingRevalidateWrites.push(promise)
 
               await ignoredStream.cancel()
