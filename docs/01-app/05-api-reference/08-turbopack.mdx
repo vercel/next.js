@@ -18,17 +18,18 @@ We built Turbopack to push the performance of Next.js, including:
 
 ## Getting started
 
-To enable Turbopack in your Next.js project, add the `--turbopack` flag to the `dev`, `build`, and `start` scripts in your `package.json` file:
+To enable Turbopack in your Next.js project, add the `--turbopack` flag to the `dev` or `build` script in your `package.json` file:
 
 ```json filename="package.json" highlight={3}
 {
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
-    "start": "next start --turbopack"
+    "build": "next build --turbopack"
   }
 }
 ```
+
+> **Note:** The `--turbopack` flag only affects `next dev` and `next build` commands. It has no effect on `next start` as this command simply serves the already built production output.
 
 Currently, Turbopack for `dev` is stable, while `build` is in alpha. We are actively working on production support as Turbopack moves closer to stability.
 
