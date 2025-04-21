@@ -39,6 +39,7 @@ use crate::{
     runtime_functions::{TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT},
     tree_shake::{asset::EcmascriptModulePartAsset, TURBOPACK_PART_IMPORT_SOURCE},
     utils::module_id_to_lit,
+    TreeShakingMode,
 };
 
 #[turbo_tasks::value]
@@ -174,20 +175,24 @@ impl ModuleReference for EsmAssetReference {
                 ResolvedVc::try_downcast_type(self.origin)
                     .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
 
-            // We handle this logic here because these references are already resolved as
-            // _module_ so we cannot return Ignore in resolve step. This causes a problem
-            // for side-effect optimization logic.w
-            let side_effect_free_packages = module.asset_context().side_effect_free_packages();
+            let tree_shaking_mode = module.options().await?.tree_shaking_mode;
 
-            if *module
-                .is_marked_as_side_effect_free(side_effect_free_packages)
-                .await?
-            {
-                return Ok(ModuleResolveResult {
-                    primary: Box::new([(RequestKey::default(), ModuleResolveResultItem::Ignore)]),
-                    affecting_sources: Default::default(),
+            if let Some(TreeShakingMode::ModuleFragments) = tree_shaking_mode {
+                let side_effect_free_packages = module.asset_context().side_effect_free_packages();
+
+                if *module
+                    .is_marked_as_side_effect_free(side_effect_free_packages)
+                    .await?
+                {
+                    return Ok(ModuleResolveResult {
+                        primary: Box::new([(
+                            RequestKey::default(),
+                            ModuleResolveResultItem::Ignore,
+                        )]),
+                        affecting_sources: Default::default(),
+                    }
+                    .cell());
                 }
-                .cell());
             }
         }
 
