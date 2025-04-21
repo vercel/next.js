@@ -66,6 +66,7 @@ use crate::{
 /// [`ReadRef`]: crate::ReadRef
 #[derive(Serialize, Deserialize)]
 #[serde(transparent, bound = "")]
+#[repr(transparent)]
 pub struct ResolvedVc<T>
 where
     T: ?Sized,

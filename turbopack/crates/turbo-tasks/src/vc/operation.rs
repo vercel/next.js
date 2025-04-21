@@ -48,6 +48,7 @@ use crate::{
 /// [`State`]: crate::State
 /// [`ReadRef`]: crate::ReadRef
 #[must_use]
+#[repr(transparent)]
 pub struct OperationVc<T>
 where
     T: ?Sized,
