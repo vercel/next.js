@@ -398,6 +398,7 @@ graph TD
         "foobar",
     ): 10,
     Exports: 12,
+    StarExports: 13,
 }
 ```
 
@@ -580,6 +581,10 @@ export { foo } from "__TURBOPACK_PART__" assert {
 };
 
 ```
+## Part 13
+```js
+
+```
 ## Merged (module eval)
 ```js
 import { g as foobarCopy } from "__TURBOPACK_PART__" assert {
@@ -618,6 +623,7 @@ export { };
         "foobar",
     ): 11,
     Exports: 12,
+    StarExports: 13,
 }
 ```
 
@@ -786,6 +792,10 @@ export { external2 } from "__TURBOPACK_PART__" assert {
 export { foobar } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export foobar"
 };
+
+```
+## Part 13
+```js
 
 ```
 ## Merged (module eval)

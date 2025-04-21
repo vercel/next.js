@@ -234,6 +234,7 @@ graph TD
         "sendMessage",
     ): 4,
     Exports: 5,
+    StarExports: 7,
 }
 ```
 
@@ -367,6 +368,10 @@ export { sendMessage } from "__TURBOPACK_PART__" assert {
 export { };
 
 ```
+## Part 7
+```js
+
+```
 ## Merged (module eval)
 ```js
 export { };
@@ -387,6 +392,7 @@ export { };
         "sendMessage",
     ): 4,
     Exports: 5,
+    StarExports: 7,
 }
 ```
 
@@ -518,6 +524,10 @@ export { sendMessage } from "__TURBOPACK_PART__" assert {
 ## Part 6
 ```js
 export { };
+
+```
+## Part 7
+```js
 
 ```
 ## Merged (module eval)

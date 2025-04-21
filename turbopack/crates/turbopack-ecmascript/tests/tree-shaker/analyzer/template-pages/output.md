@@ -802,6 +802,7 @@ graph TD
         "unstable_getStaticProps",
     ): 34,
     Exports: 35,
+    StarExports: 36,
 }
 ```
 
@@ -1301,6 +1302,10 @@ export { unstable_getStaticProps } from "__TURBOPACK_PART__" assert {
 };
 
 ```
+## Part 36
+```js
+
+```
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
@@ -1389,6 +1394,7 @@ export { };
         "unstable_getStaticProps",
     ): 34,
     Exports: 35,
+    StarExports: 36,
 }
 ```
 
@@ -1886,6 +1892,10 @@ export { unstable_getStaticPaths } from "__TURBOPACK_PART__" assert {
 export { unstable_getStaticProps } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export unstable_getStaticProps"
 };
+
+```
+## Part 36
+```js
 
 ```
 ## Merged (module eval)

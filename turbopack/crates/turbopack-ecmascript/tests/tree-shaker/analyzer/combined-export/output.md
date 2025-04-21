@@ -86,6 +86,7 @@ graph TD
         "b",
     ): 1,
     Exports: 2,
+    StarExports: 4,
 }
 ```
 
@@ -124,6 +125,10 @@ export { b } from "__TURBOPACK_PART__" assert {
 export { };
 
 ```
+## Part 4
+```js
+
+```
 ## Merged (module eval)
 ```js
 export { };
@@ -141,6 +146,7 @@ export { };
         "b",
     ): 1,
     Exports: 2,
+    StarExports: 4,
 }
 ```
 
@@ -177,6 +183,10 @@ export { b } from "__TURBOPACK_PART__" assert {
 ## Part 3
 ```js
 export { };
+
+```
+## Part 4
+```js
 
 ```
 ## Merged (module eval)

@@ -83,6 +83,7 @@ graph TD
         "RouteKind",
     ): 0,
     Exports: 1,
+    StarExports: 2,
 }
 ```
 
@@ -111,6 +112,10 @@ export { RouteKind } from "__TURBOPACK_PART__" assert {
 };
 
 ```
+## Part 2
+```js
+
+```
 ## Merged (module eval)
 ```js
 var RouteKind;
@@ -136,6 +141,7 @@ export { };
         "RouteKind",
     ): 0,
     Exports: 1,
+    StarExports: 2,
 }
 ```
 
@@ -162,6 +168,10 @@ export { };
 export { RouteKind } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export RouteKind"
 };
+
+```
+## Part 2
+```js
 
 ```
 ## Merged (module eval)

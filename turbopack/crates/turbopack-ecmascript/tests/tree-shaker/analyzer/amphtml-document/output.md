@@ -298,6 +298,7 @@ graph TD
         "default",
     ): 10,
     Exports: 11,
+    StarExports: 12,
 }
 ```
 
@@ -490,6 +491,10 @@ export { default } from "__TURBOPACK_PART__" assert {
 };
 
 ```
+## Part 12
+```js
+
+```
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
@@ -557,6 +562,7 @@ export { };
         "default",
     ): 10,
     Exports: 11,
+    StarExports: 12,
 }
 ```
 
@@ -747,6 +753,10 @@ export { };
 export { default } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export default"
 };
+
+```
+## Part 12
+```js
 
 ```
 ## Merged (module eval)

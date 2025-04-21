@@ -128,6 +128,7 @@ graph TD
         "DOG",
     ): 2,
     Exports: 3,
+    StarExports: 5,
 }
 ```
 
@@ -184,6 +185,10 @@ export { DOG } from "__TURBOPACK_PART__" assert {
 export { };
 
 ```
+## Part 5
+```js
+
+```
 ## Merged (module eval)
 ```js
 export { };
@@ -201,6 +206,7 @@ export { };
         "DOG",
     ): 2,
     Exports: 3,
+    StarExports: 5,
 }
 ```
 
@@ -255,6 +261,10 @@ export { DOG } from "__TURBOPACK_PART__" assert {
 ## Part 4
 ```js
 export { };
+
+```
+## Part 5
+```js
 
 ```
 ## Merged (module eval)

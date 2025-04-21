@@ -375,6 +375,7 @@ graph TD
         "initialCat",
     ): 4,
     Exports: 7,
+    StarExports: 8,
 }
 ```
 
@@ -497,6 +498,10 @@ export { cat } from "__TURBOPACK_PART__" assert {
 };
 
 ```
+## Part 8
+```js
+
+```
 ## Merged (module eval)
 ```js
 import { a as dog } from "__TURBOPACK_PART__" assert {
@@ -548,6 +553,7 @@ export { };
         "initialCat",
     ): 6,
     Exports: 9,
+    StarExports: 10,
 }
 ```
 
@@ -691,6 +697,10 @@ export { getChimera } from "__TURBOPACK_PART__" assert {
 export { cat } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export cat"
 };
+
+```
+## Part 10
+```js
 
 ```
 ## Merged (module eval)

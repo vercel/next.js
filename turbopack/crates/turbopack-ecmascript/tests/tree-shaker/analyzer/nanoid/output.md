@@ -399,6 +399,7 @@ graph TD
         "urlAlphabet",
     ): 14,
     Exports: 15,
+    StarExports: 16,
 }
 ```
 
@@ -637,6 +638,10 @@ export { urlAlphabet } from "__TURBOPACK_PART__" assert {
 };
 
 ```
+## Part 16
+```js
+
+```
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
@@ -684,6 +689,7 @@ export { };
         "urlAlphabet",
     ): 14,
     Exports: 15,
+    StarExports: 16,
 }
 ```
 
@@ -920,6 +926,10 @@ export { random } from "__TURBOPACK_PART__" assert {
 export { urlAlphabet } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export urlAlphabet"
 };
+
+```
+## Part 16
+```js
 
 ```
 ## Merged (module eval)

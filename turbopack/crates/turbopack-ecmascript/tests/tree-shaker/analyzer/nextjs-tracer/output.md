@@ -639,6 +639,7 @@ graph TD
         "isBubbledError",
     ): 12,
     Exports: 14,
+    StarExports: 15,
 }
 ```
 
@@ -1052,6 +1053,10 @@ export { isBubbledError } from "__TURBOPACK_PART__" assert {
 };
 
 ```
+## Part 15
+```js
+
+```
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
@@ -1279,6 +1284,7 @@ export { };
         "isBubbledError",
     ): 12,
     Exports: 13,
+    StarExports: 14,
 }
 ```
 
@@ -1680,6 +1686,10 @@ export { SpanKind } from "__TURBOPACK_PART__" assert {
 export { isBubbledError } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export isBubbledError"
 };
+
+```
+## Part 14
+```js
 
 ```
 ## Merged (module eval)

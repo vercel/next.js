@@ -330,6 +330,7 @@ graph TD
 {
     ModuleEvaluation: 4,
     Exports: 7,
+    StarExports: 8,
 }
 ```
 
@@ -424,6 +425,10 @@ export { z as c } from "__TURBOPACK_VAR__" assert {
 ```js
 
 ```
+## Part 8
+```js
+
+```
 ## Merged (module eval)
 ```js
 import { b as y } from "__TURBOPACK_PART__" assert {
@@ -454,6 +459,7 @@ export { };
 {
     ModuleEvaluation: 1,
     Exports: 7,
+    StarExports: 8,
 }
 ```
 
@@ -539,6 +545,10 @@ x = 100;
 
 ```
 ## Part 7
+```js
+
+```
+## Part 8
 ```js
 
 ```

@@ -80,6 +80,7 @@ graph TD
 {
     ModuleEvaluation: 0,
     Exports: 1,
+    StarExports: 2,
 }
 ```
 
@@ -100,6 +101,10 @@ export { };
 ```js
 
 ```
+## Part 2
+```js
+
+```
 ## Merged (module eval)
 ```js
 a = ()=>{};
@@ -117,6 +122,7 @@ export { };
 {
     ModuleEvaluation: 0,
     Exports: 1,
+    StarExports: 2,
 }
 ```
 
@@ -134,6 +140,10 @@ export { };
 
 ```
 ## Part 1
+```js
+
+```
+## Part 2
 ```js
 
 ```
