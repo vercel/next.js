@@ -717,6 +717,19 @@ impl DepGraph {
                 },
             )));
 
+        {
+            let mut module = Module::dummy();
+            outputs.insert(Key::StarExports, modules.len() as u32);
+
+            for star in &star_reexports {
+                module
+                    .body
+                    .push(ModuleItem::ModuleDecl(ModuleDecl::ExportAll(star.clone())));
+            }
+
+            modules.push(module);
+        }
+
         SplitModuleResult {
             entrypoints: outputs,
             part_deps,
