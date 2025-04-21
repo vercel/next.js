@@ -283,16 +283,11 @@ function linkClicked(
 
       onNavigate(navigateEvent)
 
-      // Only proceed with navigation if preventDefault wasn't called
-      if (!isDefaultPrevented) {
-        dispatchNavigateAction(
-          as || href,
-          replace ? 'replace' : 'push',
-          scroll ?? true,
-          linkInstanceRef.current
-        )
+      // Skip navigation if preventDefault was called
+      if (isDefaultPrevented) {
+        return
       }
-    } else {
+
       dispatchNavigateAction(
         as || href,
         replace ? 'replace' : 'push',
