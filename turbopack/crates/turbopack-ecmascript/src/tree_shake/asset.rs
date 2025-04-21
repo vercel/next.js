@@ -191,7 +191,7 @@ impl EcmascriptModulePartAsset {
                     return Ok(*ResolvedVc::upcast(final_module));
                 }
                 let side_effects_module = SideEffectsModule::new(
-                    Vc::upcast(module),
+                    module,
                     ModulePart::Export(export),
                     *final_module,
                     side_effects.iter().map(|v| **v).collect(),
@@ -220,13 +220,13 @@ impl EcmascriptModulePartAsset {
 }
 
 #[turbo_tasks::value]
-pub struct FollowExportsWithSideEffectsResult {
-    pub side_effects: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
-    pub result: ResolvedVc<FollowExportsResult>,
+struct FollowExportsWithSideEffectsResult {
+    side_effects: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
+    result: ResolvedVc<FollowExportsResult>,
 }
 
 #[turbo_tasks::function]
-pub async fn follow_reexports_with_side_effects(
+async fn follow_reexports_with_side_effects(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
     side_effect_free_packages: Vc<Glob>,
