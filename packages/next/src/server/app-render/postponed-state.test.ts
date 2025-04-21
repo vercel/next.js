@@ -19,6 +19,7 @@ describe('getDynamicHTMLPostponedState', () => {
     prerenderResumeDataCache.cache.set(
       '1',
       Promise.resolve({
+        key: '1',
         value: streamFromString('hello'),
         tags: [],
         stale: 0,
