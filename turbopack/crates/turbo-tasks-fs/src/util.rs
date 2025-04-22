@@ -172,23 +172,25 @@ pub async fn uri_from_file(root: Vc<FileSystemPath>, path: Option<&str>) -> Resu
         .context("Expected root to have a DiskFileSystem")?
         .await?;
 
-    let raw_path = root_fs
+    let sys_path = root_fs
         .to_sys_path(match path {
             Some(path) => root.join(path.into()),
             None => root,
         })
-        .await?
-        .to_string_lossy();
+        .await?;
 
-    let uri = format!(
-        "file:///{}",
-        raw_path
-            .replace('\\', "/")
-            .split('/')
-            .map(|s| urlencoding::encode(s))
-            .collect::<Vec<_>>()
-            .join("/")
-    );
+    let raw_path = sys_path.to_string_lossy().to_string(); // Convert Cow to owned String
+    let normalized_path = raw_path.replace('\\', "/");     // Bind this intermediate
+
+    let mut segments = normalized_path.split('/');
+
+    let first = segments.next().unwrap_or_default(); // e.g., "C:"
+    let encoded_path = std::iter::once(first.to_string()) // keep "C:" intact
+        .chain(segments.map(|s| urlencoding::encode(s).into_owned()))
+        .collect::<Vec<_>>()
+        .join("/");
+
+    let uri = format!("file:///{}", encoded_path);
 
     Ok(uri)
 }
