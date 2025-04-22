@@ -149,12 +149,10 @@ impl TurboFn<'_> {
                             return None;
                         }
                     }
-                    // We don't validate that the user provided a valid
-                    // `turbo_tasks::Vc<Self>` here.
-                    // We'll rely on the compiler to emit an error
-                    // if the user provided an invalid receiver type
-
-                    let ident = Ident::from(self_token.clone());
+                    // We don't validate that the user provided a valid `turbo_tasks::Vc<Self>`
+                    // here. We'll rely on the compiler to emit an error if the user provided an
+                    // invalid receiver type
+                    let ident: Ident = self_token.clone().into();
 
                     this = Some(Input {
                         ident,

@@ -46,8 +46,7 @@ impl From<&[Attribute]> for FieldAttributes {
                         .span()
                         .unwrap()
                         .error(format!(
-                            "expected `trace_ignore` or `debug_ignore`, got: {}",
-                            e
+                            "expected `trace_ignore` or `debug_ignore`, got: {e}"
                         ))
                         .emit();
                     Punctuated::default()
