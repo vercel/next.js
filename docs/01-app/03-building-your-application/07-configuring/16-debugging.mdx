@@ -169,6 +169,29 @@ Windows users may run into an issue when using `NODE_OPTIONS='--inspect'` as tha
 
 > **Good to know**: Ensure Windows Defender is disabled on your machine. This external service will check _every file read_, which has been reported to greatly increase Fast Refresh time with `next dev`. This is a known issue, not related to Next.js, but it does affect Next.js development.
 
+With the launch.json shown above, could occur an error like this, if jou start "Next.js: debug full stack"-Debugging:
+
+```
+Uncaught SyntaxError [workspaceFolder]\node_modules\.bin\next:2
+basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+          ^^^^^^^
+
+SyntaxError: missing ) after argument list
+    at internalCompileFunction (<node_internals>/internal/vm:77:18)
+    at wrapSafe (<node_internals>/internal/modules/cjs/loader:1288:20)
+    at Module._compile (<node_internals>/internal/modules/cjs/loader:1340:27)
+    at Module._extensions..js (<node_internals>/internal/modules/cjs/loader:1435:10)
+    at Module.load (<node_internals>/internal/modules/cjs/loader:1207:32)
+    at Module._load (<node_internals>/internal/modules/cjs/loader:1023:12)
+    at executeUserEntryPoint (<node_internals>/internal/modules/run_main:135:12)
+    at <anonymous> (<node_internals>/internal/main/run_main_module:28:49)
+```
+
+To fix the problem, use the Windows version of Next by replacing the "program" line in the "Next.js: debug full stack" configuration with:
+```json filename='launch.json'
+        "program": "${workspaceFolder}/node_modules/next/dist/bin/next",
+```
+
 ## More information
 
 To learn more about how to use a JavaScript debugger, take a look at the following documentation:
