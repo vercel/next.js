@@ -62,6 +62,36 @@ function errorMissingDefaultExport(
 
 const cacheNodeKey = 'c'
 
+function createParallelRouteComponentTree(
+  parallelRouteKey: string,
+  props: {
+    loaderTree: LoaderTree
+    parentParams: Params
+    rootLayoutIncluded: boolean
+    injectedCSS: Set<string>
+    injectedJS: Set<string>
+    injectedFontPreloadTags: Set<string>
+    getMetadataReady: () => Promise<void>
+    getViewportReady: () => Promise<void>
+    ctx: AppRenderContext
+    missingSlots?: Set<string>
+    preloadCallbacks: PreloadCallbacks
+    authInterrupts: boolean
+    StreamingMetadataOutlet: React.ComponentType | null
+  }
+): Promise<CacheNodeSeedData> {
+  return getTracer().trace(
+    NextNodeServerSpan.createComponentTree,
+    {
+      spanName: 'build parallel route component tree',
+      attributes: {
+        'next.slot': parallelRouteKey,
+      },
+    },
+    () => createComponentTreeInternal(props)
+  )
+}
+
 async function createComponentTreeInternal({
   loaderTree: tree,
   parentParams,
@@ -490,31 +520,34 @@ async function createComponentTreeInternal({
             }
           }
 
-          const seedData = await createComponentTreeInternal({
-            loaderTree: parallelRoute,
-            parentParams: currentParams,
-            rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-            injectedCSS: injectedCSSWithCurrentLayout,
-            injectedJS: injectedJSWithCurrentLayout,
-            injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-            // `getMetadataReady` and `getViewportReady` are used to conditionally throw. In the case of parallel routes we will have more than one page
-            // but we only want to throw on the first one.
-            getMetadataReady: isChildrenRouteKey
-              ? getMetadataReady
-              : () => Promise.resolve(),
-            getViewportReady: isChildrenRouteKey
-              ? getViewportReady
-              : () => Promise.resolve(),
-            ctx,
-            missingSlots,
-            preloadCallbacks,
-            authInterrupts,
-            // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
-            // but we only want to throw on the first one.
-            StreamingMetadataOutlet: isChildrenRouteKey
-              ? StreamingMetadataOutlet
-              : null,
-          })
+          const seedData = await createParallelRouteComponentTree(
+            parallelRouteKey,
+            {
+              loaderTree: parallelRoute,
+              parentParams: currentParams,
+              rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+              injectedCSS: injectedCSSWithCurrentLayout,
+              injectedJS: injectedJSWithCurrentLayout,
+              injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
+              // `getMetadataReady` and `getViewportReady` are used to conditionally throw. In the case of parallel routes we will have more than one page
+              // but we only want to throw on the first one.
+              getMetadataReady: isChildrenRouteKey
+                ? getMetadataReady
+                : () => Promise.resolve(),
+              getViewportReady: isChildrenRouteKey
+                ? getViewportReady
+                : () => Promise.resolve(),
+              ctx,
+              missingSlots,
+              preloadCallbacks,
+              authInterrupts,
+              // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
+              // but we only want to throw on the first one.
+              StreamingMetadataOutlet: isChildrenRouteKey
+                ? StreamingMetadataOutlet
+                : null,
+            }
+          )
 
           childCacheNodeSeedData = seedData
         }

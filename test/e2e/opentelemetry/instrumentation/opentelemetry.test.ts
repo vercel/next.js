@@ -816,7 +816,7 @@ describe('opentelemetry', () => {
     await next.fetch('/app/parallel')
 
     await retry(() => {
-      expect(getCollector().getSpans().length).toEqual(10)
+      expect(getCollector().getSpans().length).toEqual(17)
     })
 
     expect(getCollector().getSnapshot()).toMatchInlineSnapshot(`
@@ -878,63 +878,182 @@ describe('opentelemetry', () => {
                  "children": [
                    {
                      "attributes": {
-                       "next.segment": "__PAGE__",
-                       "next.span_name": "resolve segment modules",
-                       "next.span_type": "NextNodeServer.getLayoutOrPageModule",
+                       "next.slot": "children",
+                       "next.span_name": "build parallel route component tree",
+                       "next.span_type": "NextNodeServer.createComponentTree",
                      },
-                     "children": [],
+                     "children": [
+                       {
+                         "attributes": {
+                           "next.slot": "children",
+                           "next.span_name": "build parallel route component tree",
+                           "next.span_type": "NextNodeServer.createComponentTree",
+                         },
+                         "children": [
+                           {
+                             "attributes": {
+                               "next.slot": "children",
+                               "next.span_name": "build parallel route component tree",
+                               "next.span_type": "NextNodeServer.createComponentTree",
+                             },
+                             "children": [
+                               {
+                                 "attributes": {
+                                   "next.segment": "__PAGE__",
+                                   "next.span_name": "resolve segment modules",
+                                   "next.span_type": "NextNodeServer.getLayoutOrPageModule",
+                                 },
+                                 "children": [],
+                                 "events": [],
+                                 "kind": 0,
+                                 "links": [],
+                                 "name": "resolve segment modules",
+                                 "runtime": "nodejs",
+                                 "status": {
+                                   "code": 0,
+                                 },
+                               },
+                             ],
+                             "events": [],
+                             "kind": 0,
+                             "links": [],
+                             "name": "build parallel route component tree",
+                             "runtime": "nodejs",
+                             "status": {
+                               "code": 0,
+                             },
+                           },
+                           {
+                             "attributes": {
+                               "next.slot": "team",
+                               "next.span_name": "build parallel route component tree",
+                               "next.span_type": "NextNodeServer.createComponentTree",
+                             },
+                             "children": [
+                               {
+                                 "attributes": {
+                                   "next.slot": "children",
+                                   "next.span_name": "build parallel route component tree",
+                                   "next.span_type": "NextNodeServer.createComponentTree",
+                                 },
+                                 "children": [
+                                   {
+                                     "attributes": {
+                                       "next.segment": "__PAGE__",
+                                       "next.span_name": "resolve segment modules",
+                                       "next.span_type": "NextNodeServer.getLayoutOrPageModule",
+                                     },
+                                     "children": [],
+                                     "events": [],
+                                     "kind": 0,
+                                     "links": [],
+                                     "name": "resolve segment modules",
+                                     "runtime": "nodejs",
+                                     "status": {
+                                       "code": 0,
+                                     },
+                                   },
+                                 ],
+                                 "events": [],
+                                 "kind": 0,
+                                 "links": [],
+                                 "name": "build parallel route component tree",
+                                 "runtime": "nodejs",
+                                 "status": {
+                                   "code": 0,
+                                 },
+                               },
+                             ],
+                             "events": [],
+                             "kind": 0,
+                             "links": [],
+                             "name": "build parallel route component tree",
+                             "runtime": "nodejs",
+                             "status": {
+                               "code": 0,
+                             },
+                           },
+                           {
+                             "attributes": {
+                               "next.slot": "analytics",
+                               "next.span_name": "build parallel route component tree",
+                               "next.span_type": "NextNodeServer.createComponentTree",
+                             },
+                             "children": [
+                               {
+                                 "attributes": {
+                                   "next.slot": "children",
+                                   "next.span_name": "build parallel route component tree",
+                                   "next.span_type": "NextNodeServer.createComponentTree",
+                                 },
+                                 "children": [
+                                   {
+                                     "attributes": {
+                                       "next.segment": "__PAGE__",
+                                       "next.span_name": "resolve segment modules",
+                                       "next.span_type": "NextNodeServer.getLayoutOrPageModule",
+                                     },
+                                     "children": [],
+                                     "events": [],
+                                     "kind": 0,
+                                     "links": [],
+                                     "name": "resolve segment modules",
+                                     "runtime": "nodejs",
+                                     "status": {
+                                       "code": 0,
+                                     },
+                                   },
+                                 ],
+                                 "events": [],
+                                 "kind": 0,
+                                 "links": [],
+                                 "name": "build parallel route component tree",
+                                 "runtime": "nodejs",
+                                 "status": {
+                                   "code": 0,
+                                 },
+                               },
+                             ],
+                             "events": [],
+                             "kind": 0,
+                             "links": [],
+                             "name": "build parallel route component tree",
+                             "runtime": "nodejs",
+                             "status": {
+                               "code": 0,
+                             },
+                           },
+                           {
+                             "attributes": {
+                               "next.segment": "parallel",
+                               "next.span_name": "resolve segment modules",
+                               "next.span_type": "NextNodeServer.getLayoutOrPageModule",
+                             },
+                             "children": [],
+                             "events": [],
+                             "kind": 0,
+                             "links": [],
+                             "name": "resolve segment modules",
+                             "runtime": "nodejs",
+                             "status": {
+                               "code": 0,
+                             },
+                           },
+                         ],
+                         "events": [],
+                         "kind": 0,
+                         "links": [],
+                         "name": "build parallel route component tree",
+                         "runtime": "nodejs",
+                         "status": {
+                           "code": 0,
+                         },
+                       },
+                     ],
                      "events": [],
                      "kind": 0,
                      "links": [],
-                     "name": "resolve segment modules",
-                     "runtime": "nodejs",
-                     "status": {
-                       "code": 0,
-                     },
-                   },
-                   {
-                     "attributes": {
-                       "next.segment": "__PAGE__",
-                       "next.span_name": "resolve segment modules",
-                       "next.span_type": "NextNodeServer.getLayoutOrPageModule",
-                     },
-                     "children": [],
-                     "events": [],
-                     "kind": 0,
-                     "links": [],
-                     "name": "resolve segment modules",
-                     "runtime": "nodejs",
-                     "status": {
-                       "code": 0,
-                     },
-                   },
-                   {
-                     "attributes": {
-                       "next.segment": "__PAGE__",
-                       "next.span_name": "resolve segment modules",
-                       "next.span_type": "NextNodeServer.getLayoutOrPageModule",
-                     },
-                     "children": [],
-                     "events": [],
-                     "kind": 0,
-                     "links": [],
-                     "name": "resolve segment modules",
-                     "runtime": "nodejs",
-                     "status": {
-                       "code": 0,
-                     },
-                   },
-                   {
-                     "attributes": {
-                       "next.segment": "parallel",
-                       "next.span_name": "resolve segment modules",
-                       "next.span_type": "NextNodeServer.getLayoutOrPageModule",
-                     },
-                     "children": [],
-                     "events": [],
-                     "kind": 0,
-                     "links": [],
-                     "name": "resolve segment modules",
+                     "name": "build parallel route component tree",
                      "runtime": "nodejs",
                      "status": {
                        "code": 0,
