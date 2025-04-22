@@ -294,15 +294,15 @@ describe('react-dom/server in React Server environment', () => {
       // Observed: `./node_modules/.pnpm/next@file+..+next-repo.../page.js?__next_edge_ssr_entry__
       const sourceLines = redbox.source.split('\n')
       const filepath = sourceLines[0]
+      // Override the 1st line of source to a placeholder
       if (filepath.includes('node_modules')) {
         redbox.source =
-          `./app/exports/app-code/react-dom-server-edge-implicit/page.js (3:1)\n` +
-          sourceLines.slice(1).join('\n')
+          `<FIXME-edge-source-path>\n` + sourceLines.slice(1).join('\n')
       }
       expect(redbox).toMatchInlineSnapshot(`
        {
          "description": "Error:   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.",
-         "source": "./app/exports/app-code/react-dom-server-edge-implicit/page.js (3:1)
+         "source": "<FIXME-edge-source-path>
        Error:   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
          | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
           ,-[1:1]
