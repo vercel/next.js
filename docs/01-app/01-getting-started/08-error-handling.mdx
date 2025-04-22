@@ -18,9 +18,11 @@ Errors can be divided into two categories: [expected errors](#handling-expected-
 
 Expected errors are those that can occur during the normal operation of the application, such as those from [server-side form validation](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#server-side-form-validation) or failed requests. These errors should be handled explicitly and returned to the client.
 
-### Server Actions
+### Server Functions
 
-You can use the [`useActionState`](https://react.dev/reference/react/useActionState) hook to manage the state of [Server Functions](https://react.dev/reference/rsc/server-functions) and handle expected errors. Avoid using `try`/`catch` blocks for expected errors. Instead, you can model expected errors as return values, not as thrown exceptions.
+You can use the [`useActionState`](https://react.dev/reference/react/useActionState) hook to handle expected errors in [Server Functions](https://react.dev/reference/rsc/server-functions).
+
+For these errors, avoid using `try`/`catch` blocks and throw errors. Instead, model expected errors as return values.
 
 ```ts filename="app/actions.ts" switcher
 'use server'
@@ -60,7 +62,7 @@ export async function createPost(prevState, formData) {
 }
 ```
 
-Then, you can pass your action to the `useActionState` hook and use the returned `state` to display an error message.
+You can pass your action to the `useActionState` hook and use the returned `state` to display an error message.
 
 ```tsx filename="app/ui/form.tsx" highlight={11,19} switcher
 'use client'

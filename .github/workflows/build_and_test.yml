@@ -100,7 +100,7 @@ jobs:
     needs: ['build-next']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: pnpm lint-no-typescript && pnpm check-examples
+      afterBuild: pnpm lint-no-typescript && pnpm check-examples && pnpm validate-externals-doc
       stepName: 'lint'
     secrets: inherit
 

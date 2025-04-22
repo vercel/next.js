@@ -33,7 +33,7 @@ async fn dirty_in_progress() {
             output.await?;
             println!("update to {}", b);
             input_val.state.set(b);
-            tokio::time::sleep(Duration::from_millis(100)).await;
+            tokio::time::sleep(Duration::from_millis(50)).await;
             println!("update to {}", c);
             input_val.state.set(c);
             let read = output.strongly_consistent().await?;

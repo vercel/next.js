@@ -383,9 +383,7 @@ async fn get_part_id(result: &SplitResult, part: &ModulePart) -> Result<u32> {
         ModulePart::Evaluation => Key::ModuleEvaluation,
         ModulePart::Export(export) => Key::Export(export.clone()),
         ModulePart::Exports => Key::Exports,
-        ModulePart::Internal(part_id) | ModulePart::InternalEvaluation(part_id) => {
-            return Ok(*part_id)
-        }
+        ModulePart::Internal(part_id) => return Ok(*part_id),
         ModulePart::Locals
         | ModulePart::Facade
         | ModulePart::RenamedExport { .. }

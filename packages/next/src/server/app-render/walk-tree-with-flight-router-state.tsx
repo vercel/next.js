@@ -202,7 +202,6 @@ export async function walkTreeWithFlightRouterState({
         getMetadataReady,
         preloadCallbacks,
         authInterrupts: experimental.authInterrupts,
-        StreamingMetadata: null,
         StreamingMetadataOutlet,
       }
     )

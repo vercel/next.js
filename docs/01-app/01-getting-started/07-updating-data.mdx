@@ -15,22 +15,44 @@ You can update data in Next.js using React's [Server Functions](https://react.de
 
 ## Creating Server Functions
 
-A Server Function can be defined by using the [`use server`](https://react.dev/reference/rsc/use-server) directive. You can place the directive at the top of an **asynchronous** function to mark the function as a Server Function, or at the top of a separate file to mark all exports of that file. We recommend using a separate file in most instances.
+A Server Function can be defined by using the [`use server`](https://react.dev/reference/rsc/use-server) directive. You can place the directive at the top of an **asynchronous** function to mark the function as a Server Function, or at the top of a separate file to mark all exports of that file.
 
 ```ts filename="app/lib/actions.ts" switcher
-'use server'
+export async function createPost(formData: FormData) {
+  'use server'
+  const title = formData.get('title')
+  const content = formData.get('content')
 
-export async function createPost(formData: FormData) {}
+  // Update data
+  // Revalidate cache
+}
 
-export async function deletePost(formData: FormData) {}
+export async function deletePost(formData: FormData) {
+  'use server'
+  const id = formData.get('id')
+
+  // Update data
+  // Revalidate cache
+}
 ```
 
 ```js filename="app/lib/actions.js" switcher
-'use server'
+export async function createPost(formData) {
+  'use server'
+  const title = formData.get('title')
+  const content = formData.get('content')
 
-export async function createPost(formData) {}
+  // Update data
+  // Revalidate cache
+}
 
-export async function deletePost(formData) {}
+export async function deletePost(formData) {
+  'use server'
+  const id = formData.get('id')
+
+  // Update data
+  // Revalidate cache
+}
 ```
 
 ### Server Components
@@ -40,9 +62,8 @@ Server Functions can be inlined in Server Components by adding the `"use server"
 ```tsx filename="app/page.tsx" switcher
 export default function Page() {
   // Server Action
-  async function createPost() {
+  async function createPost(formData: FormData) {
     'use server'
-    // Update data
     // ...
   }
 
@@ -53,9 +74,8 @@ export default function Page() {
 ```jsx filename="app/page.js" switcher
 export default function Page() {
   // Server Action
-  async function createPost() {
+  async function createPost(formData: FormData) {
     'use server'
-    // Update data
     // ...
   }
 
@@ -220,6 +240,8 @@ export default function LikeButton({ initialLikes }) {
 }
 ```
 
+## Examples
+
 ### Showing a pending state
 
 While executing a Server Function, you can show a loading indicator with React's [`useActionState`](https://react.dev/reference/react/useActionState) hook. This hook returns a `pending` boolean:
@@ -265,11 +287,10 @@ export function Button() {
 After performing an update, you can revalidate the Next.js cache and show the updated data by calling [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) within the Server Function:
 
 ```ts filename="app/lib/actions.ts" switcher
-'use server'
-
 import { revalidatePath } from 'next/cache'
 
 export async function createPost(formData: FormData) {
+  'use server'
   // Update data
   // ...
 
@@ -278,11 +299,10 @@ export async function createPost(formData: FormData) {
 ```
 
 ```js filename="app/actions.js" switcher
-'use server'
-
 import { revalidatePath } from 'next/cache'
 
 export async function createPost(formData) {
+  'use server'
   // Update data
   // ...
   revalidatePath('/posts')

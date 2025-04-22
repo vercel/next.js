@@ -1,29 +1,44 @@
 ---
 title: useLinkStatus
 description: API Reference for the useLinkStatus hook.
+related:
+  title: Next Steps
+  description: Learn more about the features mentioned in this page by reading the API Reference.
+  links:
+    - app/api-reference/components/link
+    - app/api-reference/file-conventions/loading
 ---
 
-`useLinkStatus` is a **Client Component** hook that lets you track the loading state of a `Link` component during navigation. It can be used to show loading indicators during page transitions, especially when [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) is disabled, or the linked route does not have any loading states.
+The `useLinkStatus` hook lets you tracks the **pending** state of a `<Link>`. You can use it to show inline visual feedback to the user (like spinners or text glimmers) while a navigation to a new route completes.
+
+`useLinkStatus` is useful when:
+
+- [Prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) is disabled or in progress meaning navigation is blocked.
+- The destination route is dynamic **and** doesn't include a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file that would allow an instant navigation.
 
 ```tsx filename="app/loading-indicator.tsx" switcher
 'use client'
 
-import { useLinkStatus } from 'next/navigation'
+import { useLinkStatus } from 'next/link'
 
 export default function LoadingIndicator() {
   const { pending } = useLinkStatus()
-  return pending ? <span>⌛</span> : null
+  return pending ? (
+    <div role="status" aria-label="Loading" className="spinner" />
+  ) : null
 }
 ```
 
 ```jsx filename="app/loading-indicator.js" switcher
 'use client'
 
-import { useLinkStatus } from 'next/navigation'
+import { useLinkStatus } from 'next/link'
 
 export default function LoadingIndicator() {
   const { pending } = useLinkStatus()
-  return pending ? <span>⌛</span> : null
+  return pending ? (
+    <div role="status" aria-label="Loading" className="spinner" />
+  ) : null
 }
 ```
 
@@ -81,131 +96,128 @@ const { pending } = useLinkStatus()
 | -------- | ------- | -------------------------------------------- |
 | pending  | boolean | `true` before history updates, `false` after |
 
-## Examples
+## Example
 
-### Improving the user experience when navigating with new query parameters
+### Inline loading indicator
 
-In this example, navigating between categories updates the query string (e.g. ?category=books). However, the page may appear unresponsive because the `<PageSkeleton />` fallback won't replace the existing content (see [preventing unwanted loading indicators](https://react.dev/reference/react/useTransition#preventing-unwanted-loading-indicators)).
-
-You can use the `useLinkStatus` hook to render a lightweight loading indicator next to the active link and provide immediate feedback to the user while the data is being fetched.
+It's helpful to add visual feedback that navigation is happening in case the user clicks a link before prefetching is complete.
 
 ```tsx filename="app/components/loading-indicator.tsx" switcher
 'use client'
 
-import { useLinkStatus } from 'next/navigation'
+import { useLinkStatus } from 'next/link'
 
 export default function LoadingIndicator() {
   const { pending } = useLinkStatus()
-  return pending ? <span>⌛</span> : null
+  return pending ? (
+    <div role="status" aria-label="Loading" className="spinner" />
+  ) : null
 }
 ```
 
 ```jsx filename="app/components/loading-indicator.js" switcher
 'use client'
 
-import { useLinkStatus } from 'next/navigation'
+import { useLinkStatus } from 'next/link'
 
 export default function LoadingIndicator() {
   const { pending } = useLinkStatus()
-  return pending ? <span>⌛</span> : null
+  return pending ? (
+    <div role="status" aria-label="Loading" className="spinner" />
+  ) : null
 }
 ```
 
-```tsx filename="app/page.tsx" switcher
-import { useSearchParams } from 'next/navigation'
+```tsx filename="app/shop/layout.tsx" switcher
 import Link from 'next/link'
-import { Suspense } from 'react'
-import LoadingIndicator from './loading-indicator'
+import LoadingIndicator from './components/loading-indicator'
 
-function MenuBar() {
+const links = [
+  { href: '/shop/electronics', label: 'Electronics' },
+  { href: '/shop/clothing', label: 'Clothing' },
+  { href: '/shop/books', label: 'Books' },
+]
+
+function Menubar() {
   return (
     <div>
-      <Link href="?category=electronics">
-        Electronics <LoadingIndicator />
-      </Link>
-      <Link href="?category=clothing">
-        Clothing <LoadingIndicator />
-      </Link>
-      <Link href="?category=books">
-        Books <LoadingIndicator />
-      </Link>
+      {links.map((link) => (
+        <Link key={link.label} href={link.href}>
+          {link.label} <LoadingIndicator />
+        </Link>
+      ))}
     </div>
   )
 }
 
-async function ProductList({ category }: { category: string }) {
-  const products = await fetchProducts(category)
-
+export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <ul>
-      {products.map((product) => (
-        <li key={product}>{product}</li>
-      ))}
-    </ul>
-  )
-}
-
-export default async function ProductCategories({
-  searchParams,
-}: {
-  searchParams: Promise<{
-    category: string
-  }>
-}) {
-  const { category } = await searchParams
-
-  return (
-    <Suspense fallback={<PageSkeleton />}>
-      <MenuBar />
-      <ProductList category={category} />
-    </Suspense>
+    <div>
+      <Menubar />
+      {children}
+    </div>
   )
 }
 ```
 
-```jsx filename="app/page.js" switcher
-import { useSearchParams } from 'next/navigation'
+```jsx filename="app/shop/layout.js" switcher
 import Link from 'next/link'
-import { Suspense } from 'react'
-import LoadingIndicator from './loading-indicator'
+import LoadingIndicator from './components/loading-indicator'
 
-function MenuBar() {
+const links = [
+  { href: '/shop/electronics', label: 'Electronics' },
+  { href: '/shop/clothing', label: 'Clothing' },
+  { href: '/shop/books', label: 'Books' },
+]
+
+function Menubar() {
   return (
     <div>
-      <Link href="?category=electronics">
-        Electronics <LoadingIndicator />
-      </Link>
-      <Link href="?category=clothing">
-        Clothing <LoadingIndicator />
-      </Link>
-      <Link href="?category=books">
-        Books <LoadingIndicator />
-      </Link>
+      {links.map((link) => (
+        <Link key={link.label} href={link.href}>
+          {link.label} <LoadingIndicator />
+        </Link>
+      ))}
     </div>
   )
 }
 
-async function ProductList({ category }) {
-  const products = await fetchProducts(category)
-
+export default function Layout({ children }) {
   return (
-    <ul>
-      {products.map((product) => (
-        <li key={product}>{product}</li>
-      ))}
-    </ul>
+    <div>
+      <Menubar />
+      {children}
+    </div>
   )
 }
+```
 
-export default async function ProductCategories({ searchParams }) {
-  const { category } = await searchParams
+## Gracefully handling fast navigation
 
-  return (
-    <Suspense fallback={<PageSkeleton />}>
-      <MenuBar />
-      <ProductList category={category} />
-    </Suspense>
-  )
+If the navigation to a new route is fast, users may see an unecessary flash of the loading indicator. One way to improve the user experience and only show the loading indicator when the navigation takes time to complete is to add an initial animation delay (e.g. 100ms) and start the animation as invisible (e.g. `opacity: 0`).
+
+```css filename="app/styles/global.css"
+.spinner {
+  /* ... */
+  opacity: 0;
+  animation:
+    fadeIn 500ms 100ms forwards,
+    rotate 1s linear infinite;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes rotate {
+  to {
+    transform: rotate(360deg);
+  }
 }
 ```
 

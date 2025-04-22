@@ -16,5 +16,6 @@ pub trait KeyValuePair {
     fn value_ref(&self) -> Self::ValueRef<'_>;
     fn value_mut(&mut self) -> Self::ValueRefMut<'_>;
     fn from_key_and_value(key: Self::Key, value: Self::Value) -> Self;
+    fn from_key_and_value_ref(key: Self::Key, value_ref: Self::ValueRef<'_>) -> Self;
     fn into_key_and_value(self) -> (Self::Key, Self::Value);
 }

@@ -95,6 +95,7 @@ impl Task for MinifyTask {
                 })
             },
         )
+        .map_err(|e| e.to_pretty_error())
         .convert_err()
     }
 
@@ -170,5 +171,6 @@ pub fn minify_sync(input: Buffer, opts: Buffer) -> napi::Result<TransformOutput>
             })
         },
     )
+    .map_err(|e| e.to_pretty_error())
     .convert_err()
 }

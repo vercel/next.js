@@ -117,12 +117,6 @@ export interface PrerenderStoreModern extends CommonWorkUnitStore {
    */
   prerenderResumeDataCache: PrerenderResumeDataCache | null
 
-  // DEV ONLY
-  // When used this flag informs certain APIs to skip logging because we're
-  // not part of the primary render path and are just prerendering to produce
-  // validation results
-  validating?: boolean
-
   /**
    * The HMR refresh hash is only provided in dev mode. It is needed for the dev
    * warmup render to ensure that the cache keys will be identical for the

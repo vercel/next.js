@@ -3,8 +3,9 @@ import { warnOnce } from '../../build/output/log'
 export function getRspackCore() {
   warnRspack()
   try {
+    const paths = [require.resolve('next-rspack')]
     // eslint-disable-next-line import/no-extraneous-dependencies
-    return require('@rspack/core')
+    return require(require.resolve('@rspack/core', { paths }))
   } catch (e) {
     if (e instanceof Error && 'code' in e && e.code === 'MODULE_NOT_FOUND') {
       throw new Error(
@@ -19,10 +20,14 @@ export function getRspackCore() {
 export function getRspackReactRefresh() {
   warnRspack()
   try {
+    const paths = [require.resolve('next-rspack')]
     // eslint-disable-next-line import/no-extraneous-dependencies
-    const plugin = require('@rspack/plugin-react-refresh')
+    const plugin = require(
+      require.resolve('@rspack/plugin-react-refresh', { paths })
+    )
     const entry = require.resolve(
-      '@rspack/plugin-react-refresh/react-refresh-entry'
+      '@rspack/plugin-react-refresh/react-refresh-entry',
+      { paths }
     )
     plugin.entry = entry
     return plugin

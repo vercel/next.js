@@ -28,9 +28,10 @@ impl InnerAssets {
 // behavior.
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Default, Clone, Hash)]
 pub enum CommonJsReferenceSubType {
     Custom(u8),
+    #[default]
     Undefined,
 }
 
@@ -170,7 +171,7 @@ impl ImportContext {
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Default, Clone, Hash)]
 pub enum CssReferenceSubType {
     AtImport(Option<ResolvedVc<ImportContext>>),
     /// Reference from ModuleCssAsset to an imported ModuleCssAsset for retrieving the composed
@@ -181,15 +182,17 @@ pub enum CssReferenceSubType {
     /// Used for generating the list of classes in a ModuleCssAsset
     Analyze,
     Custom(u8),
+    #[default]
     Undefined,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Default, Clone, Hash)]
 pub enum UrlReferenceSubType {
     EcmaScriptNewUrl,
     CssUrl,
     Custom(u8),
+    #[default]
     Undefined,
 }
 
@@ -229,7 +232,7 @@ pub enum EntryReferenceSubType {
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Default, Clone, Hash)]
 pub enum ReferenceType {
     CommonJs(CommonJsReferenceSubType),
     EcmaScriptModules(EcmaScriptModulesReferenceSubType),
@@ -241,6 +244,7 @@ pub enum ReferenceType {
     Runtime,
     Internal(ResolvedVc<InnerAssets>),
     Custom(u8),
+    #[default]
     Undefined,
 }
 

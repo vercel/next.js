@@ -351,8 +351,6 @@ program
       'Specify the maximum amount of milliseconds to wait before closing inactive connections.'
     ).argParser(parseValidPositiveInteger)
   )
-  .addOption(new Option('--turbo').hideHelp())
-  .option('--turbopack', 'Starts development mode using Turbopack.')
   .action((directory: string, options: NextStartOptions) =>
     import('../cli/next-start.js').then((mod) =>
       mod.nextStart(options, directory)
@@ -421,7 +419,8 @@ const internal = program
   )
 
 internal
-  .command('turbo-trace-server')
+  .command('trace')
+  .alias('turbo-trace-server')
   .argument('[file]', 'Trace file to serve.')
   .action((file: string) => {
     return import('../cli/internal/turbo-trace-server.js').then((mod) =>

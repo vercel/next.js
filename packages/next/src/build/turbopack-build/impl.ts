@@ -54,8 +54,7 @@ export async function turbopackBuild(): Promise<{
   const project = await bindings.turbo.createProject(
     {
       projectPath: dir,
-      rootPath:
-        config.experimental?.turbo?.root || config.outputFileTracingRoot || dir,
+      rootPath: config.turbopack?.root || config.outputFileTracingRoot || dir,
       distDir,
       nextConfig: config,
       jsConfig: await getTurbopackJsConfig(dir, config),
@@ -83,67 +82,81 @@ export async function turbopackBuild(): Promise<{
     },
     {
       persistentCaching,
-      memoryLimit: config.experimental.turbo?.memoryLimit,
+      memoryLimit: config.experimental?.turbopackMemoryLimit,
       dependencyTracking: persistentCaching,
     }
   )
+  try {
+    // Write an empty file in a known location to signal this was built with Turbopack
+    await fs.writeFile(path.join(distDir, 'turbopack'), '')
 
-  await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
-  await fs.mkdir(path.join(distDir, 'static', buildId), {
-    recursive: true,
-  })
-  await fs.writeFile(
-    path.join(distDir, 'package.json'),
-    JSON.stringify(
-      {
-        type: 'commonjs',
-      },
-      null,
-      2
+    await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
+    await fs.mkdir(path.join(distDir, 'static', buildId), {
+      recursive: true,
+    })
+    await fs.writeFile(
+      path.join(distDir, 'package.json'),
+      JSON.stringify(
+        {
+          type: 'commonjs',
+        },
+        null,
+        2
+      )
     )
-  )
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
 
-  const manifestLoader = new TurbopackManifestLoader({
-    buildId,
-    distDir,
-    encryptionKey,
-  })
+    const manifestLoader = new TurbopackManifestLoader({
+      buildId,
+      distDir,
+      encryptionKey,
+    })
 
-  const topLevelErrors = []
-  const topLevelWarnings = []
-  for (const issue of entrypoints.issues) {
-    if (issue.severity === 'error' || issue.severity === 'fatal') {
-      topLevelErrors.push(formatIssue(issue))
-    } else if (isRelevantWarning(issue)) {
-      topLevelWarnings.push(formatIssue(issue))
+    const topLevelErrors = []
+    const topLevelWarnings = []
+    for (const issue of entrypoints.issues) {
+      if (issue.severity === 'error' || issue.severity === 'fatal') {
+        topLevelErrors.push(formatIssue(issue))
+      } else if (isRelevantWarning(issue)) {
+        topLevelWarnings.push(formatIssue(issue))
+      }
     }
-  }
 
-  if (topLevelWarnings.length > 0) {
-    console.warn(
-      `Turbopack build encountered ${
-        topLevelWarnings.length
-      } warnings:\n${topLevelWarnings.join('\n')}`
-    )
-  }
+    if (topLevelWarnings.length > 0) {
+      console.warn(
+        `Turbopack build encountered ${
+          topLevelWarnings.length
+        } warnings:\n${topLevelWarnings.join('\n')}`
+      )
+    }
 
-  if (topLevelErrors.length > 0) {
-    throw new Error(
-      `Turbopack build failed with ${
-        topLevelErrors.length
-      } errors:\n${topLevelErrors.join('\n')}`
-    )
-  }
+    if (topLevelErrors.length > 0) {
+      throw new Error(
+        `Turbopack build failed with ${
+          topLevelErrors.length
+        } errors:\n${topLevelErrors.join('\n')}`
+      )
+    }
 
-  const currentEntrypoints = await rawEntrypointsToEntrypoints(entrypoints)
+    const currentEntrypoints = await rawEntrypointsToEntrypoints(entrypoints)
 
-  const promises: Promise<any>[] = []
+    const promises: Promise<any>[] = []
 
-  if (!appDirOnly) {
-    for (const [page, route] of currentEntrypoints.page) {
+    if (!appDirOnly) {
+      for (const [page, route] of currentEntrypoints.page) {
+        promises.push(
+          handleRouteType({
+            page,
+            route,
+            manifestLoader,
+          })
+        )
+      }
+    }
+
+    for (const [page, route] of currentEntrypoints.app) {
       promises.push(
         handleRouteType({
           page,
@@ -152,50 +165,46 @@ export async function turbopackBuild(): Promise<{
         })
       )
     }
-  }
 
-  for (const [page, route] of currentEntrypoints.app) {
-    promises.push(
-      handleRouteType({
-        page,
-        route,
-        manifestLoader,
-      })
-    )
-  }
+    await Promise.all(promises)
 
-  await Promise.all(promises)
+    await Promise.all([
+      manifestLoader.loadBuildManifest('_app'),
+      manifestLoader.loadPagesManifest('_app'),
+      manifestLoader.loadFontManifest('_app'),
+      manifestLoader.loadPagesManifest('_document'),
+      manifestLoader.loadBuildManifest('_error'),
+      manifestLoader.loadPagesManifest('_error'),
+      manifestLoader.loadFontManifest('_error'),
+      entrypoints.instrumentation &&
+        manifestLoader.loadMiddlewareManifest(
+          'instrumentation',
+          'instrumentation'
+        ),
+      entrypoints.middleware &&
+        (await manifestLoader.loadMiddlewareManifest(
+          'middleware',
+          'middleware'
+        )),
+    ])
 
-  await Promise.all([
-    manifestLoader.loadBuildManifest('_app'),
-    manifestLoader.loadPagesManifest('_app'),
-    manifestLoader.loadFontManifest('_app'),
-    manifestLoader.loadPagesManifest('_document'),
-    manifestLoader.loadBuildManifest('_error'),
-    manifestLoader.loadPagesManifest('_error'),
-    manifestLoader.loadFontManifest('_error'),
-    entrypoints.instrumentation &&
-      manifestLoader.loadMiddlewareManifest(
-        'instrumentation',
-        'instrumentation'
-      ),
-    entrypoints.middleware &&
-      (await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')),
-  ])
+    await manifestLoader.writeManifests({
+      devRewrites: undefined,
+      productionRewrites: rewrites,
+      entrypoints: currentEntrypoints,
+    })
 
-  await manifestLoader.writeManifests({
-    devRewrites: undefined,
-    productionRewrites: rewrites,
-    entrypoints: currentEntrypoints,
-  })
+    const shutdownPromise = project.shutdown()
 
-  const shutdownPromise = project.shutdown()
-
-  const time = process.hrtime(startTime)
-  return {
-    duration: time[0] + time[1] / 1e9,
-    buildTraceContext: undefined,
-    shutdownPromise,
+    const time = process.hrtime(startTime)
+    return {
+      duration: time[0] + time[1] / 1e9,
+      buildTraceContext: undefined,
+      shutdownPromise,
+    }
+  } catch (err) {
+    await project.shutdown()
+    throw err
   }
 }
 
