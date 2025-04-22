@@ -138,6 +138,7 @@ pub fn extract_disk_access<T>(value: io::Result<T>, path: &Path) -> Result<Optio
     }
 }
 
+#[cfg(not(target_os = "windows"))]
 pub async fn uri_from_file(root: Vc<FileSystemPath>, path: Option<&str>) -> Result<String> {
     let root_fs = root.fs();
     let root_fs = &*Vc::try_resolve_downcast_type::<DiskFileSystem>(root_fs)
@@ -162,3 +163,33 @@ pub async fn uri_from_file(root: Vc<FileSystemPath>, path: Option<&str>) -> Resu
         .join("/")
     ))
 }
+
+#[cfg(target_os = "windows")]
+pub async fn uri_from_file(root: Vc<FileSystemPath>, path: Option<&str>) -> Result<String> {
+    let root_fs = root.fs();
+    let root_fs = &*Vc::try_resolve_downcast_type::<DiskFileSystem>(root_fs)
+        .await?
+        .context("Expected root to have a DiskFileSystem")?
+        .await?;
+
+    let raw_path = root_fs
+        .to_sys_path(match path {
+            Some(path) => root.join(path.into()),
+            None => root,
+        })
+        .await?
+        .to_string_lossy();
+
+    let uri = format!(
+        "file:///{}",
+        raw_path
+            .replace('\\', "/")
+            .split('/')
+            .map(|s| urlencoding::encode(s))
+            .collect::<Vec<_>>()
+            .join("/")
+    );
+
+    Ok(uri)
+}
+
