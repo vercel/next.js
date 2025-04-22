@@ -30,7 +30,7 @@ const API_DOCS: Record<
       'The `dynamic` option provides a few ways to opt in or out of dynamic behavior.',
     options: {
       '"auto"':
-        'Heuristic to cache as much as possible but doesn’t prevent any component to opt-in to dynamic behavior.',
+        "Heuristic to cache as much as possible but doesn't prevent any component to opt-in to dynamic behavior.",
       '"force-dynamic"':
         'This disables all caching of fetches and always revalidates. (This is equivalent to `getServerSideProps`.)',
       '"error"':
@@ -42,7 +42,7 @@ const API_DOCS: Record<
   },
   fetchCache: {
     description:
-      'The `fetchCache` option controls how Next.js statically caches fetches. By default it statically caches fetches reachable before any dynamic Hooks are used, and it doesn’t cache fetches that are discovered after that.',
+      "The `fetchCache` option controls how Next.js statically caches fetches. By default it statically caches fetches reachable before any dynamic Hooks are used, and it doesn't cache fetches that are discovered after that.",
     options: {
       '"force-no-store"':
         "This lets you intentionally opt-out of all caching of data. This option forces all fetches to be refetched every request even if the `cache: 'force-cache'` option is passed to `fetch()`.",
@@ -51,7 +51,7 @@ const API_DOCS: Record<
       '"default-no-store"':
         "Allows any explicit `cache` option to be passed to `fetch()` but if `'default'`, or no option, is provided then it defaults to `'no-store'`. This means that even fetches before a dynamic Hook are considered dynamic.",
       '"auto"':
-        'This is the default option. It caches any fetches with the default `cache` option provided, that happened before a dynamic Hook is used and don’t cache any such fetches if they’re issued after a dynamic Hook.',
+        "This is the default option. It caches any fetches with the default `cache` option provided, that happened before a dynamic Hook is used and don't cache any such fetches if they're issued after a dynamic Hook.",
       '"default-cache"':
         "Allows any explicit `cache` option to be passed to `fetch()` but if `'default'`, or no option, is provided then it defaults to `'force-cache'`. This means that even fetches before a dynamic Hook are considered dynamic.",
       '"only-cache"':
@@ -66,7 +66,7 @@ const API_DOCS: Record<
       'Specify the perferred region that this layout or page should be deployed to. If the region option is not specified, it inherits the option from the nearest parent layout. The root defaults to `"auto"`.\n\nYou can also specify a region, such as "iad1", or an array of regions, such as `["iad1", "sfo1"]`.',
     options: {
       '"auto"':
-        'Next.js will first deploy to the `"home"` region. Then if it doesn’t detect any waterfall requests after a few requests, it can upgrade that route, to be deployed globally. If it detects any waterfall requests after that, it can eventually downgrade back to `"home`".',
+        'Next.js will first deploy to the `"home"` region. Then if it doesn\'t detect any waterfall requests after a few requests, it can upgrade that route, to be deployed globally. If it detects any waterfall requests after that, it can eventually downgrade back to `"home`".',
       '"global"': 'Prefer deploying globally.',
       '"home"': 'Prefer deploying to the Home region.',
     },
@@ -92,7 +92,7 @@ const API_DOCS: Record<
   },
   revalidate: {
     description:
-      'The `revalidate` option sets the default revalidation time for that layout or page. Note that it doesn’t override the value specify by each `fetch()`.',
+      "The `revalidate` option sets the default revalidation time for that layout or page. Note that it doesn't override the value specify by each `fetch()`.",
     type: 'mixed',
     options: {
       false:
@@ -241,6 +241,7 @@ function getAPIDescription(api: string): string {
       .join('\n')
   )
 }
+
 const config = {
   // Auto completion for entry exported configs.
   addCompletionsAtPosition(
@@ -381,19 +382,26 @@ const config = {
         let hasMetadataImport = false
 
         if (sourceFile) {
-          ts.forEachChild(sourceFile, (node) => {
+          const statements = sourceFile.statements
+          for (const statement of statements) {
             if (
-              ts.isExpressionStatement(node) &&
-              ts.isStringLiteral(node.expression)
+              ts.isExpressionStatement(statement) &&
+              ts.isStringLiteral(statement.expression) &&
+              // Check if there's a top directive.
+              statement.expression.getStart() === 0
             ) {
-              const text = node.expression.text
+              const text = statement.expression.text
               if (text.startsWith('use ')) {
-                start = node.end + 1 // Position after the directive
+                start = statement.end + 1 // Position after the directive
               }
-            } else if (ts.isImportDeclaration(node)) {
-              const specifier = node.moduleSpecifier.getText()
+
+              continue
+            }
+
+            if (ts.isImportDeclaration(statement)) {
+              const specifier = statement.moduleSpecifier.getText()
               if (specifier === '"next"' || specifier === "'next'") {
-                const namedImports = node.importClause?.namedBindings
+                const namedImports = statement.importClause?.namedBindings
                 if (namedImports && ts.isNamedImports(namedImports)) {
                   hasMetadataImport = namedImports.elements.some((element) => {
                     const name = element.name.getText()
@@ -403,7 +411,11 @@ const config = {
                 }
               }
             }
-          })
+
+            if (hasMetadataImport) {
+              break
+            }
+          }
         }
 
         return {
