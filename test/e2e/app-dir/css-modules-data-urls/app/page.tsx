@@ -1,5 +1,5 @@
 // @ts-expect-error
-import styles from 'data:text/css+module;.home{font-weight:700}'
+import styles from 'data:text/css+module,.home{font-weight:700}'
 import { ClientComponent } from './client'
 
 export default function Home() {
