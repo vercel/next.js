@@ -1,10 +1,10 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
-  type UseCacheCacheStore,
   type FetchCacheStore,
   type EncryptedBoundArgsCacheStore,
   serializeUseCacheCacheStore,
   parseUseCacheCacheStore,
+  UseCacheCacheStore,
   type DecryptedBoundArgsCacheStore,
   type UseCacheCacheStoreSerialized,
 } from './cache-store'
@@ -51,8 +51,6 @@ export interface PrerenderResumeDataCache {
    * Supports both 'get' and 'set' operations to build the cache during
    * pre-rendering.
    */
-  // TODO: For the dev warmup render, this needs to handle cache key changes
-  // during set operations, same as the default cache handler.
   readonly cache: UseCacheCacheStore
 
   /**
@@ -147,7 +145,7 @@ export async function stringifyResumeDataCache(
  */
 export function createPrerenderResumeDataCache(): PrerenderResumeDataCache {
   return {
-    cache: new Map(),
+    cache: new UseCacheCacheStore(),
     fetch: new Map(),
     encryptedBoundArgs: new Map(),
     decryptedBoundArgs: new Map(),
@@ -185,7 +183,7 @@ export function createRenderResumeDataCache(
 
     if (prerenderResumeDataCacheOrPersistedCache === 'null') {
       return {
-        cache: new Map(),
+        cache: new UseCacheCacheStore(),
         fetch: new Map(),
         encryptedBoundArgs: new Map(),
         decryptedBoundArgs: new Map(),
@@ -204,7 +202,7 @@ export function createRenderResumeDataCache(
     )
 
     return {
-      cache: parseUseCacheCacheStore(Object.entries(json.store.cache)),
+      cache: parseUseCacheCacheStore(Object.values(json.store.cache)),
       fetch: new Map(Object.entries(json.store.fetch)),
       encryptedBoundArgs: new Map(
         Object.entries(json.store.encryptedBoundArgs)
