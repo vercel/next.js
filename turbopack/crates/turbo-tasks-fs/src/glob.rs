@@ -231,6 +231,8 @@ impl GlobPart {
                 let mut is_escaped = false;
                 let mut literal = String::new();
 
+                // TODO(lukes): there shouldn't be a need to traverse graphemes here, just literal
+                // matches since all of our delimiters are ascii characters
                 let mut cursor = GraphemeCursor::new(0, input.len(), true);
 
                 let mut start = cursor.cur_cursor();

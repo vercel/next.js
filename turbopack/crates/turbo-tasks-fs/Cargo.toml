@@ -64,6 +64,7 @@ tempfile = { workspace = true }
 turbo-tasks-memory = { workspace = true }
 turbo-tasks-testing = { workspace = true }
 turbo-tasks-backend = { workspace = true }
+fast-glob = "0.4.5"
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }
