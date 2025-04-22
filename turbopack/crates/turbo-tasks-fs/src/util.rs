@@ -180,15 +180,15 @@ pub async fn uri_from_file(root: Vc<FileSystemPath>, path: Option<&str>) -> Resu
         .await?
         .to_string_lossy();
 
-    let uri = format!(
-        "file:///{}",
-        raw_path
-            .replace('\\', "/")
-            .split('/')
-            .map(|s| urlencoding::encode(s))
-            .collect::<Vec<_>>()
-            .join("/")
-    );
+    let mut segments = raw_path.replace('\\', "/").split('/');
+
+    let first = segments.next().unwrap_or_default(); // e.g., "C:"
+    let encoded_path = std::iter::once(first.to_string()) // keep "C:" intact
+        .chain(segments.map(|s| urlencoding::encode(s).into_owned()))
+        .collect::<Vec<_>>()
+        .join("/");
+
+    let uri = format!("file:///{}", encoded_path);
 
     Ok(uri)
 }
