@@ -135,7 +135,7 @@ const metadata = {
                   file: source,
                   category: ts.DiagnosticCategory.Warning,
                   code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
-                  messageText: `The "generateMetadata" export should be type of ${isAsync ? '"Promise<Metadata>"' : '"Metadata"'} from "next".`,
+                  messageText: `The "generateMetadata" export should have a return type of ${isAsync ? '"Promise<Metadata>"' : '"Metadata"'} from "next".`,
                   start: declaration.name.getStart(),
                   length: declaration.name.getWidth(),
                 },
@@ -211,7 +211,7 @@ const metadata = {
                 file: source,
                 category: ts.DiagnosticCategory.Warning,
                 code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
-                messageText: `The "generateMetadata" export should be type of ${isAsync ? '"Promise<Metadata>"' : '"Metadata"'} from "next".`,
+                messageText: `The "generateMetadata" export should have a return type of ${isAsync ? '"Promise<Metadata>"' : '"Metadata"'} from "next".`,
                 start: e.name.getStart(),
                 length: e.name.getWidth(),
               })
