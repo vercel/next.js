@@ -9,9 +9,9 @@ import { inflateSync } from 'node:zlib'
 function createCacheWithSingleEntry() {
   const cache = createPrerenderResumeDataCache()
   cache.cache.set(
-    'success',
+    'original-key',
     Promise.resolve({
-      key: 'success',
+      key: 'final-key',
       value: streamFromString('value'),
       tags: [],
       stale: 0,
@@ -49,7 +49,7 @@ describe('stringifyResumeDataCache', () => {
     ).toString('utf-8')
 
     expect(decompressed).toMatchInlineSnapshot(
-      `"{"store":{"fetch":{},"cache":{"success":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":0,"revalidate":0}},"encryptedBoundArgs":{}}}"`
+      `"{"store":{"fetch":{},"cache":{"final-key":{"key":"final-key","value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":0,"revalidate":0}},"encryptedBoundArgs":{}}}"`
     )
   })
 
@@ -67,7 +67,7 @@ describe('stringifyResumeDataCache', () => {
     // We expect that the cache will still contain the successful entry but the
     // failed entry will be ignored and omitted from the output.
     expect(decompressed).toMatchInlineSnapshot(
-      `"{"store":{"fetch":{},"cache":{"success":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":0,"revalidate":0}},"encryptedBoundArgs":{}}}"`
+      `"{"store":{"fetch":{},"cache":{"final-key":{"key":"final-key","value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":0,"revalidate":0}},"encryptedBoundArgs":{}}}"`
     )
   })
 })
