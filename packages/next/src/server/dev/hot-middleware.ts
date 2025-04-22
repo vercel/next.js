@@ -23,10 +23,21 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type ws from 'next/dist/compiled/ws'
+import { isMiddlewareFilename } from '../../build/utils'
 import type { VersionInfo } from './parse-version-info'
 import type { HMR_ACTION_TYPES } from './hot-reloader-types'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
 import { devIndicatorServerState } from './dev-indicator-server-state'
+
+function isMiddlewareStats(stats: webpack.Stats) {
+  for (const key of stats.compilation.entrypoints.keys()) {
+    if (isMiddlewareFilename(key)) {
+      return true
+    }
+  }
+
+  return false
+}
 
 function statsToJson(stats?: webpack.Stats | null) {
   if (!stats) return {}
@@ -162,6 +173,10 @@ export class WebpackHotMiddleware {
 
   onEdgeServerDone = (statsResult: webpack.Stats) => {
     if (this.closed) return
+    if (!isMiddlewareStats(statsResult)) {
+      this.onServerInvalid()
+      this.onServerDone(statsResult)
+    }
     if (statsResult.hasErrors()) {
       this.middlewareLatestStats = { ts: Date.now(), stats: statsResult }
       this.publishStats(statsResult)
