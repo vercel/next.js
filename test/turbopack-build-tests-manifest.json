@@ -5209,6 +5209,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/conflicting-routes/conflicting-routes.test.ts": {
+    "passed": [
+      "conflicting routes /en/vercel/~/monitoring matches the right route",
+      "conflicting routes /es/vercel/~/monitoring matches the right route",
+      "conflicting routes /fr/vercel/~/monitoring matches the right route"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/dynamic-on-hover/dynamic-on-hover.test.ts": {
     "passed": [
       "dynamic on hover prefetches the dynamic data for a Link on hover"
@@ -5267,10 +5278,10 @@
   "test/e2e/app-dir/segment-cache/prefetch-scheduling/prefetch-scheduling.test.ts": {
     "passed": [
       "segment cache prefetch scheduling cancels a viewport-initiated prefetch if the link leaves the viewport before it finishes",
-      "segment cache prefetch scheduling even on mouseexit, any link that was previously hovered is prioritized over links that were never hovered at all",
       "segment cache prefetch scheduling increases the priority of a viewport-initiated prefetch on hover",
       "segment cache prefetch scheduling prioritizes prefetching the route trees before the segments",
-      "segment cache prefetch scheduling reschedules a link's prefetch when it re-enters the viewport"
+      "segment cache prefetch scheduling reschedules a link's prefetch when it re-enters the viewport",
+      "segment cache prefetch scheduling reserve special bandwidth for the most recently hovered link"
     ],
     "failed": [],
     "pending": [],
@@ -5279,6 +5290,7 @@
   },
   "test/e2e/app-dir/segment-cache/revalidation/segment-cache-revalidation.test.ts": {
     "passed": [
+      "segment cache (revalidation) call router.prefetch(..., {onInvalidate}) after cache is revalidated",
       "segment cache (revalidation) evict client cache when Server Action calls revalidatePath",
       "segment cache (revalidation) evict client cache when Server Action calls revalidateTag",
       "segment cache (revalidation) re-fetch visible links after a navigation, if needed",
