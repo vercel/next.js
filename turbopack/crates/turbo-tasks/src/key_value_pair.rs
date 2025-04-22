@@ -19,3 +19,13 @@ pub trait KeyValuePair {
     fn from_key_and_value_ref(key: Self::Key, value_ref: Self::ValueRef<'_>) -> Self;
     fn into_key_and_value(self) -> (Self::Key, Self::Value);
 }
+
+/// Derives the [`KeyValuePair`][trait@KeyValuePair] trait for a enum. Each variant need to
+/// have a `value` field which becomes part of the value enum and all remaining fields become
+/// part of the key.
+///
+/// Assuming the enum is called `Abc` it exposes `AbcKey` and `AbcValue` types for it too. The
+/// key enum will have [`Debug`], [`Clone`], [`PartialEq`], [`Eq`], and [`Hash`] derived. The
+/// value enum will have [`Debug`] and [`Clone`] derived. It's expected that all fields
+/// implement these traits.
+pub use turbo_tasks_macros::KeyValuePair;
