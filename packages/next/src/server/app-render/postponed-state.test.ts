@@ -45,8 +45,13 @@ describe('getDynamicHTMLPostponedState', () => {
          },
        },
        "renderResumeDataCache": {
-         "cache": Map {
-           "1" => Promise {},
+         "cache": UseCacheCacheStore {
+           "cacheEntries": Map {
+             "1" => Promise {},
+           },
+           "pendingSets": Set {
+             Promise {},
+           },
          },
          "decryptedBoundArgs": Map {},
          "encryptedBoundArgs": Map {},
