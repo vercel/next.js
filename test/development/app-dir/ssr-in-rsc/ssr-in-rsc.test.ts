@@ -265,17 +265,7 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/app-code/react-dom-server-edge-implicit'
     )
 
-    if (isTurbopack) {
-      await assertHasRedbox(browser)
-    } else {
-      // FIXME: why no redbox when there is an error?
-      await assertNoRedbox(browser)
-      // error happens too early it seems to be caught by browser.log()
-      // but the layout not being rendered indicates that it actually crashed
-      expect(await browser.elementByCss('body').text()).toMatchInlineSnapshot(
-        `""`
-      )
-    }
+    await assertHasRedbox(browser)
     const redbox = {
       description: await getRedboxDescription(browser),
       source: await getRedboxSource(browser),
@@ -300,10 +290,28 @@ describe('react-dom/server in React Server environment', () => {
       `)
     } else {
       expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": null,
-          "source": null,
-        }
+       {
+         "description": "Error:   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.",
+         "source": "./node_modules/.pnpm/next@file+..+next-repo-548b9ffc88a1a85326dd460c2cea2354fe70867cfcf20dfd398fe124a0d0f1ab+packa_u25kve6m4knr3ugkwxfb4f6gc4/node_modules/next/dist/build/webpack/loaders/next-app-loader/index.js?name=app%2Fexports%2Fapp-code%2Freact-dom-server-edge-implicit%2Fpage&page=%2Fexports%2Fapp-code%2Freact-dom-server-edge-implicit%2Fpage&appPaths=%2Fexports%2Fapp-code%2Freact-dom-server-edge-implicit%2Fpage&pagePath=private-next-app-dir%2Fexports%2Fapp-code%2Freact-dom-server-edge-implicit%2Fpage.js&appDir=%2Fprivate%2Fvar%2Ffolders%2Fwv%2Fxyy9xyz10sl4twdx_hp25mjc0000gn%2FT%2Fnext-install-4d23475f6a03f4cc836b1fa585a37f45b3b7bcc86d5dc80cc51909a53a0f766b%2Fapp&pageExtensions=tsx&pageExtensions=ts&pageExtensions=jsx&pageExtensions=js&rootDir=%2Fprivate%2Fvar%2Ffolders%2Fwv%2Fxyy9xyz10sl4twdx_hp25mjc0000gn%2FT%2Fnext-install-4d23475f6a03f4cc836b1fa585a37f45b3b7bcc86d5dc80cc51909a53a0f766b&isDev=true&tsconfigPath=tsconfig.json&basePath=&assetPrefix=&nextConfigOutput=&preferredRegion=&middlewareConfig=e30%3D!./app/exports/app-code/react-dom-server-edge-implicit/page.js?__next_edge_ssr_entry__
+       Error:   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
+         | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+          ,-[1:1]
+        1 | import * as ReactDOMServerEdge from 'react-dom/server'
+          : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        2 | // Fine to drop once React is on ESM
+        3 | import ReactDOMServerEdgeDefault from 'react-dom/server'
+          \`----
+         x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
+         | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+          ,-[3:1]
+        1 | import * as ReactDOMServerEdge from 'react-dom/server'
+        2 | // Fine to drop once React is on ESM
+        3 | import ReactDOMServerEdgeDefault from 'react-dom/server'
+          : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        4 | 
+        5 | export const runtime = 'edge'
+          \`----",
+       }
       `)
     }
   })
