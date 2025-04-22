@@ -1148,6 +1148,7 @@
   },
   "packages/next/src/server/lib/router-utils/build-prefetch-segment-data-route.test.ts": {
     "passed": [
+      "buildInversePrefetchSegmentDataRoute should build an inverted prefetch segment data route",
       "buildPrefetchSegmentDataRoute should build a prefetch segment data route"
     ],
     "failed": [],
@@ -6320,6 +6321,7 @@
   },
   "test/e2e/app-dir/metadata-streaming-parallel-routes/metadata-streaming-parallel-routes.test.ts": {
     "passed": [
+      "app-dir - metadata-streaming should change metadata when navigating between two pages under a slot when children is not rendered",
       "app-dir - metadata-streaming should only insert metadata once for parallel routes when slots match",
       "app-dir - metadata-streaming should only insert metadata once for parallel routes when there is a missing slot",
       "app-dir - metadata-streaming should still render metadata if children is not rendered in parallel routes layout"
@@ -8459,6 +8461,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/conflicting-routes/conflicting-routes.test.ts": {
+    "passed": ["conflicting routes prefetching is disabled"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/dynamic-on-hover/dynamic-on-hover.test.ts": {
     "passed": ["dynamic on hover prefetching is disabled"],
     "failed": [],
@@ -10486,6 +10495,33 @@
   },
   "test/e2e/middleware-shallow-link/index.test.ts": {
     "passed": ["browser-shallow-navigation should render the correct page"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/middleware-static-files/index.test.ts": {
+    "passed": [
+      "Middleware Runtime should match middleware correctly for /another%2ffile.svg",
+      "Middleware Runtime should match middleware correctly for /another%2fhello",
+      "Middleware Runtime should match middleware correctly for /another/file.svg",
+      "Middleware Runtime should match middleware correctly for /another/hello",
+      "Middleware Runtime should match middleware correctly for /dynamic%2f/first",
+      "Middleware Runtime should match middleware correctly for /dynamic/first",
+      "Middleware Runtime should match middleware correctly for /file.svg",
+      "Middleware Runtime should match middleware correctly for /glob%2ffile.svg",
+      "Middleware Runtime should match middleware correctly for /glob%2fhello",
+      "Middleware Runtime should match middleware correctly for /glob/file.svg",
+      "Middleware Runtime should match middleware correctly for /glob/hello",
+      "Middleware Runtime should match middleware correctly for /pages-another%2fhello",
+      "Middleware Runtime should match middleware correctly for /pages-another/hello",
+      "Middleware Runtime should match middleware correctly for /pages-dynamic%2f/first",
+      "Middleware Runtime should match middleware correctly for /pages-dynamic/first",
+      "Middleware Runtime should match middleware correctly for /pages-glob%2fhello",
+      "Middleware Runtime should match middleware correctly for /pages-glob/hello",
+      "Middleware Runtime should match middleware correctly for /vercel copy.svg",
+      "Middleware Runtime should match middleware correctly for /vercel%20copy.svg"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],

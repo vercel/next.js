@@ -1249,14 +1249,9 @@ export default abstract class Server<
           if (pageIsDynamic) {
             let params: ParsedUrlQuery | false = {}
 
-            // If we don't already have valid params, try to parse them from
-            // the query params.
-            if (!paramsResult.hasValidParams) {
-              paramsResult = utils.normalizeDynamicRouteParams(
-                queryParams,
-                false
-              )
-            }
+            // ensure we normalize the dynamic route params for encoding/
+            // default values
+            paramsResult = utils.normalizeDynamicRouteParams(queryParams, false)
 
             // for prerendered ISR paths we attempt parsing the route
             // params from the URL directly as route-matches may not
@@ -1389,7 +1384,7 @@ export default abstract class Server<
           }
 
           if (pageIsDynamic || didRewrite) {
-            utils.normalizeVercelUrl(req, [
+            utils.normalizeCdnUrl(req, [
               ...rewriteParamKeys,
               ...Object.keys(utils.defaultRouteRegex?.groups || {}),
             ])

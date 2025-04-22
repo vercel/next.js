@@ -338,6 +338,7 @@ const filterAndSortList = (
 }
 
 export interface PageInfo {
+  originalAppPath: string | undefined
   isHybridAmp?: boolean
   size: number
   totalSize: number

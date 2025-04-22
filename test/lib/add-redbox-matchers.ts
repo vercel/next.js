@@ -11,7 +11,7 @@ import {
   getRedboxTotalErrorCount,
   openRedbox,
 } from './next-test-utils'
-import type { BrowserInterface } from './browsers/base'
+import type { Playwright } from 'next-webdriver'
 import { NextInstance } from 'e2e-utils'
 
 declare global {
@@ -72,7 +72,7 @@ interface ErrorSnapshot {
 }
 
 async function createErrorSnapshot(
-  browser: BrowserInterface,
+  browser: Playwright,
   next: NextInstance | null
 ): Promise<ErrorSnapshot> {
   const [label, environmentLabel, description, source, stack, componentStack] =
@@ -164,7 +164,7 @@ async function createErrorSnapshot(
 type RedboxSnapshot = ErrorSnapshot | ErrorSnapshot[]
 
 async function createRedboxSnapshot(
-  browser: BrowserInterface,
+  browser: Playwright,
   next: NextInstance | null
 ): Promise<RedboxSnapshot> {
   const errorTally = await getRedboxTotalErrorCount(browser)
@@ -196,12 +196,10 @@ async function createRedboxSnapshot(
 expect.extend({
   async toDisplayRedbox(
     this: MatcherContext,
-    browserOrContext:
-      | BrowserInterface
-      | { browser: BrowserInterface; next: NextInstance },
+    browserOrContext: Playwright | { browser: Playwright; next: NextInstance },
     expectedRedboxSnapshot?: string
   ) {
-    let browser: BrowserInterface
+    let browser: Playwright
     let next: NextInstance | null
     if ('browser' in browserOrContext && 'next' in browserOrContext) {
       browser = browserOrContext.browser
@@ -247,12 +245,10 @@ expect.extend({
   },
   async toDisplayCollapsedRedbox(
     this: MatcherContext,
-    browserOrContext:
-      | BrowserInterface
-      | { browser: BrowserInterface; next: NextInstance },
+    browserOrContext: Playwright | { browser: Playwright; next: NextInstance },
     expectedRedboxSnapshot?: string
   ) {
-    let browser: BrowserInterface
+    let browser: Playwright
     let next: NextInstance | null
     if ('browser' in browserOrContext && 'next' in browserOrContext) {
       browser = browserOrContext.browser
