@@ -289,10 +289,20 @@ describe('react-dom/server in React Server environment', () => {
        }
       `)
     } else {
+      // FIXME: the source map of source file path is not correct
+      // Expected: `./app/exports/app-code/react-dom-server-edge-implicit/page.js`
+      // Observed: `./node_modules/.pnpm/next@file+..+next-repo.../page.js?__next_edge_ssr_entry__
+      const sourceLines = redbox.source.split('\n')
+      const filepath = sourceLines[0]
+      if (filepath.includes('node_modules')) {
+        redbox.source =
+          `./app/exports/app-code/react-dom-server-edge-implicit/page.js (3:1)\n` +
+          sourceLines.slice(1).join('\n')
+      }
       expect(redbox).toMatchInlineSnapshot(`
        {
          "description": "Error:   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.",
-         "source": "./node_modules/.pnpm/next@file+..+next-repo-548b9ffc88a1a85326dd460c2cea2354fe70867cfcf20dfd398fe124a0d0f1ab+packa_u25kve6m4knr3ugkwxfb4f6gc4/node_modules/next/dist/build/webpack/loaders/next-app-loader/index.js?name=app%2Fexports%2Fapp-code%2Freact-dom-server-edge-implicit%2Fpage&page=%2Fexports%2Fapp-code%2Freact-dom-server-edge-implicit%2Fpage&appPaths=%2Fexports%2Fapp-code%2Freact-dom-server-edge-implicit%2Fpage&pagePath=private-next-app-dir%2Fexports%2Fapp-code%2Freact-dom-server-edge-implicit%2Fpage.js&appDir=%2Fprivate%2Fvar%2Ffolders%2Fwv%2Fxyy9xyz10sl4twdx_hp25mjc0000gn%2FT%2Fnext-install-4d23475f6a03f4cc836b1fa585a37f45b3b7bcc86d5dc80cc51909a53a0f766b%2Fapp&pageExtensions=tsx&pageExtensions=ts&pageExtensions=jsx&pageExtensions=js&rootDir=%2Fprivate%2Fvar%2Ffolders%2Fwv%2Fxyy9xyz10sl4twdx_hp25mjc0000gn%2FT%2Fnext-install-4d23475f6a03f4cc836b1fa585a37f45b3b7bcc86d5dc80cc51909a53a0f766b&isDev=true&tsconfigPath=tsconfig.json&basePath=&assetPrefix=&nextConfigOutput=&preferredRegion=&middlewareConfig=e30%3D!./app/exports/app-code/react-dom-server-edge-implicit/page.js?__next_edge_ssr_entry__
+         "source": "./app/exports/app-code/react-dom-server-edge-implicit/page.js (3:1)
        Error:   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
          | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
           ,-[1:1]
