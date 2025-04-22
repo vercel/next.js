@@ -364,7 +364,7 @@ export default function Home() {
 
 ### `legacyBehavior`
 
-> **Deprecated**: The `legacyBehavior` prop will be removed in Next.js v16. To adopt the new `<Link>` behavior, simply remove any `<a>` tags used as children of `<Link>`. A [codemod is available](/docs/app/guides/upgrading/codemods#new-link) to help you automatically upgrade your codebase.
+> **Warning**: The `legacyBehavior` prop will be removed in Next.js v16. To adopt the new `<Link>` behavior, remove any `<a>` tags used as children of `<Link>`. A [codemod is available](/docs/app/guides/upgrading/codemods#new-link) to help you automatically upgrade your codebase.
 
 In the latest versions of Next.js, an `<a>` element is no longer required as a child of the `<Link>` component. If you still need the old behavior for compatibility reasons, you can add the `legacyBehavior` prop. However, it is strongly recommended to migrate to the modern approach for future compatibility.
 
