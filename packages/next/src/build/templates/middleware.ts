@@ -31,8 +31,10 @@ function errorHandledHandler(fn: AdapterOptions['handler']) {
       // since it's not allowed to be used in middleware as it's outside of react component tree.
       if (process.env.NODE_ENV !== 'production') {
         if (isNextRouterError(err)) {
-          err.message = `Next.js navigation API is not allowed to be used in Middleware.`
-          throw err
+          throw new Error(
+            `Next.js navigation API is not allowed to be used in Middleware.`,
+            { cause: err }
+          )
         }
       }
       const req = args[0]

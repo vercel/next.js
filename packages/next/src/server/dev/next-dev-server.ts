@@ -657,9 +657,11 @@ export default class DevServer extends Server {
         instrumentationModule = await require(
           pathJoin(this.distDir, 'server', INSTRUMENTATION_HOOK_FILENAME)
         )
-      } catch (err: any) {
-        err.message = `An error occurred while loading instrumentation hook: ${err.message}`
-        throw err
+      } catch (err) {
+        throw new Error(
+          `An error occurred while loading instrumentation hook`,
+          { cause: err }
+        )
       }
     }
     return instrumentationModule

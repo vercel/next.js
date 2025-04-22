@@ -4,6 +4,7 @@ import {
   decorateServerError,
   type ErrorSourceType,
 } from '../../../../shared/lib/error-source'
+import isError from '../../../../lib/is-error'
 
 export function getFilesystemFrame(frame: StackFrame): StackFrame {
   const f: StackFrame = { ...frame }
@@ -24,7 +25,16 @@ export function getFilesystemFrame(frame: StackFrame): StackFrame {
   return f
 }
 
-export function getServerError(error: Error, type: ErrorSourceType): Error {
+function getErrorRootCause(error: unknown): unknown {
+  if (isError(error) && 'cause' in error) {
+    return getErrorRootCause(error.cause) ?? error
+  }
+  return error
+}
+
+export function getServerError(err: Error, type: ErrorSourceType): Error {
+  const error = getErrorRootCause(err) as Error
+
   if (error.name === 'TurbopackInternalError') {
     // If this is an internal Turbopack error we shouldn't show internal details
     // to the user. These are written to a log file instead.

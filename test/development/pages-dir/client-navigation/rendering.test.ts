@@ -354,8 +354,9 @@ describe('Client Navigation rendering', () => {
             'no-store, must-revalidate'
           )
         } catch (err) {
-          err.message = res.url + ' ' + err.message
-          throw err
+          throw new Error(`header of request ${res.url} is not matched`, {
+            cause: err,
+          })
         }
       })
     })
