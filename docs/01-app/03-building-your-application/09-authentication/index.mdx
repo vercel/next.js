@@ -1311,7 +1311,7 @@ Auth check in [Server Components](/docs/app/building-your-application/rendering/
 ```tsx filename="app/dashboard/page.tsx" switcher
 import { verifySession } from '@/app/lib/dal'
 
-export default function Dashboard() {
+export default async function Dashboard() {
   const session = await verifySession()
   const userRole = session?.user?.role // Assuming 'role' is part of the session object
 
@@ -1328,9 +1328,9 @@ export default function Dashboard() {
 ```jsx filename="app/dashboard/page.jsx" switcher
 import { verifySession } from '@/app/lib/dal'
 
-export default function Dashboard() {
+export default async function Dashboard() {
   const session = await verifySession()
-  const userRole = session.role // Assuming 'role' is part of the session object
+  const userRole = session.user.role // Assuming 'role' is part of the session object
 
   if (userRole === 'admin') {
     return <AdminDashboard />
