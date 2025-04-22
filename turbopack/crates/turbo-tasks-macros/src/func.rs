@@ -335,7 +335,7 @@ impl TurboFn<'_> {
                     return (arg.clone(), None);
                 }
                 let (FnArg::Receiver(Receiver { ty, .. }) | FnArg::Typed(PatType { ty, .. })) = arg;
-                let Cow::Owned(expanded_ty) = expand_task_input_type(&ty) else {
+                let Cow::Owned(expanded_ty) = expand_task_input_type(ty) else {
                     // common-case: skip if no type conversion is needed
                     return (arg.clone(), None);
                 };
@@ -421,7 +421,7 @@ impl TurboFn<'_> {
 
                         // convert an argument of type `FromTaskInput<T>::TaskInput` into `T`.
                         // essentially, replace any instances of `Vc` with `ResolvedVc`.
-                        let pat = (&*pat_type.pat).clone();
+                        let pat = (*pat_type.pat).clone();
                         let transform_stmt = transform_from_task_input(arg_id, pat);
 
                         (arg, Some(transform_stmt))
