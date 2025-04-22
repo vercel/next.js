@@ -158,24 +158,10 @@ export class WebpackHotMiddleware {
     if (this.clientLatestStats?.stats) {
       this.publishStats(this.clientLatestStats.stats)
     }
-    // if (this.serverLatestStats?.stats) {
-    //   this.publishStats(this.serverLatestStats.stats)
-    // }
-
-    // this.publish({
-    //   action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING,
-    // })
   }
 
   onEdgeServerDone = (statsResult: webpack.Stats) => {
     if (this.closed) return
-    // if (!isMiddlewareStats(statsResult)) {
-    //   console.log('is not middleware stats')
-    //   this.onServerInvalid()
-    //   this.onServerDone(statsResult)
-    //   return
-    // }
-
     if (statsResult.hasErrors()) {
       this.middlewareLatestStats = { ts: Date.now(), stats: statsResult }
       this.publishStats(statsResult)
