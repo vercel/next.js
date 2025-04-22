@@ -94,7 +94,19 @@ describe('app dir - rsc basics', () => {
   it('should correctly render page returning undefined', async () => {
     const homeHTML = await next.render('/return-undefined/page')
     const $ = cheerio.load(homeHTML)
-    expect(stripHTMLComments($('#return-undefined-layout').html())).toBeEmpty()
+    try {
+      expect(
+        stripHTMLComments($('#return-undefined-layout').html())
+      ).toBeEmpty()
+    } catch (err) {
+      const sep = '='.repeat(40) + ' PAGE HTML ' + '='.repeat(40)
+      console.log()
+      console.log(sep)
+      console.log($('html').html())
+      console.log(sep)
+      console.log()
+      throw err
+    }
   })
 
   it('should correctly render component returning undefined', async () => {
