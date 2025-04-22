@@ -178,7 +178,9 @@ pub async fn fileify_source_map(
     let transform_source = async |src: &mut Option<String>| {
         if let Some(src) = src {
             if let Some(src_rest) = src.strip_prefix(&prefix) {
+                dbg!(&src_rest);
                 *src = uri_from_file(context_path, Some(src_rest)).await?;
+                dbg!(&*src);
             }
         }
         anyhow::Ok(())
