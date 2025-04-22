@@ -241,6 +241,11 @@ const metadata = {
 function hasCorrectType(
   node: tsModule.FunctionDeclaration | tsModule.VariableDeclaration
 ): boolean {
+  // Skip if already has type.
+  if (node.type) {
+    return true
+  }
+
   const ts = getTs()
   const typeChecker = getTypeChecker()
   if (!typeChecker) {
