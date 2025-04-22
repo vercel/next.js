@@ -174,27 +174,24 @@ export default class DevServer extends Server {
     )
     this.renderOpts.ampSkipValidation =
       this.nextConfig.experimental?.amp?.skipValidation ?? false
-    this.renderOpts.ampValidator = (html: string, pathname: string) => {
-      const validatorPath =
-        (this.nextConfig.experimental &&
-          this.nextConfig.experimental.amp &&
-          this.nextConfig.experimental.amp.validator) ||
-        require.resolve(
-          'next/dist/compiled/amphtml-validator/validator_wasm.js'
-        )
+    this.renderOpts.ampValidator = async (html: string, pathname: string) => {
+      const { getAmpValidatorInstance, getBundledAmpValidatorFilepath } =
+        require('../../export/helpers/get-amp-html-validator') as typeof import('../../export/helpers/get-amp-html-validator')
 
-      const AmpHtmlValidator =
-        require('next/dist/compiled/amphtml-validator') as typeof import('next/dist/compiled/amphtml-validator')
-      return AmpHtmlValidator.getInstance(validatorPath).then((validator) => {
-        const result = validator.validateString(html)
-        ampValidation(
-          pathname,
-          result.errors
-            .filter((e) => e.severity === 'ERROR')
-            .filter((e) => this._filterAmpDevelopmentScript(html, e)),
-          result.errors.filter((e) => e.severity !== 'ERROR')
-        )
-      })
+      const validatorPath =
+        this.nextConfig.experimental?.amp?.validator ||
+        getBundledAmpValidatorFilepath()
+
+      const validator = await getAmpValidatorInstance(validatorPath)
+
+      const result = validator.validateString(html)
+      ampValidation(
+        pathname,
+        result.errors
+          .filter((e) => e.severity === 'ERROR')
+          .filter((e) => this._filterAmpDevelopmentScript(html, e)),
+        result.errors.filter((e) => e.severity !== 'ERROR')
+      )
     }
 
     const { pagesDir, appDir } = findPagesDir(this.dir)
