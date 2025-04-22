@@ -380,8 +380,6 @@ impl TurboFn<'_> {
                         // argument, generate a new identifier, and rewrite
                         // the body of the function later to use
                         // that new identifier.
-                        // NOTE: arbitrary self types aren't `FnArg::Receiver` on syn 1.x (fixed in
-                        // 2.x)
                         let shadow_self_id = Ident::new(
                             "turbo_tasks_self",
                             Span::mixed_site().located_at(self_token.span()),
