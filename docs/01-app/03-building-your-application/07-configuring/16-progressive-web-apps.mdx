@@ -414,6 +414,15 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY!
 )
 
+// PushSubscription interface definition
+interface PushSubscription {
+  endpoint: string;
+  keys: {
+    auth: string;
+    p256dh: string;
+  };
+}
+
 let subscription: PushSubscription | null = null
 
 export async function subscribeUser(sub: PushSubscription) {
