@@ -22,7 +22,11 @@ use crate::{
     key::StoreKey, static_sorted_file_builder::StaticSortedFileBuilder, ValueBuffer,
 };
 
-/// The thread local state of a `WriteBatch`.
+/// The thread local state of a `WriteBatch`. `FAMILIES` should fit within a `u32`.
+//
+// NOTE: This type *must* use `usize`, even though the real type used in storage is `u32` because
+// there's no way to cast a `u32` to `usize` when declaring an array without the nightly
+// `min_generic_const_args` feature.
 struct ThreadLocalState<K: StoreKey + Send, const FAMILIES: usize> {
     /// The collectors for each family.
     collectors: [Option<Collector<K>>; FAMILIES],
@@ -54,7 +58,9 @@ pub struct WriteBatch<K: StoreKey + Send, const FAMILIES: usize> {
 impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
     /// Creates a new write batch for a database.
     pub(crate) fn new(path: PathBuf, current: u32) -> Self {
-        assert!(FAMILIES <= u32::MAX as usize);
+        const {
+            assert!(FAMILIES <= usize_from_u32(u32::MAX));
+        };
         Self {
             path,
             current_sequence_number: AtomicU32::new(current),
@@ -88,10 +94,11 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
     fn collector_mut<'l>(
         &self,
         state: &'l mut ThreadLocalState<K, FAMILIES>,
-        family: usize,
+        family: u32,
     ) -> Result<&'l mut Collector<K>> {
-        debug_assert!(family < FAMILIES);
-        let collector = state.collectors[family].get_or_insert_with(|| {
+        let family_idx = usize_from_u32(family);
+        debug_assert!(family_idx < FAMILIES);
+        let collector = state.collectors[family_idx].get_or_insert_with(|| {
             self.idle_collectors
                 .lock()
                 .pop()
@@ -106,7 +113,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
     }
 
     /// Puts a key-value pair into the write batch.
-    pub fn put(&self, family: usize, key: K, value: ValueBuffer<'_>) -> Result<()> {
+    pub fn put(&self, family: u32, key: K, value: ValueBuffer<'_>) -> Result<()> {
         let state = self.thread_local_state();
         let collector = self.collector_mut(state, family)?;
         if value.len() <= MAX_MEDIUM_VALUE_SIZE {
@@ -120,7 +127,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
     }
 
     /// Puts a delete operation into the write batch.
-    pub fn delete(&self, family: usize, key: K) -> Result<()> {
+    pub fn delete(&self, family: u32, key: K) -> Result<()> {
         let state = self.thread_local_state();
         let collector = self.collector_mut(state, family)?;
         collector.delete(key);
@@ -151,7 +158,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
             fn handle_done_collector<'scope, K: StoreKey + Send + Sync, const FAMILIES: usize>(
                 this: &'scope WriteBatch<K, FAMILIES>,
                 scope: &Scope<'scope>,
-                family: usize,
+                family: u32,
                 mut collector: Collector<K>,
                 shared_new_sst_files: &'scope Mutex<&mut Vec<(u32, File)>>,
                 shared_error: &'scope Mutex<Result<()>>,
@@ -173,7 +180,8 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
             all_collectors
                 .into_par_iter()
                 .enumerate()
-                .for_each(|(family, collectors)| {
+                .for_each(|(family_idx, collectors)| {
+                    let family = u32::try_from(family_idx).unwrap();
                     let final_collector = collectors.into_par_iter().reduce(
                         || None,
                         |a, b| match (a, b) {
@@ -250,14 +258,14 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
     /// Creates a new SST file with the given collector data.
     fn create_sst_file(
         &self,
-        family: usize,
+        family: u32,
         collector_data: (&[CollectorEntry<K>], usize, usize),
     ) -> Result<(u32, File)> {
         let (entries, total_key_size, total_value_size) = collector_data;
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
 
         let builder =
-            StaticSortedFileBuilder::new(family as u32, entries, total_key_size, total_value_size)?;
+            StaticSortedFileBuilder::new(family, entries, total_key_size, total_value_size)?;
 
         let path = self.path.join(format!("{:08}.sst", seq));
         let file = builder
@@ -272,6 +280,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                 collector_entry::CollectorEntryValue,
                 key::hash_key,
                 static_sorted_file::{AqmfCache, BlockCache, LookupResult, StaticSortedFile},
+                static_sorted_file_builder::Entry,
             };
 
             file.sync_all()?;
@@ -297,24 +306,33 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                 Default::default(),
                 Default::default(),
             );
+            let mut key_buf = Vec::new();
             for entry in entries {
-                let mut key = Vec::with_capacity(entry.key.len());
-                entry.key.write_to(&mut key);
+                entry.write_key_to(&mut key_buf);
                 let result = sst
-                    .lookup(hash_key(&key), &key, &cache1, &cache2, &cache3)
+                    .lookup(
+                        family,
+                        hash_key(&key_buf),
+                        &key_buf,
+                        &cache1,
+                        &cache2,
+                        &cache3,
+                    )
                     .expect("key found");
+                key_buf.clear();
                 match result {
                     LookupResult::Deleted => {}
-                    LookupResult::Small { value: val } => {
-                        if let EntryValue::Small { value } | EntryValue::Medium { value } =
-                            entry.value
-                        {
-                            assert_eq!(&*val, &*value);
-                        } else {
-                            panic!("Unexpected value");
-                        }
+                    LookupResult::Slice {
+                        value: lookup_value,
+                    } => {
+                        let expected_value_slice = match &entry.value {
+                            CollectorEntryValue::Small { value } => &**value,
+                            CollectorEntryValue::Medium { value } => &**value,
+                            _ => panic!("Unexpected value"),
+                        };
+                        assert_eq!(*lookup_value, *expected_value_slice);
                     }
-                    LookupResult::Blob { sequence_number } => {}
+                    LookupResult::Blob { sequence_number: _ } => {}
                     LookupResult::QuickFilterMiss => panic!("aqmf must include"),
                     LookupResult::RangeMiss => panic!("Index must cover"),
                     LookupResult::KeyMiss => panic!("All keys must exist"),
@@ -324,4 +342,14 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
 
         Ok((seq, file))
     }
+}
+
+#[inline(always)]
+const fn usize_from_u32(value: u32) -> usize {
+    // This should always be true, as we assume at least a 32-bit width architecture for Turbopack.
+    // Since this is a const expression, we expect it to be compiled away.
+    const {
+        assert!(u32::BITS < usize::BITS);
+    };
+    value as usize
 }

@@ -163,6 +163,7 @@ type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 #[must_use]
 #[derive(Serialize, Deserialize)]
 #[serde(transparent, bound = "")]
+#[repr(transparent)]
 pub struct Vc<T>
 where
     T: ?Sized,
