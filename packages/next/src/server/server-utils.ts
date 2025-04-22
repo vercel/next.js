@@ -24,13 +24,14 @@ import {
 } from '../lib/constants'
 import { normalizeNextQueryParam } from './web/utils'
 import type { IncomingHttpHeaders } from 'http'
+import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
 
-export function normalizeVercelUrl(
+export function normalizeCdnUrl(
   req: BaseNextRequest,
   paramKeys: string[],
   defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
 ) {
-  // make sure to normalize req.url on Vercel to strip dynamic and rewrite
+  // make sure to normalize req.url from CDNs to strip dynamic and rewrite
   // params from the query which are added during routing
   const _parsedUrl = parseUrl(req.url!, true)
   delete (_parsedUrl as any).search
@@ -362,11 +363,35 @@ export function getUtils({
     return routeMatches
   }
 
+  function normalizeQueryParams(
+    query: Record<string, string | string[] | undefined>
+  ) {
+    // this is used to pass query information in rewrites
+    // but should not be exposed in final query
+    delete query['nextInternalLocale']
+
+    for (const [key, value] of Object.entries(query)) {
+      const normalizedKey = normalizeNextQueryParam(key)
+      if (!normalizedKey) continue
+
+      // Remove the prefixed key from the query params because we want
+      // to consume it for the dynamic route matcher.
+      delete query[key]
+
+      if (typeof value === 'undefined') continue
+
+      query[normalizedKey] = Array.isArray(value)
+        ? value.map((v) => decodeQueryPathParameter(v))
+        : decodeQueryPathParameter(value)
+    }
+  }
+
   return {
     handleRewrites,
     defaultRouteRegex,
     dynamicRouteMatcher,
     defaultRouteMatches,
+    normalizeQueryParams,
     getParamsFromRouteMatches,
     /**
      * Normalize dynamic route params.
@@ -390,8 +415,8 @@ export function getUtils({
         ignoreMissingOptional
       )
     },
-    normalizeVercelUrl: (req: BaseNextRequest, paramKeys: string[]) =>
-      normalizeVercelUrl(req, paramKeys, defaultRouteRegex),
+    normalizeCdnUrl: (req: BaseNextRequest, paramKeys: string[]) =>
+      normalizeCdnUrl(req, paramKeys, defaultRouteRegex),
     interpolateDynamicPath: (
       pathname: string,
       params: Record<string, undefined | string | string[]>

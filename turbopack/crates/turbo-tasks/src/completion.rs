@@ -1,16 +1,15 @@
 use anyhow::Result;
 
 use crate::{self as turbo_tasks, RawVc, ResolvedVc, TryJoinIterExt, Vc};
+
 /// Just an empty type, but it's never equal to itself.
 ///
-/// [`Vc<Completion>`] can be used as return value instead of `()`
-/// to have a concrete reference that can be awaited.
-/// It will invalidate the awaiting task everytime the referenced
-/// task has been executed.
+/// [`Vc<Completion>`] can be used as return value instead of `()` to have a concrete reference that
+/// can be awaited. It will invalidate the awaiting task everytime the referenced task has been
+/// executed.
 ///
-/// Note: [`PartialEq`] is not implemented since it doesn't make sense to
-/// compare `Completion` this way. You probably want to use [`ReadRef::ptr_eq`]
-/// instead.
+/// Note: [`PartialEq`] is not implemented since it doesn't make sense to compare `Completion` this
+/// way. You probably want to use [`ReadRef::ptr_eq`][crate::ReadRef::ptr_eq] instead.
 #[turbo_tasks::value(cell = "new", eq = "manual")]
 #[derive(Debug)]
 pub struct Completion;

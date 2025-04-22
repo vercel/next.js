@@ -336,5 +336,5 @@
             }))
           : Internals.d.m(href));
     };
-    exports.version = "19.2.0-canary-b04254fd-20250415";
+    exports.version = "19.2.0-canary-bc6184dd-20250417";
   })();

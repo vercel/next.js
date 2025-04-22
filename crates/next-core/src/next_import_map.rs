@@ -485,12 +485,7 @@ pub async fn get_next_edge_import_map(
         | ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. } => {
-            insert_unsupported_node_internal_aliases(
-                &mut import_map,
-                *project_path,
-                execution_context,
-            )
-            .await?;
+            insert_unsupported_node_internal_aliases(&mut import_map).await?;
         }
     }
 
@@ -500,13 +495,9 @@ pub async fn get_next_edge_import_map(
 /// Insert default aliases for the node.js's internal to raise unsupported
 /// runtime errors. User may provide polyfills for their own by setting user
 /// config's alias.
-async fn insert_unsupported_node_internal_aliases(
-    import_map: &mut ImportMap,
-    project_path: Vc<FileSystemPath>,
-    execution_context: Vc<ExecutionContext>,
-) -> Result<()> {
+async fn insert_unsupported_node_internal_aliases(import_map: &mut ImportMap) -> Result<()> {
     let unsupported_replacer = ImportMapping::Dynamic(ResolvedVc::upcast(
-        NextEdgeUnsupportedModuleReplacer::new(project_path, execution_context)
+        NextEdgeUnsupportedModuleReplacer::new()
             .to_resolved()
             .await?,
     ))

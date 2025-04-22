@@ -11,8 +11,8 @@ use crate::{
     id::LocalTaskId,
     manager::{read_local_output, read_task_cell, read_task_output, with_turbo_tasks},
     registry::{self, get_value_type},
-    turbo_tasks, CollectiblesSource, ReadCellOptions, ReadConsistency, TaskId, TraitTypeId,
-    ValueType, ValueTypeId, Vc, VcValueTrait,
+    turbo_tasks, CollectiblesSource, ReadCellOptions, ReadConsistency, ResolvedVc, TaskId,
+    TraitTypeId, ValueType, ValueTypeId, VcValueTrait,
 };
 
 #[derive(Error, Debug)]
@@ -44,10 +44,10 @@ impl Display for CellId {
     }
 }
 
-/// A type-erased representation of [`Vc`].
+/// A type-erased representation of [`Vc`][crate::Vc].
 ///
 /// Type erasure reduces the [monomorphization] (and therefore binary size and compilation time)
-/// required to support `Vc`.
+/// required to support [`Vc`][crate::Vc].
 ///
 /// This type is heavily used within the [`Backend`][crate::backend::Backend] trait, but should
 /// otherwise be treated as an internal implementation detail of `turbo-tasks`.
@@ -61,7 +61,7 @@ pub enum RawVc {
 }
 
 impl RawVc {
-    pub(crate) fn is_resolved(&self) -> bool {
+    pub fn is_resolved(&self) -> bool {
         match self {
             RawVc::TaskOutput(_) => false,
             RawVc::TaskCell(_, _) => true,
@@ -69,7 +69,7 @@ impl RawVc {
         }
     }
 
-    pub(crate) fn is_local(&self) -> bool {
+    pub fn is_local(&self) -> bool {
         match self {
             RawVc::TaskOutput(_) => false,
             RawVc::TaskCell(_, _) => false,
@@ -244,23 +244,26 @@ impl RawVc {
     }
 }
 
+/// This implementation of `CollectiblesSource` assumes that `self` is a `RawVc::TaskOutput`.
 impl CollectiblesSource for RawVc {
-    fn peek_collectibles<T: VcValueTrait + ?Sized>(self) -> AutoSet<Vc<T>> {
+    fn peek_collectibles<T: VcValueTrait + ?Sized>(self) -> AutoSet<ResolvedVc<T>> {
+        debug_assert!(matches!(self, RawVc::TaskOutput(..)));
         let tt = turbo_tasks();
         tt.notify_scheduled_tasks();
         let map = tt.read_task_collectibles(self.get_task_id(), T::get_trait_type_id());
         map.into_iter()
-            .filter_map(|(raw, count)| (count > 0).then_some(raw.into()))
+            .filter_map(|(raw, count)| (count > 0).then_some(raw.try_into().unwrap()))
             .collect()
     }
 
-    fn take_collectibles<T: VcValueTrait + ?Sized>(self) -> AutoSet<Vc<T>> {
+    fn take_collectibles<T: VcValueTrait + ?Sized>(self) -> AutoSet<ResolvedVc<T>> {
+        debug_assert!(matches!(self, RawVc::TaskOutput(..)));
         let tt = turbo_tasks();
         tt.notify_scheduled_tasks();
         let map = tt.read_task_collectibles(self.get_task_id(), T::get_trait_type_id());
         tt.unemit_collectibles(T::get_trait_type_id(), &map);
         map.into_iter()
-            .filter_map(|(raw, count)| (count > 0).then_some(raw.into()))
+            .filter_map(|(raw, count)| (count > 0).then_some(raw.try_into().unwrap()))
             .collect()
     }
 }

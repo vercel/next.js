@@ -26,7 +26,7 @@ use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::{field::Empty, Instrument};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 pub use turbopack_core::condition;
 use turbopack_core::{
@@ -139,10 +139,7 @@ async fn apply_module_type(
                 ResolvedVc::upcast(builder.build().to_resolved().await?)
             } else {
                 let module = builder.build().resolve().await?;
-                if matches!(
-                    &part,
-                    Some(ModulePart::Evaluation | ModulePart::InternalEvaluation(..))
-                ) {
+                if matches!(&part, Some(ModulePart::Evaluation)) {
                     // Skip the evaluation part if the module is marked as side effect free.
                     let side_effect_free_packages = module_asset_context
                         .side_effect_free_packages()
@@ -840,7 +837,8 @@ impl AssetContext for ModuleAssetContext {
                                             external_result
                                                 .primary_modules_raw_iter()
                                                 .map(|rvc| *rvc),
-                                        );
+                                        )
+                                        .collect::<FxIndexSet<_>>();
 
                                     modules
                                         .into_iter()

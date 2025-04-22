@@ -219,6 +219,15 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                 }
             }
 
+            fn from_key_and_value_ref(key: #key_name, value_ref: #value_ref_name) -> Self {
+                match (key, value_ref) {
+                    #(
+                        (#key_name::#variant_names { #key_pat }, #value_ref_name::#variant_names { #value_pat }) => #ident::#variant_names { #key_pat #value_clone_fields },
+                    )*
+                    _ => panic!("Invalid key and value combination"),
+                }
+            }
+
             fn into_key_and_value(self) -> (#key_name, #value_name) {
                 match self {
                     #(
@@ -303,6 +312,7 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
             }
         }
 
+        #[derive(Debug, Clone)]
         #vis enum #storage_name {
             #(
                 #variant_names {

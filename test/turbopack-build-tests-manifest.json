@@ -2832,6 +2832,7 @@
   },
   "test/e2e/app-dir/metadata-streaming-parallel-routes/metadata-streaming-parallel-routes.test.ts": {
     "passed": [
+      "app-dir - metadata-streaming should change metadata when navigating between two pages under a slot when children is not rendered",
       "app-dir - metadata-streaming should only insert metadata once for parallel routes when slots match",
       "app-dir - metadata-streaming should only insert metadata once for parallel routes when there is a missing slot",
       "app-dir - metadata-streaming should still render metadata if children is not rendered in parallel routes layout"
@@ -4572,7 +4573,9 @@
       "redirects and rewrites navigation using link should redirect from next.config.js correctly with empty query params",
       "redirects and rewrites navigation using link should redirect using catchall from next.config.js correctly",
       "redirects and rewrites navigation using link should rewrite from middleware correctly",
-      "redirects and rewrites navigation using link should rewrite from next.config.js correctly"
+      "redirects and rewrites navigation using link should rewrite from next.config.js correctly",
+      "redirects and rewrites redirects to exotic url schemes preserving slashes",
+      "redirects and rewrites redirects to exotic url schemes without adding unwanted slashes"
     ],
     "failed": [],
     "pending": [],
@@ -5206,6 +5209,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/conflicting-routes/conflicting-routes.test.ts": {
+    "passed": [
+      "conflicting routes /en/vercel/~/monitoring matches the right route",
+      "conflicting routes /es/vercel/~/monitoring matches the right route",
+      "conflicting routes /fr/vercel/~/monitoring matches the right route"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/dynamic-on-hover/dynamic-on-hover.test.ts": {
     "passed": [
       "dynamic on hover prefetches the dynamic data for a Link on hover"
@@ -5264,10 +5278,10 @@
   "test/e2e/app-dir/segment-cache/prefetch-scheduling/prefetch-scheduling.test.ts": {
     "passed": [
       "segment cache prefetch scheduling cancels a viewport-initiated prefetch if the link leaves the viewport before it finishes",
-      "segment cache prefetch scheduling even on mouseexit, any link that was previously hovered is prioritized over links that were never hovered at all",
       "segment cache prefetch scheduling increases the priority of a viewport-initiated prefetch on hover",
       "segment cache prefetch scheduling prioritizes prefetching the route trees before the segments",
-      "segment cache prefetch scheduling reschedules a link's prefetch when it re-enters the viewport"
+      "segment cache prefetch scheduling reschedules a link's prefetch when it re-enters the viewport",
+      "segment cache prefetch scheduling reserve special bandwidth for the most recently hovered link"
     ],
     "failed": [],
     "pending": [],
@@ -5276,6 +5290,7 @@
   },
   "test/e2e/app-dir/segment-cache/revalidation/segment-cache-revalidation.test.ts": {
     "passed": [
+      "segment cache (revalidation) call router.prefetch(..., {onInvalidate}) after cache is revalidated",
       "segment cache (revalidation) evict client cache when Server Action calls revalidatePath",
       "segment cache (revalidation) evict client cache when Server Action calls revalidateTag",
       "segment cache (revalidation) re-fetch visible links after a navigation, if needed",
@@ -7256,6 +7271,33 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/middleware-static-files/index.test.ts": {
+    "passed": [
+      "Middleware Runtime should match middleware correctly for /another%2ffile.svg",
+      "Middleware Runtime should match middleware correctly for /another%2fhello",
+      "Middleware Runtime should match middleware correctly for /another/file.svg",
+      "Middleware Runtime should match middleware correctly for /another/hello",
+      "Middleware Runtime should match middleware correctly for /dynamic%2f/first",
+      "Middleware Runtime should match middleware correctly for /dynamic/first",
+      "Middleware Runtime should match middleware correctly for /file.svg",
+      "Middleware Runtime should match middleware correctly for /glob%2ffile.svg",
+      "Middleware Runtime should match middleware correctly for /glob%2fhello",
+      "Middleware Runtime should match middleware correctly for /glob/file.svg",
+      "Middleware Runtime should match middleware correctly for /glob/hello",
+      "Middleware Runtime should match middleware correctly for /pages-another%2fhello",
+      "Middleware Runtime should match middleware correctly for /pages-another/hello",
+      "Middleware Runtime should match middleware correctly for /pages-dynamic%2f/first",
+      "Middleware Runtime should match middleware correctly for /pages-dynamic/first",
+      "Middleware Runtime should match middleware correctly for /pages-glob%2fhello",
+      "Middleware Runtime should match middleware correctly for /pages-glob/hello",
+      "Middleware Runtime should match middleware correctly for /vercel copy.svg",
+      "Middleware Runtime should match middleware correctly for /vercel%20copy.svg"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/middleware-trailing-slash/test/index.test.ts": {
     "passed": [
       "Middleware Runtime trailing slash allows shallow linking with middleware",
@@ -7746,7 +7788,9 @@
   },
   "test/e2e/persistent-caching/persistent-caching.test.ts": {
     "passed": [
-      "persistent-caching should allow to change files while stopped",
+      "persistent-caching should allow to change files while stopped (run 1)",
+      "persistent-caching should allow to change files while stopped (run 2)",
+      "persistent-caching should allow to change files while stopped (run 3)",
       "persistent-caching should persistent cache loaders"
     ],
     "failed": [],
@@ -18101,36 +18145,20 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/production/app-dir/graceful-degrade/basic/graceful-degrade-non-bot.test.ts": {
+  "test/production/app-dir/graceful-degrade/graceful-degrade-non-bot.test.ts": {
     "passed": [
-      "graceful-degrade - non bot should not degrade to graceful error when chunk loading fails in ssr for non-bot user agents"
+      "graceful-degrade - non bot should not degrade to graceful error when chunk loading fails in ssr for non-bot user agents",
+      "graceful-degrade - non bot should show error boundary when browser errors when error boundary is defined"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/production/app-dir/graceful-degrade/basic/graceful-degrade.test.ts": {
+  "test/production/app-dir/graceful-degrade/graceful-degrade.test.ts": {
     "passed": [
-      "graceful-degrade should degrade to graceful error when chunk loading fails in ssr for bot"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/production/app-dir/graceful-degrade/custom-error/graceful-degrade-custom-error-non-bot.test.ts": {
-    "passed": [
-      "graceful-degrade - custom-error - non bot should not degrade to graceful error when chunk loading fails in ssr for non-bot user agents"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/production/app-dir/graceful-degrade/custom-error/graceful-degrade-custom-error.test.ts": {
-    "passed": [
-      "graceful-degrade - custom error should degrade to graceful error when chunk loading fails in ssr for bot"
+      "graceful-degrade should degrade to graceful error when chunk loading fails in ssr for bot",
+      "graceful-degrade should preserve the ssr html when browser errors for bot"
     ],
     "failed": [],
     "pending": [],

@@ -1,5 +1,5 @@
 import type { OverlayState } from '../shared'
-import type { GlobalErrorComponent } from '../../error-boundary'
+import type { GlobalErrorComponent } from '../../global-error'
 
 import { useCallback, useEffect, useState } from 'react'
 import { AppDevOverlayErrorBoundary } from './app-dev-overlay-error-boundary'

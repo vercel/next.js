@@ -21,10 +21,13 @@ import {
   SERVER_PROPS_EXPORT_ERROR,
 } from '../../lib/constants'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
-import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import { FileType, fileExists } from '../../lib/file-exists'
 import { lazyRenderPagesPage } from '../../server/route-modules/pages/module.render'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'
+import {
+  getAmpValidatorInstance,
+  getBundledAmpValidatorFilepath,
+} from '../helpers/get-amp-html-validator'
 
 /**
  * Renders & exports a page associated with the /pages directory
@@ -59,9 +62,7 @@ export async function exportPagesPage(
   }
 
   if (!ampValidatorPath) {
-    ampValidatorPath = require.resolve(
-      'next/dist/compiled/amphtml-validator/validator_wasm.js'
-    )
+    ampValidatorPath = getBundledAmpValidatorFilepath()
   }
 
   const inAmpMode = isInAmpMode(ampState)
@@ -135,7 +136,7 @@ export async function exportPagesPage(
     ampPageName: string,
     validatorPath: string | undefined
   ) => {
-    const validator = await AmpHtmlValidator.getInstance(validatorPath)
+    const validator = await getAmpValidatorInstance(validatorPath)
     const result = validator.validateString(rawAmpHtml)
     const errors = result.errors.filter((e) => e.severity === 'ERROR')
     const warnings = result.errors.filter((e) => e.severity !== 'ERROR')
