@@ -1449,7 +1449,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 global_metadata,
                 is_global_not_found_enabled,
                 next_mode,
-                *subdirectory,
+                directory_name.clone(),
                 directory_tree_vc.clone(),
                 child_app_page.clone(),
                 *root_layouts,

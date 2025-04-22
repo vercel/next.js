@@ -187,16 +187,13 @@ import isError from '../../lib/is-error'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
 import { getPreviouslyRevalidatedTags } from '../server-utils'
 import { executeRevalidates } from '../revalidation-utils'
-<<<<<<< HEAD
 import {
   trackPendingChunkLoad,
   trackPendingImport,
   trackPendingModules,
 } from './module-loading/track-module-loading.external'
 import { isUseCacheTimeoutError } from '../use-cache/use-cache-errors'
-=======
 import EmptyError from '../../client/components/empty-error'
->>>>>>> d18d436b09 (render ssr error, and only once)
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -344,7 +341,7 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
   ]
 }
 
-function createErrorLoaderTree(err: any): LoaderTree {
+function createErrorLoaderTree(): LoaderTree {
   return [
     '',
     {
@@ -352,7 +349,7 @@ function createErrorLoaderTree(err: any): LoaderTree {
         PAGE_SEGMENT_KEY,
         {},
         {
-          page: [() => () => <EmptyError err={err} />, ''],
+          page: [() => () => <EmptyError />, ''],
         },
       ],
     },
@@ -1520,7 +1517,7 @@ async function renderToHTMLOrFlightImpl(
 
     let tree = loaderTree
     if (pagePath === '/_error') {
-      tree = createErrorLoaderTree(ctx.renderOpts.err)
+      tree = createErrorLoaderTree()
     }
 
     const rootParams = getRootParams(tree, ctx.getDynamicParamFromSegment)
@@ -1626,12 +1623,7 @@ async function renderToHTMLOrFlightImpl(
       req,
       res,
       ctx,
-<<<<<<< HEAD
       loaderTree,
-=======
-      workStore,
-      tree,
->>>>>>> d18d436b09 (render ssr error, and only once)
       formState,
       postponedState,
       metadata
