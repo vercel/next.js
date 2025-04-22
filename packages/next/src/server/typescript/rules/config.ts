@@ -379,42 +379,48 @@ const config = {
       if (entryName === 'metadata' || entryName === 'generateMetadata') {
         const sourceFile = getSource(fileName)
         let start = 0
-        let hasMetadataImport = false
+        let foundMetadataImport = false
 
         if (sourceFile) {
-          const statements = sourceFile.statements
-          for (const statement of statements) {
+          const visitor: tsModule.Visitor = (node) => {
+            // Check for top directive
             if (
-              ts.isExpressionStatement(statement) &&
-              ts.isStringLiteral(statement.expression) &&
-              // Check if there's a top directive.
-              statement.expression.getStart() === 0
+              ts.isExpressionStatement(node) &&
+              ts.isStringLiteral(node.expression) &&
+              node.expression.getStart() === 0
             ) {
-              const text = statement.expression.text
+              const text = node.expression.text
               if (text.startsWith('use ')) {
-                start = statement.end + 1 // Position after the directive
+                start = node.end + 1
+                return node // Continue traversal
               }
-
-              continue
             }
 
-            if (ts.isImportDeclaration(statement)) {
-              const specifier = statement.moduleSpecifier.getText()
-              if (specifier === '"next"' || specifier === "'next'") {
-                const namedImports = statement.importClause?.namedBindings
-                if (namedImports && ts.isNamedImports(namedImports)) {
-                  hasMetadataImport = namedImports.elements.some((element) => {
-                    const name = element.name.getText()
-                    const propertyName = element.propertyName?.getText()
-                    return name === 'Metadata' || propertyName === 'Metadata'
-                  })
+            // Check for Metadata import
+            if (
+              ts.isImportDeclaration(node) &&
+              (node.moduleSpecifier.getText() === '"next"' ||
+                node.moduleSpecifier.getText() === "'next'")
+            ) {
+              const namedImports = node.importClause?.namedBindings
+              if (namedImports && ts.isNamedImports(namedImports)) {
+                foundMetadataImport = namedImports.elements.some((element) => {
+                  const name = element.name.getText()
+                  const propertyName = element.propertyName?.getText()
+                  return name === 'Metadata' || propertyName === 'Metadata'
+                })
+                if (foundMetadataImport) {
+                  return // Stop traversal
                 }
               }
             }
 
-            if (hasMetadataImport) {
-              break
-            }
+            return node
+          }
+
+          for (const statement of sourceFile.statements) {
+            if (foundMetadataImport) break
+            ts.visitNode(statement, visitor)
           }
         }
 
@@ -423,7 +429,7 @@ const config = {
           kind: ts.ScriptElementKind.enumElement,
           kindModifiers: ts.ScriptElementKindModifier.none,
           displayParts: [],
-          codeActions: hasMetadataImport
+          codeActions: foundMetadataImport
             ? undefined
             : [
                 {
