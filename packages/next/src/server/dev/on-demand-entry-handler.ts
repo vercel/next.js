@@ -481,10 +481,6 @@ export async function findPagePathData(
     }
 
     if (page === '/_error/page') {
-      console.log(
-        `require.resolve('next/dist/client/components/empty-error')`,
-        require.resolve('next/dist/client/components/empty-error')
-      )
       return {
         filename: require.resolve('next/dist/client/components/empty-error'),
         bundlePath: 'app/_error/page',

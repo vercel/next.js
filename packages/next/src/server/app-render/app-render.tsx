@@ -187,12 +187,16 @@ import isError from '../../lib/is-error'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
 import { getPreviouslyRevalidatedTags } from '../server-utils'
 import { executeRevalidates } from '../revalidation-utils'
+<<<<<<< HEAD
 import {
   trackPendingChunkLoad,
   trackPendingImport,
   trackPendingModules,
 } from './module-loading/track-module-loading.external'
 import { isUseCacheTimeoutError } from '../use-cache/use-cache-errors'
+=======
+import EmptyError from '../../client/components/empty-error'
+>>>>>>> d18d436b09 (render ssr error, and only once)
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -337,6 +341,22 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
     },
     // When global-not-found is present, skip layout from components
     hasGlobalNotFound ? components : {},
+  ]
+}
+
+function createErrorLoaderTree(err: any): LoaderTree {
+  return [
+    '',
+    {
+      children: [
+        PAGE_SEGMENT_KEY,
+        {},
+        {
+          page: [() => () => <EmptyError err={err} />, ''],
+        },
+      ],
+    },
+    {},
   ]
 }
 
@@ -1498,7 +1518,12 @@ async function renderToHTMLOrFlightImpl(
       renderOpts.devRenderResumeDataCache ??
       postponedState?.renderResumeDataCache
 
-    const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
+    let tree = loaderTree
+    if (pagePath === '/_error') {
+      tree = createErrorLoaderTree(ctx.renderOpts.err)
+    }
+
+    const rootParams = getRootParams(tree, ctx.getDynamicParamFromSegment)
     const requestStore = createRequestStoreForRender(
       req,
       res,
@@ -1601,7 +1626,12 @@ async function renderToHTMLOrFlightImpl(
       req,
       res,
       ctx,
+<<<<<<< HEAD
       loaderTree,
+=======
+      workStore,
+      tree,
+>>>>>>> d18d436b09 (render ssr error, and only once)
       formState,
       postponedState,
       metadata
