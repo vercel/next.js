@@ -432,7 +432,7 @@ impl NodeJsPoolProcess {
                 bail!("timed out waiting for the Node.js process to connect ({timeout:?} timeout)\nProcess output:\n{stdout}\nProcess error output:\n{stderr}");
             },
         };
-        connection.set_nodelay(true);
+        let _ = connection.set_nodelay(true);
 
         let child_stdout = BufReader::new(child.stdout.take().unwrap());
         let child_stderr = BufReader::new(child.stderr.take().unwrap());
