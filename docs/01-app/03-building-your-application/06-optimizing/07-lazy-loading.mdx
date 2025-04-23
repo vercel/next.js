@@ -61,7 +61,7 @@ export default function ClientComponentExample() {
 
 When using `React.lazy()` and Suspense, Client Components will be [prerendered](https://github.com/reactwg/server-components/discussions/4) (SSR) by default.
 
-> **Note:** `ssr: false` option will only work for client components, move it into client components ensure the client code-splitting working properly.
+> **Note:** `ssr: false` option will only work for Client Components, move it into Client Components ensure the client code-splitting working properly.
 
 If you want to disable pre-rendering for a Client Component, you can use the `ssr` option set to `false`:
 
@@ -90,7 +90,7 @@ export default function ServerComponentExample() {
 ```
 
 > **Note:** `ssr: false` option is not supported in Server Components. You will see an error if you try to use it in Server Components.
-> `ssr: false` is not allowed with `next/dynamic` in Server Components. Please move it into a client component.
+> `ssr: false` is not allowed with `next/dynamic` in Server Components. Please move it into a Client Component.
 
 ### Loading External Libraries
 

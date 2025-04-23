@@ -4,7 +4,7 @@ This example shows how to integrate Zustand in Next.js.
 
 This is an example on how you can use Zustand with Next.js.
 
-All client components have access to the Zustand store using `useStore()` returned `store.ts` file.
+All Client Components have access to the Zustand store using `useStore()` returned `store.ts` file.
 
 ## Deploy your own
 
