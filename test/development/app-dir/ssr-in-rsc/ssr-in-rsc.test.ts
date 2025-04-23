@@ -265,44 +265,29 @@ describe('react-dom/server in React Server environment', () => {
       '/exports/app-code/react-dom-server-edge-implicit'
     )
 
-    await assertHasRedbox(browser)
-    const redbox = {
-      description: await getRedboxDescription(browser),
-      source: await getRedboxSource(browser),
-    }
     if (isTurbopack) {
-      expect(redbox).toMatchInlineSnapshot(`
+      expect(browser).toDisplayRedbox(`
        {
          "description": "Ecmascript file had an error",
+         "environmentLabel": null,
+         "label": "Build Error",
          "source": "./app/exports/app-code/react-dom-server-edge-implicit/page.js (3:1)
        Ecmascript file had an error
-         1 | import * as ReactDOMServerEdge from 'react-dom/server'
-         2 | // Fine to drop once React is on ESM
        > 3 | import ReactDOMServerEdgeDefault from 'react-dom/server'
-           | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-         4 |
-         5 | export const runtime = 'edge'
-         6 |
-
-       You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
-       Learn more: https://nextjs.org/docs/app/building-your-application/rendering",
+           | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+         "stack": [],
        }
       `)
     } else {
       // FIXME: the source map of source file path is not correct
       // Expected: `./app/exports/app-code/react-dom-server-edge-implicit/page.js`
       // Observed: `./node_modules/.pnpm/next@file+..+next-repo.../page.js?__next_edge_ssr_entry__
-      const sourceLines = redbox.source.split('\n')
-      const filepath = sourceLines[0]
-      // Override the 1st line of source to a placeholder
-      if (filepath.includes('node_modules')) {
-        redbox.source =
-          `<FIXME-edge-source-path>\n` + sourceLines.slice(1).join('\n')
-      }
-      expect(redbox).toMatchInlineSnapshot(`
+      expect(browser).toDisplayRedbox(`
        {
          "description": "Error:   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.",
-         "source": "<FIXME-edge-source-path>
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "<FIXME-nextjs-internal-source>
        Error:   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
          | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
           ,-[1:1]
@@ -318,9 +303,10 @@ describe('react-dom/server in React Server environment', () => {
         2 | // Fine to drop once React is on ESM
         3 | import ReactDOMServerEdgeDefault from 'react-dom/server'
           : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        4 | 
+        4 |
         5 | export const runtime = 'edge'
           \`----",
+         "stack": [],
        }
       `)
     }

@@ -177,6 +177,7 @@ export class WebpackHotMiddleware {
       this.onServerInvalid()
       this.onServerDone(statsResult)
     }
+
     if (statsResult.hasErrors()) {
       this.middlewareLatestStats = { ts: Date.now(), stats: statsResult }
       this.publishStats(statsResult)
