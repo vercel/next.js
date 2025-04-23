@@ -1,4 +1,4 @@
-`#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
 #![feature(iter_advance_by)]
