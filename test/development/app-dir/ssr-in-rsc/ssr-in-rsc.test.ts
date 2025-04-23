@@ -284,7 +284,7 @@ describe('react-dom/server in React Server environment', () => {
       // Observed: `./node_modules/.pnpm/next@file+..+next-repo.../page.js?__next_edge_ssr_entry__
       expect(browser).toDisplayRedbox(`
        {
-         "description": "Error:   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.",
+         "description": "  x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "<FIXME-nextjs-internal-source>
