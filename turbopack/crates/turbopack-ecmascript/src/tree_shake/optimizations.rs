@@ -281,7 +281,7 @@ impl GraphOptimizer<'_> {
                 // A candidate must have multiple incoming edges...
                 g.edges_directed(c, Direction::Incoming).count() > 1
                     // ... and must be a node type that is allowed to be merged into.
-                    && g.node_weight(c).map_or(false, |items| !self.should_not_merge_iter(items))
+                    && g.node_weight(c).is_some_and(|items| !self.should_not_merge_iter(items))
             })
             .collect();
 
@@ -308,7 +308,7 @@ impl GraphOptimizer<'_> {
                 }
                 // Skip 'r' if it's a node type that should not be merged.
                 if g.node_weight(r)
-                    .map_or(true, |items| self.should_not_merge_iter(items))
+                    .is_none_or(|items| self.should_not_merge_iter(items))
                 {
                     continue;
                 }
