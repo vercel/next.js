@@ -160,6 +160,7 @@ type NextAttributeNames =
   | 'next.page'
   | 'next.rsc'
   | 'next.segment'
+  | 'next.slot'
   | 'next.span_name'
   | 'next.span_type'
   | 'next.clientComponentLoadCount'

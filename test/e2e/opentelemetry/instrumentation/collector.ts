@@ -4,6 +4,14 @@ import { SavedSpan } from './constants'
 export interface Collector {
   getSpans: () => SavedSpan[]
   shutdown: () => Promise<void>
+  getSnapshot: () => SpanSnapshotNode[]
+}
+
+export type SpanSnapshotNode = Omit<
+  SavedSpan,
+  'id' | 'parentId' | 'traceId' | 'duration' | 'timestamp'
+> & {
+  children: SpanSnapshotNode[]
 }
 
 export async function connectCollector({
@@ -54,6 +62,37 @@ export async function connectCollector({
   })
 
   return {
+    getSnapshot(): SpanSnapshotNode[] {
+      const nodeMap = new Map<string, SpanSnapshotNode>()
+      spans.sort((a, b) => b.timestamp - a.timestamp)
+      for (const span of spans) {
+        const node: SpanSnapshotNode = { ...span, children: [] }
+        delete (node as SavedSpan).id
+        delete (node as SavedSpan).parentId
+        delete (node as SavedSpan).traceId
+        delete (node as SavedSpan).timestamp
+        delete (node as SavedSpan).duration
+
+        nodeMap.set(span.id, node)
+      }
+
+      const rootSpans: SpanSnapshotNode[] = []
+
+      for (const span of spans) {
+        const spanNode = nodeMap.get(span.id)
+
+        if (span.parentId && nodeMap.has(span.parentId)) {
+          // Add as child to parent
+          const parentNode = nodeMap.get(span.parentId)
+          parentNode.children.push(spanNode)
+        } else {
+          // No parent or parent not in the list, treat as root
+          rootSpans.push(spanNode)
+        }
+      }
+
+      return rootSpans
+    },
     getSpans() {
       return spans
     },
