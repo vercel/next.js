@@ -56,6 +56,10 @@ pub(crate) enum ItemIdItemKind {
 
     ImportOfModule,
     /// Imports are split as multiple items.
+    ///
+    /// Note that this item is not actually present in the module, and rather a phantom node.
+    /// We only need this node to create an unique identifier for each binding in an import
+    /// declaration.
     ImportBinding(u32),
     VarDeclarator(u32),
 }
@@ -353,6 +357,16 @@ impl DepGraph {
                 .collect::<FxIndexSet<_>>();
 
             for id in group {
+                if matches!(
+                    id,
+                    ItemId::Item {
+                        kind: ItemIdItemKind::ImportBinding(..),
+                        ..
+                    }
+                ) {
+                    continue;
+                }
+
                 let data = data.get(id).unwrap();
 
                 for var in data.var_decls.iter() {
@@ -609,6 +623,17 @@ impl DepGraph {
             }
 
             for g in group {
+                // We don't
+                if matches!(
+                    g,
+                    ItemId::Item {
+                        kind: ItemIdItemKind::ImportBinding(..),
+                        ..
+                    }
+                ) {
+                    continue;
+                }
+
                 // Skip directives, as we copy them to each modules.
                 if let ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                     expr: box Expr::Lit(Lit::Str(s)),
@@ -640,6 +665,17 @@ impl DepGraph {
             }
 
             for g in group {
+                // We don't
+                if matches!(
+                    g,
+                    ItemId::Item {
+                        kind: ItemIdItemKind::ImportBinding(..),
+                        ..
+                    }
+                ) {
+                    continue;
+                }
+
                 let data = data.get(g).unwrap();
 
                 // Emit `export { foo }`
