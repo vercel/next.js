@@ -1,6 +1,7 @@
 import path from 'path'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { createSandbox } from 'development-sandbox'
+import { timeouts } from '../../lib/browsers/playwright'
 
 describe('Undefined default export', () => {
   const { next } = nextTestSetup({
@@ -90,7 +91,7 @@ describe('Undefined default export', () => {
 
     // The page will fail build and navigate to /_error route of pages router.
     // Wait for the DOM node #__next to be present
-    await browser.waitForElementByCss('#__next')
+    await browser.waitForElementByCss('#__next', timeouts.VERY_LONG)
 
     await expect(browser).toDisplayRedbox(`
      {

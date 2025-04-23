@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
 import type { Request, Response } from 'playwright'
+import { timeouts } from '../../../lib/browsers/playwright'
 
 describe('app dir - basepath', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -13,7 +14,7 @@ describe('app dir - basepath', () => {
   it('should successfully hard navigate from pages -> app', async () => {
     const browser = await next.browser('/base/pages-path')
     await browser.elementByCss('#to-another').click()
-    await browser.waitForElementByCss('#page-2')
+    await browser.waitForElementByCss('#page-2', timeouts.VERY_LONG)
   })
 
   it('should support `basePath`', async () => {

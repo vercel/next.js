@@ -14,6 +14,12 @@ import {
 } from 'playwright'
 import path from 'path'
 
+export const timeouts = {
+  MEDIUM: 5_000,
+  LONG: 10_000,
+  VERY_LONG: 30_000,
+}
+
 type EventType = 'request' | 'response'
 
 type PageLog = { source: string; message: string; args: unknown[] }
@@ -372,7 +378,7 @@ export class Playwright<TCurrent = undefined> {
   }
 
   elementByCss(selector: string) {
-    return this.waitForElementByCss(selector, 5_000)
+    return this.waitForElementByCss(selector, timeouts.MEDIUM)
   }
 
   elementById(id: string) {
@@ -451,7 +457,7 @@ export class Playwright<TCurrent = undefined> {
     )
   }
 
-  waitForElementByCss(selector: string, timeout = 10_000) {
+  waitForElementByCss(selector: string, timeout = timeouts.LONG) {
     return this.startChain(async () => {
       const el = await page.waitForSelector(selector, {
         timeout,
