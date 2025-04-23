@@ -717,7 +717,7 @@ impl DepGraph {
                 },
             )));
 
-        {
+        if !star_reexports.is_empty() {
             let mut module = Module::dummy();
             outputs.insert(Key::StarExports, modules.len() as u32);
 
