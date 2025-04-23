@@ -46,8 +46,8 @@ use invalidator_map::InvalidatorMap;
 use jsonc_parser::{parse_to_serde_value, ParseOptions};
 use mime::Mime;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use read_glob::read_glob;
 pub use read_glob::ReadGlobResult;
+use read_glob::{read_glob, track_glob};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::{
@@ -1328,6 +1328,12 @@ impl FileSystemPath {
         read_glob(self, glob, include_dot_files)
     }
 
+    // Tracks all files and directories matching the glob
+    #[turbo_tasks::function]
+    pub fn track_glob(self: Vc<Self>, glob: Vc<Glob>, include_dot_files: bool) -> Vc<Completion> {
+        track_glob(self, glob, include_dot_files)
+    }
+
     #[turbo_tasks::function]
     pub fn root(self: Vc<Self>) -> Vc<Self> {
         self.fs().root()
@@ -1466,6 +1472,7 @@ impl FileSystemPath {
         self.fs().raw_read_dir(self)
     }
 
+    /// Tracks this path without reading the contents
     pub fn track(self: Vc<Self>) -> Vc<Completion> {
         self.fs().track(self)
     }
