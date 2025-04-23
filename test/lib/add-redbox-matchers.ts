@@ -140,7 +140,10 @@ async function createErrorSnapshot(
     // e.g. it could be a encoded url of loader path:
     // ../packages/next/dist/build/webpack/loaders/next-app-loader/index.js...
     const sourceLines = focusedSource.split('\n')
-    if (sourceLines[0].startsWith('./node_modules/.pnpm/next@file+')) {
+    if (
+      sourceLines[0].startsWith('./node_modules/.pnpm/next@file+') ||
+      sourceLines[0].startsWith('./node_modules/.pnpm/file+')
+    ) {
       focusedSource =
         `<FIXME-nextjs-internal-source>` +
         '\n' +
