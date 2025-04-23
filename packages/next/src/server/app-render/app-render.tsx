@@ -192,6 +192,12 @@ import { isUseCacheTimeoutError } from '../use-cache/use-cache-errors'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
 import { getPreviouslyRevalidatedTags } from '../server-utils'
 import { executeRevalidates } from '../revalidation-utils'
+import {
+  trackPendingChunkLoad,
+  trackPendingImport,
+  waitForPendingModules,
+  trackPendingModules,
+} from './module-loading/track-module-loading.external'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -737,8 +743,10 @@ async function warmupDevRender(
     }
   )
 
-  // Wait for all caches to be finished filling
+  // Wait for all caches to be finished filling and for async imports to resolve
+  trackPendingModules(cacheSignal)
   await cacheSignal.cacheReady()
+
   // We unset the cache so any late over-run renders aren't able to write into this cache
   prerenderStore.prerenderResumeDataCache = null
   // Abort the render
@@ -1196,15 +1204,24 @@ async function renderToHTMLOrFlightImpl(
   // react-server-dom-webpack. This is a hack until we find a better way.
   if (ComponentMod.__next_app__) {
     const instrumented = wrapClientComponentLoader(ComponentMod)
-    // @ts-ignore
-    globalThis.__next_require__ = instrumented.require
+
     // When we are prerendering if there is a cacheSignal for tracking
-    // cache reads we wrap the loadChunk in this tracking. This allows us
-    // to treat chunk loading with similar semantics as cache reads to avoid
-    // async loading chunks from causing a prerender to abort too early.
+    // cache reads we track calls to `loadChunk` and `require`. This allows us
+    // to treat chunk/module loading with similar semantics as cache reads to avoid
+    // module loading from causing a prerender to abort too early.
+
+    const __next_require__: typeof instrumented.require = (...args) => {
+      const exportsOrPromise = instrumented.require(...args)
+      // requiring an async module returns a promise.
+      trackPendingImport(exportsOrPromise)
+      return exportsOrPromise
+    }
+    // @ts-expect-error
+    globalThis.__next_require__ = __next_require__
+
     const __next_chunk_load__: typeof instrumented.loadChunk = (...args) => {
       const loadingChunk = instrumented.loadChunk(...args)
-      trackChunkLoading(loadingChunk)
+      trackPendingChunkLoad(loadingChunk)
       return loadingChunk
     }
     // @ts-expect-error
@@ -2378,7 +2395,10 @@ async function spawnDynamicValidationInDev(
     })
   }
 
+  // Wait for all caches to be finished filling and for async imports to resolve
+  trackPendingModules(cacheSignal)
   await cacheSignal.cacheReady()
+
   // It is important that we abort the SSR render first to avoid
   // connection closed errors from having an incomplete RSC stream
   initialClientController.abort()
@@ -2815,7 +2835,10 @@ async function prerenderToStream(
           }
         )
 
+        // Wait for all caches to be finished filling and for async imports to resolve
+        trackPendingModules(cacheSignal)
         await cacheSignal.cacheReady()
+
         initialServerRenderController.abort()
         initialServerPrerenderController.abort()
 
@@ -2923,8 +2946,9 @@ async function prerenderToStream(
             }
           })
 
-          // This is mostly for dynamic `import()`s (which are tracked on the CacheSignal via `trackDynamicImport`).
+          // This is mostly needed for dynamic `import()`s in client components.
           // Promises passed to client were already awaited above (assuming that they came from cached functions)
+          trackPendingModules(cacheSignal)
           await cacheSignal.cacheReady()
           initialClientController.abort()
         }
@@ -3409,7 +3433,10 @@ async function prerenderToStream(
           })
         }
 
+        // Wait for all caches to be finished filling and for async imports to resolve
+        trackPendingModules(cacheSignal)
         await cacheSignal.cacheReady()
+
         // It is important that we abort the SSR render first to avoid
         // connection closed errors from having an incomplete RSC stream
         initialClientController.abort()
@@ -4168,25 +4195,6 @@ async function prerenderToStream(
   }
 }
 
-const loadingChunks: Set<Promise<unknown>> = new Set()
-const chunkListeners: Array<(x?: unknown) => void> = []
-
-function trackChunkLoading(load: Promise<unknown>) {
-  loadingChunks.add(load)
-  load.finally(() => {
-    if (loadingChunks.has(load)) {
-      loadingChunks.delete(load)
-      if (loadingChunks.size === 0) {
-        // We are not currently loading any chunks. We can notify all listeners
-        for (let i = 0; i < chunkListeners.length; i++) {
-          chunkListeners[i]()
-        }
-        chunkListeners.length = 0
-      }
-    }
-  })
-}
-
 export async function warmFlightResponse(
   flightStream: ReadableStream<Uint8Array>,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
@@ -4195,26 +4203,35 @@ export async function warmFlightResponse(
     // eslint-disable-next-line import/no-extraneous-dependencies
     require('react-server-dom-webpack/client.edge') as typeof import('react-server-dom-webpack/client.edge')
 
-  try {
-    createFromReadableStream(flightStream, {
-      serverConsumerManifest: {
-        moduleLoading: clientReferenceManifest.moduleLoading,
-        moduleMap: clientReferenceManifest.ssrModuleMapping,
-        serverModuleMap: null,
-      },
-    })
-  } catch {
-    // We don't want to handle errors here but we don't want it to
-    // interrupt the outer flow. We simply ignore it here and expect
-    // it will bubble up during a render
-  }
+  void (async () => {
+    try {
+      await createFromReadableStream(flightStream, {
+        serverConsumerManifest: {
+          moduleLoading: clientReferenceManifest.moduleLoading,
+          moduleMap: clientReferenceManifest.ssrModuleMapping,
+          serverModuleMap: null,
+        },
+      })
+    } catch {
+      // We don't want to handle errors here but we don't want it to
+      // interrupt the outer flow. We simply ignore it here and expect
+      // it will bubble up during a render.
+    }
+  })()
 
-  // We'll wait at least one task and then if no chunks have started to load
-  // we'll we can infer that there are none to load from this flight response
-  trackChunkLoading(waitAtLeastOneReactRenderTask())
-  return new Promise((r) => {
-    chunkListeners.push(r)
-  })
+  // We'll wait at least one task. During that time, we should start loading all chunks
+  // that are needed to load the client references from this flight stream.
+  // During build, we collect all chunks needed to load each client reference, and then React loads them in parallel while rendering,
+  // so don't need to worry about chunk loads that spawn more chunk loads after some indefinite delay.
+  // (if there were pending chunks when we started, we want to wait for those too, because the render might depend on them,
+  //  and react only calls `__next_chunk_load__` for each chunk once, so we can't detect those loads)
+  //
+  // Note that, if we're warming multiple responses in parallel, then we might unnecessarily wait
+  // for chunks needed by other responses but not this one (because chunk loading is tracked globally),
+  // but that's acceptable.
+  //
+  await waitAtLeastOneReactRenderTask()
+  await waitForPendingModules()
 }
 
 const getGlobalErrorStyles = async (
