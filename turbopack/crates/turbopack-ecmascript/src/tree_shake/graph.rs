@@ -797,6 +797,7 @@ impl DepGraph {
 
         while optimizer.merge_single_incoming_nodes(&mut condensed)
             || optimizer.merge_nodes_with_same_starting_point(&mut condensed)
+            || optimizer.merge_nodes_into_stepping_stone(&mut condensed)
         {}
 
         let mut new_graph = InternedGraph::default();

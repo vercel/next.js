@@ -246,4 +246,18 @@ impl GraphOptimizer<'_> {
 
         did_work
     }
+
+    /// If the graph is
+    ///
+    /// a -> c -> d -> f
+    /// a -> c -> e -> f
+    /// b -> c
+    ///
+    /// all of `d, e, f` should be merged into `c` because they are all reachable only by stepping
+    /// through `c`.
+    pub(super) fn merge_nodes_into_stepping_stone<N>(
+        &self,
+        g: &mut Graph<Vec<N>, Dependency>,
+    ) -> bool {
+    }
 }
