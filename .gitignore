@@ -28,7 +28,7 @@ pids
 coverage
 
 # test output
-test/**/out*
+test/**/out/*
 test/**/next-env.d.ts
 .DS_Store
 /e2e-tests
@@ -42,7 +42,7 @@ test/traces
 .nvmrc
 
 # examples
-examples/**/out
+examples/**/out/*
 examples/**/.env*.local
 
 pr-stats.md
