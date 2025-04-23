@@ -225,7 +225,6 @@ graph TD
         "shared",
     ): 3,
     Exports: 4,
-    StarExports: 5,
 }
 ```
 
@@ -302,10 +301,6 @@ export { shared } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 5
-```js
-
-```
 ## Merged (module eval)
 ```js
 import { a as order } from "__TURBOPACK_PART__" assert {
@@ -341,7 +336,6 @@ export { };
         "shared",
     ): 5,
     Exports: 6,
-    StarExports: 7,
 }
 ```
 
@@ -436,10 +430,6 @@ export { order } from "__TURBOPACK_PART__" assert {
 export { shared } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export shared"
 };
-
-```
-## Part 7
-```js
 
 ```
 ## Merged (module eval)

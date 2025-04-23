@@ -81,7 +81,6 @@ graph TD
 {
     ModuleEvaluation: 0,
     Exports: 2,
-    StarExports: 3,
 }
 ```
 
@@ -112,10 +111,6 @@ export { baz as a } from "__TURBOPACK_VAR__" assert {
 ```js
 
 ```
-## Part 3
-```js
-
-```
 ## Merged (module eval)
 ```js
 import { baz } from './module';
@@ -132,7 +127,6 @@ export { };
 {
     ModuleEvaluation: 0,
     Exports: 2,
-    StarExports: 3,
 }
 ```
 
@@ -160,10 +154,6 @@ export { baz as a } from "__TURBOPACK_VAR__" assert {
 
 ```
 ## Part 2
-```js
-
-```
-## Part 3
 ```js
 
 ```

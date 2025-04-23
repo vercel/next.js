@@ -169,7 +169,6 @@ graph TD
         "GET",
     ): 0,
     Exports: 4,
-    StarExports: 5,
 }
 ```
 
@@ -236,10 +235,6 @@ export { GET } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 5
-```js
-
-```
 ## Merged (module eval)
 ```js
 import { MyModuleClientComponent } from 'my-module/MyModuleClientComponent';
@@ -270,7 +265,6 @@ export { };
         "GET",
     ): 0,
     Exports: 4,
-    StarExports: 5,
 }
 ```
 
@@ -335,10 +329,6 @@ export { MyModuleClientComponent as d } from "__TURBOPACK_VAR__" assert {
 export { GET } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export GET"
 };
-
-```
-## Part 5
-```js
 
 ```
 ## Merged (module eval)

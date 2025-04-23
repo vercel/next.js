@@ -80,7 +80,6 @@ graph TD
 {
     ModuleEvaluation: 2,
     Exports: 3,
-    StarExports: 4,
 }
 ```
 
@@ -115,10 +114,6 @@ export { };
 ```js
 
 ```
-## Part 4
-```js
-
-```
 ## Merged (module eval)
 ```js
 import { a as a } from "__TURBOPACK_PART__" assert {
@@ -134,7 +129,6 @@ export { };
 {
     ModuleEvaluation: 2,
     Exports: 3,
-    StarExports: 4,
 }
 ```
 
@@ -166,10 +160,6 @@ export { };
 
 ```
 ## Part 3
-```js
-
-```
-## Part 4
 ```js
 
 ```

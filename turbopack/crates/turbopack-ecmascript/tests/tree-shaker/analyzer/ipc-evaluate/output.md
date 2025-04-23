@@ -222,7 +222,6 @@ graph TD
         "run",
     ): 2,
     Exports: 3,
-    StarExports: 4,
 }
 ```
 
@@ -366,10 +365,6 @@ export { run } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 4
-```js
-
-```
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
@@ -491,7 +486,6 @@ export { };
         "run",
     ): 2,
     Exports: 3,
-    StarExports: 4,
 }
 ```
 
@@ -633,10 +627,6 @@ export { };
 export { run } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export run"
 };
-
-```
-## Part 4
-```js
 
 ```
 ## Merged (module eval)

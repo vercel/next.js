@@ -73,7 +73,6 @@ graph TD
         "fakeCat",
     ): 0,
     Exports: 2,
-    StarExports: 3,
 }
 ```
 
@@ -107,10 +106,6 @@ export { fakeCat } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 3
-```js
-
-```
 ## Merged (module eval)
 ```js
 import { a as __TURBOPACK__reexport__cat__ } from "__TURBOPACK_PART__" assert {
@@ -130,7 +125,6 @@ export { };
         "fakeCat",
     ): 0,
     Exports: 2,
-    StarExports: 3,
 }
 ```
 
@@ -162,10 +156,6 @@ export { __TURBOPACK__reexport__cat__ as a } from "__TURBOPACK_VAR__" assert {
 export { fakeCat } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export fakeCat"
 };
-
-```
-## Part 3
-```js
 
 ```
 ## Merged (module eval)

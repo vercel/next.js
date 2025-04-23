@@ -124,7 +124,6 @@ graph TD
         "runtime",
     ): 2,
     Exports: 3,
-    StarExports: 4,
 }
 ```
 
@@ -176,10 +175,6 @@ export { runtime } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 4
-```js
-
-```
 ## Merged (module eval)
 ```js
 import { NextResponse } from "next/server";
@@ -208,7 +203,6 @@ export { };
         "runtime",
     ): 2,
     Exports: 3,
-    StarExports: 4,
 }
 ```
 
@@ -258,10 +252,6 @@ export { GET } from "__TURBOPACK_PART__" assert {
 export { runtime } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export runtime"
 };
-
-```
-## Part 4
-```js
 
 ```
 ## Merged (module eval)

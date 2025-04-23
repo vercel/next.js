@@ -1032,7 +1032,6 @@ graph TD
         "rowGap",
     ): 19,
     Exports: 38,
-    StarExports: 39,
 }
 ```
 
@@ -1636,10 +1635,6 @@ export { gridTemplateRows } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 39
-```js
-
-```
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
@@ -1739,7 +1734,6 @@ export { };
         "rowGap",
     ): 19,
     Exports: 38,
-    StarExports: 39,
 }
 ```
 
@@ -2341,10 +2335,6 @@ export { gridTemplateColumns } from "__TURBOPACK_PART__" assert {
 export { gridTemplateRows } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export gridTemplateRows"
 };
-
-```
-## Part 39
-```js
 
 ```
 ## Merged (module eval)

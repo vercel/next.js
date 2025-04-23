@@ -1008,7 +1008,6 @@ graph TD
         "structuredError",
     ): 11,
     Exports: 12,
-    StarExports: 13,
 }
 ```
 
@@ -1352,10 +1351,6 @@ export { structuredError } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 13
-```js
-
-```
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
@@ -1421,7 +1416,6 @@ export { };
         "structuredError",
     ): 11,
     Exports: 12,
-    StarExports: 13,
 }
 ```
 
@@ -1733,10 +1727,6 @@ export { IPC } from "__TURBOPACK_PART__" assert {
 export { structuredError } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export structuredError"
 };
-
-```
-## Part 13
-```js
 
 ```
 ## Merged (module eval)

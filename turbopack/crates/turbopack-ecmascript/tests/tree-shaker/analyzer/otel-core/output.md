@@ -193,7 +193,6 @@ graph TD
         "getEnvWithoutDefaults",
     ): 6,
     Exports: 7,
-    StarExports: 8,
 }
 ```
 
@@ -299,10 +298,6 @@ export { getEnvWithoutDefaults } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 8
-```js
-
-```
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
@@ -324,7 +319,6 @@ export { };
         "getEnvWithoutDefaults",
     ): 6,
     Exports: 7,
-    StarExports: 8,
 }
 ```
 
@@ -428,10 +422,6 @@ export { getEnv } from "__TURBOPACK_PART__" assert {
 export { getEnvWithoutDefaults } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export getEnvWithoutDefaults"
 };
-
-```
-## Part 8
-```js
 
 ```
 ## Merged (module eval)

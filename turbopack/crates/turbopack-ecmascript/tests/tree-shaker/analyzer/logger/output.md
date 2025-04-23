@@ -194,7 +194,6 @@ graph TD
         "wrapClientComponentLoader",
     ): 3,
     Exports: 5,
-    StarExports: 7,
 }
 ```
 
@@ -314,10 +313,6 @@ export { getClientComponentLoaderMetrics } from "__TURBOPACK_PART__" assert {
 export { };
 
 ```
-## Part 7
-```js
-
-```
 ## Merged (module eval)
 ```js
 export { };
@@ -335,7 +330,6 @@ export { };
         "wrapClientComponentLoader",
     ): 3,
     Exports: 5,
-    StarExports: 7,
 }
 ```
 
@@ -453,10 +447,6 @@ export { getClientComponentLoaderMetrics } from "__TURBOPACK_PART__" assert {
 ## Part 6
 ```js
 export { };
-
-```
-## Part 7
-```js
 
 ```
 ## Merged (module eval)

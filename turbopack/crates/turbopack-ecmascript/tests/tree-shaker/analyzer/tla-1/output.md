@@ -108,7 +108,6 @@ graph TD
         "effects",
     ): 0,
     Exports: 2,
-    StarExports: 3,
 }
 ```
 
@@ -146,10 +145,6 @@ export { effects } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 3
-```js
-
-```
 ## Merged (module eval)
 ```js
 await Promise.resolve();
@@ -168,7 +163,6 @@ export { };
         "effects",
     ): 2,
     Exports: 4,
-    StarExports: 5,
 }
 ```
 
@@ -218,10 +212,6 @@ export { effect } from "__TURBOPACK_PART__" assert {
 export { effects } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export effects"
 };
-
-```
-## Part 5
-```js
 
 ```
 ## Merged (module eval)

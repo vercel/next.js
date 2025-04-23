@@ -618,7 +618,6 @@ graph TD
         "usedDynamicAPIs",
     ): 14,
     Exports: 17,
-    StarExports: 18,
 }
 ```
 
@@ -956,10 +955,6 @@ export { createPostponedAbortSignal } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 18
-```js
-
-```
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
@@ -1035,7 +1030,6 @@ export { };
         "usedDynamicAPIs",
     ): 15,
     Exports: 19,
-    StarExports: 20,
 }
 ```
 
@@ -1386,10 +1380,6 @@ export { formatDynamicAPIAccesses } from "__TURBOPACK_PART__" assert {
 export { createPostponedAbortSignal } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export createPostponedAbortSignal"
 };
-
-```
-## Part 20
-```js
 
 ```
 ## Merged (module eval)

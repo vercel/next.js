@@ -424,7 +424,6 @@ graph TD
         "NextResponse",
     ): 0,
     Exports: 7,
-    StarExports: 8,
 }
 ```
 
@@ -642,10 +641,6 @@ export { NextResponse } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 8
-```js
-
-```
 ## Merged (module eval)
 ```js
 import { validateURL } from '../utils';
@@ -794,7 +789,6 @@ export { };
         "NextResponse",
     ): 0,
     Exports: 7,
-    StarExports: 8,
 }
 ```
 
@@ -1010,10 +1004,6 @@ export { ResponseCookies as j } from "__TURBOPACK_VAR__" assert {
 export { NextResponse } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export NextResponse"
 };
-
-```
-## Part 8
-```js
 
 ```
 ## Merged (module eval)

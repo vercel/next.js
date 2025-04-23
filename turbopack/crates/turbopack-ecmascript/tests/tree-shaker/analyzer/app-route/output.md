@@ -371,7 +371,6 @@ graph TD
         "workAsyncStorage",
     ): 11,
     Exports: 14,
-    StarExports: 15,
 }
 ```
 
@@ -578,10 +577,6 @@ export { routeModule } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 15
-```js
-
-```
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
@@ -641,7 +636,6 @@ export { };
         "workAsyncStorage",
     ): 15,
     Exports: 16,
-    StarExports: 17,
 }
 ```
 
@@ -857,10 +851,6 @@ export { serverHooks } from "__TURBOPACK_PART__" assert {
 export { workAsyncStorage } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export workAsyncStorage"
 };
-
-```
-## Part 17
-```js
 
 ```
 ## Merged (module eval)
