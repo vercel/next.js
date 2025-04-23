@@ -4,7 +4,7 @@ use petgraph::{visit::EdgeRef, Direction, Graph};
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_tasks::FxIndexSet;
 
-use crate::tree_shake::graph::{Dependency, ItemId, ItemIdItemKind};
+use crate::tree_shake::graph::{Dependency, ItemId};
 
 pub(super) struct GraphOptimizer<'a> {
     pub graph_ix: &'a FxIndexSet<ItemId>,
@@ -19,26 +19,12 @@ impl Index<u32> for GraphOptimizer<'_> {
 }
 
 impl GraphOptimizer<'_> {
-    pub(super) fn should_not_merge<N>(&self, item: &N) -> bool
+    pub(super) fn should_not_merge<N>(&self, _item: &N) -> bool
     where
         N: Copy,
         Self: Index<N, Output = ItemId>,
     {
-        let item_id = &self[*item];
-
-        // Currently we don't merge import bindings because of workarounds we are using.
-        //
-        // See graph.rs for actual workarounds. ImportBinding workaround is about using direct
-        // imports for import bindings so the static code analysis pass can detect imports like
-        // 'next/dynamic'.
-
-        matches!(
-            item_id,
-            ItemId::Item {
-                kind: ItemIdItemKind::ImportBinding(..),
-                ..
-            }
-        )
+        false
     }
 
     fn should_not_merge_iter<N>(&self, items: &[N]) -> bool
@@ -61,7 +47,6 @@ impl GraphOptimizer<'_> {
         let mut removed_nodes = vec![];
 
         for node in g.node_indices() {
-            // ImportBinding nodes should not be merged
             let node_data = g.node_weight(node).expect("Node should exist");
             if self.should_not_merge_iter(node_data) {
                 continue;
