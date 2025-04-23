@@ -242,8 +242,13 @@ async function collectResult(
 
   const buffer: any[] = []
   const reader = savedStream.getReader()
-  for (let entry; !(entry = await reader.read()).done; ) {
-    buffer.push(entry.value)
+
+  try {
+    for (let entry; !(entry = await reader.read()).done; ) {
+      buffer.push(entry.value)
+    }
+  } catch (error) {
+    errors.push(error)
   }
 
   let idx = 0
@@ -431,13 +436,17 @@ async function generateCacheEntryImpl(
 
     if (timeoutAbortController.signal.aborted && !timeoutErrorHandled) {
       // When halting is enabled, the prerender will not call `onError` when
-      // it's aborted with the timeout abort signal. In this case we need to
-      // push the timeout error into the errors array here, so that the stream
-      // will be errored accordingly in `collectResult'.
-      errors.push(timeoutError)
+      // it's aborted with the timeout abort signal, and hanging promises will
+      // also not be rejected. In this case, we're creating an erroring stream
+      // here, to ensure that the error is propagated to the server environment.
+      stream = new ReadableStream({
+        start(controller) {
+          controller.error(timeoutError)
+        },
+      })
+    } else {
+      stream = prelude
     }
-
-    stream = prelude
   } else {
     stream = renderToReadableStream(
       resultPromise,
