@@ -64,6 +64,22 @@ pub(crate) enum ItemIdItemKind {
     VarDeclarator(u32),
 }
 
+impl ItemId {
+    /// Returns true if this item is a phantom node.
+    ///
+    /// A phantom node is a node that is not actually present in the module, and rather a
+    /// placeholder to create an unique identifier.
+    pub fn is_phantom(&self) -> bool {
+        matches!(
+            self,
+            ItemId::Item {
+                kind: ItemIdItemKind::ImportBinding(..),
+                ..
+            }
+        )
+    }
+}
+
 impl fmt::Debug for ItemId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -357,13 +373,7 @@ impl DepGraph {
                 .collect::<FxIndexSet<_>>();
 
             for id in group {
-                if matches!(
-                    id,
-                    ItemId::Item {
-                        kind: ItemIdItemKind::ImportBinding(..),
-                        ..
-                    }
-                ) {
+                if id.is_phantom() {
                     continue;
                 }
 
@@ -623,14 +633,7 @@ impl DepGraph {
             }
 
             for g in group {
-                // We don't
-                if matches!(
-                    g,
-                    ItemId::Item {
-                        kind: ItemIdItemKind::ImportBinding(..),
-                        ..
-                    }
-                ) {
+                if g.is_phantom() {
                     continue;
                 }
 
@@ -665,14 +668,7 @@ impl DepGraph {
             }
 
             for g in group {
-                // We don't
-                if matches!(
-                    g,
-                    ItemId::Item {
-                        kind: ItemIdItemKind::ImportBinding(..),
-                        ..
-                    }
-                ) {
+                if g.is_phantom() {
                     continue;
                 }
 
