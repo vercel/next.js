@@ -1,4 +1,4 @@
-#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
+`#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
 #![feature(iter_advance_by)]
@@ -1288,6 +1288,8 @@ impl FileSystemPath {
     /// None when the joined path would leave the filesystem root.
     #[turbo_tasks::function]
     pub async fn try_join(&self, path: RcStr) -> Result<Vc<FileSystemPathOption>> {
+        let path = path.replace('\\', "/");
+
         if let Some(path) = join_path(&self.path, &path) {
             Ok(Vc::cell(Some(
                 Self::new_normalized(*self.fs, path.into())
