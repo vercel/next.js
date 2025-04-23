@@ -493,6 +493,29 @@ describe('getImageProps()', () => {
       ['src', 'https://example.com/test.gif?v=1'],
     ])
   })
+  it('should optimize for gif with unoptimized=false', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      src: '/test.gif',
+      width: 100,
+      height: 200,
+      unoptimized: false,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['loading', 'lazy'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      [
+        'srcSet',
+        '/_next/image?url=%2Ftest.gif&w=128&q=75 1x, /_next/image?url=%2Ftest.gif&w=256&q=75 2x',
+      ],
+      ['src', '/_next/image?url=%2Ftest.gif&w=256&q=75'],
+    ])
+  })
   it('should add query string for imported local image when NEXT_DEPLOYMENT_ID defined', async () => {
     try {
       process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
