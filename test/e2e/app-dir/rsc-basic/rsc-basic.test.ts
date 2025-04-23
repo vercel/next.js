@@ -19,40 +19,6 @@ async function resolveStreamResponse(response: any, onData?: any) {
   return result
 }
 
-function getInnerHtmlWithoutAsyncMetadata(node: Cheerio): string {
-  // we only expect a single node to match the selector
-  if (node.length !== 1) {
-    throw new Error(`Expected to receive a single node, got ${node.length}`)
-  }
-
-  // remove placeholders for the output of streaming metadata
-  //   <template id="B:0">
-  // (the tags are an implementation detail of react's streaming HTML rendering)
-  node.children('template[id]').remove()
-
-  // remove the output of streaming metadata, which renders an empty div:
-  //   <div hidden></div>
-  node.children('div[hidden]').remove()
-
-  // strip comments (mostly added by react's HTML renderer)
-  node
-    .contents()
-    .filter((_, child) => child.type === 'comment')
-    .remove()
-
-  // strip whitespace-only text nodes
-  // (there might be some left over after removing the nodes above)
-  node
-    .contents()
-    .filter(
-      (_, child) =>
-        child.type === 'text' && child.data && !!child.data.match(/^\s+$/)
-    )
-    .remove()
-
-  return node.html()
-}
-
 describe('app dir - rsc basics', () => {
   const { next, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
@@ -104,50 +70,38 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should correctly render page returning null', async () => {
-    const homeHTML = await next.render('/return-null/page')
-    const $ = cheerio.load(homeHTML)
-    expect(
-      getInnerHtmlWithoutAsyncMetadata($('#return-null-layout'))
-    ).toBeEmpty()
+    const browser = await next.browser('/return-null/page')
+    expect(await browser.elementByCss('#return-null-layout').text()).toBeEmpty()
   })
 
   it('should correctly render component returning null', async () => {
-    const homeHTML = await next.render('/return-null/component')
-    const $ = cheerio.load(homeHTML)
-    expect(
-      getInnerHtmlWithoutAsyncMetadata($('#return-null-layout'))
-    ).toBeEmpty()
+    const browser = await next.browser('/return-null/component')
+    expect(await browser.elementByCss('#return-null-layout').text()).toBeEmpty()
   })
 
   it('should correctly render layout returning null', async () => {
-    const homeHTML = await next.render('/return-null/layout')
-    const $ = cheerio.load(homeHTML)
-    expect(
-      getInnerHtmlWithoutAsyncMetadata($('#return-null-layout'))
-    ).toBeEmpty()
+    const browser = await next.browser('/return-null/layout')
+    expect(await browser.elementByCss('#return-null-layout').text()).toBeEmpty()
   })
 
   it('should correctly render page returning undefined', async () => {
-    const homeHTML = await next.render('/return-undefined/page')
-    const $ = cheerio.load(homeHTML)
+    const browser = await next.browser('/return-undefined/page')
     expect(
-      getInnerHtmlWithoutAsyncMetadata($('#return-undefined-layout'))
+      await browser.elementByCss('#return-undefined-layout').text()
     ).toBeEmpty()
   })
 
   it('should correctly render component returning undefined', async () => {
-    const homeHTML = await next.render('/return-undefined/component')
-    const $ = cheerio.load(homeHTML)
+    const browser = await next.browser('/return-undefined/component')
     expect(
-      getInnerHtmlWithoutAsyncMetadata($('#return-undefined-layout'))
+      await browser.elementByCss('#return-undefined-layout').text()
     ).toBeEmpty()
   })
 
   it('should correctly render layout returning undefined', async () => {
-    const homeHTML = await next.render('/return-undefined/layout')
-    const $ = cheerio.load(homeHTML)
+    const browser = await next.browser('/return-undefined/layout')
     expect(
-      getInnerHtmlWithoutAsyncMetadata($('#return-undefined-layout'))
+      await browser.elementByCss('#return-undefined-layout').text()
     ).toBeEmpty()
   })
 
