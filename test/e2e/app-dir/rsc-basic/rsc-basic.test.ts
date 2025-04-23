@@ -99,6 +99,7 @@ describe('app dir - rsc basics', () => {
         stripHTMLComments($('#return-undefined-layout').html())
       ).toBeEmpty()
     } catch (err) {
+      const console = require('console')
       const sep = '='.repeat(40) + ' PAGE HTML ' + '='.repeat(40)
       console.log()
       console.log(sep)
