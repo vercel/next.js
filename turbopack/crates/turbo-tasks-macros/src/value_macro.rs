@@ -7,10 +7,9 @@ use regex::Regex;
 use syn::{
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
-    punctuated::Punctuated,
     spanned::Spanned,
-    Error, Fields, FieldsUnnamed, Generics, Item, ItemEnum, ItemStruct, Lit, LitStr, Meta,
-    MetaNameValue, Result, Token,
+    Error, Expr, ExprLit, Fields, FieldsUnnamed, Generics, Item, ItemEnum, ItemStruct, Lit, LitStr,
+    Meta, MetaNameValue, Result, Token,
 };
 use turbo_tasks_macros_shared::{
     get_register_value_type_ident, get_value_type_id_ident, get_value_type_ident,
@@ -124,7 +123,7 @@ impl Parse for ValueArguments {
             transparent: false,
             operation: None,
         };
-        let punctuated: Punctuated<Meta, Token![,]> = input.parse_terminated(Meta::parse)?;
+        let punctuated = input.parse_terminated(Meta::parse, Token![,])?;
         for meta in punctuated {
             match (
                 meta.path()
@@ -141,7 +140,11 @@ impl Parse for ValueArguments {
                 (
                     "into",
                     Meta::NameValue(MetaNameValue {
-                        lit: Lit::Str(str), ..
+                        value:
+                            Expr::Lit(ExprLit {
+                                lit: Lit::Str(str), ..
+                            }),
+                        ..
                     }),
                 ) => {
                     result.into_mode = IntoMode::try_from(str)?;
@@ -149,7 +152,11 @@ impl Parse for ValueArguments {
                 (
                     "serialization",
                     Meta::NameValue(MetaNameValue {
-                        lit: Lit::Str(str), ..
+                        value:
+                            Expr::Lit(ExprLit {
+                                lit: Lit::Str(str), ..
+                            }),
+                        ..
                     }),
                 ) => {
                     result.serialization_mode = SerializationMode::try_from(str)?;
@@ -157,7 +164,11 @@ impl Parse for ValueArguments {
                 (
                     "cell",
                     Meta::NameValue(MetaNameValue {
-                        lit: Lit::Str(str), ..
+                        value:
+                            Expr::Lit(ExprLit {
+                                lit: Lit::Str(str), ..
+                            }),
+                        ..
                     }),
                 ) => {
                     result.cell_mode = CellMode::try_from(str)?;
@@ -165,7 +176,11 @@ impl Parse for ValueArguments {
                 (
                     "eq",
                     Meta::NameValue(MetaNameValue {
-                        lit: Lit::Str(str), ..
+                        value:
+                            Expr::Lit(ExprLit {
+                                lit: Lit::Str(str), ..
+                            }),
+                        ..
                     }),
                 ) => {
                     result.manual_eq = if str.value() == "manual" {
