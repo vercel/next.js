@@ -267,37 +267,32 @@ graph TD
 # Final
 ```mermaid
 graph TD
-    N0["Items: [ItemId(0, ImportOfModule)]"];
+    N0["Items: [ItemId(0, ImportOfModule), ItemId(1, ImportOfModule)]"];
     N1["Items: [ItemId(0, ImportBinding(0))]"];
     N2["Items: [ItemId(0, ImportBinding(1))]"];
     N3["Items: [ItemId(0, ImportBinding(2))]"];
-    N4["Items: [ItemId(1, ImportOfModule)]"];
-    N5["Items: [ItemId(1, ImportBinding(0))]"];
-    N6["Items: [ItemId(1, ImportBinding(1))]"];
-    N7["Items: [ItemId(1, ImportBinding(2))]"];
-    N8["Items: [ItemId(1, ImportBinding(3))]"];
-    N9["Items: [ItemId(1, ImportBinding(4))]"];
-    N10["Items: [ItemId(2, Normal), ItemId(3, Normal), ItemId(Export((&quot;__TURBOPACK__default__export__&quot;, #5), &quot;default&quot;))]"];
+    N4["Items: [ItemId(1, ImportBinding(0))]"];
+    N5["Items: [ItemId(1, ImportBinding(1))]"];
+    N6["Items: [ItemId(1, ImportBinding(2))]"];
+    N7["Items: [ItemId(1, ImportBinding(3))]"];
+    N8["Items: [ItemId(1, ImportBinding(4))]"];
+    N9["Items: [ItemId(2, Normal), ItemId(3, Normal), ItemId(Export((&quot;__TURBOPACK__default__export__&quot;, #5), &quot;default&quot;))]"];
+    N5 --> N0;
+    N8 --> N0;
+    N6 --> N0;
+    N7 --> N0;
+    N9 --> N0;
     N4 --> N0;
-    N9 --> N4;
-    N1 --> N0;
-    N2 --> N0;
-    N3 --> N0;
-    N5 --> N4;
-    N6 --> N4;
-    N7 --> N4;
-    N8 --> N4;
-    N10 --> N4;
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 10,
+    ModuleEvaluation: 9,
     Export(
         "default",
-    ): 10,
-    Exports: 11,
+    ): 9,
+    Exports: 10,
 }
 ```
 
@@ -306,27 +301,19 @@ graph TD
 ## Part 0
 ```js
 import "react/jsx-runtime";
+import 'next/document';
 
 ```
 ## Part 1
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 
 ```
 ## Part 2
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 
 ```
 ## Part 3
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 
 ```
 ## Part 4
@@ -334,48 +321,40 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import 'next/document';
 
 ```
 ## Part 5
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
 
 ```
 ## Part 6
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
 
 ```
 ## Part 7
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
 
 ```
 ## Part 8
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
 
 ```
 ## Part 9
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-
-```
-## Part 10
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
 import Document from 'next/document';
 import "__TURBOPACK_PART__" assert {
@@ -391,23 +370,23 @@ import "__TURBOPACK_PART__" assert {
 };
 import { jsx as _jsx } from "react/jsx-runtime";
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
 import { Html } from 'next/document';
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
 import { Head } from 'next/document';
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
 import { Main } from 'next/document';
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
 import { NextScript } from 'next/document';
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
 class MyDocument extends Document {
     static async getInitialProps(ctx) {
@@ -451,7 +430,7 @@ export { __TURBOPACK__default__export__ as b } from "__TURBOPACK_VAR__" assert {
 export { };
 
 ```
-## Part 11
+## Part 10
 ```js
 export { default } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export default"
@@ -461,12 +440,9 @@ export { default } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import Document from 'next/document';
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
+import Document from 'next/document';
 import { jsxs as _jsxs } from "react/jsx-runtime";
 import { Fragment as _Fragment } from "react/jsx-runtime";
 import { jsx as _jsx } from "react/jsx-runtime";
@@ -520,11 +496,11 @@ export { };
 
 ```
 {
-    ModuleEvaluation: 10,
+    ModuleEvaluation: 9,
     Export(
         "default",
-    ): 10,
-    Exports: 11,
+    ): 9,
+    Exports: 10,
 }
 ```
 
@@ -533,27 +509,19 @@ export { };
 ## Part 0
 ```js
 import "react/jsx-runtime";
+import 'next/document';
 
 ```
 ## Part 1
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 
 ```
 ## Part 2
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 
 ```
 ## Part 3
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 
 ```
 ## Part 4
@@ -561,48 +529,40 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import 'next/document';
 
 ```
 ## Part 5
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
 
 ```
 ## Part 6
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
 
 ```
 ## Part 7
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
 
 ```
 ## Part 8
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
 
 ```
 ## Part 9
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-
-```
-## Part 10
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
 import Document from 'next/document';
 import "__TURBOPACK_PART__" assert {
@@ -618,23 +578,23 @@ import "__TURBOPACK_PART__" assert {
 };
 import { jsx as _jsx } from "react/jsx-runtime";
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
 import { Html } from 'next/document';
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
 import { Head } from 'next/document';
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
 import { Main } from 'next/document';
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
 import { NextScript } from 'next/document';
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
 class MyDocument extends Document {
     static async getInitialProps(ctx) {
@@ -678,7 +638,7 @@ export { __TURBOPACK__default__export__ as b } from "__TURBOPACK_VAR__" assert {
 export { };
 
 ```
-## Part 11
+## Part 10
 ```js
 export { default } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export default"
@@ -688,12 +648,9 @@ export { default } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import Document from 'next/document';
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
+import Document from 'next/document';
 import { jsxs as _jsxs } from "react/jsx-runtime";
 import { Fragment as _Fragment } from "react/jsx-runtime";
 import { jsx as _jsx } from "react/jsx-runtime";
