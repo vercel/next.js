@@ -380,6 +380,10 @@ impl GraphOptimizer<'_> {
 
             // For each dominator, merge all nodes it dominates into it
             for (dominator, dominated_nodes) in dom_map {
+                if g.node_weight(dominator).is_none() {
+                    continue;
+                }
+
                 // Skip if dominator node should not be merged
                 if self.should_not_merge_iter(g.node_weight(dominator).expect("Node should exist"))
                 {
