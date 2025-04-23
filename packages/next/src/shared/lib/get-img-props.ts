@@ -202,7 +202,7 @@ function getWidths(
 type GenImgAttrsData = {
   config: ImageConfig
   src: string
-  unoptimized: boolean
+  unoptimized?: boolean
   loader: ImageLoaderWithConfig
   width?: number
   quality?: number
@@ -259,7 +259,7 @@ export function getImgProps(
   {
     src,
     sizes,
-    unoptimized = false,
+    unoptimized,
     priority = false,
     loading,
     className,
@@ -417,14 +417,21 @@ export function getImgProps(
   if (config.unoptimized) {
     unoptimized = true
   }
-  if (
-    isDefaultLoader &&
-    !config.dangerouslyAllowSVG &&
-    src.split('?', 1)[0].endsWith('.svg')
-  ) {
-    // Special case to make svg serve as-is to avoid proxying
-    // through the built-in Image Optimization API.
-    unoptimized = true
+  if (isDefaultLoader) {
+    // Check the src file extension and serve as-is (bypass)
+    // to avoid proxying through the built-in Image Optimization API.
+    // This avoids wasting disk/cpu/memory for files that don't need it.
+    const filename = src.split('?', 1)[0]
+    if (!config.dangerouslyAllowSVG && filename.endsWith('.svg')) {
+      // SVG is vector so its not optimized and will error so we bypass the API.
+      // The user can override by setting `dangerouslyAllowSVG: true`.
+      unoptimized = true
+    }
+    if (unoptimized !== false && filename.endsWith('.gif')) {
+      // GIF is often animated so its not optimized so we bypass the API.
+      // The user can override by explicitly setting `unoptimized={false}`.
+      unoptimized = true
+    }
   }
 
   const qualityInt = getInt(quality)
@@ -725,6 +732,11 @@ export function getImgProps(
     srcSet: imgAttributes.srcSet,
     src: overrideSrc || imgAttributes.src,
   }
-  const meta = { unoptimized, priority, placeholder, fill }
+  const meta = {
+    unoptimized: unoptimized || false,
+    priority,
+    placeholder,
+    fill,
+  }
   return { props, meta }
 }

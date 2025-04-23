@@ -421,6 +421,78 @@ describe('getImageProps()', () => {
       ['src', 'https://example.com/test.svg?v=1'],
     ])
   })
+  it('should auto unoptimized for relative gif', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      src: '/test.gif',
+      width: 100,
+      height: 200,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['loading', 'lazy'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      ['src', '/test.gif'],
+    ])
+  })
+  it('should auto unoptimized for relative gif with query', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      src: '/test.gif?v=1',
+      width: 100,
+      height: 200,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['loading', 'lazy'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      ['src', '/test.gif?v=1'],
+    ])
+  })
+  it('should auto unoptimized for absolute gif', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      src: 'https://example.com/test.gif',
+      width: 100,
+      height: 200,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['loading', 'lazy'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      ['src', 'https://example.com/test.gif'],
+    ])
+  })
+  it('should auto unoptimized for absolute gif with query', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      src: 'https://example.com/test.gif?v=1',
+      width: 100,
+      height: 200,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['loading', 'lazy'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      ['src', 'https://example.com/test.gif?v=1'],
+    ])
+  })
   it('should add query string for imported local image when NEXT_DEPLOYMENT_ID defined', async () => {
     try {
       process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
