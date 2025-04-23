@@ -179,8 +179,8 @@ pub async fn uri_from_file(root: Vc<FileSystemPath>, path: Option<&str>) -> Resu
         })
         .await?;
 
-    let raw_path = sys_path.to_string_lossy().to_string(); // Convert Cow to owned String
-    let normalized_path = raw_path.replace('\\', "/");     // Bind this intermediate
+    let raw_path = sys_path.to_string_lossy().to_string();
+    let normalized_path = raw_path.replace('\\', "/");
 
     let mut segments = normalized_path.split('/');
 
