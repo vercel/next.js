@@ -100,7 +100,7 @@ describe('Graceful Shutdown', () => {
       appPort = await findPort()
       app = await initNextServerScript(
         serverFile,
-        /- Local:/,
+        /✓ Ready in \d+m?s/,
         {
           ...process.env,
           NEXT_EXIT_TIMEOUT_MS: '10',
