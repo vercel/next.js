@@ -1,6 +1,6 @@
 ## Example app using Google Tag Manager
 
-This example shows how to include Google Tag Manager in a Next.js application using [`@next/third-parties`](https://nextjs.org/docs/app/building-your-application/optimizing/third-party-libraries). The GTM container is instantiated in `layout.tsx` and the `sendGTMEvent` function is fired in the `EventButton` client component.
+This example shows how to include Google Tag Manager in a Next.js application using [`@next/third-parties`](https://nextjs.org/docs/app/building-your-application/optimizing/third-party-libraries). The GTM container is instantiated in `layout.tsx` and the `sendGTMEvent` function is fired in the `EventButton` Client Component.
 
 ## Deploy your own
 
