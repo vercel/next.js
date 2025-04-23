@@ -52,8 +52,6 @@ describe('use-cache-cookies', () => {
       )
     })
 
-    // TODO: Assert that data is actually cached for both variants, logged-in
-    // and logged-out.
     it('should include used cookies in the cache key', async () => {
       const browser = await next.browser('/')
 
@@ -61,10 +59,44 @@ describe('use-cache-cookies', () => {
         'logged out'
       )
 
+      const cachedInPageLoggedOut = await browser
+        .elementById('cached-in-page')
+        .text()
+
+      await browser.refresh()
+
+      expect(await browser.elementById('cached-in-page').text()).toBe(
+        cachedInPageLoggedOut
+      )
+
       await browser.addCookie({ name: 'isLoggedIn', value: 'true' })
       await browser.refresh()
 
       expect(await browser.elementById('login-status').text()).toBe('logged in')
+
+      const cachedInPageLoggedIn = await browser
+        .elementById('cached-in-page')
+        .text()
+
+      expect(cachedInPageLoggedIn).not.toBe(cachedInPageLoggedOut)
+
+      await browser.refresh()
+
+      expect(await browser.elementById('cached-in-page').text()).toBe(
+        cachedInPageLoggedIn
+      )
+    })
+
+    it('should ignore changes in unused cookies', async () => {
+      const browser = await next.browser('/')
+      const cachedInPage = await browser.elementById('cached-in-page').text()
+
+      await browser.addCookie({ name: 'other', value: 'foo' })
+      await browser.refresh()
+
+      expect(await browser.elementById('cached-in-page').text()).toBe(
+        cachedInPage
+      )
     })
   })
 })

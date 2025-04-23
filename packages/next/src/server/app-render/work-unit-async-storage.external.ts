@@ -358,3 +358,21 @@ export function getDraftModeProviderForCacheScope(
 
   return undefined
 }
+
+export function getCookies(
+  workUnitStore: WorkUnitStore
+): ReadonlyRequestCookies | undefined {
+  if (workUnitStore.type === 'request' || workUnitStore.type === 'prerender') {
+    return workUnitStore.cookies
+  }
+
+  if (workUnitStore.type === 'cache') {
+    const { cookiesStore } = workUnitStore
+
+    if (cookiesStore?.type === 'request') {
+      return cookiesStore.underlyingCookies
+    }
+  }
+
+  return undefined
+}

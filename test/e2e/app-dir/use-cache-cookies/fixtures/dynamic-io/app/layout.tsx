@@ -11,7 +11,7 @@ export default async function Root({ children }: { children: ReactNode }) {
   return (
     <html>
       <body>
-        <p id="cached-in-layout">{await getCachedDate()}</p>
+        <p id="cached-in-layout">Layout: {await getCachedDate()}</p>
         <Suspense fallback={<p id="loading">Loading...</p>}>
           {children}
         </Suspense>
