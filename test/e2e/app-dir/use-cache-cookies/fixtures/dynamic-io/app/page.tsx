@@ -7,5 +7,10 @@ export default async function Page() {
   await setTimeout(2000)
   const loggedIn = (await cookies()).get('isLoggedIn')
 
-  return <p id="login-status">{loggedIn ? 'logged in' : 'logged out'}</p>
+  return (
+    <>
+      <p id="cached-in-page">Page: {new Date().toISOString()}</p>
+      <p id="login-status">{loggedIn ? 'logged in' : 'logged out'}</p>
+    </>
+  )
 }
