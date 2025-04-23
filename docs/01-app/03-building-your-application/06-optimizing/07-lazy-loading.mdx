@@ -18,7 +18,14 @@ By default, Server Components are automatically [code split](https://developer.m
 
 ## `next/dynamic`
 
-`next/dynamic` is a composite of [`React.lazy()`](https://react.dev/reference/react/lazy) and [Suspense](https://react.dev/reference/react/Suspense). It behaves the same way in the `app` and `pages` directories to allow for incremental migration.
+`next/dynamic` is an enhancement of [`React.lazy()`](https://react.dev/reference/react/lazy), which allows you to dynamically render a component with CSS preloading ability.
+
+> **Good to know**: Before Next.js 15, `next/dynamic`:
+>
+> - Was a composite of [`React.lazy()`](https://react.dev/reference/react/lazy) and [Suspense](https://react.dev/reference/react/Suspense)
+> - It behaved the same way in `app` and `pages` directories.
+
+When used within the `app` directory, `next/dynamic` does not wrap your component with a `Suspense` boundary when you didn't specify a `loading` component. When `loading` is specified, it will be used as `fallback` of the `Suspense` boundary
 
 ## Examples
 
