@@ -1,6 +1,10 @@
-use std::ops::Index;
+use std::{collections::VecDeque, ops::Index};
 
-use petgraph::{visit::EdgeRef, Direction, Graph};
+use petgraph::{
+    graph::NodeIndex,
+    visit::{Bfs, EdgeRef, Walker},
+    Direction, Graph,
+};
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_tasks::FxIndexSet;
 
@@ -258,6 +262,188 @@ impl GraphOptimizer<'_> {
     pub(super) fn merge_nodes_into_stepping_stone<N>(
         &self,
         g: &mut Graph<Vec<N>, Dependency>,
-    ) -> bool {
+    ) -> bool
+    where
+        N: Copy + Eq + std::hash::Hash + std::fmt::Debug,
+        Self: Index<N, Output = ItemId>,
+    {
+        let mut did_work = false;
+        // Stores nodes that will be merged into another node. Used to prevent merging
+        // a node that's already destined to be removed.
+        let mut merged_nodes: FxHashSet<NodeIndex> = FxHashSet::default();
+        // Maps stepping stone node -> set of nodes to merge into it.
+        let mut merge_targets: FxHashMap<NodeIndex, FxHashSet<NodeIndex>> = FxHashMap::default();
+
+        // Identify potential stepping stone candidates first to avoid mutable borrow issues later.
+        let candidates: Vec<_> = g
+            .node_indices()
+            .filter(|&c| {
+                // A candidate must have multiple incoming edges...
+                g.edges_directed(c, Direction::Incoming).count() > 1
+                    // ... and must be a node type that is allowed to be merged into.
+                    && g.node_weight(c).map_or(false, |items| !self.should_not_merge_iter(items))
+            })
+            .collect();
+
+        for c in candidates {
+            // If this candidate 'c' was already marked to be merged into another node earlier,
+            // skip it as it will be removed anyway.
+            if merged_nodes.contains(&c) {
+                continue;
+            }
+
+            let predecessors: Vec<_> = g.neighbors_directed(c, Direction::Incoming).collect();
+
+            // Find all nodes reachable from 'c', excluding 'c' itself.
+            // We use an immutable borrow (&*g) here as we don't modify the graph yet.
+            let reachable_from_c: FxHashSet<_> =
+                Bfs::new(&*g, c).iter(&*g).filter(|&n| n != c).collect();
+
+            let mut exclusively_reachable = FxHashSet::default();
+
+            for &r in &reachable_from_c {
+                // Skip 'r' if it's already marked for merging into some other node.
+                if merged_nodes.contains(&r) {
+                    continue;
+                }
+                // Skip 'r' if it's a node type that should not be merged.
+                if g.node_weight(r)
+                    .map_or(true, |items| self.should_not_merge_iter(items))
+                {
+                    continue;
+                }
+
+                // Determine if 'r' is reachable from any predecessor 'p' *without* going through
+                // 'c'.
+                let mut reachable_without_c = false;
+                for &p in &predecessors {
+                    let mut queue = VecDeque::new();
+                    let mut visited = FxHashSet::default();
+
+                    // Start BFS from predecessor 'p'.
+                    queue.push_back(p);
+                    visited.insert(p);
+
+                    while let Some(curr) = queue.pop_front() {
+                        if curr == r {
+                            // Found a path from 'p' to 'r' that doesn't go through 'c'.
+                            reachable_without_c = true;
+                            break; // No need to continue BFS for this 'p'.
+                        }
+
+                        // Explore neighbors. Crucially, stop exploring this path if we hit 'c'.
+                        for neighbor in g.neighbors_directed(curr, Direction::Outgoing) {
+                            if neighbor != c && visited.insert(neighbor) {
+                                queue.push_back(neighbor);
+                            }
+                        }
+                    }
+                    if reachable_without_c {
+                        // Found a path from *some* predecessor, no need to check other
+                        // predecessors.
+                        break;
+                    }
+                }
+
+                // If no path was found from *any* predecessor 'p' to 'r' without going via 'c',
+                // then 'r' is exclusively reachable via 'c' (from this set of predecessors).
+                if !reachable_without_c {
+                    exclusively_reachable.insert(r);
+                }
+            }
+
+            // If we found nodes exclusively reachable via 'c', record them for merging.
+            if !exclusively_reachable.is_empty() {
+                // Add these nodes to the merge target list for 'c'.
+                merge_targets
+                    .entry(c)
+                    .or_default()
+                    .extend(&exclusively_reachable);
+                // Mark these nodes globally as 'merged' to prevent them being processed as
+                // candidates or targets for other stepping stones later.
+                merged_nodes.extend(&exclusively_reachable);
+                // Indicate that we performed optimization work.
+                did_work = true;
+            }
+        }
+
+        // --- Perform the actual merges ---
+        // Collect all nodes that need to be removed after merging.
+        let mut nodes_to_actually_remove = Vec::new();
+
+        for (stepping_stone, nodes_to_merge) in merge_targets {
+            // Check if the stepping stone itself still exists (it might have been removed if
+            // it was marked as 'merged_nodes' in a previous iteration, though candidates filter
+            // should prevent this).
+            if g.node_weight(stepping_stone).is_none() {
+                continue;
+            }
+
+            // Collect items and edges from all nodes being merged into this stepping_stone first,
+            // before modifying the graph to avoid borrowing issues.
+            let mut items_to_add = Vec::new();
+            let mut edges_to_add = Vec::new(); // Vec<(target_node, dependency_weight)>
+
+            for node in nodes_to_merge {
+                // Check if the node to merge still exists in the graph.
+                if let Some(node_weight) = g.node_weight(node) {
+                    // Collect items from the node being merged.
+                    items_to_add.extend(node_weight.clone());
+
+                    // Collect its outgoing edges to reroute them from the stepping stone.
+                    for edge in g.edges_directed(node, Direction::Outgoing) {
+                        edges_to_add.push((edge.target(), *edge.weight()));
+                    }
+
+                    // Mark this node for final removal from the graph.
+                    nodes_to_actually_remove.push(node);
+                }
+            }
+
+            // Add the collected items to the stepping stone node.
+            if let Some(ss_weight) = g.node_weight_mut(stepping_stone) {
+                ss_weight.extend(items_to_add);
+            }
+
+            // Add the collected edges, now originating from the stepping stone.
+            for (target, weight) in edges_to_add {
+                // Check if an edge from stepping_stone to target already exists.
+                match g.find_edge(stepping_stone, target) {
+                    Some(edge_index) => {
+                        // If edge exists, potentially upgrade its weight from Weak to Strong.
+                        let edge_weight = g.edge_weight_mut(edge_index).unwrap();
+                        if matches!(edge_weight, Dependency::Weak)
+                            && !matches!(weight, Dependency::Weak)
+                        {
+                            *edge_weight = weight;
+                        }
+                    }
+                    None => {
+                        // Add a new edge only if the target node still exists
+                        // (it might have been removed if it was also part of
+                        // `nodes_to_actually_remove`).
+                        if g.node_weight(target).is_some() {
+                            g.add_edge(stepping_stone, target, weight);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Remove all merged nodes from the graph.
+        // Sort for deterministic behavior (optional but good practice).
+        nodes_to_actually_remove.sort_unstable();
+        // Ensure we try removing each node only once.
+        nodes_to_actually_remove.dedup();
+        // Iterate in reverse to avoid index invalidation issues.
+        for node in nodes_to_actually_remove.into_iter().rev() {
+            // Check again if node exists before removing, as the graph might have changed.
+            if g.node_weight(node).is_some() {
+                // remove_node also removes all incident edges.
+                g.remove_node(node);
+            }
+        }
+
+        did_work
     }
 }
