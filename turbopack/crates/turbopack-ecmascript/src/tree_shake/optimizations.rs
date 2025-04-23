@@ -259,10 +259,7 @@ impl GraphOptimizer<'_> {
     ///
     /// all of `d, e, f` should be merged into `c` because they are all reachable only by stepping
     /// through `c`.
-    pub(super) fn merge_nodes_into_stepping_stone<N>(
-        &self,
-        g: &mut Graph<Vec<N>, Dependency>,
-    ) -> bool
+    pub(super) fn perform_dominator_analysis<N>(&self, g: &mut Graph<Vec<N>, Dependency>) -> bool
     where
         N: Copy + Eq + std::hash::Hash + std::fmt::Debug,
         Self: Index<N, Output = ItemId>,
