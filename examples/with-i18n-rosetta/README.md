@@ -1,6 +1,6 @@
 # rosetta example
 
-This example uses [rosetta](https://github.com/lukeed/rosetta), react hooks and context to provide a SSR, SSG, CSR compatible i18n solution.
+This example uses [rosetta](https://github.com/lukeed/rosetta), React Hooks and context to provide a SSR, SSG, CSR compatible i18n solution.
 
 In `next.config.js` you can configure the fallback language.
 

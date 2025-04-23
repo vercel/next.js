@@ -21,7 +21,7 @@ async function ClientComponent() {
 
 1. **Convert to a Server Component**: If possible, convert your Client Component to a Server Component. This allows you to use `async`/`await` directly in your component.
 2. **Remove the `async` keyword**: If you need to keep it as a Client Component, remove the `async` keyword and handle data fetching differently.
-3. **Use React hooks for data fetching**: Utilize hooks like `useEffect` for client-side data fetching, or use third-party libraries.
+3. **Use React Hooks for data fetching**: Utilize hooks like `useEffect` for client-side data fetching, or use third-party libraries.
 4. **Leverage the `use` hook with a Context Provider**: Pass promises to child components using context, then resolve them with the `use` hook.
 
 ### Recommended: Server-side data fetching
