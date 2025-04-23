@@ -4085,9 +4085,9 @@ checksum = "0ca88d725a0a943b096803bd34e73a4437208b6077654cc4ecb2947a5f91618d"
 
 [[package]]
 name = "markdown"
-version = "1.0.0-alpha.22"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "790c11786cb51d02938e3eb38276575e1658b1dd8555875f5788a40670a33934"
+checksum = "a5cab8f2cadc416a82d2e783a1946388b31654d391d1c7d92cc1f03e295b1deb"
 dependencies = [
  "unicode-id",
 ]
@@ -4124,8 +4124,9 @@ dependencies = [
 
 [[package]]
 name = "mdxjs"
-version = "0.3.4"
-source = "git+https://github.com/kdy1/mdxjs-rs?branch=swc-core-22#a1f16cee2f3350c68a7bebbf74b88e0bac02c9fa"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3218c5892cb3a71ed40c85632d9e05b3a39ce3f9891177d2812ffe75b16f0fef"
 dependencies = [
  "markdown",
  "rustc-hash 2.1.0",
