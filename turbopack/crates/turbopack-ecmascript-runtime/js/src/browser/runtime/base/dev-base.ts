@@ -131,6 +131,15 @@ const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<HotModu
   });
 };
 
+function getDevWorkerBlobURL(chunks) {
+  return getWorkerBlobURL(
+    chunks,
+    `// noop fns to prevent runtime errors during initialization
+self.$RefreshReg$ = function() {};
+self.$RefreshSig$ = function() {};`
+  );
+}
+
 // @ts-ignore Defined in `runtime-base.ts`
 function instantiateModule(id: ModuleId, source: SourceInfo): Module {
   const moduleFactory = moduleFactories[id];
@@ -223,7 +232,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
           U: relativeURL,
           k: refresh,
           R: createResolvePathFromModule(r),
-          b: getWorkerBlobURL,
+          b: getDevWorkerBlobURL,
           z: requireStub,
           d: typeof module.id === "string" ? module.id.replace(/(^|\/)\/+$/, "") : module.id
         })
