@@ -380,6 +380,12 @@ async function generateCacheEntryImpl(
       console.error(error)
     }
 
+    if (error === timeoutError) {
+      // The timeout error already aborted the whole stream. We don't need
+      // to also push this error into the `errors` array.
+      return timeoutError.digest
+    }
+
     errors.push(error)
   }
 
@@ -395,8 +401,10 @@ async function generateCacheEntryImpl(
       timeoutAbortController.abort(timeoutError)
     }, 50000)
 
+    const { renderSignal } = outerWorkUnitStore
+
     const abortSignal = AbortSignal.any([
-      outerWorkUnitStore.renderSignal,
+      renderSignal,
       timeoutAbortController.signal,
     ])
 
@@ -408,8 +416,8 @@ async function generateCacheEntryImpl(
         signal: abortSignal,
         temporaryReferences,
         onError(error) {
-          if (abortSignal.aborted && abortSignal.reason === error) {
-            return error === timeoutError ? timeoutError.digest : undefined
+          if (renderSignal.aborted && renderSignal.reason === error) {
+            return undefined
           }
 
           return handleError(error)
