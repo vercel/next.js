@@ -674,5 +674,6 @@
   "673": "Thrown value was ignored. This is a bug in Next.js.",
   "674": "Route \"%s\" has a \\`generateViewport\\` that depends on Request data (\\`cookies()\\`, etc...) or uncached external data (\\`fetch(...)\\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
   "675": "Expected `generateMetadata` not to block the application shell but it did.",
-  "676": "Invariant: missing internal router-server-methods this is an internal bug"
+  "676": "Invariant: missing internal router-server-methods this is an internal bug",
+  "677": "Expected the argument to be a promise"
 }
