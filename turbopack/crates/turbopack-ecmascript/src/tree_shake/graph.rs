@@ -61,6 +61,8 @@ pub(crate) enum ItemIdItemKind {
     /// We only need this node to create an unique identifier for each binding in an import
     /// declaration.
     ImportBinding(u32),
+    /// Reexport of a binding
+    ReexportBinding(u32),
     VarDeclarator(u32),
 }
 
@@ -956,7 +958,7 @@ impl DepGraph {
                             if let Some(src) = &item.src {
                                 let id = ItemId::Item {
                                     index,
-                                    kind: ItemIdItemKind::ImportBinding(si as _),
+                                    kind: ItemIdItemKind::ReexportBinding(si as _),
                                 };
                                 ids.push(id.clone());
 
