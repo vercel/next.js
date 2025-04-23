@@ -4,7 +4,7 @@ use petgraph::{visit::EdgeRef, Direction, Graph};
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_tasks::FxIndexSet;
 
-use crate::tree_shake::graph::{Dependency, ItemId, ItemIdItemKind};
+use crate::tree_shake::graph::{Dependency, ItemId};
 
 pub(super) struct GraphOptimizer<'a> {
     pub graph_ix: &'a FxIndexSet<ItemId>,
@@ -28,13 +28,7 @@ impl GraphOptimizer<'_> {
 
         // Currently we don't merge import bindings because those node are phantom nodes.
 
-        matches!(
-            item_id,
-            ItemId::Item {
-                kind: ItemIdItemKind::ImportBinding(..),
-                ..
-            }
-        )
+        item_id.is_phantom()
     }
 
     fn should_not_merge_iter<N>(&self, items: &[N]) -> bool
