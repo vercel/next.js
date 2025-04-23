@@ -11,6 +11,7 @@ import type {
   CacheNodeSeedData,
   Segment as FlightRouterStateSegment,
 } from '../../../server/app-render/types'
+import { HasLoadingBoundary } from '../../../server/app-render/types'
 import {
   NEXT_DID_POSTPONE_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -85,6 +86,13 @@ export type RouteTree = {
     [parallelRouteKey: string]: RouteTree
   }
   isRootLayout: boolean
+
+  // If this is a dynamic route, indicates whether there is a loading boundary
+  // somewhere in the tree. If not, we can skip the prefetch for the data,
+  // because we know it would be an empty response. (For a static/PPR route,
+  // this value is disregarded, because in that model `loading.tsx` is treated
+  // like any other Suspense boundary.)
+  hasLoadingBoundary: HasLoadingBoundary
 }
 
 type RouteCacheEntryShared = {
@@ -871,6 +879,9 @@ function convertTreePrefetchToRouteTree(
     segment: prefetch.segment,
     slots,
     isRootLayout: prefetch.isRootLayout,
+    // This field is only relevant to dynamic routes. For a PPR/static route,
+    // there's always some partial loading state we can fetch.
+    hasLoadingBoundary: HasLoadingBoundary.SegmentHasLoadingBoundary,
   }
 }
 
@@ -935,6 +946,10 @@ function convertFlightRouterStateToRouteTree(
     segment: segmentWithoutSearchParams,
     slots,
     isRootLayout: flightRouterState[4] === true,
+    hasLoadingBoundary:
+      flightRouterState[5] !== undefined
+        ? flightRouterState[5]
+        : HasLoadingBoundary.SubtreeHasNoLoadingBoundary,
   }
 }
 

@@ -42,7 +42,7 @@
   "41": "Method not implemented.",
   "42": "Page \"%s\" cannot use both \\`export const runtime = 'edge'\\` and export \\`generateStaticParams\\`.",
   "43": "Specified pageExtensions is an empty array. Please update it with the relevant extensions or remove it.",
-  "44": "Using client components is not allowed in this environment.",
+  "44": "Using Client Components is not allowed in this environment.",
   "45": "The default export is not a React Component in \"%s/%s\"",
   "46": "It's currently unsupported to use \"export *\" in a client boundary. Please use named exports instead.",
   "47": "Module `sharp` not found. Please run `npm install --cpu=wasm32 sharp` to install it.",

@@ -2,6 +2,7 @@ import type {
   FlightRouterState,
   Segment as FlightRouterStateSegment,
 } from '../../../server/app-render/types'
+import { HasLoadingBoundary } from '../../../server/app-render/types'
 import { matchSegment } from '../match-segments'
 import {
   readOrCreateRouteCacheEntry,
@@ -684,20 +685,23 @@ function diffRouteTreeAgainstCurrent(
             // conservative about which segments to include in the request.
             //
             // The server will only render up to the first loading boundary
-            // inside new part of the tree. If there's no loading boundary, the
-            // server will never return any data. TODO: When we prefetch the
-            // route tree, the server should indicate whether there's a loading
-            // boundary so the client doesn't send a second request for no
-            // reason.
-            const requestTreeChild =
-              pingPPRDisabledRouteTreeUpToLoadingBoundary(
-                now,
-                task,
-                route,
-                newTreeChild,
-                null,
-                spawnedEntries
-              )
+            // inside new part of the tree. If there's no loading boundary
+            // anywhere in the tree, the server will never return any data, so
+            // we can skip the request.
+            const subtreeHasLoadingBoundary =
+              newTreeChild.hasLoadingBoundary !==
+              HasLoadingBoundary.SubtreeHasNoLoadingBoundary
+            const requestTreeChild = subtreeHasLoadingBoundary
+              ? pingPPRDisabledRouteTreeUpToLoadingBoundary(
+                  now,
+                  task,
+                  route,
+                  newTreeChild,
+                  null,
+                  spawnedEntries
+                )
+              : // There's no loading boundary within this tree. Bail out.
+                convertRouteTreeToFlightRouterState(newTreeChild)
             requestTreeChildren[parallelRouteKey] = requestTreeChild
             break
           }
@@ -800,9 +804,9 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
     }
     case EntryStatus.Fulfilled: {
       // The segment is already cached.
-      // TODO: The server should include a `hasLoading` field as part of the
-      // route tree prefetch.
-      if (segment.loading !== null) {
+      const segmentHasLoadingBoundary =
+        tree.hasLoadingBoundary === HasLoadingBoundary.SegmentHasLoadingBoundary
+      if (segmentHasLoadingBoundary) {
         // This segment has a loading boundary, which means the server won't
         // render its children. So there's nothing left to prefetch along this
         // path. We can bail out.
