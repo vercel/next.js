@@ -1,9 +1,9 @@
 import type { ParamValue, Params } from '../../server/request/params'
 import type { AppPageModule } from '../../server/route-modules/app-page/module'
 import type { AppSegment } from '../segment-config/app/app-segments'
-import type { StaticPathsResult } from './types'
+import type { PrerenderedRoute, StaticPathsResult } from './types'
 
-import path from 'path'
+import path from 'node:path'
 import { AfterRunner } from '../../server/after/run-with-after'
 import { createWorkStore } from '../../server/async-storage/work-store'
 import { FallbackMode } from '../../lib/fallback'
@@ -244,6 +244,65 @@ function validateParams(
 }
 
 /**
+ * Assigns the throwOnEmptyStaticShell property to each of the prerendered routes.
+ *
+ * @param prerenderedRoutes - The prerendered routes.
+ * @param routeParamKeys - The keys of the route parameters.
+ */
+export function assignErrorIfEmpty(
+  prerenderedRoutes: readonly PrerenderedRoute[],
+  routeParamKeys: readonly string[]
+) {
+  // If we're rendering a more specific route, then we don't need to error
+  // if the route is empty.
+  for (let i = 0; i < prerenderedRoutes.length; i++) {
+    let throwOnEmptyStaticShell: boolean = true
+
+    // If the route has fallbackRouteParams, then we need to check if the
+    // route is a more specific route.
+    const { fallbackRouteParams, params } = prerenderedRoutes[i]
+    if (fallbackRouteParams && fallbackRouteParams.length > 0) {
+      for (let j = 0; j < prerenderedRoutes.length; j++) {
+        // Skip the current route.
+        if (i === j) continue
+
+        let k = 0
+        for (; k < routeParamKeys.length; k++) {
+          const key = routeParamKeys[k]
+
+          // If the key is a fallback route param, then we can skip it, because
+          // it always matches.
+          if (fallbackRouteParams.includes(key)) {
+            // Rather than just continuing here, we set the index to the end of
+            // the array so that we can break out of the loop early while still
+            // satisfying the condition check later.
+            k = routeParamKeys.length
+            break
+          }
+
+          // If the param value is not equal, then we can break out of the loop
+          // because the route is not a more specific route.
+          if (
+            !areParamValuesEqual(params[key], prerenderedRoutes[j].params[key])
+          ) {
+            break
+          }
+        }
+
+        // If we got to the end of the loop, then we know that the route is a
+        // more specific route.
+        if (k === routeParamKeys.length) {
+          throwOnEmptyStaticShell = false
+          break
+        }
+      }
+    }
+
+    prerenderedRoutes[i].throwOnEmptyStaticShell = throwOnEmptyStaticShell
+  }
+}
+
+/**
  * Builds the static paths for an app using `generateStaticParams`.
  *
  * @param params - The parameters for the build.
@@ -396,6 +455,8 @@ export async function buildAppStaticPaths({
     }
   )
 
+  await afterRunner.executeAfter()
+
   let lastDynamicSegmentHadGenerateStaticParams = false
   for (const segment of segments) {
     // Check to see if there are any missing params for segments that have
@@ -475,6 +536,7 @@ export async function buildAppStaticPaths({
 
       result.prerenderedRoutes ??= []
       result.prerenderedRoutes.push({
+        params: {},
         pathname: page,
         encodedPathname: page,
         fallbackRouteParams: routeParamKeys,
@@ -486,6 +548,8 @@ export async function buildAppStaticPaths({
             : fallbackMode
           : FallbackMode.NOT_FOUND,
         fallbackRootParams: rootParamKeys,
+        // This is set later after all the routes have been processed.
+        throwOnEmptyStaticShell: true,
       })
     }
 
@@ -503,7 +567,7 @@ export async function buildAppStaticPaths({
       let pathname: string = page
       let encodedPathname: string = page
 
-      const fallbackRouteParams: string[] = []
+      let fallbackRouteParams: string[] = []
 
       for (const key of routeParamKeys) {
         if (fallbackRouteParams.length > 0) {
@@ -550,6 +614,7 @@ export async function buildAppStaticPaths({
 
       result.prerenderedRoutes ??= []
       result.prerenderedRoutes.push({
+        params,
         pathname: normalizePathname(pathname),
         encodedPathname: normalizePathname(encodedPathname),
         fallbackRouteParams,
@@ -561,11 +626,16 @@ export async function buildAppStaticPaths({
             : fallbackMode
           : FallbackMode.NOT_FOUND,
         fallbackRootParams,
+        // This is set later after all the routes have been processed.
+        throwOnEmptyStaticShell: true,
       })
     })
   }
 
-  await afterRunner.executeAfter()
+  // Now we have to set the throwOnEmptyStaticShell for each of the routes.
+  if (result.prerenderedRoutes && isRoutePPREnabled && dynamicIO) {
+    assignErrorIfEmpty(result.prerenderedRoutes, routeParamKeys)
+  }
 
   return result
 }

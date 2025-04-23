@@ -132,7 +132,7 @@ import {
   createDynamicValidationState,
   getFirstDynamicReason,
   trackAllowedDynamicAccess,
-  throwIfDisallowedEmptyShell,
+  throwIfDisallowedEmptyStaticShell,
   consumeDynamicAccess,
   type DynamicAccess,
 } from './dynamic-rendering'
@@ -2411,7 +2411,7 @@ async function spawnDynamicValidationInDev(
 
   const finalClientController = new AbortController()
   const clientDynamicTracking = createDynamicTrackingState(false)
-  const dynamicValidation = createDynamicValidationState()
+  const dynamicValidation = createDynamicValidationState(false)
 
   const finalClientPrerenderStore: PrerenderStore = {
     type: 'prerender',
@@ -2551,7 +2551,7 @@ async function spawnDynamicValidationInDev(
   function LogDynamicValidation() {
     try {
       if (preludeIsEmpty) {
-        throwIfDisallowedEmptyShell(
+        throwIfDisallowedEmptyStaticShell(
           route,
           dynamicValidation,
           serverDynamicTracking,
@@ -3023,7 +3023,9 @@ async function prerenderToStream(
         }
 
         let clientIsDynamic = false
-        let dynamicValidation = createDynamicValidationState()
+        let dynamicValidation = createDynamicValidationState(
+          renderOpts.doNotThrowOnEmptyStaticShell
+        )
 
         const prerender = require('react-dom/static.edge')
           .prerender as (typeof import('react-dom/static.edge'))['prerender']
@@ -3086,7 +3088,7 @@ async function prerenderToStream(
           await processPrelude(unprocessedPrelude)
 
         if (preludeIsEmpty) {
-          throwIfDisallowedEmptyShell(
+          throwIfDisallowedEmptyStaticShell(
             workStore.route,
             dynamicValidation,
             serverDynamicTracking,
@@ -3443,7 +3445,9 @@ async function prerenderToStream(
         const clientDynamicTracking = createDynamicTrackingState(
           renderOpts.isDebugDynamicAccesses
         )
-        const dynamicValidation = createDynamicValidationState()
+        const dynamicValidation = createDynamicValidationState(
+          renderOpts.doNotThrowOnEmptyStaticShell
+        )
 
         const finalClientPrerenderStore: PrerenderStore = (prerenderStore = {
           type: 'prerender',
@@ -3570,7 +3574,7 @@ async function prerenderToStream(
 
         if (preludeIsEmpty) {
           // We don't have a shell because the root errored when we aborted.
-          throwIfDisallowedEmptyShell(
+          throwIfDisallowedEmptyStaticShell(
             workStore.route,
             dynamicValidation,
             serverDynamicTracking,

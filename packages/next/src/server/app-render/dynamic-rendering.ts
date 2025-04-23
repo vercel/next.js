@@ -78,6 +78,7 @@ export type DynamicTrackingState = {
 
 // Stores dynamic reasons used during an SSR render.
 export type DynamicValidationState = {
+  readonly doNotThrowOnEmptyStaticShell: boolean | undefined
   hasSuspenseAboveBody: boolean
   hasDynamicMetadata: boolean
   hasDynamicViewport: boolean
@@ -95,8 +96,11 @@ export function createDynamicTrackingState(
   }
 }
 
-export function createDynamicValidationState(): DynamicValidationState {
+export function createDynamicValidationState(
+  doNotThrowOnEmptyStaticShell: boolean | undefined
+): DynamicValidationState {
   return {
+    doNotThrowOnEmptyStaticShell,
     hasSuspenseAboveBody: false,
     hasDynamicMetadata: false,
     hasDynamicViewport: false,
@@ -647,7 +651,7 @@ function createErrorWithComponentStack(
   return error
 }
 
-export function throwIfDisallowedEmptyShell(
+export function throwIfDisallowedEmptyStaticShell(
   route: string,
   dynamicValidation: DynamicValidationState,
   serverDynamic: DynamicTrackingState,
@@ -660,6 +664,13 @@ export function throwIfDisallowedEmptyShell(
     throw new InvariantError(
       'Expected `generateMetadata` not to block the application shell but it did.'
     )
+  }
+
+  // If we've disabled throwing on empty static shell, then we don't need to
+  // track any dynamic access that occurs above the suspense boundary because
+  // we'll do so in the route shell.
+  if (dynamicValidation.doNotThrowOnEmptyStaticShell) {
+    return
   }
 
   if (dynamicValidation.hasSuspenseAboveBody) {
@@ -688,7 +699,7 @@ export function throwIfDisallowedEmptyShell(
   // blocked the root. We would have captured these during the prerender
   // and can log them here and then terminate the build/validating render
   const dynamicErrors = dynamicValidation.dynamicErrors
-  if (dynamicErrors.length) {
+  if (dynamicErrors.length > 0) {
     for (let i = 0; i < dynamicErrors.length; i++) {
       console.error(dynamicErrors[i])
     }
