@@ -361,6 +361,7 @@ async function generateCacheEntryImpl(
   const resultPromise = createLazyResult(() => fn.apply(null, args))
 
   let errors: Array<unknown> = []
+  let timeoutErrorHandled = false
 
   // In the "Cache" environment, we only need to make sure that the error
   // digests are handled correctly. Error formatting and reporting is not
@@ -381,6 +382,7 @@ async function generateCacheEntryImpl(
     }
 
     if (error === timeoutError) {
+      timeoutErrorHandled = true
       // The timeout error already aborted the whole stream. We don't need
       // to also push this error into the `errors` array.
       return timeoutError.digest
@@ -426,6 +428,14 @@ async function generateCacheEntryImpl(
     )
 
     clearTimeout(timer)
+
+    if (timeoutAbortController.signal.aborted && !timeoutErrorHandled) {
+      // When halting is enabled, the prerender will not call `onError` when
+      // it's aborted with the timeout abort signal. In this case we need to
+      // push the timeout error into the errors array here, so that the stream
+      // will be errored accordingly in `collectResult'.
+      errors.push(timeoutError)
+    }
 
     stream = prelude
   } else {
