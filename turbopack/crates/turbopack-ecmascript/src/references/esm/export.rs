@@ -305,66 +305,18 @@ async fn find_export_from_reexports(
         }
     }
 
-    let exports = module.get_exports().await?;
-    let EcmascriptExports::EsmExports(exports) = &*exports else {
+    let all_export_names = get_all_export_names(*module).await?;
+    if let Some(e) = all_export_names.esm_exports.get(&export_name) {
         return Ok(FindExportFromReexportsResult {
-            esm_export: None,
-            dynamic_exporting_modules: vec![],
+            esm_export: Some(*e),
+            dynamic_exporting_modules: all_export_names.dynamic_exporting_modules.clone(),
         }
         .cell());
-    };
-
-    let exports = exports.await?;
-    let mut dynamic_exporting_modules = Vec::new();
-
-    for (name, _) in exports.exports.iter() {
-        if *name == export_name {
-            return Ok(FindExportFromReexportsResult {
-                esm_export: Some(module),
-                dynamic_exporting_modules: vec![],
-            }
-            .cell());
-        }
-    }
-
-    let star_export_names = exports
-        .star_exports
-        .iter()
-        .map(|esm_ref| async {
-            Ok(
-                if let ReferencedAsset::Some(m) =
-                    *ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
-                {
-                    Some(find_export_from_reexports(*m, export_name.clone()))
-                } else {
-                    None
-                },
-            )
-        })
-        .try_flat_join()
-        .await?;
-
-    for star_export_names in star_export_names {
-        if let Some(m) = star_export_names.await?.esm_export {
-            return Ok(FindExportFromReexportsResult {
-                esm_export: Some(m),
-                dynamic_exporting_modules: vec![],
-            }
-            .cell());
-        }
-
-        dynamic_exporting_modules.extend(
-            star_export_names
-                .await?
-                .dynamic_exporting_modules
-                .iter()
-                .copied(),
-        );
     }
 
     Ok(FindExportFromReexportsResult {
         esm_export: None,
-        dynamic_exporting_modules,
+        dynamic_exporting_modules: all_export_names.dynamic_exporting_modules.clone(),
     }
     .cell())
 }
