@@ -306,16 +306,9 @@ async fn find_export_from_reexports(
     }
 
     let all_export_names = get_all_export_names(*module).await?;
-    if let Some(e) = all_export_names.esm_exports.get(&export_name) {
-        return Ok(FindExportFromReexportsResult {
-            esm_export: Some(*e),
-            dynamic_exporting_modules: all_export_names.dynamic_exporting_modules.clone(),
-        }
-        .cell());
-    }
-
+    let esm_export = all_export_names.esm_exports.get(&export_name).copied();
     Ok(FindExportFromReexportsResult {
-        esm_export: None,
+        esm_export,
         dynamic_exporting_modules: all_export_names.dynamic_exporting_modules.clone(),
     }
     .cell())
