@@ -197,6 +197,10 @@ import {
   trackPendingImport,
   trackPendingModules,
 } from './module-loading/track-module-loading.external'
+import {
+  LOADER_TREE_MODULE_KEYS,
+  type ModuleTuple,
+} from '../../build/webpack/loaders/next-app-loader/shared'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -722,6 +726,8 @@ async function warmupDevRender(
     prerenderResumeDataCache,
     hmrRefreshHash: req.cookies[NEXT_HMR_REFRESH_HASH_COOKIE],
   }
+
+  await warmAllModulesInTree(ctx.componentMod)
 
   const rscPayload = await workUnitAsyncStorage.run(
     prerenderStore,
@@ -2276,6 +2282,10 @@ async function spawnDynamicValidationInDev(
     hmrRefreshHash,
   }
 
+  // Flush out any top-level async-ness in the tree before rendering
+  // to avoid unnecessarily delaying the cacheSignal with async imports
+  await warmAllModulesInTree(ComponentMod)
+
   // We're not going to use the result of this render because the only time it could be used
   // is if it completes in a microtask and that's likely very rare for any non-trivial app
   const firstAttemptRSCPayload = await workUnitAsyncStorage.run(
@@ -2783,6 +2793,10 @@ async function prerenderToStream(
           prerenderResumeDataCache,
           hmrRefreshHash: undefined,
         })
+
+        // Flush out any top-level async-ness in the tree before rendering
+        // to avoid unnecessarily delaying the cacheSignal with async imports
+        await warmAllModulesInTree(ComponentMod)
 
         // We're not going to use the result of this render because the only time it could be used
         // is if it completes in a microtask and that's likely very rare for any non-trivial app
@@ -3307,6 +3321,10 @@ async function prerenderToStream(
           ctx,
           res.statusCode === 404
         )
+
+        // Flush out any top-level async-ness in the tree before rendering
+        // to avoid unnecessarily delaying the cacheSignal with async imports
+        await warmAllModulesInTree(ComponentMod)
 
         let initialServerStream
         try {
@@ -4274,4 +4292,48 @@ async function collectSegmentData(
     serverConsumerManifest,
     fallbackRouteParams
   )
+}
+
+/** Traverses a `LoaderTree`, imports all the referenced modules,
+ * then waits for all async imports that were initiated in the process. */
+async function warmAllModulesInTree(ComponentMod: AppPageModule) {
+  const modulePromises: Promise<unknown>[] = []
+
+  const loadTreeModules = (treeNode: LoaderTree): void => {
+    const [, parallelRoutes, modules] = treeNode
+    for (const key of LOADER_TREE_MODULE_KEYS) {
+      const tuple = modules[key]
+      if (tuple) {
+        tryLoadModule(tuple)
+      }
+    }
+    for (const parallelRouteTree of Object.values(parallelRoutes)) {
+      loadTreeModules(parallelRouteTree)
+    }
+  }
+
+  const tryLoadModule = (tuple: ModuleTuple) => {
+    const [moduleGetter] = tuple
+    modulePromises.push(
+      (async () => {
+        try {
+          // Note: this might not be async.
+          // if might also not be a server module, but that should be fine
+          await moduleGetter()
+        } catch (err) {
+          // if importing the module errors, it'll error again during render,
+          // so we don't need to report it here.
+        }
+      })()
+    )
+  }
+
+  ComponentMod.patchFetch()
+  loadTreeModules(ComponentMod.tree)
+
+  // In this case, we only care about top-level-await that prevents us from starting the render.
+  // Waiting for each segment module will also transitively wait for all TLAs in modules
+  // that were referenced via a `import ... from 'elsewhere'`.
+  // We don't need to consider dynamic `import()`s, because `trackPendingModules` will handle them during render.
+  await Promise.all(modulePromises)
 }

@@ -54,6 +54,8 @@ describe('async imports in dynamicIO', () => {
          "/outside-of-render/client/sync-module",
          "/outside-of-render/server/async-module",
          "/outside-of-render/server/sync-module",
+         "/top-level-await-in-segment/client",
+         "/top-level-await-in-segment/server",
        ]
       `)
     })
@@ -152,6 +154,16 @@ describe('async imports in dynamicIO', () => {
       it('import of module with top-level-await', async () => {
         await testPage('/outside-of-render/client/async-module')
       })
+    })
+  })
+
+  describe('top-level await in segments', () => {
+    it('server', async () => {
+      await testPage('/top-level-await-in-segment/server')
+    })
+
+    it('client', async () => {
+      await testPage('/top-level-await-in-segment/client')
     })
   })
 })
