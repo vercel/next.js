@@ -7,6 +7,7 @@ describe('use-cache-cookies', () => {
     const { next, skipped } = nextTestSetup({
       files: path.join(__dirname, 'fixtures', 'dynamic-io'),
       skipDeployment: true, // TODO: Activate later.
+      buildOptions: ['--no-mangling'],
     })
 
     if (skipped) {
