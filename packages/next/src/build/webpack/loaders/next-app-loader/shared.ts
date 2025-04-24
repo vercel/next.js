@@ -21,6 +21,12 @@ export const FILE_TYPES = {
   ...HTTP_ACCESS_FALLBACKS,
 } as const
 
+export const LOADER_TREE_MODULE_KEYS = [
+  'page' as const,
+  'defaultPage' as const,
+  ...Object.values(FILE_TYPES),
+] satisfies (keyof AppDirModules)[]
+
 export type AppDirModules = {
   readonly [moduleKey in ValueOf<typeof FILE_TYPES>]?: ModuleTuple
 } & {

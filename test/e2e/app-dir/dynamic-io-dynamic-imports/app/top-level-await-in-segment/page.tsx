@@ -1,0 +1,9 @@
+import console from 'node:console'
+
+console.log('[page - /top-level-await-in-segment] sleeping...')
+await new Promise((resolve) => setTimeout(resolve, 500))
+console.log('[page - /top-level-await-in-segment] done sleeping')
+
+export default function Page() {
+  return 'hello'
+}

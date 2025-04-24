@@ -397,6 +397,9 @@ export class AppRouteRouteModule extends RouteModule<
               hmrRefreshHash: undefined,
             })
 
+          // Note that, unlike app-render, we don't need to flush out top-level async-ness before starting,
+          // because the route module has already been imported (as `userland`)
+
           let prospectiveResult
           try {
             prospectiveResult = this.workUnitAsyncStorage.run(
