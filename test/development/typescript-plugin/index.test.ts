@@ -1,22 +1,6 @@
 import tsNextPluginFactory from 'next'
 import ts from 'typescript'
-import {
-  createSystem,
-  createVirtualLanguageServiceHost,
-  createDefaultMapFromNodeModules,
-  createVirtualTypeScriptEnvironment,
-} from '@typescript/vfs'
-import { resolve } from 'path'
-
-// const configFile = ts.readConfigFile(
-//   resolve(__dirname, 'tsconfig.json'),
-//   ts.sys.readFile
-// )
-// const { options: compilerOptions } = ts.parseJsonConfigFileContent(
-//   configFile.config,
-//   ts.sys,
-//   __dirname
-// )
+import { resolve } from 'node:path'
 
 const rootDir = resolve(__dirname, '..', '..', '..')
 const { name } = require(resolve(rootDir, 'package.json'))
@@ -29,51 +13,23 @@ if (name !== 'nextjs-project') {
 const compilerOptions = ts.getDefaultCompilerOptions()
 
 const files = ts.sys.readDirectory(resolve(__dirname, 'app'))
-const tsLibDirectory = resolve(rootDir, 'node_modules/typescript/lib')
-const fsMap = createDefaultMapFromNodeModules(
-  compilerOptions,
-  ts,
-  tsLibDirectory
-)
 
-files.forEach((filePath) => {
-  const contents = ts.sys.readFile(filePath)
-  if (contents) {
-    fsMap.set(filePath, contents)
-  }
-})
-
-const system = createSystem(fsMap)
-
-const env = createVirtualTypeScriptEnvironment(
-  system,
-  files,
-  ts,
-  compilerOptions
-)
-const { languageServiceHost } = createVirtualLanguageServiceHost(
-  ts.sys,
-  files,
-  compilerOptions,
-  ts
-)
-
-// const compilerHost = ts.createCompilerHost(compilerOptions)
-// const languageServiceHost: ts.LanguageServiceHost = {
-//   ...compilerHost,
-//   getCompilationSettings: () => compilerOptions,
-//   getScriptFileNames: () => files,
-//   getScriptSnapshot: (fileName) => {
-//     const contents = ts.sys.readFile(fileName)
-//     if (contents && typeof contents === 'string') {
-//       return ts.ScriptSnapshot.fromString(contents)
-//     }
-//     return
-//   },
-//   getScriptVersion: () => '0',
-//   writeFile: ts.sys.writeFile,
-// }
-// const languageService = ts.createLanguageService(languageServiceHost)
+const compilerHost = ts.createCompilerHost(compilerOptions)
+const languageServiceHost: ts.LanguageServiceHost = {
+  ...compilerHost,
+  getCompilationSettings: () => compilerOptions,
+  getScriptFileNames: () => files,
+  getScriptSnapshot: (fileName) => {
+    const contents = ts.sys.readFile(fileName)
+    if (contents && typeof contents === 'string') {
+      return ts.ScriptSnapshot.fromString(contents)
+    }
+    return
+  },
+  getScriptVersion: () => '0',
+  writeFile: ts.sys.writeFile,
+}
+const languageService = ts.createLanguageService(languageServiceHost)
 const plugin: ts.server.PluginModule = (
   tsNextPluginFactory as unknown as ts.server.PluginModuleFactory
 )({ typescript: ts })
@@ -91,7 +47,7 @@ const pluginCreateInfo: ts.server.PluginCreateInfo = {
     },
     getCurrentDirectory: () => __dirname,
   } as unknown as ts.server.Project,
-  languageService: env.languageService,
+  languageService,
   languageServiceHost,
   serverHost: null,
   config: {},
