@@ -446,7 +446,7 @@ export class ClientReferenceManifestPlugin {
             }
           }
 
-          const edgeModuleInfo = pluginState.ssrModules[rscNamedModuleId]
+          const edgeModuleInfo = pluginState.edgeRscModules[rscNamedModuleId]
 
           if (edgeModuleInfo) {
             edgeRscIdMapping[modId] = edgeRscIdMapping[modId] || {}
