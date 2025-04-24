@@ -519,7 +519,6 @@ describe('app dir - css', () => {
               ])
             } else {
               expect(matches).toEqual([
-                '/_next/static/css/app/"])</script><script>self.__next_f.push([1,"not-found.css',
                 '/_next/static/css/app/css/css-duplicate-2/layout.css',
                 '/_next/static/css/app/css/css-duplicate-2/layout.css',
                 '/_next/static/css/app/css/css-duplicate-2/layout.css',
@@ -529,7 +528,7 @@ describe('app dir - css', () => {
                 '/_next/static/css/app/layout.css',
                 '/_next/static/css/app/layout.css',
                 '/_next/static/css/app/layout.css',
-                // '/_next/static/css/app/not-found.css',
+                '/_next/static/css/app/not-found.css',
               ])
             }
           }
