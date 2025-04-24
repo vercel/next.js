@@ -525,24 +525,19 @@ async fn pull_operation<T: EvaluateContext>(
     let output = loop {
         match operation.recv().await? {
             EvalJavaScriptIncomingMessage::Error(error) => {
-                let guard = duration_span!("error");
                 evaluate_context.emit_error(error, pool).await?;
                 // Do not reuse the process in case of error
                 operation.disallow_reuse();
                 // Issue emitted, we want to break but don't want to return an error
-                drop(guard);
                 break ControlFlow::Break(Ok(None));
             }
             EvalJavaScriptIncomingMessage::End { data } => break ControlFlow::Break(Ok(data)),
             EvalJavaScriptIncomingMessage::Info { data } => {
-                let guard = duration_span!("info message");
                 evaluate_context
                     .info(state, serde_json::from_value(data)?, pool)
                     .await?;
-                drop(guard);
             }
             EvalJavaScriptIncomingMessage::Request { id, data } => {
-                let guard = duration_span!("request");
                 match evaluate_context
                     .request(state, serde_json::from_value(data)?, pool)
                     .await
@@ -566,7 +561,6 @@ async fn pull_operation<T: EvaluateContext>(
                             .await?;
                     }
                 }
-                drop(guard);
             }
         }
     };

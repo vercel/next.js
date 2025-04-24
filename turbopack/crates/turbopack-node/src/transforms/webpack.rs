@@ -360,7 +360,7 @@ pub enum InfoMessage {
         #[serde(default)]
         directories: Vec<(RcStr, RcStr)>,
         #[serde(default)]
-        build: Vec<RcStr>,
+        build_file_paths: Vec<RcStr>,
     },
     EmittedError {
         severity: IssueSeverity,
@@ -477,7 +477,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 env_variables,
                 file_paths,
                 directories,
-                build,
+                build_file_paths,
             } => {
                 // Track dependencies of the loader task
                 // TODO:Because these are reporter _after_ the loader actually read the dependency
@@ -508,7 +508,7 @@ impl EvaluateContext for WebpackLoaderContext {
                         )
                     })
                     .try_join();
-                let build_paths = build
+                let build_paths = build_file_paths
                     .iter()
                     .map(|path| self.cwd.join(path.clone()).to_resolved())
                     .try_join();

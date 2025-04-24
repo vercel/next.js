@@ -23,7 +23,7 @@ export type IpcInfoMessage =
       envVariables?: string[]
       directories?: Array<[string, string]>
       filePaths?: string[],
-      build?: string[],
+      buildFilePaths?: string[],
     }
   | {
     type: "emittedError";

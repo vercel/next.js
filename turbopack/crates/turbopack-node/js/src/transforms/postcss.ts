@@ -88,7 +88,7 @@ export default async function transform(
 
   const assets = [];
   const filePaths: string[] =[];
-  const build: string[] = [];
+  const buildFilePaths: string[] = [];
   const directories: Array<[string, string]> = [];
 
   for (const msg of messages) {
@@ -111,7 +111,7 @@ export default async function transform(
         filePaths.push(toPath(msg.file));
         break;
       case "build-dependency":
-        build.push(toPath(msg.file));
+        buildFilePaths.push(toPath(msg.file));
         break;
       case "dir-dependency":
         directories.push([toPath(msg.dir), msg.glob]);
@@ -128,7 +128,7 @@ export default async function transform(
     type: "dependencies",
     filePaths,
     directories,
-    build,
+    buildFilePaths,
   });
   return {
     css,
