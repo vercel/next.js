@@ -1,4 +1,4 @@
-import type { AppDirModules } from '../../build/webpack/loaders/next-app-loader'
+import type { AppDirModules } from '../../build/webpack/loaders/next-app-loader/shared'
 import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 
 /**

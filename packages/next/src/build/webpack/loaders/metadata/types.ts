@@ -1,7 +1,5 @@
 // TODO-APP: check if this can be narrowed.
-export type ModuleGetter = () => any
-
-export type ModuleTuple = [getModule: ModuleGetter, filePath: string]
+type ModuleGetter = () => any
 
 // Contain the collecting image module paths
 export type CollectingMetadata = {

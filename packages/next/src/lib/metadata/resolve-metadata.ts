@@ -10,7 +10,7 @@ import type { MetadataImageModule } from '../../build/webpack/loaders/metadata/t
 import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
 import type { Twitter } from './types/twitter-types'
 import type { OpenGraph } from './types/opengraph-types'
-import type { AppDirModules } from '../../build/webpack/loaders/next-app-loader'
+import type { AppDirModules } from '../../build/webpack/loaders/next-app-loader/shared'
 import type { MetadataContext } from './types/resolvers'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type {
