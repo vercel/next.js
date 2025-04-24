@@ -1,5 +1,6 @@
 ---
-title: OpenTelemetry
+title: How to set up instrumentation with OpenTelemetry
+nav_title: OpenTelemetry
 description: Learn how to instrument your Next.js app with OpenTelemetry.
 ---
 
@@ -16,7 +17,11 @@ Read [Official OpenTelemetry docs](https://opentelemetry.io/docs/) for more info
 This documentation uses terms like _Span_, _Trace_ or _Exporter_ throughout this doc, all of which can be found in [the OpenTelemetry Observability Primer](https://opentelemetry.io/docs/concepts/observability-primer/).
 
 Next.js supports OpenTelemetry instrumentation out of the box, which means that we already instrumented Next.js itself.
-When you enable OpenTelemetry we will automatically wrap all your code like `getStaticProps` in _spans_ with helpful attributes.
+
+<PagesOnly>
+  When you enable OpenTelemetry we will automatically wrap all your code like
+  `getStaticProps` in _spans_ with helpful attributes.
+</PagesOnly>
 
 ## Getting Started
 
