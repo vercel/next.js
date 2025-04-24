@@ -16,10 +16,10 @@ describe('getDynamicHTMLPostponedState', () => {
     const fallbackRouteParams = new Map([['slug', key]])
     const prerenderResumeDataCache = createPrerenderResumeDataCache()
 
-    prerenderResumeDataCache.cache.set(
-      '1',
+    await prerenderResumeDataCache.cache.set(
+      'original-key',
       Promise.resolve({
-        key: '1',
+        key: 'final-key',
         value: streamFromString('hello'),
         tags: [],
         stale: 0,
@@ -36,32 +36,20 @@ describe('getDynamicHTMLPostponedState', () => {
     )
 
     const parsed = parsePostponedState(state, { slug: '123' })
-    expect(parsed).toMatchInlineSnapshot(`
+    if (parsed.type !== DynamicState.HTML) {
+      throw new Error('Expected HTML state')
+    }
+
+    expect(parsed.data).toMatchInlineSnapshot(`
      {
-       "data": {
+       "123": "123",
+       "nested": {
          "123": "123",
-         "nested": {
-           "123": "123",
-         },
        },
-       "renderResumeDataCache": {
-         "cache": UseCacheCacheStore {
-           "cacheEntries": Map {
-             "1" => Promise {},
-           },
-           "pendingSets": Set {
-             Promise {},
-           },
-         },
-         "decryptedBoundArgs": Map {},
-         "encryptedBoundArgs": Map {},
-         "fetch": Map {},
-       },
-       "type": 2,
      }
     `)
 
-    const value = await parsed.renderResumeDataCache.cache.get('1')
+    const value = await parsed.renderResumeDataCache.cache.get('final-key')
 
     expect(value).toBeDefined()
 
