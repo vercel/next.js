@@ -341,16 +341,15 @@ export class ClientReferenceManifestPlugin {
         // Note that this isn't that reliable as webpack is still possible to assign
         // additional queries to make sure there's no conflict even using the `named`
         // module ID strategy.
-        let ssrNamedModuleId = relative(
-          context,
-          mod.resourceResolveData?.path || resource
-        )
-
         const rscNamedModuleId = relative(
           context,
-          mod.resourceResolveData?.path || resource
+          mod.resourceResolveData
+            ? (mod.resourceResolveData.path || '') +
+                (mod.resourceResolveData.query || '')
+            : resource
         )
 
+        let ssrNamedModuleId = rscNamedModuleId
         if (!ssrNamedModuleId.startsWith('.'))
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 

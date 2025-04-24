@@ -85,7 +85,7 @@ export default function transformSource(
   //
   // Because of that, we must add another query param to the resource key to
   // differentiate them.
-  let resourceKey: string = this.resourcePath
+  let resourceKey: string = this.resourcePath + this.resourceQuery
   if (module.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
     resourceKey = formatBarrelOptimizedResource(
       resourceKey,
