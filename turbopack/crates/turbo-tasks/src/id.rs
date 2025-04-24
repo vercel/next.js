@@ -125,6 +125,13 @@ define_id!(
     serde(transparent),
     doc = "Represents the nth `local` function call inside a task.",
 );
+define_id!(
+    ExecutionId: u16,
+    derive(Debug, Serialize, Deserialize),
+    serde(transparent),
+    doc = "An identifier for a specific task execution. Used to assert that local `Vc`s don't \
+        leak. This value may overflow and re-use old values.",
+);
 
 impl Debug for TaskId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
