@@ -444,7 +444,7 @@ Alternatively, you can reference the public URL for the image asset based on the
 
 ### Step 9: Migrate Environment Variables
 
-Next.js supports [environment variables](/docs/app/building-your-application/configuring/environment-variables) similarly to CRA but **requires** a `NEXT_PUBLIC_` prefix for any variable you want to expose in the browser.
+Next.js supports [environment variables](/docs/app/guides/environment-variables) similarly to CRA but **requires** a `NEXT_PUBLIC_` prefix for any variable you want to expose in the browser.
 
 The main difference is the prefix used to expose environment variables on the client-side. Change all environment variables with the `REACT_APP_` prefix to `NEXT_PUBLIC_`.
 
@@ -505,7 +505,7 @@ export default nextConfig
 
 ### Handling a Custom `Service Worker`
 
-If you used CRA’s service worker (e.g., `serviceWorker.js` from `create-react-app`), you can learn how to create [Progressive Web Applications (PWAs)](/docs/app/building-your-application/configuring/progressive-web-apps) with Next.js.
+If you used CRA’s service worker (e.g., `serviceWorker.js` from `create-react-app`), you can learn how to create [Progressive Web Applications (PWAs)](/docs/app/guides/progressive-web-apps) with Next.js.
 
 ### Proxying API Requests
 
