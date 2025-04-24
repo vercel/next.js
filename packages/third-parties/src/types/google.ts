@@ -53,4 +53,5 @@ export type YouTubeEmbed = {
   playlabel?: string
   params?: string
   style?: string
+  title?: string
 }
