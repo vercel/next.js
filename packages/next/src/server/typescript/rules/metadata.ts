@@ -206,7 +206,11 @@ const metadata = {
               }
             }
 
-            if (!hasCorrectType(declaration as tsModule.FunctionDeclaration)) {
+            if (
+              declaration &&
+              ts.isFunctionDeclaration(declaration) &&
+              !hasCorrectType(declaration)
+            ) {
               diagnostics.push({
                 file: source,
                 category: ts.DiagnosticCategory.Warning,
@@ -219,7 +223,11 @@ const metadata = {
           } else {
             // must be 'metadata' at this point
             const declaration = symbol.declarations?.[0]
-            if (!hasCorrectType(declaration as tsModule.VariableDeclaration)) {
+            if (
+              declaration &&
+              ts.isVariableDeclaration(declaration) &&
+              !hasCorrectType(declaration)
+            ) {
               diagnostics.push({
                 file: source,
                 category: ts.DiagnosticCategory.Warning,

@@ -1544,6 +1544,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/css-modules-data-urls/css-modules-data-urls.test.ts": {
+    "passed": [
+      "css-modules-data-urls should apply client class name from data url correctly",
+      "css-modules-data-urls should apply client styles from data url correctly",
+      "css-modules-data-urls should apply rsc class name from data url correctly",
+      "css-modules-data-urls should apply rsc styles from data url correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/css-modules-pure-no-check/css-modules-pure-no-check.test.ts": {
     "passed": [
       "css-modules-pure-no-check should apply styles correctly",
@@ -5246,7 +5258,10 @@
       "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR disabled, and has a loading boundary",
       "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR enabled",
       "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR enabled, and has a dynamic param",
+      "segment cache (incremental opt in) prefetches a dynamic route when PPR is disabled if it has a loading.tsx boundary",
       "segment cache (incremental opt in) prefetches a shared layout on a PPR-enabled route that was previously omitted from a non-PPR-enabled route",
+      "segment cache (incremental opt in) skips prefetching a dynamic route when PPR is disabled if everything up to its loading.tsx boundary is already cached",
+      "segment cache (incremental opt in) skips prefetching a dynamic route when PPR is disabled if it has no loading.tsx boundary",
       "segment cache (incremental opt in) when a link is prefetched with <Link prefetch=true>, no dynamic request is made on navigation",
       "segment cache (incremental opt in) when prefetching with prefetch=true, refetches cache entries that only contain partial data",
       "segment cache (incremental opt in) when prefetching with prefetch=true, refetches partial cache entries even if there's already a pending PPR request"
@@ -6090,6 +6105,17 @@
     "passed": [
       "next.config.js schema validating - defaultConfig should validate against defaultConfig",
       "next.config.js schema validating - invalid config should warn the invalid next config"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/config-turbopack/index.test.ts": {
+    "passed": [
+      "config-turbopack when webpack is configured and config.experimental.turbo is set does not warn",
+      "config-turbopack when webpack is configured and config.turbopack is set does not warn",
+      "config-turbopack when webpack is configured but Turbopack is not warns"
     ],
     "failed": [],
     "pending": [],
@@ -8049,7 +8075,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/socket-io/index.test.js": {
+  "test/e2e/socket-io/index.test.ts": {
     "passed": [
       "socket-io should support socket.io without falling back to polling"
     ],
@@ -18737,14 +18763,14 @@
   "test/production/graceful-shutdown/index.test.ts": {
     "passed": [
       "Graceful Shutdown development (next dev) should shut down child immediately",
-      "Graceful Shutdown production (next start) should not accept new requests during shutdown cleanup when there is no activity",
-      "Graceful Shutdown production (standalone mode) should not accept new requests during shutdown cleanup when there is no activity"
+      "Graceful Shutdown production (next start) should not accept new requests during shutdown cleanup should finish pending requests but refuse new ones",
+      "Graceful Shutdown production (next start) should not accept new requests during shutdown cleanup should stop accepting new requests when shutting down",
+      "Graceful Shutdown production (standalone mode) should not accept new requests during shutdown cleanup should finish pending requests but refuse new ones",
+      "Graceful Shutdown production (standalone mode) should not accept new requests during shutdown cleanup should stop accepting new requests when shutting down"
     ],
     "failed": [],
     "pending": [
-      "Graceful Shutdown production (next start) should not accept new requests during shutdown cleanup when request is made before shutdown",
       "Graceful Shutdown production (next start) should wait for requests to complete before exiting",
-      "Graceful Shutdown production (standalone mode) should not accept new requests during shutdown cleanup when request is made before shutdown",
       "Graceful Shutdown production (standalone mode) should wait for requests to complete before exiting"
     ],
     "flakey": [],

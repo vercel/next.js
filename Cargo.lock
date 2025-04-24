@@ -4085,9 +4085,9 @@ checksum = "0ca88d725a0a943b096803bd34e73a4437208b6077654cc4ecb2947a5f91618d"
 
 [[package]]
 name = "markdown"
-version = "1.0.0-alpha.22"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "790c11786cb51d02938e3eb38276575e1658b1dd8555875f5788a40670a33934"
+checksum = "a5cab8f2cadc416a82d2e783a1946388b31654d391d1c7d92cc1f03e295b1deb"
 dependencies = [
  "unicode-id",
 ]
@@ -4124,8 +4124,9 @@ dependencies = [
 
 [[package]]
 name = "mdxjs"
-version = "0.3.4"
-source = "git+https://github.com/kdy1/mdxjs-rs?branch=swc-core-22#a1f16cee2f3350c68a7bebbf74b88e0bac02c9fa"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3218c5892cb3a71ed40c85632d9e05b3a39ce3f9891177d2812ffe75b16f0fef"
 dependencies = [
  "markdown",
  "rustc-hash 2.1.0",
@@ -8593,6 +8594,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
+name = "target-triple"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ac9aa371f599d22256307c24a9d748c041e548cbf599f35d890f9d365361790"
+
+[[package]]
 name = "tempfile"
 version = "3.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9166,14 +9173,15 @@ checksum = "3528ecfd12c466c6f163363caf2d02a71161dd5e1cc6ae7b34207ea2d42d81ed"
 
 [[package]]
 name = "trybuild"
-version = "1.0.99"
+version = "1.0.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "207aa50d36c4be8d8c6ea829478be44a372c6a77669937bb39c698e52f1491e8"
+checksum = "6ae08be68c056db96f0e6c6dd820727cca756ced9e1f4cc7fdd20e2a55e23898"
 dependencies = [
  "glob",
  "serde",
  "serde_derive",
  "serde_json",
+ "target-triple",
  "termcolor",
  "toml 0.8.19",
 ]
@@ -9385,7 +9393,7 @@ dependencies = [
  "glob",
  "quote",
  "rustc-hash 2.1.0",
- "syn 1.0.109",
+ "syn 2.0.100",
  "turbo-tasks-macros-shared",
 ]
 
@@ -9512,7 +9520,7 @@ dependencies = [
  "quote",
  "regex",
  "rustc-hash 2.1.0",
- "syn 1.0.109",
+ "syn 2.0.100",
  "turbo-tasks-macros-shared",
 ]
 
@@ -9522,7 +9530,7 @@ version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 1.0.109",
+ "syn 2.0.100",
 ]
 
 [[package]]
