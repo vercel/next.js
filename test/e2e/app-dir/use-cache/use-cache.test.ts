@@ -891,7 +891,7 @@ describe('use-cache', () => {
         JSON.parse(await next.readFile('.next/server/app/rdc.meta')).postponed
       )
 
-      const cacheKeys = Array.from(resumeDataCache.cache.keys())
+      const cacheKeys = Array.from(await resumeDataCache.cache.keys())
 
       // There should be no cache entry for the "middle" cache function, because
       // it's only used inside another cache scope ("outer"). Whereas "inner" is

@@ -76,6 +76,12 @@ export class UseCacheCacheStore {
     return this.cacheEntries.get(key)
   }
 
+  async keys(): Promise<MapIterator<string>> {
+    await Promise.all([...this.pendingSets])
+
+    return this.cacheEntries.keys()
+  }
+
   async entries(): Promise<MapIterator<[string, Promise<CacheEntry>]>> {
     await Promise.all([...this.pendingSets])
 
