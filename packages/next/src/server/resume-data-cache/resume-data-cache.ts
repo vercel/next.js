@@ -107,7 +107,10 @@ export async function stringifyResumeDataCache(
       '`stringifyResumeDataCache` should not be called in edge runtime.'
     )
   } else {
-    if (resumeDataCache.fetch.size === 0 && resumeDataCache.cache.size === 0) {
+    if (
+      resumeDataCache.fetch.size === 0 &&
+      (await resumeDataCache.cache.getSize()) === 0
+    ) {
       return 'null'
     }
 
