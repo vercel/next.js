@@ -1,3 +1,3 @@
 export default function Page() {
-  return <h1>I'm still a valid page</h1>
+  return <h1>I am still a valid page</h1>
 }
