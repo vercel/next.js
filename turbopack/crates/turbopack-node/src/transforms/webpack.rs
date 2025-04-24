@@ -349,7 +349,7 @@ pub struct LogInfo {
 #[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum InfoMessage {
-    // Sent to inform turbopack about the dependencies of the task.
+    // Sent to inform Turbopack about the dependencies of the task.
     // All fields are `default` since it is ok for the client to
     // simply omit instead of sending empty arrays.
     Dependencies {
@@ -480,7 +480,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 build_file_paths,
             } => {
                 // Track dependencies of the loader task
-                // TODO:Because these are reporter _after_ the loader actually read the dependency
+                // TODO: Because these are reported _after_ the loader actually read the dependency
                 // there is a race condition where we may miss updates that race
                 // with the loader execution.
 
