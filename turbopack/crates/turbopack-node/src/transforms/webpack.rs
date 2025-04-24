@@ -348,10 +348,17 @@ pub struct LogInfo {
 #[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum InfoMessage {
+    // Sent to inform turbopack about the dependencies of the task.
+    // All fields are `default` since it is ok for the client to
+    // simply omit instead of sending empty arrays.
     Dependencies {
+        #[serde(default)]
         env_variables: Vec<RcStr>,
+        #[serde(default)]
         file_paths: Vec<RcStr>,
+        #[serde(default)]
         directories: Vec<(RcStr, RcStr)>,
+        #[serde(default)]
         build: Vec<RcStr>,
     },
     EmittedError {
