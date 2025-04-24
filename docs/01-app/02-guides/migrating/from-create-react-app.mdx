@@ -43,7 +43,7 @@ Depending on your needs, Next.js allows you to choose your data fetching strateg
 
 ### Built-in Optimizations
 
-[Images](/docs/app/building-your-application/optimizing/images), [fonts](/docs/app/building-your-application/optimizing/fonts), and [third-party scripts](/docs/app/building-your-application/optimizing/scripts) often have a large impact on an application’s performance. Next.js includes specialized components and APIs that automatically optimize them for you.
+[Images](/docs/app/building-your-application/optimizing/images), [fonts](/docs/app/building-your-application/optimizing/fonts), and [third-party scripts](/docs/app/guides/optimizing/scripts) often have a large impact on an application’s performance. Next.js includes specialized components and APIs that automatically optimize them for you.
 
 ## Migration Steps
 
@@ -575,7 +575,7 @@ If everything worked, you now have a functioning Next.js application running as 
   - [React Server Components](/docs/app/building-your-application/rendering/server-components)
 - **Optimize images** with the [`<Image>` component](/docs/app/building-your-application/optimizing/images)
 - **Optimize fonts** with [`next/font`](/docs/app/building-your-application/optimizing/fonts)
-- **Optimize third-party scripts** with the [`<Script>` component](/docs/app/building-your-application/optimizing/scripts)
+- **Optimize third-party scripts** with the [`<Script>` component](/docs/app/guides/optimizing/scripts)
 - **Enable ESLint** with Next.js recommended rules by running `npx next lint` and configuring it to match your project’s needs
 
 > **Note**: Using a static export (`output: 'export'`) [does not currently support](https://github.com/vercel/next.js/issues/54393) the `useParams` hook or other server features. To use all Next.js features, remove `output: 'export'` from your `next.config.ts`.
