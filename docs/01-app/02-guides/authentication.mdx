@@ -531,7 +531,7 @@ There are two types of sessions:
 
 To create and manage stateless sessions, there are a few steps you need to follow:
 
-1. Generate a secret key, which will be used to sign your session, and store it as an [environment variable](/docs/app/building-your-application/configuring/environment-variables).
+1. Generate a secret key, which will be used to sign your session, and store it as an [environment variable](/docs/app/guides/environment-variables).
 2. Write logic to encrypt/decrypt session data using a session management library.
 3. Manage cookies using the Next.js [`cookies`](/docs/app/api-reference/functions/cookies) API.
 
@@ -547,7 +547,7 @@ There are a few ways you can generate secret key to sign your session. For examp
 openssl rand -base64 32
 ```
 
-This command generates a 32-character random string that you can use as your secret key and store in your [environment variables file](/docs/app/building-your-application/configuring/environment-variables):
+This command generates a 32-character random string that you can use as your secret key and store in your [environment variables file](/docs/app/guides/environment-variables):
 
 ```bash filename=".env"
 SESSION_SECRET=your_secret_key

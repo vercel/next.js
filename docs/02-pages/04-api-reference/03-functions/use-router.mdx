@@ -276,7 +276,7 @@ export default function Login() {
 
 ### router.beforePopState
 
-In some cases (for example, if using a [Custom Server](/docs/pages/building-your-application/configuring/custom-server)), you may wish to listen to [popstate](https://developer.mozilla.org/docs/Web/API/Window/popstate_event) and do something before the router acts on it.
+In some cases (for example, if using a [Custom Server](/docs/pages/guides/custom-server)), you may wish to listen to [popstate](https://developer.mozilla.org/docs/Web/API/Window/popstate_event) and do something before the router acts on it.
 
 ```js
 router.beforePopState(cb)
@@ -287,7 +287,7 @@ router.beforePopState(cb)
   - `as`: `String` - the url that will be shown in the browser
   - `options`: `Object` - Additional options sent by [router.push](#routerpush)
 
-If `cb` returns `false`, the Next.js router will not handle `popstate`, and you'll be responsible for handling it in that case. See [Disabling file-system routing](/docs/pages/building-your-application/configuring/custom-server#disabling-file-system-routing).
+If `cb` returns `false`, the Next.js router will not handle `popstate`, and you'll be responsible for handling it in that case. See [Disabling file-system routing](/docs/pages/guides/custom-server#disabling-file-system-routing).
 
 You could use `beforePopState` to manipulate the request, or force a SSR refresh, as in the following example:
 
