@@ -12,7 +12,7 @@ use crate::{
     manager::{read_local_output, read_task_cell, read_task_output, with_turbo_tasks},
     registry::{self, get_value_type},
     turbo_tasks, CollectiblesSource, ReadCellOptions, ReadConsistency, ResolvedVc, TaskId,
-    TraitTypeId, ValueType, ValueTypeId, VcValueTrait,
+    TaskPersistence, TraitTypeId, ValueType, ValueTypeId, VcValueTrait,
 };
 
 #[derive(Error, Debug)]
@@ -57,31 +57,34 @@ impl Display for CellId {
 pub enum RawVc {
     TaskOutput(TaskId),
     TaskCell(TaskId, CellId),
-    LocalOutput(TaskId, LocalTaskId),
+    LocalOutput(TaskId, TaskPersistence, LocalTaskId),
 }
 
 impl RawVc {
     pub fn is_resolved(&self) -> bool {
         match self {
-            RawVc::TaskOutput(_) => false,
-            RawVc::TaskCell(_, _) => true,
-            RawVc::LocalOutput(_, _) => false,
+            RawVc::TaskOutput(..) => false,
+            RawVc::TaskCell(..) => true,
+            RawVc::LocalOutput(..) => false,
         }
     }
 
     pub fn is_local(&self) -> bool {
         match self {
-            RawVc::TaskOutput(_) => false,
-            RawVc::TaskCell(_, _) => false,
-            RawVc::LocalOutput(_, _) => true,
+            RawVc::TaskOutput(..) => false,
+            RawVc::TaskCell(..) => false,
+            RawVc::LocalOutput(..) => true,
         }
     }
 
+    /// Returns `true` if the task this `RawVc` reads from cannot be serialized and will not be
+    /// stored in the persistent cache.
+    ///
+    /// See [`TaskPersistence`] for more details.
     pub fn is_transient(&self) -> bool {
         match self {
-            RawVc::TaskOutput(task) | RawVc::TaskCell(task, _) | RawVc::LocalOutput(task, _) => {
-                task.is_transient()
-            }
+            RawVc::TaskOutput(task) | RawVc::TaskCell(task, ..) => task.is_transient(),
+            RawVc::LocalOutput(_, persistence, ..) => *persistence == TaskPersistence::Transient,
         }
     }
 
@@ -145,7 +148,7 @@ impl RawVc {
                         return Err(ResolveTypeError::NoContent);
                     }
                 }
-                RawVc::LocalOutput(task_id, local_task_id) => {
+                RawVc::LocalOutput(task_id, _persistence, local_task_id) => {
                     current = read_local_output(&*tt, task_id, local_task_id)
                         .await
                         .map_err(|source| ResolveTypeError::TaskError { source })?;
@@ -182,7 +185,7 @@ impl RawVc {
                     consistency = ReadConsistency::Eventual;
                 }
                 RawVc::TaskCell(_, _) => return Ok(current),
-                RawVc::LocalOutput(task_id, local_task_id) => {
+                RawVc::LocalOutput(task_id, _persistence, local_task_id) => {
                     debug_assert_eq!(consistency, ReadConsistency::Eventual);
                     current = read_local_output(&*tt, task_id, local_task_id).await?;
                 }
@@ -197,7 +200,7 @@ impl RawVc {
         let mut current = self;
         loop {
             match current {
-                RawVc::LocalOutput(task_id, local_task_id) => {
+                RawVc::LocalOutput(task_id, _persistence, local_task_id) => {
                     current = read_local_output(&*tt, task_id, local_task_id).await?;
                 }
                 non_local => return Ok(non_local),
@@ -212,14 +215,14 @@ impl RawVc {
 
     pub fn get_task_id(&self) -> TaskId {
         match self {
-            RawVc::TaskOutput(t) | RawVc::TaskCell(t, _) | RawVc::LocalOutput(t, _) => *t,
+            RawVc::TaskOutput(t) | RawVc::TaskCell(t, _) | RawVc::LocalOutput(t, ..) => *t,
         }
     }
 
     pub fn try_get_type_id(&self) -> Option<ValueTypeId> {
         match self {
             RawVc::TaskCell(_, CellId { type_id, .. }) => Some(*type_id),
-            RawVc::TaskOutput(_) | RawVc::LocalOutput(_, _) => None,
+            RawVc::TaskOutput(_) | RawVc::LocalOutput(..) => None,
         }
     }
 
@@ -357,7 +360,7 @@ impl Future for ReadRawVcFuture {
                             Err(err) => return Poll::Ready(Err(err)),
                         }
                     }
-                    RawVc::LocalOutput(task_id, local_output_id) => {
+                    RawVc::LocalOutput(task_id, _persistence, local_output_id) => {
                         debug_assert_eq!(this.consistency, ReadConsistency::Eventual);
                         let read_result = tt.try_read_local_output(task_id, local_output_id);
                         match read_result {
