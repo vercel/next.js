@@ -348,18 +348,11 @@ pub struct LogInfo {
 #[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum InfoMessage {
-    FileDependency {
-        path: RcStr,
-    },
-    BuildDependency {
-        path: RcStr,
-    },
-    DirDependency {
-        path: RcStr,
-        glob: RcStr,
-    },
-    EnvDependency {
-        name: RcStr,
+    Dependencies {
+        env_variables: Vec<RcStr>,
+        file_paths: Vec<RcStr>,
+        directories: Vec<(RcStr, RcStr)>,
+        build: Vec<RcStr>,
     },
     EmittedError {
         severity: IssueSeverity,
@@ -472,29 +465,38 @@ impl EvaluateContext for WebpackLoaderContext {
         pool: &NodeJsPool,
     ) -> Result<()> {
         match data {
-            InfoMessage::FileDependency { path } => {
-                // TODO We might miss some changes that happened during execution
-                // Read dependencies to make them a dependencies of this task. This task will
-                // execute again when they change.
-                self.cwd.join(path).read().await?;
-            }
-            InfoMessage::BuildDependency { path } => {
-                // TODO We might miss some changes that happened during execution
-                BuildDependencyIssue {
-                    context_ident: self.context_ident_for_issue,
-                    path: self.cwd.join(path).to_resolved().await?,
+            InfoMessage::Dependencies {
+                env_variables,
+                file_paths,
+                directories,
+                build,
+            } => {
+                // Track dependencies of the loader task
+                // TODO:Because these are reporter _after_ the loader actually read the dependency
+                // there is a race condition where we may miss updates that race
+                // with the loader execution.
+
+                for env in env_variables {
+                    self.env.read(env).await?;
                 }
-                .resolved_cell()
-                .emit();
-            }
-            InfoMessage::DirDependency { path, glob } => {
-                // TODO We might miss some changes that happened during execution
-                // Read dependencies to make them a dependencies of this task. This task will
-                // execute again when they change.
-                dir_dependency(self.cwd.join(path).read_glob(Glob::new(glob), false)).await?;
-            }
-            InfoMessage::EnvDependency { name } => {
-                self.env.read(name).await?;
+                for file in file_paths {
+                    self.cwd.join(file).read().await?;
+                }
+                for (dir, glob) in directories {
+                    // TODO: there is some redundancy between `dir_dependency` and what `read_glob`
+                    // does Introduce a new read_glob option that will track all
+                    // files the way `dir_dependency` does but in a single
+                    // traversal.
+                    dir_dependency(self.cwd.join(dir).read_glob(Glob::new(glob), false)).await?;
+                }
+                for path in build {
+                    BuildDependencyIssue {
+                        context_ident: self.context_ident_for_issue,
+                        path: self.cwd.join(path).to_resolved().await?,
+                    }
+                    .resolved_cell()
+                    .emit()
+                }
             }
             InfoMessage::EmittedError { error, severity } => {
                 EvaluateEmittedErrorIssue {
