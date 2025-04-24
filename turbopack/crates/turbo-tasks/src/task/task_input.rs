@@ -139,7 +139,7 @@ where
     }
 
     fn is_transient(&self) -> bool {
-        self.node.get_task_id().is_transient()
+        self.node.is_transient()
     }
 
     async fn resolve_input(&self) -> Result<Self> {
