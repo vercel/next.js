@@ -42,7 +42,9 @@ export function loadManifest<T extends object>(
     return cached as T
   }
 
-  let manifest = JSON.parse(readFileSync(path, 'utf8'))
+  let manifest = JSON.parse(
+    readFileSync(/* turbopackIgnore: true */ path, 'utf8')
+  )
 
   // Freeze the manifest so it cannot be modified if we're caching it.
   if (shouldCache) {
@@ -80,7 +82,7 @@ export function evalManifest<T extends object>(
     return cached as T
   }
 
-  const content = readFileSync(path, 'utf8')
+  const content = readFileSync(/* turbopackIgnore: true */ path, 'utf8')
   if (content.length === 0) {
     throw new Error('Manifest file is empty')
   }
@@ -108,7 +110,7 @@ export function loadManifestFromRelativePath<T extends object>(
   cache?: Map<string, unknown>
 ): DeepReadonly<T> {
   return loadManifest<T>(
-    join(projectDir, distDir, manifest),
+    join(/* turbopackIgnore: true */ projectDir, distDir, manifest),
     shouldCache,
     cache
   )
