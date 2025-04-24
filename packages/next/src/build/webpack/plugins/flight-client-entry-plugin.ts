@@ -2,9 +2,8 @@ import type {
   CssImports,
   ClientComponentImports,
 } from '../loaders/next-flight-client-entry-loader'
-
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { parse, stringify } from 'querystring'
+import qs from 'querystring'
 import path from 'path'
 import { sources } from 'next/dist/compiled/webpack/webpack'
 import {
@@ -19,7 +18,6 @@ import {
 } from '../../../lib/constants'
 import {
   APP_CLIENT_INTERNALS,
-  BARREL_OPTIMIZATION_PREFIX,
   COMPILER_NAMES,
   DEFAULT_RUNTIME_WEBPACK,
   EDGE_RUNTIME_WEBPACK,
@@ -34,8 +32,9 @@ import {
 import {
   traverseModules,
   forEachEntryModule,
-  formatBarrelOptimizedResource,
   getModuleReferencesInOrder,
+  getModuleResourceKey,
+  getMetadataRouteResource,
 } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
@@ -47,7 +46,6 @@ import {
   DEFAULT_METADATA_ROUTE_EXTENSIONS,
   isMetadataRouteFile,
 } from '../../../lib/metadata/is-metadata-route'
-import type { MetadataRouteLoaderOptions } from '../loaders/next-metadata-route-loader'
 import type { FlightActionEntryLoaderActions } from '../loaders/next-flight-action-entry-loader'
 import getWebpackBundler from '../../../shared/lib/get-webpack-bundler'
 
@@ -193,65 +191,29 @@ export class FlightClientEntryPlugin {
     )
 
     compiler.hooks.afterCompile.tap(PLUGIN_NAME, (compilation) => {
-      const recordModule = (modId: string, mod: any) => {
-        // Match Resource is undefined unless an import is using the inline match resource syntax
-        // https://webpack.js.org/api/loaders/#inline-matchresource
-        const modPath = mod.matchResource || mod.resourceResolveData?.path
-        const modQuery = mod.resourceResolveData?.query || ''
-        // query is already part of mod.resource
-        // so it's only necessary to add it for matchResource or mod.resourceResolveData
-        const modResource = modPath
-          ? modPath.startsWith(BARREL_OPTIMIZATION_PREFIX)
-            ? formatBarrelOptimizedResource(mod.resource, modPath)
-            : modPath + modQuery
-          : mod.resource
-
-        if (typeof modId !== 'undefined' && modResource) {
-          if (mod.layer === WEBPACK_LAYERS.reactServerComponents) {
-            const key = path
-              .relative(compiler.context, modResource)
-              .replace(/\/next\/dist\/esm\//, '/next/dist/')
-
-            const moduleInfo: ModuleInfo = {
-              moduleId: modId,
-              async: compilation.moduleGraph.isAsync(mod),
-            }
-
-            if (this.isEdgeServer) {
-              pluginState.edgeRscModules[key] = moduleInfo
-            } else {
-              pluginState.rscModules[key] = moduleInfo
-            }
-          }
+      const recordModule = (modId: string, mod: webpack.NormalModule) => {
+        // Exclude empty resource modules e.g. the virtual module created by
+        // next-flight-client-entry-loader
+        if (typeof modId === 'undefined') return
+        const modKey = getModuleResourceKey(compiler.context, mod)
+        const moduleInfo: ModuleInfo = {
+          moduleId: modId,
+          async: compilation.moduleGraph.isAsync(mod),
         }
 
-        if (mod.layer !== WEBPACK_LAYERS.serverSideRendering) {
-          return
-        }
-
-        // Check mod resource to exclude the empty resource module like virtual module created by next-flight-client-entry-loader
-        if (typeof modId !== 'undefined' && modResource) {
-          // Note that this isn't that reliable as webpack is still possible to assign
-          // additional queries to make sure there's no conflict even using the `named`
-          // module ID strategy.
-          let ssrNamedModuleId = path.relative(compiler.context, modResource)
-
-          if (!ssrNamedModuleId.startsWith('.')) {
-            // TODO use getModuleId instead
-            ssrNamedModuleId = `./${normalizePathSep(ssrNamedModuleId)}`
-          }
-
-          const moduleInfo: ModuleInfo = {
-            moduleId: modId,
-            async: compilation.moduleGraph.isAsync(mod),
-          }
-
+        if (mod.layer === WEBPACK_LAYERS.reactServerComponents) {
           if (this.isEdgeServer) {
-            pluginState.edgeSsrModules[
-              ssrNamedModuleId.replace(/\/next\/dist\/esm\//, '/next/dist/')
-            ] = moduleInfo
+            pluginState.edgeRscModules[modKey] = moduleInfo
           } else {
-            pluginState.ssrModules[ssrNamedModuleId] = moduleInfo
+            pluginState.rscModules[modKey] = moduleInfo
+          }
+        }
+
+        if (mod.layer === WEBPACK_LAYERS.serverSideRendering) {
+          if (this.isEdgeServer) {
+            pluginState.edgeSsrModules[modKey] = moduleInfo
+          } else {
+            pluginState.ssrModules[modKey] = moduleInfo
           }
         }
       }
@@ -600,19 +562,14 @@ export class FlightClientEntryPlugin {
       resolvedModule: any
     }) => {
       const collectActionsInDep = (mod: webpack.NormalModule): void => {
-        if (!mod) return
-
-        const modResource = getModuleResource(mod)
-
-        if (!modResource) return
-
-        if (visitedModule.has(modResource)) return
-        visitedModule.add(modResource)
+        const modKey = getModuleResourceKey(compilation.compiler.context, mod)
+        if (visitedModule.has(modKey)) return
+        visitedModule.add(modKey)
 
         const actionIds = getModuleBuildInfo(mod).rsc?.actionIds
         if (actionIds) {
           collectedActions.set(
-            modResource,
+            modKey,
             Object.entries(actionIds).map(([id, exportedName]) => ({
               id,
               exportedName,
@@ -690,16 +647,12 @@ export class FlightClientEntryPlugin {
       mod: webpack.NormalModule,
       importedIdentifiers: string[]
     ): void => {
-      if (!mod) return
-
-      const modResource = getModuleResource(mod)
-
-      if (!modResource) return
-      if (visitedOfClientComponentsTraverse.has(modResource)) {
-        if (clientComponentImports[modResource]) {
+      const modKey = getModuleResourceKey(compilation.compiler.context, mod)
+      if (visitedOfClientComponentsTraverse.has(modKey)) {
+        if (clientComponentImports[modKey]) {
           addClientImport(
             mod,
-            modResource,
+            modKey,
             clientComponentImports,
             importedIdentifiers,
             false
@@ -707,12 +660,12 @@ export class FlightClientEntryPlugin {
         }
         return
       }
-      visitedOfClientComponentsTraverse.add(modResource)
+      visitedOfClientComponentsTraverse.add(modKey)
 
       const actionIds = getModuleBuildInfo(mod).rsc?.actionIds
       if (actionIds) {
         actionImports.push([
-          modResource,
+          modKey,
           Object.entries(actionIds).map(([id, exportedName]) => ({
             id,
             exportedName,
@@ -732,14 +685,14 @@ export class FlightClientEntryPlugin {
           if (unused) return
         }
 
-        CSSImports.add(modResource)
+        CSSImports.add(modKey)
       } else if (isClientComponentEntryModule(mod)) {
-        if (!clientComponentImports[modResource]) {
-          clientComponentImports[modResource] = new Set()
+        if (!clientComponentImports[modKey]) {
+          clientComponentImports[modKey] = new Set()
         }
         addClientImport(
           mod,
-          modResource,
+          modKey,
           clientComponentImports,
           importedIdentifiers,
           true
@@ -804,32 +757,16 @@ export class FlightClientEntryPlugin {
 
     const modules = Object.keys(clientImports)
       .sort((a, b) => (regexCSS.test(b) ? 1 : a.localeCompare(b)))
-      .map((clientImportPath) => ({
-        request: clientImportPath,
-        ids: [...clientImports[clientImportPath]],
-      }))
+      .map((request) => ({ request, ids: [...clientImports[request]] }))
 
-    // For the client entry, we always use the CJS build of Next.js. If the
-    // server is using the ESM build (when using the Edge runtime), we need to
-    // replace them.
-    const clientBrowserLoader = `next-flight-client-entry-loader?${stringify({
-      modules: (this.isEdgeServer
-        ? modules.map(({ request, ids }) => ({
-            request: request.replace(
-              /[\\/]next[\\/]dist[\\/]esm[\\/]/,
-              '/next/dist/'.replace(/\//g, path.sep)
-            ),
-            ids,
-          }))
-        : modules
-      ).map((x) => JSON.stringify(x)),
-      server: false,
-    })}!`
+    const createClientLoader = (server: boolean) =>
+      `next-flight-client-entry-loader?${qs.stringify({
+        modules: modules.map((x) => JSON.stringify(x)),
+        server,
+      })}!`
 
-    const clientServerLoader = `next-flight-client-entry-loader?${stringify({
-      modules: modules.map((x) => JSON.stringify(x)),
-      server: true,
-    })}!`
+    const clientBrowserLoader = createClientLoader(false)
+    const clientServerLoader = createClientLoader(true)
 
     // Add for the client compilation
     // Inject the entry to the client compiler.
@@ -925,7 +862,7 @@ export class FlightClientEntryPlugin {
       return Promise.resolve()
     }
 
-    const actionLoader = `next-flight-action-entry-loader?${stringify({
+    const actionLoader = `next-flight-action-entry-loader?${qs.stringify({
       actions: JSON.stringify(
         actionsArray satisfies FlightActionEntryLoaderActions
       ),
@@ -945,7 +882,7 @@ export class FlightClientEntryPlugin {
           }
         }
         currentCompilerServerActions[id].workers[bundlePath] = {
-          moduleId: '', // TODO: What's the meaning of this?
+          moduleId: '', // Unknown until processAssets compilation hook
           async: false,
         }
 
@@ -1157,39 +1094,4 @@ function addClientImport(
       }
     }
   }
-}
-
-function getModuleResource(mod: webpack.NormalModule): string {
-  const modPath: string = mod.resourceResolveData?.path || ''
-  const modQuery = mod.resourceResolveData?.query || ''
-  // We have to always use the resolved request here to make sure the
-  // server and client are using the same module path (required by RSC), as
-  // the server compiler and client compiler have different resolve configs.
-  let modResource: string = modPath + modQuery
-
-  // Context modules don't have a resource path, we use the identifier instead.
-  if (mod.constructor.name === 'ContextModule') {
-    modResource = mod.identifier()
-  }
-
-  // For the barrel optimization, we need to use the match resource instead
-  // because there will be 2 modules for the same file (same resource path)
-  // but they're different modules and can't be deduped via `visitedModule`.
-  // The first module is a virtual re-export module created by the loader.
-  if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
-    modResource = mod.matchResource + ':' + modResource
-  }
-
-  if (mod.resource === `?${WEBPACK_RESOURCE_QUERIES.metadataRoute}`) {
-    return getMetadataRouteResource(mod.rawRequest).filePath
-  }
-
-  return modResource
-}
-
-function getMetadataRouteResource(request: string): MetadataRouteLoaderOptions {
-  // e.g. next-metadata-route-loader?filePath=<some-url-encoded-path>&isDynamicRouteExtension=1!?__next_metadata_route__
-  const query = request.split('!')[0].split('next-metadata-route-loader?')[1]
-
-  return parse(query) as MetadataRouteLoaderOptions
 }
