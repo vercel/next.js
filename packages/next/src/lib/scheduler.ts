@@ -7,7 +7,7 @@ export type SchedulerFn<T = void> = (cb: ScheduledFn<T>) => void
  *
  * @param cb the function to schedule
  */
-export const scheduleOnNextTick = <T = void>(cb: ScheduledFn<T>): void => {
+export const scheduleOnNextTick = (cb: ScheduledFn<void>) => {
   // We use Promise.resolve().then() here so that the operation is scheduled at
   // the end of the promise job queue, we then add it to the next process tick
   // to ensure it's evaluated afterwards.
@@ -24,12 +24,21 @@ export const scheduleOnNextTick = <T = void>(cb: ScheduledFn<T>): void => {
 }
 
 /**
+ * Creates a promise that resolves on the next tick after the other promises have been resolved.
+ */
+export const afterCurrentMicrotaskQueueFinished = () => {
+  return new Promise<void>((resolve) => {
+    scheduleOnNextTick(resolve)
+  })
+}
+
+/**
  * Schedules a function to be called using `setImmediate` or `setTimeout` if
  * `setImmediate` is not available (like in the Edge runtime).
  *
  * @param cb the function to schedule
  */
-export const scheduleImmediate = <T = void>(cb: ScheduledFn<T>): void => {
+export const scheduleImmediate = (cb: ScheduledFn<void>): void => {
   if (process.env.NEXT_RUNTIME === 'edge') {
     setTimeout(cb, 0)
   } else {

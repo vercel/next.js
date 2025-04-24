@@ -49,6 +49,12 @@ describe('async imports in dynamicIO', () => {
          "/inside-render/server/from-node-modules/esm/async-module",
          "/inside-render/server/from-node-modules/esm/sync-module",
          "/inside-render/server/sync-module",
+         "/outside-of-render/client/async-module",
+         "/outside-of-render/client/sync-module",
+         "/outside-of-render/server/async-module",
+         "/outside-of-render/server/sync-module",
+         "/top-level-await-in-segment/client",
+         "/top-level-await-in-segment/server",
        ]
       `)
     })
@@ -127,4 +133,43 @@ describe('async imports in dynamicIO', () => {
       expect(result).toBe('hello')
     })
   })
+
+  describe('outside of render', () => {
+    describe('server', () => {
+      it('import of a sync module', async () => {
+        await testPage('/outside-of-render/server/sync-module')
+      })
+
+      it('import of module with top-level-await', async () => {
+        await testPage('/outside-of-render/server/async-module')
+      })
+    })
+
+    describe('client', () => {
+      it('import of a sync module', async () => {
+        await testPage('/outside-of-render/client/sync-module')
+      })
+
+      it('import of module with top-level-await', async () => {
+        await testPage('/outside-of-render/client/async-module')
+      })
+    })
+  })
+
+  describe('top-level await in segments', () => {
+    it('server', async () => {
+      await testPage('/top-level-await-in-segment/server')
+    })
+
+    it('client', async () => {
+      await testPage('/top-level-await-in-segment/client')
+    })
+  })
+
+  // TODO:
+  // - depending on a shared async module (rn they're all isolated)
+  // - imports inside an external
+  // likely to fail:
+  // - unawaited import with a tasky delay (and nothing else to delay `cacheSignal`)
+  // - TLA in a client component that is not a segment and is only imported from server components (so it's missed by `warmAllModulesInTree`)
 })

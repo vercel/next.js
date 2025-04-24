@@ -90,4 +90,10 @@ export class CacheSignal {
       this.noMorePendingCaches()
     }
   }
+
+  trackRead<T>(promise: Promise<T>) {
+    this.beginRead()
+    promise.finally(this.endRead.bind(this))
+    return promise
+  }
 }

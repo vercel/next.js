@@ -83,6 +83,7 @@ import {
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
 import { INFINITE_CACHE } from '../../../lib/constants'
 import { executeRevalidates } from '../../revalidation-utils'
+import { trackPendingAsyncImports } from '../../app-render/track-dynamic-import'
 
 export class WrappedNextRouterError {
   constructor(
@@ -439,6 +440,8 @@ export class AppRouteRouteModule extends RouteModule<
               }
             )
           }
+
+          trackPendingAsyncImports(cacheSignal)
           await cacheSignal.cacheReady()
 
           if (prospectiveRenderIsDynamic) {
