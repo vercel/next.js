@@ -91,12 +91,12 @@ export default async function Page() {
 
 There are two ways to fetch data in Client Components, using:
 
-1. React's [`use` hook](https://react.dev/reference/react/use)
+1. React's [`use` server API](https://react.dev/reference/react/use)
 2. A community library like [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/latest)
 
-#### With the `use` hook
+#### With the `use` server API
 
-You can use React's [`use` hook](https://react.dev/reference/react/use) to [stream](#streaming) data from the server to client. Start by fetching data in your Server component, and pass the promise to your Client Component as prop:
+You can use React's [`use` server API](https://react.dev/reference/react/use) to [stream](#streaming) data from the server to client. Start by fetching data in your Server component, and pass the promise to your Client Component as prop:
 
 ```tsx filename="app/blog/page.tsx" switcher
 import Posts from '@/app/ui/posts
@@ -130,7 +130,7 @@ export default function Page() {
 }
 ```
 
-Then, in your Client Component, use the `use` hook to read the promise:
+Then, in your Client Component, use the `use` server API to read the promise:
 
 ```tsx filename="app/ui/posts.tsx" switcher
 'use client'
