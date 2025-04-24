@@ -373,7 +373,7 @@ impl TurboFn<'_> {
                             ..receiver.clone()
                         });
 
-                        // We can't shadow `self` variables, so it this argument is a `self`
+                        // We can't shadow `self` variables, so if this argument is a `self`
                         // argument, generate a new identifier, and rewrite
                         // the body of the function later to use
                         // that new identifier.
