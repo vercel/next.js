@@ -823,9 +823,10 @@ export function cache(
         if (cacheSignal) {
           cacheSignal.beginRead()
         }
-        const cachedEntry = renderResumeDataCache.cache.get(cacheKey)
-        if (cachedEntry !== undefined) {
-          const existingEntry = await cachedEntry
+
+        const existingEntry = await renderResumeDataCache.cache.get(cacheKey)
+
+        if (existingEntry !== undefined) {
           propagateCacheLifeAndTags(workUnitStore, existingEntry)
           if (
             workUnitStore !== undefined &&
@@ -922,6 +923,11 @@ export function cache(
           }
         }
 
+        const addPendingCacheSet = (promise: Promise<void>) => {
+          workStore.pendingRevalidateWrites ??= []
+          workStore.pendingRevalidateWrites.push(promise)
+        }
+
         const currentTime = performance.timeOrigin + performance.now()
         if (
           workUnitStore !== undefined &&
@@ -1001,18 +1007,18 @@ export function cache(
               // Create a clone that goes into the cache scope memory cache.
               const split = clonePendingCacheEntry(pendingCacheEntry)
               savedCacheEntry = getNthCacheEntry(split, 0)
-              prerenderResumeDataCache.cache.set(
-                cacheKey,
-                getNthCacheEntry(split, 1)
+
+              addPendingCacheSet(
+                prerenderResumeDataCache.cache.set(
+                  cacheKey,
+                  getNthCacheEntry(split, 1)
+                )
               )
             } else {
               savedCacheEntry = pendingCacheEntry
             }
 
-            const promise = cacheHandler.set(cacheKey, savedCacheEntry)
-
-            workStore.pendingRevalidateWrites ??= []
-            workStore.pendingRevalidateWrites.push(promise)
+            addPendingCacheSet(cacheHandler.set(cacheKey, savedCacheEntry))
           }
 
           stream = newStream
@@ -1032,9 +1038,11 @@ export function cache(
               stream = entryLeft.value
             }
 
-            prerenderResumeDataCache.cache.set(
-              cacheKey,
-              Promise.resolve(entryRight)
+            addPendingCacheSet(
+              prerenderResumeDataCache.cache.set(
+                cacheKey,
+                Promise.resolve(entryRight)
+              )
             )
           } else {
             // If we're not regenerating we need to signal that we've finished
@@ -1073,18 +1081,18 @@ export function cache(
               if (prerenderResumeDataCache) {
                 const split = clonePendingCacheEntry(pendingCacheEntry)
                 savedCacheEntry = getNthCacheEntry(split, 0)
-                prerenderResumeDataCache.cache.set(
-                  cacheKey,
-                  getNthCacheEntry(split, 1)
+
+                addPendingCacheSet(
+                  prerenderResumeDataCache.cache.set(
+                    cacheKey,
+                    getNthCacheEntry(split, 1)
+                  )
                 )
               } else {
                 savedCacheEntry = pendingCacheEntry
               }
 
-              const promise = cacheHandler.set(cacheKey, savedCacheEntry)
-
-              workStore.pendingRevalidateWrites ??= []
-              workStore.pendingRevalidateWrites.push(promise)
+              addPendingCacheSet(cacheHandler.set(cacheKey, savedCacheEntry))
 
               await ignoredStream.cancel()
             }
