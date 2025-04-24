@@ -2903,6 +2903,20 @@ async fn value_visitor_inner(
                 v.into_unknown(true, "new non constant")
             }
         }
+        JsValue::WellKnownFunction(
+            WellKnownFunctionKind::PathJoin
+            | WellKnownFunctionKind::PathResolve(_)
+            | WellKnownFunctionKind::FsReadMethod(_),
+        ) => {
+            if ignore {
+                return Ok((
+                    JsValue::unknown(v, true, "ignored well known function"),
+                    true,
+                ));
+            } else {
+                return Ok((v, false));
+            }
+        }
         JsValue::FreeVar(ref kind) => match &**kind {
             "__dirname" => as_abs_path(origin.origin_path().parent()).await?,
             "__filename" => as_abs_path(origin.origin_path()).await?,
