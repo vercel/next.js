@@ -2307,7 +2307,7 @@ export default abstract class Server<
     const isHtmlBot = isHtmlBotRequest(req)
     if (isHtmlBot && isRoutePPREnabled) {
       isSSG = false
-      this.renderOpts.serveStreamingMetadata = false
+      // this.renderOpts.serveStreamingMetadata = false
     }
 
     // we need to ensure the status code if /404 is visited directly

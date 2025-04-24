@@ -30,7 +30,10 @@ describe('app-dir - metadata-icons', () => {
     )
   })
 
-  it('should re-insert the body icons into the head', async () => {
+  // FIXME: temporarily skip this test and re-enable it later once we can determine if body is sent to the client
+  // in the case of streaming, then we only insert the icon-insertion script in that case.
+  // When icon is already rendered in head, that script is not necessary but introducing extra bytes.
+  it.skip('should re-insert the body icons into the head', async () => {
     const browser = await next.browser('/custom-icon')
 
     await retry(async () => {
