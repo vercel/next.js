@@ -56,7 +56,7 @@ impl VcStorage {
             })));
             i
         };
-        let task_id = TaskId::from(i as u32 + 1);
+        let task_id = TaskId::try_from(u32::try_from(i + 1).unwrap()).unwrap();
         handle.spawn(with_turbo_tasks_for_testing(
             this.clone(),
             task_id,
@@ -321,7 +321,7 @@ impl VcStorage {
                 this: weak.clone(),
                 ..Default::default()
             }),
-            TaskId::from(u32::MAX),
+            TaskId::MAX,
             f,
         )
     }
