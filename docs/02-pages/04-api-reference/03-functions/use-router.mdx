@@ -46,7 +46,7 @@ The following is the definition of the `router` object returned by both [`useRou
 - `defaultLocale`: `String` - The current default locale (if enabled).
 - `domainLocales`: `Array<{domain, defaultLocale, locales}>` - Any configured domain locales.
 - `isReady`: `boolean` - Whether the router fields are updated client-side and ready for use. Should only be used inside of `useEffect` methods and not for conditionally rendering on the server. See related docs for use case with [automatically statically optimized pages](/docs/pages/building-your-application/rendering/automatic-static-optimization)
-- `isPreview`: `boolean` - Whether the application is currently in [preview mode](/docs/pages/building-your-application/configuring/preview-mode).
+- `isPreview`: `boolean` - Whether the application is currently in [preview mode](/docs/pages/guides/preview-mode).
 
 > Using the `asPath` field may lead to a mismatch between client and server if the page is rendered using server-side rendering or [automatic static optimization](/docs/pages/building-your-application/rendering/automatic-static-optimization). Avoid using `asPath` until the `isReady` field is `true`.
 
@@ -276,7 +276,7 @@ export default function Login() {
 
 ### router.beforePopState
 
-In some cases (for example, if using a [Custom Server](/docs/pages/building-your-application/configuring/custom-server)), you may wish to listen to [popstate](https://developer.mozilla.org/docs/Web/API/Window/popstate_event) and do something before the router acts on it.
+In some cases (for example, if using a [Custom Server](/docs/pages/guides/custom-server)), you may wish to listen to [popstate](https://developer.mozilla.org/docs/Web/API/Window/popstate_event) and do something before the router acts on it.
 
 ```js
 router.beforePopState(cb)
@@ -287,7 +287,7 @@ router.beforePopState(cb)
   - `as`: `String` - the url that will be shown in the browser
   - `options`: `Object` - Additional options sent by [router.push](#routerpush)
 
-If `cb` returns `false`, the Next.js router will not handle `popstate`, and you'll be responsible for handling it in that case. See [Disabling file-system routing](/docs/pages/building-your-application/configuring/custom-server#disabling-file-system-routing).
+If `cb` returns `false`, the Next.js router will not handle `popstate`, and you'll be responsible for handling it in that case. See [Disabling file-system routing](/docs/pages/guides/custom-server#disabling-file-system-routing).
 
 You could use `beforePopState` to manipulate the request, or force a SSR refresh, as in the following example:
 
