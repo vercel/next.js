@@ -535,7 +535,7 @@ async fn pull_operation<T: EvaluateContext>(
             }
             EvalJavaScriptIncomingMessage::End { data } => break ControlFlow::Break(Ok(data)),
             EvalJavaScriptIncomingMessage::Info { data } => {
-                let guard = duration_span!("info");
+                let guard = duration_span!("info message");
                 evaluate_context
                     .info(state, serde_json::from_value(data)?, pool)
                     .await?;

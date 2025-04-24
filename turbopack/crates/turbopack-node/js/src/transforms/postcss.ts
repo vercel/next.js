@@ -125,7 +125,7 @@ export default async function transform(
     }
   }
   ipc.sendInfo({
-    type:"dependencies",
+    type: "dependencies",
     filePaths,
     directories,
     build,

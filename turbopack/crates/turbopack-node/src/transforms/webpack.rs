@@ -3,6 +3,7 @@ use std::mem::take;
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
 use either::Either;
+use futures::try_join;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
 use serde_with::serde_as;
@@ -483,26 +484,48 @@ impl EvaluateContext for WebpackLoaderContext {
                 // there is a race condition where we may miss updates that race
                 // with the loader execution.
 
-                for env in env_variables {
-                    self.env.read(env).await?;
-                }
-                for file in file_paths {
-                    self.cwd.join(file).read().await?;
-                }
-                for (dir, glob) in directories {
-                    // TODO: there is some redundancy between `dir_dependency` and what `read_glob`
-                    // does Introduce a new read_glob option that will track all
-                    // files the way `dir_dependency` does but in a single
-                    // traversal.
-                    dir_dependency(self.cwd.join(dir).read_glob(Glob::new(glob), false)).await?;
-                }
-                for path in build {
+                // Track all the subscriptions in parallel, since certain loaders like tailwind
+                // might add thousands of subscriptions.
+                let env_subscriptions = env_variables
+                    .iter()
+                    .map(|e| self.env.read(e.clone()))
+                    .try_join();
+                let file_subscriptions = file_paths
+                    .iter()
+                    .map(|p| self.cwd.join(p.clone()).read())
+                    .try_join();
+                let directory_subscriptions = directories
+                    .iter()
+                    .map(|(dir, glob)| {
+                        // TODO: there is some redundancy between `dir_dependency` and what
+                        // `read_glob` does, Introduce a new read_glob
+                        // option that will track all files the way
+                        // `dir_dependency` does but in a single traversal.
+                        dir_dependency(
+                            self.cwd
+                                .join(dir.clone())
+                                .read_glob(Glob::new(glob.clone()), false),
+                        )
+                    })
+                    .try_join();
+                let build_paths = build
+                    .iter()
+                    .map(|path| self.cwd.join(path.clone()).to_resolved())
+                    .try_join();
+                let (resolved_build_paths, ..) = try_join!(
+                    build_paths,
+                    env_subscriptions,
+                    file_subscriptions,
+                    directory_subscriptions
+                )?;
+
+                for build_path in resolved_build_paths {
                     BuildDependencyIssue {
                         context_ident: self.context_ident_for_issue,
-                        path: self.cwd.join(path).to_resolved().await?,
+                        path: build_path,
                     }
                     .resolved_cell()
-                    .emit()
+                    .emit();
                 }
             }
             InfoMessage::EmittedError { error, severity } => {
