@@ -1,9 +1,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned};
-use syn::{
-    parse_macro_input, parse_quote, spanned::Spanned, ItemTrait, TraitItem, TraitItemMethod,
-};
+use syn::{parse_macro_input, parse_quote, spanned::Spanned, ItemTrait, TraitItem, TraitItemFn};
 use turbo_tasks_macros_shared::{
     get_trait_default_impl_function_id_ident, get_trait_default_impl_function_ident,
     get_trait_type_id_ident, get_trait_type_ident, ValueTraitArguments,
@@ -30,6 +28,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         auto_token,
         generics,
         brace_token: _,
+        restriction: _,
     } = &item;
 
     if unsafety.is_some() {
@@ -70,7 +69,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut items = Vec::with_capacity(raw_items.len());
 
     for item in raw_items.iter() {
-        let TraitItem::Method(TraitItemMethod {
+        let TraitItem::Fn(TraitItemFn {
             sig,
             default,
             attrs,
@@ -177,7 +176,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             None
         };
 
-        items.push(TraitItem::Method(TraitItemMethod {
+        items.push(TraitItem::Fn(TraitItemFn {
             sig: turbo_fn.trait_signature(),
             default,
             attrs: attrs.clone(),

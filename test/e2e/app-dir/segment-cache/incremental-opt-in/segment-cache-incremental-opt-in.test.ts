@@ -159,12 +159,21 @@ describe('segment cache (incremental opt in)', () => {
         { includes: 'Page content', block: 'reject' },
       ])
 
-      await act(async () => {
-        const checkbox = await browser.elementByCss(
-          `input[data-link-accordion="/ppr-disabled-with-loading-boundary/child"]`
-        )
-        await checkbox.click()
-      }, 'no-requests')
+      // When prefetching a different page with the same loading boundary,
+      // we should not need to fetch the loading boundary again
+      await act(
+        async () => {
+          const checkbox = await browser.elementByCss(
+            `input[data-link-accordion="/ppr-disabled-with-loading-boundary/child"]`
+          )
+          await checkbox.click()
+        },
+        // This assertion will fail if more than one request includes the given
+        // string. Because the string appears in the FlightRouterState for the
+        // page, it effectively asserts that only one prefetch request is issued
+        // — the one for the route tree.
+        { includes: 'ppr-disabled-with-loading-boundary' }
+      )
 
       // Navigate to the page
       await act(async () => {
