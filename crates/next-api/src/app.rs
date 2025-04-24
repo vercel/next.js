@@ -115,6 +115,12 @@ fn styles_rule_condition() -> RuleCondition {
             RuleCondition::ResourcePathEndsWith(".sass".into()),
             RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.sass".into())),
         ]),
+        RuleCondition::all(vec![
+            RuleCondition::ContentTypeStartsWith("text/css".into()),
+            RuleCondition::not(RuleCondition::ContentTypeStartsWith(
+                "text/css+module".into(),
+            )),
+        ]),
     ])
 }
 fn module_styles_rule_condition() -> RuleCondition {
@@ -122,6 +128,7 @@ fn module_styles_rule_condition() -> RuleCondition {
         RuleCondition::ResourcePathEndsWith(".module.css".into()),
         RuleCondition::ResourcePathEndsWith(".module.scss".into()),
         RuleCondition::ResourcePathEndsWith(".module.sass".into()),
+        RuleCondition::ContentTypeStartsWith("text/css+module".into()),
     ])
 }
 

@@ -8049,7 +8049,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/socket-io/index.test.js": {
+  "test/e2e/socket-io/index.test.ts": {
     "passed": [
       "socket-io should support socket.io without falling back to polling"
     ],

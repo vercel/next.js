@@ -1947,6 +1947,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task_id: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
+        self.assert_valid_collectible(task_id, collectible);
         if !self.should_track_children() {
             return;
         }
@@ -1977,6 +1978,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task_id: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
+        self.assert_valid_collectible(task_id, collectible);
         if !self.should_track_children() {
             return;
         }
@@ -2077,6 +2079,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         parent_task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
+        self.assert_not_persistent_calling_transient(parent_task, task, None);
         ConnectChildOperation::run(parent_task, task, self.execute_context(turbo_tasks));
     }
 
@@ -2162,19 +2165,49 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         cell_id: Option<CellId>,
     ) {
         let transient_reason = if let Some(child) = child {
-            format!(
+            Cow::Owned(format!(
                 " The callee is transient because it depends on:\n{}",
                 self.debug_trace_transient_task(child, cell_id),
-            )
+            ))
         } else {
-            String::new()
+            Cow::Borrowed("")
         };
         panic!(
-            "Persistent task {} is not allowed to call or read transient tasks {}.{}",
+            "Persistent task {} is not allowed to call, read, or connect to transient tasks {}.{}",
             parent.map_or("unknown", |t| t.get_name()),
             child.map_or("unknown", |t| t.get_name()),
             transient_reason,
         );
+    }
+
+    fn assert_valid_collectible(&self, task_id: TaskId, collectible: RawVc) {
+        // these checks occur in a potentially hot codepath, but they're cheap
+        let RawVc::TaskCell(col_task_id, col_cell_id) = collectible else {
+            // This should never happen: The collectible APIs use ResolvedVc
+            let task_info =
+                if let Some(col_task_ty) = self.lookup_task_type(collectible.get_task_id()) {
+                    Cow::Owned(format!(" (return type of {})", col_task_ty))
+                } else {
+                    Cow::Borrowed("")
+                };
+            panic!("Collectible{task_info} must be a ResolvedVc")
+        };
+        if col_task_id.is_transient() && !task_id.is_transient() {
+            let transient_reason =
+                if let Some(col_task_ty) = self.lookup_task_type(collectible.get_task_id()) {
+                    Cow::Owned(format!(
+                        ". The collectible is transient because it depends on:\n{}",
+                        self.debug_trace_transient_task(&col_task_ty, Some(col_cell_id)),
+                    ))
+                } else {
+                    Cow::Borrowed("")
+                };
+            // this should never happen: How would a persistent function get a transient Vc?
+            panic!(
+                "Collectible is transient, transient collectibles cannot be emitted from \
+                 persistent tasks{transient_reason}",
+            )
+        }
     }
 }
 
