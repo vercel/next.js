@@ -24,6 +24,7 @@ use turbopack_core::{
     module::Module,
     module_graph::ModuleGraph,
     reference::ModuleReference,
+    resolve::ModulePart,
 };
 
 use super::base::ReferencedAsset;
@@ -33,6 +34,8 @@ use crate::{
     magic_identifier,
     parse::ParseResult,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
+    tree_shake::asset::EcmascriptModulePartAsset,
+    EcmascriptModuleAsset,
 };
 
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
@@ -177,9 +180,9 @@ pub async fn follow_reexports(
 
         // Try to find the export in the star exports
         if !exports_ref.star_exports.is_empty() && &*export_name != "default" {
-            let result = get_all_export_names(*module).await?;
-            if let Some(m) = result.esm_exports.get(&export_name) {
-                module = *m;
+            let result = find_export_from_reexports(*module, export_name.clone()).await?;
+            if let Some(m) = result.esm_export {
+                module = m;
                 continue;
             }
             return match &result.dynamic_exporting_modules[..] {
@@ -267,6 +270,48 @@ async fn handle_declared_export(
         export_name: Some(export_name),
         ty: FoundExportType::Unknown,
     }))
+}
+
+#[turbo_tasks::value]
+struct FindExportFromReexportsResult {
+    esm_export: Option<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
+    dynamic_exporting_modules: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
+}
+
+#[turbo_tasks::function]
+async fn find_export_from_reexports(
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    export_name: RcStr,
+) -> Result<Vc<FindExportFromReexportsResult>> {
+    if let Some(module) =
+        Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(*module).await?
+    {
+        if matches!(module.await?.part, ModulePart::Exports) {
+            let module_part = EcmascriptModulePartAsset::select_part(
+                *module.await?.full_module,
+                ModulePart::export(export_name.clone()),
+            );
+
+            // If we apply this logic to EcmascriptModuleAsset, we will resolve everything in the
+            // target module.
+            if (Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module_part).await?)
+                .is_none()
+            {
+                return Ok(find_export_from_reexports(
+                    Vc::upcast(module_part),
+                    export_name,
+                ));
+            }
+        }
+    }
+
+    let all_export_names = get_all_export_names(*module).await?;
+    let esm_export = all_export_names.esm_exports.get(&export_name).copied();
+    Ok(FindExportFromReexportsResult {
+        esm_export,
+        dynamic_exporting_modules: all_export_names.dynamic_exporting_modules.clone(),
+    }
+    .cell())
 }
 
 #[turbo_tasks::value]
