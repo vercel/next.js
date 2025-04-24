@@ -267,19 +267,20 @@ impl GraphOptimizer<'_> {
             .filter(|&node| g.edges_directed(node, Direction::Incoming).count() == 0)
             .collect();
 
-        for &entry in &starting_nodes {
-            if g.node_weight(entry).is_none() {
+        for &starting_node in &starting_nodes {
+            if g.node_weight(starting_node).is_none() {
                 continue;
             }
 
             // Skip nodes that shouldn't be merged
-            if self.should_not_merge_iter(g.node_weight(entry).expect("Node should exist")) {
+            if self.should_not_merge_iter(g.node_weight(starting_node).expect("Node should exist"))
+            {
                 continue;
             }
 
             // Create a reachability map to avoid accessing unreachable nodes
             let mut reachable_from_entry = FxHashSet::default();
-            let mut queue = vec![entry];
+            let mut queue = vec![starting_node];
 
             while let Some(node) = queue.pop() {
                 if !reachable_from_entry.insert(node) {
@@ -297,7 +298,7 @@ impl GraphOptimizer<'_> {
             // For each node, check if all paths to it go through a potential dominator
             for node in g.node_indices() {
                 // Skip entry node and unreachable nodes
-                if node == entry || !reachable_from_entry.contains(&node) {
+                if node == starting_node || !reachable_from_entry.contains(&node) {
                     continue;
                 }
 
@@ -305,7 +306,7 @@ impl GraphOptimizer<'_> {
                 let mut can_reach_node: FxHashSet<NodeIndex> = FxHashSet::default();
 
                 for &start in &starting_nodes {
-                    if start == entry {
+                    if start == starting_node {
                         continue;
                     }
 
@@ -341,13 +342,13 @@ impl GraphOptimizer<'_> {
 
                 // A node is a dominator if all paths to this node must go through it
                 for &potential_dom in &incoming_neighbors {
-                    if potential_dom == entry {
+                    if potential_dom == starting_node {
                         continue;
                     }
 
                     // Remember the outgoing edges to restore them later
                     let mut visited: FxHashSet<NodeIndex> = FxHashSet::default();
-                    let mut queue = vec![entry];
+                    let mut queue = vec![starting_node];
                     let mut can_reach_without_dom = false;
 
                     // Check if we can reach node without going through potential_dom
