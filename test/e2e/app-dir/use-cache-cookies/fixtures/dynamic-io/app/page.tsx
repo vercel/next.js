@@ -4,9 +4,7 @@ import { setTimeout } from 'timers/promises'
 export default async function Page() {
   'use cache'
 
-  console.log(new Date().toISOString(), 'render Page')
   await setTimeout(2000)
-  console.log(new Date().toISOString(), 'awaited timeout in Page')
   const loggedIn = (await cookies()).get('isLoggedIn')
 
   return (
