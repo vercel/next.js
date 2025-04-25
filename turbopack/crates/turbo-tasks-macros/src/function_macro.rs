@@ -1,7 +1,9 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, parse_quote, ItemFn};
-use turbo_tasks_macros_shared::{get_native_function_id_ident, get_native_function_ident};
+use turbo_tasks_macros_shared::{
+    get_native_function_id_ident, get_native_function_ident, is_self_used,
+};
 
 use crate::func::{
     filter_inline_attributes, DefinitionContext, FunctionArguments, NativeFn, TurboFn,
@@ -50,8 +52,11 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let ident = &sig.ident;
 
+    let is_self_used = is_self_used(&block);
+
     let inline_function_ident = turbo_fn.inline_ident();
-    let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(&block);
+    let (inline_signature, inline_block) =
+        turbo_fn.inline_signature_and_block(&block, is_self_used);
     let inline_attrs = filter_inline_attributes(&attrs[..]);
 
     let native_fn = NativeFn {
@@ -70,7 +75,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
     let native_function_id_def = native_fn.id_definition(&native_function_ident.clone().into());
 
     let exposed_signature = turbo_fn.signature();
-    let exposed_block = turbo_fn.static_block(&native_function_id_ident);
+    let exposed_block = turbo_fn.static_block(&native_function_id_ident, is_self_used);
 
     quote! {
         #(#attrs)*

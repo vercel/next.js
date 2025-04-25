@@ -312,6 +312,7 @@ impl TurboFn<'_> {
     pub fn inline_signature_and_block<'a>(
         &self,
         orig_block: &'a Block,
+        is_self_used: bool,
     ) -> (Signature, Cow<'a, Block>) {
         let mut shadow_self = None;
         let (inputs, transform_stmts): (Punctuated<_, _>, Vec<Option<_>>) = self
@@ -325,7 +326,7 @@ impl TurboFn<'_> {
                 let Pat::Ident(pat_id) = &*pat_type.pat else {
                     return true;
                 };
-                inline_inputs_identifier_filter(&pat_id.ident)
+                inline_inputs_identifier_filter(&pat_id.ident, is_self_used)
             })
             .enumerate()
             .map(|(idx, arg)| {
@@ -1139,5 +1140,5 @@ pub fn filter_inline_attributes<'a>(
 
 pub fn inline_inputs_identifier_filter(arg_ident: &Ident, is_self_used: bool) -> bool {
     // filter out underscore-prefixed (unused) arguments, we don't need to cache these
-    !arg_ident.to_string().starts_with('_')
+    !arg_ident.to_string().starts_with('_') || (!is_self_used && arg_ident == "self")
 }
