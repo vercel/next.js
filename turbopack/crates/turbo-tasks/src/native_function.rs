@@ -21,12 +21,8 @@ type ResolveFunctor = for<'a> fn(&'a dyn MagicAny) -> ResolveFuture<'a>;
 
 type IsResolvedFunctor = fn(&dyn MagicAny) -> bool;
 
-type FilterAndResolveFuture<'a> =
-    Pin<Box<dyn Future<Output = Result<(Option<RawVc>, Box<dyn MagicAny>)>> + Send + 'a>>;
-
 type FilterOwnedArgsFunctor = for<'a> fn(Box<dyn MagicAny>) -> Box<dyn MagicAny>;
-type FilterAndResolveFunctor =
-    for<'a> fn(Option<RawVc>, &'a dyn MagicAny) -> FilterAndResolveFuture<'a>;
+type FilterAndResolveFunctor = ResolveFunctor;
 
 pub struct ArgMeta {
     serializer: MagicAnySerializeSeed,
@@ -53,7 +49,7 @@ impl ArgMeta {
         fn noop_filter_args(args: Box<dyn MagicAny>) -> Box<dyn MagicAny> {
             args
         }
-        Self::with_filter_trait_call::<T>(noop_filter_args, filter_and_resolve_functor_impl::<T>)
+        Self::with_filter_trait_call::<T>(noop_filter_args, resolve_functor_impl::<T>)
     }
 
     pub fn with_filter_trait_call<T>(
@@ -95,24 +91,9 @@ impl ArgMeta {
 
     /// This will return `(None, _)` even if the target is a method, if the method does not use
     /// `self`.
-    pub async fn filter_and_resolve(
-        &self,
-        this: Option<RawVc>,
-        args: &dyn MagicAny,
-    ) -> Result<(Option<RawVc>, Box<dyn MagicAny>)> {
-        (self.filter_and_resolve)(this, args).await
+    pub async fn filter_and_resolve(&self, args: &dyn MagicAny) -> Result<Box<dyn MagicAny>> {
+        (self.filter_and_resolve)(args).await
     }
-}
-
-fn filter_and_resolve_functor_impl<T: MagicAny + TaskInput>(
-    this: Option<RawVc>,
-    value: &dyn MagicAny,
-) -> FilterAndResolveFuture<'_> {
-    Box::pin(async move {
-        let value = downcast_args_ref::<T>(value);
-        let resolved = value.resolve_input().await?;
-        Ok((this, Box::new(resolved) as Box<dyn MagicAny>))
-    })
 }
 
 fn resolve_functor_impl<T: MagicAny + TaskInput>(value: &dyn MagicAny) -> ResolveFuture<'_> {

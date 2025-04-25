@@ -172,11 +172,8 @@ impl LocalTaskType {
 
         let native_fn_id = Self::resolve_trait_method_from_value(trait_type, this_ty, name)?;
         let native_fn = registry::get_function(native_fn_id);
-        let (this, arg) = native_fn
-            .arg_meta
-            .filter_and_resolve(Some(this), arg)
-            .await?;
-        Ok(turbo_tasks.dynamic_call(native_fn_id, this, arg, persistence))
+        let arg = native_fn.arg_meta.filter_and_resolve(arg).await?;
+        Ok(turbo_tasks.dynamic_call(native_fn_id, Some(this), arg, persistence))
     }
 
     fn resolve_trait_method_from_value(

@@ -495,16 +495,6 @@ impl TurboFn<'_> {
         // we only need to do this on trait methods, but we're doing it on all methods because we
         // don't know if we're a trait method or not (we could pass this information down)
         if self.is_method() {
-            let this_return_value = if is_self_used {
-                quote! {
-                    this
-                }
-            } else {
-                quote! {
-                    None
-                }
-            };
-
             let inline_input_idents: Vec<_> = self.inline_input_idents().collect();
             if inline_input_idents.len() != self.exposed_inputs.len() {
                 let exposed_input_idents: Vec<_> = self.exposed_input_idents().collect();
@@ -519,7 +509,7 @@ impl TurboFn<'_> {
                         }
                     },
                     filter_and_resolve: quote! {
-                        |this: Option<turbo_tasks::RawVc>, magic_any| {
+                        |magic_any| {
                             Box::pin(async move {
                                 let (#(#exposed_input_idents,)*) = turbo_tasks::macro_helpers
                                     ::downcast_args_ref::<(#(#exposed_input_types,)*)>(magic_any);
@@ -528,11 +518,10 @@ impl TurboFn<'_> {
                                         #inline_input_idents
                                     ).await?,
                                 )*);
-                                Ok((
-                                    #this_return_value,
+                                Ok(
                                     ::std::boxed::Box::new(resolved)
                                     as ::std::boxed::Box<dyn turbo_tasks::MagicAny>
-                                ))
+                                )
                             })
                         }
                     },
