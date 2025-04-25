@@ -327,7 +327,7 @@ describe('react-dom/server in React Server environment', () => {
         expect(redbox).toMatchInlineSnapshot(`
           {
             "description": "TypeError: Cannot read properties of undefined (reading 'ReactCurrentDispatcher')",
-            "source": "app/exports/app-code/react-dom-server-node-explicit/page.js (1:1) @ [project]/app/exports/app-code/react-dom-server-node-explicit/page.js [app-rsc] (ecmascript)
+            "source": "app/exports/app-code/react-dom-server-node-explicit/page.js (1:1) @ Object.{module evaluation}
 
           > 1 | import * as ReactDOMServerNode from 'react-dom/server.node'
               | ^
@@ -338,16 +338,17 @@ describe('react-dom/server in React Server environment', () => {
         `)
       } else {
         expect(redbox).toMatchInlineSnapshot(`
-          {
-            "description": "Error: react-dom/server is not supported in React Server Components.",
-            "source": "app/exports/app-code/react-dom-server-node-explicit/page.js (1:1) @ [project]/app/exports/app-code/react-dom-server-node-explicit/page.js [app-rsc] (ecmascript)
+         {
+           "description": "Error: react-dom/server is not supported in React Server Components.",
+           "source": "app/exports/app-code/react-dom-server-node-explicit/page.js (1:1) @ Module.
+         {module evaluation}
 
-          > 1 | import * as ReactDOMServerNode from 'react-dom/server.node'
-              | ^
-            2 | // Fine to drop once React is on ESM
-            3 | import ReactDOMServerNodeDefault from 'react-dom/server.node'
-            4 |",
-          }
+         > 1 | import * as ReactDOMServerNode from 'react-dom/server.node'
+             | ^
+           2 | // Fine to drop once React is on ESM
+           3 | import ReactDOMServerNodeDefault from 'react-dom/server.node'
+           4 |",
+         }
         `)
       }
     } else {
@@ -440,7 +441,7 @@ describe('react-dom/server in React Server environment', () => {
         expect(redbox).toMatchInlineSnapshot(`
           {
             "description": "TypeError: Cannot read properties of undefined (reading 'ReactCurrentDispatcher')",
-            "source": "internal-pkg/server.node.js (1:1) @ [project]/internal-pkg/server.node.js [app-rsc] (ecmascript)
+            "source": "internal-pkg/server.node.js (1:1) @ Object.{module evaluation}
 
           > 1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
               | ^
@@ -451,16 +452,17 @@ describe('react-dom/server in React Server environment', () => {
         `)
       } else {
         expect(redbox).toMatchInlineSnapshot(`
-          {
-            "description": "Error: react-dom/server is not supported in React Server Components.",
-            "source": "internal-pkg/server.node.js (1:1) @ [project]/internal-pkg/server.node.js [app-rsc] (ecmascript)
+         {
+           "description": "Error: react-dom/server is not supported in React Server Components.",
+           "source": "internal-pkg/server.node.js (1:1) @ Module.
+         {module evaluation}
 
-          > 1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
-              | ^
-            2 | // Fine to drop once React is on ESM
-            3 | import ReactDOMServerEdgeDefault from 'react-dom/server.node'
-            4 |",
-          }
+         > 1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
+             | ^
+           2 | // Fine to drop once React is on ESM
+           3 | import ReactDOMServerEdgeDefault from 'react-dom/server.node'
+           4 |",
+         }
         `)
       }
     } else {
@@ -738,7 +740,7 @@ describe('react-dom/server in React Server environment', () => {
         expect(redbox).toMatchInlineSnapshot(`
           {
             "description": "TypeError: Cannot read properties of undefined (reading 'ReactCurrentDispatcher')",
-            "source": "internal-pkg/server.node.js (1:1) @ [project]/internal-pkg/server.node.js [app-rsc] (ecmascript)
+            "source": "internal-pkg/server.node.js (1:1) @ Object.{module evaluation}
 
           > 1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
               | ^
@@ -749,16 +751,17 @@ describe('react-dom/server in React Server environment', () => {
         `)
       } else {
         expect(redbox).toMatchInlineSnapshot(`
-          {
-            "description": "Error: react-dom/server is not supported in React Server Components.",
-            "source": "internal-pkg/server.node.js (1:1) @ [project]/internal-pkg/server.node.js [app-rsc] (ecmascript)
+         {
+           "description": "Error: react-dom/server is not supported in React Server Components.",
+           "source": "internal-pkg/server.node.js (1:1) @ Module.
+         {module evaluation}
 
-          > 1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
-              | ^
-            2 | // Fine to drop once React is on ESM
-            3 | import ReactDOMServerEdgeDefault from 'react-dom/server.node'
-            4 |",
-          }
+         > 1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
+             | ^
+           2 | // Fine to drop once React is on ESM
+           3 | import ReactDOMServerEdgeDefault from 'react-dom/server.node'
+           4 |",
+         }
         `)
       }
     } else {
@@ -796,7 +799,7 @@ describe('react-dom/server in React Server environment', () => {
         expect(redbox).toMatchInlineSnapshot(`
           {
             "description": "TypeError: Cannot read properties of undefined (reading 'ReactCurrentDispatcher')",
-            "source": "internal-pkg/server.node.js (1:1) @ [project]/internal-pkg/server.node.js [app-rsc] (ecmascript)
+            "source": "internal-pkg/server.node.js (1:1) @ Object.{module evaluation}
 
           > 1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
               | ^
@@ -809,7 +812,8 @@ describe('react-dom/server in React Server environment', () => {
         expect(redbox).toMatchInlineSnapshot(`
          {
            "description": "Error: react-dom/server is not supported in React Server Components.",
-           "source": "internal-pkg/server.node.js (1:1) @ [project]/internal-pkg/server.node.js [app-rsc] (ecmascript)
+           "source": "internal-pkg/server.node.js (1:1) @ Module.
+         {module evaluation}
 
          > 1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
              | ^

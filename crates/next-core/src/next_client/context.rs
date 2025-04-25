@@ -466,7 +466,10 @@ pub async fn get_client_chunking_context(
     .module_id_strategy(module_id_strategy);
 
     if next_mode.is_development() {
-        builder = builder.hot_module_replacement().use_file_source_map_uris();
+        builder = builder
+            .hot_module_replacement()
+            .use_file_source_map_uris()
+            .use_annotated_stack_traces();
     } else {
         builder = builder.chunking_config(
             Vc::<EcmascriptChunkType>::default().to_resolved().await?,

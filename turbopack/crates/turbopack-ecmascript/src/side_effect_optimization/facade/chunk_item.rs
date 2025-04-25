@@ -56,6 +56,7 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
             .environment()
             .supports_commonjs_externals()
             .await?;
+        let annotated_stack_traces = *chunking_context.should_use_annotated_stack_traces().await?;
 
         let async_module_options = self
             .module
@@ -110,6 +111,7 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
                 strict: true,
                 externals,
                 async_module,
+                annotated_stack_traces,
                 ..Default::default()
             },
             ..Default::default()
