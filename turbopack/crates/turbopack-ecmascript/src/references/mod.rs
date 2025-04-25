@@ -1312,7 +1312,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     let func = analysis_state
                         .link_value(
                             JsValue::member(Box::new(obj.clone()), Box::new(prop)),
-                            ImportAttributes::empty_ref(),
+                            eval_context.imports.get_attributes(span),
                         )
                         .await?;
 
