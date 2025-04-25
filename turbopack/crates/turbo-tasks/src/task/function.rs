@@ -230,26 +230,17 @@ macro_rules! task_fn_impl {
         where
             Recv: VcValueType,
             $($arg: TaskInput + 'static,)*
-            F: Fn(Option<&Recv>, $($arg,)*) -> Output + Send + Sync + Clone + 'static,
+            F: Fn(&Recv, $($arg,)*) -> Output + Send + Sync + Clone + 'static,
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, this: Option<RawVc>, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
+            fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
-                let recv = match this {
-                    Some(recv) => Some(Vc::<Recv>::from(recv)),
-                    None => None,
-                };
+                let recv = Vc::<Recv>::from(this);
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
-                    let recv_v;
-                    let recv = match recv {
-                        Some(recv) => {
-                            recv_v = recv.await?;
-                            Some(<Recv::Read as VcRead<Recv>>::target_to_value_ref(&*recv_v))
-                        }
-                        None => None,
-                    };
+                    let recv = recv.await?;
+                    let recv = <Recv::Read as VcRead<Recv>>::target_to_value_ref(&*recv);
                     let output = (task_fn)(recv, $($arg,)*);
                     output_try_into_non_local_raw_vc(output).await
                 }))
@@ -260,16 +251,13 @@ macro_rules! task_fn_impl {
         where
             Recv: Sync + Send + 'static,
             $($arg: TaskInput + 'static,)*
-            F: Fn(Option<Vc<Recv>>, $($arg,)*) -> Output + Send + Sync + Clone + 'static,
+            F: Fn(Vc<Recv>, $($arg,)*) -> Output + Send + Sync + Clone + 'static,
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, this: Option<RawVc>, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
+            fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
-                let recv = match this {
-                    Some(recv) => Some(Vc::<Recv>::from(recv)),
-                    None => None,
-                };
+                let recv = Vc::<Recv>::from(this);
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
                     let output = (task_fn)(recv, $($arg,)*);
@@ -278,14 +266,14 @@ macro_rules! task_fn_impl {
             }
         }
 
-        pub trait $async_fn_trait<A0, $($arg,)*>: Fn(Option<A0>, $($arg,)*) -> Self::OutputFuture {
+        pub trait $async_fn_trait<A0, $($arg,)*>: Fn(A0, $($arg,)*) -> Self::OutputFuture {
             type OutputFuture: Future<Output = <Self as $async_fn_trait<A0, $($arg,)*>>::Output> + Send;
             type Output: TaskOutput;
         }
 
         impl<F: ?Sized, Fut, A0, $($arg,)*> $async_fn_trait<A0, $($arg,)*> for F
         where
-            F: Fn(Option<A0>, $($arg,)*) -> Fut,
+            F: Fn(A0, $($arg,)*) -> Fut,
             Fut: Future + Send,
             Fut::Output: TaskOutput + 'static
         {
@@ -300,22 +288,13 @@ macro_rules! task_fn_impl {
             F: for<'a> $async_fn_trait<&'a Recv, $($arg,)*> + Clone + Send + Sync + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, this: Option<RawVc>, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
+            fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
-                let recv = match this {
-                    Some(recv) => Some(Vc::<Recv>::from(recv)),
-                    None => None,
-                };
+                let recv = Vc::<Recv>::from(this);
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
-                    let recv_v;
-                    let recv = match recv {
-                        Some(recv) => {
-                            recv_v = recv.await?;
-                            Some(<Recv::Read as VcRead<Recv>>::target_to_value_ref(&*recv_v))
-                        }
-                        None => None,
-                    };
+                    let recv = recv.await?;
+                    let recv = <Recv::Read as VcRead<Recv>>::target_to_value_ref(&*recv);
                     let output = (task_fn)(recv, $($arg,)*).await;
                     output_try_into_non_local_raw_vc(output).await
                 }))
@@ -329,12 +308,9 @@ macro_rules! task_fn_impl {
             F: $async_fn_trait<Vc<Recv>, $($arg,)*> + Clone + Send + Sync + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, this: Option<RawVc>, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
+            fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
-                let recv = match this {
-                    Some(recv) => Some(Vc::<Recv>::from(recv)),
-                    None => None,
-                };
+                let recv = Vc::<Recv>::from(this);
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
                     let output = (task_fn)(recv, $($arg,)*).await;
@@ -397,26 +373,23 @@ mod tests {
             todo!()
         }
 
-        fn with_recv(_a: Option<&i32>) -> crate::Vc<i32> {
+        fn with_recv(_a: &i32) -> crate::Vc<i32> {
             todo!()
         }
 
-        async fn async_with_recv(_a: Option<&i32>) -> crate::Vc<i32> {
+        async fn async_with_recv(_a: &i32) -> crate::Vc<i32> {
             todo!()
         }
 
-        fn with_recv_and_str(_a: Option<&i32>, _s: RcStr) -> crate::Vc<i32> {
+        fn with_recv_and_str(_a: &i32, _s: RcStr) -> crate::Vc<i32> {
             todo!()
         }
 
-        async fn async_with_recv_and_str(_a: Option<&i32>, _s: RcStr) -> crate::Vc<i32> {
+        async fn async_with_recv_and_str(_a: &i32, _s: RcStr) -> crate::Vc<i32> {
             todo!()
         }
 
-        async fn async_with_recv_and_str_and_result(
-            _a: Option<&i32>,
-            _s: RcStr,
-        ) -> Result<crate::Vc<i32>> {
+        async fn async_with_recv_and_str_and_result(_a: &i32, _s: RcStr) -> Result<crate::Vc<i32>> {
             todo!()
         }
 
