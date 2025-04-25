@@ -598,7 +598,7 @@ export async function buildAppStaticPaths({
   }
 
   // Now we have to set the throwOnEmptyStaticShell for each of the routes.
-  if (result.prerenderedRoutes && isRoutePPREnabled && dynamicIO) {
+  if (result.prerenderedRoutes && dynamicIO) {
     assignErrorIfEmpty(result.prerenderedRoutes, routeParamKeys)
   }
 
