@@ -27,7 +27,7 @@ DEALINGS IN THE SOFTWARE.
 */
 
 import type { NextConfig } from '../../../types'
-import type { WebpackLayerName } from '../../../lib/constants'
+import { type WebpackLayerName, WEBPACK_LAYERS } from '../../../lib/constants'
 import { isWasm, transform } from '../../swc'
 import { getLoaderSWCOptions } from '../../swc/options'
 import path, { isAbsolute } from 'path'
@@ -76,6 +76,10 @@ export interface SWCLoaderOptions {
 // for to force transpiling a `node_module`
 const FORCE_TRANSPILE_CONDITIONS =
   /next\/font|next\/dynamic|use server|use client|use cache/
+// same as above, but including `import(...)`.
+const FORCE_TRANSPILE_CONDITIONS_WITH_IMPORT = new RegExp(
+  String.raw`(?:${FORCE_TRANSPILE_CONDITIONS.source})|import\(`
+)
 
 async function loaderTransform(
   this: LoaderContext<SWCLoaderOptions> & TelemetryLoaderContext,
@@ -96,12 +100,18 @@ async function loaderTransform(
     loaderOptions.transpilePackages || []
   )
 
+  const trackDynamicImports = shouldTrackDynamicImports(loaderOptions)
+
   if (shouldMaybeExclude) {
     if (!source) {
       throw new Error(`Invariant might be excluded but missing source`)
     }
 
-    if (!FORCE_TRANSPILE_CONDITIONS.test(source)) {
+    const forceTranspileConditions = trackDynamicImports
+      ? FORCE_TRANSPILE_CONDITIONS_WITH_IMPORT
+      : FORCE_TRANSPILE_CONDITIONS
+
+    if (!forceTranspileConditions.test(source)) {
       return [source, inputSourceMap]
     }
   }
@@ -150,6 +160,7 @@ async function loaderTransform(
     esm,
     cacheHandlers: nextConfig.experimental?.cacheHandlers,
     useCacheEnabled: nextConfig.experimental?.useCache,
+    trackDynamicImports,
   })
 
   const programmaticOptions = {
@@ -196,6 +207,18 @@ async function loaderTransform(
       updateTelemetryLoaderCtxFromTransformOutput(this, output)
       return [output.code, output.map ? JSON.parse(output.map) : undefined]
     }
+  )
+}
+
+function shouldTrackDynamicImports(loaderOptions: SWCLoaderOptions): boolean {
+  // we only need to track `import()` 1. in dynamicIO, 2. on the server (RSC and SSR)
+  // (Note: logic duplicated in crates/next-core/src/next_server/transforms.rs)
+  const { nextConfig, isServer, bundleLayer } = loaderOptions
+  return (
+    !!nextConfig.experimental?.dynamicIO &&
+    isServer &&
+    (bundleLayer === WEBPACK_LAYERS.reactServerComponents ||
+      bundleLayer === WEBPACK_LAYERS.serverSideRendering)
   )
 }
 
