@@ -35,11 +35,33 @@ export function getInfo() {
 }
 
 export function getTypeChecker() {
-  return info.languageService.getProgram()?.getTypeChecker()
+  const program = info.languageService.getProgram()
+  if (!program) {
+    log('Failed to get program while while running getTypeChecker.')
+    return
+  }
+  const typeChecker = program.getTypeChecker()
+  if (!typeChecker) {
+    log('Failed to get type checker while running getTypeChecker.')
+    return
+  }
+  return typeChecker
 }
 
 export function getSource(fileName: string) {
-  return info.languageService.getProgram()?.getSourceFile(fileName)
+  const program = info.languageService.getProgram()
+  if (!program) {
+    log('Failed to get program while running getSource for: ' + fileName)
+    return
+  }
+
+  const sourceFile = program.getSourceFile(fileName)
+  if (!sourceFile) {
+    log('Failed to get source file while running getSource for: ' + fileName)
+    return
+  }
+
+  return sourceFile
 }
 
 export function removeStringQuotes(str: string): string {

@@ -19,7 +19,11 @@ const getErrorTextFromBuildErrorMessage = (multiLineMessage: string) => {
   // SyntaxError: ...
   // > 1 | con st foo =
   // ...
-  return stripAnsi(lines[1] || '')
+  return (
+    stripAnsi(lines[1] || '')
+      // label will already say that it's an error
+      .replace(/^Error: /, '')
+  )
 }
 
 export const BuildError: React.FC<BuildErrorProps> = function BuildError({

@@ -36,7 +36,7 @@ describe('use-cache-segment-configs', () => {
         // FIXME: Fix broken import trace for Webpack loader resource.
         expect(browser).toDisplayRedbox(`
          {
-           "description": "Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.",
+           "description": "  x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.",
            "environmentLabel": null,
            "label": "Build Error",
            "source": "<FIXME-nextjs-internal-source>
