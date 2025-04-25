@@ -227,7 +227,6 @@ export function makeDynamicallyTrackedExoticCookies(
             }
           case 'then':
           case 'status':
-            console.log(new Date().toISOString(), 'awaited cookies, aborting')
             const workUnitStore = workUnitAsyncStorage.getStore()
 
             if (
