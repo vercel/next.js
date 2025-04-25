@@ -109,6 +109,10 @@ async function exportPageImpl(
     // result, we just want to use it to error the build if there's a problem.
     _isProspectiveRender: isProspectiveRender = false,
 
+    // Configure the rendering of the page not to throw if an empty static shell
+    // is generated while rendering using PPR.
+    _doNotThrowOnEmptyStaticShell: doNotThrowOnEmptyStaticShell = false,
+
     // Pull the original query out.
     query: originalQuery = {},
   } = pathMap
@@ -267,6 +271,7 @@ async function exportPageImpl(
     // If it's static, then it won't affect anything.
     // If it's dynamic, then it can be handled when request hits the route.
     serveStreamingMetadata: true,
+    doNotThrowOnEmptyStaticShell,
     experimental: {
       ...input.renderOpts.experimental,
       isRoutePPREnabled,
@@ -590,7 +595,7 @@ async function exportPage(
     cacheControl: result.cacheControl,
     metadata: result.metadata,
     ssgNotFound: result.ssgNotFound,
-    hasEmptyPrelude: result.hasEmptyPrelude,
+    hasEmptyStaticShell: result.hasEmptyStaticShell,
     hasPostponed: result.hasPostponed,
     turborepoAccessTraceResult: turborepoAccessTraceResult.serialize(),
     fetchMetrics: result.fetchMetrics,

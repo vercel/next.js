@@ -132,7 +132,7 @@ import {
   createDynamicValidationState,
   getFirstDynamicReason,
   trackAllowedDynamicAccess,
-  throwIfDisallowedEmptyShell,
+  throwIfDisallowedEmptyStaticShell,
   consumeDynamicAccess,
   type DynamicAccess,
 } from './dynamic-rendering'
@@ -2550,8 +2550,11 @@ async function spawnDynamicValidationInDev(
 
   function LogDynamicValidation() {
     try {
-      if (preludeIsEmpty) {
-        throwIfDisallowedEmptyShell(
+      // If we've disabled throwing on empty static shell, then we don't need to
+      // track any dynamic access that occurs above the suspense boundary because
+      // we'll do so in the route shell.
+      if (preludeIsEmpty && !ctx.renderOpts.doNotThrowOnEmptyStaticShell) {
+        throwIfDisallowedEmptyStaticShell(
           route,
           dynamicValidation,
           serverDynamicTracking,
@@ -3085,8 +3088,11 @@ async function prerenderToStream(
         const { prelude, preludeIsEmpty } =
           await processPrelude(unprocessedPrelude)
 
-        if (preludeIsEmpty) {
-          throwIfDisallowedEmptyShell(
+        // If we've disabled throwing on empty static shell, then we don't need to
+        // track any dynamic access that occurs above the suspense boundary because
+        // we'll do so in the route shell.
+        if (preludeIsEmpty && !ctx.renderOpts.doNotThrowOnEmptyStaticShell) {
+          throwIfDisallowedEmptyStaticShell(
             workStore.route,
             dynamicValidation,
             serverDynamicTracking,
@@ -3568,9 +3574,12 @@ async function prerenderToStream(
           }
         }
 
-        if (preludeIsEmpty) {
+        // If we've disabled throwing on empty static shell, then we don't need to
+        // track any dynamic access that occurs above the suspense boundary because
+        // we'll do so in the route shell.
+        if (preludeIsEmpty && !ctx.renderOpts.doNotThrowOnEmptyStaticShell) {
           // We don't have a shell because the root errored when we aborted.
-          throwIfDisallowedEmptyShell(
+          throwIfDisallowedEmptyStaticShell(
             workStore.route,
             dynamicValidation,
             serverDynamicTracking,
