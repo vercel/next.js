@@ -42,9 +42,9 @@ describe('fetch failures have good stack traces in edge runtime', () => {
       // TODO(veil): Why column off by one?
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "TypeError: fetch failed",
+         "description": "fetch failed",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Runtime TypeError",
          "source": "src/fetcher.js (6:16) @ anotherFetcher
        > 6 |   return await fetch(...args)
            |                ^",

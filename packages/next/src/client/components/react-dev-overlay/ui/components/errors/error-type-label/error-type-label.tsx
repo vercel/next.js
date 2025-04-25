@@ -1,8 +1,8 @@
 export type ErrorType =
   | 'Build Error'
-  | 'Runtime Error'
-  | 'Console Error'
-  | 'Recoverable Error'
+  | `Runtime ${string}`
+  | `Console ${string}`
+  | `Recoverable ${string}`
 
 type ErrorTypeLabelProps = {
   errorType: ErrorType

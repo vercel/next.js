@@ -122,9 +122,11 @@ impl Pattern {
         }
     }
 
+    /// Whether the pattern has any significant constant parts (everything except `/`).
+    /// E.g. `<dynamic>/<dynamic>` doesn't really have constant parts
     pub fn has_constant_parts(&self) -> bool {
         match self {
-            Pattern::Constant(_) => true,
+            Pattern::Constant(str) => str != "/",
             Pattern::Dynamic => false,
             Pattern::Alternatives(list) | Pattern::Concatenation(list) => {
                 list.iter().any(|p| p.has_constant_parts())

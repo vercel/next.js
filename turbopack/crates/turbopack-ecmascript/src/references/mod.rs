@@ -1312,7 +1312,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     let func = analysis_state
                         .link_value(
                             JsValue::member(Box::new(obj.clone()), Box::new(prop)),
-                            ImportAttributes::empty_ref(),
+                            eval_context.imports.get_attributes(span),
                         )
                         .await?;
 
@@ -2875,7 +2875,7 @@ async fn value_visitor_inner(
             ),
             _,
         ) => {
-            // TODO: figure out how to do static analysis without invalidating the while
+            // TODO: figure out how to do static analysis without invalidating the whole
             // analysis when a new file gets added
             v.into_unknown(
                 true,
@@ -2901,6 +2901,20 @@ async fn value_visitor_inner(
                 }
             } else {
                 v.into_unknown(true, "new non constant")
+            }
+        }
+        JsValue::WellKnownFunction(
+            WellKnownFunctionKind::PathJoin
+            | WellKnownFunctionKind::PathResolve(_)
+            | WellKnownFunctionKind::FsReadMethod(_),
+        ) => {
+            if ignore {
+                return Ok((
+                    JsValue::unknown(v, true, "ignored well known function"),
+                    true,
+                ));
+            } else {
+                return Ok((v, false));
             }
         }
         JsValue::FreeVar(ref kind) => match &**kind {

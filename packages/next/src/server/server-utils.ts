@@ -25,6 +25,7 @@ import {
 import { normalizeNextQueryParam } from './web/utils'
 import type { IncomingHttpHeaders } from 'http'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
 
 export function normalizeCdnUrl(
   req: BaseNextRequest,
@@ -176,11 +177,11 @@ export function getUtils({
   page: string
   i18n?: NextConfig['i18n']
   basePath: string
-  rewrites: {
+  rewrites: DeepReadonly<{
     fallback?: ReadonlyArray<Rewrite>
     afterFiles?: ReadonlyArray<Rewrite>
     beforeFiles?: ReadonlyArray<Rewrite>
-  }
+  }>
   pageIsDynamic: boolean
   trailingSlash?: boolean
   caseSensitive: boolean
@@ -209,7 +210,7 @@ export function getUtils({
       )
     }
 
-    const checkRewrite = (rewrite: Rewrite): boolean => {
+    const checkRewrite = (rewrite: DeepReadonly<Rewrite>): boolean => {
       const matcher = getPathMatch(
         rewrite.source + (trailingSlash ? '(/)?' : ''),
         {
@@ -227,8 +228,8 @@ export function getUtils({
         const hasParams = matchHas(
           req,
           parsedUrl.query,
-          rewrite.has,
-          rewrite.missing
+          rewrite.has as Rewrite['has'],
+          rewrite.missing as Rewrite['missing']
         )
 
         if (hasParams) {

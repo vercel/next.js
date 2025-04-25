@@ -10,7 +10,7 @@ import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-pa
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { PageNotFoundError, MissingStaticPage } from '../shared/lib/utils'
 import { LRUCache } from '../server/lib/lru-cache'
-import { loadManifest } from './load-manifest'
+import { loadManifest } from './load-manifest.external'
 import { promises } from 'fs'
 
 const isDev = process.env.NODE_ENV === 'development'

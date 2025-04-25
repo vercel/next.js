@@ -262,6 +262,13 @@ export interface RenderOptsPartial {
   reactMaxHeadersLength: number | undefined
 
   isStaticGeneration?: boolean
+
+  /**
+   * When true, the page will be rendered using the static rendering to detect
+   * any dynamic API's that would have stopped the page from being fully
+   * statically generated.
+   */
+  doNotThrowOnEmptyStaticShell?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
