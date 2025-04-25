@@ -336,11 +336,6 @@ impl TurboFn<'_> {
                     return (arg.clone(), None);
                 }
 
-                // We are going to filter out `self` if it's not used.
-                if !is_self_used && matches!(arg, FnArg::Receiver(_)) {
-                    return (arg.clone(), None);
-                }
-
                 let (FnArg::Receiver(Receiver { ty, .. }) | FnArg::Typed(PatType { ty, .. })) = arg;
                 let Cow::Owned(expanded_ty) = expand_task_input_type(ty) else {
                     // common-case: skip if no type conversion is needed
@@ -500,6 +495,16 @@ impl TurboFn<'_> {
         // we only need to do this on trait methods, but we're doing it on all methods because we
         // don't know if we're a trait method or not (we could pass this information down)
         if self.is_method() {
+            let this_return_value = if is_self_used {
+                quote! {
+                    this
+                }
+            } else {
+                quote! {
+                    None
+                }
+            };
+
             let inline_input_idents: Vec<_> = self.inline_input_idents(is_self_used).collect();
             if inline_input_idents.len() != self.exposed_inputs.len() {
                 let exposed_input_idents: Vec<_> = self.exposed_input_idents().collect();
@@ -514,7 +519,7 @@ impl TurboFn<'_> {
                         }
                     },
                     filter_and_resolve: quote! {
-                        |magic_any| {
+                        |this: Option<turbo_tasks::RawVc>, magic_any| {
                             Box::pin(async move {
                                 let (#(#exposed_input_idents,)*) = turbo_tasks::macro_helpers
                                     ::downcast_args_ref::<(#(#exposed_input_types,)*)>(magic_any);
@@ -523,10 +528,11 @@ impl TurboFn<'_> {
                                         #inline_input_idents
                                     ).await?,
                                 )*);
-                                Ok(
+                                Ok((
+                                    #this_return_value,
                                     ::std::boxed::Box::new(resolved)
                                     as ::std::boxed::Box<dyn turbo_tasks::MagicAny>
-                                )
+                                ))
                             })
                         }
                     },
