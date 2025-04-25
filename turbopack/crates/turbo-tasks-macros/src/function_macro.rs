@@ -55,7 +55,8 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
     let ident = &sig.ident;
 
     let inline_function_ident = turbo_fn.inline_ident();
-    let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(&block);
+    let (inline_signature, inline_block) =
+        turbo_fn.inline_signature_and_block(&block, is_self_used);
     let inline_attrs = filter_inline_attributes(&attrs[..]);
 
     let native_fn = NativeFn {

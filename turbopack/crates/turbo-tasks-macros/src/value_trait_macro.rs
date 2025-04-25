@@ -111,7 +111,8 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             let inline_function_ident = turbo_fn.inline_ident();
             let inline_extension_trait_ident =
                 Ident::new(&format!("{}_{}_inline", trait_ident, ident), ident.span());
-            let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(default);
+            let (inline_signature, inline_block) =
+                turbo_fn.inline_signature_and_block(default, is_self_used);
             let inline_attrs = filter_inline_attributes(&attrs[..]);
 
             let native_function = NativeFn {
