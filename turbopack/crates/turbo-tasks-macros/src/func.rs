@@ -728,7 +728,7 @@ pub struct FunctionArguments {
     /// arguments are `OperationValue`s. Mutually exclusive with the `local` flag.
     ///
     /// If there is an error due to this option being set, it should be reported to this span.
-    operation: Option<Span>,
+    pub operation: Option<Span>,
     /// Does not run the function as a real task, and instead runs it inside the parent task using
     /// task-local state. The function call itself will not be cached, but cells will be created on
     /// the parent task.
