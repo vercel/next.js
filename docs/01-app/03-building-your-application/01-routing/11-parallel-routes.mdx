@@ -23,7 +23,7 @@ For example, considering a dashboard, you can use parallel routes to simultaneou
 Parallel routes are created using named **slots**. Slots are defined with the `@folder` convention. For example, the following file structure defines two slots: `@analytics` and `@team`:
 
 <Image
-  alt="Parallel Routes File-system Structure"
+  alt="Parallel Routes Filesystem Structure"
   srcLight="/docs/light/parallel-routes-file-system.png"
   srcDark="/docs/dark/parallel-routes-file-system.png"
   width="1600"
@@ -304,7 +304,7 @@ export default function Page() {
 
 > **Good to know:**
 >
-> - The convention used to intercept the route, e.g. `(.)`, depends on your file-system structure. See [Intercepting Routes convention](/docs/app/building-your-application/routing/intercepting-routes#convention).
+> - The convention used to intercept the route, e.g. `(.)`, depends on your filesystem structure. See [Intercepting Routes convention](/docs/app/building-your-application/routing/intercepting-routes#convention).
 > - By separating the `<Modal>` functionality from the modal content (`<Login>`), you can ensure any content inside the modal, e.g. [forms](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#forms), are Server Components. See [Interleaving Client and Server Components](/docs/app/building-your-application/rendering/composition-patterns#supported-pattern-passing-server-components-to-client-components-as-props) for more information.
 
 #### Opening the modal
