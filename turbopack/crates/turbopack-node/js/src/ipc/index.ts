@@ -44,7 +44,6 @@ function createIpc<TIncoming, TOutgoing>(
   const socket = createConnection({
     port,
     host: "127.0.0.1",
-    noDelay: true,
   });
 
   /**
@@ -122,10 +121,10 @@ function createIpc<TIncoming, TOutgoing>(
 
   // TODO(lukesandberg): some of the messages being sent are very large and contain lots
   //  of redundant information.  Consider adding gzip compression to our stream.
-  function send(message: any): Promise<void> {
+  function doSend(message: any): Promise<void> {
     return new Promise((resolve, reject) => {
-      const stringified = JSON.stringify(message)
-      const packet = Buffer.from("0000" + stringified, "utf8");
+      // Reserve 4 bytes for our length prefix, we will over-write after encoding.
+      const packet = Buffer.from("0000" + message, "utf8");
       packet.writeUInt32BE(packet.length - 4, 0);
       socketWritable.write(packet, (err) => {
         process.stderr.write(`TURBOPACK_OUTPUT_D\n`);
@@ -139,21 +138,12 @@ function createIpc<TIncoming, TOutgoing>(
     });
   }
 
-  function sendReady(): Promise<void> {
-    const length = Buffer.from([0, 0, 0, 0]);
-    return new Promise((resolve, reject) => {
-      socketWritable.write(length, (err) => {
-        process.stderr.write(`TURBOPACK_OUTPUT_D\n`);
-        process.stdout.write(`TURBOPACK_OUTPUT_D\n`);
-
-        if (err != null) {
-          reject(err);
-        } else {
-          resolve();
-        }
-      });
-    });
-  }
+  function send(message: any): Promise<void> {
+    return doSend(JSON.stringify(message));
+   }
+   function sendReady(): Promise<void> {
+      return doSend("");
+   }
 
   return {
     async recv() {
