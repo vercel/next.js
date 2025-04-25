@@ -483,9 +483,6 @@ async function generateCacheEntryImpl(
       renderContext.dynamicAccessAbortController
 
     const timeoutAbortController = new AbortController()
-    const isProspectiveRender =
-      workUnitStore?.type === 'prerender' && workUnitStore.cacheSignal !== null
-    const { page } = workStore
 
     // If we're prerendering, we give you 50 seconds to fill a cache entry.
     // Otherwise we assume you stalled on hanging input and de-opt. This needs
@@ -519,12 +516,6 @@ async function generateCacheEntryImpl(
       }
     )
 
-    console.log(new Date().toISOString(), 'got prelude', {
-      cacheKeyWithoutCookies,
-      isProspectiveRender,
-      page,
-    })
-
     clearTimeout(timer)
 
     if (timeoutAbortController.signal.aborted) {
@@ -536,13 +527,6 @@ async function generateCacheEntryImpl(
     } else {
       stream = prelude
     }
-
-    console.log(new Date().toISOString(), {
-      dynamicAccessAbortSignal: dynamicAccessAbortSignal?.aborted,
-      cacheKeyWithoutCookies,
-      isProspectiveRender,
-      page,
-    })
 
     if (renderContext.dynamicAccessAbortController.signal?.aborted) {
       if (workUnitStore?.type === 'prerender') {
