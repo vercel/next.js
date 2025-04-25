@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro2::{Group, Ident, Span, TokenStream, TokenTree};
 use quote::{quote, quote_spanned, ToTokens};
 use rustc_hash::FxHashSet;
 use syn::{
@@ -1018,6 +1018,39 @@ impl VisitMut for RewriteSelfVisitMut {
     fn visit_item_impl_mut(&mut self, _: &mut syn::ItemImpl) {
         // skip children of `impl`: the definition of "self" inside of an impl is different than the
         // parent scope's definition of "self"
+    }
+
+    fn visit_macro_mut(&mut self, mac: &mut syn::Macro) {
+        let new_tokens =
+            replace_self_in_token_stream(mac.tokens.to_token_stream(), &self.self_ident);
+        mac.tokens = new_tokens;
+
+        syn::visit_mut::visit_macro_mut(self, mac);
+    }
+}
+
+fn replace_self_in_token_stream(stream: TokenStream, self_ident: &Ident) -> TokenStream {
+    stream
+        .into_iter()
+        .map(|tt| replace_self_in_tt(tt, self_ident))
+        .collect()
+}
+
+fn replace_self_in_tt(tt: TokenTree, self_ident: &Ident) -> TokenTree {
+    match tt {
+        TokenTree::Group(group) => {
+            let new_stream = replace_self_in_token_stream(group.stream(), self_ident);
+            TokenTree::Group(Group::new(group.delimiter(), new_stream))
+        }
+
+        TokenTree::Ident(ref ident) => {
+            if ident == "self" {
+                return TokenTree::Ident(self_ident.clone());
+            }
+
+            tt
+        }
+        _ => tt,
     }
 }
 
