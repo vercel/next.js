@@ -118,7 +118,6 @@ async fn track_glob_internal(
     let glob_value = glob.await?;
     let mut reads = Vec::new();
     let mut completions = Vec::new();
-    let mut links = Vec::new();
     let mut types = Vec::new();
     match &*dir {
         DirectoryContent::Entries(entries) => {
@@ -127,20 +126,24 @@ async fn track_glob_internal(
                     continue;
                 }
                 let entry = entry.resolve_symlink().await?;
+                let full_path_prefix: RcStr = match entry {
+                    DirectoryEntry::Directory(..) => format!("{prefix}{segment}/").into(),
+                    _ => format!("{prefix}{segment}").into(),
+                };
+                if !glob_value.execute(&full_path_prefix) {
+                    continue;
+                }
                 match entry {
                     DirectoryEntry::Directory(path) => {
-                        let full_path_prefix: RcStr = format!("{prefix}{segment}/").into();
-                        if glob_value.execute(&full_path_prefix) {
-                            completions.push(track_glob_inner(
-                                full_path_prefix,
-                                *path,
-                                glob,
-                                include_dot_files,
-                            ));
-                        }
+                        completions.push(track_glob_inner(
+                            full_path_prefix,
+                            *path,
+                            glob,
+                            include_dot_files,
+                        ));
                     }
                     DirectoryEntry::File(path) => reads.push(path.track()),
-                    DirectoryEntry::Symlink(path) => links.push(path.read_link()),
+                    DirectoryEntry::Symlink(_) => panic!("we already resolved symlinks"),
                     DirectoryEntry::Other(path) => types.push(path.get_type()),
                     DirectoryEntry::Error => {}
                 }
@@ -150,7 +153,6 @@ async fn track_glob_internal(
     }
     try_join!(
         reads.iter().try_join(),
-        links.iter().try_join(),
         types.iter().try_join(),
         completions.iter().try_join()
     )?;
