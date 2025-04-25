@@ -28,7 +28,7 @@ function runTests({ isDev }) {
         expect(description).toMatchInlineSnapshot(`"Processing image failed"`)
       } else {
         expect(description).toMatchInlineSnapshot(
-          `"Error: Image import "../public/invalid.svg" is not a valid image file. The image may be corrupted or an unsupported format."`
+          `"Image import "../public/invalid.svg" is not a valid image file. The image may be corrupted or an unsupported format."`
         )
       }
       const source = await getRedboxSource(browser)

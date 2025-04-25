@@ -29,7 +29,7 @@ describe('use-cache-close-over-function', () => {
       const errorSource = await getRedboxSource(browser)
 
       expect(errorDescription).toMatchInlineSnapshot(`
-        "Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+        "Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
           [function fn]
            ^^^^^^^^^^^"
       `)
@@ -87,7 +87,7 @@ describe('use-cache-close-over-function', () => {
       const errorSource = await getRedboxSource(browser)
 
       expect(errorDescription).toMatchInlineSnapshot(`
-        "Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+        "Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
           [function fn]
            ^^^^^^^^^^^"
       `)

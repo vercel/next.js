@@ -218,7 +218,7 @@ describe('app-dir - server source maps', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: Boom",
+         "description": "Boom",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "app/ssr-throw/Thrower.js (4:9) @ throwError
