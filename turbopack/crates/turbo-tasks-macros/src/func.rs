@@ -491,7 +491,7 @@ impl TurboFn<'_> {
             .map(|Input { ty, .. }| expand_task_input_type(ty))
     }
 
-    pub fn filter_trait_call_args(&self, is_self_used: bool) -> Option<FilterTraitCallArgsTokens> {
+    pub fn filter_trait_call_args(&self) -> Option<FilterTraitCallArgsTokens> {
         // we only need to do this on trait methods, but we're doing it on all methods because we
         // don't know if we're a trait method or not (we could pass this information down)
         if self.is_method() {

@@ -260,7 +260,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     },
                     is_method: turbo_fn.is_method(),
                     is_self_used,
-                    filter_trait_call_args: turbo_fn.filter_trait_call_args(is_self_used),
+                    filter_trait_call_args: turbo_fn.filter_trait_call_args(),
                     local,
                 };
 

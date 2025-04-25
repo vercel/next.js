@@ -122,7 +122,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 },
                 is_method: turbo_fn.is_method(),
                 is_self_used,
-                filter_trait_call_args: turbo_fn.filter_trait_call_args(is_self_used),
+                filter_trait_call_args: turbo_fn.filter_trait_call_args(),
                 // `local` is currently unsupported here because:
                 // - The `#[turbo_tasks::function]` macro needs to be present for us to read this
                 //   argument. (This could be fixed)
