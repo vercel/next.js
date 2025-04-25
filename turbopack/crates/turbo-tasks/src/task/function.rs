@@ -119,9 +119,6 @@ where
     Inputs: TaskInputs,
 {
     fn functor(&self, this: Option<RawVc>, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
-        let Some(this) = this else {
-            panic!("Method needs a `self` argument");
-        };
         TaskFnInputFunctionWithThis::functor(&self.task_fn, this, arg)
     }
 }
@@ -133,7 +130,9 @@ trait TaskFnInputFunction<Mode: TaskFnMode, Inputs: TaskInputs>: Send + Sync + C
 trait TaskFnInputFunctionWithThis<Mode: TaskFnMode, This: Sync + Send + 'static, Inputs: TaskInputs>:
     Send + Sync + Clone + 'static
 {
-    fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture>;
+    /// `this` is an [Option] because we skip it when a trait method does not use `self` in its
+    /// body.
+    fn functor(&self, this: Option<RawVc>, arg: &dyn MagicAny) -> Result<NativeTaskFuture>;
 }
 
 pub trait TaskInputs: Send + Sync + 'static {}
