@@ -1,11 +1,8 @@
 use proc_macro2::TokenTree;
 use quote::ToTokens;
-use syn::{
-    visit::{visit_expr, visit_macro, Visit},
-    Block, Expr, Macro,
-};
+use syn::visit::{visit_block, visit_expr, visit_item, visit_macro, Visit};
 
-pub fn is_self_used(block: &Block) -> bool {
+pub fn is_self_used(block: &syn::Block) -> bool {
     let mut finder = SelfFinder { found: false };
     finder.visit_block(block);
     finder.found
@@ -16,12 +13,20 @@ struct SelfFinder {
 }
 
 impl Visit<'_> for SelfFinder {
-    fn visit_expr(&mut self, expr: &Expr) {
+    fn visit_block(&mut self, n: &syn::Block) {
         if self.found {
             return;
         }
 
-        if let Expr::Path(path) = expr {
+        visit_block(self, n);
+    }
+
+    fn visit_expr(&mut self, expr: &syn::Expr) {
+        if self.found {
+            return;
+        }
+
+        if let syn::Expr::Path(path) = expr {
             if path.path.is_ident("self") {
                 self.found = true;
                 return;
@@ -31,7 +36,20 @@ impl Visit<'_> for SelfFinder {
         visit_expr(self, expr);
     }
 
-    fn visit_macro(&mut self, mac: &Macro) {
+    fn visit_item(&mut self, n: &syn::Item) {
+        if self.found {
+            return;
+        }
+
+        visit_item(self, n);
+    }
+
+    fn visit_item_impl(&mut self, _: &syn::ItemImpl) {
+        // skip children of `impl`: the definition of "self" inside of an impl is different than the
+        // parent scope's definition of "self"
+    }
+
+    fn visit_macro(&mut self, mac: &syn::Macro) {
         if self.found {
             return;
         }
@@ -44,11 +62,6 @@ impl Visit<'_> for SelfFinder {
         }
 
         visit_macro(self, mac);
-    }
-
-    fn visit_item_impl(&mut self, _: &syn::ItemImpl) {
-        // skip children of `impl`: the definition of "self" inside of an impl is different than the
-        // parent scope's definition of "self"
     }
 }
 
