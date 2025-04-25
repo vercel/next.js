@@ -133,7 +133,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         // An error occurred while parsing the function signature.
                     };
                 };
-                let is_self_used = turbo_fn.is_method() && is_self_used(block);
+                let is_self_used = is_self_used(block);
 
                 let inline_function_ident = turbo_fn.inline_ident();
                 let (inline_signature, inline_block) =
@@ -238,7 +238,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     };
                 };
 
-                let is_self_used = turbo_fn.is_method() && is_self_used(block);
+                let is_self_used = is_self_used(block);
 
                 let inline_function_ident = turbo_fn.inline_ident();
                 let inline_extension_trait_ident = Ident::new(
