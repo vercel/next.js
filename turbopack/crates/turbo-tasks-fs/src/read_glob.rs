@@ -139,23 +139,20 @@ async fn track_glob_internal(
                             ));
                         }
                     }
-                    DirectoryEntry::File(path) => reads.push(path.read()),
-                    DirectoryEntry::Symlink(path) => {
-                        links.push(path.read_link());
-                    }
-                    DirectoryEntry::Other(path) => {
-                        types.push(path.get_type());
-                    }
+                    DirectoryEntry::File(path) => reads.push(path.track()),
+                    DirectoryEntry::Symlink(path) => links.push(path.read_link()),
+                    DirectoryEntry::Other(path) => types.push(path.get_type()),
                     DirectoryEntry::Error => {}
                 }
             }
         }
         DirectoryContent::NotFound => {}
     }
-    let reads = reads.iter().try_join();
-    let links = links.iter().try_join();
-    let types = types.iter().try_join();
-    let completions = completions.iter().try_join();
-    try_join!(reads, links, types, completions)?;
+    try_join!(
+        reads.iter().try_join(),
+        links.iter().try_join(),
+        types.iter().try_join(),
+        completions.iter().try_join()
+    )?;
     Ok(Completion::new())
 }
