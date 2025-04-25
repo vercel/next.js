@@ -267,7 +267,7 @@ describe('Client Navigation', () => {
       await browser.elementByCss('#empty-props').click()
       await expect(browser).toDisplayRedbox(`
          {
-           "description": "Error: "EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.",
+           "description": ""EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -1255,7 +1255,7 @@ describe('Client Navigation', () => {
         await expect(browser).toDisplayRedbox(`
          [
            {
-             "description": "Error: An Expected error occurred",
+             "description": "An Expected error occurred",
              "environmentLabel": null,
              "label": "Runtime Error",
              "source": "pages/error-inside-browser-page.js (5:13) @ ErrorInRenderPage.render
@@ -1266,7 +1266,7 @@ describe('Client Navigation', () => {
              ],
            },
            {
-             "description": "Error: An Expected error occurred",
+             "description": "An Expected error occurred",
              "environmentLabel": null,
              "label": "Runtime Error",
              "source": "pages/error-inside-browser-page.js (5:13) @ ErrorInRenderPage.render
@@ -1277,7 +1277,7 @@ describe('Client Navigation', () => {
              ],
            },
            {
-             "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+             "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
              "environmentLabel": null,
              "label": "Recoverable Error",
              "source": null,
@@ -1288,7 +1288,7 @@ describe('Client Navigation', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Error: An Expected error occurred",
+           "description": "An Expected error occurred",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "pages/error-inside-browser-page.js (5:13) @ ErrorInRenderPage.render
@@ -1332,7 +1332,7 @@ describe('Client Navigation', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
            {
-             "description": "Error: An Expected error occurred",
+             "description": "An Expected error occurred",
              "environmentLabel": null,
              "label": "Runtime Error",
              "source": "pages/error-in-the-browser-global-scope.js (2:9) @ [project]/pages/error-in-the-browser-global-scope.js [client] (ecmascript)
@@ -1346,7 +1346,7 @@ describe('Client Navigation', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
            {
-             "description": "Error: An Expected error occurred",
+             "description": "An Expected error occurred",
              "environmentLabel": null,
              "label": "Runtime Error",
              "source": "pages/error-in-the-browser-global-scope.js (2:9) @ eval
