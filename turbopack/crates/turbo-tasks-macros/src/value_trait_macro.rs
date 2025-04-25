@@ -120,6 +120,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                     <Box<dyn #trait_ident> as #inline_extension_trait_ident>::#inline_function_ident
                 },
                 is_method: turbo_fn.is_method(),
+                is_self_used,
                 filter_trait_call_args: turbo_fn.filter_trait_call_args(is_self_used),
                 // `local` is currently unsupported here because:
                 // - The `#[turbo_tasks::function]` macro needs to be present for us to read this

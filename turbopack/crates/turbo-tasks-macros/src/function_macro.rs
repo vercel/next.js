@@ -1,7 +1,9 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, parse_quote, ItemFn};
-use turbo_tasks_macros_shared::{get_native_function_id_ident, get_native_function_ident};
+use turbo_tasks_macros_shared::{
+    get_native_function_id_ident, get_native_function_ident, is_self_used,
+};
 
 use crate::func::{
     filter_inline_attributes, DefinitionContext, FunctionArguments, NativeFn, TurboFn,
@@ -48,6 +50,8 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         .into();
     };
 
+    let is_self_used = turbo_fn.is_method() && is_self_used(&block);
+
     let ident = &sig.ident;
 
     let inline_function_ident = turbo_fn.inline_ident();
@@ -58,6 +62,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         function_path_string: ident.to_string(),
         function_path: parse_quote! { #inline_function_ident },
         is_method: turbo_fn.is_method(),
+        is_self_used,
         filter_trait_call_args: None, // not a trait method
         local,
     };

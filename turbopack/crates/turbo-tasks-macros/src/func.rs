@@ -1066,6 +1066,8 @@ pub struct NativeFn {
     pub function_path_string: String,
     pub function_path: ExprPath,
     pub is_method: bool,
+    /// Used only if `is_method` is true.
+    pub is_self_used: bool,
     pub filter_trait_call_args: Option<FilterTraitCallArgsTokens>,
     pub local: bool,
 }
@@ -1080,6 +1082,7 @@ impl NativeFn {
             function_path_string,
             function_path,
             is_method,
+            is_self_used,
             filter_trait_call_args,
             local,
         } = self;
@@ -1099,17 +1102,34 @@ impl NativeFn {
             } else {
                 quote! { ::std::option::Option::None }
             };
-            quote! {
-                {
-                    #[allow(deprecated)]
-                    turbo_tasks::macro_helpers::NativeFunction::new_method(
-                        #function_path_string.to_owned(),
-                        turbo_tasks::macro_helpers::FunctionMeta {
-                            local: #local,
-                        },
-                        #arg_filter,
-                        #function_path,
-                    )
+
+            if *is_self_used {
+                quote! {
+                    {
+                        #[allow(deprecated)]
+                        turbo_tasks::macro_helpers::NativeFunction::new_method(
+                            #function_path_string.to_owned(),
+                            turbo_tasks::macro_helpers::FunctionMeta {
+                                local: #local,
+                            },
+                            #arg_filter,
+                            #function_path,
+                        )
+                    }
+                }
+            } else {
+                quote! {
+                    {
+                        #[allow(deprecated)]
+                        turbo_tasks::macro_helpers::NativeFunction::new_method_without_this(
+                            #function_path_string.to_owned(),
+                            turbo_tasks::macro_helpers::FunctionMeta {
+                                local: #local,
+                            },
+                            #arg_filter,
+                            #function_path,
+                        )
+                    }
                 }
             }
         } else {

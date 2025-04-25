@@ -211,6 +211,28 @@ impl NativeFunction {
         }
     }
 
+    pub fn new_method_without_this<Mode, Inputs, I>(
+        name: String,
+        function_meta: FunctionMeta,
+        arg_filter: Option<(FilterOwnedArgsFunctor, FilterAndResolveFunctor)>,
+        implementation: I,
+    ) -> Self
+    where
+        Inputs: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
+        I: IntoTaskFn<Mode, Inputs>,
+    {
+        Self {
+            name,
+            function_meta,
+            arg_meta: if let Some((filter_owned, filter_and_resolve)) = arg_filter {
+                ArgMeta::with_filter_trait_call::<Inputs>(filter_owned, filter_and_resolve)
+            } else {
+                ArgMeta::new::<Inputs>()
+            },
+            implementation: Box::new(implementation.into_task_fn()),
+        }
+    }
+
     pub fn new_method<Mode, This, Inputs, I>(
         name: String,
         function_meta: FunctionMeta,

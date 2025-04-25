@@ -133,6 +133,8 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         // An error occurred while parsing the function signature.
                     };
                 };
+                let is_self_used = turbo_fn.is_method() && is_self_used(block);
+
                 let inline_function_ident = turbo_fn.inline_ident();
                 let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
                 let inline_attrs = filter_inline_attributes(attrs.iter().copied());
@@ -141,6 +143,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     function_path_string: format!("{ty}::{ident}", ty = ty.to_token_stream()),
                     function_path: parse_quote! { <#ty>::#inline_function_ident },
                     is_method: turbo_fn.is_method(),
+                    is_self_used,
                     filter_trait_call_args: None, // not a trait method
                     local,
                 };
@@ -219,7 +222,6 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             }) = item
             {
                 let ident = &sig.ident;
-                let is_self_used = is_self_used(block);
 
                 let (func_args, attrs) = split_function_attributes(item, attrs);
                 let func_args = func_args
@@ -234,6 +236,8 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         // An error occurred while parsing the function signature.
                     };
                 };
+
+                let is_self_used = turbo_fn.is_method() && is_self_used(block);
 
                 let inline_function_ident = turbo_fn.inline_ident();
                 let inline_extension_trait_ident = Ident::new(
@@ -253,6 +257,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         <#ty as #inline_extension_trait_ident>::#inline_function_ident
                     },
                     is_method: turbo_fn.is_method(),
+                    is_self_used,
                     filter_trait_call_args: turbo_fn.filter_trait_call_args(is_self_used),
                     local,
                 };
