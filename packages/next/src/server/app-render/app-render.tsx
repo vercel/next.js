@@ -3419,6 +3419,7 @@ async function prerenderToStream(
         initialClientController.abort()
         initialServerRenderController.abort()
         initialServerPrerenderController.abort()
+        console.log('aborted prospective render', ctx.renderOpts.page)
 
         // We don't need to continue the prerender process if we already
         // detected invalid dynamic usage in the initial prerender phase.
