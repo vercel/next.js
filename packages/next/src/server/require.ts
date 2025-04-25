@@ -111,16 +111,9 @@ export async function requirePage(
     })
   }
 
-  // since require is synchronous we can set the specific runtime
-  // we are requiring for the require-hook and then clear after
-  try {
-    process.env.__NEXT_PRIVATE_RUNTIME_TYPE = isAppPath ? 'app' : 'pages'
-    const mod = process.env.NEXT_MINIMAL
-      ? // @ts-ignore
-        __non_webpack_require__(pagePath)
-      : require(pagePath)
-    return mod
-  } finally {
-    process.env.__NEXT_PRIVATE_RUNTIME_TYPE = ''
-  }
+  const mod = process.env.NEXT_MINIMAL
+    ? // @ts-ignore
+      __non_webpack_require__(pagePath)
+    : require(pagePath)
+  return mod
 }

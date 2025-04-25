@@ -13,6 +13,7 @@ use turbopack_core::{
         ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption,
         ModuleChunkItemIdExt,
     },
+    context::AssetContext,
     issue::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
@@ -23,7 +24,7 @@ use turbopack_core::{
     resolve::{
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
-        ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
+        ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem, RequestKey,
     },
 };
 use turbopack_resolve::ecmascript::esm_resolve;
@@ -38,6 +39,7 @@ use crate::{
     runtime_functions::{TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT},
     tree_shake::{asset::EcmascriptModulePartAsset, TURBOPACK_PART_IMPORT_SOURCE},
     utils::module_id_to_lit,
+    TreeShakingMode,
 };
 
 #[turbo_tasks::value]
@@ -168,6 +170,32 @@ impl ModuleReference for EsmAssetReference {
             EcmaScriptModulesReferenceSubType::Import
         };
 
+        if let Some(ModulePart::Evaluation) = &self.export_name {
+            let module: ResolvedVc<crate::EcmascriptModuleAsset> =
+                ResolvedVc::try_downcast_type(self.origin)
+                    .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
+
+            let tree_shaking_mode = module.options().await?.tree_shaking_mode;
+
+            if let Some(TreeShakingMode::ModuleFragments) = tree_shaking_mode {
+                let side_effect_free_packages = module.asset_context().side_effect_free_packages();
+
+                if *module
+                    .is_marked_as_side_effect_free(side_effect_free_packages)
+                    .await?
+                {
+                    return Ok(ModuleResolveResult {
+                        primary: Box::new([(
+                            RequestKey::default(),
+                            ModuleResolveResultItem::Ignore,
+                        )]),
+                        affecting_sources: Default::default(),
+                    }
+                    .cell());
+                }
+            }
+        }
+
         if let Request::Module { module, .. } = &*self.request.await? {
             if module == TURBOPACK_PART_IMPORT_SOURCE {
                 if let Some(part) = &self.export_name {
@@ -175,11 +203,11 @@ impl ModuleReference for EsmAssetReference {
                         ResolvedVc::try_downcast_type(self.origin)
                             .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
 
-                    return Ok(*ModuleResolveResult::module(
+                    return Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
                         EcmascriptModulePartAsset::select_part(*module, part.clone())
                             .to_resolved()
                             .await?,
-                    ));
+                    )));
                 }
 
                 bail!("export_name is required for part import")

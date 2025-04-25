@@ -252,9 +252,15 @@ function resolveAbsolutePath(modulePath?: string): string {
   return `/ROOT/${modulePath ?? ""}`;
 }
 
-function getWorkerBlobURL(chunks: ChunkPath[]): string {
+/**
+ * Returns a blob URL for the worker.
+ * @param chunks list of chunks to load
+ * @param beforeLoad code to run before code is loaded. Used in dev for HMR setup.
+ */
+function getWorkerBlobURL(chunks: ChunkPath[], beforeLoad: string | undefined): string {
   let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};
 self.TURBOPACK_NEXT_CHUNK_URLS = ${JSON.stringify(chunks.reverse().map(getChunkRelativeUrl), null, 2)};
+${beforeLoad || ""}
 importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_LOCATION + c).reverse());`;
   let blob = new Blob([bootstrap], { type: "text/javascript" });
   return URL.createObjectURL(blob);

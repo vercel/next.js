@@ -96,10 +96,9 @@ function createIpc<TIncoming, TOutgoing>(
   });
 
   function send(message: any): Promise<void> {
-    const packet = Buffer.from(JSON.stringify(message), "utf8");
-    const length = Buffer.alloc(4);
-    length.writeUInt32BE(packet.length);
-    socket.write(length);
+    // Reserve 4 bytes for our length prefix, we will over-write after encoding.
+    const packet = Buffer.from("0000" + JSON.stringify(message), "utf8");
+    packet.writeUInt32BE(packet.length - 4, 0);
 
     return new Promise((resolve, reject) => {
       socket.write(packet, (err) => {

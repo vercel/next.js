@@ -26,6 +26,7 @@ once_cell = { workspace = true }
 parking_lot = { workspace = true }
 petgraph = { workspace = true }
 regex = { workspace = true }
+regress = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

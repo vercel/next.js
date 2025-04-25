@@ -493,9 +493,14 @@ async function loadChunkPath(source, chunkPath) {
  */ function resolveAbsolutePath(modulePath) {
     return `/ROOT/${modulePath ?? ""}`;
 }
-function getWorkerBlobURL(chunks) {
+/**
+ * Returns a blob URL for the worker.
+ * @param chunks list of chunks to load
+ * @param beforeLoad code to run before code is loaded. Used in dev for HMR setup.
+ */ function getWorkerBlobURL(chunks, beforeLoad) {
     let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};
 self.TURBOPACK_NEXT_CHUNK_URLS = ${JSON.stringify(chunks.reverse().map(getChunkRelativeUrl), null, 2)};
+${beforeLoad || ""}
 importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_LOCATION + c).reverse());`;
     let blob = new Blob([
         bootstrap
@@ -655,6 +660,11 @@ const getOrInstantiateModuleFromParent = (id, sourceModule)=>{
         parentId: sourceModule.id
     });
 };
+function getDevWorkerBlobURL(chunks) {
+    return getWorkerBlobURL(chunks, `// noop fns to prevent runtime errors during initialization
+self.$RefreshReg$ = function() {};
+self.$RefreshSig$ = function() {};`);
+}
 // @ts-ignore Defined in `runtime-base.ts`
 function instantiateModule(id, source) {
     const moduleFactory = moduleFactories[id];
@@ -742,7 +752,7 @@ function instantiateModule(id, source) {
                 U: relativeURL,
                 k: refresh,
                 R: createResolvePathFromModule(r),
-                b: getWorkerBlobURL,
+                b: getDevWorkerBlobURL,
                 z: requireStub,
                 d: typeof module.id === "string" ? module.id.replace(/(^|\/)\/+$/, "") : module.id
             }));

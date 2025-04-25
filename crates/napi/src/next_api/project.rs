@@ -374,7 +374,9 @@ pub async fn project_new(
         let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
         exit.on_exit(async move {
-            tokio::task::spawn_blocking(move || drop(trace_writer_guard));
+            tokio::task::spawn_blocking(move || drop(trace_writer_guard))
+                .await
+                .unwrap();
         });
 
         let trace_server = std::env::var("NEXT_TURBOPACK_TRACE_SERVER").ok();
@@ -382,7 +384,7 @@ pub async fn project_new(
             thread::spawn(move || {
                 turbopack_trace_server::start_turbopack_trace_server(trace_file);
             });
-            println!("Turbopack trace server started. View trace at https://turbo-trace-viewer.vercel.app/");
+            println!("Turbopack trace server started. View trace at https://trace.nextjs.org");
         }
 
         subscriber.init();

@@ -18,14 +18,14 @@ We built Turbopack to push the performance of Next.js, including:
 
 ## Getting started
 
-To enable Turbopack in your Next.js project, add the `--turbopack` flag to the `dev`, `build`, and `start` scripts in your `package.json` file:
+To enable Turbopack in your Next.js project, add the `--turbopack` flag to the `dev` and `build` scripts in your `package.json` file:
 
 ```json filename="package.json" highlight={3}
 {
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
-    "start": "next start --turbopack"
+    "start": "next start"
   }
 }
 ```
@@ -100,7 +100,7 @@ Some features are not yet implemented or not planned:
   - The `@value` rule (superseded by CSS variables).
   - `:import` and `:export` ICSS rules.
 - **`webpack()` configuration** in `next.config.js`
-  Turbopack replaces webpack, so `webpack()` configs are not recognized. Use the [`experimental.turbo` config](/docs/app/api-reference/config/next-config-js/turbopack) instead.
+  Turbopack replaces webpack, so `webpack()` configs are not recognized. Use the [`turbopack` config](/docs/app/api-reference/config/next-config-js/turbopack) instead.
 - **AMP**
   Not planned for Turbopack support in Next.js.
 - **Yarn PnP**

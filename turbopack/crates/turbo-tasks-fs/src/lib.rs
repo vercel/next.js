@@ -11,7 +11,7 @@
 pub mod attach;
 pub mod embed;
 pub mod glob;
-mod invalidation;
+pub mod invalidation;
 mod invalidator_map;
 pub mod json;
 mod mutex_map;
@@ -37,11 +37,11 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, Context, Result};
-use auto_hash_map::AutoMap;
+use auto_hash_map::{AutoMap, AutoSet};
 use bitflags::bitflags;
 use dunce::simplified;
 use glob::Glob;
-use invalidation::InvalidateFilesystem;
+use indexmap::IndexSet;
 use invalidator_map::InvalidatorMap;
 use jsonc_parser::{parse_to_serde_value, ParseOptions};
 use mime::Mime;
@@ -59,7 +59,8 @@ use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat, effect, mark_session_dependent, mark_stateful, trace::TraceRawVcs,
-    Completion, Invalidator, NonLocalValue, ReadRef, ResolvedVc, ValueToString, Vc,
+    Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef, ResolvedVc, ValueToString,
+    Vc,
 };
 use turbo_tasks_hash::{
     hash_xxh3_hash128, hash_xxh3_hash64, DeterministicHash, DeterministicHasher,
@@ -317,7 +318,13 @@ impl DiskFileSystemInner {
         });
     }
 
-    fn invalidate_with_reason(&self) {
+    /// Invalidates every tracked file in the filesystem.
+    ///
+    /// Calls the given
+    fn invalidate_with_reason<R: InvalidationReason + Clone>(
+        &self,
+        reason: impl Fn(String) -> R + Sync,
+    ) {
         let _span = tracing::info_span!("invalidate filesystem", path = &*self.root).entered();
         let span = tracing::Span::current();
         let handle = tokio::runtime::Handle::current();
@@ -328,10 +335,10 @@ impl DiskFileSystemInner {
             .chain(dir_invalidator_map.into_par_iter())
             .flat_map(|(path, invalidators)| {
                 let _span = span.clone().entered();
-                let reason = InvalidateFilesystem { path: path.into() };
+                let reason_for_path = reason(path);
                 invalidators
                     .into_par_iter()
-                    .map(move |i| (reason.clone(), i))
+                    .map(move |i| (reason_for_path.clone(), i))
             });
         iter.for_each(|(reason, (invalidator, _))| {
             let _span = span.clone().entered();
@@ -407,8 +414,11 @@ impl DiskFileSystem {
         self.inner.invalidate();
     }
 
-    pub fn invalidate_with_reason(&self) {
-        self.inner.invalidate_with_reason();
+    pub fn invalidate_with_reason<R: InvalidationReason + Clone>(
+        &self,
+        reason: impl Fn(String) -> R + Sync,
+    ) {
+        self.inner.invalidate_with_reason(reason);
     }
 
     pub async fn start_watching(&self, poll_interval: Option<Duration>) -> Result<()> {
@@ -1278,6 +1288,10 @@ impl FileSystemPath {
     /// None when the joined path would leave the filesystem root.
     #[turbo_tasks::function]
     pub async fn try_join(&self, path: RcStr) -> Result<Vc<FileSystemPathOption>> {
+        // TODO(PACK-3279): Remove this once we do not produce invalid paths at the first place.
+        #[cfg(target_os = "windows")]
+        let path = path.replace('\\', "/");
+
         if let Some(path) = join_path(&self.path, &path) {
             Ok(Vc::cell(Some(
                 Self::new_normalized(*self.fs, path.into())
@@ -1563,46 +1577,85 @@ impl FileSystemPath {
 
     #[turbo_tasks::function]
     pub async fn realpath_with_links(self: ResolvedVc<Self>) -> Result<Vc<RealPathResult>> {
-        let this = self.await?;
-        if this.is_root() {
-            return Ok(RealPathResult {
-                path: self,
-                symlinks: Vec::new(),
+        let mut current_vc = self;
+        let mut symlinks: IndexSet<ResolvedVc<FileSystemPath>> = IndexSet::new();
+        let mut visited: AutoSet<RcStr> = AutoSet::new();
+        // Pick some arbitrary symlink depth limit... similar to the ELOOP logic for realpath(3).
+        // SYMLOOP_MAX is 40 for Linux: https://unix.stackexchange.com/q/721724
+        for _i in 0..40 {
+            let current = current_vc.await?;
+            if current.is_root() {
+                // fast path
+                return Ok(RealPathResult {
+                    path: self,
+                    symlinks: symlinks.into_iter().collect(),
+                }
+                .cell());
             }
-            .cell());
-        }
-        let parent = self.parent().to_resolved().await?;
-        let parent_result = parent.realpath_with_links().owned().await?;
-        let basename = this
-            .path
-            .rsplit_once('/')
-            .map_or(this.path.as_str(), |(_, name)| name);
-        let real_self = if parent_result.path != parent {
-            parent_result
+
+            if !visited.insert(current.path.clone()) {
+                break; // we detected a cycle
+            }
+
+            // see if a parent segment of the path is a symlink and resolve that first
+            let parent = self.parent().to_resolved().await?;
+            let parent_result = parent.realpath_with_links().owned().await?;
+            let basename = current
                 .path
-                .join(basename.into())
-                .to_resolved()
-                .await?
-        } else {
-            self
-        };
-        let mut result = parent_result;
-        if matches!(*real_self.get_type().await?, FileSystemEntryType::Symlink) {
-            if let LinkContent::Link { target, link_type } = &*real_self.read_link().await? {
-                result.symlinks.push(real_self);
-                result.path = if link_type.contains(LinkType::ABSOLUTE) {
-                    real_self.root().to_resolved().await?
+                .rsplit_once('/')
+                .map_or(current.path.as_str(), |(_, name)| name);
+            if parent_result.path != parent {
+                current_vc = parent_result
+                    .path
+                    .join(basename.into())
+                    .to_resolved()
+                    .await?;
+            }
+            symlinks.extend(parent_result.symlinks);
+
+            // use `get_type` before trying `read_link`, as there's a good chance of a cache hit on
+            // `get_type`, and `read_link` isn't the common codepath.
+            if !matches!(*current_vc.get_type().await?, FileSystemEntryType::Symlink) {
+                return Ok(RealPathResult {
+                    path: current_vc,
+                    symlinks: symlinks.into_iter().collect(), // convert set to vec
+                }
+                .cell());
+            }
+
+            if let LinkContent::Link { target, link_type } = &*current_vc.read_link().await? {
+                symlinks.insert(current_vc);
+                current_vc = if link_type.contains(LinkType::ABSOLUTE) {
+                    current_vc.root()
                 } else {
-                    result.path
+                    *parent_result.path
                 }
                 .join(target.clone())
                 .to_resolved()
                 .await?;
-                return Ok(result.cell());
+            } else {
+                // get_type() and read_link() might disagree temporarily due to turbo-tasks
+                // eventual consistency or if the file gets invalidated before the directory does
+                return Ok(RealPathResult {
+                    path: current_vc,
+                    symlinks: symlinks.into_iter().collect(), // convert set to vec
+                }
+                .cell());
             }
         }
-        result.path = real_self;
-        Ok(result.cell())
+
+        // Too many attempts or detected a cycle, we bailed out!
+        //
+        // TODO: There's no proper way to indicate an non-turbo-tasks error here, so just return the
+        // original path and all the symlinks we followed.
+        //
+        // Returning the followed symlinks is still important, even if there is an error! Otherwise
+        // we may never notice if the symlink loop is fixed.
+        Ok(RealPathResult {
+            path: self,
+            symlinks: symlinks.into_iter().collect(),
+        }
+        .cell())
     }
 }
 

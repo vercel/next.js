@@ -94,7 +94,23 @@ export type FlightRouterState = [
    */
   refresh?: 'refetch' | 'refresh' | 'inside-shared-layout' | null,
   isRootLayout?: boolean,
+  /**
+   * Only present when responding to a tree prefetch request. Indicates whether
+   * there is a loading boundary somewhere in the tree. The client cache uses
+   * this to determine if it can skip the data prefetch request.
+   */
+  hasLoadingBoundary?: HasLoadingBoundary,
 ]
+
+export const enum HasLoadingBoundary {
+  // There is a loading boundary in this particular segment
+  SegmentHasLoadingBoundary = 1,
+  // There is a loading boundary somewhere in the subtree (but not in
+  // this segment)
+  SubtreeHasLoadingBoundary = 2,
+  // There is no loading boundary in this segment or any of its descendants
+  SubtreeHasNoLoadingBoundary = 3,
+}
 
 /**
  * Individual Flight response path

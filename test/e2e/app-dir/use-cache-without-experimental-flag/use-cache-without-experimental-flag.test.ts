@@ -89,7 +89,7 @@ describe('use-cache-without-experimental-flag', () => {
         )
       } else {
         expect(errorDescription).toMatchInlineSnapshot(
-          `"Error:   x To use "use cache", please enable the experimental feature flag "useCache" in your Next.js config."`
+          `"  x To use "use cache", please enable the experimental feature flag "useCache" in your Next.js config."`
         )
       }
 

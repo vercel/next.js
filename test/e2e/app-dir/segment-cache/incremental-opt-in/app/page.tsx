@@ -35,6 +35,13 @@ export default function Page() {
           <LinkAccordion href="/ppr-disabled-with-loading-boundary">
             Page with PPR disabled, but has a loading boundary
           </LinkAccordion>
+          <ul>
+            <li>
+              <LinkAccordion href="/ppr-disabled-with-loading-boundary/child">
+                Another dynamic page that shares the same loading boundary
+              </LinkAccordion>
+            </li>
+          </ul>
         </li>
       </ul>
     </>

@@ -202,6 +202,7 @@ import { InvariantError } from '../shared/lib/invariant-error'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import type { UseCacheTrackerKey } from './webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
 import {
+  buildInversePrefetchSegmentDataRoute,
   buildPrefetchSegmentDataRoute,
   type PrefetchSegmentDataRoute,
 } from '../server/lib/router-utils/build-prefetch-segment-data-route'
@@ -2175,6 +2176,7 @@ export default async function build(
                 }
 
                 pageInfos.set(page, {
+                  originalAppPath,
                   size,
                   totalSize,
                   isStatic,
@@ -3074,11 +3076,9 @@ export default async function build(
 
                   dynamicRoute.prefetchSegmentDataRoutes ??= []
                   for (const segmentPath of metadata.segmentPaths) {
-                    const result = buildPrefetchSegmentDataRoute(
-                      route.pathname,
-                      segmentPath
+                    dynamicRoute.prefetchSegmentDataRoutes.push(
+                      buildPrefetchSegmentDataRoute(route.pathname, segmentPath)
                     )
-                    dynamicRoute.prefetchSegmentDataRoutes.push(result)
                   }
                 }
 
@@ -3497,6 +3497,47 @@ export default async function build(
           // remove temporary export folder
           await fs.rm(outdir, { recursive: true, force: true })
           await writeManifest(pagesManifestPath, pagesManifest)
+
+          if (config.experimental.clientSegmentCache) {
+            for (const dynamicRoute of routesManifest.dynamicRoutes) {
+              // We only want to handle pages that are using the app router. We
+              // need this path in order to determine if it's an app route or an
+              // app page.
+              const originalAppPath = pageInfos.get(
+                dynamicRoute.page
+              )?.originalAppPath
+              if (!originalAppPath) {
+                continue
+              }
+
+              // We only want to handle app pages, not app routes.
+              if (isAppRouteRoute(originalAppPath)) {
+                continue
+              }
+
+              // We don't need to add the prefetch segment data routes if it was
+              // added due to a page that was already generated. This would have
+              // happened if the page was static or partially static.
+              if (dynamicRoute.prefetchSegmentDataRoutes) {
+                continue
+              }
+
+              // If the segment paths aren't defined, we need to insert a
+              // reverse routing rule so that there isn't any conflicts
+              // with other dynamic routes for the prefetch segment
+              // routes. This is only an issue for pages that do not have
+              // partial prerendering enabled.
+              dynamicRoute.prefetchSegmentDataRoutes = [
+                buildInversePrefetchSegmentDataRoute(
+                  dynamicRoute.page,
+                  // We use the special segment path of `/_tree` because it's
+                  // the first one sent by the client router so it's the only
+                  // one we need to rewrite to the regular prefetch RSC route.
+                  '/_tree'
+                ),
+              ]
+            }
+          }
         })
 
         // We need to write the manifest with rewrites after build as it might

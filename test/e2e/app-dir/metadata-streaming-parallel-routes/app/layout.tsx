@@ -14,6 +14,11 @@ export default function Root({ children }: { children: ReactNode }) {
             {`to /parallel-routes-default`}
           </Link>
           <br />
+
+          <Link href="/parallel-routes-no-children" id="to-no-children">
+            {`to /parallel-routes-no-children`}
+          </Link>
+          <br />
         </div>
         {children}
       </body>
