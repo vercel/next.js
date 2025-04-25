@@ -20,10 +20,14 @@ describe('Undefined default export', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
+       "count": 1,
        "description": "Error: The default export is not a React Component in "/specific-path/server/page"",
        "environmentLabel": null,
-       "label": "Runtime Error",
-       "source": null,
+       "label": "Build Error",
+       "source": "./app/(group)/specific-path/server/page.js
+     Ecmascript file had an error
+     A page file needs to have a React Component exported via \`export default\`.
+     See https://nextjs.org/docs/app/building-your-application/routing/pages",
        "stack": [],
      }
     `)
@@ -45,10 +49,39 @@ describe('Undefined default export', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
+       "count": 1,
        "description": "Error: The default export is not a React Component in "/specific-path/server/layout"",
        "environmentLabel": null,
-       "label": "Runtime Error",
-       "source": null,
+       "label": "Build Error",
+       "source": "./app/(group)/specific-path/server/layout.js
+     Ecmascript file had an error
+     A layout file needs to have a React Component exported via \`export default\`.
+     See https://nextjs.org/docs/app/building-your-application/routing/layouts-and-templates#layouts",
+       "stack": [],
+     }
+    `)
+  })
+
+  it('should error if page component does not have default export (with recomendation)', async () => {
+    await using sandbox = await createSandbox(
+      next,
+      new Map([
+        ['app/(group)/specific-path/server/page.js', 'export const Page = 123'],
+      ]),
+      '/specific-path/server'
+    )
+    const { browser } = sandbox
+
+    await expect(browser).toDisplayRedbox(`
+     {
+       "count": 1,
+       "description": "Ecmascript file had an error",
+       "environmentLabel": null,
+       "label": "Build Error",
+       "source": "./app/(group)/specific-path/server/page.js (1:1)
+     Ecmascript file had an error
+     > 1 | export const Page = 123
+         | ^^^^^^^^^^^^^^^^^^^^^^^",
        "stack": [],
      }
     `)
@@ -94,10 +127,14 @@ describe('Undefined default export', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
+       "count": 1,
        "description": "Error: The default export is not a React Component in "/page"",
        "environmentLabel": null,
-       "label": "Runtime Error",
-       "source": null,
+       "label": "Build Error",
+       "source": "./app/page.js
+     Ecmascript file had an error
+     A page file needs to have a React Component exported via \`export default\`.
+     See https://nextjs.org/docs/app/building-your-application/routing/pages",
        "stack": [],
      }
     `)
@@ -118,10 +155,14 @@ describe('Undefined default export', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
+       "count": 1,
        "description": "Error: The default export is not a React Component in "/server-with-errors/page-export-initial-error/page"",
        "environmentLabel": null,
-       "label": "Runtime Error",
-       "source": null,
+       "label": "Build Error",
+       "source": "./app/server-with-errors/page-export-initial-error/page.js
+     Ecmascript file had an error
+     A page file needs to have a React Component exported via \`export default\`.
+     See https://nextjs.org/docs/app/building-your-application/routing/pages",
        "stack": [],
      }
     `)
