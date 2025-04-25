@@ -55,7 +55,7 @@ test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/sourcemapped.j
 test/e2e/app-dir/server-source-maps/fixtures/default/external-pkg/sourcemapped.js
 test/e2e/async-modules/amp-validator-wasm.js
 
-# turbopack crates
+# turbopack crates, disable for some tests and precompiled dependencies.
 /turbopack/crates/*/js/src/compiled
 /turbopack/crates/turbopack/bench.json
 /turbopack/crates/turbopack/tests
@@ -65,6 +65,5 @@ test/e2e/async-modules/amp-validator-wasm.js
 /turbopack/crates/next-transform-dynamic/tests
 /turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/error/input/broken.js
 /turbopack/crates/turbopack-tests/tests/**/output*
+/turbopack/crates/turbopack-tests/tests/**/static
 
-# temporarily disable prettier for the turbopack directory
-/turbopack/
