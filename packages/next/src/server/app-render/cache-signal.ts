@@ -5,7 +5,10 @@
  * and should only be used in codepaths gated with this feature.
  */
 
+import { workAsyncStorage } from './work-async-storage.external'
+
 export class CacheSignal {
+  private page: string | undefined
   private count: number
   private earlyListeners: Array<() => void>
   private listeners: Array<() => void>
@@ -13,6 +16,7 @@ export class CacheSignal {
   private taskPending: boolean
 
   constructor() {
+    this.page = workAsyncStorage.getStore()?.page
     this.count = 0
     this.earlyListeners = []
     this.listeners = []
@@ -25,6 +29,7 @@ export class CacheSignal {
       this.tickPending = true
       process.nextTick(() => {
         this.tickPending = false
+        console.log('noMorePendingCaches nextTick', this.count, this.page)
         if (this.count === 0) {
           for (let i = 0; i < this.earlyListeners.length; i++) {
             this.earlyListeners[i]()
@@ -37,6 +42,7 @@ export class CacheSignal {
       this.taskPending = true
       setTimeout(() => {
         this.taskPending = false
+        console.log('noMorePendingCaches setTimeout', this.count, this.page)
         if (this.count === 0) {
           for (let i = 0; i < this.listeners.length; i++) {
             this.listeners[i]()
@@ -76,6 +82,7 @@ export class CacheSignal {
 
   beginRead() {
     this.count++
+    console.log('beginRead', this.count, this.page)
   }
 
   endRead() {
@@ -86,6 +93,7 @@ export class CacheSignal {
     // We only want one task scheduled at a time so when we hit count 1 we don't decrement the counter immediately.
     // If intervening reads happen before the scheduled task runs they will never observe count 1 preventing reentrency
     this.count--
+    console.log('endRead', this.count, this.page)
     if (this.count === 0) {
       this.noMorePendingCaches()
     }

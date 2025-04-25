@@ -54,9 +54,8 @@ import {
 import type { Params } from '../request/params'
 import React from 'react'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
-import type { UseCacheRenderContext } from './types'
-import { createUseCacheCookiesStore } from '../request/cookies'
 import type { ReadonlyRequestCookies } from '../web/spec-extension/adapters/request-cookies'
+import { createUseCacheRenderContext } from './render-context'
 
 type CacheKeyParts =
   | [buildId: string, id: string, args: unknown[]]
@@ -70,7 +69,7 @@ export interface UseCachePageComponentProps {
 
 interface GenerateCacheEntryContext {
   readonly workStore: WorkStore
-  readonly renderContext: UseCacheRenderContext
+  readonly workUnitStore: WorkUnitStore | undefined
   readonly clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>
   readonly timeoutError: UseCacheTimeoutError
   readonly kind: string
@@ -133,7 +132,7 @@ function generateCacheEntryWithCacheContext(
   encodedCacheKeyParts: FormData | string,
   ctx: GenerateCacheEntryContext
 ) {
-  const { workStore, renderContext, kind } = ctx
+  const { workStore, workUnitStore, kind } = ctx
 
   if (!workStore.cacheLifeProfiles) {
     throw new Error(
@@ -152,13 +151,11 @@ function generateCacheEntryWithCacheContext(
     )
   }
 
-  const { workUnitStore: outerWorkUnitStore } = renderContext
-
   const useCacheOrRequestStore =
-    outerWorkUnitStore?.type === 'request' ||
-    // outerWorkUnitStore?.type === 'cache-with-cookies' ||
-    outerWorkUnitStore?.type === 'cache'
-      ? outerWorkUnitStore
+    workUnitStore?.type === 'request' ||
+    // workUnitStore?.type === 'cache-with-cookies' ||
+    workUnitStore?.type === 'cache'
+      ? workUnitStore
       : undefined
 
   // Initialize the Store for this Cache entry.
@@ -166,7 +163,7 @@ function generateCacheEntryWithCacheContext(
     type: 'cache',
     phase: 'render',
     kind,
-    implicitTags: outerWorkUnitStore?.implicitTags,
+    implicitTags: workUnitStore?.implicitTags,
     revalidate: defaultCacheLife.revalidate,
     expire: defaultCacheLife.expire,
     stale: defaultCacheLife.stale,
@@ -175,14 +172,15 @@ function generateCacheEntryWithCacheContext(
     explicitStale: undefined,
     tags: null,
     hmrRefreshHash:
-      outerWorkUnitStore && getHmrRefreshHash(workStore, outerWorkUnitStore),
+      workUnitStore && getHmrRefreshHash(workStore, workUnitStore),
     isHmrRefresh: useCacheOrRequestStore?.isHmrRefresh ?? false,
     serverComponentsHmrCache: useCacheOrRequestStore?.serverComponentsHmrCache,
-    forceRevalidate: shouldForceRevalidate(workStore, outerWorkUnitStore),
+    forceRevalidate: shouldForceRevalidate(workStore, workUnitStore),
     draftMode:
-      outerWorkUnitStore &&
-      getDraftModeProviderForCacheScope(workStore, outerWorkUnitStore),
-    cookiesStore: createUseCacheCookiesStore(workStore, renderContext),
+      workUnitStore &&
+      getDraftModeProviderForCacheScope(workStore, workUnitStore),
+    renderContext:
+      workUnitStore && createUseCacheRenderContext(workStore, workUnitStore),
   }
 
   // const cacheStore: UseCacheStore | UseCacheWithCookiesStore = cookies
@@ -299,28 +297,30 @@ async function collectResult(
     },
   })
 
-  const collectedTags = innerCacheStore.tags
+  const {
+    revalidate,
+    expire,
+    stale,
+    explicitRevalidate,
+    explicitExpire,
+    explicitStale,
+    renderContext,
+    tags,
+  } = innerCacheStore
+
+  const collectedTags = tags
   // If cacheLife() was used to set an explicit revalidate time we use that.
   // Otherwise, we use the lowest of all inner fetch()/unstable_cache() or nested "use cache".
   // If they're lower than our default.
   const collectedRevalidate =
-    innerCacheStore.explicitRevalidate !== undefined
-      ? innerCacheStore.explicitRevalidate
-      : innerCacheStore.revalidate
-  const collectedExpire =
-    innerCacheStore.explicitExpire !== undefined
-      ? innerCacheStore.explicitExpire
-      : innerCacheStore.expire
-  const collectedStale =
-    innerCacheStore.explicitStale !== undefined
-      ? innerCacheStore.explicitStale
-      : innerCacheStore.stale
+    explicitRevalidate !== undefined ? explicitRevalidate : revalidate
+  const collectedExpire = explicitExpire !== undefined ? explicitExpire : expire
+  const collectedStale = explicitStale !== undefined ? explicitStale : stale
 
   let cacheKey = cacheKeyWithoutCookies
 
-  if (innerCacheStore.cookiesStore?.type === 'request') {
-    const { accessedCookieNames, underlyingCookies } =
-      innerCacheStore.cookiesStore
+  if (renderContext?.type === 'request') {
+    const { accessedCookieNames, underlyingCookies } = renderContext
 
     let allAccessedCookieNames = accessedCookieNamesByCacheKey.get(
       cacheKeyWithoutCookies
@@ -389,7 +389,7 @@ async function generateCacheEntryImpl(
     workStore,
     clientReferenceManifest,
     timeoutError,
-    renderContext,
+    workUnitStore,
   }: GenerateCacheEntryContext
 ): Promise<GenerateCacheEntryResult> {
   const temporaryReferences = createServerTemporaryReferenceSet()
@@ -412,19 +412,16 @@ async function generateCacheEntryImpl(
               // case we don't want to reject with "Error: Connection closed.",
               // so we intentionally keep the iterable alive. This is similar to
               // the halting trick that we do while rendering.
-              if (renderContext.type === 'prerender') {
-                const abortSignal = AbortSignal.any([
-                  renderContext.dynamicAccessAbortController.signal,
-                  renderContext.workUnitStore.renderSignal,
-                ])
-
+              if (workUnitStore?.type === 'prerender') {
                 await new Promise<void>((resolve) => {
-                  if (abortSignal.aborted) {
+                  if (workUnitStore.renderSignal.aborted) {
                     resolve()
                   } else {
-                    abortSignal.addEventListener('abort', () => resolve(), {
-                      once: true,
-                    })
+                    workUnitStore.renderSignal.addEventListener(
+                      'abort',
+                      () => resolve(),
+                      { once: true }
+                    )
                   }
                 })
               }
@@ -475,24 +472,56 @@ async function generateCacheEntryImpl(
   }
 
   let stream: ReadableStream<Uint8Array>
+  const { renderContext } = innerCacheStore
 
-  if (renderContext.type === 'prerender') {
-    const { dynamicAccessAbortController, workUnitStore } = renderContext
-    const { signal: dynamicAccessAbortSignal } = dynamicAccessAbortController
+  if (renderContext?.type === 'prerender') {
+    const { signal: dynamicAccessAbortSignal } =
+      renderContext.dynamicAccessAbortController
+
     const timeoutAbortController = new AbortController()
+    const isProspectiveRender =
+      workUnitStore?.type === 'prerender' && workUnitStore.cacheSignal !== null
+    const { page } = workStore
 
     // If we're prerendering, we give you 50 seconds to fill a cache entry.
     // Otherwise we assume you stalled on hanging input and de-opt. This needs
     // to be lower than just the general timeout of 60 seconds.
-    const timer = setTimeout(() => {
+    console.log(new Date().toISOString(), 'set timer', {
+      cacheKeyWithoutCookies,
+      isProspectiveRender,
+      page,
+    })
+    let timer: NodeJS.Timeout | null = setTimeout(() => {
+      console.log(new Date().toISOString(), 'timeout reached', {
+        cacheKeyWithoutCookies,
+        isProspectiveRender,
+        page,
+      })
       timeoutAbortController.abort(timeoutError)
     }, 50000)
 
-    const abortSignal = AbortSignal.any([
-      workUnitStore.renderSignal,
-      dynamicAccessAbortSignal,
-      timeoutAbortController.signal,
-    ])
+    const clearPrerenderTimeout = () => {
+      if (timer) {
+        clearTimeout(timer)
+        timer = null
+        console.log(new Date().toISOString(), 'cleared timer', {
+          cacheKeyWithoutCookies,
+          isProspectiveRender,
+          page,
+        })
+      }
+    }
+
+    dynamicAccessAbortSignal?.addEventListener('abort', clearPrerenderTimeout, {
+      once: true,
+    })
+
+    const abortSignal = dynamicAccessAbortSignal
+      ? AbortSignal.any([
+          dynamicAccessAbortSignal,
+          timeoutAbortController.signal,
+        ])
+      : timeoutAbortController.signal
 
     const { prelude } = await prerender(
       resultPromise,
@@ -502,7 +531,7 @@ async function generateCacheEntryImpl(
         signal: abortSignal,
         temporaryReferences,
         onError(error) {
-          // Ignore render and dynamic access aborts, but not the timeout error.
+          // Ignore dynamic access aborts, but not the timeout error.
           if (
             abortSignal.aborted &&
             abortSignal.reason === error &&
@@ -516,9 +545,25 @@ async function generateCacheEntryImpl(
       }
     )
 
-    clearTimeout(timer)
+    console.log(new Date().toISOString(), 'got prelude', {
+      cacheKeyWithoutCookies,
+      isProspectiveRender,
+      page,
+    })
+
+    clearPrerenderTimeout()
 
     if (timeoutAbortController.signal.aborted && !timeoutErrorHandled) {
+      console.log(
+        new Date().toISOString(),
+        'timeoutAbortController.signal.aborted',
+        {
+          dynamicAccessAbortSignal: dynamicAccessAbortSignal?.aborted,
+          cacheKeyWithoutCookies,
+          isProspectiveRender,
+          page,
+        }
+      )
       // When halting is enabled, the prerender will not call `onError` when
       // it's aborted with the timeout abort signal, and hanging promises will
       // also not be rejected. In this case, we're creating an erroring stream
@@ -532,11 +577,20 @@ async function generateCacheEntryImpl(
       stream = prelude
     }
 
-    if (dynamicAccessAbortSignal.aborted) {
-      workUnitStore.cacheSignal?.endRead()
+    console.log(new Date().toISOString(), {
+      dynamicAccessAbortSignal: dynamicAccessAbortSignal?.aborted,
+      cacheKeyWithoutCookies,
+      isProspectiveRender,
+      page,
+    })
+
+    if (renderContext.dynamicAccessAbortController.signal?.aborted) {
+      if (workUnitStore?.type === 'prerender') {
+        workUnitStore.cacheSignal?.endRead()
+      }
 
       const hangingPromise = makeHangingPromise<never>(
-        workUnitStore.renderSignal,
+        renderContext.renderSignal,
         dynamicAccessAbortSignal.reason.message
       )
 
@@ -560,7 +614,7 @@ async function generateCacheEntryImpl(
     cacheKeyWithoutCookies,
     savedStream,
     workStore,
-    renderContext.workUnitStore,
+    workUnitStore,
     innerCacheStore,
     startTime,
     errors
@@ -655,20 +709,6 @@ function createTrackedReadableStream(
       }
     },
   })
-}
-
-function createRenderContext(
-  workUnitStore: WorkUnitStore | undefined
-): UseCacheRenderContext {
-  if (!workUnitStore || workUnitStore.type !== 'prerender') {
-    return { type: 'other', workUnitStore }
-  }
-
-  return {
-    type: 'prerender',
-    workUnitStore,
-    dynamicAccessAbortController: new AbortController(),
-  }
 }
 
 export function cache(
@@ -978,15 +1018,13 @@ export function cache(
             }
           }
 
-          const renderContext = createRenderContext(workUnitStore)
-
           const result = await generateCacheEntry(
             cacheKeyWithoutCookies,
             fn,
             encodedCacheKeyParts,
             {
               workStore,
-              renderContext,
+              workUnitStore,
               clientReferenceManifest,
               timeoutError,
               kind,
@@ -1061,13 +1099,10 @@ export function cache(
               encodedCacheKeyParts,
               {
                 workStore,
-                renderContext: {
-                  type: 'other',
-                  // This is not running within the context of this unit.
-                  // TODO: We may need to pass in a work unit store that
-                  // includes the cookies though.
-                  workUnitStore: undefined,
-                },
+                // This is not running within the context of this unit.
+                // TODO: We may need to pass in a work unit store that includes
+                // the cookies though.
+                workUnitStore: undefined,
                 clientReferenceManifest,
                 timeoutError,
                 kind,

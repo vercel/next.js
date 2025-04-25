@@ -8,6 +8,9 @@ describe('use-cache-cookies', () => {
       files: path.join(__dirname, 'fixtures', 'dynamic-io'),
       skipDeployment: true, // TODO: Activate later.
       buildOptions: ['--no-mangling'],
+      env: {
+        NEXT_PRIVATE_DEBUG_CACHE: '1',
+      },
     })
 
     if (skipped) {
