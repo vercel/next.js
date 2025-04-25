@@ -66,7 +66,7 @@ While building your application, we recommend using the following features to en
 - **[Streaming](/docs/app/building-your-application/routing/loading-ui-and-streaming):** Use Loading UI and React Suspense to progressively send UI from the server to the client, and prevent the whole route from blocking while data is being fetched.
 - **[Parallel Data Fetching](/docs/app/building-your-application/data-fetching/fetching#parallel-and-sequential-data-fetching):** Reduce network waterfalls by fetching data in parallel, where appropriate. Also, consider [preloading data](/docs/app/building-your-application/data-fetching/fetching#preloading-data) where appropriate.
 - **[Data Caching](/docs/app/building-your-application/caching#data-cache):** Verify whether your data requests are being cached or not, and opt into caching, where appropriate. Ensure requests that don't use `fetch` are [cached](/docs/app/api-reference/functions/unstable_cache).
-- **[Static Images](/docs/app/building-your-application/optimizing/static-assets):** Use the `public` directory to automatically cache your application's static assets, e.g. images.
+- **[Static Images](/docs/app/api-reference/file-conventions/public-folder):** Use the `public` directory to automatically cache your application's static assets, e.g. images.
 
 </AppOnly>
 
@@ -75,7 +75,7 @@ While building your application, we recommend using the following features to en
 - **[API Routes](/docs/pages/building-your-application/routing/api-routes):** Use Route Handlers to access your backend resources, and prevent sensitive secrets from being exposed to the client.
 - **[Data Caching](/docs/pages/building-your-application/data-fetching/get-static-props):** Verify whether your data requests are being cached or not, and opt into caching, where appropriate. Ensure requests that don't use `getStaticProps` are cached where appropriate.
 - **[Incremental Static Regeneration](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration):** Use Incremental Static Regeneration to update static pages after they've been built, without rebuilding your entire site.
-- **[Static Images](/docs/pages/building-your-application/optimizing/static-assets):** Use the `public` directory to automatically cache your application's static assets, e.g. images.
+- **[Static Images](/docs/pages/api-reference/file-conventions/public-folder):** Use the `public` directory to automatically cache your application's static assets, e.g. images.
 
 </PagesOnly>
 
