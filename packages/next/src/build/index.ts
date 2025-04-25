@@ -1981,10 +1981,23 @@ export default async function build(
                           // check that dynamic pages won't error when they
                           // enable PPR.
                           else if (config.experimental.dynamicIO && isDynamic) {
-                            prospectiveRenders.set(originalAppPath, {
-                              page,
-                              originalAppPath,
-                            })
+                            // If there's a page with a more specific render
+                            // available, then we should skip the prospective
+                            // render because it'll be done as a part of the
+                            // that render to validate the dynamic state.
+                            if (
+                              // The existence of any prerendered routes when
+                              // PPR is disabled means that the route has more
+                              // specific prerendered routes that should be
+                              // used for the diagnostic render anyways.
+                              !workerResult.prerenderedRoutes ||
+                              workerResult.prerenderedRoutes.length === 0
+                            ) {
+                              prospectiveRenders.set(originalAppPath, {
+                                page,
+                                originalAppPath,
+                              })
+                            }
                           }
 
                           if (workerResult.prerenderedRoutes) {
