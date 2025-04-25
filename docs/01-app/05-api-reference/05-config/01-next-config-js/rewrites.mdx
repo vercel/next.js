@@ -42,6 +42,7 @@ Rewrites are applied to client-side routing, a `<Link href="/about">` will have 
 - `destination`: `String` is the path you want to route to.
 - `basePath`: `false` or `undefined` - if false the basePath won't be included when matching, can be used for external rewrites only.
 - `locale`: `false` or `undefined` - whether the locale should not be included when matching.
+- `secure`: `boolean` or `undefined` - for external rewrites (`destination` starts with `http://` or `https://`), this controls the `secure` option passed to the underlying proxy. Defaults to `true` if undefined. Set to `false` to allow proxying to destinations with invalid or self-signed SSL certificates. _(Applies to external rewrites only)_.
 - `has` is an array of [has objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
 - `missing` is an array of [missing objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
 
@@ -354,10 +355,16 @@ module.exports = {
       {
         source: '/blog/',
         destination: 'https://example.com/blog/',
+        secure: true, // Optional: Defaults to true
       },
       {
         source: '/blog/:path*/',
         destination: 'https://example.com/blog/:path*/',
+      },
+      {
+        source: '/local-dev/:path*',
+        destination: 'https://localhost:3001/:path*',
+        secure: false, // Example: Allow proxying to self-signed cert
       },
     ]
   },

@@ -119,6 +119,7 @@ export function getResolveRoutes(
     resHeaders: Record<string, string | string[]>
     parsedUrl: NextUrlWithParsedQuery
     matchedOutput?: FsOutput | null
+    secure?: boolean
   }> {
     let finished = false
     let resHeaders: Record<string, string | string[]> = {}
@@ -629,6 +630,7 @@ export function getResolveRoutes(
                   parsedUrl,
                   resHeaders,
                   finished: true,
+                  secure: (route as Rewrite).secure,
                 }
               }
 
@@ -769,6 +771,7 @@ export function getResolveRoutes(
               // @ts-expect-error custom ParsedUrl
               parsedUrl: parsedDestination,
               finished: true,
+              secure: (route as Rewrite).secure,
             }
           }
 

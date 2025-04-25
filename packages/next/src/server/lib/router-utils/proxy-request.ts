@@ -12,7 +12,8 @@ export async function proxyRequest(
   parsedUrl: NextUrlWithParsedQuery,
   upgradeHead?: Buffer,
   reqBody?: any,
-  proxyTimeout?: number | null
+  proxyTimeout?: number | null,
+  secure?: boolean
 ) {
   const { query } = parsedUrl
   delete (parsedUrl as any).query
@@ -33,6 +34,7 @@ export async function proxyRequest(
     headers: {
       'x-forwarded-host': req.headers.host || '',
     },
+    secure: secure === undefined ? true : secure,
   })
 
   let finished = false

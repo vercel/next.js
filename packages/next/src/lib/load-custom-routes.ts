@@ -26,6 +26,7 @@ export type Rewrite = {
   locale?: false
   has?: RouteHas[]
   missing?: RouteHas[]
+  secure?: boolean
 
   /**
    * @internal - used internally for routing
