@@ -73,6 +73,7 @@ function getBaseSWCOptions({
   isDynamicIo,
   cacheHandlers,
   useCacheEnabled,
+  trackDynamicImports,
 }: {
   filename: string
   jest?: boolean
@@ -93,6 +94,7 @@ function getBaseSWCOptions({
   isDynamicIo?: boolean
   cacheHandlers?: ExperimentalConfig['cacheHandlers']
   useCacheEnabled?: boolean
+  trackDynamicImports?: boolean
 }) {
   const isReactServerLayer = isWebpackServerOnlyLayer(bundleLayer)
   const isAppRouterPagesLayer = isWebpackAppPagesLayer(bundleLayer)
@@ -235,6 +237,7 @@ function getBaseSWCOptions({
     // On server side of pages router we prefer CJS.
     preferEsm: esm,
     lintCodemodComments: true,
+    trackDynamicImports: trackDynamicImports,
     debugFunctionName: development,
 
     ...(supportedBrowsers && supportedBrowsers.length > 0
@@ -384,6 +387,7 @@ export function getLoaderSWCOptions({
   esm,
   cacheHandlers,
   useCacheEnabled,
+  trackDynamicImports,
 }: {
   filename: string
   development: boolean
@@ -410,6 +414,7 @@ export function getLoaderSWCOptions({
   bundleLayer?: WebpackLayerName
   cacheHandlers: ExperimentalConfig['cacheHandlers']
   useCacheEnabled?: boolean
+  trackDynamicImports?: boolean
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -430,6 +435,7 @@ export function getLoaderSWCOptions({
     isDynamicIo,
     cacheHandlers,
     useCacheEnabled,
+    trackDynamicImports,
   })
   baseOptions.fontLoaders = {
     fontLoaders: ['next/font/local', 'next/font/google'],
