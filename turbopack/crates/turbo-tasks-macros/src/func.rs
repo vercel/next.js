@@ -321,7 +321,7 @@ impl TurboFn<'_> {
             .iter()
             .filter(|arg| {
                 let FnArg::Typed(pat_type) = arg else {
-                    return is_self_used;
+                    return true;
                 };
                 let Pat::Ident(pat_id) = &*pat_type.pat else {
                     return true;
@@ -335,6 +335,12 @@ impl TurboFn<'_> {
                     // arguments are explicitly `NonLocalValue`s
                     return (arg.clone(), None);
                 }
+
+                // We are going to filter out `self` if it's not used.
+                if !is_self_used && matches!(arg, FnArg::Receiver(_)) {
+                    return (arg.clone(), None);
+                }
+
                 let (FnArg::Receiver(Receiver { ty, .. }) | FnArg::Typed(PatType { ty, .. })) = arg;
                 let Cow::Owned(expanded_ty) = expand_task_input_type(ty) else {
                     // common-case: skip if no type conversion is needed
