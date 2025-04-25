@@ -155,7 +155,6 @@ type ResolveOptions = {
 
 // Patch process.env to track which env vars are read
 const originalEnv = process.env;
-// TODO: when should this be cleared?
 const readEnvVars = new Set<string>();
 process.env = new Proxy(originalEnv, {
   get(target, prop) {
