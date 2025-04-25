@@ -44,9 +44,8 @@ describe('MDX-rs Configuration', () => {
       nextConfig = new File(join(appDir, 'next.config.js'))
 
       nextConfig.write(`
-      const withMDX = require('@next/mdx')({
-        extension: /\\.mdx?$/,
-      })
+      const withMDX = require('@next/mdx')()
+
       module.exports = withMDX({
         pageExtensions: ['js', 'jsx', 'mdx'],
         experimental: {

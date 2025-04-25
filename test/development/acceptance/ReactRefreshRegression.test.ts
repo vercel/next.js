@@ -25,18 +25,18 @@ describe('ReactRefreshRegression', () => {
         outdent`
           import Document from 'next/document'
           import { ServerStyleSheet } from 'styled-components'
-  
+
           export default class MyDocument extends Document {
             static async getInitialProps(ctx) {
               const sheet = new ServerStyleSheet()
               const originalRenderPage = ctx.renderPage
-  
+
               try {
                 ctx.renderPage = () =>
                   originalRenderPage({
                     enhanceApp: App => props => sheet.collectStyles(<App {...props} />),
                   })
-  
+
                 const initialProps = await Document.getInitialProps(ctx)
                 return {
                   ...initialProps,
@@ -321,9 +321,7 @@ describe('ReactRefreshRegression', () => {
         [
           'next.config.js',
           outdent`
-              const withMDX = require("@next/mdx")({
-                extension: /\\.mdx?$/,
-              });
+              const withMDX = require("@next/mdx")();
               module.exports = withMDX({
                 pageExtensions: ["js", "mdx"],
               });

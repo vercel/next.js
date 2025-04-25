@@ -1,6 +1,6 @@
 import nextMDX from '@next/mdx'
 const withMDX = nextMDX({
-  extension: /\.mdx?$/,
+  extension: process.env.TURBOPACK ? ['md', 'mdx'] : /\.mdx?$/,
   options: {
     remarkPlugins: [],
     rehypePlugins: [['rehype-katex', { strict: true, throwOnError: true }]],

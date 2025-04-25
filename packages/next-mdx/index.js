@@ -1,7 +1,8 @@
 module.exports =
   (pluginOptions = {}) =>
   (inputConfig = {}) => {
-    const extension = pluginOptions.extension || /\.mdx$/
+    const extension =
+      pluginOptions.extension || (process.env.TURBOPACK ? 'mdx' : /\.mdx$/)
     const userProvidedMdxOptions = pluginOptions.options
 
     const mdxRsOptions = inputConfig?.experimental?.mdxRs
@@ -47,13 +48,35 @@ module.exports =
     })
 
     if (process.env.TURBOPACK) {
+      if (
+        !(
+          Array.isArray(extension) &&
+          extension.every((e) => typeof e === 'string')
+        ) &&
+        typeof extension !== 'string'
+      ) {
+        throw new Error(
+          '@next/mdx: Turbopack only supports a single extension string or list of extensions. `extension` was',
+          extension
+        )
+      }
+
+      const extensions = (
+        typeof extension === 'string' ? [extension] : extension
+      )
+        // Remove any leading dot from the extension as this is a common mistake.
+        .map((ext) => ext.replace(/^\./, ''))
+
+      const rules = nextConfig?.turbopack?.rules || {}
+      for (const ext of extensions) {
+        rules['*.' + ext] = {
+          loaders: [loader],
+          as: '*.tsx',
+        }
+      }
+
       nextConfig.turbopack = Object.assign({}, nextConfig?.turbopack, {
-        rules: Object.assign({}, nextConfig?.turbopack?.rules, {
-          '*.mdx': {
-            loaders: [loader],
-            as: '*.tsx',
-          },
-        }),
+        rules,
         resolveAlias: Object.assign({}, nextConfig?.turbopack?.resolveAlias, {
           'next-mdx-import-source-file':
             '@vercel/turbopack-next/mdx-import-source',

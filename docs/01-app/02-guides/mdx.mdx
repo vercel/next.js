@@ -51,12 +51,21 @@ const nextConfig = {
 }
 
 const withMDX = createMDX({
+  extension: process.env.TURBOPACK ? ['mdx', 'md'] : /\.mdx?$/,
   // Add markdown plugins here, as desired
 })
 
 // Merge MDX config with Next.js config
 export default withMDX(nextConfig)
 ```
+
+> **Good to know**:
+>
+> The `extension` option specifies the file extensions to be processed by the MDX loader.
+> For Next.js with webpack, this is a webpack rule test, such as a regular expression.
+> For Turbopack, this is either a single file extension string, or an array of file extensions.
+>
+> For compatibility reasons, webpack with Next.js does not understand the list format as extensions.
 
 This allows `.md` and `.mdx` files to act as pages, routes, or imports in your application.
 

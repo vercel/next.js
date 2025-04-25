@@ -335,9 +335,7 @@ describe('ReactRefreshRegression app', () => {
     files.set(
       'next.config.js',
       outdent`
-        const withMDX = require("@next/mdx")({
-          extension: /\\.mdx?$/,
-        });
+        const withMDX = require("@next/mdx")();
         module.exports = withMDX({
           pageExtensions: ["js", "mdx"],
         });
