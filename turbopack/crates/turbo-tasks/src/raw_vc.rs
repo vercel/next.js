@@ -57,7 +57,7 @@ impl Display for CellId {
 pub enum RawVc {
     TaskOutput(TaskId),
     TaskCell(TaskId, CellId),
-    LocalOutput(TaskId, TaskPersistence, ExecutionId, LocalTaskId),
+    LocalOutput(TaskPersistence, ExecutionId, LocalTaskId),
 }
 
 impl RawVc {
@@ -84,7 +84,7 @@ impl RawVc {
     pub fn is_transient(&self) -> bool {
         match self {
             RawVc::TaskOutput(task) | RawVc::TaskCell(task, ..) => task.is_transient(),
-            RawVc::LocalOutput(_, persistence, ..) => *persistence == TaskPersistence::Transient,
+            RawVc::LocalOutput(persistence, ..) => *persistence == TaskPersistence::Transient,
         }
     }
 
@@ -148,7 +148,7 @@ impl RawVc {
                         return Err(ResolveTypeError::NoContent);
                     }
                 }
-                RawVc::LocalOutput(_task_id, _persistence, execution_id, local_task_id) => {
+                RawVc::LocalOutput(_persistence, execution_id, local_task_id) => {
                     current = read_local_output(&*tt, execution_id, local_task_id)
                         .await
                         .map_err(|source| ResolveTypeError::TaskError { source })?;
@@ -185,7 +185,7 @@ impl RawVc {
                     consistency = ReadConsistency::Eventual;
                 }
                 RawVc::TaskCell(_, _) => return Ok(current),
-                RawVc::LocalOutput(_task_id, _persistence, execution_id, local_task_id) => {
+                RawVc::LocalOutput(_persistence, execution_id, local_task_id) => {
                     debug_assert_eq!(consistency, ReadConsistency::Eventual);
                     current = read_local_output(&*tt, execution_id, local_task_id).await?;
                 }
@@ -200,7 +200,7 @@ impl RawVc {
         let mut current = self;
         loop {
             match current {
-                RawVc::LocalOutput(_task_id, _persistence, execution_id, local_task_id) => {
+                RawVc::LocalOutput(_persistence, execution_id, local_task_id) => {
                     current = read_local_output(&*tt, execution_id, local_task_id).await?;
                 }
                 non_local => return Ok(non_local),
@@ -209,13 +209,17 @@ impl RawVc {
     }
 
     pub(crate) fn connect(&self) {
+        let RawVc::TaskOutput(task_id) = self else {
+            panic!("RawVc::connect() must only be called on a RawVc::TaskOutput");
+        };
         let tt = turbo_tasks();
-        tt.connect_task(self.get_task_id());
+        tt.connect_task(*task_id);
     }
 
-    pub fn get_task_id(&self) -> TaskId {
+    pub fn try_get_task_id(&self) -> Option<TaskId> {
         match self {
-            RawVc::TaskOutput(t) | RawVc::TaskCell(t, ..) | RawVc::LocalOutput(t, ..) => *t,
+            RawVc::TaskOutput(t) | RawVc::TaskCell(t, ..) => Some(*t),
+            RawVc::LocalOutput(..) => None,
         }
     }
 
@@ -250,20 +254,30 @@ impl RawVc {
 /// This implementation of `CollectiblesSource` assumes that `self` is a `RawVc::TaskOutput`.
 impl CollectiblesSource for RawVc {
     fn peek_collectibles<T: VcValueTrait + ?Sized>(self) -> AutoSet<ResolvedVc<T>> {
-        debug_assert!(matches!(self, RawVc::TaskOutput(..)));
+        let RawVc::TaskOutput(task_id) = self else {
+            panic!(
+                "<RawVc as CollectiblesSource>::peek_collectibles() must only be called on a \
+                 RawVc::TaskOutput"
+            );
+        };
         let tt = turbo_tasks();
         tt.notify_scheduled_tasks();
-        let map = tt.read_task_collectibles(self.get_task_id(), T::get_trait_type_id());
+        let map = tt.read_task_collectibles(task_id, T::get_trait_type_id());
         map.into_iter()
             .filter_map(|(raw, count)| (count > 0).then_some(raw.try_into().unwrap()))
             .collect()
     }
 
     fn take_collectibles<T: VcValueTrait + ?Sized>(self) -> AutoSet<ResolvedVc<T>> {
-        debug_assert!(matches!(self, RawVc::TaskOutput(..)));
+        let RawVc::TaskOutput(task_id) = self else {
+            panic!(
+                "<RawVc as CollectiblesSource>::take_collectibles() must only be called on a \
+                 RawVc::TaskOutput"
+            );
+        };
         let tt = turbo_tasks();
         tt.notify_scheduled_tasks();
-        let map = tt.read_task_collectibles(self.get_task_id(), T::get_trait_type_id());
+        let map = tt.read_task_collectibles(task_id, T::get_trait_type_id());
         tt.unemit_collectibles(T::get_trait_type_id(), &map);
         map.into_iter()
             .filter_map(|(raw, count)| (count > 0).then_some(raw.try_into().unwrap()))
@@ -360,7 +374,7 @@ impl Future for ReadRawVcFuture {
                             Err(err) => return Poll::Ready(Err(err)),
                         }
                     }
-                    RawVc::LocalOutput(_task_id, _persistence, execution_id, local_output_id) => {
+                    RawVc::LocalOutput(_persistence, execution_id, local_output_id) => {
                         debug_assert_eq!(this.consistency, ReadConsistency::Eventual);
                         let read_result = tt.try_read_local_output(execution_id, local_output_id);
                         match read_result {
