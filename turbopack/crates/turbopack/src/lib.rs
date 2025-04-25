@@ -668,6 +668,9 @@ async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleA
     Ok(ModuleAssetContext::new_without_replace_externals(
         Default::default(),
         CompileTimeInfo::builder(env).cell().await?,
+        // Keep these options more or less in sync with
+        // turbopack/crates/turbopack/tests/node-file-trace.rs to ensure that the NFT unit tests
+        // are actually representative of what Turbopack does.
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
                 source_maps: SourceMapsType::None,
