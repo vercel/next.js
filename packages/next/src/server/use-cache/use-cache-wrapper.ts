@@ -479,24 +479,11 @@ async function generateCacheEntryImpl(
       renderContext.dynamicAccessAbortController
 
     const timeoutAbortController = new AbortController()
-    const isProspectiveRender =
-      workUnitStore?.type === 'prerender' && workUnitStore.cacheSignal !== null
-    const { page } = workStore
 
     // If we're prerendering, we give you 50 seconds to fill a cache entry.
     // Otherwise we assume you stalled on hanging input and de-opt. This needs
     // to be lower than just the general timeout of 60 seconds.
-    console.log(new Date().toISOString(), 'set timer', {
-      cacheKeyWithoutCookies,
-      isProspectiveRender,
-      page,
-    })
     let timer: NodeJS.Timeout | null = setTimeout(() => {
-      console.log(new Date().toISOString(), 'timeout reached', {
-        cacheKeyWithoutCookies,
-        isProspectiveRender,
-        page,
-      })
       timeoutAbortController.abort(timeoutError)
     }, 50000)
 
@@ -504,11 +491,6 @@ async function generateCacheEntryImpl(
       if (timer) {
         clearTimeout(timer)
         timer = null
-        console.log(new Date().toISOString(), 'cleared timer', {
-          cacheKeyWithoutCookies,
-          isProspectiveRender,
-          page,
-        })
       }
     }
 
@@ -545,25 +527,9 @@ async function generateCacheEntryImpl(
       }
     )
 
-    console.log(new Date().toISOString(), 'got prelude', {
-      cacheKeyWithoutCookies,
-      isProspectiveRender,
-      page,
-    })
-
     clearPrerenderTimeout()
 
     if (timeoutAbortController.signal.aborted && !timeoutErrorHandled) {
-      console.log(
-        new Date().toISOString(),
-        'timeoutAbortController.signal.aborted',
-        {
-          dynamicAccessAbortSignal: dynamicAccessAbortSignal?.aborted,
-          cacheKeyWithoutCookies,
-          isProspectiveRender,
-          page,
-        }
-      )
       // When halting is enabled, the prerender will not call `onError` when
       // it's aborted with the timeout abort signal, and hanging promises will
       // also not be rejected. In this case, we're creating an erroring stream
@@ -576,13 +542,6 @@ async function generateCacheEntryImpl(
     } else {
       stream = prelude
     }
-
-    console.log(new Date().toISOString(), {
-      dynamicAccessAbortSignal: dynamicAccessAbortSignal?.aborted,
-      cacheKeyWithoutCookies,
-      isProspectiveRender,
-      page,
-    })
 
     if (renderContext.dynamicAccessAbortController.signal?.aborted) {
       if (workUnitStore?.type === 'prerender') {

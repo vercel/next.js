@@ -3424,19 +3424,12 @@ async function prerenderToStream(
           })
         }
 
-        console.log('awaiting cacheReady', ctx.renderOpts.page)
         await cacheSignal.cacheReady()
-        console.log(
-          'cacheReady',
-          prerenderResumeDataCache.cache,
-          ctx.renderOpts.page
-        )
         // It is important that we abort the SSR render first to avoid
         // connection closed errors from having an incomplete RSC stream
         initialClientController.abort()
         initialServerRenderController.abort()
         initialServerPrerenderController.abort()
-        console.log('aborted prospective render', ctx.renderOpts.page)
 
         // We've now filled caches and triggered any inadvertant sync bailouts
         // due to lazy module initialization. We can restart our render to capture results
