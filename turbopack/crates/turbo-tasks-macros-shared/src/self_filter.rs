@@ -1,4 +1,7 @@
-use syn::{visit::Visit, Block, Expr};
+use syn::{
+    visit::{visit_expr, Visit},
+    Block, Expr,
+};
 
 pub fn is_self_used(block: &Block) -> bool {
     let mut finder = SelfFinder { found: false };
@@ -15,7 +18,10 @@ impl Visit<'_> for SelfFinder {
         if let Expr::Path(path) = expr {
             if path.path.is_ident("self") {
                 self.found = true;
+                return;
             }
         }
+
+        visit_expr(self, expr);
     }
 }
