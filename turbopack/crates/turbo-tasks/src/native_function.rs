@@ -16,14 +16,17 @@ use crate::{
     RawVc, TaskInput, TaskPersistence,
 };
 
-type ResolveFuture<'a> =
-    Pin<Box<dyn Future<Output = Result<(Option<RawVc>, Box<dyn MagicAny>)>> + Send + 'a>>;
-type ResolveFunctor = for<'a> fn(Option<RawVc>, &'a dyn MagicAny) -> ResolveFuture<'a>;
+type ResolveFuture<'a> = Pin<Box<dyn Future<Output = Result<Box<dyn MagicAny>>> + Send + 'a>>;
+type ResolveFunctor = for<'a> fn(&'a dyn MagicAny) -> ResolveFuture<'a>;
 
 type IsResolvedFunctor = fn(&dyn MagicAny) -> bool;
 
+type FilterAndResolveFuture<'a> =
+    Pin<Box<dyn Future<Output = Result<(Option<RawVc>, Box<dyn MagicAny>)>> + Send + 'a>>;
+
 type FilterOwnedArgsFunctor = for<'a> fn(Box<dyn MagicAny>) -> Box<dyn MagicAny>;
-type FilterAndResolveFunctor = ResolveFunctor;
+type FilterAndResolveFunctor =
+    for<'a> fn(Option<RawVc>, &'a dyn MagicAny) -> FilterAndResolveFuture<'a>;
 
 pub struct ArgMeta {
     serializer: MagicAnySerializeSeed,
@@ -50,7 +53,7 @@ impl ArgMeta {
         fn noop_filter_args(args: Box<dyn MagicAny>) -> Box<dyn MagicAny> {
             args
         }
-        Self::with_filter_trait_call::<T>(noop_filter_args, resolve_functor_impl::<T>)
+        Self::with_filter_trait_call::<T>(noop_filter_args, filter_and_resolve_functor_impl::<T>)
     }
 
     pub fn with_filter_trait_call<T>(
@@ -83,9 +86,7 @@ impl ArgMeta {
     }
 
     pub async fn resolve(&self, value: &dyn MagicAny) -> Result<Box<dyn MagicAny>> {
-        (self.resolve)(None, value)
-            .await
-            .map(|(_, resolved)| resolved)
+        (self.resolve)(value).await
     }
 
     pub fn filter_owned(&self, args: Box<dyn MagicAny>) -> Box<dyn MagicAny> {
@@ -103,14 +104,22 @@ impl ArgMeta {
     }
 }
 
-fn resolve_functor_impl<T: MagicAny + TaskInput>(
+fn filter_and_resolve_functor_impl<T: MagicAny + TaskInput>(
     this: Option<RawVc>,
     value: &dyn MagicAny,
-) -> ResolveFuture<'_> {
+) -> FilterAndResolveFuture<'_> {
     Box::pin(async move {
         let value = downcast_args_ref::<T>(value);
         let resolved = value.resolve_input().await?;
         Ok((this, Box::new(resolved) as Box<dyn MagicAny>))
+    })
+}
+
+fn resolve_functor_impl<T: MagicAny + TaskInput>(value: &dyn MagicAny) -> ResolveFuture<'_> {
+    Box::pin(async move {
+        let value = downcast_args_ref::<T>(value);
+        let resolved = value.resolve_input().await?;
+        Ok(Box::new(resolved) as Box<dyn MagicAny>)
     })
 }
 
