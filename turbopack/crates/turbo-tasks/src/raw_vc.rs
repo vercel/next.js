@@ -55,9 +55,22 @@ impl Display for CellId {
 /// [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RawVc {
+    /// The synchronous return value of a task (after argument resolution). This is the
+    /// representation used by [`OperationVc`][crate::OperationVc].
     TaskOutput(TaskId),
+    /// A pointer to a specific [`Vc::cell`][crate::Vc::cell] or `.cell()` call within a task. This
+    /// is the representation used by [`ResolvedVc`].
+    ///
+    /// [`CellId`] contains the [`ValueTypeId`], which can be useful for efficient downcasting.
     TaskCell(TaskId, CellId),
-    LocalOutput(TaskPersistence, ExecutionId, LocalTaskId),
+    /// The synchronous return value of a local task. This is created when a function is called
+    /// with unresolved arguments or more explicitly with
+    /// [`#[turbo_tasks::function(local)]`][crate::function].
+    ///
+    /// Local outputs are only valid within the context of their parent "non-local" task. Turbo
+    /// Task's APIs are designed to prevent escapes of local [`Vc`]s, but [`ExecutionId`] is used
+    /// for a fallback runtime assertion.
+    LocalOutput(ExecutionId, LocalTaskId, TaskPersistence),
 }
 
 impl RawVc {
@@ -84,7 +97,7 @@ impl RawVc {
     pub fn is_transient(&self) -> bool {
         match self {
             RawVc::TaskOutput(task) | RawVc::TaskCell(task, ..) => task.is_transient(),
-            RawVc::LocalOutput(persistence, ..) => *persistence == TaskPersistence::Transient,
+            RawVc::LocalOutput(_, _, persistence) => *persistence == TaskPersistence::Transient,
         }
     }
 
@@ -148,7 +161,7 @@ impl RawVc {
                         return Err(ResolveTypeError::NoContent);
                     }
                 }
-                RawVc::LocalOutput(_persistence, execution_id, local_task_id) => {
+                RawVc::LocalOutput(execution_id, local_task_id, ..) => {
                     current = read_local_output(&*tt, execution_id, local_task_id)
                         .await
                         .map_err(|source| ResolveTypeError::TaskError { source })?;
@@ -185,7 +198,7 @@ impl RawVc {
                     consistency = ReadConsistency::Eventual;
                 }
                 RawVc::TaskCell(_, _) => return Ok(current),
-                RawVc::LocalOutput(_persistence, execution_id, local_task_id) => {
+                RawVc::LocalOutput(execution_id, local_task_id, ..) => {
                     debug_assert_eq!(consistency, ReadConsistency::Eventual);
                     current = read_local_output(&*tt, execution_id, local_task_id).await?;
                 }
@@ -200,7 +213,7 @@ impl RawVc {
         let mut current = self;
         loop {
             match current {
-                RawVc::LocalOutput(_persistence, execution_id, local_task_id) => {
+                RawVc::LocalOutput(execution_id, local_task_id, ..) => {
                     current = read_local_output(&*tt, execution_id, local_task_id).await?;
                 }
                 non_local => return Ok(non_local),
@@ -374,7 +387,7 @@ impl Future for ReadRawVcFuture {
                             Err(err) => return Poll::Ready(Err(err)),
                         }
                     }
-                    RawVc::LocalOutput(_persistence, execution_id, local_output_id) => {
+                    RawVc::LocalOutput(execution_id, local_output_id, ..) => {
                         debug_assert_eq!(this.consistency, ReadConsistency::Eventual);
                         let read_result = tt.try_read_local_output(execution_id, local_output_id);
                         match read_result {
