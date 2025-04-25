@@ -95,6 +95,8 @@ function createIpc<TIncoming, TOutgoing>(
     process.exit(0);
   });
 
+  // TODO(lukesandberg): some of the messages being sent are very large and contain lots
+  //  of redundant information.  Consider adding gzip compression to our stream.
   function send(message: any): Promise<void> {
     // Reserve 4 bytes for our length prefix, we will over-write after encoding.
     const packet = Buffer.from("0000" + JSON.stringify(message), "utf8");
