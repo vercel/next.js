@@ -50,7 +50,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         .into();
     };
 
-    let is_self_used = turbo_fn.is_method() && is_self_used(&block);
+    let is_self_used = is_self_used(&block);
 
     let ident = &sig.ident;
 
