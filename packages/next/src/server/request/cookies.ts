@@ -5,14 +5,10 @@ import {
   RequestCookiesAdapter,
 } from '../web/spec-extension/adapters/request-cookies'
 import { RequestCookies } from '../web/spec-extension/cookies'
-import {
-  workAsyncStorage,
-  type WorkStore,
-} from '../app-render/work-async-storage.external'
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import {
   workUnitAsyncStorage,
   type PrerenderStoreModern,
-  type UseCacheCookiesStore,
 } from '../app-render/work-unit-async-storage.external'
 import {
   postponeWithTracking,
@@ -29,7 +25,6 @@ import { scheduleImmediate } from '../../lib/scheduler'
 import { isRequestAPICallableInsideAfter } from './utils'
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import type { RequestCookie } from '@edge-runtime/cookies'
-import type { UseCacheRenderContext } from '../use-cache/types'
 
 /**
  * In this version of Next.js `cookies()` returns a Promise however you can still reference the properties of the underlying cookies object
@@ -83,8 +78,8 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
       //   return workUnitStore.cookies
       // } else if (workUnitStore.type === 'cache') {
       if (workUnitStore.type === 'cache') {
-        if (workUnitStore.cookiesStore) {
-          return workUnitStore.cookiesStore.getUserspaceCookies()
+        if (workUnitStore.renderContext) {
+          return workUnitStore.renderContext.getUserspaceCookies()
         }
 
         throw new Error(
@@ -171,12 +166,7 @@ const CachedCookies = new WeakMap<
   Promise<ReadonlyRequestCookies>
 >()
 
-const CachedCookiesForUseCache = new WeakMap<
-  CacheLifetime,
-  Promise<ReadonlyRequestCookies>
->()
-
-function makeDynamicallyTrackedExoticCookies(
+export function makeDynamicallyTrackedExoticCookies(
   route: string,
   prerenderStore: PrerenderStoreModern
 ): Promise<ReadonlyRequestCookies> {
@@ -235,6 +225,22 @@ function makeDynamicallyTrackedExoticCookies(
             return function () {
               abortAndThrow(`.${prop}()`)
             }
+          case 'then':
+          case 'status':
+            console.log(new Date().toISOString(), 'awaited cookies, aborting')
+            const workUnitStore = workUnitAsyncStorage.getStore()
+
+            if (
+              workUnitStore?.type === 'cache' &&
+              workUnitStore.renderContext?.type === 'prerender'
+            ) {
+              workUnitStore.renderContext.dynamicAccessAbortController.abort(
+                new Error(
+                  `Accessed \`cookies()\` in \`"use cache"\` during prerendering.`
+                )
+              )
+            }
+          // intentionally fallthrough
           default:
             return ReflectAdapter.get(target, prop, receiver)
         }
@@ -242,86 +248,6 @@ function makeDynamicallyTrackedExoticCookies(
     }
   )
   CachedCookies.set(prerenderStore, promise)
-
-  return promise
-}
-
-function makeDynamicallyTrackedExoticCookiesForUseCache(
-  route: string,
-  prerenderStore: PrerenderStoreModern,
-  abortController: AbortController
-): Promise<ReadonlyRequestCookies> {
-  const cachedPromise = CachedCookiesForUseCache.get(prerenderStore)
-  if (cachedPromise) {
-    return cachedPromise
-  }
-
-  const abortAndThrow = (property: string) => {
-    const expression = `\`cookies()${property}\``
-    const error = createCookiesAccessError(route, expression)
-    abortAndThrowOnSynchronousRequestDataAccess(
-      route,
-      expression,
-      error,
-      prerenderStore
-    )
-  }
-
-  const promise = makeHangingPromise<ReadonlyRequestCookies>(
-    prerenderStore.renderSignal,
-    '`cookies()`',
-    {
-      get: function get(target, prop, receiver) {
-        if (prop === 'then' || prop === 'status') {
-          abortController.abort(
-            new Error(
-              `Accessed \`cookies()\` in \`"use cache"\` during prerendering.`
-            )
-          )
-        }
-
-        switch (prop) {
-          case Symbol.iterator:
-            return function () {
-              abortAndThrow('[Symbol.iterator]')
-            }
-          case 'size':
-            abortAndThrow('.size')
-            break
-          case 'get':
-          case 'getAll':
-          case 'has':
-            return function () {
-              abortAndThrow(
-                arguments.length === 0
-                  ? `.${prop}()`
-                  : `.${prop}(${describeNameArg(arguments[0])})`
-              )
-            }
-          case 'set':
-          case 'delete':
-            return function () {
-              abortAndThrow(
-                arguments.length === 0
-                  ? `.${prop}()`
-                  : arguments[0]
-                    ? `.${prop}(${describeNameArg(arguments[0])}, ...)`
-                    : `.${prop}(...)`
-              )
-            }
-          case 'clear':
-          case 'toString':
-            return function () {
-              abortAndThrow(`.${prop}()`)
-            }
-          default:
-            return ReflectAdapter.get(target, prop, receiver)
-        }
-      },
-    }
-  )
-
-  CachedCookiesForUseCache.set(prerenderStore, promise)
 
   return promise
 }
@@ -335,9 +261,9 @@ function createProxiedCookies(
 
       if (
         workUnitStore?.type === 'cache' &&
-        workUnitStore.cookiesStore?.type === 'request'
+        workUnitStore.renderContext?.type === 'request'
       ) {
-        const { cookiesStore } = workUnitStore
+        const { renderContext } = workUnitStore
 
         // eslint-disable-next-line default-case
         switch (prop) {
@@ -346,10 +272,10 @@ function createProxiedCookies(
             return function get(
               ...args: [name: string] | [RequestCookie]
             ): RequestCookie | undefined {
-              if (cookiesStore.accessedCookieNames !== 'all') {
+              if (renderContext.accessedCookieNames !== 'all') {
                 for (const arg of args) {
                   const cookieName = typeof arg === 'string' ? arg : arg.name
-                  cookiesStore.accessedCookieNames.add(cookieName)
+                  renderContext.accessedCookieNames.add(cookieName)
                 }
               }
 
@@ -357,15 +283,15 @@ function createProxiedCookies(
             }
           case 'has':
             return function get(name: string): RequestCookie | undefined {
-              if (cookiesStore.accessedCookieNames !== 'all') {
-                cookiesStore.accessedCookieNames.add(name)
+              if (renderContext.accessedCookieNames !== 'all') {
+                renderContext.accessedCookieNames.add(name)
               }
 
               return target.get.call(target, name)
             }
           case 'toString':
             return function get(name: string): RequestCookie | undefined {
-              cookiesStore.accessedCookieNames = 'all'
+              renderContext.accessedCookieNames = 'all'
 
               return target.get.call(target, name)
             }
@@ -377,7 +303,7 @@ function createProxiedCookies(
   })
 }
 
-function makeUntrackedExoticCookies(
+export function makeUntrackedExoticCookies(
   underlyingCookies: ReadonlyRequestCookies
 ): Promise<ReadonlyRequestCookies> {
   const cachedCookies = CachedCookies.get(underlyingCookies)
@@ -441,7 +367,7 @@ function makeUntrackedExoticCookies(
   return promise
 }
 
-function makeUntrackedExoticCookiesWithDevWarnings(
+export function makeUntrackedExoticCookiesWithDevWarnings(
   underlyingCookies: ReadonlyRequestCookies,
   route?: string
 ): Promise<ReadonlyRequestCookies> {
@@ -582,93 +508,6 @@ function makeUntrackedExoticCookiesWithDevWarnings(
   } satisfies CookieExtensions)
 
   return promise
-}
-
-export function createUseCacheCookiesStore(
-  workStore: WorkStore,
-  renderContext: UseCacheRenderContext
-): UseCacheCookiesStore | undefined {
-  if (renderContext.type === 'prerender') {
-    const { workUnitStore, dynamicAccessAbortController } = renderContext
-
-    // If there are cookies defined on a prerender store, this means we're doing
-    // a dev warmup render, which is more akin to a dynamic request than a
-    // prerender request, despite using a prerender work unit store.
-    if (workUnitStore.cookies) {
-      const userspaceCookies = makeUntrackedExoticCookies(workUnitStore.cookies)
-
-      return {
-        type: 'request',
-        underlyingCookies: workUnitStore.cookies,
-        getUserspaceCookies: () => userspaceCookies,
-        accessedCookieNames: new Set(),
-      }
-    }
-
-    const userspaceCookies = makeDynamicallyTrackedExoticCookiesForUseCache(
-      workStore.route,
-      workUnitStore,
-      dynamicAccessAbortController
-    )
-
-    return {
-      type: 'prerender',
-      getUserspaceCookies: () => userspaceCookies,
-    }
-  }
-
-  if (!renderContext.workUnitStore) {
-    return undefined
-  }
-
-  const { workUnitStore } = renderContext
-
-  switch (workUnitStore.type) {
-    case 'prerender-ppr':
-      return {
-        type: 'prerender',
-        getUserspaceCookies: () =>
-          postponeWithTracking(
-            workStore.route,
-            'cookies',
-            workUnitStore.dynamicTracking
-          ),
-      }
-    case 'prerender-legacy':
-      return {
-        type: 'prerender',
-        getUserspaceCookies: () =>
-          throwToInterruptStaticGeneration('cookies', workStore, workUnitStore),
-      }
-    // case 'cache-with-cookies':
-    //   return workUnitStore.cookies
-    case 'cache':
-      return !workUnitStore.cookiesStore ||
-        workUnitStore.cookiesStore.type === 'prerender'
-        ? workUnitStore.cookiesStore
-        : {
-            ...workUnitStore.cookiesStore,
-            // Each cache scope starts with a new set of accessed cookie names.
-            accessedCookieNames: new Set(),
-          }
-    case 'request':
-      const userspaceCookies =
-        process.env.NODE_ENV === 'development' && !workStore.isPrefetchRequest
-          ? makeUntrackedExoticCookiesWithDevWarnings(
-              workUnitStore.cookies,
-              workStore.route
-            )
-          : makeUntrackedExoticCookies(workUnitStore.cookies)
-
-      return {
-        type: 'request',
-        underlyingCookies: workUnitStore.cookies,
-        getUserspaceCookies: () => userspaceCookies,
-        accessedCookieNames: new Set(),
-      }
-    default:
-      return undefined
-  }
 }
 
 function describeNameArg(arg: unknown) {

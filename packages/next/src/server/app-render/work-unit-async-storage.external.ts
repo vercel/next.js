@@ -17,6 +17,7 @@ import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../client/components/app-router-headers'
+import type { UseCacheRenderContext } from '../use-cache/render-context'
 
 export type WorkUnitPhase = 'action' | 'render' | 'after'
 
@@ -196,25 +197,12 @@ export interface CommonUseCacheStore extends CommonCacheStore {
   readonly forceRevalidate: boolean
 }
 
-export interface UseCachePrerenderCookiesStore {
-  readonly type: 'prerender'
-  readonly getUserspaceCookies: () => Promise<ReadonlyRequestCookies>
-}
-
-export interface UseCacheRequestCookiesStore {
-  readonly type: 'request'
-  readonly underlyingCookies: ReadonlyRequestCookies
-  readonly getUserspaceCookies: () => Promise<ReadonlyRequestCookies>
-  accessedCookieNames: Set<string> | 'all'
-}
-
-export type UseCacheCookiesStore =
-  | UseCachePrerenderCookiesStore
-  | UseCacheRequestCookiesStore
-
 export interface UseCacheStore extends CommonUseCacheStore {
   readonly type: 'cache'
-  readonly cookiesStore: UseCacheCookiesStore | undefined
+  // The render context can only be undefined here because we currently don't
+  // forbid nesting `"use cache"` in `unstable_cache`, which we probably should.
+  // This breaks the render context chain.
+  readonly renderContext: UseCacheRenderContext | undefined
 }
 
 // export interface UseCacheWithCookiesStore extends CommonUseCacheStore {
@@ -367,10 +355,10 @@ export function getCookies(
   }
 
   if (workUnitStore.type === 'cache') {
-    const { cookiesStore } = workUnitStore
+    const { renderContext } = workUnitStore
 
-    if (cookiesStore?.type === 'request') {
-      return cookiesStore.underlyingCookies
+    if (renderContext?.type === 'request') {
+      return renderContext.underlyingCookies
     }
   }
 
