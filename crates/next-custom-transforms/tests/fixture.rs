@@ -937,15 +937,18 @@ fn track_dynamic_imports_fixture(input: PathBuf) {
     test_fixture(
         syntax(),
         &|_tr| {
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
             (
-                resolver(Mark::new(), Mark::new(), false),
-                track_dynamic_imports(_tr.comments.as_ref().clone()),
+                resolver(unresolved_mark, top_level_mark, false),
+                track_dynamic_imports(unresolved_mark, _tr.comments.as_ref().clone()),
             )
         },
         &input,
         &output,
         FixtureTestConfig {
-            module: Some(true),
+            // auto detect script/module to test CJS handling
+            module: None,
             ..Default::default()
         },
     );
