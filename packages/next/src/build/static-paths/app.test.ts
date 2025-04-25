@@ -1,5 +1,9 @@
 import { FallbackMode } from '../../lib/fallback'
-import { assignErrorIfEmpty } from './app'
+import {
+  assignErrorIfEmpty,
+  filterUniqueRootParamsCombinations,
+  filterUniqueParams,
+} from './app'
 import type { PrerenderedRoute } from './types'
 
 describe('assignErrorIfEmpty', () => {
@@ -105,5 +109,49 @@ describe('assignErrorIfEmpty', () => {
     expect(prerenderedRoutes[2].throwOnEmptyStaticShell).toBe(true)
     expect(prerenderedRoutes[3].throwOnEmptyStaticShell).toBe(true)
     expect(prerenderedRoutes[4].throwOnEmptyStaticShell).toBe(false)
+  })
+})
+
+describe('filterUniqueParams', () => {
+  it('should filter out duplicate parameters', () => {
+    const params = [
+      { id: '1', name: 'test' },
+      { id: '1', name: 'test' },
+      { id: '2' },
+    ]
+
+    const unique = filterUniqueParams(['id', 'name'], params)
+
+    expect(unique).toEqual([{ id: '1', name: 'test' }, { id: '2' }])
+  })
+
+  it('should handle more complex routes', () => {
+    const params = [
+      { id: '1', name: 'test', age: '10' },
+      { id: '1', name: 'test', age: '20' },
+      { id: '2', name: 'test', age: '10' },
+    ]
+
+    const unique = filterUniqueParams(['id', 'name', 'age'], params)
+
+    expect(unique).toEqual([
+      { id: '1', name: 'test', age: '10' },
+      { id: '1', name: 'test', age: '20' },
+      { id: '2', name: 'test', age: '10' },
+    ])
+  })
+})
+
+describe('filterUniqueRootParamsCombinations', () => {
+  it('should return only the root parameters', () => {
+    const params = [
+      { id: '1', name: 'test' },
+      { id: '1', name: 'test' },
+      { id: '2', name: 'test' },
+    ]
+
+    const unique = filterUniqueRootParamsCombinations(['id'], params)
+
+    expect(unique).toEqual([{ id: '1' }, { id: '2' }])
   })
 })
