@@ -16,8 +16,9 @@ use crate::{
     RawVc, TaskInput, TaskPersistence,
 };
 
-type ResolveFuture<'a> = Pin<Box<dyn Future<Output = Result<Box<dyn MagicAny>>> + Send + 'a>>;
-type ResolveFunctor = for<'a> fn(&'a dyn MagicAny) -> ResolveFuture<'a>;
+type ResolveFuture<'a> =
+    Pin<Box<dyn Future<Output = Result<(Option<RawVc>, Box<dyn MagicAny>)>> + Send + 'a>>;
+type ResolveFunctor = for<'a> fn(Option<RawVc>, &'a dyn MagicAny) -> ResolveFuture<'a>;
 
 type IsResolvedFunctor = fn(&dyn MagicAny) -> bool;
 
@@ -82,23 +83,34 @@ impl ArgMeta {
     }
 
     pub async fn resolve(&self, value: &dyn MagicAny) -> Result<Box<dyn MagicAny>> {
-        (self.resolve)(value).await
+        (self.resolve)(None, value)
+            .await
+            .map(|(_, resolved)| resolved)
     }
 
     pub fn filter_owned(&self, args: Box<dyn MagicAny>) -> Box<dyn MagicAny> {
         (self.filter_owned)(args)
     }
 
-    pub async fn filter_and_resolve(&self, args: &dyn MagicAny) -> Result<Box<dyn MagicAny>> {
-        (self.filter_and_resolve)(args).await
+    /// This will return `(None, _)` even if the target is a method, if the method does not use
+    /// `self`.
+    pub async fn filter_and_resolve(
+        &self,
+        this: Option<RawVc>,
+        args: &dyn MagicAny,
+    ) -> Result<(Option<RawVc>, Box<dyn MagicAny>)> {
+        (self.filter_and_resolve)(this, args).await
     }
 }
 
-fn resolve_functor_impl<T: MagicAny + TaskInput>(value: &dyn MagicAny) -> ResolveFuture<'_> {
-    Box::pin(async {
+fn resolve_functor_impl<T: MagicAny + TaskInput>(
+    this: Option<RawVc>,
+    value: &dyn MagicAny,
+) -> ResolveFuture<'_> {
+    Box::pin(async move {
         let value = downcast_args_ref::<T>(value);
         let resolved = value.resolve_input().await?;
-        Ok(Box::new(resolved) as Box<dyn MagicAny>)
+        Ok((this, Box::new(resolved) as Box<dyn MagicAny>))
     })
 }
 
