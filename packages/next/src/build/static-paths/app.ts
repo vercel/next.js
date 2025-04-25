@@ -262,22 +262,18 @@ export function assignErrorIfEmpty(
     // route is a more specific route.
     const { fallbackRouteParams, params } = prerenderedRoutes[i]
     if (fallbackRouteParams && fallbackRouteParams.length > 0) {
-      for (let j = 0; j < prerenderedRoutes.length; j++) {
+      siblingLoop: for (let j = 0; j < prerenderedRoutes.length; j++) {
         // Skip the current route.
         if (i === j) continue
 
-        let k = 0
-        for (; k < routeParamKeys.length; k++) {
+        for (let k = 0; k < routeParamKeys.length; k++) {
           const key = routeParamKeys[k]
 
           // If the key is a fallback route param, then we can skip it, because
           // it always matches.
           if (fallbackRouteParams.includes(key)) {
-            // Rather than just continuing here, we set the index to the end of
-            // the array so that we can break out of the loop early while still
-            // satisfying the condition check later.
-            k = routeParamKeys.length
-            break
+            throwOnEmptyStaticShell = false
+            break siblingLoop
           }
 
           // If the param value is not equal, then we can break out of the loop
@@ -285,15 +281,8 @@ export function assignErrorIfEmpty(
           if (
             !areParamValuesEqual(params[key], prerenderedRoutes[j].params[key])
           ) {
-            break
+            continue siblingLoop
           }
-        }
-
-        // If we got to the end of the loop, then we know that the route is a
-        // more specific route.
-        if (k === routeParamKeys.length) {
-          throwOnEmptyStaticShell = false
-          break
         }
       }
     }
