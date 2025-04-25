@@ -45,6 +45,11 @@ impl Visit<'_> for SelfFinder {
 
         visit_macro(self, mac);
     }
+
+    fn visit_item_impl(&mut self, _: &syn::ItemImpl) {
+        // skip children of `impl`: the definition of "self" inside of an impl is different than the
+        // parent scope's definition of "self"
+    }
 }
 
 fn contains_self_token(tok: &TokenTree) -> bool {
