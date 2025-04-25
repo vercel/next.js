@@ -321,7 +321,7 @@ impl TurboFn<'_> {
             .iter()
             .filter(|arg| {
                 let FnArg::Typed(pat_type) = arg else {
-                    return true;
+                    return is_self_used;
                 };
                 let Pat::Ident(pat_id) = &*pat_type.pat else {
                     return true;
@@ -1140,5 +1140,6 @@ pub fn filter_inline_attributes<'a>(
 
 pub fn inline_inputs_identifier_filter(arg_ident: &Ident, is_self_used: bool) -> bool {
     // filter out underscore-prefixed (unused) arguments, we don't need to cache these
-    !arg_ident.to_string().starts_with('_') || (!is_self_used && arg_ident == "self")
+    !arg_ident.to_string().starts_with('_')
+        || (!is_self_used && (arg_ident == "self" || arg_ident == "turbo_tasks_self"))
 }
