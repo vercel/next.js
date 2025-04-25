@@ -440,7 +440,7 @@ describe.each([
 
         await assertHasRedbox(browser)
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-          `"Error: The default export is not a React Component in page: "/hmr/about5""`
+          `"The default export is not a React Component in page: "/hmr/about5""`
         )
 
         await next.patchFile(aboutPage, aboutContent)
@@ -530,7 +530,7 @@ describe.each([
 
         await assertHasRedbox(browser)
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-          `"Error: The default export is not a React Component in page: "/hmr/about7""`
+          `"The default export is not a React Component in page: "/hmr/about7""`
         )
 
         await next.patchFile(aboutPage, aboutContent)
@@ -756,7 +756,7 @@ describe.each([
 
         await assertHasRedbox(browser)
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-          `"Error: an-expected-error-in-gip"`
+          `"an-expected-error-in-gip"`
         )
 
         await next.patchFile(
@@ -795,7 +795,7 @@ describe.each([
       try {
         await assertHasRedbox(browser)
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-          `"Error: an-expected-error-in-gip"`
+          `"an-expected-error-in-gip"`
         )
 
         const erroredPage = join('pages', 'hmr', 'error-in-gip.js')

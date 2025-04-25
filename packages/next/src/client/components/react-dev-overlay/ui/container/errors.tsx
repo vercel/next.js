@@ -5,10 +5,7 @@ import { RuntimeError } from './runtime-error'
 import { getErrorSource } from '../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
 import { PseudoHtmlDiff } from './runtime-error/component-stack-pseudo-html'
-import {
-  isConsoleError,
-  getConsoleErrorType,
-} from '../../../errors/console-error'
+import { isConsoleError } from '../../../errors/console-error'
 import { extractNextErrorCode } from '../../../../../lib/error-telemetry-utils'
 import {
   ErrorOverlayLayout,
@@ -41,14 +38,6 @@ function HydrationErrorDescription({ message }: { message: string }) {
 }
 
 function GenericErrorDescription({ error }: { error: Error }) {
-  const unhandledErrorType = isConsoleError(error)
-    ? getConsoleErrorType(error)
-    : null
-  const isConsoleErrorStringMessage = unhandledErrorType === 'string'
-  // Displaying Error: would be redundant for console.error(message)
-  // since we already have the label
-  const title = isConsoleErrorStringMessage ? '' : error.name + ': '
-
   const environmentName =
     'environmentName' in error ? error.environmentName : ''
   const envPrefix = environmentName ? `[ ${environmentName} ] ` : ''
@@ -62,7 +51,6 @@ function GenericErrorDescription({ error }: { error: Error }) {
 
   return (
     <>
-      {title}
       <HotlinkedText text={message} matcher={isNextjsLink} />
     </>
   )
@@ -70,12 +58,12 @@ function GenericErrorDescription({ error }: { error: Error }) {
 
 function getErrorType(error: Error): ErrorOverlayLayoutProps['errorType'] {
   if (isRecoverableError(error)) {
-    return 'Recoverable Error'
+    return `Recoverable ${error.name}`
   }
   if (isConsoleError(error)) {
-    return 'Console Error'
+    return `Console ${error.name}`
   }
-  return 'Runtime Error'
+  return `Runtime ${error.name}`
 }
 
 const noErrorDetails = {
