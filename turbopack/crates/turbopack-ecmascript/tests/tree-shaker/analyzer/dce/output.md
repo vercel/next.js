@@ -80,7 +80,7 @@ graph TD
 ```
 {
     ModuleEvaluation: 0,
-    Exports: 2,
+    Exports: 1,
 }
 ```
 
@@ -100,10 +100,6 @@ export { };
 ```js
 
 ```
-## Part 2
-```js
-
-```
 ## Merged (module eval)
 ```js
 import { baz } from './module';
@@ -119,7 +115,7 @@ export { };
 ```
 {
     ModuleEvaluation: 0,
-    Exports: 2,
+    Exports: 1,
 }
 ```
 
@@ -136,10 +132,6 @@ export { };
 
 ```
 ## Part 1
-```js
-
-```
-## Part 2
 ```js
 
 ```
