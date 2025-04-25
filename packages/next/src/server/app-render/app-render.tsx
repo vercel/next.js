@@ -1270,7 +1270,7 @@ async function renderToHTMLOrFlightImpl(
 
   if (enableTainting) {
     taintObjectReference(
-      'Do not pass process.env to client components since it will leak sensitive data',
+      'Do not pass process.env to Client Components since it will leak sensitive data',
       process.env
     )
   }

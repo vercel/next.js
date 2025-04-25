@@ -13,7 +13,7 @@ import stripAnsi from 'strip-ansi'
 const isExperimentalReact = process.env.__NEXT_EXPERIMENTAL_PPR
 
 const expectedErrorMessage =
-  'Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".'
+  'Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".'
 
 describe('use-cache-hanging-inputs', () => {
   const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
@@ -52,7 +52,7 @@ describe('use-cache-hanging-inputs', () => {
 
           expect(errorSource).toBe(null)
 
-          expect(cliOutput).toContain(`${expectedErrorMessage}
+          expect(cliOutput).toContain(`Error: ${expectedErrorMessage}
     at [project]/app/search-params/page.tsx [app-rsc] (ecmascript)`)
         } else {
           expect(errorSource).toMatchInlineSnapshot(`
@@ -67,7 +67,7 @@ describe('use-cache-hanging-inputs', () => {
              6 |   searchParams: Promise<{ n: string }>"
           `)
 
-          expect(cliOutput).toContain(`${expectedErrorMessage}
+          expect(cliOutput).toContain(`Error: ${expectedErrorMessage}
     at eval (app/search-params/page.tsx:3:15)`)
         }
       }, 180_000)
@@ -82,7 +82,7 @@ describe('use-cache-hanging-inputs', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        expect(cliOutput).not.toContain(expectedErrorMessage)
+        expect(cliOutput).not.toContain(`Error: ${expectedErrorMessage}`)
       })
     })
 
@@ -111,7 +111,7 @@ describe('use-cache-hanging-inputs', () => {
 
           expect(errorSource).toBe(null)
 
-          expect(cliOutput).toContain(`${expectedErrorMessage}
+          expect(cliOutput).toContain(`Error: ${expectedErrorMessage}
     at [project]/app/uncached-promise/page.tsx [app-rsc] (ecmascript)`)
         } else {
           expect(errorSource).toMatchInlineSnapshot(`
@@ -126,7 +126,7 @@ describe('use-cache-hanging-inputs', () => {
              13 |   return ("
           `)
 
-          expect(cliOutput).toContain(`${expectedErrorMessage}
+          expect(cliOutput).toContain(`Error: ${expectedErrorMessage}
     at eval (app/uncached-promise/page.tsx:10:12)`)
         }
       }, 180_000)
@@ -157,7 +157,7 @@ describe('use-cache-hanging-inputs', () => {
 
           expect(errorSource).toBe(null)
 
-          expect(cliOutput).toContain(`${expectedErrorMessage}
+          expect(cliOutput).toContain(`Error: ${expectedErrorMessage}
     at [project]/app/uncached-promise-nested/page.tsx [app-rsc] (ecmascript)`)
         } else {
           expect(errorSource).toMatchInlineSnapshot(`
@@ -172,7 +172,7 @@ describe('use-cache-hanging-inputs', () => {
              19 |   return getCachedData(promise)"
           `)
 
-          expect(cliOutput).toContain(`${expectedErrorMessage}
+          expect(cliOutput).toContain(`Error: ${expectedErrorMessage}
     at eval (app/uncached-promise-nested/page.tsx:16:0)`)
         }
       }, 180_000)
@@ -201,7 +201,7 @@ describe('use-cache-hanging-inputs', () => {
           // key.
 
           const expectedErrorMessagePpr =
-            'Error: Route "/bound-args": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don\'t have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense'
+            'Route "/bound-args": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don\'t have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense'
 
           expect(errorDescription).toBe(expectedErrorMessagePpr)
 
@@ -219,7 +219,7 @@ describe('use-cache-hanging-inputs', () => {
 
             expect(errorSource).toBe(null)
 
-            expect(cliOutput).toContain(`${expectedErrorMessage}
+            expect(cliOutput).toContain(`Error: ${expectedErrorMessage}
     at [project]/app/bound-args/page.tsx [app-rsc] (ecmascript)`)
           } else {
             expect(errorSource).toMatchInlineSnapshot(`
@@ -234,7 +234,7 @@ describe('use-cache-hanging-inputs', () => {
                16 |     return ("
             `)
 
-            expect(cliOutput).toContain(`${expectedErrorMessage}
+            expect(cliOutput).toContain(`Error: ${expectedErrorMessage}
     at eval (app/bound-args/page.tsx:13:14)`)
           }
         }
@@ -254,7 +254,7 @@ describe('use-cache-hanging-inputs', () => {
         expect({ count, title, description }).toEqual({
           count: 1,
           title: 'Runtime Error\nCache',
-          description: 'Error: kaputt!',
+          description: 'kaputt!',
         })
       })
     })
@@ -262,7 +262,7 @@ describe('use-cache-hanging-inputs', () => {
     it('should fail the build with errors after a timeout', async () => {
       const { cliOutput } = await next.build()
 
-      expect(cliOutput).toInclude(expectedErrorMessage)
+      expect(cliOutput).toInclude(`Error: ${expectedErrorMessage}`)
 
       expect(cliOutput).toInclude(
         'Error occurred prerendering page "/bound-args"'

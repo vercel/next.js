@@ -224,7 +224,7 @@ describe('Error overlay - RSC build errors', () => {
         // `Component` has a custom error message
         api === 'Component'
           ? `You’re importing a class component. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
-          : `You're importing a component that needs \`${api}\`. This React hook only works in a client component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
+          : `You're importing a component that needs \`${api}\`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
       )
     })
   }
@@ -245,7 +245,7 @@ describe('Error overlay - RSC build errors', () => {
       const { session } = sandbox
       await session.assertHasRedbox()
       expect(await session.getRedboxSource()).toInclude(
-        `You're importing a component that needs \`${api}\`. This React hook only works in a client component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
+        `You're importing a component that needs \`${api}\`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
       )
     })
   }

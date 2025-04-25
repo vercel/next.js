@@ -843,10 +843,11 @@
       function progress(entry) {
         if (!aborted)
           if (entry.done)
-            request.abortListeners.delete(abortStream),
-              (entry = streamTask.id.toString(16) + ":C\n"),
+            (entry = streamTask.id.toString(16) + ":C\n"),
               request.completedRegularChunks.push(stringToChunk(entry)),
               enqueueFlush(request),
+              request.abortListeners.delete(abortStream),
+              callOnAllReadyIfReady(request),
               (aborted = !0);
           else
             try {
@@ -908,7 +909,6 @@
       function progress(entry) {
         if (!aborted)
           if (entry.done) {
-            request.abortListeners.delete(abortIterable);
             if (void 0 === entry.value)
               var endStreamRow = streamTask.id.toString(16) + ":C\n";
             else
@@ -925,6 +925,8 @@
               }
             request.completedRegularChunks.push(stringToChunk(endStreamRow));
             enqueueFlush(request);
+            request.abortListeners.delete(abortIterable);
+            callOnAllReadyIfReady(request);
             aborted = !0;
           } else
             try {
@@ -2543,7 +2545,6 @@
     }
     function erroredTask(request, task, error) {
       task.timed && emitTimingChunk(request, task.id, performance.now());
-      request.abortableTasks.delete(task);
       task.status = ERRORED$1;
       if (
         "object" === typeof error &&
@@ -2556,6 +2557,8 @@
         var digest = logRecoverableError(request, error, task);
         emitErrorChunk(request, task.id, digest, error);
       }
+      request.abortableTasks.delete(task);
+      callOnAllReadyIfReady(request);
     }
     function retryTask(request, task) {
       if (task.status === PENDING$1) {
@@ -2590,8 +2593,9 @@
             var json = stringify(resolvedModel);
             emitModelChunk(request, task.id, json);
           }
-          request.abortableTasks.delete(task);
           task.status = COMPLETED;
+          request.abortableTasks.delete(task);
+          callOnAllReadyIfReady(request);
         } catch (thrownValue) {
           if (request.status === ABORTING)
             if (
@@ -2639,7 +2643,6 @@
       ReactSharedInternalsServer.H = HooksDispatcher;
       var prevRequest = currentRequest;
       currentRequest$1 = currentRequest = request;
-      var hadAbortableTasks = 0 < request.abortableTasks.size;
       try {
         var pingedTasks = request.pingedTasks;
         request.pingedTasks = [];
@@ -2647,10 +2650,6 @@
           retryTask(request, pingedTasks[i]);
         null !== request.destination &&
           flushCompletedChunks(request, request.destination);
-        if (hadAbortableTasks && 0 === request.abortableTasks.size) {
-          var onAllReady = request.onAllReady;
-          onAllReady();
-        }
       } catch (error) {
         logRecoverableError(request, error, null), fatalError(request, error);
       } finally {
@@ -2751,6 +2750,13 @@
           destination && flushCompletedChunks(request, destination);
         }));
     }
+    function callOnAllReadyIfReady(request) {
+      if (
+        0 === request.abortableTasks.size &&
+        0 === request.abortListeners.size
+      )
+        request.onAllReady();
+    }
     function startFlowing(request, destination) {
       if (request.status === CLOSING)
         (request.status = CLOSED),
@@ -2810,8 +2816,7 @@
             });
           }
           abortableTasks.clear();
-          var onAllReady = request.onAllReady;
-          onAllReady();
+          callOnAllReadyIfReady(request);
         }
         var abortListeners = request.abortListeners;
         if (0 < abortListeners.size) {
@@ -2835,6 +2840,7 @@
             return callback(_error);
           });
           abortListeners.clear();
+          callOnAllReadyIfReady(request);
         }
         null !== request.destination &&
           flushCompletedChunks(request, request.destination);

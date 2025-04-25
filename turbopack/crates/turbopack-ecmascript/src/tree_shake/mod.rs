@@ -27,7 +27,6 @@ pub mod chunk_item;
 mod graph;
 pub mod merge;
 mod optimizations;
-pub mod reference;
 pub mod side_effect_module;
 #[cfg(test)]
 mod tests;
@@ -375,6 +374,7 @@ pub(crate) enum Key {
     ModuleEvaluation,
     Export(RcStr),
     Exports,
+    StarExports,
 }
 
 /// Converts [ModulePart] to the index.
@@ -408,7 +408,10 @@ async fn get_part_id(result: &SplitResult, part: &ModulePart) -> Result<u32> {
 
     // This is required to handle `export * from 'foo'`
     if let ModulePart::Export(..) = part {
-        if let Some(&v) = entrypoints.get(&Key::Exports) {
+        if let Some(&v) = entrypoints
+            .get(&Key::StarExports)
+            .or_else(|| entrypoints.get(&Key::Exports))
+        {
             return Ok(v);
         }
     }
