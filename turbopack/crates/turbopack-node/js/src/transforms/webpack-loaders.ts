@@ -17,14 +17,15 @@ import {
 } from "../compiled/stacktrace-parser";
 import { type StructuredError } from "src/ipc";
 
+type Dependencies = {
+  directories?: Array<[string, string]>
+  filePaths?: string[],
+  buildFilePaths?: string[],
+};
+
 export type IpcInfoMessage =
-  | {
-      type: 'dependencies'
-      envVariables?: string[]
-      directories?: Array<[string, string]>
-      filePaths?: string[],
-      buildFilePaths?: string[],
-    }
+  | {type: 'dependencies', 
+    envVariables?: string[]} & Dependencies
   | {
     type: "emittedError";
     severity: "warning" | "error";
@@ -460,14 +461,9 @@ const transform = (
         },
       },
       (err, result) => {
-        ipc.sendInfo({
-          type: 'dependencies',
-          envVariables: Array.from(readEnvVars),
-          filePaths: result.fileDependencies.map(toPath),
-          directories: result.contextDependencies.map((dep) => [
-            toPath(dep),
-            '**',
-          ]),
+        sendDependencyInformation(ipc, {
+          filePaths: result.fileDependencies,
+          directories: result.contextDependencies.map(d=>[d, '**']),
         });
         if (err) return reject(err);
         if (!result.result) return reject(new Error("No result from loaders"));
@@ -487,6 +483,22 @@ const transform = (
 };
 
 export { transform as default };
+
+/** Sends information about the dependencies of the transform. */
+export function sendDependencyInformation(
+  ipc: Ipc<IpcInfoMessage, IpcRequestMessage>,
+  deps: Dependencies): Promise<void> {
+  return ipc.sendInfo({
+    type: 'dependencies',
+    envVariables: Array.from(readEnvVars),
+    filePaths: deps.filePaths?.map(toPath),
+    directories: deps.directories?.map(([path, glob]) => [
+      toPath(path),
+      glob ?? '**',
+    ]),
+    buildFilePaths: deps.buildFilePaths?.map(toPath),
+  });
+}
 
 function makeErrorEmitter(
   severity: "warning" | "error",

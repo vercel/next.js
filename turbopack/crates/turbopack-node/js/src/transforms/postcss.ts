@@ -6,21 +6,8 @@ import type {Processor} from "postcss";
 import postcss from "@vercel/turbopack/postcss";
 // @ts-ignore
 import importedConfig from "CONFIG";
-import { relative, isAbsolute, sep } from "path";
 import type { Ipc } from "../ipc/evaluate";
-import type { IpcInfoMessage, IpcRequestMessage } from "./webpack-loaders";
-
-const contextDir = process.cwd();
-
-function toPath(file: string) {
-  const relPath = relative(contextDir, file);
-  if (isAbsolute(relPath)) {
-    throw new Error(
-      `Cannot depend on path (${file}) outside of root directory (${contextDir})`
-    );
-  }
-  return sep !== "/" ? relPath.replaceAll(sep, "/") : relPath;
-}
+import { IpcInfoMessage, IpcRequestMessage, sendDependencyInformation} from "./webpack-loaders";
 
 let processor: Processor | undefined;
 
@@ -108,28 +95,23 @@ export default async function transform(
         break;
       case "dependency":
       case "missing-dependency":
-        filePaths.push(toPath(msg.file));
+        filePaths.push(msg.file);
         break;
       case "build-dependency":
-        buildFilePaths.push(toPath(msg.file));
+        buildFilePaths.push(msg.file);
         break;
       case "dir-dependency":
-        directories.push([toPath(msg.dir), msg.glob]);
+        directories.push([msg.dir, msg.glob]);
         break;
       case "context-dependency":
-        directories.push([toPath(msg.dir), "**"]);
+        directories.push([msg.dir, "**"]);
         break;
       default:
         // TODO: do we need to do anything here?
         break;
     }
   }
-  ipc.sendInfo({
-    type: "dependencies",
-    filePaths,
-    directories,
-    buildFilePaths,
-  });
+  sendDependencyInformation(ipc, {filePaths, directories, buildFilePaths});
   return {
     css,
     map: sourceMap ? JSON.stringify(map) : undefined,
