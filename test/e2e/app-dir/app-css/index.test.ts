@@ -491,13 +491,13 @@ describe('app dir - css', () => {
 
             const matches = initialHtml
               .match(/\/_next\/static\/css\/.+?\.css/g)
-              .sort()
               // The same css chunk could be split into 2 RSC script
               // normalize "/_next/static/css/app/\"])</script><script>self.__next_f.push([1,\"not-found.css"
               // to "/_next/static/css/app/not-found.css"
               .map((href) =>
                 href.replace('"])</script><script>self.__next_f.push([1,"', '')
               )
+              .sort()
 
             // Heavy on testing React implementation details.
             // Assertions may change often but what needs to be checked on change is if styles are needlessly duplicated in Flight data
