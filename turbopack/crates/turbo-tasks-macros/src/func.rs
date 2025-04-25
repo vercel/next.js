@@ -312,7 +312,6 @@ impl TurboFn<'_> {
     pub fn inline_signature_and_block<'a>(
         &self,
         orig_block: &'a Block,
-        is_self_used: bool,
     ) -> (Signature, Cow<'a, Block>) {
         let mut shadow_self = None;
         let (inputs, transform_stmts): (Punctuated<_, _>, Vec<Option<_>>) = self
@@ -326,7 +325,7 @@ impl TurboFn<'_> {
                 let Pat::Ident(pat_id) = &*pat_type.pat else {
                     return true;
                 };
-                inline_inputs_identifier_filter(&pat_id.ident, is_self_used)
+                inline_inputs_identifier_filter(&pat_id.ident)
             })
             .enumerate()
             .map(|(idx, arg)| {
@@ -476,9 +475,9 @@ impl TurboFn<'_> {
         &self.inline_ident
     }
 
-    fn inline_input_idents(&self, is_self_used: bool) -> impl Iterator<Item = &Ident> {
+    fn inline_input_idents(&self) -> impl Iterator<Item = &Ident> {
         self.exposed_input_idents()
-            .filter(move |id| inline_inputs_identifier_filter(id, is_self_used))
+            .filter(move |id| inline_inputs_identifier_filter(id))
     }
 
     fn exposed_input_idents(&self) -> impl Iterator<Item = &Ident> {
@@ -505,7 +504,7 @@ impl TurboFn<'_> {
                 }
             };
 
-            let inline_input_idents: Vec<_> = self.inline_input_idents(is_self_used).collect();
+            let inline_input_idents: Vec<_> = self.inline_input_idents().collect();
             if inline_input_idents.len() != self.exposed_inputs.len() {
                 let exposed_input_idents: Vec<_> = self.exposed_input_idents().collect();
                 let exposed_input_types: Vec<_> = self.exposed_input_types().collect();
@@ -644,9 +643,9 @@ impl TurboFn<'_> {
 
     /// The block of the exposed function for a static dispatch call to the
     /// given native function.
-    pub fn static_block(&self, native_function_id_ident: &Ident, is_self_used: bool) -> Block {
+    pub fn static_block(&self, native_function_id_ident: &Ident) -> Block {
         let output = &self.output;
-        let inputs = self.inline_input_idents(is_self_used);
+        let inputs = self.inline_input_idents();
         let assertions = self.get_assertions();
         let mut block = if let Some(converted_this) = self.converted_this() {
             let persistence = self.persistence_with_this();
@@ -1150,8 +1149,7 @@ pub fn filter_inline_attributes<'a>(
         .collect()
 }
 
-pub fn inline_inputs_identifier_filter(arg_ident: &Ident, is_self_used: bool) -> bool {
+pub fn inline_inputs_identifier_filter(arg_ident: &Ident) -> bool {
     // filter out underscore-prefixed (unused) arguments, we don't need to cache these
     !arg_ident.to_string().starts_with('_')
-        || (!is_self_used && (arg_ident == "self" || arg_ident == "turbo_tasks_self"))
 }

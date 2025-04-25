@@ -111,8 +111,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             let inline_function_ident = turbo_fn.inline_ident();
             let inline_extension_trait_ident =
                 Ident::new(&format!("{}_{}_inline", trait_ident, ident), ident.span());
-            let (inline_signature, inline_block) =
-                turbo_fn.inline_signature_and_block(default, is_self_used);
+            let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(default);
             let inline_attrs = filter_inline_attributes(&attrs[..]);
 
             let native_function = NativeFn {
@@ -170,7 +169,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                         turbo_tasks::macro_helpers::Lazy::new(|| #native_function_id_def);
             });
 
-            Some(turbo_fn.static_block(&native_function_id_ident, is_self_used))
+            Some(turbo_fn.static_block(&native_function_id_ident))
         } else {
             trait_methods.push(quote! {
                 trait_type.register_trait_method::<(#(#arg_types,)*)>(stringify!(#ident).into());

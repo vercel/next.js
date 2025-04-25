@@ -133,10 +133,8 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         // An error occurred while parsing the function signature.
                     };
                 };
-                let is_self_used = is_self_used(block);
                 let inline_function_ident = turbo_fn.inline_ident();
-                let (inline_signature, inline_block) =
-                    turbo_fn.inline_signature_and_block(block, is_self_used);
+                let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
                 let inline_attrs = filter_inline_attributes(attrs.iter().copied());
 
                 let native_fn = NativeFn {
@@ -157,7 +155,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     native_fn.id_definition(&native_function_ident.clone().into());
 
                 let turbo_signature = turbo_fn.signature();
-                let turbo_block = turbo_fn.static_block(&native_function_id_ident, is_self_used);
+                let turbo_block = turbo_fn.static_block(&native_function_id_ident);
                 exposed_impl_items.push(quote! {
                     #(#attrs)*
                     #vis #turbo_signature #turbo_block
@@ -242,8 +240,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     &format!("{}_{}_{}_inline", ty_ident, trait_ident, ident),
                     ident.span(),
                 );
-                let (inline_signature, inline_block) =
-                    turbo_fn.inline_signature_and_block(block, is_self_used);
+                let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
                 let inline_attrs = filter_inline_attributes(attrs.iter().copied());
 
                 let native_fn = NativeFn {
@@ -272,7 +269,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     native_fn.id_definition(&native_function_ident.clone().into());
 
                 let turbo_signature = turbo_fn.signature();
-                let turbo_block = turbo_fn.static_block(&native_function_id_ident, is_self_used);
+                let turbo_block = turbo_fn.static_block(&native_function_id_ident);
 
                 trait_functions.push(quote! {
                     #(#attrs)*
