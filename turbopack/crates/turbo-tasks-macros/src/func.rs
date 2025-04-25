@@ -474,9 +474,9 @@ impl TurboFn<'_> {
         &self.inline_ident
     }
 
-    fn inline_input_idents(&self) -> impl Iterator<Item = &Ident> {
+    fn inline_input_idents(&self, is_self_used: bool) -> impl Iterator<Item = &Ident> {
         self.exposed_input_idents()
-            .filter(|id| inline_inputs_identifier_filter(id))
+            .filter(move |id| inline_inputs_identifier_filter(id, is_self_used))
     }
 
     fn exposed_input_idents(&self) -> impl Iterator<Item = &Ident> {
@@ -489,11 +489,11 @@ impl TurboFn<'_> {
             .map(|Input { ty, .. }| expand_task_input_type(ty))
     }
 
-    pub fn filter_trait_call_args(&self) -> Option<FilterTraitCallArgsTokens> {
+    pub fn filter_trait_call_args(&self, is_self_used: bool) -> Option<FilterTraitCallArgsTokens> {
         // we only need to do this on trait methods, but we're doing it on all methods because we
         // don't know if we're a trait method or not (we could pass this information down)
         if self.is_method() {
-            let inline_input_idents: Vec<_> = self.inline_input_idents().collect();
+            let inline_input_idents: Vec<_> = self.inline_input_idents(is_self_used).collect();
             if inline_input_idents.len() != self.exposed_inputs.len() {
                 let exposed_input_idents: Vec<_> = self.exposed_input_idents().collect();
                 let exposed_input_types: Vec<_> = self.exposed_input_types().collect();
@@ -631,9 +631,9 @@ impl TurboFn<'_> {
 
     /// The block of the exposed function for a static dispatch call to the
     /// given native function.
-    pub fn static_block(&self, native_function_id_ident: &Ident) -> Block {
+    pub fn static_block(&self, native_function_id_ident: &Ident, is_self_used: bool) -> Block {
         let output = &self.output;
-        let inputs = self.inline_input_idents();
+        let inputs = self.inline_input_idents(is_self_used);
         let assertions = self.get_assertions();
         let mut block = if let Some(converted_this) = self.converted_this() {
             let persistence = self.persistence_with_this();
@@ -1137,7 +1137,7 @@ pub fn filter_inline_attributes<'a>(
         .collect()
 }
 
-pub fn inline_inputs_identifier_filter(arg_ident: &Ident) -> bool {
+pub fn inline_inputs_identifier_filter(arg_ident: &Ident, is_self_used: bool) -> bool {
     // filter out underscore-prefixed (unused) arguments, we don't need to cache these
     !arg_ident.to_string().starts_with('_')
 }
