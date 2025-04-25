@@ -24,8 +24,10 @@ type Dependencies = {
 };
 
 export type IpcInfoMessage =
-  | {type: 'dependencies', 
-    envVariables?: string[]} & Dependencies
+  | {
+    type: 'dependencies', 
+    envVariables?: string[],
+  } & Dependencies
   | {
     type: "emittedError";
     severity: "warning" | "error";
