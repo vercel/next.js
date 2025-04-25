@@ -229,7 +229,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     .inspect_err(|err| errors.push(err.to_compile_error()))
                     .unwrap_or_default();
                 let local = func_args.local.is_some();
-                let is_self_used = func_args.operation.is_none() && is_self_used(block);
+                let is_self_used = func_args.operation.is_some() || is_self_used(block);
 
                 let Some(turbo_fn) =
                     TurboFn::new(sig, DefinitionContext::ValueTraitImpl, func_args)

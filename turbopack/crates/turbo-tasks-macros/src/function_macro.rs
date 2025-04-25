@@ -42,7 +42,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         .inspect_err(|err| errors.push(err.to_compile_error()))
         .unwrap_or_default();
     let local = args.local.is_some();
-    let is_self_used = args.operation.is_none() && is_self_used(&block);
+    let is_self_used = args.operation.is_some() || is_self_used(&block);
 
     let Some(turbo_fn) = TurboFn::new(&sig, DefinitionContext::NakedFn, args) else {
         return quote! {
