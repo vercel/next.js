@@ -2411,7 +2411,7 @@ async function spawnDynamicValidationInDev(
 
   const finalClientController = new AbortController()
   const clientDynamicTracking = createDynamicTrackingState(false)
-  const dynamicValidation = createDynamicValidationState(false)
+  const dynamicValidation = createDynamicValidationState()
 
   const finalClientPrerenderStore: PrerenderStore = {
     type: 'prerender',
@@ -2550,7 +2550,10 @@ async function spawnDynamicValidationInDev(
 
   function LogDynamicValidation() {
     try {
-      if (preludeIsEmpty) {
+      // If we've disabled throwing on empty static shell, then we don't need to
+      // track any dynamic access that occurs above the suspense boundary because
+      // we'll do so in the route shell.
+      if (preludeIsEmpty && !ctx.renderOpts.doNotThrowOnEmptyStaticShell) {
         throwIfDisallowedEmptyStaticShell(
           route,
           dynamicValidation,
@@ -3023,9 +3026,7 @@ async function prerenderToStream(
         }
 
         let clientIsDynamic = false
-        let dynamicValidation = createDynamicValidationState(
-          renderOpts.doNotThrowOnEmptyStaticShell
-        )
+        let dynamicValidation = createDynamicValidationState()
 
         const prerender = require('react-dom/static.edge')
           .prerender as (typeof import('react-dom/static.edge'))['prerender']
@@ -3087,7 +3088,10 @@ async function prerenderToStream(
         const { prelude, preludeIsEmpty } =
           await processPrelude(unprocessedPrelude)
 
-        if (preludeIsEmpty) {
+        // If we've disabled throwing on empty static shell, then we don't need to
+        // track any dynamic access that occurs above the suspense boundary because
+        // we'll do so in the route shell.
+        if (preludeIsEmpty && !ctx.renderOpts.doNotThrowOnEmptyStaticShell) {
           throwIfDisallowedEmptyStaticShell(
             workStore.route,
             dynamicValidation,
@@ -3445,9 +3449,7 @@ async function prerenderToStream(
         const clientDynamicTracking = createDynamicTrackingState(
           renderOpts.isDebugDynamicAccesses
         )
-        const dynamicValidation = createDynamicValidationState(
-          renderOpts.doNotThrowOnEmptyStaticShell
-        )
+        const dynamicValidation = createDynamicValidationState()
 
         const finalClientPrerenderStore: PrerenderStore = (prerenderStore = {
           type: 'prerender',
@@ -3572,7 +3574,10 @@ async function prerenderToStream(
           }
         }
 
-        if (preludeIsEmpty) {
+        // If we've disabled throwing on empty static shell, then we don't need to
+        // track any dynamic access that occurs above the suspense boundary because
+        // we'll do so in the route shell.
+        if (preludeIsEmpty && !ctx.renderOpts.doNotThrowOnEmptyStaticShell) {
           // We don't have a shell because the root errored when we aborted.
           throwIfDisallowedEmptyStaticShell(
             workStore.route,
