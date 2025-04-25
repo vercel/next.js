@@ -949,7 +949,7 @@ export async function createSession(id) {
 
 > **Tips**:
 >
-> - For faster data retrieval, consider using a database like [Vercel Redis](https://vercel.com/docs/storage/vercel-kv). However, you can also keep the session data in your primary database, and combine data requests to reduce the number of queries.
+> - For faster access, you may consider adding server caching for the lifetime of the session. You can also keep the session data in your primary database, and combine data requests to reduce the number of queries.
 > - You may opt to use database sessions for more advanced use cases, such as keeping track of the last time a user logged in, or number of active devices, or give users the ability to log out of all devices.
 
 After implementing session management, you'll need to add authorization logic to control what users can access and do within your application. Continue to the [Authorization](#authorization) section to learn more.

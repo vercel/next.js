@@ -93,8 +93,6 @@ module.exports = {
 
 **Note:** The key of `outputFileTracingIncludes`/`outputFileTracingExcludes` is a [glob](https://www.npmjs.com/package/picomatch#basic-globbing), so special characters need to be escaped.
 
-- Currently, Next.js does not do anything with the emitted `.nft.json` files. The files must be read by your deployment platform, for example [Vercel](https://vercel.com), to create a minimal deployment. In a future release, a new command is planned to utilize these `.nft.json` files.
-
 ## Experimental `turbotrace`
 
 Tracing dependencies can be slow because it requires very complex computations and analysis. We created `turbotrace` in Rust as a faster and smarter alternative to the JavaScript implementation.

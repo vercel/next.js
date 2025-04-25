@@ -43,8 +43,3 @@ The folder is also useful for `robots.txt`, `favicon.ico`, Google Site Verificat
 For static metadata files, such as `robots.txt`, `favicon.ico`, etc, you should use [special metadata files](/docs/app/api-reference/file-conventions/metadata) inside the `app` folder.
 
 </AppOnly>
-
-> Good to know:
->
-> - The directory must be named `public`. The name cannot be changed and it's the only directory used to serve static assets.
-> - Only assets that are in the `public` directory at [build time](/docs/app/api-reference/cli/next#next-build-options) will be served by Next.js. Files added at request time won't be available. We recommend using a third-party service like [Vercel Blob](https://vercel.com/docs/storage/vercel-blob?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) for persistent file storage.

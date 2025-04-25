@@ -219,3 +219,16 @@ export async function Table({ searchParams }) {
   return '...'
 }
 ```
+
+## Platform Support
+
+> **Note:** Partial Prerendering is an **experimental** feature only available on canary and is subject to change. It is not ready for production use.
+
+| Deployment Option                                                   | Supported         |
+| ------------------------------------------------------------------- | ----------------- |
+| [Node.js server](/docs/app/getting-started/deploying#nodejs-server) | Yes               |
+| [Docker container](/docs/app/getting-started/deploying#docker)      | Yes               |
+| [Static export](/docs/app/getting-started/deploying#static-export)  | No                |
+| [Adapters](/docs/app/getting-started/deploying#adapters)            | Platform-specific |
+
+Learn how to [configure PPR](/docs/app/guides/self-hosting#partial-prerendering) when self-hosting Next.js.
