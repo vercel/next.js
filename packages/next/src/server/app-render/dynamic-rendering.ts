@@ -647,7 +647,7 @@ function createErrorWithComponentStack(
   return error
 }
 
-export function throwIfDisallowedEmptyShell(
+export function throwIfDisallowedEmptyStaticShell(
   route: string,
   dynamicValidation: DynamicValidationState,
   serverDynamic: DynamicTrackingState,
@@ -688,7 +688,7 @@ export function throwIfDisallowedEmptyShell(
   // blocked the root. We would have captured these during the prerender
   // and can log them here and then terminate the build/validating render
   const dynamicErrors = dynamicValidation.dynamicErrors
-  if (dynamicErrors.length) {
+  if (dynamicErrors.length > 0) {
     for (let i = 0; i < dynamicErrors.length; i++) {
       console.error(dynamicErrors[i])
     }

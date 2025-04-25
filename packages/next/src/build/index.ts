@@ -444,7 +444,7 @@ export type RoutesManifest = {
   }
 }
 
-function pageToRoute(page: string) {
+function pageToRoute(page: string): ManifestRoute {
   const routeRegex = getNamedRouteRegex(page, {
     prefixRouteKeys: true,
   })
@@ -1303,8 +1303,8 @@ export default async function build(
             ...pageKeys.pages,
             ...(pageKeys.app ?? []),
           ])
-          const dynamicRoutes: Array<ReturnType<typeof pageToRoute>> = []
-          const staticRoutes: typeof dynamicRoutes = []
+          const dynamicRoutes: Array<ManifestRoute> = []
+          const staticRoutes: Array<ManifestRoute> = []
 
           for (const route of sortedRoutes) {
             if (isDynamicRoute(route)) {
@@ -2025,12 +2025,14 @@ export default async function build(
                             if (!isDynamic) {
                               staticPaths.set(originalAppPath, [
                                 {
+                                  params: {},
                                   pathname: page,
                                   encodedPathname: page,
-                                  fallbackRouteParams: undefined,
+                                  fallbackRouteParams: [],
                                   fallbackMode:
                                     workerResult.prerenderFallbackMode,
-                                  fallbackRootParams: undefined,
+                                  fallbackRootParams: [],
+                                  throwOnEmptyStaticShell: true,
                                 },
                               ])
                               isStatic = true
@@ -2061,8 +2063,6 @@ export default async function build(
                               `"getStaticProps" is not yet supported fully with "experimental-edge", detected on ${page}`
                             )
                           }
-                          // TODO: add handling for statically rendering edge
-                          // pages and allow edge with Prerender outputs
                           workerResult.isStatic = false
                           workerResult.hasStaticProps = false
                         }
@@ -2188,7 +2188,7 @@ export default async function build(
                   runtime: pageRuntime,
                   pageDuration: undefined,
                   ssgPageDurations: undefined,
-                  hasEmptyPrelude: undefined,
+                  hasEmptyStaticShell: undefined,
                 })
               })
             })
@@ -2607,6 +2607,7 @@ export default async function build(
               )
             )
           )
+
           const exportApp = require('../export')
             .default as typeof import('../export').default
 
@@ -2678,9 +2679,9 @@ export default async function build(
                 const appConfig = appDefaultConfigs.get(originalAppPath)
                 const isDynamicError = appConfig?.dynamic === 'error'
 
-                const isRoutePPREnabled = appConfig
+                const isRoutePPREnabled: boolean = appConfig
                   ? checkIsRoutePPREnabled(config.experimental.ppr, appConfig)
-                  : undefined
+                  : false
 
                 routes.forEach((route) => {
                   // If the route has any dynamic root segments, we need to skip
@@ -2700,6 +2701,8 @@ export default async function build(
                     _isDynamicError: isDynamicError,
                     _isAppDir: true,
                     _isRoutePPREnabled: isRoutePPREnabled,
+                    _doNotThrowOnEmptyStaticShell:
+                      !route.throwOnEmptyStaticShell,
                   }
                 })
               })
@@ -2779,6 +2782,31 @@ export default async function build(
 
           // If there was no result, there's nothing more to do.
           if (!exportResult) return
+
+          const getFallbackMode = (route: PrerenderedRoute) => {
+            const hasEmptyStaticShell = exportResult.byPath.get(
+              route.pathname
+            )?.hasEmptyStaticShell
+
+            // If the route has an empty static shell and is not configured to
+            // throw on empty static shell, then we should use the blocking
+            // static render mode.
+            if (
+              hasEmptyStaticShell &&
+              !route.throwOnEmptyStaticShell &&
+              route.fallbackMode === FallbackMode.PRERENDER
+            ) {
+              return FallbackMode.BLOCKING_STATIC_RENDER
+            }
+
+            // If the route has no fallback mode, then we should use the
+            // `NOT_FOUND` fallback mode.
+            if (!route.fallbackMode) {
+              return FallbackMode.NOT_FOUND
+            }
+
+            return route.fallbackMode
+          }
 
           const getCacheControl = (
             exportPath: string,
@@ -2953,7 +2981,7 @@ export default async function build(
 
               const {
                 metadata = {},
-                hasEmptyPrelude,
+                hasEmptyStaticShell,
                 hasPostponed,
               } = exportResult.byPath.get(route.pathname) ?? {}
 
@@ -2965,7 +2993,7 @@ export default async function build(
               pageInfos.set(route.pathname, {
                 ...(pageInfos.get(route.pathname) as PageInfo),
                 hasPostponed,
-                hasEmptyPrelude,
+                hasEmptyStaticShell,
                 initialCacheControl: cacheControl,
               })
 
@@ -2973,7 +3001,7 @@ export default async function build(
               pageInfos.set(page, {
                 ...(pageInfos.get(page) as PageInfo),
                 hasPostponed,
-                hasEmptyPrelude,
+                hasEmptyStaticShell,
                 initialCacheControl: cacheControl,
               })
 
@@ -3035,13 +3063,15 @@ export default async function build(
               // prerendered routes.
               if (!isRoutePPREnabled) {
                 dynamicRoutes.push({
+                  params: {},
                   pathname: page,
                   encodedPathname: page,
-                  fallbackRouteParams: undefined,
+                  fallbackRouteParams: [],
                   fallbackMode:
                     fallbackModes.get(originalAppPath) ??
                     FallbackMode.NOT_FOUND,
-                  fallbackRootParams: undefined,
+                  fallbackRootParams: [],
+                  throwOnEmptyStaticShell: true,
                 })
               }
 
@@ -3090,8 +3120,7 @@ export default async function build(
                   hasPostponed: isRoutePPREnabled,
                 })
 
-                const fallbackMode =
-                  route.fallbackMode ?? FallbackMode.NOT_FOUND
+                const fallbackMode = getFallbackMode(route)
 
                 // When the route is configured to serve a prerender, we should
                 // use the cache control from the export result. If it can't be
@@ -3133,7 +3162,9 @@ export default async function build(
                   fallbackExpire: fallbackCacheControl?.expire,
                   fallbackStatus: meta.status,
                   fallbackHeaders: meta.headers,
-                  fallbackRootParams: route.fallbackRootParams,
+                  fallbackRootParams: fallback
+                    ? route.fallbackRootParams
+                    : undefined,
                   fallbackSourceRoute: route.fallbackRouteParams?.length
                     ? page
                     : undefined,
