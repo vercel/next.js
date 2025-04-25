@@ -125,6 +125,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     .inspect_err(|err| errors.push(err.to_compile_error()))
                     .unwrap_or_default();
                 let local = func_args.local.is_some();
+                let is_self_used = func_args.operation.is_some() || is_self_used(block);
 
                 let Some(turbo_fn) =
                     TurboFn::new(sig, DefinitionContext::ValueInherentImpl, func_args)
@@ -133,7 +134,6 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         // An error occurred while parsing the function signature.
                     };
                 };
-                let is_self_used = is_self_used(block);
 
                 let inline_function_ident = turbo_fn.inline_ident();
                 let (inline_signature, inline_block) =
