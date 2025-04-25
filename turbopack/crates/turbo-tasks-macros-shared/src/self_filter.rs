@@ -37,14 +37,27 @@ impl Visit<'_> for SelfFinder {
         }
 
         for token in mac.tokens.to_token_stream() {
-            if let TokenTree::Ident(ident) = token {
-                if ident == "self" {
-                    self.found = true;
-                    return;
-                }
+            if contains_self_token(&token) {
+                self.found = true;
+                return;
             }
         }
 
         visit_macro(self, mac);
+    }
+}
+
+fn contains_self_token(tok: &TokenTree) -> bool {
+    match tok {
+        TokenTree::Group(group) => {
+            for token in group.stream() {
+                if contains_self_token(&token) {
+                    return true;
+                }
+            }
+            false
+        }
+        TokenTree::Ident(ident) => ident == "self",
+        TokenTree::Punct(..) | TokenTree::Literal(..) => false,
     }
 }
