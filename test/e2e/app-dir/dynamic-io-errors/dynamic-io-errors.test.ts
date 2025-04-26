@@ -257,10 +257,10 @@ function runTests(options: { withMinification: boolean }) {
         }
         const expectError = createExpectError(next.cliOutput)
 
-        expectError('Error occurred prerendering page "/"')
         expectError(
           'Route "/" has a `generateViewport` that depends on Request data (`cookies()`, etc...) or uncached external data (`fetch(...)`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport'
         )
+        expectError('Error occurred prerendering page "/"')
       })
     })
 
@@ -299,10 +299,10 @@ function runTests(options: { withMinification: boolean }) {
         }
         const expectError = createExpectError(next.cliOutput)
 
-        expectError('Error occurred prerendering page "/"')
         expectError(
           'Route "/" has a `generateViewport` that depends on Request data (`cookies()`, etc...) or uncached external data (`fetch(...)`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport'
         )
+        expectError('Error occurred prerendering page "/"')
       })
     })
 
