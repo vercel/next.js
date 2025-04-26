@@ -436,6 +436,20 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/build/static-paths/app.test.ts": {
+    "passed": [
+      "assignErrorIfEmpty should assign throwOnEmptyStaticShell false for a static route",
+      "assignErrorIfEmpty should assign throwOnEmptyStaticShell to the prerendered routes",
+      "assignErrorIfEmpty should handle more complex routes",
+      "filterUniqueParams should filter out duplicate parameters",
+      "filterUniqueParams should handle more complex routes",
+      "filterUniqueRootParamsCombinations should return only the root parameters"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/build/webpack/loaders/metadata/resolve-route-data.test.ts": {
     "passed": [
       "resolveRouteData resolveRobots should error with ts when specify both wildcard userAgent and specific userAgent",
@@ -3801,7 +3815,11 @@
   },
   "test/e2e/app-dir/actions/app-action-size-limit-invalid.test.ts": {
     "passed": [
-      "app-dir action size limit invalid config skip test for development mode"
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should error for requests that exceed the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should not error for requests that are at the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should not error for requests that stay below the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for plaintext fetch actions should error for requests that exceed the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for plaintext fetch actions should not error for requests that stay below the size limit"
     ],
     "failed": [],
     "pending": [],
@@ -5703,6 +5721,15 @@
   "test/e2e/app-dir/emotion-js/index.test.ts": {
     "passed": [
       "app dir - emotion-js should render emotion-js css with compiler.emotion option correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/empty-fallback-shells/empty-fallback-shells.test.ts": {
+    "passed": [
+      "empty-fallback-shells should start and not postpone the response"
     ],
     "failed": [],
     "pending": [],
