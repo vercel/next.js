@@ -691,8 +691,9 @@ export function throwIfDisallowedEmptyStaticShell(
   // you need to opt into that by adding a Suspense boundary above the body
   // to indicate your are ok with fully dynamic rendering.
   if (dynamicValidation.hasDynamicViewport) {
-    throw new StaticGenBailoutError(
+    console.error(
       `Route "${route}" has a \`generateViewport\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
     )
+    throw new StaticGenBailoutError()
   }
 }
