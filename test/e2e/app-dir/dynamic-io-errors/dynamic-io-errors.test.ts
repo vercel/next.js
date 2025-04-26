@@ -87,6 +87,48 @@ function runTests(options: { withMinification: boolean }) {
         expect($('#sentinel').text()).toBe('sentinel')
       })
     })
+    describe('Dynamic Metadata - Error Route', () => {
+      const { next, isNextDev, skipped } = nextTestSetup({
+        files: __dirname + '/fixtures/dynamic-metadata-error-route',
+        skipStart: true,
+        skipDeployment: true,
+      })
+
+      if (skipped) {
+        return
+      }
+
+      if (isNextDev) {
+        it('does not run in dev', () => {})
+        return
+      }
+
+      beforeEach(async () => {
+        if (!withMinification) {
+          await next.patchFile('next.config.js', (content) =>
+            content.replace(
+              'serverMinification: true,',
+              'serverMinification: false,'
+            )
+          )
+        }
+      })
+
+      // This test is just here because there was a bug when dynamic metadata was used alongside another dynamic IO violation which caused the validation to be skipped.
+      it('should error the build for the correct reason when there is a dynamic IO violation alongside dynamic metadata', async () => {
+        try {
+          await next.start()
+        } catch {
+          // we expect the build to fail
+        }
+        const expectError = createExpectError(next.cliOutput)
+
+        expectError(
+          'Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary'
+        )
+        expectError('Error occurred prerendering page "/"')
+      })
+    })
     describe('Dynamic Metadata - Static Route With Suspense', () => {
       const { next, isNextDev, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/dynamic-metadata-static-with-suspense',
