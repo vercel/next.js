@@ -42,7 +42,6 @@ import {
   OUTLET_BOUNDARY_NAME,
 } from '../../lib/metadata/metadata-constants'
 import { scheduleOnNextTick } from '../../lib/scheduler'
-import { InvariantError } from '../../shared/lib/invariant-error'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
@@ -653,15 +652,6 @@ export function throwIfDisallowedEmptyStaticShell(
   serverDynamic: DynamicTrackingState,
   clientDynamic: DynamicTrackingState
 ): void {
-  // TODO: Now that metadata is streaming we don't really need to check if it is blocking
-  // the root. We leave this here for now to ensure we've actually covered all our bases here
-  // but we can actually remove this in a future update
-  if (dynamicValidation.hasDynamicMetadata) {
-    throw new InvariantError(
-      'Expected `generateMetadata` not to block the application shell but it did.'
-    )
-  }
-
   if (dynamicValidation.hasSuspenseAboveBody) {
     // This route has opted into allowing fully dynamic rendering
     // by including a Suspense boundary above the body. In this case
