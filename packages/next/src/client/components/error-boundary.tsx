@@ -52,7 +52,10 @@ interface ErrorBoundaryHandlerState {
 // instead of caching the error page
 function HandleISRError({ error }: { error: any }) {
   const store = staticGenerationAsyncStorage.getStore()
-  if (store?.isRevalidate || store?.isStaticGeneration) {
+  if (
+    (store?.isRevalidate || store?.isStaticGeneration) &&
+    !store?.forceStatic
+  ) {
     console.error(error)
     throw error
   }
