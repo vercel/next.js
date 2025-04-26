@@ -90,4 +90,9 @@ describe('app dir - global error', () => {
       )
     }
   })
+
+  test('force-static page with error should render user defined global error boundary', async () => {
+    const browser = await next.browser('/force-static-with-error')
+    expect(await browser.elementByCss('h1').text()).toBe('Global Error')
+  })
 })
