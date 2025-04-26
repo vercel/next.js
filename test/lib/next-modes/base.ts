@@ -11,7 +11,7 @@ import webdriver from '../next-webdriver'
 import { renderViaHTTP, fetchViaHTTP, findPort } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { once } from 'events'
-import { BrowserInterface } from '../browsers/base'
+import { Playwright } from 'next-webdriver'
 import escapeStringRegexp from 'escape-string-regexp'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
@@ -620,6 +620,23 @@ export class NextInstance {
     )
   }
 
+  /**
+   * Makes `linkFilename` point to `targetFilename`.
+   *
+   * Performs an atomic update to the symlink:
+   * https://blog.moertel.com/posts/2005-08-22-how-to-change-symlinks-atomically.html
+   */
+  public async symlink(targetFilename: string, linkFilename: string) {
+    const tmpLinkPath = path.join(this.testDir, linkFilename + '.tmp')
+    try {
+      await fs.symlink(path.join(this.testDir, targetFilename), tmpLinkPath)
+      await fs.rename(tmpLinkPath, path.join(this.testDir, linkFilename))
+    } catch (e) {
+      await fs.unlink(tmpLinkPath)
+      throw e
+    }
+  }
+
   public async renameFolder(foldername: string, newFoldername: string) {
     await fs.rename(
       path.join(this.testDir, foldername),
@@ -639,7 +656,7 @@ export class NextInstance {
    */
   public async browser(
     ...args: Parameters<OmitFirstArgument<typeof webdriver>>
-  ): Promise<BrowserInterface> {
+  ): Promise<Playwright> {
     return webdriver(this.url, ...args)
   }
 

@@ -47,7 +47,7 @@ use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
     module_options::{transition_rule::TransitionRule, ModuleOptionsContext, RuleCondition},
     resolve_options_context::ResolveOptionsContext,
-    transition::{ContextTransition, FullContextTransition, Transition, TransitionOptions},
+    transition::{FullContextTransition, Transition, TransitionOptions},
     ModuleAssetContext,
 };
 use turbopack_core::{
@@ -115,6 +115,12 @@ fn styles_rule_condition() -> RuleCondition {
             RuleCondition::ResourcePathEndsWith(".sass".into()),
             RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.sass".into())),
         ]),
+        RuleCondition::all(vec![
+            RuleCondition::ContentTypeStartsWith("text/css".into()),
+            RuleCondition::not(RuleCondition::ContentTypeStartsWith(
+                "text/css+module".into(),
+            )),
+        ]),
     ])
 }
 fn module_styles_rule_condition() -> RuleCondition {
@@ -122,6 +128,7 @@ fn module_styles_rule_condition() -> RuleCondition {
         RuleCondition::ResourcePathEndsWith(".module.css".into()),
         RuleCondition::ResourcePathEndsWith(".module.scss".into()),
         RuleCondition::ResourcePathEndsWith(".module.sass".into()),
+        RuleCondition::ContentTypeStartsWith("text/css+module".into()),
     ])
 }
 
@@ -663,13 +670,22 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn shared_transition(self: Vc<Self>) -> Vc<ContextTransition> {
-        ContextTransition::new(
+    async fn shared_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+        Ok(ModuleAssetContext::new(
+            TransitionOptions {
+                ..Default::default()
+            }
+            .cell(),
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
             Vc::cell("app-shared".into()),
-        )
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn shared_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
+        Vc::upcast(FullContextTransition::new(self.shared_module_context()))
     }
 
     #[turbo_tasks::function]
@@ -714,13 +730,24 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn edge_shared_transition(self: Vc<Self>) -> Vc<ContextTransition> {
-        ContextTransition::new(
+    async fn edge_shared_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+        Ok(ModuleAssetContext::new(
+            TransitionOptions {
+                ..Default::default()
+            }
+            .cell(),
             self.project().edge_compile_time_info(),
             self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
             Vc::cell("app-edge-shared".into()),
-        )
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn edge_shared_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
+        Vc::upcast(FullContextTransition::new(
+            self.edge_shared_module_context(),
+        ))
     }
 
     #[turbo_tasks::function]

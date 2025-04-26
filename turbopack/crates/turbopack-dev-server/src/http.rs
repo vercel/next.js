@@ -9,8 +9,8 @@ use hyper::{
 use mime::Mime;
 use tokio_util::io::{ReaderStream, StreamReader};
 use turbo_tasks::{
-    apply_effects, util::SharedError, CollectiblesSource, OperationVc, ReadRef, TransientInstance,
-    Vc,
+    apply_effects, util::SharedError, CollectiblesSource, OperationVc, ReadRef, ResolvedVc,
+    TransientInstance, Vc,
 };
 use turbo_tasks_bytes::Bytes;
 use turbo_tasks_fs::FileContent;
@@ -77,14 +77,15 @@ pub async fn process_request_with_content_source(
     issue_reporter: Vc<Box<dyn IssueReporter>>,
 ) -> Result<(
     Response<hyper::Body>,
-    AutoSet<Vc<Box<dyn ContentSourceSideEffect>>>,
+    AutoSet<ResolvedVc<Box<dyn ContentSourceSideEffect>>>,
 )> {
     let original_path = request.uri().path().to_string();
     let request = http_request_to_source_request(request).await?;
     let result_op = get_from_source_operation(source, TransientInstance::new(request));
     let resolved_result = result_op.resolve_strongly_consistent().await?;
     apply_effects(result_op).await?;
-    let side_effects: AutoSet<Vc<Box<dyn ContentSourceSideEffect>>> = result_op.peek_collectibles();
+    let side_effects: AutoSet<ResolvedVc<Box<dyn ContentSourceSideEffect>>> =
+        result_op.peek_collectibles();
     handle_issues(
         result_op,
         issue_reporter,

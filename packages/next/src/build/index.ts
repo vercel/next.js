@@ -202,6 +202,7 @@ import { InvariantError } from '../shared/lib/invariant-error'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import type { UseCacheTrackerKey } from './webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
 import {
+  buildInversePrefetchSegmentDataRoute,
   buildPrefetchSegmentDataRoute,
   type PrefetchSegmentDataRoute,
 } from '../server/lib/router-utils/build-prefetch-segment-data-route'
@@ -386,13 +387,11 @@ export type RoutesManifest = {
   pages404: boolean
   basePath: string
   redirects: Array<Redirect>
-  rewrites?:
-    | Array<ManifestRewriteRoute>
-    | {
-        beforeFiles: Array<ManifestRewriteRoute>
-        afterFiles: Array<ManifestRewriteRoute>
-        fallback: Array<ManifestRewriteRoute>
-      }
+  rewrites: {
+    beforeFiles: Array<ManifestRewriteRoute>
+    afterFiles: Array<ManifestRewriteRoute>
+    fallback: Array<ManifestRewriteRoute>
+  }
   headers: Array<ManifestHeaderRoute>
   staticRoutes: Array<ManifestRoute>
   dynamicRoutes: Array<ManifestRoute>
@@ -443,7 +442,7 @@ export type RoutesManifest = {
   }
 }
 
-function pageToRoute(page: string) {
+function pageToRoute(page: string): ManifestRoute {
   const routeRegex = getNamedRouteRegex(page, {
     prefixRouteKeys: true,
   })
@@ -1302,8 +1301,8 @@ export default async function build(
             ...pageKeys.pages,
             ...(pageKeys.app ?? []),
           ])
-          const dynamicRoutes: Array<ReturnType<typeof pageToRoute>> = []
-          const staticRoutes: typeof dynamicRoutes = []
+          const dynamicRoutes: Array<ManifestRoute> = []
+          const staticRoutes: Array<ManifestRoute> = []
 
           for (const route of sortedRoutes) {
             if (isDynamicRoute(route)) {
@@ -1344,6 +1343,11 @@ export default async function build(
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,
               queryHeader: NEXT_REWRITTEN_QUERY_HEADER,
             },
+            rewrites: {
+              beforeFiles: [],
+              afterFiles: [],
+              fallback: [],
+            },
             skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
             ppr: isAppPPREnabled
               ? {
@@ -1357,23 +1361,16 @@ export default async function build(
           } satisfies RoutesManifest
         })
 
-      if (rewrites.beforeFiles.length === 0 && rewrites.fallback.length === 0) {
-        routesManifest.rewrites = rewrites.afterFiles.map((r) =>
+      routesManifest.rewrites = {
+        beforeFiles: rewrites.beforeFiles.map((r) =>
           buildCustomRoute('rewrite', r)
-        )
-      } else {
-        routesManifest.rewrites = {
-          beforeFiles: rewrites.beforeFiles.map((r) =>
-            buildCustomRoute('rewrite', r)
-          ),
-          afterFiles: rewrites.afterFiles.map((r) =>
-            buildCustomRoute('rewrite', r)
-          ),
-          fallback: rewrites.fallback.map((r) =>
-            buildCustomRoute('rewrite', r)
-          ),
-        }
+        ),
+        afterFiles: rewrites.afterFiles.map((r) =>
+          buildCustomRoute('rewrite', r)
+        ),
+        fallback: rewrites.fallback.map((r) => buildCustomRoute('rewrite', r)),
       }
+
       let clientRouterFilters:
         | undefined
         | ReturnType<typeof createClientRouterFilter>
@@ -1984,10 +1981,23 @@ export default async function build(
                           // check that dynamic pages won't error when they
                           // enable PPR.
                           else if (config.experimental.dynamicIO && isDynamic) {
-                            prospectiveRenders.set(originalAppPath, {
-                              page,
-                              originalAppPath,
-                            })
+                            // If there's a page with a more specific render
+                            // available, then we should skip the prospective
+                            // render because it'll be done as a part of the
+                            // that render to validate the dynamic state.
+                            if (
+                              // The existence of any prerendered routes when
+                              // PPR is disabled means that the route has more
+                              // specific prerendered routes that should be
+                              // used for the diagnostic render anyways.
+                              !workerResult.prerenderedRoutes ||
+                              workerResult.prerenderedRoutes.length === 0
+                            ) {
+                              prospectiveRenders.set(originalAppPath, {
+                                page,
+                                originalAppPath,
+                              })
+                            }
                           }
 
                           if (workerResult.prerenderedRoutes) {
@@ -2024,12 +2034,14 @@ export default async function build(
                             if (!isDynamic) {
                               staticPaths.set(originalAppPath, [
                                 {
+                                  params: {},
                                   pathname: page,
                                   encodedPathname: page,
-                                  fallbackRouteParams: undefined,
+                                  fallbackRouteParams: [],
                                   fallbackMode:
                                     workerResult.prerenderFallbackMode,
-                                  fallbackRootParams: undefined,
+                                  fallbackRootParams: [],
+                                  throwOnEmptyStaticShell: true,
                                 },
                               ])
                               isStatic = true
@@ -2060,8 +2072,6 @@ export default async function build(
                               `"getStaticProps" is not yet supported fully with "experimental-edge", detected on ${page}`
                             )
                           }
-                          // TODO: add handling for statically rendering edge
-                          // pages and allow edge with Prerender outputs
                           workerResult.isStatic = false
                           workerResult.hasStaticProps = false
                         }
@@ -2175,6 +2185,7 @@ export default async function build(
                 }
 
                 pageInfos.set(page, {
+                  originalAppPath,
                   size,
                   totalSize,
                   isStatic,
@@ -2186,7 +2197,7 @@ export default async function build(
                   runtime: pageRuntime,
                   pageDuration: undefined,
                   ssgPageDurations: undefined,
-                  hasEmptyPrelude: undefined,
+                  hasEmptyStaticShell: undefined,
                 })
               })
             })
@@ -2605,6 +2616,7 @@ export default async function build(
               )
             )
           )
+
           const exportApp = require('../export')
             .default as typeof import('../export').default
 
@@ -2676,9 +2688,9 @@ export default async function build(
                 const appConfig = appDefaultConfigs.get(originalAppPath)
                 const isDynamicError = appConfig?.dynamic === 'error'
 
-                const isRoutePPREnabled = appConfig
+                const isRoutePPREnabled: boolean = appConfig
                   ? checkIsRoutePPREnabled(config.experimental.ppr, appConfig)
-                  : undefined
+                  : false
 
                 routes.forEach((route) => {
                   // If the route has any dynamic root segments, we need to skip
@@ -2698,6 +2710,8 @@ export default async function build(
                     _isDynamicError: isDynamicError,
                     _isAppDir: true,
                     _isRoutePPREnabled: isRoutePPREnabled,
+                    _doNotThrowOnEmptyStaticShell:
+                      !route.throwOnEmptyStaticShell,
                   }
                 })
               })
@@ -2777,6 +2791,31 @@ export default async function build(
 
           // If there was no result, there's nothing more to do.
           if (!exportResult) return
+
+          const getFallbackMode = (route: PrerenderedRoute) => {
+            const hasEmptyStaticShell = exportResult.byPath.get(
+              route.pathname
+            )?.hasEmptyStaticShell
+
+            // If the route has an empty static shell and is not configured to
+            // throw on empty static shell, then we should use the blocking
+            // static render mode.
+            if (
+              hasEmptyStaticShell &&
+              !route.throwOnEmptyStaticShell &&
+              route.fallbackMode === FallbackMode.PRERENDER
+            ) {
+              return FallbackMode.BLOCKING_STATIC_RENDER
+            }
+
+            // If the route has no fallback mode, then we should use the
+            // `NOT_FOUND` fallback mode.
+            if (!route.fallbackMode) {
+              return FallbackMode.NOT_FOUND
+            }
+
+            return route.fallbackMode
+          }
 
           const getCacheControl = (
             exportPath: string,
@@ -2951,7 +2990,7 @@ export default async function build(
 
               const {
                 metadata = {},
-                hasEmptyPrelude,
+                hasEmptyStaticShell,
                 hasPostponed,
               } = exportResult.byPath.get(route.pathname) ?? {}
 
@@ -2963,7 +3002,7 @@ export default async function build(
               pageInfos.set(route.pathname, {
                 ...(pageInfos.get(route.pathname) as PageInfo),
                 hasPostponed,
-                hasEmptyPrelude,
+                hasEmptyStaticShell,
                 initialCacheControl: cacheControl,
               })
 
@@ -2971,7 +3010,7 @@ export default async function build(
               pageInfos.set(page, {
                 ...(pageInfos.get(page) as PageInfo),
                 hasPostponed,
-                hasEmptyPrelude,
+                hasEmptyStaticShell,
                 initialCacheControl: cacheControl,
               })
 
@@ -3033,13 +3072,15 @@ export default async function build(
               // prerendered routes.
               if (!isRoutePPREnabled) {
                 dynamicRoutes.push({
+                  params: {},
                   pathname: page,
                   encodedPathname: page,
-                  fallbackRouteParams: undefined,
+                  fallbackRouteParams: [],
                   fallbackMode:
                     fallbackModes.get(originalAppPath) ??
                     FallbackMode.NOT_FOUND,
-                  fallbackRootParams: undefined,
+                  fallbackRootParams: [],
+                  throwOnEmptyStaticShell: true,
                 })
               }
 
@@ -3074,11 +3115,9 @@ export default async function build(
 
                   dynamicRoute.prefetchSegmentDataRoutes ??= []
                   for (const segmentPath of metadata.segmentPaths) {
-                    const result = buildPrefetchSegmentDataRoute(
-                      route.pathname,
-                      segmentPath
+                    dynamicRoute.prefetchSegmentDataRoutes.push(
+                      buildPrefetchSegmentDataRoute(route.pathname, segmentPath)
                     )
-                    dynamicRoute.prefetchSegmentDataRoutes.push(result)
                   }
                 }
 
@@ -3090,8 +3129,7 @@ export default async function build(
                   hasPostponed: isRoutePPREnabled,
                 })
 
-                const fallbackMode =
-                  route.fallbackMode ?? FallbackMode.NOT_FOUND
+                const fallbackMode = getFallbackMode(route)
 
                 // When the route is configured to serve a prerender, we should
                 // use the cache control from the export result. If it can't be
@@ -3133,7 +3171,9 @@ export default async function build(
                   fallbackExpire: fallbackCacheControl?.expire,
                   fallbackStatus: meta.status,
                   fallbackHeaders: meta.headers,
-                  fallbackRootParams: route.fallbackRootParams,
+                  fallbackRootParams: fallback
+                    ? route.fallbackRootParams
+                    : undefined,
                   fallbackSourceRoute: route.fallbackRouteParams?.length
                     ? page
                     : undefined,
@@ -3497,6 +3537,47 @@ export default async function build(
           // remove temporary export folder
           await fs.rm(outdir, { recursive: true, force: true })
           await writeManifest(pagesManifestPath, pagesManifest)
+
+          if (config.experimental.clientSegmentCache) {
+            for (const dynamicRoute of routesManifest.dynamicRoutes) {
+              // We only want to handle pages that are using the app router. We
+              // need this path in order to determine if it's an app route or an
+              // app page.
+              const originalAppPath = pageInfos.get(
+                dynamicRoute.page
+              )?.originalAppPath
+              if (!originalAppPath) {
+                continue
+              }
+
+              // We only want to handle app pages, not app routes.
+              if (isAppRouteRoute(originalAppPath)) {
+                continue
+              }
+
+              // We don't need to add the prefetch segment data routes if it was
+              // added due to a page that was already generated. This would have
+              // happened if the page was static or partially static.
+              if (dynamicRoute.prefetchSegmentDataRoutes) {
+                continue
+              }
+
+              // If the segment paths aren't defined, we need to insert a
+              // reverse routing rule so that there isn't any conflicts
+              // with other dynamic routes for the prefetch segment
+              // routes. This is only an issue for pages that do not have
+              // partial prerendering enabled.
+              dynamicRoute.prefetchSegmentDataRoutes = [
+                buildInversePrefetchSegmentDataRoute(
+                  dynamicRoute.page,
+                  // We use the special segment path of `/_tree` because it's
+                  // the first one sent by the client router so it's the only
+                  // one we need to rewrite to the regular prefetch RSC route.
+                  '/_tree'
+                ),
+              ]
+            }
+          }
         })
 
         // We need to write the manifest with rewrites after build as it might

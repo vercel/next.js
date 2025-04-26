@@ -4,4 +4,7 @@ module.exports = {
   logging: {
     fetches: {},
   },
+  experimental: {
+    serverActions: { bodySizeLimit: '2mb' },
+  },
 }

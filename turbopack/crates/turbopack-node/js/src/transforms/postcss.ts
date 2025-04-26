@@ -87,6 +87,10 @@ export default async function transform(
   });
 
   const assets = [];
+  const filePaths: string[] =[];
+  const buildFilePaths: string[] = [];
+  const directories: Array<[string, string]> = [];
+
   for (const msg of messages) {
     switch (msg.type) {
       case "asset":
@@ -104,36 +108,28 @@ export default async function transform(
         break;
       case "dependency":
       case "missing-dependency":
-        ipc.sendInfo({
-          type: "fileDependency",
-          path: toPath(msg.file),
-        });
+        filePaths.push(toPath(msg.file));
         break;
       case "build-dependency":
-        ipc.sendInfo({
-          type: "buildDependency",
-          path: toPath(msg.file),
-        });
+        buildFilePaths.push(toPath(msg.file));
         break;
       case "dir-dependency":
-        ipc.sendInfo({
-          type: "dirDependency",
-          path: toPath(msg.dir),
-          glob: msg.glob,
-        });
+        directories.push([toPath(msg.dir), msg.glob]);
         break;
       case "context-dependency":
-        ipc.sendInfo({
-          type: "dirDependency",
-          path: toPath(msg.file),
-          glob: "**",
-        });
+        directories.push([toPath(msg.dir), "**"]);
         break;
       default:
         // TODO: do we need to do anything here?
         break;
     }
   }
+  ipc.sendInfo({
+    type: "dependencies",
+    filePaths,
+    directories,
+    buildFilePaths,
+  });
   return {
     css,
     map: sourceMap ? JSON.stringify(map) : undefined,

@@ -33,7 +33,7 @@ use turbo_tasks::{
     ReadRef, ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
-use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
+use turbo_tasks_fs::{invalidation, DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
 use turbopack::{
     evaluate_context::node_build_environment, global_module_ids::get_global_module_id_strategy,
     transition::TransitionOptions, ModuleAssetContext,
@@ -308,12 +308,16 @@ impl ProjectContainer {
                 .start_watching_with_invalidation_reason(watch.poll_interval)
                 .await?;
         } else {
-            project_fs.invalidate_with_reason();
+            project_fs.invalidate_with_reason(|path| invalidation::Initialize {
+                path: RcStr::from(path),
+            });
         }
         let output_fs = output_fs_operation(project)
             .read_strongly_consistent()
             .await?;
-        output_fs.invalidate_with_reason();
+        output_fs.invalidate_with_reason(|path| invalidation::Initialize {
+            path: RcStr::from(path),
+        });
         Ok(())
     }
 
@@ -402,11 +406,15 @@ impl ProjectContainer {
                     .start_watching_with_invalidation_reason(watch.poll_interval)
                     .await?;
             } else {
-                project_fs.invalidate_with_reason();
+                project_fs.invalidate_with_reason(|path| invalidation::Initialize {
+                    path: RcStr::from(path),
+                });
             }
         }
         if !ReadRef::ptr_eq(&prev_output_fs, &output_fs) {
-            prev_output_fs.invalidate_with_reason();
+            prev_output_fs.invalidate_with_reason(|path| invalidation::Initialize {
+                path: RcStr::from(path),
+            });
         }
 
         Ok(())

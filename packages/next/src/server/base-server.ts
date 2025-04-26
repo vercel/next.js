@@ -1249,14 +1249,9 @@ export default abstract class Server<
           if (pageIsDynamic) {
             let params: ParsedUrlQuery | false = {}
 
-            // If we don't already have valid params, try to parse them from
-            // the query params.
-            if (!paramsResult.hasValidParams) {
-              paramsResult = utils.normalizeDynamicRouteParams(
-                queryParams,
-                false
-              )
-            }
+            // ensure we normalize the dynamic route params for encoding/
+            // default values
+            paramsResult = utils.normalizeDynamicRouteParams(queryParams, false)
 
             // for prerendered ISR paths we attempt parsing the route
             // params from the URL directly as route-matches may not
@@ -1389,7 +1384,7 @@ export default abstract class Server<
           }
 
           if (pageIsDynamic || didRewrite) {
-            utils.normalizeVercelUrl(req, [
+            utils.normalizeCdnUrl(req, [
               ...rewriteParamKeys,
               ...Object.keys(utils.defaultRouteRegex?.groups || {}),
             ])
@@ -1725,9 +1720,11 @@ export default abstract class Server<
   public async prepare(): Promise<void> {
     if (this.prepared) return
 
-    if (this.preparedPromise === null) {
-      // Get instrumentation module
+    // Get instrumentation module
+    if (!this.instrumentation) {
       this.instrumentation = await this.loadInstrumentationModule()
+    }
+    if (this.preparedPromise === null) {
       this.preparedPromise = this.prepareImpl().then(() => {
         this.prepared = true
         this.preparedPromise = null

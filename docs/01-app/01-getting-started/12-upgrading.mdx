@@ -6,8 +6,8 @@ related:
   title: Version guides
   description: See the version guides for in-depth upgrade instructions.
   links:
-    - app/building-your-application/upgrading/version-15
-    - app/building-your-application/upgrading/version-14
+    - app/guides/upgrading/version-15
+    - app/guides/upgrading/version-14
 ---
 
 ## Latest version
@@ -31,3 +31,22 @@ To update to the latest canary, make sure you're on the latest version of Next.j
 ```bash filename="Terminal"
 npm i next@canary
 ```
+
+### Features available in canary
+
+The following features are currently available in canary:
+
+**Caching**:
+
+- [`"use cache"`](/docs/app/api-reference/directives/use-cache)
+- [`cacheLife`](/docs/app/api-reference/functions/cacheLife)
+- [`cacheTag`](/docs/app/api-reference/functions/cacheTag)
+- [`dynamicIO`](/docs/app/api-reference/config/next-config-js/dynamicIO)
+
+**Authentication**:
+
+- [`forbidden`](/docs/app/api-reference/functions/forbidden)
+- [`unauthorized`](/docs/app/api-reference/functions/unauthorized)
+- [`forbidden.js`](/docs/app/api-reference/file-conventions/forbidden)
+- [`unauthorized.js`](/docs/app/api-reference/file-conventions/unauthorized)
+- [`authInterrupts`](/docs/app/api-reference/config/next-config-js/authInterrupts)

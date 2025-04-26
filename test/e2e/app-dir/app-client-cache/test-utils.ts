@@ -1,5 +1,4 @@
-import { BrowserInterface } from 'next-webdriver'
-import type { Request } from 'playwright'
+import { Playwright } from 'next-webdriver'
 
 export const getPathname = (url: string) => {
   const urlObj = new URL(url)
@@ -51,13 +50,13 @@ export const fastForwardTo = (ms) => {
   }
 }
 
-export const createRequestsListener = async (browser: BrowserInterface) => {
+export const createRequestsListener = async (browser: Playwright) => {
   // wait for network idle
   await browser.waitForIdleNetwork()
 
   let requests = []
 
-  browser.on('request', (req: Request) => {
+  browser.on('request', (req) => {
     requests.push([req.url(), !!req.headers()['next-router-prefetch']])
   })
 

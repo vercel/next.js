@@ -1,5 +1,5 @@
 import { join } from 'path'
-import webdriver, { BrowserInterface } from 'next-webdriver'
+import webdriver, { Playwright } from 'next-webdriver'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check, shouldRunTurboDevTest } from 'next-test-utils'
 
@@ -27,7 +27,7 @@ describe('TailwindCSS JIT', () => {
   })
 
   it('works with JIT enabled', async () => {
-    let browser: BrowserInterface
+    let browser: Playwright
     try {
       browser = await webdriver(next.url, '/')
       const text = await browser.elementByCss('.text-6xl').text()

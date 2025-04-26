@@ -503,7 +503,7 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub fn new_with_inner_assets(
+    pub async fn new_with_inner_assets(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         ty: Value<EcmascriptModuleAssetType>,
@@ -511,17 +511,28 @@ impl EcmascriptModuleAsset {
         options: ResolvedVc<EcmascriptOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
         inner_assets: ResolvedVc<InnerAssets>,
-    ) -> Vc<Self> {
-        Self::cell(EcmascriptModuleAsset {
-            source,
-            asset_context,
-            ty: ty.into_value(),
-            transforms,
-            options,
-            compile_time_info,
-            inner_assets: Some(inner_assets),
-            last_successful_parse: Default::default(),
-        })
+    ) -> Result<Vc<Self>> {
+        if inner_assets.await?.is_empty() {
+            Ok(Self::new(
+                *source,
+                *asset_context,
+                ty,
+                *transforms,
+                *options,
+                *compile_time_info,
+            ))
+        } else {
+            Ok(Self::cell(EcmascriptModuleAsset {
+                source,
+                asset_context,
+                ty: ty.into_value(),
+                transforms,
+                options,
+                compile_time_info,
+                inner_assets: Some(inner_assets),
+                last_successful_parse: Default::default(),
+            }))
+        }
     }
 
     #[turbo_tasks::function]
