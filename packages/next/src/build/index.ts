@@ -3539,13 +3539,14 @@ export default async function build(
           await writeManifest(pagesManifestPath, pagesManifest)
 
           if (config.experimental.clientSegmentCache) {
-            for (const dynamicRoute of routesManifest.dynamicRoutes) {
+            for (const route of [
+              ...routesManifest.staticRoutes,
+              ...routesManifest.dynamicRoutes,
+            ]) {
               // We only want to handle pages that are using the app router. We
               // need this path in order to determine if it's an app route or an
               // app page.
-              const originalAppPath = pageInfos.get(
-                dynamicRoute.page
-              )?.originalAppPath
+              const originalAppPath = pageInfos.get(route.page)?.originalAppPath
               if (!originalAppPath) {
                 continue
               }
@@ -3558,7 +3559,7 @@ export default async function build(
               // We don't need to add the prefetch segment data routes if it was
               // added due to a page that was already generated. This would have
               // happened if the page was static or partially static.
-              if (dynamicRoute.prefetchSegmentDataRoutes) {
+              if (route.prefetchSegmentDataRoutes) {
                 continue
               }
 
@@ -3567,9 +3568,9 @@ export default async function build(
               // with other dynamic routes for the prefetch segment
               // routes. This is only an issue for pages that do not have
               // partial prerendering enabled.
-              dynamicRoute.prefetchSegmentDataRoutes = [
+              route.prefetchSegmentDataRoutes = [
                 buildInversePrefetchSegmentDataRoute(
-                  dynamicRoute.page,
+                  route.page,
                   // We use the special segment path of `/_tree` because it's
                   // the first one sent by the client router so it's the only
                   // one we need to rewrite to the regular prefetch RSC route.
