@@ -99,7 +99,7 @@ describe.each([
         throw err
       }
     })
-    ;(process.env.TURBOPACK ? it.skip : it)(
+    ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
       // this test fails frequently with turbopack
       'should not continously poll a custom error page',
       async () => {
@@ -171,7 +171,7 @@ describe.each([
         await getRedboxSource(browser)
       )
 
-      if (basePath === '' && process.env.TURBOPACK) {
+      if (basePath === '' && process.env.IS_TURBOPACK_TEST) {
         expect(source).toMatchInlineSnapshot(`
          "./pages/hmr/about2.js (7:1)
          Parsing ecmascript source code failed
@@ -234,7 +234,7 @@ describe.each([
           Import trace for requested module:
           ./pages/hmr/about2.js"
         `)
-      } else if (basePath === '/docs' && process.env.TURBOPACK) {
+      } else if (basePath === '/docs' && process.env.IS_TURBOPACK_TEST) {
         expect(source).toMatchInlineSnapshot(`
             "./pages/hmr/about2.js (7:1)
             Parsing ecmascript source code failed
@@ -308,7 +308,7 @@ describe.each([
       })
     })
 
-    if (!process.env.TURBOPACK) {
+    if (!process.env.IS_TURBOPACK_TEST) {
       // Turbopack doesn't have this restriction
       it('should show the error on all pages', async () => {
         const aboutPage = join('pages', 'hmr', 'about2.js')
@@ -440,7 +440,7 @@ describe.each([
 
         await assertHasRedbox(browser)
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-          `"Error: The default export is not a React Component in page: "/hmr/about5""`
+          `"The default export is not a React Component in page: "/hmr/about5""`
         )
 
         await next.patchFile(aboutPage, aboutContent)
@@ -530,7 +530,7 @@ describe.each([
 
         await assertHasRedbox(browser)
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-          `"Error: The default export is not a React Component in page: "/hmr/about7""`
+          `"The default export is not a React Component in page: "/hmr/about7""`
         )
 
         await next.patchFile(aboutPage, aboutContent)
@@ -577,7 +577,7 @@ describe.each([
         await assertHasRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch('Build Error')
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
               "./components/parse-error.xyz
               Unknown module type
@@ -670,7 +670,7 @@ describe.each([
         let redboxSource = await getRedboxSource(browser)
 
         redboxSource = redboxSource.replace(`${next.testDir}`, '.')
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(next.normalizeTestDirContent(redboxSource))
             .toMatchInlineSnapshot(`
            "./components/parse-error.js (3:1)
@@ -756,7 +756,7 @@ describe.each([
 
         await assertHasRedbox(browser)
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-          `"Error: an-expected-error-in-gip"`
+          `"an-expected-error-in-gip"`
         )
 
         await next.patchFile(
@@ -795,7 +795,7 @@ describe.each([
       try {
         await assertHasRedbox(browser)
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-          `"Error: an-expected-error-in-gip"`
+          `"an-expected-error-in-gip"`
         )
 
         const erroredPage = join('pages', 'hmr', 'error-in-gip.js')
@@ -829,7 +829,7 @@ describe.each([
       }
     })
 
-    if (!process.env.TURBOPACK) {
+    if (!process.env.IS_TURBOPACK_TEST) {
       it('should have client HMR events in trace file', async () => {
         const traceData = await next.readFile('.next/trace')
         expect(traceData).toContain('client-hmr-latency')

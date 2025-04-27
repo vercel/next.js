@@ -429,6 +429,7 @@ var SourceType = /*#__PURE__*/ function(SourceType) {
    */ SourceType[SourceType["Parent"] = 1] = "Parent";
     return SourceType;
 }(SourceType || {});
+process.env.TURBOPACK = '1';
 function stringifySourceInfo(source) {
     switch(source.type){
         case 0:
@@ -464,10 +465,14 @@ function loadChunk(chunkData, source) {
         return loadChunkPath(chunkData.path, source);
     }
 }
+const loadedChunks = new Set();
 function loadChunkPath(chunkPath, source) {
     if (!isJs(chunkPath)) {
         // We only support loading JS chunks in Node.js.
         // This branch can be hit when trying to load a CSS chunk.
+        return;
+    }
+    if (loadedChunks.has(chunkPath)) {
         return;
     }
     try {
@@ -478,6 +483,7 @@ function loadChunkPath(chunkPath, source) {
                 moduleFactories[moduleId] = moduleFactory;
             }
         }
+        loadedChunks.add(chunkPath);
     } catch (e) {
         let errorMessage = `Failed to load chunk ${chunkPath}`;
         if (source) {
@@ -493,6 +499,9 @@ async function loadChunkAsync(source, chunkData) {
     if (!isJs(chunkPath)) {
         // We only support loading JS chunks in Node.js.
         // This branch can be hit when trying to load a CSS chunk.
+        return;
+    }
+    if (loadedChunks.has(chunkPath)) {
         return;
     }
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
@@ -518,6 +527,7 @@ async function loadChunkAsync(source, chunkData) {
                 moduleFactories[moduleId] = moduleFactory;
             }
         }
+        loadedChunks.add(chunkPath);
     } catch (e) {
         let errorMessage = `Failed to load chunk ${chunkPath}`;
         if (source) {

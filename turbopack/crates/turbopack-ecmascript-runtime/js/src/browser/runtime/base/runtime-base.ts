@@ -11,9 +11,17 @@
 /// <reference path="../base/globals.d.ts" />
 /// <reference path="../../../shared/runtime-utils.ts" />
 
+// Used in WebWorkers to tell the runtime about the chunk base path
 declare var TURBOPACK_WORKER_LOCATION: string;
+// Used in WebWorkers to tell the runtime about the current chunk url since it can't be detected via document.currentScript
+// Note it's stored in reversed order to use push and pop
+declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined;
+
+// Injected by rust code
 declare var CHUNK_BASE_PATH: string;
 declare var CHUNK_SUFFIX_PATH: string;
+
+// Provided by build or dev base
 declare function instantiateModule(id: ModuleId, source: SourceInfo): Module;
 
 type RuntimeParams = {
@@ -22,13 +30,13 @@ type RuntimeParams = {
 };
 
 type ChunkRegistration = [
-  chunkPath: ChunkPath,
+  chunkPath: ChunkScript,
   chunkModules: ModuleFactories,
   params: RuntimeParams | undefined
 ];
 
 type ChunkList = {
-  path: ChunkListPath;
+  script: ChunkListScript;
   chunks: ChunkData[];
   source: "entry" | "dynamic";
 };
@@ -244,8 +252,16 @@ function resolveAbsolutePath(modulePath?: string): string {
   return `/ROOT/${modulePath ?? ""}`;
 }
 
-function getWorkerBlobURL(chunks: ChunkPath[]): string {
-  let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};importScripts(${chunks.map(c => (`self.TURBOPACK_WORKER_LOCATION + ${JSON.stringify(getChunkRelativeUrl(c))}`)).join(", ")});`;
+/**
+ * Returns a blob URL for the worker.
+ * @param chunks list of chunks to load
+ * @param beforeLoad code to run before code is loaded. Used in dev for HMR setup.
+ */
+function getWorkerBlobURL(chunks: ChunkPath[], beforeLoad: string | undefined): string {
+  let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};
+self.TURBOPACK_NEXT_CHUNK_URLS = ${JSON.stringify(chunks.reverse().map(getChunkRelativeUrl), null, 2)};
+${beforeLoad || ""}
+importScripts(...self.TURBOPACK_NEXT_CHUNK_URLS.map(c => self.TURBOPACK_WORKER_LOCATION + c).reverse());`;
   let blob = new Blob([bootstrap], { type: "text/javascript" });
   return URL.createObjectURL(blob);
 }
@@ -305,6 +321,23 @@ function getChunkRelativeUrl(chunkPath: ChunkPath | ChunkListPath): ChunkUrl {
 }
 
 /**
+ * Return the ChunkPath from a ChunkScript.
+ */
+function getPathFromScript(chunkScript: ChunkPath | ChunkScript): ChunkPath;
+function getPathFromScript(chunkScript: ChunkListPath | ChunkListScript): ChunkListPath;
+function getPathFromScript(chunkScript: ChunkPath | ChunkListPath | ChunkScript | ChunkListScript): ChunkPath | ChunkListPath {
+  if (typeof chunkScript === "string") {
+    return chunkScript as ChunkPath | ChunkListPath;
+  }
+  const chunkUrl = typeof TURBOPACK_NEXT_CHUNK_URLS !== "undefined"
+    ? TURBOPACK_NEXT_CHUNK_URLS.pop()!
+    : chunkScript.getAttribute("src")!;
+  const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ""));
+  const path = src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
+  return path as ChunkPath | ChunkListPath;
+}
+
+/**
  * Marks a chunk list as a runtime chunk list. There can be more than one
  * runtime chunk list. For instance, integration tests can have multiple chunk
  * groups loaded at runtime, each with its own chunk list.
@@ -314,10 +347,11 @@ function markChunkListAsRuntime(chunkListPath: ChunkListPath) {
 }
 
 function registerChunk([
-  chunkPath,
+  chunkScript,
   chunkModules,
   runtimeParams,
 ]: ChunkRegistration) {
+  const chunkPath = getPathFromScript(chunkScript);
   for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
     if (!moduleFactories[moduleId]) {
       moduleFactories[moduleId] = moduleFactory;

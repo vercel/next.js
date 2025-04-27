@@ -30,9 +30,3 @@ export const ConsoleError: Story = {
     errorType: 'Console Error',
   },
 }
-
-export const MissingRequiredHTMLTag: Story = {
-  args: {
-    errorType: 'Missing Required HTML Tag',
-  },
-}

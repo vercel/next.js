@@ -131,7 +131,11 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
         "Turbopack Error: {}",
         internal_error_str.lines().next().unwrap_or("Unknown")
     );
-    let version_str = format!("Turbopack version: `{}`", env!("VERGEN_GIT_DESCRIBE"));
+    let version_str = format!(
+        "Turbopack version: `{}`\nNext.js version: `{}`",
+        env!("VERGEN_GIT_DESCRIBE"),
+        env!("NEXTJS_VERSION")
+    );
     let new_discussion_url = if supports_hyperlinks::supports_hyperlinks() {
         "clicking here.".hyperlink(
             format!(

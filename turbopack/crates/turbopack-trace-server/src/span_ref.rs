@@ -5,8 +5,9 @@ use std::{
     vec,
 };
 
+use hashbrown::HashMap;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashSet;
 
 use crate::{
     bottom_up::build_bottom_up_graph,
@@ -414,9 +415,9 @@ impl<'a> SpanRef<'a> {
         })
     }
 
-    fn search_index(&self) -> &FxHashMap<String, Vec<SpanIndex>> {
+    fn search_index(&self) -> &HashMap<String, Vec<SpanIndex>> {
         self.extra().search_index.get_or_init(|| {
-            let mut index: FxHashMap<String, Vec<SpanIndex>> = FxHashMap::default();
+            let mut index: HashMap<String, Vec<SpanIndex>> = HashMap::default();
             let mut queue = VecDeque::with_capacity(8);
             queue.push_back(*self);
             while let Some(span) = queue.pop_front() {
@@ -434,14 +435,14 @@ impl<'a> SpanRef<'a> {
                             .raw_entry_mut()
                             .from_key(name)
                             .and_modify(|_, v| v.push(span.index()))
-                            .or_insert_with(|| (name.to_string(), vec![span.index()]));
+                            .or_insert_with(|| (format!("name={name}"), vec![span.index()]));
                     }
-                    for (_, value) in span.span.args.iter() {
+                    for (name, value) in span.span.args.iter() {
                         index
                             .raw_entry_mut()
                             .from_key(value)
                             .and_modify(|_, v| v.push(span.index()))
-                            .or_insert_with(|| (value.to_string(), vec![span.index()]));
+                            .or_insert_with(|| (format!("{name}={value}"), vec![span.index()]));
                     }
                     if !span.is_complete() && !span.time_data().ignore_self_time {
                         let name = "incomplete_span";

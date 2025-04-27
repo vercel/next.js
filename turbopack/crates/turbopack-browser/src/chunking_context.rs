@@ -1,9 +1,15 @@
 use anyhow::{bail, Context, Result};
+use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Upcast, Value, ValueToString, Vc};
+use turbo_tasks::{
+    trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, Value,
+    ValueToString, Vc,
+};
 use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_hash::{hash_xxh3_hash64, DeterministicHash};
 use turbopack_core::{
+    asset::{Asset, AssetContent},
     chunk::{
         availability_info::AvailabilityInfo,
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
@@ -30,6 +36,41 @@ use crate::ecmascript::{
     evaluate::chunk::EcmascriptBrowserEvaluateChunk,
     list::asset::{EcmascriptDevChunkList, EcmascriptDevChunkListSource},
 };
+
+#[turbo_tasks::value]
+#[derive(Debug, Clone, Copy, Hash)]
+pub enum CurrentChunkMethod {
+    StringLiteral,
+    DocumentCurrentScript,
+}
+
+pub const CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR: &str =
+    "typeof document === \"object\" ? document.currentScript : undefined";
+
+#[derive(
+    Debug,
+    TaskInput,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    DeterministicHash,
+    NonLocalValue,
+)]
+pub enum ContentHashing {
+    /// Direct content hashing: Embeds the chunk content hash directly into the referencing chunk.
+    /// Benefit: No hash manifest needed.
+    /// Downside: Causes cascading hash invalidation.
+    Direct {
+        /// The length of the content hash in hex chars. Anything lower than 8 is not recommended
+        /// due to the high risk of collisions.
+        length: u8,
+    },
+}
 
 pub struct BrowserChunkingContextBuilder {
     chunking_context: BrowserChunkingContext,
@@ -91,6 +132,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn current_chunk_method(mut self, method: CurrentChunkMethod) -> Self {
+        self.chunking_context.current_chunk_method = method;
+        self
+    }
+
     pub fn module_id_strategy(
         mut self,
         module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
@@ -106,6 +152,11 @@ impl BrowserChunkingContextBuilder {
         self.chunking_context
             .chunking_configs
             .push((ResolvedVc::upcast(ty), chunking_config));
+        self
+    }
+
+    pub fn use_content_hashing(mut self, content_hashing: ContentHashing) -> Self {
+        self.chunking_context.content_hashing = Some(content_hashing);
         self
     }
 
@@ -157,8 +208,12 @@ pub struct BrowserChunkingContext {
     runtime_type: RuntimeType,
     /// Whether to minify resulting chunks
     minify_type: MinifyType,
+    /// Whether content hashing is enabled.
+    content_hashing: Option<ContentHashing>,
     /// Whether to generate source maps
     source_maps_type: SourceMapsType,
+    /// Method to use when figuring out the current chunk src
+    current_chunk_method: CurrentChunkMethod,
     /// Whether to use manifest chunks for lazy compilation
     manifest_chunks: bool,
     /// The module id strategy to use
@@ -196,7 +251,9 @@ impl BrowserChunkingContext {
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
+                content_hashing: None,
                 source_maps_type: SourceMapsType::Full,
+                current_chunk_method: CurrentChunkMethod::StringLiteral,
                 manifest_chunks: false,
                 module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
                 chunking_configs: Default::default(),
@@ -224,7 +281,7 @@ impl BrowserChunkingContext {
         *self.chunk_suffix_path
     }
 
-    /// Returns the minify type.
+    /// Returns the source map type.
     pub fn source_maps_type(&self) -> SourceMapsType {
         self.source_maps_type
     }
@@ -296,6 +353,11 @@ impl BrowserChunkingContext {
             },
         )
     }
+
+    #[turbo_tasks::function]
+    pub fn current_chunk_method(&self) -> Vc<CurrentChunkMethod> {
+        self.current_chunk_method.cell()
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -330,16 +392,42 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
+    async fn chunk_root_path(&self) -> Vc<FileSystemPath> {
+        *self.chunk_root_path
+    }
+
+    #[turbo_tasks::function]
     async fn chunk_path(
         &self,
+        asset: Option<Vc<Box<dyn Asset>>>,
         ident: Vc<AssetIdent>,
         extension: RcStr,
     ) -> Result<Vc<FileSystemPath>> {
         let root_path = self.chunk_root_path;
-        let name = ident
-            .output_name(*self.root_path, extension)
-            .owned()
-            .await?;
+        let name = match self.content_hashing {
+            None => {
+                ident
+                    .output_name(*self.root_path, extension)
+                    .owned()
+                    .await?
+            }
+            Some(ContentHashing::Direct { length }) => {
+                let Some(asset) = asset else {
+                    bail!("chunk_path requires an asset when content hashing is enabled");
+                };
+                let content = asset.content().await?;
+                if let AssetContent::File(file) = &*content {
+                    let hash = hash_xxh3_hash64(&file.await?);
+                    let length = length as usize;
+                    format!("{hash:0length$x}{extension}").into()
+                } else {
+                    bail!(
+                        "chunk_path requires an asset with file content when content hashing is \
+                         enabled"
+                    );
+                }
+            }
+        };
         Ok(root_path.join(name))
     }
 
@@ -420,6 +508,11 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     fn is_tracing_enabled(&self) -> Vc<bool> {
         Vc::cell(self.enable_tracing)
+    }
+
+    #[turbo_tasks::function]
+    pub fn minify_type(&self) -> Vc<MinifyType> {
+        self.minify_type.cell()
     }
 
     #[turbo_tasks::function]

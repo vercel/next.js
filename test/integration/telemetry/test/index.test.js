@@ -115,7 +115,7 @@ describe('Telemetry CLI', () => {
         expect(stderr).toMatch(/isSrcDir.*?false/)
 
         // Turbopack intentionally does not support these events
-        if (!process.env.TURBOPACK) {
+        if (!process.env.IS_TURBOPACK_TEST) {
           expect(stderr).toMatch(/package.*?"fs"/)
           expect(stderr).toMatch(/package.*?"path"/)
           expect(stderr).toMatch(/package.*?"http"/)
@@ -175,7 +175,7 @@ describe('Telemetry CLI', () => {
         )
 
         // Turbopack does not have this specific log line.
-        if (!process.env.TURBOPACK) {
+        if (!process.env.IS_TURBOPACK_TEST) {
           expect(stderr).toMatch(/Compiled with warnings/)
         }
         expect(stderr).toMatch(/NEXT_BUILD_COMPLETED/)
@@ -358,7 +358,7 @@ describe('Telemetry CLI', () => {
         expect(event).toMatch(/"hasBabelConfig": false/)
 
         // This event doesn't get recorded for Turbopack as the webpack config is not executed.
-        if (!process.env.TURBOPACK) {
+        if (!process.env.IS_TURBOPACK_TEST) {
           // Check if features are detected correctly when custom webpack config exists
           const featureUsageEvents = findAllTelemetryEvents(
             stderr,

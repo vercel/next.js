@@ -104,7 +104,6 @@ import {
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   NEXT_URL,
-  NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_IS_PRERENDER_HEADER,
 } from '../client/components/app-router-headers'
 import type {
@@ -151,7 +150,7 @@ import {
 } from './route-modules/checks'
 import { PrefetchRSCPathnameNormalizer } from './normalizers/request/prefetch-rsc'
 import { NextDataPathnameNormalizer } from './normalizers/request/next-data'
-import { getIsServerAction } from './lib/server-action-request-meta'
+import { getIsPossibleServerAction } from './lib/server-action-request-meta'
 import { isInterceptionRouteAppPath } from '../shared/lib/router/utils/interception-routes'
 import { toRoute } from './lib/to-route'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
@@ -608,6 +607,7 @@ export default abstract class Server<
           this.nextConfig.experimental.clientSegmentCache === 'client-only'
             ? 'client-only'
             : Boolean(this.nextConfig.experimental.clientSegmentCache),
+        dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
       },
@@ -1131,6 +1131,8 @@ export default abstract class Server<
           matchedPath = this.normalize(matchedPath)
           const normalizedUrlPath = this.stripNextDataPath(urlPathname)
 
+          matchedPath = denormalizePagePath(matchedPath)
+
           // Perform locale detection and normalization.
           const localeAnalysisResult = this.i18nProvider?.analyze(matchedPath, {
             defaultLocale,
@@ -1151,11 +1153,15 @@ export default abstract class Server<
             }
           }
 
-          // TODO: check if this is needed any more?
-          matchedPath = denormalizePagePath(matchedPath)
-
           let srcPathname = matchedPath
           let pageIsDynamic = isDynamicRoute(srcPathname)
+          let paramsResult: {
+            params: ParsedUrlQuery | false
+            hasValidParams: boolean
+          } = {
+            params: false,
+            hasValidParams: false,
+          }
 
           if (!pageIsDynamic) {
             const match = await this.matchers.match(srcPathname, {
@@ -1165,8 +1171,15 @@ export default abstract class Server<
             // Update the source pathname to the matched page's pathname.
             if (match) {
               srcPathname = match.definition.pathname
-              // The page is dynamic if the params are defined.
-              pageIsDynamic = typeof match.params !== 'undefined'
+
+              // The page is dynamic if the params are defined. We know at this
+              // stage that the matched path is not a static page if the params
+              // were parsed from the matched path header.
+              if (typeof match.params !== 'undefined') {
+                pageIsDynamic = true
+                paramsResult.params = match.params
+                paramsResult.hasValidParams = true
+              }
             }
           }
 
@@ -1196,21 +1209,26 @@ export default abstract class Server<
             parsedUrl.pathname = `/${defaultLocale}${parsedUrl.pathname}`
           }
 
+          // Store a copy of `parsedUrl.query` before calling handleRewrites.
+          // Since `handleRewrites` might add new queries to `parsedUrl.query`.
+          const originQueryParams = { ...parsedUrl.query }
+
           const pathnameBeforeRewrite = parsedUrl.pathname
           const rewriteParamKeys = Object.keys(
             utils.handleRewrites(req, parsedUrl)
           )
+
+          // Create a copy of the query params to avoid mutating the original
+          // object. This prevents any overlapping query params that have the
+          // same normalized key from causing issues.
+          const queryParams = { ...parsedUrl.query }
           const didRewrite = pathnameBeforeRewrite !== parsedUrl.pathname
 
           if (didRewrite && parsedUrl.pathname) {
             addRequestMeta(req, 'rewroteURL', parsedUrl.pathname)
           }
 
-          // Create a copy of the query params to avoid mutating the original
-          // object. This prevents any overlapping query params that have the
-          // same normalized key from causing issues.
-          const queryParams = { ...parsedUrl.query }
-
+          const routeParamKeys = new Set<string>()
           for (const [key, value] of Object.entries(parsedUrl.query)) {
             const normalizedKey = normalizeNextQueryParam(key)
             if (!normalizedKey) continue
@@ -1218,6 +1236,7 @@ export default abstract class Server<
             // Remove the prefixed key from the query params because we want
             // to consume it for the dynamic route matcher.
             delete parsedUrl.query[key]
+            routeParamKeys.add(normalizedKey)
 
             if (typeof value === 'undefined') continue
 
@@ -1230,10 +1249,9 @@ export default abstract class Server<
           if (pageIsDynamic) {
             let params: ParsedUrlQuery | false = {}
 
-            let paramsResult = utils.normalizeDynamicRouteParams(
-              queryParams,
-              false
-            )
+            // ensure we normalize the dynamic route params for encoding/
+            // default values
+            paramsResult = utils.normalizeDynamicRouteParams(queryParams, false)
 
             // for prerendered ISR paths we attempt parsing the route
             // params from the URL directly as route-matches may not
@@ -1366,10 +1384,18 @@ export default abstract class Server<
           }
 
           if (pageIsDynamic || didRewrite) {
-            utils.normalizeVercelUrl(req, [
+            utils.normalizeCdnUrl(req, [
               ...rewriteParamKeys,
               ...Object.keys(utils.defaultRouteRegex?.groups || {}),
             ])
+          }
+          // Remove the route `params` keys from `parsedUrl.query` if they are
+          // not in the original query params.
+          // If it's used in both route `params` and query `searchParams`, it should be kept.
+          for (const key of routeParamKeys) {
+            if (!(key in originQueryParams)) {
+              delete parsedUrl.query[key]
+            }
           }
           parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
@@ -1441,7 +1467,9 @@ export default abstract class Server<
         await Promise.all(
           [...cacheHandlers].map(async (cacheHandler) => {
             if ('refreshTags' in cacheHandler) {
-              await cacheHandler.refreshTags()
+              // Note: cacheHandler.refreshTags() is called lazily before the
+              // first cache entry is retrieved. It allows us to skip the
+              // refresh request if no caches are read at all.
             } else {
               const previouslyRevalidatedTags = getPreviouslyRevalidatedTags(
                 req.headers,
@@ -1692,9 +1720,11 @@ export default abstract class Server<
   public async prepare(): Promise<void> {
     if (this.prepared) return
 
-    if (this.preparedPromise === null) {
-      // Get instrumentation module
+    // Get instrumentation module
+    if (!this.instrumentation) {
       this.instrumentation = await this.loadInstrumentationModule()
+    }
+    if (this.preparedPromise === null) {
       this.preparedPromise = this.prepareImpl().then(() => {
         this.prepared = true
         this.preparedPromise = null
@@ -1762,14 +1792,13 @@ export default abstract class Server<
     >
   ): Promise<void> {
     const ua = partialContext.req.headers['user-agent'] || ''
-    const isBotRequest = isBot(ua)
 
     const ctx: RequestContext<ServerRequest, ServerResponse> = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        supportsDynamicResponse: !isBotRequest,
-        botType: getBotType(ua),
+        // `renderOpts.botType` is accumulated in `this.renderImpl()`
+        supportsDynamicResponse: !this.renderOpts.botType,
         serveStreamingMetadata: shouldServeStreamingMetadata(
           ua,
           this.nextConfig.htmlLimitedBots
@@ -1900,6 +1929,9 @@ export default abstract class Server<
       pathname = '/'
     }
 
+    const ua = req.headers['user-agent'] || ''
+    this.renderOpts.botType = getBotType(ua)
+
     // we allow custom servers to call render for all URLs
     // so check if we need to serve a static _next file or not.
     // we don't modify the URL for _next/data request but still
@@ -1978,21 +2010,16 @@ export default abstract class Server<
     isAppPath: boolean,
     resolvedPathname: string
   ): void {
-    const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}, ${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}`
-    const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
-
     let addedNextUrlToVary = false
 
     if (isAppPath && this.pathCouldBeIntercepted(resolvedPathname)) {
       // Interception route responses can vary based on the `Next-URL` header.
       // We use the Vary header to signal this behavior to the client to properly cache the response.
-      res.appendHeader('vary', `${baseVaryHeader}, ${NEXT_URL}`)
+      res.appendHeader('vary', `${NEXT_URL}`)
       addedNextUrlToVary = true
-    } else if (isAppPath || isRSCRequest) {
-      // We don't need to include `Next-URL` in the Vary header for non-interception routes since it won't affect the response.
-      // We also set this header for pages to avoid caching issues when navigating between pages and app.
-      res.appendHeader('vary', baseVaryHeader)
     }
+    // For other cases such as App Router requests or RSC requests we don't need to set vary header since we already
+    // have the _rsc query with the unique hash value.
 
     if (!addedNextUrlToVary) {
       // Remove `Next-URL` from the request headers we determined it wasn't necessary to include in the Vary header.
@@ -2022,7 +2049,7 @@ export default abstract class Server<
 
     const hasServerProps = !!components.getServerSideProps
     let hasGetStaticPaths = !!components.getStaticPaths
-    const isServerAction = getIsServerAction(req)
+    const isPossibleServerAction = getIsPossibleServerAction(req)
     const hasGetInitialProps = !!components.Component?.getInitialProps
     let isSSG = !!components.getStaticProps
 
@@ -2245,7 +2272,7 @@ export default abstract class Server<
 
     if (
       // Server actions can use non-GET/HEAD methods.
-      !isServerAction &&
+      !isPossibleServerAction &&
       // Resume can use non-GET/HEAD methods.
       !minimalPostponed &&
       !is404Page &&
@@ -2385,7 +2412,7 @@ export default abstract class Server<
       !isPreviewMode &&
       isSSG &&
       !opts.supportsDynamicResponse &&
-      !isServerAction &&
+      !isPossibleServerAction &&
       !minimalPostponed &&
       !isDynamicRSCRequest
     ) {
@@ -2531,7 +2558,7 @@ export default abstract class Server<
         shouldWaitOnAllReady,
         isOnDemandRevalidate,
         isDraftMode: isPreviewMode,
-        isServerAction,
+        isPossibleServerAction,
         postponed,
         waitUntil: this.getWaitUntil(),
         onClose: res.onClose.bind(res),
@@ -2771,7 +2798,7 @@ export default abstract class Server<
               this.nextConfig.experimental.dynamicIO &&
               this.renderOpts.dev &&
               !isPrefetchRSCRequest &&
-              !isServerAction
+              !isPossibleServerAction
             ) {
               const warmup = await module.warmup(req, res, context)
 
@@ -3260,49 +3287,6 @@ export default abstract class Server<
 
     const { value: cachedData } = cacheEntry
 
-    if (
-      typeof segmentPrefetchHeader === 'string' &&
-      cachedData?.kind === CachedRouteKind.APP_PAGE &&
-      cachedData.segmentData
-    ) {
-      // This is a prefetch request issued by the client Segment Cache. These
-      // should never reach the application layer (lambda). We should either
-      // respond from the cache (HIT) or respond with 204 No Content (MISS).
-
-      // Set a header to indicate that PPR is enabled for this route. This
-      // lets the client distinguish between a regular cache miss and a cache
-      // miss due to PPR being disabled. In other contexts this header is used
-      // to indicate that the response contains dynamic data, but here we're
-      // only using it to indicate that the feature is enabled — the segment
-      // response itself contains whether the data is dynamic.
-      res.setHeader(NEXT_DID_POSTPONE_HEADER, '2')
-
-      const matchedSegment = cachedData.segmentData.get(segmentPrefetchHeader)
-      if (matchedSegment !== undefined) {
-        // Cache hit
-        return {
-          type: 'rsc',
-          body: RenderResult.fromStatic(matchedSegment),
-          // TODO: Eventually this should use cache control of the individual
-          // segment, not the whole page.
-          cacheControl: cacheEntry.cacheControl,
-        }
-      }
-
-      // Cache miss. Either a cache entry for this route has not been generated
-      // (which technically should not be possible when PPR is enabled, because
-      // at a minimum there should always be a fallback entry) or there's no
-      // match for the requested segment. Respond with a 204 No Content. We
-      // don't bother to respond with 404, because these requests are only
-      // issued as part of a prefetch.
-      res.statusCode = 204
-      return {
-        type: 'rsc',
-        body: RenderResult.fromStatic(''),
-        cacheControl: cacheEntry?.cacheControl,
-      }
-    }
-
     // If the cache value is an image, we should error early.
     if (cachedData?.kind === CachedRouteKind.IMAGE) {
       throw new InvariantError('SSG should not return an image cache value')
@@ -3382,6 +3366,56 @@ export default abstract class Server<
     }
 
     cacheEntry.cacheControl = cacheControl
+
+    if (
+      typeof segmentPrefetchHeader === 'string' &&
+      cachedData?.kind === CachedRouteKind.APP_PAGE &&
+      cachedData.segmentData
+    ) {
+      // This is a prefetch request issued by the client Segment Cache. These
+      // should never reach the application layer (lambda). We should either
+      // respond from the cache (HIT) or respond with 204 No Content (MISS).
+
+      // Set a header to indicate that PPR is enabled for this route. This
+      // lets the client distinguish between a regular cache miss and a cache
+      // miss due to PPR being disabled. In other contexts this header is used
+      // to indicate that the response contains dynamic data, but here we're
+      // only using it to indicate that the feature is enabled — the segment
+      // response itself contains whether the data is dynamic.
+      res.setHeader(NEXT_DID_POSTPONE_HEADER, '2')
+
+      // Add the cache tags header to the response if it exists and we're in
+      // minimal mode while rendering a static page.
+      const tags = cachedData.headers?.[NEXT_CACHE_TAGS_HEADER]
+      if (this.minimalMode && isSSG && tags && typeof tags === 'string') {
+        res.setHeader(NEXT_CACHE_TAGS_HEADER, tags)
+      }
+
+      const matchedSegment = cachedData.segmentData.get(segmentPrefetchHeader)
+      if (matchedSegment !== undefined) {
+        // Cache hit
+        return {
+          type: 'rsc',
+          body: RenderResult.fromStatic(matchedSegment),
+          // TODO: Eventually this should use cache control of the individual
+          // segment, not the whole page.
+          cacheControl: cacheEntry.cacheControl,
+        }
+      }
+
+      // Cache miss. Either a cache entry for this route has not been generated
+      // (which technically should not be possible when PPR is enabled, because
+      // at a minimum there should always be a fallback entry) or there's no
+      // match for the requested segment. Respond with a 204 No Content. We
+      // don't bother to respond with 404, because these requests are only
+      // issued as part of a prefetch.
+      res.statusCode = 204
+      return {
+        type: 'rsc',
+        body: RenderResult.fromStatic(''),
+        cacheControl: cacheEntry?.cacheControl,
+      }
+    }
 
     // If there's a callback for `onCacheEntry`, call it with the cache entry
     // and the revalidate options.
@@ -3524,15 +3558,11 @@ export default abstract class Server<
         }
       }
 
-      if (
-        this.minimalMode &&
-        isSSG &&
-        cachedData.headers?.[NEXT_CACHE_TAGS_HEADER]
-      ) {
-        res.setHeader(
-          NEXT_CACHE_TAGS_HEADER,
-          cachedData.headers[NEXT_CACHE_TAGS_HEADER] as string
-        )
+      // Add the cache tags header to the response if it exists and we're in
+      // minimal mode while rendering a static page.
+      const tags = cachedData.headers?.[NEXT_CACHE_TAGS_HEADER]
+      if (this.minimalMode && isSSG && tags && typeof tags === 'string') {
+        res.setHeader(NEXT_CACHE_TAGS_HEADER, tags)
       }
 
       // If the request is a data request, then we shouldn't set the status code

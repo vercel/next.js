@@ -13,7 +13,7 @@ const nextConfig = new File(join(appDir, 'next.config.js'))
 let buildOutput
 
   // Turbopack does not support AMP rendering.
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'AMP Validation on Export',
   () => {
     describe('production mode', () => {

@@ -47,7 +47,7 @@ use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
     module_options::{transition_rule::TransitionRule, ModuleOptionsContext, RuleCondition},
     resolve_options_context::ResolveOptionsContext,
-    transition::{ContextTransition, FullContextTransition, Transition, TransitionOptions},
+    transition::{FullContextTransition, Transition, TransitionOptions},
     ModuleAssetContext,
 };
 use turbopack_core::{
@@ -115,6 +115,12 @@ fn styles_rule_condition() -> RuleCondition {
             RuleCondition::ResourcePathEndsWith(".sass".into()),
             RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.sass".into())),
         ]),
+        RuleCondition::all(vec![
+            RuleCondition::ContentTypeStartsWith("text/css".into()),
+            RuleCondition::not(RuleCondition::ContentTypeStartsWith(
+                "text/css+module".into(),
+            )),
+        ]),
     ])
 }
 fn module_styles_rule_condition() -> RuleCondition {
@@ -122,6 +128,7 @@ fn module_styles_rule_condition() -> RuleCondition {
         RuleCondition::ResourcePathEndsWith(".module.css".into()),
         RuleCondition::ResourcePathEndsWith(".module.scss".into()),
         RuleCondition::ResourcePathEndsWith(".module.sass".into()),
+        RuleCondition::ContentTypeStartsWith("text/css+module".into()),
     ])
 }
 
@@ -663,13 +670,22 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn shared_transition(self: Vc<Self>) -> Vc<ContextTransition> {
-        ContextTransition::new(
+    async fn shared_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+        Ok(ModuleAssetContext::new(
+            TransitionOptions {
+                ..Default::default()
+            }
+            .cell(),
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
             Vc::cell("app-shared".into()),
-        )
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn shared_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
+        Vc::upcast(FullContextTransition::new(self.shared_module_context()))
     }
 
     #[turbo_tasks::function]
@@ -714,13 +730,24 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn edge_shared_transition(self: Vc<Self>) -> Vc<ContextTransition> {
-        ContextTransition::new(
+    async fn edge_shared_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+        Ok(ModuleAssetContext::new(
+            TransitionOptions {
+                ..Default::default()
+            }
+            .cell(),
             self.project().edge_compile_time_info(),
             self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
             Vc::cell("app-edge-shared".into()),
-        )
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn edge_shared_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
+        Vc::upcast(FullContextTransition::new(
+            self.edge_shared_module_context(),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -1150,10 +1177,8 @@ impl AppEndpoint {
             ),
         };
 
-        let node_root = project.node_root();
-
-        let client_relative_path = project.client_relative_path();
-
+        let node_root = project.node_root().to_resolved().await?;
+        let client_relative_path = project.client_relative_path().to_resolved().await?;
         let server_path = node_root.join("server".into());
 
         let mut server_assets = fxindexset![];
@@ -1174,16 +1199,20 @@ impl AppEndpoint {
             )
             .await?;
 
-        let client_chunking_context = project.client_chunking_context();
+        let client_chunking_context = project.client_chunking_context().to_resolved().await?;
 
         let ssr_chunking_context = if process_ssr {
-            Some(match runtime {
-                NextRuntime::NodeJs => Vc::upcast(project.server_chunking_context(true)),
-                NextRuntime::Edge => this
-                    .app_project
-                    .project()
-                    .edge_chunking_context(process_client_assets),
-            })
+            Some(
+                match runtime {
+                    NextRuntime::NodeJs => Vc::upcast(project.server_chunking_context(true)),
+                    NextRuntime::Edge => this
+                        .app_project
+                        .project()
+                        .edge_chunking_context(process_client_assets),
+                }
+                .to_resolved()
+                .await?,
+            )
         } else {
             None
         };
@@ -1193,7 +1222,7 @@ impl AppEndpoint {
                 .with_modifier(client_shared_chunks_modifier()),
             this.app_project.client_runtime_entries(),
             *module_graphs.full,
-            client_chunking_context,
+            *client_chunking_context,
         )
         .await?;
 
@@ -1216,18 +1245,23 @@ impl AppEndpoint {
             .get_next_dynamic_imports_for_endpoint(*rsc_entry)
             .await?;
 
-        let client_references = reduced_graphs.get_client_references_for_endpoint(
-            *rsc_entry,
-            matches!(this.ty, AppEndpointType::Page { .. }),
-        );
+        let client_references = reduced_graphs
+            .get_client_references_for_endpoint(
+                *rsc_entry,
+                matches!(this.ty, AppEndpointType::Page { .. }),
+            )
+            .to_resolved()
+            .await?;
 
         let client_references_chunks = get_app_client_references_chunks(
-            client_references,
+            *client_references,
             *module_graphs.full,
-            client_chunking_context,
+            *client_chunking_context,
             Value::new(client_shared_availability_info),
-            ssr_chunking_context,
-        );
+            ssr_chunking_context.map(|ctx| *ctx),
+        )
+        .to_resolved()
+        .await?;
         let client_references_chunks_ref = client_references_chunks.await?;
 
         let mut entry_client_chunks = FxIndexSet::default();
@@ -1260,7 +1294,7 @@ impl AppEndpoint {
         if emit_manifests != EmitManifests::None {
             let app_build_manifest = AppBuildManifest {
                 pages: fxindexmap!(
-                    app_entry.original_name.clone() => Vc::cell(entry_client_chunks
+                    app_entry.original_name.clone() => ResolvedVc::cell(entry_client_chunks
                         .iter()
                         .chain(client_shared_chunks.iter())
                         .copied()
@@ -1272,7 +1306,7 @@ impl AppEndpoint {
                     node_root.join(
                         format!("server/app{manifest_path_prefix}/app-build-manifest.json",).into(),
                     ),
-                    client_relative_path,
+                    *client_relative_path,
                 )
                 .await?
                 .to_resolved()
@@ -1286,8 +1320,11 @@ impl AppEndpoint {
         let next_package = get_next_package(project.project_path());
         let polyfill_source =
             FileSource::new(next_package.join("dist/build/polyfills/polyfill-nomodule.js".into()));
-        let polyfill_output_path =
-            client_chunking_context.chunk_path(polyfill_source.ident(), ".js".into());
+        let polyfill_output_path = client_chunking_context.chunk_path(
+            Some(Vc::upcast(polyfill_source)),
+            polyfill_source.ident(),
+            ".js".into(),
+        );
         let polyfill_output_asset = ResolvedVc::upcast(
             RawOutput::new(polyfill_output_path, Vc::upcast(polyfill_source))
                 .to_resolved()
@@ -1328,7 +1365,7 @@ impl AppEndpoint {
                         node_root.join(
                             format!("server/app{manifest_path_prefix}/build-manifest.json",).into(),
                         ),
-                        client_relative_path,
+                        *client_relative_path,
                     )
                     .await?
                     .to_resolved()
@@ -1363,7 +1400,7 @@ impl AppEndpoint {
         let server_action_manifest = create_server_actions_manifest(
             actions,
             project.project_path(),
-            node_root,
+            *node_root,
             app_entry.original_name.clone(),
             runtime,
             match runtime {
@@ -1384,7 +1421,7 @@ impl AppEndpoint {
 
         let app_entry_chunks = self
             .app_entry_chunks(
-                client_references,
+                *client_references,
                 *server_action_manifest_loader,
                 server_path,
                 process_client_assets,
@@ -1410,13 +1447,13 @@ impl AppEndpoint {
                     entry_name: app_entry.original_name.clone(),
                     client_references,
                     client_references_chunks,
-                    rsc_app_entry_chunks: *app_entry_chunks,
+                    rsc_app_entry_chunks: app_entry_chunks,
                     client_chunking_context,
                     ssr_chunking_context,
-                    async_module_info: module_graphs.full.async_module_info(),
-                    next_config: project.next_config(),
+                    async_module_info: module_graphs.full.async_module_info().to_resolved().await?,
+                    next_config: project.next_config().to_resolved().await?,
                     runtime,
-                    mode: project.next_mode(),
+                    mode: *project.next_mode().await?,
                 })
                 .to_resolved()
                 .await?;
@@ -1428,7 +1465,7 @@ impl AppEndpoint {
 
             let next_font_manifest_output = create_font_manifest(
                 project.client_root(),
-                node_root,
+                *node_root,
                 this.app_project.app_dir(),
                 &app_entry.original_name,
                 &app_entry.original_name,
@@ -1476,7 +1513,7 @@ impl AppEndpoint {
                 if emit_manifests == EmitManifests::Full {
                     let dynamic_import_entries = collect_next_dynamic_chunks(
                         *module_graphs.full,
-                        Vc::upcast(client_chunking_context),
+                        *ResolvedVc::upcast(client_chunking_context),
                         next_dynamic_imports,
                         NextDynamicChunkAvailability::ClientReferences(
                             &*(client_references_chunks.await?),
@@ -1486,7 +1523,7 @@ impl AppEndpoint {
 
                     let loadable_manifest_output = create_react_loadable_manifest(
                         *dynamic_import_entries,
-                        client_relative_path,
+                        *client_relative_path,
                         node_root.join(
                             format!(
                                 "server/app{}/react-loadable-manifest",
@@ -1556,7 +1593,7 @@ impl AppEndpoint {
                 if emit_manifests != EmitManifests::None {
                     // create app paths manifest
                     let app_paths_manifest_output =
-                        create_app_paths_manifest(node_root, &app_entry.original_name, entry_file)
+                        create_app_paths_manifest(*node_root, &app_entry.original_name, entry_file)
                             .await?;
                     server_assets.insert(app_paths_manifest_output);
                 }
@@ -1576,7 +1613,7 @@ impl AppEndpoint {
                 if emit_manifests != EmitManifests::None {
                     // create app paths manifest
                     let app_paths_manifest_output = create_app_paths_manifest(
-                        node_root,
+                        *node_root,
                         &app_entry.original_name,
                         server_path
                             .await?
@@ -1594,7 +1631,7 @@ impl AppEndpoint {
                     // create react-loadable-manifest for next/dynamic
                     let dynamic_import_entries = collect_next_dynamic_chunks(
                         *module_graphs.full,
-                        Vc::upcast(client_chunking_context),
+                        *ResolvedVc::upcast(client_chunking_context),
                         next_dynamic_imports,
                         NextDynamicChunkAvailability::ClientReferences(
                             &*(client_references_chunks.await?),
@@ -1604,7 +1641,7 @@ impl AppEndpoint {
 
                     let loadable_manifest_output = create_react_loadable_manifest(
                         *dynamic_import_entries,
-                        client_relative_path,
+                        *client_relative_path,
                         node_root.join(
                             format!(
                                 "server/app{}/react-loadable-manifest",

@@ -70,7 +70,7 @@ export type ExportRouteResult =
       cacheControl: CacheControl
       metadata?: Partial<RouteMetadata>
       ssgNotFound?: boolean
-      hasEmptyPrelude?: boolean
+      hasEmptyStaticShell?: boolean
       hasPostponed?: boolean
       fetchMetrics?: FetchMetrics
     }
@@ -135,9 +135,9 @@ export type ExportAppResult = {
        */
       metadata?: Partial<RouteMetadata>
       /**
-       * If the page has an empty prelude when using PPR.
+       * If the page has an empty static shell when using PPR.
        */
-      hasEmptyPrelude?: boolean
+      hasEmptyStaticShell?: boolean
       /**
        * If the page has postponed when using PPR.
        */

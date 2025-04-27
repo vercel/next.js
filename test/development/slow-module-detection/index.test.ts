@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Slow Module Detection',
   () => {
     const { next } = nextTestSetup({

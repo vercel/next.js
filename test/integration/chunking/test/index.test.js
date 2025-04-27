@@ -23,7 +23,7 @@ const existsChunkNamed = (name) => {
 }
 
 // Skipped as it uses webpack internals / stats.json.
-;(process.env.TURBOPACK ? describe.skip : describe)('Chunking', () => {
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)('Chunking', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {

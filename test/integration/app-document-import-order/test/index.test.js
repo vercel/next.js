@@ -88,7 +88,7 @@ describe('Root components import order', () => {
     )
 
     // Test relies on webpack splitChunks overrides.
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
       'Skipped in Turbopack',
       () => {
         it(

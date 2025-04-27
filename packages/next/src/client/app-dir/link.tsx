@@ -20,6 +20,7 @@ import {
 } from '../components/links'
 import { isLocalURL } from '../../shared/lib/router/utils/is-local-url'
 import { dispatchNavigateAction } from '../components/app-router-instance'
+import { errorOnce } from '../../shared/lib/utils/error-once'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -151,6 +152,12 @@ type InternalLinkProps = {
    * ```
    */
   prefetch?: boolean | null
+
+  /**
+   * (unstable) Switch to a dynamic prefetch on hover. Effectively the same as
+   * updating the prefetch prop to `true` in a mouse event.
+   */
+  unstable_dynamicOnHover?: boolean
 
   /**
    * The active locale is automatically prepended in the Pages Router. `locale` allows for providing
@@ -335,6 +342,7 @@ export default function LinkComponent(
     legacyBehavior = false,
     onNavigate,
     ref: forwardedRef,
+    unstable_dynamicOnHover,
     ...restProps
   } = props
 
@@ -355,6 +363,7 @@ export default function LinkComponent(
    * - null: this is the default "auto" mode, where we will prefetch partially if the link is in the viewport
    * - true: we will prefetch if the link is visible and prefetch the full page, not just partially
    * - false: we will not prefetch if in the viewport at all
+   * - 'unstable_dynamicOnHover': this starts in "auto" mode, but switches to "full" when the link is hovered
    */
   const appPrefetchKind =
     prefetchProp === null ? PrefetchKind.AUTO : PrefetchKind.FULL
@@ -407,6 +416,7 @@ export default function LinkComponent(
       shallow: true,
       passHref: true,
       prefetch: true,
+      unstable_dynamicOnHover: true,
       onClick: true,
       onMouseEnter: true,
       onTouchStart: true,
@@ -446,7 +456,8 @@ export default function LinkComponent(
         key === 'shallow' ||
         key === 'passHref' ||
         key === 'prefetch' ||
-        key === 'legacyBehavior'
+        key === 'legacyBehavior' ||
+        key === 'unstable_dynamicOnHover'
       ) {
         if (props[key] != null && valType !== 'boolean') {
           throw createPropError({
@@ -638,7 +649,11 @@ export default function LinkComponent(
         return
       }
 
-      onNavigationIntent(e.currentTarget as HTMLAnchorElement | SVGAElement)
+      const upgradeToDynamicPrefetch = unstable_dynamicOnHover === true
+      onNavigationIntent(
+        e.currentTarget as HTMLAnchorElement | SVGAElement,
+        upgradeToDynamicPrefetch
+      )
     },
     onTouchStart: process.env.__NEXT_LINK_NO_TOUCH_START
       ? undefined
@@ -663,7 +678,11 @@ export default function LinkComponent(
             return
           }
 
-          onNavigationIntent(e.currentTarget as HTMLAnchorElement | SVGAElement)
+          const upgradeToDynamicPrefetch = unstable_dynamicOnHover === true
+          onNavigationIntent(
+            e.currentTarget as HTMLAnchorElement | SVGAElement,
+            upgradeToDynamicPrefetch
+          )
         },
   }
 
@@ -684,7 +703,7 @@ export default function LinkComponent(
 
   if (legacyBehavior) {
     if (process.env.NODE_ENV === 'development') {
-      console.error(
+      errorOnce(
         '`legacyBehavior` is deprecated and will be removed in a future ' +
           'release. A codemod is available to upgrade your components:\n\n' +
           'npx @next/codemod@latest new-link .\n\n' +

@@ -25,6 +25,8 @@ import type {
   PrefetchOptions,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import { setLinkForCurrentNavigation, type LinkInstance } from './links'
+import type { FlightRouterState } from '../../server/app-render/types'
+import type { ClientInstrumentationHooks } from '../app-index'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 
@@ -32,6 +34,11 @@ export type AppRouterActionQueue = {
   state: AppRouterState
   dispatch: (payload: ReducerActions, setState: DispatchStatePromise) => void
   action: (state: AppRouterState, action: ReducerActions) => ReducerState
+
+  onRouterTransitionStart:
+    | ((url: string, type: 'push' | 'replace' | 'traverse') => void)
+    | null
+
   pending: ActionQueueNode | null
   needsRefresh?: boolean
   last: ActionQueueNode | null
@@ -193,18 +200,25 @@ function dispatchAction(
 let globalActionQueue: AppRouterActionQueue | null = null
 
 export function createMutableActionQueue(
-  initialState: AppRouterState
+  initialState: AppRouterState,
+  instrumentationHooks: ClientInstrumentationHooks | null
 ): AppRouterActionQueue {
   const actionQueue: AppRouterActionQueue = {
     state: initialState,
     dispatch: (payload: ReducerActions, setState: DispatchStatePromise) =>
       dispatchAction(actionQueue, payload, setState),
-    action: (state: AppRouterState, action: ReducerActions) => {
+    action: async (state: AppRouterState, action: ReducerActions) => {
       const result = reducer(state, action)
       return result
     },
     pending: null,
     last: null,
+    onRouterTransitionStart:
+      instrumentationHooks !== null &&
+      typeof instrumentationHooks.onRouterTransitionStart === 'function'
+        ? // This profiling hook will be called at the start of every navigation.
+          instrumentationHooks.onRouterTransitionStart
+        : null,
   }
 
   if (typeof window !== 'undefined') {
@@ -236,6 +250,13 @@ function getAppRouterActionQueue(): AppRouterActionQueue {
   return globalActionQueue
 }
 
+function getProfilingHookForOnNavigationStart() {
+  if (globalActionQueue !== null) {
+    return globalActionQueue.onRouterTransitionStart
+  }
+  return null
+}
+
 export function dispatchNavigateAction(
   href: string,
   navigateType: NavigateAction['navigateType'],
@@ -251,6 +272,11 @@ export function dispatchNavigateAction(
 
   setLinkForCurrentNavigation(linkInstanceRef)
 
+  const onRouterTransitionStart = getProfilingHookForOnNavigationStart()
+  if (onRouterTransitionStart !== null) {
+    onRouterTransitionStart(href, navigateType)
+  }
+
   dispatchAppRouterAction({
     type: ACTION_NAVIGATE,
     url,
@@ -259,6 +285,21 @@ export function dispatchNavigateAction(
     shouldScroll,
     navigateType,
     allowAliasing: true,
+  })
+}
+
+export function dispatchTraverseAction(
+  href: string,
+  tree: FlightRouterState | undefined
+) {
+  const onRouterTransitionStart = getProfilingHookForOnNavigationStart()
+  if (onRouterTransitionStart !== null) {
+    onRouterTransitionStart(href, 'traverse')
+  }
+  dispatchAppRouterAction({
+    type: ACTION_RESTORE,
+    url: new URL(href),
+    tree,
   })
 }
 
@@ -280,7 +321,8 @@ export const publicAppRouterInstance: AppRouterInstance = {
           href,
           actionQueue.state.nextUrl,
           actionQueue.state.tree,
-          options?.kind === PrefetchKind.FULL
+          options?.kind === PrefetchKind.FULL,
+          options?.onInvalidate ?? null
         )
       }
     : (href: string, options?: PrefetchOptions) => {

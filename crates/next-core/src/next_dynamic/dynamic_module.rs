@@ -71,7 +71,7 @@ impl Module for NextDynamicEntryModule {
 impl Asset for NextDynamicEntryModule {
     #[turbo_tasks::function]
     fn content(&self) -> Result<Vc<AssetContent>> {
-        bail!("Next.js server component module has no content")
+        bail!("Next.js Server Component module has no content")
     }
 }
 

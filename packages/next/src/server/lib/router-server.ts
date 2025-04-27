@@ -50,6 +50,11 @@ import { NEXT_PATCH_SYMBOL } from './patch-fetch'
 import type { ServerInitResult } from './render-server'
 import { filterInternalHeaders } from './server-ipc/utils'
 import { blockCrossSite } from './router-utils/block-cross-site'
+import { traceGlobals } from '../../trace/shared'
+import {
+  RouterServerContextSymbol,
+  routerServerGlobal,
+} from './router-utils/router-server-context'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -122,6 +127,8 @@ export async function initialize(opts: {
     const telemetry = new Telemetry({
       distDir: path.join(opts.dir, config.distDir),
     })
+    traceGlobals.set('telemetry', telemetry)
+
     const { pagesDir, appDir } = findPagesDir(opts.dir)
 
     const { setupDevBundler } =
@@ -642,6 +649,14 @@ export async function initialize(opts: {
 
   // pre-initialize workers
   const handlers = await renderServer.instance.initialize(renderServerOpts)
+
+  // this must come after initialize of render server since it's
+  // using initialized methods
+  routerServerGlobal[RouterServerContextSymbol] = {
+    dir: opts.dir,
+    hostname: handlers.server.hostname,
+    revalidate: handlers.server.revalidate.bind(handlers.server),
+  }
 
   const logError = async (
     type: 'uncaughtException' | 'unhandledRejection',

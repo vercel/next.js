@@ -2,7 +2,7 @@ import { createNext } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 
 // TODO: Implement experimental.fallbackNodePolyfills
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Disable fallback polyfills',
   () => {
     let next: NextInstance

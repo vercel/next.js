@@ -38,7 +38,7 @@ describe('dynamic-io-segment-configs', () => {
         )
       } else {
         expect(redbox.description).toMatchInlineSnapshot(
-          `"Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.experimental.dynamicIO\`. Please remove it."`
+          `"  x Route segment config "revalidate" is not compatible with \`nextConfig.experimental.dynamicIO\`. Please remove it."`
         )
       }
       expect(redbox.source).toContain(
@@ -99,7 +99,7 @@ describe('dynamic-io-segment-configs', () => {
             )
           } else {
             expect(redbox.description).toMatchInlineSnapshot(
-              `"Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.dynamicIO\`. Please remove it."`
+              `"  x Route segment config "runtime" is not compatible with \`nextConfig.experimental.dynamicIO\`. Please remove it."`
             )
           }
           expect(redbox.source).toContain(

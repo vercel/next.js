@@ -37,7 +37,7 @@ if (enableTestReport) {
   }
 
   let outputDirectory
-  if (process.env.TURBOPACK) {
+  if (process.env.IS_TURBOPACK_TEST) {
     outputDirectory = '<rootDir>/turbopack-test-junit-report'
   } else if (process.env.NEXT_RSPACK) {
     outputDirectory = '<rootDir>/rspack-test-junit-report'

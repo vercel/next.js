@@ -48,7 +48,7 @@ function useCopyLegacy(content: string) {
     if (!navigator.clipboard) {
       dispatch({
         type: 'error',
-        error: new Error('Copy to clipboard is not supported in this browser'),
+        error: 'Copy to clipboard is not supported in this browser',
       })
     } else {
       dispatch({ type: 'copying' })
@@ -94,9 +94,7 @@ function useCopyModern(content: string) {
         if (!navigator.clipboard) {
           return {
             state: 'error',
-            error: new Error(
-              'Copy to clipboard is not supported in this browser'
-            ),
+            error: 'Copy to clipboard is not supported in this browser',
           }
         }
         return navigator.clipboard.writeText(content).then(
@@ -153,8 +151,9 @@ export function CopyButton({
   const error = copyState.state === 'error' ? copyState.error : null
   React.useEffect(() => {
     if (error !== null) {
-      // Additional console.error to get the stack.
-      console.error(error)
+      // Only log warning in terminal to avoid showing in the error overlay.
+      // When it's errored, the copy button will be disabled.
+      console.warn(error)
     }
   }, [error])
   React.useEffect(() => {
@@ -168,7 +167,7 @@ export function CopyButton({
       }
     }
   }, [isPending, copyState.state, reset])
-  const isDisabled = isPending || disabled
+  const isDisabled = !navigator.clipboard || isPending || disabled || !!error
   const label = copyState.state === 'success' ? successLabel : actionLabel
 
   // Assign default icon
@@ -255,14 +254,18 @@ export const COPY_BUTTON_STYLES = `
       height: var(--size-16);
     }
   }
-  .nextjs-data-copy-button--initial:hover {
+  .nextjs-data-copy-button:disabled {
+    background-color: var(--color-gray-100);
+    cursor: not-allowed;
+  }
+  .nextjs-data-copy-button--initial:hover:not(:disabled) {
     cursor: pointer;
   }
-  .nextjs-data-copy-button--error,
-  .nextjs-data-copy-button--error:hover {
+  .nextjs-data-copy-button--error:not(:disabled),
+  .nextjs-data-copy-button--error:hover:not(:disabled) {
     color: var(--color-ansi-red);
   }
-  .nextjs-data-copy-button--success {
+  .nextjs-data-copy-button--success:not(:disabled) {
     color: var(--color-ansi-green);
   }
 `

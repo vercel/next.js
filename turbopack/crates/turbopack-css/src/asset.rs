@@ -337,9 +337,4 @@ impl CssChunkItem for CssModuleChunkItem {
             .into())
         }
     }
-
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
 }

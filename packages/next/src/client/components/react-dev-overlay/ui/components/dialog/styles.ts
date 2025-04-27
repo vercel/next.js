@@ -3,7 +3,7 @@ const styles = `
     --next-dialog-radius: var(--rounded-xl);
     --next-dialog-max-width: 960px;
     --next-dialog-row-padding: 16px;
-    --next-dialog-padding-x: 12px;
+    --next-dialog-padding: 12px;
     --next-dialog-notch-height: 42px;
     --next-dialog-border-width: 1px;
 
@@ -14,7 +14,7 @@ const styles = `
     max-width: var(--next-dialog-max-width);
     margin-right: auto;
     margin-left: auto;
-    scale: 0.98;
+    scale: 0.97;
     opacity: 0;
     transition-property: scale, opacity;
     transition-duration: var(--transition-duration);
@@ -28,7 +28,7 @@ const styles = `
     [data-nextjs-scroll-fader][data-side="top"] {
       left: 1px;
       top: calc(var(--next-dialog-notch-height) + var(--next-dialog-border-width));
-      width: calc(100% - var(--next-dialog-padding-x));
+      width: calc(100% - var(--next-dialog-padding));
       opacity: 0;
     }
   }
@@ -37,29 +37,30 @@ const styles = `
     outline: 0;
   }
 
-  [data-nextjs-dialog]::-webkit-scrollbar {
-    width: 6px;
-    border-radius: 0 0 1rem 1rem;
-    margin-bottom: 1rem;
+  [data-nextjs-dialog], [data-nextjs-dialog] * {
+    &::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+      border-radius: 0 0 1rem 1rem;
+      margin-bottom: 1rem;
+    }
+
+    &::-webkit-scrollbar-button {
+      display: none;
+    }
+
+    &::-webkit-scrollbar-track {
+      border-radius: 0 0 1rem 1rem;
+      background-color: var(--color-background-100);
+    }
+      
+    &::-webkit-scrollbar-thumb {
+      border-radius: 1rem;
+      background-color: var(--color-gray-500);
+    }
   }
 
-  [data-nextjs-dialog]::-webkit-scrollbar-button {
-    display: none;
-  }
-
-  [data-nextjs-dialog]::-webkit-scrollbar-track {
-    border-radius: 0 0 1rem 1rem;
-    background-color: var(--color-background-100);
-  }
-    
-  [data-nextjs-dialog]::-webkit-scrollbar-thumb {
-    border-radius: 1rem;
-    background-color: var(--color-gray-500);
-  }
-
-  ${
-    '' /* Place overflow: hidden on this so we can break out from [data-nextjs-dialog] */
-  }
+  /* Place overflow: hidden on this so we can break out from [data-nextjs-dialog] */
   [data-nextjs-dialog-sizer] {
     overflow: hidden;
     border-radius: inherit;
@@ -81,7 +82,7 @@ const styles = `
     display: flex;
     flex-direction: column;
     position: relative;
-    padding: 16px var(--next-dialog-padding-x);
+    padding: var(--next-dialog-padding);
   }
 
   [data-nextjs-dialog-content] > [data-nextjs-dialog-header] {

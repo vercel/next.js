@@ -131,8 +131,7 @@ describe('Client Navigation rendering', () => {
       if (isReact18 && isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
-           "description": "Error: Circular structure in "getInitialProps" result of page "/circular-json-error". https://nextjs.org/docs/messages/circular-structure",
+           "description": "Circular structure in "getInitialProps" result of page "/circular-json-error". https://nextjs.org/docs/messages/circular-structure",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -144,8 +143,7 @@ describe('Client Navigation rendering', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
-           "description": "Error: Circular structure in "getInitialProps" result of page "/circular-json-error". https://nextjs.org/docs/messages/circular-structure",
+           "description": "Circular structure in "getInitialProps" result of page "/circular-json-error". https://nextjs.org/docs/messages/circular-structure",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -163,8 +161,7 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: "InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://nextjs.org/docs/messages/get-initial-props-as-an-instance-method for more information.",
+         "description": ""InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://nextjs.org/docs/messages/get-initial-props-as-an-instance-method for more information.",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": null,
@@ -178,8 +175,7 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: "EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.",
+         "description": ""EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": null,
@@ -222,8 +218,7 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: The default export is not a React Component in page: "/no-default-export"",
+         "description": "The default export is not a React Component in page: "/no-default-export"",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": null,
@@ -238,8 +233,7 @@ describe('Client Navigation rendering', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
-           "description": "Error: This is an expected error",
+           "description": "This is an expected error",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "pages/error-inside-page.js (2:9) @
@@ -254,8 +248,7 @@ describe('Client Navigation rendering', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
-           "description": "Error: This is an expected error",
+           "description": "This is an expected error",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "pages/error-inside-page.js (2:9) @ default
@@ -278,10 +271,9 @@ describe('Client Navigation rendering', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
-           "description": "ReferenceError: aa is not defined",
+           "description": "aa is not defined",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Runtime ReferenceError",
            "source": "pages/error-in-the-global-scope.js (1:1) @ [project]/pages/error-in-the-global-scope.js [ssr] (ecmascript)
          > 1 | aa = 10 //eslint-disable-line
              | ^",
@@ -294,10 +286,9 @@ describe('Client Navigation rendering', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
-           "description": "ReferenceError: aa is not defined",
+           "description": "aa is not defined",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Runtime ReferenceError",
            "source": "pages/error-in-the-global-scope.js (1:1) @ eval
          > 1 | aa = 10 //eslint-disable-line
              | ^",
@@ -324,7 +315,7 @@ describe('Client Navigation rendering', () => {
 
       const buildManifest = await next.readJSON(`.next/${BUILD_MANIFEST}`)
       const reactLoadableManifest = await next.readJSON(
-        process.env.TURBOPACK
+        process.env.IS_TURBOPACK_TEST
           ? `.next/server/pages/dynamic/ssr/${REACT_LOADABLE_MANIFEST}`
           : `.next/${REACT_LOADABLE_MANIFEST}`
       )
@@ -334,7 +325,7 @@ describe('Client Navigation rendering', () => {
         return item
           .replace(/\\/g, '/')
           .endsWith(
-            process.env.TURBOPACK
+            process.env.IS_TURBOPACK_TEST
               ? 'components/hello1.js [client] (ecmascript, next/dynamic entry)'
               : 'ssr.js -> ../../components/hello1'
           )
@@ -422,8 +413,7 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: An undefined error was thrown, see here for more info: https://nextjs.org/docs/messages/threw-undefined",
+         "description": "An undefined error was thrown, see here for more info: https://nextjs.org/docs/messages/threw-undefined",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": null,

@@ -20,8 +20,7 @@ describe('Undefined default export', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 1,
-       "description": "Error: The default export is not a React Component in "/specific-path/server/page"",
+       "description": "The default export is not a React Component in "/specific-path/server/page"",
        "environmentLabel": null,
        "label": "Runtime Error",
        "source": null,
@@ -46,8 +45,7 @@ describe('Undefined default export', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 1,
-       "description": "Error: The default export is not a React Component in "/specific-path/server/layout"",
+       "description": "The default export is not a React Component in "/specific-path/server/layout"",
        "environmentLabel": null,
        "label": "Runtime Error",
        "source": null,
@@ -75,8 +73,7 @@ describe('Undefined default export', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 1,
-       "description": "Error: The default export is not a React Component in "/will-not-found/not-found"",
+       "description": "The default export is not a React Component in "/will-not-found/not-found"",
        "environmentLabel": null,
        "label": "Runtime Error",
        "source": null,
@@ -97,8 +94,7 @@ describe('Undefined default export', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 1,
-       "description": "Error: The default export is not a React Component in "/page"",
+       "description": "The default export is not a React Component in "/page"",
        "environmentLabel": null,
        "label": "Runtime Error",
        "source": null,
@@ -122,8 +118,7 @@ describe('Undefined default export', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 1,
-       "description": "Error: The default export is not a React Component in "/server-with-errors/page-export-initial-error/page"",
+       "description": "The default export is not a React Component in "/server-with-errors/page-export-initial-error/page"",
        "environmentLabel": null,
        "label": "Runtime Error",
        "source": null,

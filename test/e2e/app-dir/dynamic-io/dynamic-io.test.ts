@@ -1,12 +1,12 @@
 /* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
-import { BrowserInterface } from 'next-webdriver'
+import { Playwright } from 'next-webdriver'
 
 const WITH_PPR = !!process.env.__NEXT_EXPERIMENTAL_PPR
 
 describe('dynamic-io', () => {
-  const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
@@ -15,10 +15,8 @@ describe('dynamic-io', () => {
     return
   }
 
-  const itSkipTurbopack = isTurbopack ? it.skip : it
-
   if (isNextDev && !WITH_PPR) {
-    async function hasStaticIndicator(browser: BrowserInterface) {
+    async function hasStaticIndicator(browser: Playwright) {
       await browser.elementByCss('[data-nextjs-dev-tools-button]').click()
 
       return await browser.eval(
@@ -245,19 +243,16 @@ describe('dynamic-io', () => {
     }
   })
 
-  itSkipTurbopack(
-    'should prerender pages that cached the whole page',
-    async () => {
-      const $ = await next.render$('/cases/full_cached', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-      } else {
-        expect($('#layout').text()).toBe('at buildtime')
-        expect($('#page').text()).toBe('at buildtime')
-      }
+  it('should prerender pages that cached the whole page', async () => {
+    const $ = await next.render$('/cases/full_cached', {})
+    if (isNextDev) {
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
+    } else {
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page').text()).toBe('at buildtime')
     }
-  )
+  })
 
   if (WITH_PPR) {
     it('should partially prerender pages that do any uncached IO', async () => {

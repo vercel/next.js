@@ -15,7 +15,7 @@ pub async fn make_style_production_chunks(
     chunk_items: Vec<&ChunkItemOrBatchWithInfo>,
     _batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
     module_graph: Vc<ModuleGraph>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     chunking_config: &ChunkingConfig,
     mut split_context: SplitContext<'_>,
 ) -> Result<()> {
@@ -26,7 +26,7 @@ pub async fn make_style_production_chunks(
     async move {
         let style_groups = module_graph
             .style_groups(
-                chunking_context,
+                *chunking_context,
                 StyleGroupsConfig {
                     max_chunk_size: chunking_config.max_merge_chunk_size,
                 },

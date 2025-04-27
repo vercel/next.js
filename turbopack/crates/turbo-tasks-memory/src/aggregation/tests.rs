@@ -1035,14 +1035,14 @@ fn fuzzy(#[case] seed: u32, #[case] count: u32) {
     let mut edges = FxIndexSet::default();
 
     for _ in 0..1000 {
-        match r.gen_range(0..=2) {
+        match r.random_range(0..=2) {
             0 | 1 => {
                 // if x == 47 {
                 //     print_all(&ctx, nodes.iter().cloned().map(NodeRef), true);
                 // }
                 // add edge
-                let parent = r.gen_range(0..nodes.len() - 1);
-                let child = r.gen_range(parent + 1..nodes.len());
+                let parent = r.random_range(0..nodes.len() - 1);
+                let child = r.random_range(parent + 1..nodes.len());
                 // println!("add edge {} -> {}", parent, child);
                 if edges.insert((parent, child)) {
                     nodes[parent].add_child(&ctx, nodes[child].clone());
@@ -1053,7 +1053,7 @@ fn fuzzy(#[case] seed: u32, #[case] count: u32) {
                 if edges.is_empty() {
                     continue;
                 }
-                let i = r.gen_range(0..edges.len());
+                let i = r.random_range(0..edges.len());
                 let (parent, child) = edges.swap_remove_index(i).unwrap();
                 // println!("remove edge {} -> {}", parent, child);
                 nodes[parent].remove_child(&ctx, &nodes[child]);

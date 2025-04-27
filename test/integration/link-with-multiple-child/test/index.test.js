@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import { render, screen } from '@testing-library/react'
+import '@testing-library/jest-dom'
 import Link from 'next/link'
 
 test('single child', () => {

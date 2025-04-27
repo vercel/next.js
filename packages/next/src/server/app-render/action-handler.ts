@@ -49,6 +49,7 @@ import { synchronizeMutableCookies } from '../async-storage/request-store'
 import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server.edge'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { executeRevalidates } from '../revalidation-utils'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -482,11 +483,13 @@ export async function handleAction({
     isURLEncodedAction,
     isMultipartAction,
     isFetchAction,
-    isServerAction,
+    isPossibleServerAction,
   } = getServerActionRequestMetadata(req)
 
-  // If it's not a Server Action, skip handling.
-  if (!isServerAction) {
+  // If it can't be a Server Action, skip handling.
+  // Note that this can be a false positive -- any multipart/urlencoded POST can get us here,
+  // But won't know if it's an MPA action or not until we call `decodeAction` below.
+  if (!isPossibleServerAction) {
     return
   }
 
@@ -509,23 +512,8 @@ export async function handleAction({
     // that in the work store to be up-to-date for subsequent rendering.
     workStore.isDraftMode = requestStore.draftMode.isEnabled
 
-    requestStore.phase = 'render'
-
     return generateFlight(...args)
   }
-
-  requestStore.phase = 'action'
-
-  const resolvePendingRevalidations = async () =>
-    workUnitAsyncStorage.run(requestStore, () =>
-      Promise.all([
-        workStore.incrementalCache?.revalidateTag(
-          workStore.pendingRevalidatedTags || []
-        ),
-        ...Object.values(workStore.pendingRevalidates || {}),
-        ...(workStore.pendingRevalidateWrites || []),
-      ])
-    )
 
   // When running actions the default is no-store, you can still `cache: 'force-cache'`
   workStore.fetchCache = 'default-no-store'
@@ -578,7 +566,7 @@ export async function handleAction({
 
       if (isFetchAction) {
         res.statusCode = 500
-        await resolvePendingRevalidations()
+        await executeRevalidates(workStore)
 
         const promise = Promise.reject(error)
         try {
@@ -684,18 +672,22 @@ export async function handleAction({
               // Only warn if it's a server action, otherwise skip for other post requests
               warnBadServerActionRequest()
 
-              const actionReturnedState = await workUnitAsyncStorage.run(
-                requestStore,
-                action
-              )
+              let actionReturnedState: unknown
+              requestStore.phase = 'action'
+              try {
+                actionReturnedState = await workUnitAsyncStorage.run(
+                  requestStore,
+                  action
+                )
+              } finally {
+                requestStore.phase = 'render'
+              }
 
               formState = await decodeFormState(
                 actionReturnedState,
                 formData,
                 serverModuleMap
               )
-
-              requestStore.phase = 'render'
             }
 
             // Skip the fetch path
@@ -760,7 +752,7 @@ export async function handleAction({
 
         temporaryReferences = createTemporaryReferenceSet()
 
-        const { Transform } =
+        const { Transform, pipeline } =
           require('node:stream') as typeof import('node:stream')
 
         const defaultBodySizeLimit = '1 MB'
@@ -774,26 +766,32 @@ export async function handleAction({
             : 1024 * 1024 // 1 MB
 
         let size = 0
-        const body = req.body.pipe(
-          new Transform({
-            transform(chunk, encoding, callback) {
-              size += Buffer.byteLength(chunk, encoding)
-              if (size > bodySizeLimitBytes) {
-                const { ApiError } = require('../api-utils')
+        const sizeLimitTransform = new Transform({
+          transform(chunk, encoding, callback) {
+            size += Buffer.byteLength(chunk, encoding)
+            if (size > bodySizeLimitBytes) {
+              const { ApiError } = require('../api-utils')
 
-                callback(
-                  new ApiError(
-                    413,
-                    `Body exceeded ${bodySizeLimit} limit.
-                To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
-                  )
+              callback(
+                new ApiError(
+                  413,
+                  `Body exceeded ${bodySizeLimit} limit.\n` +
+                    `To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
                 )
-                return
-              }
+              )
+              return
+            }
 
-              callback(null, chunk)
-            },
-          })
+            callback(null, chunk)
+          },
+        })
+
+        const sizeLimitedBody = pipeline(
+          req.body,
+          sizeLimitTransform,
+          // Avoid unhandled errors from `pipeline()` by passing an empty completion callback.
+          // We'll propagate the errors properly when consuming the stream.
+          () => {}
         )
 
         if (isMultipartAction) {
@@ -804,7 +802,14 @@ export async function handleAction({
               limits: { fieldSize: bodySizeLimitBytes },
             })
 
-            body.pipe(busboy)
+            // We need to use `pipeline(one, two)` instead of `one.pipe(two)` to propagate size limit errors correctly.
+            pipeline(
+              sizeLimitedBody,
+              busboy,
+              // Avoid unhandled errors from `pipeline()` by passing an empty completion callback.
+              // We'll propagate the errors properly when consuming the stream.
+              () => {}
+            )
 
             boundActionArguments = await decodeReplyFromBusboy(
               busboy,
@@ -820,13 +825,13 @@ export async function handleAction({
               headers: { 'Content-Type': contentType },
               body: new ReadableStream({
                 start: (controller) => {
-                  body.on('data', (chunk) => {
+                  sizeLimitedBody.on('data', (chunk) => {
                     controller.enqueue(new Uint8Array(chunk))
                   })
-                  body.on('end', () => {
+                  sizeLimitedBody.on('end', () => {
                     controller.close()
                   })
-                  body.on('error', (err) => {
+                  sizeLimitedBody.on('error', (err) => {
                     controller.error(err)
                   })
                 },
@@ -839,18 +844,22 @@ export async function handleAction({
               // Only warn if it's a server action, otherwise skip for other post requests
               warnBadServerActionRequest()
 
-              const actionReturnedState = await workUnitAsyncStorage.run(
-                requestStore,
-                action
-              )
+              let actionReturnedState: unknown
+              requestStore.phase = 'action'
+              try {
+                actionReturnedState = await workUnitAsyncStorage.run(
+                  requestStore,
+                  action
+                )
+              } finally {
+                requestStore.phase = 'render'
+              }
 
               formState = await decodeFormState(
                 actionReturnedState,
                 formData,
                 serverModuleMap
               )
-
-              requestStore.phase = 'render'
             }
 
             // Skip the fetch path
@@ -869,7 +878,7 @@ export async function handleAction({
           }
 
           const chunks: Buffer[] = []
-          for await (const chunk of req.body) {
+          for await (const chunk of sizeLimitedBody) {
             chunks.push(Buffer.from(chunk))
           }
 
@@ -927,13 +936,19 @@ export async function handleAction({
           actionId!
         ]
 
-      const returnVal = await workUnitAsyncStorage.run(requestStore, () =>
-        actionHandler.apply(null, boundActionArguments)
-      )
+      let returnVal: unknown
+      requestStore.phase = 'action'
+      try {
+        returnVal = await workUnitAsyncStorage.run(requestStore, () =>
+          actionHandler.apply(null, boundActionArguments)
+        )
+      } finally {
+        requestStore.phase = 'render'
+      }
 
       // For form actions, we need to continue rendering the page.
       if (isFetchAction) {
-        await resolvePendingRevalidations()
+        await executeRevalidates(workStore)
         addRevalidationHeader(res, { workStore, requestStore })
 
         actionResult = await finalizeAndGenerateFlight(req, ctx, requestStore, {
@@ -955,7 +970,7 @@ export async function handleAction({
       const redirectUrl = getURLFromRedirectError(err)
       const redirectType = getRedirectTypeFromError(err)
 
-      await resolvePendingRevalidations()
+      await executeRevalidates(workStore)
       addRevalidationHeader(res, { workStore, requestStore })
 
       // if it's a fetch action, we'll set the status code for logging/debugging purposes
@@ -985,7 +1000,7 @@ export async function handleAction({
     } else if (isHTTPAccessFallbackError(err)) {
       res.statusCode = getAccessFallbackHTTPStatus(err)
 
-      await resolvePendingRevalidations()
+      await executeRevalidates(workStore)
       addRevalidationHeader(res, { workStore, requestStore })
 
       if (isFetchAction) {
@@ -1014,8 +1029,11 @@ export async function handleAction({
     }
 
     if (isFetchAction) {
+      // TODO: consider checking if the error is an `ApiError` and change status code
+      // so that we can respond with a 413 to requests that break the body size limit
+      // (but if we do that, we also need to make sure that whatever handles the non-fetch error path below does the same)
       res.statusCode = 500
-      await resolvePendingRevalidations()
+      await executeRevalidates(workStore)
       const promise = Promise.reject(err)
       try {
         // we need to await the promise to trigger the rejection early
@@ -1027,7 +1045,6 @@ export async function handleAction({
         // swallow error, it's gonna be handled on the client
       }
 
-      requestStore.phase = 'render'
       return {
         type: 'done',
         result: await generateFlight(req, ctx, requestStore, {
