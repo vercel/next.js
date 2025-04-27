@@ -1,4 +1,5 @@
 import { createConnection } from "node:net";
+import { Writable } from "node:stream";
 import type { StackFrame } from "../compiled/stacktrace-parser";
 import { parse as parseStackTrace } from "../compiled/stacktrace-parser";
 import { getProperError } from "./error";
@@ -40,7 +41,30 @@ export type Ipc<TIncoming, TOutgoing> = {
 function createIpc<TIncoming, TOutgoing>(
   port: number
 ): Ipc<TIncoming, TOutgoing> {
-  const socket = createConnection(port, "127.0.0.1");
+  const socket = createConnection({
+    port,
+    host: "127.0.0.1",
+  });
+
+  /**
+   * A writable stream that writes to the socket.
+   * We don't write directly to the socket because we need to
+   * handle backpressure and wait for the socket to be drained
+   * before writing more data.
+   */
+  const socketWritable = new Writable({
+    write(chunk, _enc, cb) {
+      if (socket.write(chunk)) {
+        cb();
+      } else {
+        socket.once('drain', cb);
+      }
+    },
+    final(cb) {
+      socket.end(cb);
+    }
+  });
+
   const packetQueue: Buffer[] = [];
   const recvPromiseResolveQueue: Array<(message: TIncoming) => void> = [];
 
@@ -97,39 +121,29 @@ function createIpc<TIncoming, TOutgoing>(
 
   // TODO(lukesandberg): some of the messages being sent are very large and contain lots
   //  of redundant information.  Consider adding gzip compression to our stream.
+  function doSend(message: any): Promise<void> {
+    return new Promise((resolve, reject) => {
+      // Reserve 4 bytes for our length prefix, we will over-write after encoding.
+      const packet = Buffer.from("0000" + message, "utf8");
+      packet.writeUInt32BE(packet.length - 4, 0);
+      socketWritable.write(packet, (err) => {
+        process.stderr.write(`TURBOPACK_OUTPUT_D\n`);
+        process.stdout.write(`TURBOPACK_OUTPUT_D\n`);
+        if (err != null) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
+
   function send(message: any): Promise<void> {
-    // Reserve 4 bytes for our length prefix, we will over-write after encoding.
-    const packet = Buffer.from("0000" + JSON.stringify(message), "utf8");
-    packet.writeUInt32BE(packet.length - 4, 0);
-
-    return new Promise((resolve, reject) => {
-      socket.write(packet, (err) => {
-        process.stderr.write(`TURBOPACK_OUTPUT_D\n`);
-        process.stdout.write(`TURBOPACK_OUTPUT_D\n`);
-        if (err != null) {
-          reject(err);
-        } else {
-          resolve();
-        }
-      });
-    });
-  }
-
-  function sendReady(): Promise<void> {
-    const length = Buffer.from([0, 0, 0, 0]);
-    return new Promise((resolve, reject) => {
-      socket.write(length, (err) => {
-        process.stderr.write(`TURBOPACK_OUTPUT_D\n`);
-        process.stdout.write(`TURBOPACK_OUTPUT_D\n`);
-
-        if (err != null) {
-          reject(err);
-        } else {
-          resolve();
-        }
-      });
-    });
-  }
+    return doSend(JSON.stringify(message));
+   }
+   function sendReady(): Promise<void> {
+      return doSend("");
+   }
 
   return {
     async recv() {
