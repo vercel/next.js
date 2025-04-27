@@ -5,10 +5,8 @@ export type PluginLanguageService = ts.LanguageService & {
   getCapturedLogs: () => string
 }
 
-export function getPluginLanguageService(
-  fixtureDir: string
-): PluginLanguageService {
-  const files = ts.sys.readDirectory(fixtureDir)
+export function getPluginLanguageService(dir: string): PluginLanguageService {
+  const files = ts.sys.readDirectory(dir)
 
   const compilerOptions = ts.getDefaultCompilerOptions()
   const compilerHost = ts.createCompilerHost(compilerOptions)
@@ -46,7 +44,7 @@ export function getPluginLanguageService(
       projectService: {
         logger,
       },
-      getCurrentDirectory: () => __dirname,
+      getCurrentDirectory: () => dir,
     } as unknown as ts.server.Project,
     languageService,
     languageServiceHost,

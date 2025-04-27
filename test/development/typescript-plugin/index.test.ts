@@ -5,7 +5,7 @@ describe('typescript-plugin', () => {
   let languageService: PluginLanguageService
 
   beforeAll(() => {
-    languageService = getPluginLanguageService('')
+    languageService = getPluginLanguageService(__dirname)
   })
 
   it('should be able to get the language service', () => {
