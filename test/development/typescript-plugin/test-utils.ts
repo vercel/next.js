@@ -1,14 +1,13 @@
 import tsNextPluginFactory from 'next'
 import ts from 'typescript'
-import { resolve } from 'node:path'
-
-const fixtureDir = resolve(__dirname, 'app')
 
 export type PluginLanguageService = ts.LanguageService & {
   getCapturedLogs: () => string
 }
 
-export function getPluginLanguageService(): PluginLanguageService {
+export function getPluginLanguageService(
+  fixtureDir: string
+): PluginLanguageService {
   const files = ts.sys.readDirectory(fixtureDir)
 
   const compilerOptions = ts.getDefaultCompilerOptions()
@@ -65,4 +64,8 @@ export function getPluginLanguageService(): PluginLanguageService {
   service.getCapturedLogs = () => logs
 
   return service
+}
+
+export function getTsFiles(dir: string): string[] {
+  return ts.sys.readDirectory(dir)
 }
