@@ -863,7 +863,7 @@ impl AppProject {
                     let ServerEntries {
                         server_utils,
                         server_component_entries,
-                    } = &*find_server_entries(*rsc_entry).await?;
+                    } = &*find_server_entries(*rsc_entry, should_trace).await?;
 
                     let graph = SingleModuleGraph::new_with_entries_visited_intern(
                         vec![
@@ -1255,6 +1255,7 @@ impl AppEndpoint {
             .get_client_references_for_endpoint(
                 *rsc_entry,
                 matches!(this.ty, AppEndpointType::Page { .. }),
+                project.next_mode().await?.is_production(),
             )
             .to_resolved()
             .await?;

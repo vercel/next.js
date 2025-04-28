@@ -1321,6 +1321,7 @@ const COMMON_CHUNKING_TYPE: ChunkingType = ChunkingType::ParallelInheritAsync;
 
 struct SingleModuleGraphBuilder<'a> {
     visited_modules: &'a FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
+    /// Whether to walk ChunkingType::Traced references
     include_traced: bool,
 }
 impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
