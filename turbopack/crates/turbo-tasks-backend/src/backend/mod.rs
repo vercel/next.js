@@ -218,12 +218,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             start_time: Instant::now(),
             session_id: backing_storage.next_session_id(),
             persisted_task_id_factory: IdFactoryWithReuse::new(
-                *backing_storage.next_free_task_id() as u64,
-                (TRANSIENT_TASK_BIT - 1) as u64,
+                backing_storage.next_free_task_id(),
+                TaskId::try_from(TRANSIENT_TASK_BIT - 1).unwrap(),
             ),
             transient_task_id_factory: IdFactoryWithReuse::new(
-                TRANSIENT_TASK_BIT as u64,
-                u32::MAX as u64,
+                TaskId::try_from(TRANSIENT_TASK_BIT).unwrap(),
+                TaskId::MAX,
             ),
             persisted_task_cache_log: need_log.then(|| Sharded::new(shard_amount)),
             task_cache: BiMap::new(),

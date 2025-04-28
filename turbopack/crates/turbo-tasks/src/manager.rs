@@ -419,9 +419,9 @@ impl CurrentTaskState {
 
     fn create_local_task(&mut self, local_task: LocalTask) -> LocalTaskId {
         self.local_tasks.push(local_task);
-        // generate a one-indexed id
+        // generate a one-indexed id from len() -- we just pushed so len() is >= 1
         if cfg!(debug_assertions) {
-            LocalTaskId::from(u32::try_from(self.local_tasks.len()).unwrap())
+            LocalTaskId::try_from(u32::try_from(self.local_tasks.len()).unwrap()).unwrap()
         } else {
             unsafe { LocalTaskId::new_unchecked(self.local_tasks.len() as u32) }
         }
@@ -452,9 +452,12 @@ impl<B: Backend + 'static> TurboTasks<B> {
     // so we probably want to make sure that all tasks are joined
     // when trying to drop turbo tasks
     pub fn new(backend: B) -> Arc<Self> {
-        let task_id_factory = IdFactoryWithReuse::new(1, (TRANSIENT_TASK_BIT - 1) as u64);
+        let task_id_factory = IdFactoryWithReuse::new(
+            TaskId::MIN,
+            TaskId::try_from(TRANSIENT_TASK_BIT - 1).unwrap(),
+        );
         let transient_task_id_factory =
-            IdFactoryWithReuse::new(TRANSIENT_TASK_BIT as u64, u32::MAX as u64);
+            IdFactoryWithReuse::new(TaskId::try_from(TRANSIENT_TASK_BIT).unwrap(), TaskId::MAX);
         let this = Arc::new_cyclic(|this| Self {
             this: this.clone(),
             backend,
