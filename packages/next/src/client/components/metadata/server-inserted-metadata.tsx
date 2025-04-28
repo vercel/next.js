@@ -27,3 +27,8 @@ export function ServerInsertMetadata({
 
   return null
 }
+
+export function ServerMetadataScript() {
+  useServerInsertedMetadata(() => '')
+  return null
+}

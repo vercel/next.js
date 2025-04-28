@@ -30,10 +30,7 @@ describe('app-dir - metadata-icons', () => {
     )
   })
 
-  // FIXME: temporarily skip this test and re-enable it later once we can determine if body is sent to the client
-  // in the case of streaming, then we only insert the icon-insertion script in that case.
-  // When icon is already rendered in head, that script is not necessary but introducing extra bytes.
-  it.skip('should re-insert the body icons into the head', async () => {
+  it('should re-insert the body icons into the head', async () => {
     const browser = await next.browser('/custom-icon')
 
     await retry(async () => {
@@ -45,6 +42,21 @@ describe('app-dir - metadata-icons', () => {
       // re-inserted favicon.ico + /heart.png
       expect(iconsInHead.length).toBe(2)
     })
+  })
+
+  it('should not contain icon insertion script when metadata is rendered in head', async () => {
+    const iconInsertionScript = `document.querySelectorAll('body link[rel="icon"], body link[rel="apple-touch-icon"]').forEach(el => document.head.appendChild(el))`
+    // Perform a blocking render to ensure the metadata is rendered in the head
+    const blockingHtml = await next.render('/custom-icon', null, {
+      headers: {
+        'User-Agent': 'Discordbot',
+      },
+    })
+
+    expect(blockingHtml).not.toContain(iconInsertionScript)
+
+    const suspendedHtml = await next.render('/custom-icon')
+    expect(suspendedHtml).toContain(iconInsertionScript)
   })
 
   it('should re-insert the apple icons into the head after navigation', async () => {
