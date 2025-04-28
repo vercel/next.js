@@ -1820,7 +1820,7 @@ impl JsValue {
                         "The Node.js process.cwd method: https://nodejs.org/api/process.html#processcwd",
                     ),
                     WellKnownFunctionKind::NodePreGypFind => (
-                        "find".to_string(),
+                        "binary.find".to_string(),
                         "The Node.js @mapbox/node-pre-gyp module: https://github.com/mapbox/node-pre-gyp",
                     ),
                     WellKnownFunctionKind::NodeGypBuild => (
