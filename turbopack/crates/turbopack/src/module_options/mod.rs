@@ -527,7 +527,10 @@ impl ModuleOptions {
                 ),
                 ModuleRule::new(
                     RuleCondition::all(vec![
-                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                        RuleCondition::Any(vec![
+                            RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                            RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
+                        ]),
                         // Create a normal CSS asset if `@import`ed from CSS already.
                         RuleCondition::ReferenceType(ReferenceType::Css(
                             CssReferenceSubType::AtImport(None),

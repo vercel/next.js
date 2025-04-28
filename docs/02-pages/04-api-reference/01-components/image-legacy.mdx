@@ -1,6 +1,7 @@
 ---
 title: Image (Legacy)
 description: Backwards compatible Image Optimization with the Legacy Image component.
+version: legacy
 ---
 
 Starting with Next.js 13, the `next/image` component was rewritten to improve both the performance and developer experience. In order to provide a backwards compatible upgrade solution, the old `next/image` was renamed to `next/legacy/image`.
@@ -453,7 +454,7 @@ The following Image Optimization cloud providers are included:
 
 If you need a different provider, you can use the [`loader`](#loader) prop with `next/legacy/image`.
 
-> Images can not be optimized at build time using [`output: 'export'`](/docs/pages/building-your-application/deploying/static-exports), only on-demand. To use `next/legacy/image` with `output: 'export'`, you will need to use a different loader than the default. [Read more in the discussion.](https://github.com/vercel/next.js/discussions/19065)
+> Images can not be optimized at build time using [`output: 'export'`](/docs/pages/guides/static-exports), only on-demand. To use `next/legacy/image` with `output: 'export'`, you will need to use a different loader than the default. [Read more in the discussion.](https://github.com/vercel/next.js/discussions/19065)
 
 ## Advanced
 

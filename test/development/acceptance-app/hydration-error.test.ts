@@ -92,7 +92,7 @@ describe('Error overlay for hydration errors in App router', () => {
                              ...",
        "description": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
-       "label": "Runtime Error",
+       "label": "Recoverable Error",
        "source": "app/page.js (6:7) @ Mismatch
      > 6 |       <main className="child">{isClient ? "client" : "server"}</main>
          |       ^",
@@ -167,7 +167,7 @@ describe('Error overlay for hydration errors in App router', () => {
                              ...",
        "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
-       "label": "Runtime Error",
+       "label": "Recoverable Error",
        "source": "app/page.js (6:20) @ Mismatch
      > 6 |       {isClient && <main className="only" />}
          |                    ^",
@@ -323,7 +323,7 @@ describe('Error overlay for hydration errors in App router', () => {
                              ...",
        "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
-       "label": "Runtime Error",
+       "label": "Recoverable Error",
        "source": "app/page.js (5:5) @ Mismatch
      > 5 |     <div className="parent">
          |     ^",
@@ -377,7 +377,7 @@ describe('Error overlay for hydration errors in App router', () => {
                              ...",
        "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
-       "label": "Runtime Error",
+       "label": "Recoverable Error",
        "source": "app/page.js (5:5) @ Mismatch
      > 5 |     <div className="parent">
          |     ^",
@@ -427,7 +427,7 @@ describe('Error overlay for hydration errors in App router', () => {
                              ...",
        "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
-       "label": "Runtime Error",
+       "label": "Recoverable Error",
        "source": "app/page.js (4:10) @ Mismatch
      > 4 |   return <div className="parent">{!isClient && "only"}</div>;
          |          ^",
@@ -517,7 +517,7 @@ describe('Error overlay for hydration errors in App router', () => {
                              ...",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Recoverable Error",
          "source": "app/page.js (4:5) @ Page
      > 4 |     <table>
          |     ^",
@@ -635,7 +635,7 @@ describe('Error overlay for hydration errors in App router', () => {
                          ...",
        "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
-       "label": "Runtime Error",
+       "label": "Recoverable Error",
        "source": "app/page.js (9:22) @ Mismatch
      >  9 |         {isClient && <main className="second" />}
           |                      ^",
@@ -738,7 +738,7 @@ describe('Error overlay for hydration errors in App router', () => {
        {
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Recoverable Error",
          "source": "app/page.js (6:7) @ Page
      > 6 |       <p>Nested p tags</p>
          |       ^",
@@ -817,7 +817,7 @@ describe('Error overlay for hydration errors in App router', () => {
        {
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Recoverable Error",
          "source": "app/page.js (8:11) @ Page
      >  8 |           <div>Nested div under p tag</div>
           |           ^",
@@ -886,7 +886,7 @@ describe('Error overlay for hydration errors in App router', () => {
        {
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Recoverable Error",
          "source": "app/page.js (3:15) @ Page
      > 3 |   return <div><tr></tr></div>
          |               ^",
@@ -975,7 +975,7 @@ describe('Error overlay for hydration errors in App router', () => {
        {
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Recoverable Error",
          "source": "app/page.js (5:32) @ Page
      > 5 |     <p><span><span><span><span><p>hello world</p></span></span></span></span></p>
          |                                ^",

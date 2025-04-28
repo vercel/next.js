@@ -321,7 +321,8 @@ export const publicAppRouterInstance: AppRouterInstance = {
           href,
           actionQueue.state.nextUrl,
           actionQueue.state.tree,
-          options?.kind === PrefetchKind.FULL
+          options?.kind === PrefetchKind.FULL,
+          options?.onInvalidate ?? null
         )
       }
     : (href: string, options?: PrefetchOptions) => {

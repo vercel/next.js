@@ -17,7 +17,7 @@ const errorEntry = {
     const ts = getTs()
 
     if (!isClientEntry) {
-      // Error components must be Client components
+      // Error components must be Client Components
       return [
         {
           file: source,

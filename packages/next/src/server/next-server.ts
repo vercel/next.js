@@ -18,7 +18,6 @@ import type { Params } from './request/params'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './route-matches/route-match'
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { PagesAPIRouteModule } from './route-modules/pages-api/module'
 import type { UrlWithParsedQuery } from 'url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
@@ -39,7 +38,6 @@ import {
   APP_PATHS_MANIFEST,
   SERVER_DIRECTORY,
   NEXT_FONT_MANIFEST,
-  PHASE_PRODUCTION_BUILD,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   FUNCTIONS_CONFIG_MANIFEST,
 } from '../shared/lib/constants'
@@ -96,8 +94,7 @@ import { pipeToNodeResponse } from './pipe-readable'
 import { createRequestResponseMocks } from './lib/mock-request'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
-import { RouteModuleLoader } from './lib/module-loader/route-module-loader'
-import { loadManifest } from './load-manifest'
+import { loadManifest } from './load-manifest.external'
 import { lazyRenderAppPage } from './route-modules/app-page/module.render'
 import { lazyRenderPagesPage } from './route-modules/pages/module.render'
 import { interopDefault } from '../lib/interop-default'
@@ -113,6 +110,7 @@ import { initializeCacheHandlers, setCacheHandler } from './use-cache/handlers'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import { populateStaticEnv } from '../lib/static-env'
 import { isPostpone } from './lib/router-utils/is-postpone'
+import { NodeModuleLoader } from './lib/module-loader/node-module-loader'
 
 export * from './base-server'
 
@@ -378,6 +376,9 @@ export default class NextNodeServer extends BaseServer<
   }
 
   public async unstable_preloadEntries(): Promise<void> {
+    // Ensure prepare process will be finished before preloading entries.
+    await this.prepare()
+
     const appPathsManifest = this.getAppPathsManifest()
     const pagesManifest = this.getPagesManifest()
 
@@ -654,30 +655,24 @@ export default class NextNodeServer extends BaseServer<
         }
       }
     }
-
     // The module supports minimal mode, load the minimal module.
-    const module = await RouteModuleLoader.load<PagesAPIRouteModule>(
-      match.definition.filename
-    )
+    // Restore original URL as the handler handles it's own parsing
+    const parsedInitUrl = parseUrl(getRequestMeta(req, 'initURL') || req.url)
+    req.url = `${parsedInitUrl.pathname}${parsedInitUrl.search || ''}`
 
-    query = { ...query, ...match.params }
-
-    await module.render(req.originalRequest, res.originalResponse, {
-      previewProps: this.renderOpts.previewProps,
-      revalidate: this.revalidate.bind(this),
-      trustHostHeader: this.nextConfig.experimental.trustHostHeader,
-      allowedRevalidateHeaderKeys:
-        this.nextConfig.experimental.allowedRevalidateHeaderKeys,
-      hostname: this.fetchHostname,
-      minimalMode: this.minimalMode,
-      dev: this.renderOpts.dev === true,
-      query,
-      params: match.params,
-      page: match.definition.pathname,
-      onError: this.instrumentationOnRequestError.bind(this),
-      multiZoneDraftMode: this.nextConfig.experimental.multiZoneDraftMode,
+    const loader = new NodeModuleLoader()
+    const module = (await loader.load(match.definition.filename)) as {
+      handler: (
+        req: IncomingMessage,
+        res: ServerResponse,
+        ctx: {
+          waitUntil: ReturnType<BaseServer['getWaitUntil']>
+        }
+      ) => Promise<void>
+    }
+    await module.handler(req.originalRequest, res.originalResponse, {
+      waitUntil: this.getWaitUntil(),
     })
-
     return true
   }
 
@@ -1776,7 +1771,20 @@ export default class NextNodeServer extends BaseServer<
 
     parsedUrl.pathname = pathnameInfo.pathname
     const normalizedPathname = removeTrailingSlash(parsed.pathname || '')
-    if (!middleware.match(normalizedPathname, req, parsedUrl.query)) {
+    let maybeDecodedPathname = normalizedPathname
+
+    try {
+      maybeDecodedPathname = decodeURIComponent(normalizedPathname)
+    } catch {
+      /* non-fatal we can't decode so can't match it */
+    }
+
+    if (
+      !(
+        middleware.match(normalizedPathname, req, parsedUrl.query) ||
+        middleware.match(maybeDecodedPathname, req, parsedUrl.query)
+      )
+    ) {
       return handleFinished()
     }
 
@@ -1847,29 +1855,6 @@ export default class NextNodeServer extends BaseServer<
   private _cachedPreviewManifest: PrerenderManifest | undefined
   protected getPrerenderManifest(): PrerenderManifest {
     if (this._cachedPreviewManifest) {
-      return this._cachedPreviewManifest
-    }
-    if (
-      this.renderOpts?.dev ||
-      this.serverOptions?.dev ||
-      process.env.NODE_ENV === 'development' ||
-      process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD
-    ) {
-      this._cachedPreviewManifest = {
-        version: 4,
-        routes: {},
-        dynamicRoutes: {},
-        notFoundRoutes: [],
-        preview: {
-          previewModeId: require('crypto').randomBytes(16).toString('hex'),
-          previewModeSigningKey: require('crypto')
-            .randomBytes(32)
-            .toString('hex'),
-          previewModeEncryptionKey: require('crypto')
-            .randomBytes(32)
-            .toString('hex'),
-        },
-      }
       return this._cachedPreviewManifest
     }
 

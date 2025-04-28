@@ -2234,14 +2234,6 @@ export async function ncc_https_proxy_agent(task, opts) {
     .target('src/compiled/https-proxy-agent')
 }
 
-externals['@typescript/vfs'] = 'next/dist/compiled/@typescript/vfs'
-export async function ncc_typescript_vfs(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('@typescript/vfs')))
-    .ncc({ packageName: '@typescript/vfs', externals })
-    .target('src/compiled/@typescript/vfs')
-}
-
 export async function precompile(task, opts) {
   await task.parallel(
     ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets'],
@@ -2389,7 +2381,6 @@ export async function ncc(task, opts) {
         'ncc_opentelemetry_api',
         'ncc_http_proxy_agent',
         'ncc_https_proxy_agent',
-        'ncc_typescript_vfs',
         'ncc_mini_css_extract_plugin',
       ],
       opts

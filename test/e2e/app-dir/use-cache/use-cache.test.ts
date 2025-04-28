@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { format } from 'util'
-import { BrowserInterface } from 'next-webdriver'
+import { Playwright } from 'next-webdriver'
 import {
   createRenderResumeDataCache,
   RenderResumeDataCache,
@@ -915,7 +915,7 @@ describe('use-cache', () => {
   }
 })
 
-async function getSanitizedLogs(browser: BrowserInterface): Promise<string[]> {
+async function getSanitizedLogs(browser: Playwright): Promise<string[]> {
   const logs = await browser.log({ includeArgs: true })
 
   return logs.map(({ args }) =>

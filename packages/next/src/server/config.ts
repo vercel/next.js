@@ -3,6 +3,7 @@ import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
 import * as Log from '../build/output/log'
+import * as ciEnvironment from '../server/ci-info'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { defaultConfig, normalizeConfig } from './config-shared'
 import type {
@@ -234,7 +235,19 @@ function assignDefaults(
     )
   }
 
-  const result = { ...defaultConfig, ...config }
+  const result = {
+    ...defaultConfig,
+    ...config,
+    experimental: {
+      ...defaultConfig.experimental,
+      ...config.experimental,
+    },
+  }
+
+  // ensure correct default is set for api-resolver revalidate handling
+  if (!result.experimental?.trustHostHeader && ciEnvironment.hasNextSupport) {
+    result.experimental.trustHostHeader = true
+  }
 
   if (
     result.experimental?.allowDevelopmentBuild &&
@@ -976,9 +989,6 @@ function assignDefaults(
 
   const userProvidedOptimizePackageImports =
     result.experimental?.optimizePackageImports || []
-  if (!result.experimental) {
-    result.experimental = {}
-  }
 
   result.experimental.optimizePackageImports = [
     ...new Set([

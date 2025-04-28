@@ -3165,8 +3165,6 @@ pub enum ModulePart {
     RenamedNamespace { export: RcStr },
     /// A pointer to a specific part.
     Internal(u32),
-    /// A pointer to a specific part, but with evaluation.
-    InternalEvaluation(u32),
     /// The local declarations of a module.
     Locals,
     /// The whole exports of a module.
@@ -3200,10 +3198,6 @@ impl ModulePart {
         ModulePart::Internal(id)
     }
 
-    pub fn internal_evaluation(id: u32) -> Self {
-        ModulePart::InternalEvaluation(id)
-    }
-
     pub fn locals() -> Self {
         ModulePart::Locals
     }
@@ -3230,7 +3224,6 @@ impl Display for ModulePart {
                 write!(f, "export * as {}", export)
             }
             ModulePart::Internal(id) => write!(f, "internal part {}", id),
-            ModulePart::InternalEvaluation(id) => write!(f, "internal part {}", id),
             ModulePart::Locals => f.write_str("locals"),
             ModulePart::Exports => f.write_str("exports"),
             ModulePart::Facade => f.write_str("facade"),

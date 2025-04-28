@@ -131,7 +131,7 @@ describe('Client Navigation rendering', () => {
       if (isReact18 && isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Error: Circular structure in "getInitialProps" result of page "/circular-json-error". https://nextjs.org/docs/messages/circular-structure",
+           "description": "Circular structure in "getInitialProps" result of page "/circular-json-error". https://nextjs.org/docs/messages/circular-structure",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -143,7 +143,7 @@ describe('Client Navigation rendering', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Error: Circular structure in "getInitialProps" result of page "/circular-json-error". https://nextjs.org/docs/messages/circular-structure",
+           "description": "Circular structure in "getInitialProps" result of page "/circular-json-error". https://nextjs.org/docs/messages/circular-structure",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -161,7 +161,7 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: "InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://nextjs.org/docs/messages/get-initial-props-as-an-instance-method for more information.",
+         "description": ""InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://nextjs.org/docs/messages/get-initial-props-as-an-instance-method for more information.",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": null,
@@ -175,7 +175,7 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: "EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.",
+         "description": ""EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": null,
@@ -218,7 +218,7 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: The default export is not a React Component in page: "/no-default-export"",
+         "description": "The default export is not a React Component in page: "/no-default-export"",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": null,
@@ -233,7 +233,7 @@ describe('Client Navigation rendering', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Error: This is an expected error",
+           "description": "This is an expected error",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "pages/error-inside-page.js (2:9) @
@@ -248,7 +248,7 @@ describe('Client Navigation rendering', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Error: This is an expected error",
+           "description": "This is an expected error",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "pages/error-inside-page.js (2:9) @ default
@@ -271,9 +271,9 @@ describe('Client Navigation rendering', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "ReferenceError: aa is not defined",
+           "description": "aa is not defined",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Runtime ReferenceError",
            "source": "pages/error-in-the-global-scope.js (1:1) @ [project]/pages/error-in-the-global-scope.js [ssr] (ecmascript)
          > 1 | aa = 10 //eslint-disable-line
              | ^",
@@ -286,9 +286,9 @@ describe('Client Navigation rendering', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "ReferenceError: aa is not defined",
+           "description": "aa is not defined",
            "environmentLabel": null,
-           "label": "Runtime Error",
+           "label": "Runtime ReferenceError",
            "source": "pages/error-in-the-global-scope.js (1:1) @ eval
          > 1 | aa = 10 //eslint-disable-line
              | ^",
@@ -413,7 +413,7 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: An undefined error was thrown, see here for more info: https://nextjs.org/docs/messages/threw-undefined",
+         "description": "An undefined error was thrown, see here for more info: https://nextjs.org/docs/messages/threw-undefined",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": null,

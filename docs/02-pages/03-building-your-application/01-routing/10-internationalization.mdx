@@ -185,7 +185,7 @@ export async function middleware(req: NextRequest) {
 }
 ```
 
-This [Middleware](/docs/pages/building-your-application/routing/middleware) skips adding the default prefix to [API Routes](/docs/pages/building-your-application/routing/api-routes) and [public](/docs/pages/building-your-application/optimizing/static-assets) files like fonts or images. If a request is made to the default locale, we redirect to our prefix `/en`.
+This [Middleware](/docs/pages/building-your-application/routing/middleware) skips adding the default prefix to [API Routes](/docs/pages/building-your-application/routing/api-routes) and [public](/docs/pages/api-reference/file-conventions/public-folder) files like fonts or images. If a request is made to the default locale, we redirect to our prefix `/en`.
 
 ### Disabling Automatic Locale Detection
 
@@ -291,7 +291,7 @@ Next.js doesn't know about variants of a page so it's up to you to add the `href
 
 ## How does this work with Static Generation?
 
-> Note that Internationalized Routing does not integrate with [`output: 'export'`](/docs/pages/building-your-application/deploying/static-exports) as it does not leverage the Next.js routing layer. Hybrid Next.js applications that do not use `output: 'export'` are fully supported.
+> Note that Internationalized Routing does not integrate with [`output: 'export'`](/docs/pages/guides/static-exports) as it does not leverage the Next.js routing layer. Hybrid Next.js applications that do not use `output: 'export'` are fully supported.
 
 ### Dynamic Routes and `getStaticProps` Pages
 

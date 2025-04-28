@@ -4,6 +4,7 @@ use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
 use base64::Engine;
 use either::Either;
+use futures::try_join;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map as JsonMap, Value as JsonValue};
 use serde_with::serde_as;
@@ -361,18 +362,18 @@ pub struct LogInfo {
 #[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum InfoMessage {
-    FileDependency {
-        path: RcStr,
-    },
-    BuildDependency {
-        path: RcStr,
-    },
-    DirDependency {
-        path: RcStr,
-        glob: RcStr,
-    },
-    EnvDependency {
-        name: RcStr,
+    // Sent to inform Turbopack about the dependencies of the task.
+    // All fields are `default` since it is ok for the client to
+    // simply omit instead of sending empty arrays.
+    Dependencies {
+        #[serde(default)]
+        env_variables: Vec<RcStr>,
+        #[serde(default)]
+        file_paths: Vec<RcStr>,
+        #[serde(default)]
+        directories: Vec<(RcStr, RcStr)>,
+        #[serde(default)]
+        build_file_paths: Vec<RcStr>,
     },
     EmittedError {
         severity: IssueSeverity,
@@ -485,29 +486,60 @@ impl EvaluateContext for WebpackLoaderContext {
         pool: &NodeJsPool,
     ) -> Result<()> {
         match data {
-            InfoMessage::FileDependency { path } => {
-                // TODO We might miss some changes that happened during execution
-                // Read dependencies to make them a dependencies of this task. This task will
-                // execute again when they change.
-                self.cwd.join(path).read().await?;
-            }
-            InfoMessage::BuildDependency { path } => {
-                // TODO We might miss some changes that happened during execution
-                BuildDependencyIssue {
-                    context_ident: self.context_ident_for_issue,
-                    path: self.cwd.join(path).to_resolved().await?,
+            InfoMessage::Dependencies {
+                env_variables,
+                file_paths,
+                directories,
+                build_file_paths,
+            } => {
+                // Track dependencies of the loader task
+                // TODO: Because these are reported _after_ the loader actually read the dependency
+                // there is a race condition where we may miss updates that race
+                // with the loader execution.
+
+                // Track all the subscriptions in parallel, since certain loaders like tailwind
+                // might add thousands of subscriptions.
+                let env_subscriptions = env_variables
+                    .iter()
+                    .map(|e| self.env.read(e.clone()))
+                    .try_join();
+                let file_subscriptions = file_paths
+                    .iter()
+                    .map(|p| self.cwd.join(p.clone()).read())
+                    .try_join();
+                let directory_subscriptions = directories
+                    .iter()
+                    .map(|(dir, glob)| {
+                        // TODO: there is some redundancy between `dir_dependency` and what
+                        // `read_glob` does, Introduce a new read_glob
+                        // option that will track all files the way
+                        // `dir_dependency` does but in a single traversal.
+                        dir_dependency(
+                            self.cwd
+                                .join(dir.clone())
+                                .read_glob(Glob::new(glob.clone()), false),
+                        )
+                    })
+                    .try_join();
+                let build_paths = build_file_paths
+                    .iter()
+                    .map(|path| self.cwd.join(path.clone()).to_resolved())
+                    .try_join();
+                let (resolved_build_paths, ..) = try_join!(
+                    build_paths,
+                    env_subscriptions,
+                    file_subscriptions,
+                    directory_subscriptions
+                )?;
+
+                for build_path in resolved_build_paths {
+                    BuildDependencyIssue {
+                        context_ident: self.context_ident_for_issue,
+                        path: build_path,
+                    }
+                    .resolved_cell()
+                    .emit();
                 }
-                .resolved_cell()
-                .emit();
-            }
-            InfoMessage::DirDependency { path, glob } => {
-                // TODO We might miss some changes that happened during execution
-                // Read dependencies to make them a dependencies of this task. This task will
-                // execute again when they change.
-                dir_dependency(self.cwd.join(path).read_glob(Glob::new(glob), false)).await?;
-            }
-            InfoMessage::EnvDependency { name } => {
-                self.env.read(name).await?;
             }
             InfoMessage::EmittedError { error, severity } => {
                 EvaluateEmittedErrorIssue {

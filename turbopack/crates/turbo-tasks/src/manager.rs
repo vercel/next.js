@@ -306,7 +306,7 @@ pub struct UpdateInfo {
     placeholder_for_future_fields: (),
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum TaskPersistence {
     /// Tasks that may be persisted across sessions using serialization.
     Persistent,
@@ -796,7 +796,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         #[cfg(not(feature = "tokio_tracing"))]
         tokio::task::spawn(future);
 
-        RawVc::LocalOutput(parent_task_id, local_task_id)
+        RawVc::LocalOutput(parent_task_id, persistence, local_task_id)
     }
 
     fn begin_primary_job(&self) {
@@ -880,8 +880,8 @@ impl<B: Backend + 'static> TurboTasks<B> {
     /// Waits for the given task to finish executing. This works by performing an untracked read,
     /// and discarding the value of the task output.
     ///
-    /// [`ReadConsistency::Weak`] means that this will return after the task executes, but before
-    /// all dependencies have completely settled.
+    /// [`ReadConsistency::Eventual`] means that this will return after the task executes, but
+    /// before all dependencies have completely settled.
     ///
     /// [`ReadConsistency::Strong`] means that this will also wait for the task and all dependencies
     /// to fully settle before returning.
@@ -1826,14 +1826,12 @@ impl CurrentCellRef {
         }
     }
 
-    /// Replace the current cell's content with `new_value` if the current
-    /// content is not equal by value with the existing content.
+    /// Replace the current cell's content with `new_value` if the current content is not equal by
+    /// value with the existing content.
     ///
-    /// The comparison happens using the value itself, not the
-    /// [`VcRead::Target`] of that value.
+    /// The comparison happens using the value itself, not the [`VcRead::Target`] of that value.
     ///
-    /// Take this example of a custom equality implementation on a transparent
-    /// wrapper type:
+    /// Take this example of a custom equality implementation on a transparent wrapper type:
     ///
     /// ```
     /// #[turbo_tasks::value(transparent, eq = "manual")]
@@ -1852,17 +1850,15 @@ impl CurrentCellRef {
     /// impl Eq for Wrapper {}
     /// ```
     ///
-    /// Comparisons of `Vc<Wrapper>` used when updating the cell will use
-    /// `Wrapper`'s custom equality implementation, rather than the one
-    /// provided by the target (`Vec<u32>`) type.
+    /// Comparisons of [`Vc<Wrapper>`] used when updating the cell will use `Wrapper`'s custom
+    /// equality implementation, rather than the one provided by the target ([`Vec<u32>`]) type.
     ///
-    /// However, in most cases, the default derived implementation of
-    /// `PartialEq` is used which just forwards to the inner value's
-    /// `PartialEq`.
+    /// However, in most cases, the default derived implementation of [`PartialEq`] is used which
+    /// just forwards to the inner value's [`PartialEq`].
     ///
     /// If you already have a `SharedReference`, consider calling
-    /// [`compare_and_update_with_shared_reference`] which can re-use the
-    /// `SharedReference` object.
+    /// [`Self::compare_and_update_with_shared_reference`] which can re-use the [`SharedReference`]
+    /// object.
     pub fn compare_and_update<T>(&self, new_value: T)
     where
         T: PartialEq + VcValueType,

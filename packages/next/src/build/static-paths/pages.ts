@@ -98,8 +98,8 @@ export async function buildPagesStaticPaths({
         entry = `/${defaultLocale}${entry}`
       }
 
-      const result = _routeMatcher(cleanedEntry)
-      if (!result) {
+      const params = _routeMatcher(cleanedEntry)
+      if (!params) {
         throw new Error(
           `The provided path \`${cleanedEntry}\` does not match the page: \`${page}\`.`
         )
@@ -109,6 +109,7 @@ export async function buildPagesStaticPaths({
       // encoded so we decode the segments ensuring we only escape path
       // delimiters
       prerenderedRoutes.push({
+        params,
         pathname: entry
           .split('/')
           .map((segment) =>
@@ -119,6 +120,7 @@ export async function buildPagesStaticPaths({
         fallbackRouteParams: undefined,
         fallbackMode: parseStaticPathsResult(staticPathsResult.fallback),
         fallbackRootParams: undefined,
+        throwOnEmptyStaticShell: undefined,
       })
     }
     // For the object-provided path, we must make sure it specifies all
@@ -196,6 +198,7 @@ export async function buildPagesStaticPaths({
       const curLocale = entry.locale || defaultLocale || ''
 
       prerenderedRoutes.push({
+        params,
         pathname: normalizePathname(
           `${curLocale ? `/${curLocale}` : ''}${
             curLocale && builtPage === '/' ? '' : builtPage
@@ -209,6 +212,7 @@ export async function buildPagesStaticPaths({
         fallbackRouteParams: undefined,
         fallbackMode: parseStaticPathsResult(staticPathsResult.fallback),
         fallbackRootParams: undefined,
+        throwOnEmptyStaticShell: undefined,
       })
     }
   })
