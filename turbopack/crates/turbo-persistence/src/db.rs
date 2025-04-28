@@ -457,11 +457,7 @@ impl TurboPersistence {
         {
             let mut log = self.open_log()?;
             let time = Local::now();
-            writeln!(
-                log,
-                "Commit {seq:08} {}",
-                time.format("%YYYY-%mm-%dd %HH:%MM")
-            )?;
+            writeln!(log, "Commit {seq:08} {}", time.format("%Y-%m-%d %H:%M"))?;
             for sst in new_sst_files.iter() {
                 let index = sst.sequence_number();
                 let range = sst.range()?;
