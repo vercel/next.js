@@ -40,5 +40,3 @@ export function AsyncMetadataOutlet({
     </Suspense>
   )
 }
-
-export { ServerMetadataScript } from './server-inserted-metadata'
