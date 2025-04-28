@@ -5,6 +5,7 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterato
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tracing::Span;
+use turbo_persistence::interning_serde;
 use turbo_tasks::{SessionId, TaskId, backend::CachedTaskType, turbo_tasks_scope};
 
 use crate::{
@@ -18,6 +19,7 @@ use crate::{
             WriteBuffer,
         },
     },
+    interning_serde,
     utils::chunked_vec::ChunkedVec,
 };
 
@@ -45,7 +47,7 @@ fn pot_serialize_small_vec<T: Serialize>(value: &T) -> pot::Result<SmallVec<[u8;
     }
 
     let mut output = SmallVec::new();
-    POT_CONFIG.serialize_into(value, SmallVecWrite(&mut output))?;
+    interning_serde::to_writer(&POT_CONFIG, value, SmallVecWrite(&mut output))?;
     Ok(output)
 }
 
@@ -370,7 +372,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             tx: &D::ReadTransaction<'_>,
             task_type: &CachedTaskType,
         ) -> Result<Option<TaskId>> {
-            let task_type = POT_CONFIG.serialize(task_type)?;
+            let task_type = interning_serde::to_vec(&POT_CONFIG, task_type)?;
             let Some(bytes) = database.get(tx, KeySpace::ForwardTaskCache, &task_type)? else {
                 return Ok(None);
             };
@@ -517,8 +519,7 @@ fn serialize_task_type(
     task_id: u32,
 ) -> Result<()> {
     task_type_bytes.clear();
-    POT_CONFIG
-        .serialize_into(&**task_type, &mut task_type_bytes)
+    interning_serde::to_writer(&POT_CONFIG, task_type, &mut task_type_bytes)
         .with_context(|| anyhow!("Unable to serialize task {task_id} cache key {task_type:?}"))?;
     #[cfg(feature = "verify_serialization")]
     {
@@ -646,7 +647,7 @@ fn serialize(task: TaskId, data: &Vec<CachedDataItem>) -> Result<SmallVec<[u8; 1
 }
 
 fn deserialize_with_good_error<'de, T: Deserialize<'de>>(data: &'de [u8]) -> Result<T> {
-    match POT_CONFIG.deserialize(data) {
+    match interning_serde::from_slice(&POT_CONFIG, data)? {
         Ok(value) => Ok(value),
         Err(error) => serde_path_to_error::deserialize::<'_, _, T>(
             &mut pot_de_symbol_list().deserializer_for_slice(data)?,

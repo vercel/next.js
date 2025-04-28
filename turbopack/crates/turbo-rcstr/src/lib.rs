@@ -10,14 +10,15 @@ use std::{
 };
 
 use debug_unreachable::debug_unreachable;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use shrink_to_fit::ShrinkToFit;
 use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
+pub use crate::serde::{set_de_map, set_ser_map};
 use crate::{dynamic::new_atom, tagged_value::TaggedValue};
 
 mod dynamic;
+mod serde;
 mod tagged_value;
 
 /// An immutable reference counted [`String`], similar to [`Arc<String>`][std::sync::Arc].
@@ -277,19 +278,6 @@ impl Ord for RcStr {
 impl Hash for RcStr {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.as_str().hash(state);
-    }
-}
-
-impl Serialize for RcStr {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(self.as_str())
-    }
-}
-
-impl<'de> Deserialize<'de> for RcStr {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        Ok(RcStr::from(s))
     }
 }
 

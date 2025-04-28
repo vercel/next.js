@@ -8,6 +8,7 @@ mod backing_storage;
 mod data;
 mod data_storage;
 mod database;
+mod interning_serde;
 mod kv_backing_storage;
 mod utils;
 
