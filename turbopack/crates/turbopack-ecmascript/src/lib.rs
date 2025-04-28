@@ -1116,5 +1116,6 @@ pub fn register() {
     turbo_tasks::register();
     turbo_tasks_fs::register();
     turbopack_core::register();
+    turbo_esregex::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
