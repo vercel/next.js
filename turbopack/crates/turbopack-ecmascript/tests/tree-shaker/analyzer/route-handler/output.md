@@ -123,7 +123,7 @@ graph TD
     Export(
         "runtime",
     ): 2,
-    Exports: 3,
+    Exports: 2,
 }
 ```
 
@@ -147,25 +147,14 @@ export { };
 ```
 ## Part 1
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { NextResponse } from "next/server";
-export { NextResponse as b } from "__TURBOPACK_VAR__" assert {
+const runtime = "edge";
+export { runtime };
+export { runtime as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 2
-```js
-const runtime = "edge";
-export { runtime };
-export { runtime as c } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 3
 ```js
 export { GET } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export GET"
@@ -202,7 +191,7 @@ export { };
     Export(
         "runtime",
     ): 2,
-    Exports: 3,
+    Exports: 2,
 }
 ```
 
@@ -226,25 +215,14 @@ export { };
 ```
 ## Part 1
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { NextResponse } from "next/server";
-export { NextResponse as b } from "__TURBOPACK_VAR__" assert {
+const runtime = "edge";
+export { runtime };
+export { runtime as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 2
-```js
-const runtime = "edge";
-export { runtime };
-export { runtime as c } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 3
 ```js
 export { GET } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export GET"
