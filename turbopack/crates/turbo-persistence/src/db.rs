@@ -9,6 +9,7 @@ use std::{
         atomic::{AtomicBool, AtomicU32, Ordering},
         Arc,
     },
+    time::Instant,
 };
 
 use anyhow::{bail, Context, Result};
@@ -436,6 +437,9 @@ impl TurboPersistence {
         mut indicies_to_delete: Vec<usize>,
         mut seq: u32,
     ) -> Result<(), anyhow::Error> {
+        let time = Local::now();
+        let start = Instant::now();
+
         new_sst_files.sort_unstable_by_key(|(seq, _)| *seq);
 
         let mut new_sst_files = new_sst_files
@@ -450,34 +454,18 @@ impl TurboPersistence {
             file.sync_all()?;
         }
 
-        if !indicies_to_delete.is_empty() {
-            seq += 1;
-        }
-
-        {
-            let mut log = self.open_log()?;
-            let time = Local::now();
-            writeln!(log, "Commit {seq:08} {}", time.format("%Y-%m-%d %H:%M"))?;
-            for sst in new_sst_files.iter() {
-                let index = sst.sequence_number();
+        let new_sst_info = new_sst_files
+            .iter()
+            .map(|sst| {
+                let seq = sst.sequence_number();
                 let range = sst.range()?;
                 let size = sst.size();
-                writeln!(
-                    log,
-                    "{:08} SST family:{} {:016x}-{:016x} {} MiB",
-                    index,
-                    range.family,
-                    range.min_hash,
-                    range.max_hash,
-                    size / 1024 / 1024
-                )?;
-            }
-            for (seq, _) in new_blob_files.iter() {
-                writeln!(log, "{:08} BLOB", seq)?;
-            }
-            for index in indicies_to_delete.iter() {
-                writeln!(log, "{:08} DELETED", index)?;
-            }
+                Ok((seq, range.family, range.min_hash, range.max_hash, size))
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        if !indicies_to_delete.is_empty() {
+            seq += 1;
         }
 
         let removed_ssts;
@@ -517,6 +505,29 @@ impl TurboPersistence {
 
         for seq in removed_ssts {
             fs::remove_file(self.path.join(format!("{seq:08}.sst")))?;
+        }
+
+        {
+            let mut log = self.open_log()?;
+            writeln!(log, "Time {}", time.format("%Y-%m-%d %H:%M"))?;
+            writeln!(log, "Commit {seq:08} {:?}", start.elapsed())?;
+            for (index, family, min, max, size) in new_sst_info.iter() {
+                writeln!(
+                    log,
+                    "{:08} SST family:{} {:016x}-{:016x} {} MiB",
+                    index,
+                    family,
+                    min,
+                    max,
+                    size / 1024 / 1024
+                )?;
+            }
+            for (seq, _) in new_blob_files.iter() {
+                writeln!(log, "{:08} BLOB", seq)?;
+            }
+            for index in indicies_to_delete.iter() {
+                writeln!(log, "{:08} DELETED", index)?;
+            }
         }
 
         Ok(())
