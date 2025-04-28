@@ -11,7 +11,7 @@ import {
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
-import type { PrerenderManifest } from '../build'
+import type { PrerenderManifest, RoutesManifest } from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from './request/params'
@@ -1866,25 +1866,10 @@ export default class NextNodeServer extends BaseServer<
   }
 
   protected getRoutesManifest(): NormalizedRouteManifest | undefined {
-    return getTracer().trace(NextNodeServerSpan.getRoutesManifest, () => {
-      const manifest = loadManifest(join(this.distDir, ROUTES_MANIFEST)) as any
-
-      let rewrites = manifest.rewrites ?? {
-        beforeFiles: [],
-        afterFiles: [],
-        fallback: [],
-      }
-
-      if (Array.isArray(rewrites)) {
-        rewrites = {
-          beforeFiles: [],
-          afterFiles: rewrites,
-          fallback: [],
-        }
-      }
-
-      return { ...manifest, rewrites }
-    })
+    return getTracer().trace(
+      NextNodeServerSpan.getRoutesManifest,
+      () => loadManifest(join(this.distDir, ROUTES_MANIFEST)) as RoutesManifest
+    )
   }
 
   protected attachRequestMeta(
