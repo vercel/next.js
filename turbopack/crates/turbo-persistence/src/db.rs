@@ -2,7 +2,7 @@ use std::{
     any::{Any, TypeId},
     collections::HashSet,
     fs::{self, File, OpenOptions, ReadDir},
-    io::Write,
+    io::{BufWriter, Write},
     mem::{swap, transmute, MaybeUninit},
     path::{Path, PathBuf},
     sync::{
@@ -13,6 +13,7 @@ use std::{
 
 use anyhow::{bail, Context, Result};
 use byteorder::{ReadBytesExt, WriteBytesExt, BE};
+use chrono::Local;
 use lzzzz::lz4::decompress;
 use memmap2::Mmap;
 use parking_lot::{Mutex, RwLock};
@@ -287,6 +288,9 @@ impl TurboPersistence {
                     Some("CURRENT") => {
                         // Already read
                     }
+                    Some("LOG") => {
+                        // Ignored, write-only
+                    }
                     _ => {
                         if !path
                             .file_name()
@@ -393,6 +397,16 @@ impl TurboPersistence {
         Ok(WriteBatch::new(self.path.clone(), current))
     }
 
+    fn open_log(&self) -> Result<BufWriter<File>> {
+        let log_path = self.path.join("LOG");
+        let log_file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .append(true)
+            .open(log_path)?;
+        Ok(BufWriter::new(log_file))
+    }
+
     /// Commits a WriteBatch to the database. This will finish writing the data to disk and make it
     /// visible to readers.
     pub fn commit_write_batch<K: StoreKey + Send + Sync + 'static, const FAMILIES: usize>(
@@ -418,7 +432,7 @@ impl TurboPersistence {
     fn commit(
         &self,
         mut new_sst_files: Vec<(u32, File)>,
-        new_blob_files: Vec<File>,
+        new_blob_files: Vec<(u32, File)>,
         mut indicies_to_delete: Vec<usize>,
         mut seq: u32,
     ) -> Result<(), anyhow::Error> {
@@ -432,12 +446,42 @@ impl TurboPersistence {
             })
             .collect::<Result<Vec<_>>>()?;
 
-        for file in new_blob_files {
+        for (_, file) in new_blob_files.iter() {
             file.sync_all()?;
         }
 
         if !indicies_to_delete.is_empty() {
             seq += 1;
+        }
+
+        {
+            let mut log = self.open_log()?;
+            let time = Local::now();
+            writeln!(
+                log,
+                "Commit {seq:08} {}",
+                time.format("%YYYY-%mm-%dd %HH:%MM")
+            )?;
+            for sst in new_sst_files.iter() {
+                let index = sst.sequence_number();
+                let range = sst.range()?;
+                let size = sst.size();
+                writeln!(
+                    log,
+                    "{:08} SST family:{} {:016x}-{:016x} {} MiB",
+                    index,
+                    range.family,
+                    range.min_hash,
+                    range.max_hash,
+                    size / 1024 / 1024
+                )?;
+            }
+            for (seq, _) in new_blob_files.iter() {
+                writeln!(log, "{:08} BLOB", seq)?;
+            }
+            for index in indicies_to_delete.iter() {
+                writeln!(log, "{:08} DELETED", index)?;
+            }
         }
 
         let removed_ssts;
@@ -583,6 +627,7 @@ impl TurboPersistence {
         let value_block_cache = &self.value_block_cache;
         let path = &self.path;
 
+        let log_mutex = Mutex::new(());
         let result = sst_by_family
             .into_par_iter()
             .with_min_len(1)
@@ -603,6 +648,32 @@ impl TurboPersistence {
                         min_merge: 2,
                     },
                 );
+
+                if !merge_jobs.is_empty() {
+                    let guard = log_mutex.lock();
+                    let mut log = self.open_log()?;
+                    writeln!(
+                        log,
+                        "Compaction for family {family} (coverage: {coverage}):"
+                    )?;
+                    for job in merge_jobs.iter() {
+                        writeln!(log, "  merge")?;
+                        for i in job.iter() {
+                            let index = ssts_with_ranges[*i].index;
+                            let (min, max) = ssts_with_ranges[*i].range();
+                            writeln!(log, "    {index:08} {min:016x}-{max:016x}")?;
+                        }
+                    }
+                    if !move_jobs.is_empty() {
+                        writeln!(log, "  move")?;
+                        for i in move_jobs.iter() {
+                            let index = ssts_with_ranges[*i].index;
+                            let (min, max) = ssts_with_ranges[*i].range();
+                            writeln!(log, "    {index:08} {min:016x}-{max:016x}")?;
+                        }
+                    }
+                    drop(guard);
+                }
 
                 // Later we will remove the merged and moved files
                 let indicies_to_delete = merge_jobs

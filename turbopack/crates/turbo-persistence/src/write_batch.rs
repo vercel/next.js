@@ -33,14 +33,14 @@ struct ThreadLocalState<K: StoreKey + Send, const FAMILIES: usize> {
     /// The list of new SST files that have been created.
     new_sst_files: Vec<(u32, File)>,
     /// The list of new blob files that have been created.
-    new_blob_files: Vec<File>,
+    new_blob_files: Vec<(u32, File)>,
 }
 
 /// The result of a `WriteBatch::finish` operation.
 pub(crate) struct FinishResult {
     pub(crate) sequence_number: u32,
     pub(crate) new_sst_files: Vec<(u32, File)>,
-    pub(crate) new_blob_files: Vec<File>,
+    pub(crate) new_blob_files: Vec<(u32, File)>,
 }
 
 /// A write batch.
@@ -121,7 +121,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         } else {
             let (blob, file) = self.create_blob(&value)?;
             collector.put_blob(key, blob);
-            state.new_blob_files.push(file);
+            state.new_blob_files.push((blob, file));
         }
         Ok(())
     }
