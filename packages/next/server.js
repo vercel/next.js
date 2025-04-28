@@ -15,6 +15,7 @@ const serverExports = {
   connection: require('next/dist/server/request/connection').connection,
   unstable_rootParams: require('next/dist/server/request/root-params')
     .unstable_rootParams,
+  metrics: require('next/dist/server/response/metrics').metrics,
 }
 
 // https://nodejs.org/api/esm.html#commonjs-namespaces
@@ -31,3 +32,4 @@ exports.URLPattern = serverExports.URLPattern
 exports.after = serverExports.after
 exports.connection = serverExports.connection
 exports.unstable_rootParams = serverExports.unstable_rootParams
+exports.metrics = serverExports.metrics
