@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { cloneElement, useEffect, useRef, useState } from 'react'
 
 interface Point {
@@ -26,11 +25,9 @@ export function Draggable({
 }) {
   const { ref, animate, animating, ...drag } = useDrag({
     onDragEnd: (translation, velocity) => {
-      const decelerationRate = 0.999
-
       const projectedPosition = {
-        x: translation.x + project(velocity.x, decelerationRate),
-        y: translation.y + project(velocity.y, decelerationRate),
+        x: translation.x + project(velocity.x),
+        y: translation.y + project(velocity.y),
       }
 
       const nearestCorner = getNearestCorner(projectedPosition)
@@ -128,33 +125,41 @@ interface Velocity {
 }
 
 export function useDrag(options: UseDragOptions = {}) {
+  // How many px to move before we initiate dragging
   const { threshold = 10 } = options
 
-  const ref = useRef<HTMLDivElement | null>(null)
-  const dragging = useRef(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const state = useRef<'idle' | 'press' | 'drag'>('idle')
+
+  const origin = useRef<Point>({ x: 0, y: 0 })
   const translation = useRef<Point>({ x: 0, y: 0 })
   const lastTimestamp = useRef(0)
   const velocities = useRef<Velocity[]>([])
   const [animating, setAnimating] = useState(false)
 
-  // Refs to track previous pointer position for delta calculations
-  const prevClientXRef = useRef(0)
-  const prevClientYRef = useRef(0)
-
   useEffect(() => {
-    function onGlobalPointerMove(e: PointerEvent) {
-      if (!dragging.current) return
-      console.log('move')
+    function onPointerMove(e: PointerEvent) {
+      if (state.current === 'press') {
+        const dx = e.clientX - origin.current.x
+        const dy = e.clientY - origin.current.y
+        const distance = Math.sqrt(dx * dx + dy * dy)
+
+        if (state.current === 'press' && distance >= threshold) {
+          state.current = 'drag'
+          ref.current!.style.pointerEvents = 'none'
+          ref.current?.setPointerCapture(e.pointerId)
+        }
+      }
+
+      if (state.current !== 'drag') return
+
       const currentPosition = { x: e.clientX, y: e.clientY }
       const now = Date.now()
 
-      const dx = e.clientX - prevClientXRef.current
-      const dy = e.clientY - prevClientYRef.current
-      // Update previous position refs
-      prevClientXRef.current = e.clientX
-      prevClientYRef.current = e.clientY
+      const dx = currentPosition.x - origin.current.x
+      const dy = currentPosition.y - origin.current.y
+      origin.current = currentPosition
 
-      // Calculate new translation based on dx and dy
       const newTranslation = {
         x: translation.current.x + dx,
         y: translation.current.y + dy,
@@ -176,11 +181,12 @@ export function useDrag(options: UseDragOptions = {}) {
       options.onDrag?.(translation.current)
     }
 
-    window.addEventListener('pointermove', onGlobalPointerMove)
+    window.addEventListener('pointermove', onPointerMove)
 
     return () => {
-      window.removeEventListener('pointermove', onGlobalPointerMove)
+      window.removeEventListener('pointermove', onPointerMove)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function set(position: Point) {
@@ -207,16 +213,14 @@ export function useDrag(options: UseDragOptions = {}) {
   }
 
   function onPointerDown(e: React.PointerEvent) {
-    prevClientXRef.current = e.clientX
-    prevClientYRef.current = e.clientY
-    dragging.current = true
-    setAnimating(false)
+    origin.current = { x: e.clientX, y: e.clientY }
+    state.current = 'press'
     e.preventDefault()
   }
 
   function onPointerUp(e: React.PointerEvent) {
-    dragging.current = false
-    console.log(velocities.current)
+    state.current = 'idle'
+    ref.current!.style.pointerEvents = ''
     const velocity = calculateVelocity(velocities.current)
     options.onDragEnd?.(translation.current, velocity)
     velocities.current = []
@@ -226,21 +230,14 @@ export function useDrag(options: UseDragOptions = {}) {
   }
 
   function onPointerCancel() {
-    dragging.current = false
+    state.current = 'idle'
     velocities.current = []
-  }
-
-  function onPointerMove(e: React.PointerEvent) {
-    if (dragging.current && ref.current) {
-      ref.current.setPointerCapture(e.pointerId)
-    }
   }
 
   return {
     ref,
     onPointerDown,
     onPointerUp,
-    onPointerMove,
     onPointerCancel,
     animate,
     animating,
@@ -249,8 +246,8 @@ export function useDrag(options: UseDragOptions = {}) {
 
 // Helper function to calculate velocity from position history
 function calculateVelocity(
-  history: Array<{ position: Position; timestamp: number }>
-): Position {
+  history: Array<{ position: Point; timestamp: number }>
+): Point {
   if (history.length < 2) {
     return { x: 0, y: 0 }
   }
@@ -282,23 +279,6 @@ function calculateVelocity(
   }
 }
 
-function getRelativeCoordinates(target, reference) {
-  const targetRect = target.getBoundingClientRect()
-  const referenceRect = reference.getBoundingClientRect()
-
-  const x = targetRect.left - referenceRect.left
-  const y = targetRect.top - referenceRect.top
-
-  return { x, y }
-}
-
-function relativeVelocity(velocity, currentValue, targetValue) {
-  if (currentValue === targetValue) {
-    return 0
-  }
-  return velocity / (targetValue - currentValue)
-}
-
-function project(initialVelocity, decelerationRate) {
+function project(initialVelocity: number, decelerationRate = 0.999) {
   return ((initialVelocity / 1000) * decelerationRate) / (1 - decelerationRate)
 }
