@@ -68,7 +68,8 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
         )
       } else {
         const diagnostic = diagnostics[0]
-        // TODO: get correct start
+        // This works because the fixtures ensure the export node to come first,
+        // e.g. export { ... } to be above the declaration.
         const start = diagnostic.file.getFullText().indexOf('metadata')
 
         if (diagnostic.start !== start) {
@@ -108,7 +109,8 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
       } else {
         const diagnostic = diagnostics[0]
         const isAsync = tsFile.includes('async')
-        // TODO: get correct start
+        // This works because the fixtures ensure the export node to come first,
+        // e.g. export { ... } to be above the declaration.
         const start = diagnostic.file.getFullText().indexOf('generateMetadata')
 
         if (diagnostic.start !== start) {
