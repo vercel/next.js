@@ -68,6 +68,7 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
         )
       } else {
         const diagnostic = diagnostics[0]
+        // Use lastIndexOf to match export { ... }
         const start = diagnostic.file.getFullText().lastIndexOf('metadata')
 
         if (diagnostic.start !== start) {
@@ -107,6 +108,7 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
       } else {
         const diagnostic = diagnostics[0]
         const isAsync = tsFile.includes('async')
+        // Use lastIndexOf to match export { ... }
         const start = diagnostic.file
           .getFullText()
           .lastIndexOf('generateMetadata')
