@@ -6,14 +6,13 @@ export type ToastProps = React.HTMLProps<HTMLDivElement> & {
   className?: string
 }
 
-export const Toast: React.FC<ToastProps> = function Toast({
-  onClick,
-  children,
-  className,
-  ...props
-}) {
+export const Toast: React.FC<ToastProps> = React.forwardRef(function Toast(
+  { onClick, children, className, ...props },
+  ref
+) {
   return (
     <div
+      ref={ref}
       {...props}
       onClick={(e) => {
         if (!(e.target as HTMLElement).closest('a')) {
@@ -26,4 +25,4 @@ export const Toast: React.FC<ToastProps> = function Toast({
       <div data-nextjs-toast-wrapper>{children}</div>
     </div>
   )
-}
+})

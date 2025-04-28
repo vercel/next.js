@@ -26,6 +26,10 @@ export const NextLogo = forwardRef(function NextLogo(
     onTriggerClick,
     toggleErrorOverlay,
     scale = 1,
+    onPointerDown,
+    onPointerUp,
+    onPointerCancel,
+    onPointerMove,
     ...props
   }: Props,
   propRef: React.Ref<HTMLButtonElement>

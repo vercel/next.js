@@ -1,7 +1,15 @@
 import type { CSSProperties, Dispatch, SetStateAction } from 'react'
-import type { OverlayState } from '../../../../shared'
+import { STORAGE_KEY_POSITION, type OverlayState } from '../../../../shared'
 
-import { useState, useEffect, useRef, createContext, useContext } from 'react'
+import {
+  useState,
+  useEffect,
+  useRef,
+  createContext,
+  useContext,
+  useCallback,
+  useMemo,
+} from 'react'
 import { Toast } from '../../toast'
 import { NextLogo } from './next-logo'
 import { useIsDevBuilding } from '../../../../../../dev/dev-build-indicator/internal/initialize'
@@ -21,6 +29,7 @@ import {
   getInitialPosition,
   type DevToolsScale,
 } from './dev-tools-info/preferences'
+import { Draggable } from './draggable'
 
 // TODO: add E2E tests to cover different scenarios
 
@@ -82,6 +91,8 @@ const OVERLAYS = {
 } as const
 
 export type Overlays = (typeof OVERLAYS)[keyof typeof OVERLAYS]
+
+const INDICATOR_PADDING = 20
 
 function DevToolsPopover({
   routerType,
@@ -250,141 +261,147 @@ function DevToolsPopover({
   const popover = { [vertical]: 'calc(100% + 8px)', [horizontal]: 0 }
 
   return (
-    <Toast
-      data-nextjs-toast
-      style={
-        {
-          '--animate-out-duration-ms': `${MENU_DURATION_MS}ms`,
-          '--animate-out-timing-function': MENU_CURVE,
-          boxShadow: 'none',
-          zIndex: 2147483647,
-          // Reset the toast component's default positions.
-          bottom: 'initial',
-          left: 'initial',
-          [vertical]: '20px',
-          [horizontal]: '20px',
-        } as CSSProperties
-      }
+    <Draggable
+      padding={INDICATOR_PADDING}
+      position={position}
+      setPosition={(p) => {
+        localStorage.setItem(STORAGE_KEY_POSITION, p)
+        setPosition(p)
+      }}
     >
-      {/* Trigger */}
-      <NextLogo
-        ref={triggerRef}
-        aria-haspopup="menu"
-        aria-expanded={isMenuOpen}
-        aria-controls="nextjs-dev-tools-menu"
-        aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
-        data-nextjs-dev-tools-button
-        disabled={disabled}
-        issueCount={issueCount}
-        onTriggerClick={onTriggerClick}
-        toggleErrorOverlay={toggleErrorOverlay}
-        isDevBuilding={useIsDevBuilding()}
-        isDevRendering={useIsDevRendering()}
-        isBuildError={isBuildError}
-        scale={scale}
-      />
+      <Toast
+        data-nextjs-toast
+        style={
+          {
+            '--animate-out-duration-ms': `${MENU_DURATION_MS}ms`,
+            '--animate-out-timing-function': MENU_CURVE,
+            boxShadow: 'none',
+            zIndex: 2147483647,
+            [vertical]: `${INDICATOR_PADDING}px`,
+            [horizontal]: `${INDICATOR_PADDING}px`,
+          } as CSSProperties
+        }
+      >
+        {/* Trigger */}
+        <NextLogo
+          ref={triggerRef}
+          aria-haspopup="menu"
+          aria-expanded={isMenuOpen}
+          aria-controls="nextjs-dev-tools-menu"
+          aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
+          data-nextjs-dev-tools-button
+          disabled={disabled}
+          issueCount={issueCount}
+          onTriggerClick={onTriggerClick}
+          toggleErrorOverlay={toggleErrorOverlay}
+          isDevBuilding={useIsDevBuilding()}
+          isDevRendering={useIsDevRendering()}
+          isBuildError={isBuildError}
+          scale={scale}
+        />
 
-      {/* Route Info */}
-      <RouteInfo
-        isOpen={isRouteInfoOpen}
-        close={openRootMenu}
-        triggerRef={triggerRef}
-        style={popover}
-        routerType={routerType}
-        routeType={isStaticRoute ? 'Static' : 'Dynamic'}
-      />
-
-      {/* Turbopack Info */}
-      <TurbopackInfo
-        isOpen={isTurbopackInfoOpen}
-        close={openRootMenu}
-        triggerRef={triggerRef}
-        style={popover}
-      />
-
-      {/* Preferences */}
-      <UserPreferences
-        isOpen={isPreferencesOpen}
-        close={openRootMenu}
-        triggerRef={triggerRef}
-        style={popover}
-        hide={handleHideDevtools}
-        setPosition={setPosition}
-        position={position}
-        scale={scale}
-        setScale={setScale}
-      />
-
-      {/* Dropdown Menu */}
-      {menuMounted && (
-        <div
-          ref={menuRef}
-          id="nextjs-dev-tools-menu"
-          role="menu"
-          dir="ltr"
-          aria-orientation="vertical"
-          aria-label="Next.js Dev Tools Items"
-          tabIndex={-1}
-          className="dev-tools-indicator-menu"
-          onKeyDown={onMenuKeydown}
-          data-rendered={menuRendered}
+        {/* Route Info */}
+        <RouteInfo
+          isOpen={isRouteInfoOpen}
+          close={openRootMenu}
+          triggerRef={triggerRef}
           style={popover}
-        >
-          <Context.Provider
-            value={{
-              closeMenu,
-              selectedIndex,
-              setSelectedIndex,
-            }}
-          >
-            <div className="dev-tools-indicator-inner">
-              {issueCount > 0 && (
-                <MenuItem
-                  title={`${issueCount} ${issueCount === 1 ? 'issue' : 'issues'} found. Click to view details in the dev overlay.`}
-                  index={0}
-                  label="Issues"
-                  value={<IssueCount>{issueCount}</IssueCount>}
-                  onClick={openErrorOverlay}
-                />
-              )}
-              <MenuItem
-                title={`Current route is ${isStaticRoute ? 'static' : 'dynamic'}.`}
-                label="Route"
-                index={1}
-                value={isStaticRoute ? 'Static' : 'Dynamic'}
-                onClick={() => setOpen(OVERLAYS.Route)}
-                data-nextjs-route-type={isStaticRoute ? 'static' : 'dynamic'}
-              />
-              {isTurbopack ? (
-                <MenuItem
-                  title="Turbopack is enabled."
-                  label="Turbopack"
-                  value="Enabled"
-                />
-              ) : (
-                <MenuItem
-                  index={2}
-                  title="Learn about Turbopack and how to enable it in your application."
-                  label="Try Turbopack"
-                  value={<ChevronRight />}
-                  onClick={() => setOpen(OVERLAYS.Turbo)}
-                />
-              )}
-            </div>
+          routerType={routerType}
+          routeType={isStaticRoute ? 'Static' : 'Dynamic'}
+        />
 
-            <div className="dev-tools-indicator-footer">
-              <MenuItem
-                data-preferences
-                label="Preferences"
-                value={<GearIcon />}
-                onClick={() => setOpen(OVERLAYS.Preferences)}
-                index={isTurbopack ? 2 : 3}
-              />
-            </div>
-          </Context.Provider>
-        </div>
-      )}
-    </Toast>
+        {/* Turbopack Info */}
+        <TurbopackInfo
+          isOpen={isTurbopackInfoOpen}
+          close={openRootMenu}
+          triggerRef={triggerRef}
+          style={popover}
+        />
+
+        {/* Preferences */}
+        <UserPreferences
+          isOpen={isPreferencesOpen}
+          close={openRootMenu}
+          triggerRef={triggerRef}
+          style={popover}
+          hide={handleHideDevtools}
+          setPosition={setPosition}
+          position={position}
+          scale={scale}
+          setScale={setScale}
+        />
+
+        {/* Dropdown Menu */}
+        {menuMounted && (
+          <div
+            ref={menuRef}
+            id="nextjs-dev-tools-menu"
+            role="menu"
+            dir="ltr"
+            aria-orientation="vertical"
+            aria-label="Next.js Dev Tools Items"
+            tabIndex={-1}
+            className="dev-tools-indicator-menu"
+            onKeyDown={onMenuKeydown}
+            data-rendered={menuRendered}
+            style={popover}
+          >
+            <Context.Provider
+              value={{
+                closeMenu,
+                selectedIndex,
+                setSelectedIndex,
+              }}
+            >
+              <div className="dev-tools-indicator-inner">
+                {issueCount > 0 && (
+                  <MenuItem
+                    title={`${issueCount} ${issueCount === 1 ? 'issue' : 'issues'} found. Click to view details in the dev overlay.`}
+                    index={0}
+                    label="Issues"
+                    value={<IssueCount>{issueCount}</IssueCount>}
+                    onClick={openErrorOverlay}
+                  />
+                )}
+                <MenuItem
+                  title={`Current route is ${isStaticRoute ? 'static' : 'dynamic'}.`}
+                  label="Route"
+                  index={1}
+                  value={isStaticRoute ? 'Static' : 'Dynamic'}
+                  onClick={() => setOpen(OVERLAYS.Route)}
+                  data-nextjs-route-type={isStaticRoute ? 'static' : 'dynamic'}
+                />
+                {isTurbopack ? (
+                  <MenuItem
+                    title="Turbopack is enabled."
+                    label="Turbopack"
+                    value="Enabled"
+                  />
+                ) : (
+                  <MenuItem
+                    index={2}
+                    title="Learn about Turbopack and how to enable it in your application."
+                    label="Try Turbopack"
+                    value={<ChevronRight />}
+                    onClick={() => setOpen(OVERLAYS.Turbo)}
+                  />
+                )}
+              </div>
+
+              <div className="dev-tools-indicator-footer">
+                <MenuItem
+                  data-preferences
+                  label="Preferences"
+                  value={<GearIcon />}
+                  onClick={() => setOpen(OVERLAYS.Preferences)}
+                  index={isTurbopack ? 2 : 3}
+                />
+              </div>
+            </Context.Provider>
+          </div>
+        )}
+      </Toast>
+    </Draggable>
   )
 }
 
