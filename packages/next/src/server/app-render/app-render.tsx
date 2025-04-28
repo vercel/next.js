@@ -2848,6 +2848,7 @@ async function prerenderToStream(
             clientReferenceManifest
           )
 
+          const clientCacheSignal = new CacheSignal()
           const initialClientController = new AbortController()
           const initialClientPrerenderStore: PrerenderStore = {
             type: 'prerender',
@@ -2856,7 +2857,7 @@ async function prerenderToStream(
             implicitTags,
             renderSignal: initialClientController.signal,
             controller: initialClientController,
-            cacheSignal: null,
+            cacheSignal: clientCacheSignal,
             dynamicTracking: null,
             revalidate: INFINITE_CACHE,
             expire: INFINITE_CACHE,
@@ -2868,52 +2869,46 @@ async function prerenderToStream(
 
           const prerender = require('react-dom/static.edge')
             .prerender as (typeof import('react-dom/static.edge'))['prerender']
-          await prerenderAndAbortInSequentialTasks(
-            () =>
-              workUnitAsyncStorage.run(
-                initialClientPrerenderStore,
-                prerender,
-                <App
-                  reactServerStream={initialServerResult.asUnclosingStream()}
-                  preinitScripts={preinitScripts}
-                  clientReferenceManifest={clientReferenceManifest}
-                  ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-                  ServerInsertedMetadataProvider={
-                    ServerInsertedMetadataProvider
-                  }
-                  gracefullyDegrade={!!ctx.renderOpts.botType}
-                  nonce={nonce}
-                />,
-                {
-                  signal: initialClientController.signal,
-                  onError: (err) => {
-                    const digest = getDigestForWellKnownError(err)
+          const pendingInitialClientResult = workUnitAsyncStorage.run(
+            initialClientPrerenderStore,
+            prerender,
+            <App
+              reactServerStream={initialServerResult.asUnclosingStream()}
+              preinitScripts={preinitScripts}
+              clientReferenceManifest={clientReferenceManifest}
+              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+              ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
+              gracefullyDegrade={!!ctx.renderOpts.botType}
+              nonce={nonce}
+            />,
+            {
+              signal: initialClientController.signal,
+              onError: (err) => {
+                const digest = getDigestForWellKnownError(err)
 
-                    if (digest) {
-                      return digest
-                    }
-
-                    if (initialClientController.signal.aborted) {
-                      // These are expected errors that might error the prerender. we ignore them.
-                    } else if (
-                      process.env.NEXT_DEBUG_BUILD ||
-                      process.env.__NEXT_VERBOSE_LOGGING
-                    ) {
-                      // We don't normally log these errors because we are going to retry anyway but
-                      // it can be useful for debugging Next.js itself to get visibility here when needed
-                      printDebugThrownValueForProspectiveRender(
-                        err,
-                        workStore.route
-                      )
-                    }
-                  },
-                  bootstrapScripts: [bootstrapScript],
+                if (digest) {
+                  return digest
                 }
-              ),
-            () => {
-              initialClientController.abort()
+
+                if (initialClientController.signal.aborted) {
+                  // These are expected errors that might error the prerender. we ignore them.
+                } else if (
+                  process.env.NEXT_DEBUG_BUILD ||
+                  process.env.__NEXT_VERBOSE_LOGGING
+                ) {
+                  // We don't normally log these errors because we are going to retry anyway but
+                  // it can be useful for debugging Next.js itself to get visibility here when needed
+                  printDebugThrownValueForProspectiveRender(
+                    err,
+                    workStore.route
+                  )
+                }
+              },
+              bootstrapScripts: [bootstrapScript],
             }
-          ).catch((err) => {
+          )
+
+          pendingInitialClientResult.catch((err) => {
             if (
               initialServerRenderController.signal.aborted ||
               isPrerenderInterruptedError(err)
@@ -2928,6 +2923,11 @@ async function prerenderToStream(
               printDebugThrownValueForProspectiveRender(err, workStore.route)
             }
           })
+
+          // This is mostly for dynamic `import()`s (which are tracked on the CacheSignal via `trackDynamicImport`).
+          // Promises passed to client were already awaited above (assuming that they came from cached functions)
+          await clientCacheSignal.cacheReady()
+          initialClientController.abort()
         }
 
         let serverIsDynamic = false
