@@ -2015,6 +2015,7 @@ async function renderToStream(
       isStaticGeneration: generateStaticHTML,
       getServerInsertedHTML,
       getServerInsertedMetadata,
+      serveStreamingMetadata: !!ctx.renderOpts.serveStreamingMetadata,
       validateRootLayout,
     })
   } catch (err) {
@@ -2170,6 +2171,7 @@ async function renderToStream(
         }),
         getServerInsertedMetadata,
         validateRootLayout,
+        serveStreamingMetadata: !!ctx.renderOpts.serveStreamingMetadata,
       })
     } catch (finalErr: any) {
       if (
@@ -3636,6 +3638,7 @@ async function prerenderToStream(
             getServerInsertedHTML,
             getServerInsertedMetadata,
             validateRootLayout,
+            serveStreamingMetadata: !!ctx.renderOpts.serveStreamingMetadata,
           }),
           dynamicAccess: consumeDynamicAccess(
             serverDynamicTracking,
@@ -3965,6 +3968,7 @@ async function prerenderToStream(
           isStaticGeneration: true,
           getServerInsertedHTML,
           getServerInsertedMetadata,
+          serveStreamingMetadata: !!ctx.renderOpts.serveStreamingMetadata,
         }),
         // TODO: Should this include the SSR pass?
         collectedRevalidate: prerenderLegacyStore.revalidate,
@@ -4145,6 +4149,7 @@ async function prerenderToStream(
           }),
           getServerInsertedMetadata,
           validateRootLayout,
+          serveStreamingMetadata: !!ctx.renderOpts.serveStreamingMetadata,
         }),
         dynamicAccess: null,
         collectedRevalidate:

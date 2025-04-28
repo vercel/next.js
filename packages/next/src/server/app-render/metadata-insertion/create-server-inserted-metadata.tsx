@@ -15,11 +15,8 @@ const REINSERT_ICON_SCRIPT = `\
 document.querySelectorAll('body link[rel="icon"], body link[rel="apple-touch-icon"]').forEach(el => document.head.appendChild(el))`
 
 export function createServerInsertedMetadata(nonce: string | undefined) {
-  let metadataResolver: MetadataResolver | null = null
   let inserted = false
-  const setMetadataResolver = (resolver: MetadataResolver): void => {
-    metadataResolver = resolver
-  }
+  const setMetadataResolver = (_resolver: MetadataResolver): void => {}
 
   return {
     ServerInsertedMetadataProvider: ({
@@ -35,7 +32,7 @@ export function createServerInsertedMetadata(nonce: string | undefined) {
     },
 
     async getServerInsertedMetadata(): Promise<string> {
-      if (!metadataResolver || inserted) {
+      if (inserted) {
         return ''
       }
 

@@ -194,7 +194,7 @@ export function renderToInitialFizzStream({
 }
 
 function createBodySentInsertionTransformStream(
-  insert: () => Promise<string>
+  insert: () => Promise<string> | string
 ): TransformStream<Uint8Array, Uint8Array> {
   let inserted = false
   let isBodySent = false
@@ -564,6 +564,7 @@ export type ContinueStreamOptions = {
   isStaticGeneration: boolean
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
+  serveStreamingMetadata: boolean
   validateRootLayout?: boolean
   /**
    * Suffix to inject after the buffered data, but before the close tags.
@@ -580,6 +581,7 @@ export async function continueFizzStream(
     getServerInsertedHTML,
     getServerInsertedMetadata,
     validateRootLayout,
+    serveStreamingMetadata,
   }: ContinueStreamOptions
 ): Promise<ReadableStream<Uint8Array>> {
   // Suffix itself might contain close tags at the end, so we need to split it.
@@ -596,7 +598,9 @@ export async function continueFizzStream(
     createBufferedTransformStream(),
 
     // Insert generated metadata
-    createBodySentInsertionTransformStream(getServerInsertedMetadata),
+    serveStreamingMetadata
+      ? createBodySentInsertionTransformStream(getServerInsertedMetadata)
+      : null,
 
     // Insert suffix content
     suffixUnclosed != null && suffixUnclosed.length > 0

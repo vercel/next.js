@@ -38,10 +38,7 @@ import {
   METADATA_BOUNDARY_NAME,
   VIEWPORT_BOUNDARY_NAME,
 } from './metadata-constants'
-import {
-  AsyncMetadataOutlet,
-  ServerMetadataScript,
-} from '../../client/components/metadata/async-metadata'
+import { AsyncMetadataOutlet } from '../../client/components/metadata/async-metadata'
 import { isPostpone } from '../../server/lib/router-utils/is-postpone'
 import { createServerSearchParamsForMetadata } from '../../server/request/search-params'
 
@@ -211,7 +208,6 @@ export function createMetadataComponents({
       <div hidden>
         <Suspense fallback={null}>
           <MetadataResolver />
-          <ServerMetadataScript />
         </Suspense>
       </div>
     )
