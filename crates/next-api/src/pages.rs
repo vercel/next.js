@@ -795,6 +795,7 @@ impl PageEndpoint {
         let this = self.await?;
         let project = this.pages_project.project();
 
+        let should_trace = project.next_mode().await?.is_production();
         if *project.per_page_module_graph().await? {
             let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
             // Implements layout segment optimization to compute a graph "chain" for document, app,
@@ -811,6 +812,7 @@ impl PageEndpoint {
                 let graph = SingleModuleGraph::new_with_entries_visited_intern(
                     vec![ChunkGroupEntry::Shared(module)],
                     visited_modules,
+                    should_trace,
                 );
                 graphs.push(graph);
                 visited_modules = visited_modules.concatenate(graph);
@@ -819,6 +821,7 @@ impl PageEndpoint {
             let graph = SingleModuleGraph::new_with_entries_visited_intern(
                 vec![ChunkGroupEntry::Entry(vec![ssr_chunk_module.ssr_module])],
                 visited_modules,
+                should_trace,
             );
             graphs.push(graph);
 

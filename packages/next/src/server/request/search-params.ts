@@ -449,7 +449,7 @@ export function makeErroringExoticSearchParamsForUseCache(
   const promise = Promise.resolve({})
 
   const proxiedPromise = new Proxy(promise, {
-    get(target, prop, receiver) {
+    get: function get(target, prop, receiver) {
       if (Object.hasOwn(promise, prop)) {
         // The promise has this property directly. we must return it. We know it
         // isn't a dynamic access because it can only be something that was
@@ -462,12 +462,12 @@ export function makeErroringExoticSearchParamsForUseCache(
         typeof prop === 'string' &&
         (prop === 'then' || !wellKnownProperties.has(prop))
       ) {
-        throwForSearchParamsAccessInUseCache(workStore)
+        throwForSearchParamsAccessInUseCache(workStore, get)
       }
 
       return ReflectAdapter.get(target, prop, receiver)
     },
-    has(target, prop) {
+    has: function has(target, prop) {
       // We don't expect key checking to be used except for testing the existence of
       // searchParams so we make all has tests throw an error. this means that `promise.then`
       // can resolve to the then function on the Promise prototype but 'then' in promise will assume
@@ -476,13 +476,13 @@ export function makeErroringExoticSearchParamsForUseCache(
         typeof prop === 'string' &&
         (prop === 'then' || !wellKnownProperties.has(prop))
       ) {
-        throwForSearchParamsAccessInUseCache(workStore)
+        throwForSearchParamsAccessInUseCache(workStore, has)
       }
 
       return ReflectAdapter.has(target, prop)
     },
-    ownKeys() {
-      throwForSearchParamsAccessInUseCache(workStore)
+    ownKeys: function ownKeys() {
+      throwForSearchParamsAccessInUseCache(workStore, ownKeys)
     },
   })
 
