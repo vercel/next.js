@@ -279,8 +279,6 @@ mod tests {
             })
             .collect::<Vec<_>>();
 
-        let mut number_of_compactions = 0;
-
         for _ in 0..100 {
             let coverage = total_coverage(&containers, (0, 10000));
 
@@ -292,7 +290,6 @@ mod tests {
                 let jobs = get_compaction_jobs(&containers, &config);
                 if !jobs.is_empty() {
                     do_compact(&mut containers, jobs);
-                    number_of_compactions += 1;
                 }
             }
 
