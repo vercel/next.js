@@ -186,60 +186,71 @@ function makeAbortingExoticSearchParams(
 
   const promise = makeHangingPromise<SearchParams>(
     prerenderStore.renderSignal,
-    '`searchParams`'
-  )
-
-  const proxiedPromise = new Proxy(promise, {
-    get(target, prop, receiver) {
-      if (Object.hasOwn(promise, prop)) {
-        // The promise has this property directly. we must return it.
-        // We know it isn't a dynamic access because it can only be something
-        // that was previously written to the promise and thus not an underlying searchParam value
-        return ReflectAdapter.get(target, prop, receiver)
-      }
-
-      switch (prop) {
-        case 'then': {
-          const expression =
-            '`await searchParams`, `searchParams.then`, or similar'
-          annotateDynamicAccess(expression, prerenderStore)
-          return ReflectAdapter.get(target, prop, receiver)
-        }
-        case 'status': {
-          const expression =
-            '`use(searchParams)`, `searchParams.status`, or similar'
-          annotateDynamicAccess(expression, prerenderStore)
+    '`searchParams`',
+    {
+      get(target, prop, receiver) {
+        if (Object.hasOwn(promise, prop)) {
+          // The promise has this property directly. we must return it.
+          // We know it isn't a dynamic access because it can only be something
+          // that was previously written to the promise and thus not an underlying searchParam value
           return ReflectAdapter.get(target, prop, receiver)
         }
 
-        default: {
-          if (typeof prop === 'string' && !wellKnownProperties.has(prop)) {
-            const expression = describeStringPropertyAccess(
-              'searchParams',
-              prop
-            )
-            const error = createSearchAccessError(route, expression)
-            abortAndThrowOnSynchronousRequestDataAccess(
-              route,
-              expression,
-              error,
-              prerenderStore
-            )
+        switch (prop) {
+          case 'then': {
+            const expression =
+              '`await searchParams`, `searchParams.then`, or similar'
+            annotateDynamicAccess(expression, prerenderStore)
+            return ReflectAdapter.get(target, prop, receiver)
           }
-          return ReflectAdapter.get(target, prop, receiver)
+          case 'status': {
+            const expression =
+              '`use(searchParams)`, `searchParams.status`, or similar'
+            annotateDynamicAccess(expression, prerenderStore)
+            return ReflectAdapter.get(target, prop, receiver)
+          }
+
+          default: {
+            if (typeof prop === 'string' && !wellKnownProperties.has(prop)) {
+              const expression = describeStringPropertyAccess(
+                'searchParams',
+                prop
+              )
+              const error = createSearchAccessError(route, expression)
+              abortAndThrowOnSynchronousRequestDataAccess(
+                route,
+                expression,
+                error,
+                prerenderStore
+              )
+            }
+            return ReflectAdapter.get(target, prop, receiver)
+          }
         }
-      }
-    },
-    has(target, prop) {
-      // We don't expect key checking to be used except for testing the existence of
-      // searchParams so we make all has tests trigger dynamic. this means that `promise.then`
-      // can resolve to the then function on the Promise prototype but 'then' in promise will assume
-      // you are testing whether the searchParams has a 'then' property.
-      if (typeof prop === 'string') {
-        const expression = describeHasCheckingStringProperty(
-          'searchParams',
-          prop
-        )
+      },
+      has(target, prop) {
+        // We don't expect key checking to be used except for testing the existence of
+        // searchParams so we make all has tests trigger dynamic. this means that `promise.then`
+        // can resolve to the then function on the Promise prototype but 'then' in promise will assume
+        // you are testing whether the searchParams has a 'then' property.
+        if (typeof prop === 'string') {
+          const expression = describeHasCheckingStringProperty(
+            'searchParams',
+            prop
+          )
+          const error = createSearchAccessError(route, expression)
+          abortAndThrowOnSynchronousRequestDataAccess(
+            route,
+            expression,
+            error,
+            prerenderStore
+          )
+        }
+        return ReflectAdapter.has(target, prop)
+      },
+      ownKeys() {
+        const expression =
+          '`{...searchParams}`, `Object.keys(searchParams)`, or similar'
         const error = createSearchAccessError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
@@ -247,24 +258,12 @@ function makeAbortingExoticSearchParams(
           error,
           prerenderStore
         )
-      }
-      return ReflectAdapter.has(target, prop)
-    },
-    ownKeys() {
-      const expression =
-        '`{...searchParams}`, `Object.keys(searchParams)`, or similar'
-      const error = createSearchAccessError(route, expression)
-      abortAndThrowOnSynchronousRequestDataAccess(
-        route,
-        expression,
-        error,
-        prerenderStore
-      )
-    },
-  })
+      },
+    }
+  )
 
-  CachedSearchParams.set(prerenderStore, proxiedPromise)
-  return proxiedPromise
+  CachedSearchParams.set(prerenderStore, promise)
+  return promise
 }
 
 function makeErroringExoticSearchParams(

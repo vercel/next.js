@@ -5,6 +5,13 @@ export type Timestamp = number
 
 export interface CacheEntry {
   /**
+   * The final cache key. This may differ from the cache key that was determined
+   * before the cache entry's value stream was started. During the cache entry
+   * generation we might encounter that cookies were read, which then need to be
+   * included in the final cache key.
+   */
+  key: string
+  /**
    * The ReadableStream can error and only have partial data so any cache
    * handlers need to handle this case and decide to keep the partial cache
    * around or not.
@@ -75,6 +82,9 @@ export interface CacheHandler {
   receiveExpiredTags(...tags: string[]): Promise<void>
 }
 
+// TODO: Maybe a cache handler should specify whether it is able to handle
+// reading cookies, and thus switching up cache keys on the fly, during cache
+// entry generation?
 export interface CacheHandlerV2 {
   /**
    * Retrieve a cache entry for the given cache key, if available.

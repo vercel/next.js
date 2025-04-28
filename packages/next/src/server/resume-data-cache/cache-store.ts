@@ -33,6 +33,7 @@ export type DecryptedBoundArgsCacheStore = CacheStore<string>
  * Serialized format for "use cache" entries
  */
 export interface UseCacheCacheStoreSerialized {
+  key: string
   value: string
   tags: string[]
   stale: number
@@ -45,7 +46,72 @@ export interface UseCacheCacheStoreSerialized {
  * A cache store specifically for "use cache" values that stores promises of
  * cache entries.
  */
-export type UseCacheCacheStore = CacheStore<Promise<CacheEntry>>
+export class UseCacheCacheStore {
+  private cacheEntries: Map<string, CacheEntry> = new Map()
+  private pendingSets: Map<string, Promise<string>> = new Map()
+
+  async set(
+    cacheKey: string,
+    pendingEntry: Promise<CacheEntry>
+  ): Promise<void> {
+    let resolvePendingPromise: (cacheKey: string) => void
+
+    this.pendingSets.set(
+      cacheKey,
+      new Promise<string>((resolve) => {
+        resolvePendingPromise = resolve
+      })
+    )
+
+    try {
+      const entry = await pendingEntry
+      this.setSync(entry)
+      resolvePendingPromise!(entry.key)
+    } catch {
+      resolvePendingPromise!(cacheKey)
+    } finally {
+      this.pendingSets.delete(cacheKey)
+    }
+  }
+
+  setSync(entry: CacheEntry): void {
+    this.cacheEntries.set(entry.key, entry)
+  }
+
+  async get(cacheKey: string): Promise<CacheEntry | undefined> {
+    const pendingPromise = this.pendingSets.get(cacheKey)
+
+    if (pendingPromise) {
+      cacheKey = await pendingPromise
+    }
+
+    return this.cacheEntries.get(cacheKey)
+  }
+
+  async keys(): Promise<MapIterator<string>> {
+    if (this.pendingSets.size > 0) {
+      await Promise.all([...this.pendingSets.values()])
+    }
+
+    return this.cacheEntries.keys()
+  }
+
+  async entries(): Promise<MapIterator<[string, CacheEntry]>> {
+    if (this.pendingSets.size > 0) {
+      await Promise.all([...this.pendingSets.values()])
+    }
+
+    return this.cacheEntries.entries()
+  }
+
+  async getSize(): Promise<number> {
+    if (this.pendingSets.size > 0) {
+      await Promise.all([...this.pendingSets.values()])
+    }
+
+    return this.cacheEntries.size
+  }
+}
 
 /**
  * Parses serialized cache entries into a UseCacheCacheStore
@@ -53,34 +119,37 @@ export type UseCacheCacheStore = CacheStore<Promise<CacheEntry>>
  * @returns A new UseCacheCacheStore containing the parsed entries
  */
 export function parseUseCacheCacheStore(
-  entries: Iterable<[string, UseCacheCacheStoreSerialized]>
+  values: Iterable<UseCacheCacheStoreSerialized>
 ): UseCacheCacheStore {
-  const store = new Map<string, Promise<CacheEntry>>()
+  const store = new UseCacheCacheStore()
 
-  for (const [
+  for (const {
     key,
-    { value, tags, stale, timestamp, expire, revalidate },
-  ] of entries) {
-    store.set(
+    value,
+    tags,
+    stale,
+    timestamp,
+    expire,
+    revalidate,
+  } of values) {
+    store.setSync({
       key,
-      Promise.resolve({
-        // Create a ReadableStream from the Uint8Array
-        value: new ReadableStream<Uint8Array>({
-          start(controller) {
-            // Enqueue the Uint8Array to the stream
-            controller.enqueue(stringToUint8Array(atob(value)))
+      // Create a ReadableStream from the Uint8Array
+      value: new ReadableStream<Uint8Array>({
+        start(controller) {
+          // Enqueue the Uint8Array to the stream
+          controller.enqueue(stringToUint8Array(atob(value)))
 
-            // Close the stream
-            controller.close()
-          },
-        }),
-        tags,
-        stale,
-        timestamp,
-        expire,
-        revalidate,
-      })
-    )
+          // Close the stream
+          controller.close()
+        },
+      }),
+      tags,
+      stale,
+      timestamp,
+      expire,
+      revalidate,
+    })
   }
 
   return store
@@ -92,42 +161,40 @@ export function parseUseCacheCacheStore(
  * @returns A promise that resolves to an array of key-value pairs with serialized values
  */
 export async function serializeUseCacheCacheStore(
-  entries: IterableIterator<[string, Promise<CacheEntry>]>
+  entries: Promise<IterableIterator<[string, CacheEntry]>>
 ): Promise<Array<[string, UseCacheCacheStoreSerialized] | null>> {
   return Promise.all(
-    Array.from(entries).map(([key, value]) => {
-      return value
-        .then(async (entry) => {
-          const [left, right] = entry.value.tee()
-          entry.value = right
+    Array.from(await entries).map(async ([key, entry]) => {
+      try {
+        const [left, right] = entry.value.tee()
+        entry.value = right
 
-          let binaryString: string = ''
+        let binaryString: string = ''
 
-          // We want to encode the value as a string, but we aren't sure if the
-          // value is a a stream of UTF-8 bytes or not, so let's just encode it
-          // as a string using base64.
-          for await (const chunk of left) {
-            binaryString += arrayBufferToString(chunk)
-          }
-
-          return [
+        // We want to encode the value as a string, but we aren't sure if the
+        // value is a a stream of UTF-8 bytes or not, so let's just encode it
+        // as a string using base64.
+        for await (const chunk of left) {
+          binaryString += arrayBufferToString(chunk)
+        }
+        return [
+          key,
+          {
             key,
-            {
-              // Encode the value as a base64 string.
-              value: btoa(binaryString),
-              tags: entry.tags,
-              stale: entry.stale,
-              timestamp: entry.timestamp,
-              expire: entry.expire,
-              revalidate: entry.revalidate,
-            },
-          ] satisfies [string, UseCacheCacheStoreSerialized]
-        })
-        .catch(() => {
-          // Any failed cache writes should be ignored as to not discard the
-          // entire cache.
-          return null
-        })
+            // Encode the value as a base64 string.
+            value: btoa(binaryString),
+            tags: entry.tags,
+            stale: entry.stale,
+            timestamp: entry.timestamp,
+            expire: entry.expire,
+            revalidate: entry.revalidate,
+          },
+        ] satisfies [string, UseCacheCacheStoreSerialized]
+      } catch {
+        // Any failed cache writes should be ignored as to not discard the
+        // entire cache.
+        return null
+      }
     })
   )
 }

@@ -39,6 +39,7 @@ export async function unstable_rootParams(): Promise<Params> {
   }
 
   switch (workUnitStore.type) {
+    // case 'cache-with-cookies':
     case 'unstable-cache':
     case 'cache': {
       throw new Error(

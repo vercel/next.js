@@ -127,15 +127,10 @@ describe('use-cache', () => {
     )
   })
 
-  it('should error when cookies/headers/draftMode is used inside "use cache"', async () => {
+  it('should error when headers is used inside "use cache"', async () => {
     const browser = await next.browser('/errors')
 
     await retry(async () => {
-      expect(await browser.elementById('cookies').text()).toContain(
-        isNextDev
-          ? 'Route /errors used "cookies" inside "use cache".'
-          : GENERIC_RSC_ERROR
-      )
       expect(await browser.elementById('headers').text()).toContain(
         isNextDev
           ? 'Route /errors used "headers" inside "use cache".'
@@ -143,15 +138,8 @@ describe('use-cache', () => {
       )
     })
 
-    expect(await browser.elementById('draft-mode').text()).toContain(
-      'Editing: false'
-    )
-
     // CLI assertions are skipped in deploy mode because `next.cliOutput` will only contain build-time logs.
     if (!isNextDeploy) {
-      expect(next.cliOutput).toContain(
-        'Route /errors used "cookies" inside "use cache". '
-      )
       expect(next.cliOutput).toContain(
         'Route /errors used "headers" inside "use cache". '
       )
@@ -802,10 +790,10 @@ describe('use-cache', () => {
       newClosureValue
     )
 
-    // Accessing request-scoped data should still not be allowed.
+    // Accessing headers should still not be allowed.
     expect(
       await browser
-        .elementById('is-accessing-request-scoped-data-allowed-in-use-cache')
+        .elementById('is-accessing-headers-allowed-in-use-cache')
         .text()
     ).toBe('false')
 
@@ -903,7 +891,7 @@ describe('use-cache', () => {
         JSON.parse(await next.readFile('.next/server/app/rdc.meta')).postponed
       )
 
-      const cacheKeys = Array.from(resumeDataCache.cache.keys())
+      const cacheKeys = Array.from(await resumeDataCache.cache.keys())
 
       // There should be no cache entry for the "middle" cache function, because
       // it's only used inside another cache scope ("outer"). Whereas "inner" is

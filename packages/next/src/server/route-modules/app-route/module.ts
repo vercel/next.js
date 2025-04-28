@@ -394,6 +394,7 @@ export class AppRouteRouteModule extends RouteModule<
               tags: [...implicitTags.tags],
               prerenderResumeDataCache: null,
               hmrRefreshHash: undefined,
+              cookies: undefined,
             })
 
           let prospectiveResult
@@ -480,6 +481,7 @@ export class AppRouteRouteModule extends RouteModule<
             tags: [...implicitTags.tags],
             prerenderResumeDataCache: null,
             hmrRefreshHash: undefined,
+            cookies: undefined,
           })
 
           let responseHandled = false

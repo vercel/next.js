@@ -58,6 +58,7 @@ export function draftMode(): Promise<DraftMode> {
         workStore
       )
 
+    // case 'cache-with-cookies':
     case 'cache':
     case 'unstable-cache':
       // Inside of `"use cache"` or `unstable_cache`, draft mode is available if
