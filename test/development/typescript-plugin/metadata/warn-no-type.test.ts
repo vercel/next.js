@@ -121,7 +121,7 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
 
         expect(diagnostic).toMatchObject({
           code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
-          messageText: `The "generateMetadata" export should have a return type of ${isAsync ? '"Promise<Metadata>"' : '"Metadata"'} from "next".`,
+          messageText: `The Next.js "generateMetadata" export should have a return type of ${isAsync ? '"Promise<Metadata>"' : '"Metadata"'} from "next".`,
           start,
           length: 'generateMetadata'.length,
         })
