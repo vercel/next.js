@@ -37,8 +37,10 @@ export function Draggable({
       // Unset drag translation
       // ref.current.style.transition = 'none'
       console.log('animating', animating)
-      ref.current.style.translate = 'none'
-      setCurrentCorner(corner)
+      setTimeout(() => {
+        ref.current.style.translate = 'none'
+        setCurrentCorner(corner)
+      })
     },
   })
 
@@ -244,7 +246,6 @@ export function useDrag(options: UseDragOptions = {}) {
   }
 }
 
-// Helper function to calculate velocity from position history
 function calculateVelocity(
   history: Array<{ position: Point; timestamp: number }>
 ): Point {
@@ -252,16 +253,11 @@ function calculateVelocity(
     return { x: 0, y: 0 }
   }
 
-  // Use the last few points to get a more stable velocity
-  const numPoints = Math.min(history.length, 5)
-  const recentHistory = history.slice(-numPoints)
-
-  const oldestPoint = recentHistory[0]
-  const latestPoint = recentHistory[recentHistory.length - 1]
+  const oldestPoint = history[0]
+  const latestPoint = history[history.length - 1]
 
   const timeDelta = latestPoint.timestamp - oldestPoint.timestamp
 
-  // Avoid division by zero
   if (timeDelta === 0) {
     return { x: 0, y: 0 }
   }
