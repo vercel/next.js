@@ -1,5 +1,9 @@
 import type { PluginLanguageService } from '../test-utils'
-import { getPluginLanguageService, getTsFiles } from '../test-utils'
+import {
+  getPluginLanguageService,
+  getTsFiles,
+  NEXT_TS_ERRORS,
+} from '../test-utils'
 import { join } from 'path'
 
 const fixturesDir = join(__dirname, 'app/warn-no-type')
@@ -55,14 +59,33 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
     expect(tsFiles.length).toBe(4)
 
     const totalDiagnostics = []
+
     for (const tsFile of tsFiles) {
       const diagnostics = languageService.getSemanticDiagnostics(tsFile)
-      // Expected to have 1 diagnostic per file.
       if (diagnostics.length !== 1) {
         console.warn(
           `${tsFile}\n\nExpected 1 diagnostic but received ${diagnostics.length}.`
         )
+      } else {
+        const diagnostic = diagnostics[0]
+        // TODO: get correct start
+        const start = diagnostic.file.getFullText().indexOf('metadata')
+
+        if (diagnostic.start !== start) {
+          console.warn(
+            `${tsFile}\n\nExpected start to be ${start} but received ${diagnostic.start}.`
+          )
+        }
+
+        expect(diagnostic).toMatchObject({
+          code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
+          messageText:
+            'The Next.js "metadata" export should be type of "Metadata" from "next".',
+          start,
+          length: 'metadata'.length,
+        })
       }
+
       totalDiagnostics.push(...diagnostics)
     }
 
@@ -75,13 +98,31 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
     expect(tsFiles.length).toBe(24)
 
     const totalDiagnostics = []
+
     for (const tsFile of tsFiles) {
       const diagnostics = languageService.getSemanticDiagnostics(tsFile)
-      // Expected to have 1 diagnostic per file.
       if (diagnostics.length !== 1) {
         console.warn(
           `${tsFile}\n\nExpected 1 diagnostic but received ${diagnostics.length}.`
         )
+      } else {
+        const diagnostic = diagnostics[0]
+        const isAsync = tsFile.includes('async')
+        // TODO: get correct start
+        const start = diagnostic.file.getFullText().indexOf('generateMetadata')
+
+        if (diagnostic.start !== start) {
+          console.warn(
+            `${tsFile}\n\nExpected start to be ${start} but received ${diagnostic.start}.`
+          )
+        }
+
+        expect(diagnostic).toMatchObject({
+          code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
+          messageText: `The "generateMetadata" export should have a return type of ${isAsync ? '"Promise<Metadata>"' : '"Metadata"'} from "next".`,
+          start,
+          length: 'generateMetadata'.length,
+        })
       }
       totalDiagnostics.push(...diagnostics)
     }

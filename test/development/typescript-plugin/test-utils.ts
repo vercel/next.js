@@ -1,5 +1,6 @@
 import tsNextPluginFactory from 'next'
 import ts from 'typescript'
+export { NEXT_TS_ERRORS } from 'next/dist/server/typescript/constant'
 
 export type PluginLanguageService = ts.LanguageService & {
   getCapturedLogs: () => string
