@@ -217,7 +217,6 @@ export function useDrag(options: UseDragOptions = {}) {
   function onPointerDown(e: React.PointerEvent) {
     origin.current = { x: e.clientX, y: e.clientY }
     state.current = 'press'
-    e.preventDefault()
   }
 
   function onPointerUp(e: React.PointerEvent) {
