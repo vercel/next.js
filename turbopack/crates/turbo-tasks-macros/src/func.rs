@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro2::{Group, Ident, Span, TokenStream, TokenTree};
 use quote::{quote, quote_spanned, ToTokens};
 use rustc_hash::FxHashSet;
 use syn::{
@@ -312,6 +312,7 @@ impl TurboFn<'_> {
     pub fn inline_signature_and_block<'a>(
         &self,
         orig_block: &'a Block,
+        is_self_used: bool,
     ) -> (Signature, Cow<'a, Block>) {
         let mut shadow_self = None;
         let (inputs, transform_stmts): (Punctuated<_, _>, Vec<Option<_>>) = self
@@ -320,7 +321,7 @@ impl TurboFn<'_> {
             .iter()
             .filter(|arg| {
                 let FnArg::Typed(pat_type) = arg else {
-                    return true;
+                    return is_self_used;
                 };
                 let Pat::Ident(pat_id) = &*pat_type.pat else {
                     return true;
@@ -334,6 +335,7 @@ impl TurboFn<'_> {
                     // arguments are explicitly `NonLocalValue`s
                     return (arg.clone(), None);
                 }
+
                 let (FnArg::Receiver(Receiver { ty, .. }) | FnArg::Typed(PatType { ty, .. })) = arg;
                 let Cow::Owned(expanded_ty) = expand_task_input_type(ty) else {
                     // common-case: skip if no type conversion is needed
@@ -373,7 +375,7 @@ impl TurboFn<'_> {
                             ..receiver.clone()
                         });
 
-                        // We can't shadow `self` variables, so it this argument is a `self`
+                        // We can't shadow `self` variables, so if this argument is a `self`
                         // argument, generate a new identifier, and rewrite
                         // the body of the function later to use
                         // that new identifier.
@@ -476,7 +478,7 @@ impl TurboFn<'_> {
 
     fn inline_input_idents(&self) -> impl Iterator<Item = &Ident> {
         self.exposed_input_idents()
-            .filter(|id| inline_inputs_identifier_filter(id))
+            .filter(move |id| inline_inputs_identifier_filter(id))
     }
 
     fn exposed_input_idents(&self) -> impl Iterator<Item = &Ident> {
@@ -726,7 +728,7 @@ pub struct FunctionArguments {
     /// arguments are `OperationValue`s. Mutually exclusive with the `local` flag.
     ///
     /// If there is an error due to this option being set, it should be reported to this span.
-    operation: Option<Span>,
+    pub operation: Option<Span>,
     /// Does not run the function as a real task, and instead runs it inside the parent task using
     /// task-local state. The function call itself will not be cached, but cells will be created on
     /// the parent task.
@@ -1017,6 +1019,39 @@ impl VisitMut for RewriteSelfVisitMut {
         // skip children of `impl`: the definition of "self" inside of an impl is different than the
         // parent scope's definition of "self"
     }
+
+    fn visit_macro_mut(&mut self, mac: &mut syn::Macro) {
+        let new_tokens =
+            replace_self_in_token_stream(mac.tokens.to_token_stream(), &self.self_ident);
+        mac.tokens = new_tokens;
+
+        syn::visit_mut::visit_macro_mut(self, mac);
+    }
+}
+
+fn replace_self_in_token_stream(stream: TokenStream, self_ident: &Ident) -> TokenStream {
+    stream
+        .into_iter()
+        .map(|tt| replace_self_in_tt(tt, self_ident))
+        .collect()
+}
+
+fn replace_self_in_tt(tt: TokenTree, self_ident: &Ident) -> TokenTree {
+    match tt {
+        TokenTree::Group(group) => {
+            let new_stream = replace_self_in_token_stream(group.stream(), self_ident);
+            TokenTree::Group(Group::new(group.delimiter(), new_stream))
+        }
+
+        TokenTree::Ident(ref ident) => {
+            if ident == "self" {
+                return TokenTree::Ident(self_ident.clone());
+            }
+
+            tt
+        }
+        _ => tt,
+    }
 }
 
 /// The context in which the function is being defined.
@@ -1054,6 +1089,8 @@ pub struct NativeFn {
     pub function_path_string: String,
     pub function_path: ExprPath,
     pub is_method: bool,
+    /// Used only if `is_method` is true.
+    pub is_self_used: bool,
     pub filter_trait_call_args: Option<FilterTraitCallArgsTokens>,
     pub local: bool,
 }
@@ -1068,6 +1105,7 @@ impl NativeFn {
             function_path_string,
             function_path,
             is_method,
+            is_self_used,
             filter_trait_call_args,
             local,
         } = self;
@@ -1087,17 +1125,34 @@ impl NativeFn {
             } else {
                 quote! { ::std::option::Option::None }
             };
-            quote! {
-                {
-                    #[allow(deprecated)]
-                    turbo_tasks::macro_helpers::NativeFunction::new_method(
-                        #function_path_string.to_owned(),
-                        turbo_tasks::macro_helpers::FunctionMeta {
-                            local: #local,
-                        },
-                        #arg_filter,
-                        #function_path,
-                    )
+
+            if *is_self_used {
+                quote! {
+                    {
+                        #[allow(deprecated)]
+                        turbo_tasks::macro_helpers::NativeFunction::new_method(
+                            #function_path_string.to_owned(),
+                            turbo_tasks::macro_helpers::FunctionMeta {
+                                local: #local,
+                            },
+                            #arg_filter,
+                            #function_path,
+                        )
+                    }
+                }
+            } else {
+                quote! {
+                    {
+                        #[allow(deprecated)]
+                        turbo_tasks::macro_helpers::NativeFunction::new_method_without_this(
+                            #function_path_string.to_owned(),
+                            turbo_tasks::macro_helpers::FunctionMeta {
+                                local: #local,
+                            },
+                            #arg_filter,
+                            #function_path,
+                        )
+                    }
                 }
             }
         } else {
