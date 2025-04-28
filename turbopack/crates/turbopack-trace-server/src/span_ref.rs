@@ -498,7 +498,9 @@ impl<'a> SpanRef<'a> {
                                 add_span_to_map(&mut map, span);
                             }
                             SpanOrMap::Map(other_map) => {
-                                map.extend(other_map);
+                                for (name, value) in other_map {
+                                    map.entry(name).or_default().extend(value);
+                                }
                             }
                         }
                         SpanOrMap::Map(map)
