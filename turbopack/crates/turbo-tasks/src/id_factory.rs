@@ -96,10 +96,36 @@ where
             ),
         }
     }
+
+    /// Returns an id, potentially allowing an overflow. This may cause ids to be silently re-used.
+    /// Used for [`crate::id::ExecutionId`].
+    ///
+    /// If id re-use is desired only for "freed" ids, use [`IdFactoryWithReuse`] instead.
+    pub fn wrapping_get(&self) -> T {
+        let count = self.counter.fetch_add(1, Ordering::Relaxed);
+
+        let new_id_u64 = (count % self.max_count) + self.id_offset;
+        // Safety:
+        // - `id_offset` is a non-zero value.
+        // - `id_offset + max_count < u64::MAX`.
+        let new_id = unsafe { NonZeroU64::new_unchecked(new_id_u64) };
+
+        match new_id.try_into() {
+            Ok(id) => id,
+            Err(_) => panic!(
+                "Failed to convert NonZeroU64 value of {} into {}",
+                new_id,
+                type_name::<T>()
+            ),
+        }
+    }
 }
 
 /// An [`IdFactory`], but extended with a free list to allow for id reuse for ids such as
 /// [`BackendJobId`][crate::backend::BackendJobId].
+///
+/// If silent untracked re-use of ids is okay, consider using the cheaper
+/// [`IdFactory::wrapping_get`] method.
 pub struct IdFactoryWithReuse<T> {
     factory: IdFactory<T>,
     free_ids: ConcurrentQueue<T>,

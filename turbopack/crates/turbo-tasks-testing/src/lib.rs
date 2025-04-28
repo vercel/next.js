@@ -20,8 +20,8 @@ use turbo_tasks::{
     registry,
     test_helpers::with_turbo_tasks_for_testing,
     util::{SharedError, StaticOrArc},
-    CellId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadCellOptions, ReadConsistency,
-    TaskId, TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
+    CellId, ExecutionId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadCellOptions,
+    ReadConsistency, TaskId, TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
 };
 
 pub use crate::run::{run, run_with_tt, run_without_cache_check, Registration};
@@ -57,9 +57,11 @@ impl VcStorage {
             i
         };
         let task_id = TaskId::try_from(u32::try_from(i + 1).unwrap()).unwrap();
+        let execution_id = ExecutionId::try_from(u16::try_from(i + 1).unwrap()).unwrap();
         handle.spawn(with_turbo_tasks_for_testing(
             this.clone(),
             task_id,
+            execution_id,
             async move {
                 let result = AssertUnwindSafe(future).catch_unwind().await;
 
@@ -230,7 +232,7 @@ impl TurboTasksApi for VcStorage {
 
     fn try_read_local_output(
         &self,
-        _parent_task_id: TaskId,
+        _execution_id: ExecutionId,
         _local_task_id: LocalTaskId,
     ) -> Result<Result<RawVc, EventListener>> {
         unimplemented!()
@@ -322,6 +324,7 @@ impl VcStorage {
                 ..Default::default()
             }),
             TaskId::MAX,
+            ExecutionId::MIN,
             f,
         )
     }
