@@ -1124,11 +1124,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let task_name = task_type.get_name();
 
             let cause_self = task_type.this.and_then(|cause_self_raw_vc| {
-                let task_id = cause_self_raw_vc.get_task_id();
+                let Some(task_id) = cause_self_raw_vc.try_get_task_id() else {
+                    // `task_id` should never be `None` at this point, as that would imply a
+                    // non-local task is returning a local `Vc`...
+                    // Just ignore if it happens, as we're likely already panicking.
+                    return None;
+                };
                 if task_id.is_transient() {
                     Some(Box::new(inner_id(
                         backend,
-                        cause_self_raw_vc.get_task_id(),
+                        task_id,
                         cause_self_raw_vc.try_get_type_id(),
                         visited_set,
                     )))
@@ -1140,8 +1145,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 .arg
                 .get_raw_vcs()
                 .into_iter()
-                .map(|raw_vc| (raw_vc.get_task_id(), raw_vc.try_get_type_id()))
-                .filter(|(task_id, _)| task_id.is_transient())
+                .filter_map(|raw_vc| {
+                    let Some(task_id) = raw_vc.try_get_task_id() else {
+                        // `task_id` should never be `None` (see comment above)
+                        return None;
+                    };
+                    if !task_id.is_transient() {
+                        return None;
+                    }
+                    Some((task_id, raw_vc.try_get_type_id()))
+                })
                 .collect::<IndexSet<_>>() // dedupe
                 .into_iter()
                 .map(|(task_id, cell_type_id)| {
@@ -2184,24 +2197,25 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // these checks occur in a potentially hot codepath, but they're cheap
         let RawVc::TaskCell(col_task_id, col_cell_id) = collectible else {
             // This should never happen: The collectible APIs use ResolvedVc
-            let task_info =
-                if let Some(col_task_ty) = self.lookup_task_type(collectible.get_task_id()) {
-                    Cow::Owned(format!(" (return type of {})", col_task_ty))
-                } else {
-                    Cow::Borrowed("")
-                };
+            let task_info = if let Some(col_task_ty) = collectible
+                .try_get_task_id()
+                .and_then(|t| self.lookup_task_type(t))
+            {
+                Cow::Owned(format!(" (return type of {col_task_ty})"))
+            } else {
+                Cow::Borrowed("")
+            };
             panic!("Collectible{task_info} must be a ResolvedVc")
         };
         if col_task_id.is_transient() && !task_id.is_transient() {
-            let transient_reason =
-                if let Some(col_task_ty) = self.lookup_task_type(collectible.get_task_id()) {
-                    Cow::Owned(format!(
-                        ". The collectible is transient because it depends on:\n{}",
-                        self.debug_trace_transient_task(&col_task_ty, Some(col_cell_id)),
-                    ))
-                } else {
-                    Cow::Borrowed("")
-                };
+            let transient_reason = if let Some(col_task_ty) = self.lookup_task_type(col_task_id) {
+                Cow::Owned(format!(
+                    ". The collectible is transient because it depends on:\n{}",
+                    self.debug_trace_transient_task(&col_task_ty, Some(col_cell_id)),
+                ))
+            } else {
+                Cow::Borrowed("")
+            };
             // this should never happen: How would a persistent function get a transient Vc?
             panic!(
                 "Collectible is transient, transient collectibles cannot be emitted from \

@@ -48,6 +48,8 @@ use crate::{
     VcValueType,
 };
 
+/// Common base trait for [`TurboTasksApi`] and [`TurboTasksBackendApi`]. Provides APIs for creating
+/// tasks from function calls.
 pub trait TurboTasksCallApi: Sync + Send {
     /// Calls a native function with arguments. Resolves arguments when needed
     /// with a wrapper task.
@@ -93,6 +95,11 @@ pub trait TurboTasksCallApi: Sync + Send {
     ) -> TaskId;
 }
 
+/// A type-erased subset of [`TurboTasks`] stored inside a thread local when we're in a turbo task
+/// context. Returned by the [`turbo_tasks`] helper function.
+///
+/// This trait is needed because thread locals cannot contain an unresolved [`Backend`] type
+/// parameter.
 pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn pin(&self) -> Arc<dyn TurboTasksApi>;
 
@@ -135,9 +142,20 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         options: ReadCellOptions,
     ) -> Result<Result<TypedCellContent, EventListener>>;
 
+    /// Reads a [`RawVc::LocalOutput`]. If the task has completed, returns the [`RawVc`] the local
+    /// task points to.
+    ///
+    /// The returned [`RawVc`] may also be a [`RawVc::LocalOutput`], so this may need to be called
+    /// recursively or in a loop.
+    ///
     /// This does not accept a consistency argument, as you cannot control consistency of a read of
     /// an operation owned by your own task. Strongly consistent reads are only allowed on
-    /// `OperationVc`s, which should never be local tasks.
+    /// [`OperationVc`]s, which should never be local tasks.
+    ///
+    /// No dependency tracking will happen as a result of this function call, as it's a no-op for a
+    /// task to depend on itself.
+    ///
+    /// [`OperationVc`]: crate::OperationVc
     fn try_read_local_output(
         &self,
         execution_id: ExecutionId,
@@ -216,6 +234,7 @@ impl<T> Unused<T> {
     }
 }
 
+/// A subset of the [`TurboTasks`] API that's exposed to [`Backend`] implementations.
 pub trait TurboTasksBackendApi<B: Backend + 'static>: TurboTasksCallApi + Sync + Send {
     fn pin(&self) -> Arc<dyn TurboTasksBackendApi<B>>;
 
@@ -265,8 +284,8 @@ pub trait TurboTasksBackendApi<B: Backend + 'static>: TurboTasksCallApi + Sync +
     fn backend(&self) -> &B;
 }
 
-/// An extension trait for methods of `TurboTasksBackendApi` that are not object-safe. This is
-/// automatically implemented for all `TurboTasksBackendApi`s using a blanket impl.
+/// An extension trait for methods of [`TurboTasksBackendApi`] that are not object-safe. This is
+/// automatically implemented for all [`TurboTasksBackendApi`]s using a blanket impl.
 pub trait TurboTasksBackendApiExt<B: Backend + 'static>: TurboTasksBackendApi<B> {
     /// Allows modification of the [`Backend::TaskState`].
     ///
@@ -768,6 +787,8 @@ impl<B: Backend + 'static> TurboTasks<B> {
             self.backend.get_task_description(parent_task_id),
             ty,
         );
+        #[cfg(not(feature = "tokio_tracing"))]
+        let _ = parent_task_id; // suppress unused variable warning
 
         let this = self.pin();
         let future = async move {
@@ -822,7 +843,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         #[cfg(not(feature = "tokio_tracing"))]
         tokio::task::spawn(future);
 
-        RawVc::LocalOutput(parent_task_id, persistence, execution_id, local_task_id)
+        RawVc::LocalOutput(persistence, execution_id, local_task_id)
     }
 
     fn begin_primary_job(&self) {
