@@ -850,6 +850,7 @@ impl AppProject {
             .map(|m| ResolvedVc::upcast(*m))
             .collect();
 
+        let should_trace = self.project.next_mode().await?.is_production();
         if *self.project.per_page_module_graph().await? {
             // Implements layout segment optimization to compute a graph "chain" for each layout
             // segment
@@ -878,6 +879,7 @@ impl AppProject {
                             ChunkGroupEntry::Entry(client_shared_entries),
                         ],
                         VisitedModules::empty(),
+                        should_trace,
                     );
                     graphs.push(graph);
                     let mut visited_modules = VisitedModules::from_graph(graph);
@@ -894,6 +896,7 @@ impl AppProject {
                             // but that breaks everything for some reason.
                             vec![ChunkGroupEntry::Entry(vec![ResolvedVc::upcast(*module)])],
                             visited_modules,
+                            should_trace,
                         );
                         graphs.push(graph);
                         let is_layout =
@@ -915,6 +918,7 @@ impl AppProject {
                     let graph = SingleModuleGraph::new_with_entries_visited_intern(
                         vec![ChunkGroupEntry::Entry(client_shared_entries)],
                         VisitedModules::empty(),
+                        should_trace,
                     );
                     graphs.push(graph);
                     VisitedModules::from_graph(graph)
@@ -923,6 +927,7 @@ impl AppProject {
                 let graph = SingleModuleGraph::new_with_entries_visited_intern(
                     vec![rsc_entry_chunk_group],
                     visited_modules,
+                    should_trace,
                 );
                 graphs.push(graph);
                 visited_modules = visited_modules.concatenate(graph);
@@ -932,6 +937,7 @@ impl AppProject {
                 let additional_module_graph = SingleModuleGraph::new_with_entries_visited_intern(
                     additional_entries.owned().await?,
                     visited_modules,
+                    should_trace,
                 );
                 graphs.push(additional_module_graph);
 

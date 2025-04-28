@@ -187,6 +187,7 @@ impl SingleModuleGraph {
     async fn new_inner(
         entries: &GraphEntriesT,
         visited_modules: &FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
+        include_traced: bool,
     ) -> Result<Vc<Self>> {
         let root_edges = entries
             .iter()
@@ -201,7 +202,13 @@ impl SingleModuleGraph {
 
         let (children_nodes_iter, visited_nodes) = AdjacencyMap::new()
             .skip_duplicates()
-            .visit(root_edges, SingleModuleGraphBuilder { visited_modules })
+            .visit(
+                root_edges,
+                SingleModuleGraphBuilder {
+                    visited_modules,
+                    include_traced,
+                },
+            )
             .await
             .completed()?
             .into_inner_with_visited();
@@ -726,15 +733,19 @@ impl ModuleGraph {
     }
 
     #[turbo_tasks::function]
-    pub fn from_entry_module(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
-        Self::from_single_graph(SingleModuleGraph::new_with_entries(Vc::cell(vec![
-            ChunkGroupEntry::Entry(vec![module]),
-        ])))
+    pub fn from_entry_module(
+        module: ResolvedVc<Box<dyn Module>>,
+        include_traced: bool,
+    ) -> Vc<Self> {
+        Self::from_single_graph(SingleModuleGraph::new_with_entries(
+            Vc::cell(vec![ChunkGroupEntry::Entry(vec![module])]),
+            include_traced,
+        ))
     }
 
     #[turbo_tasks::function]
-    pub fn from_modules(modules: Vc<GraphEntries>) -> Vc<Self> {
-        Self::from_single_graph(SingleModuleGraph::new_with_entries(modules))
+    pub fn from_modules(modules: Vc<GraphEntries>, include_traced: bool) -> Vc<Self> {
+        Self::from_single_graph(SingleModuleGraph::new_with_entries(modules, include_traced))
     }
 
     #[turbo_tasks::function]
@@ -1159,16 +1170,25 @@ impl ModuleGraph {
 #[turbo_tasks::value_impl]
 impl SingleModuleGraph {
     #[turbo_tasks::function]
-    pub async fn new_with_entries(entries: Vc<GraphEntries>) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(&*entries.await?, &Default::default()).await
+    pub async fn new_with_entries(
+        entries: Vc<GraphEntries>,
+        include_traced: bool,
+    ) -> Result<Vc<Self>> {
+        SingleModuleGraph::new_inner(&*entries.await?, &Default::default(), include_traced).await
     }
 
     #[turbo_tasks::function]
     pub async fn new_with_entries_visited(
         entries: Vc<GraphEntries>,
         visited_modules: Vc<VisitedModules>,
+        include_traced: bool,
     ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(&*entries.await?, &visited_modules.await?.modules).await
+        SingleModuleGraph::new_inner(
+            &*entries.await?,
+            &visited_modules.await?.modules,
+            include_traced,
+        )
+        .await
     }
 
     #[turbo_tasks::function]
@@ -1176,8 +1196,10 @@ impl SingleModuleGraph {
         // This must not be a Vc<Vec<_>> to ensure layout segment optimization hits the cache
         entries: GraphEntriesT,
         visited_modules: Vc<VisitedModules>,
+        include_traced: bool,
     ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(&entries, &visited_modules.await?.modules).await
+        SingleModuleGraph::new_inner(&entries, &visited_modules.await?.modules, include_traced)
+            .await
     }
 }
 
@@ -1299,6 +1321,7 @@ const COMMON_CHUNKING_TYPE: ChunkingType = ChunkingType::ParallelInheritAsync;
 
 struct SingleModuleGraphBuilder<'a> {
     visited_modules: &'a FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
+    include_traced: bool,
 }
 impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
     type Edge = SingleModuleGraphBuilderEdge;
@@ -1333,10 +1356,11 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
             | SingleModuleGraphBuilderNode::Issues(_) => unreachable!(),
         };
         let visited_modules = self.visited_modules;
+        let include_traced = self.include_traced;
         async move {
             Ok(match (module, chunkable_ref_target) {
                 (Some(module), None) => {
-                    let refs_cell = primary_chunkable_referenced_modules(*module);
+                    let refs_cell = primary_chunkable_referenced_modules(*module, include_traced);
                     let refs = match refs_cell.await {
                         Ok(refs) => refs,
                         Err(e) => {

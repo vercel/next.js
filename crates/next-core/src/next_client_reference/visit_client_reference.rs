@@ -314,7 +314,8 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                 }
             };
 
-            let referenced_modules = primary_chunkable_referenced_modules(*parent_module).await?;
+            let referenced_modules =
+                primary_chunkable_referenced_modules(*parent_module, true).await?;
 
             let referenced_modules = referenced_modules
                 .iter()
