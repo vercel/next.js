@@ -176,10 +176,6 @@ const metadata = {
           }
 
           const originalSymbol = typeChecker.getAliasedSymbol(symbol)
-          if (!originalSymbol) {
-            continue
-          }
-
           const declarations = originalSymbol.getDeclarations()
           if (!declarations) {
             continue
@@ -192,25 +188,34 @@ const metadata = {
 
           if (exportName === 'generateMetadata') {
             let isAsync = false
+
+            // async function() {}
             if (ts.isFunctionDeclaration(declaration)) {
               isAsync =
                 declaration.modifiers?.some(
                   (m) => m.kind === ts.SyntaxKind.AsyncKeyword
                 ) ?? false
-            } else if (
+            }
+
+            // foo = async function() {}
+            // foo = async () => {}
+            if (
               ts.isVariableDeclaration(declaration) &&
               declaration.initializer
             ) {
-              if (
-                ts.isArrowFunction(declaration.initializer) ||
-                ts.isFunctionExpression(declaration.initializer)
-              ) {
+              const initializer = declaration.initializer
+              const isFunction =
+                ts.isArrowFunction(initializer) ||
+                ts.isFunctionExpression(initializer)
+
+              if (isFunction) {
                 isAsync =
-                  declaration.initializer.modifiers?.some(
+                  initializer.modifiers?.some(
                     (m) => m.kind === ts.SyntaxKind.AsyncKeyword
                   ) ?? false
               }
             }
+
             diagnostics.push({
               file: source,
               category: ts.DiagnosticCategory.Warning,
