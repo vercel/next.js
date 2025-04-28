@@ -160,18 +160,25 @@ const metadata = {
       const diagnostics: tsModule.Diagnostic[] = []
 
       const exportClause = node.exportClause
-      if (exportClause && ts.isNamedExports(exportClause)) {
+      if (!node.isTypeOnly && exportClause && ts.isNamedExports(exportClause)) {
         for (const e of exportClause.elements) {
+          if (e.isTypeOnly) {
+            continue
+          }
           const exportName = e.name.getText()
           if (exportName !== 'metadata' && exportName !== 'generateMetadata') {
             continue
           }
 
           const symbol = typeChecker.getSymbolAtLocation(e.name)
-          if (!symbol) continue
+          if (!symbol) {
+            continue
+          }
 
           const originalSymbol = typeChecker.getAliasedSymbol(symbol)
-          if (!originalSymbol) continue
+          if (!originalSymbol) {
+            continue
+          }
 
           const declarations = originalSymbol.getDeclarations()
           if (!declarations) {
