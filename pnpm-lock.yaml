@@ -895,9 +895,6 @@ importers:
       '@swc/helpers':
         specifier: 0.5.15
         version: 0.5.15
-      busboy:
-        specifier: 1.6.0
-        version: 1.6.0
       caniuse-lite:
         specifier: 1.0.30001579
         version: 1.0.30001579
@@ -1224,6 +1221,9 @@ importers:
       buffer:
         specifier: 5.6.0
         version: 5.6.0
+      busboy:
+        specifier: 1.6.0
+        version: 1.6.0
       bytes:
         specifier: 3.1.1
         version: 3.1.1
