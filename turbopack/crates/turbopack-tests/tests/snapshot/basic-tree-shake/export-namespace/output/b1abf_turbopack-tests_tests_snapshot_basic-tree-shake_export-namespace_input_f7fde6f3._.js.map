@@ -13,6 +13,5 @@
     {"offset": {"line": 157, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
     {"offset": {"line": 169, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
     {"offset": {"line": 189, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
-    {"offset": {"line": 204, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
-    {"offset": {"line": 219, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/export-namespace/input/index.js"],"sourcesContent":["import {lib} from './module'\n\nconsole.log(lib.cat)\n"],"names":[],"mappings":";AAAA;;AAEA,QAAQ,GAAG,CAAC,uPAAA,CAAA,MAAG,CAAC,GAAG"}}]
+    {"offset": {"line": 206, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/export-namespace/input/index.js"],"sourcesContent":["import {lib} from './module'\n\nconsole.log(lib.cat)\n"],"names":[],"mappings":";AAAA;;AAEA,QAAQ,GAAG,CAAC,uPAAA,CAAA,MAAG,CAAC,GAAG"}}]
 }

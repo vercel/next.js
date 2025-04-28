@@ -303,8 +303,10 @@ async fn build_internal(
     .instrument(tracing::info_span!("resolve entries"))
     .await?;
 
-    let module_graph =
-        ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(entries.clone())]));
+    let module_graph = ModuleGraph::from_modules(
+        Vc::cell(vec![ChunkGroupEntry::Entry(entries.clone())]),
+        false,
+    );
     let module_id_strategy = ResolvedVc::upcast(
         get_global_module_id_strategy(module_graph)
             .to_resolved()

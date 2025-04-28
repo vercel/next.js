@@ -503,6 +503,8 @@ describe('use-cache', () => {
         '/cache-fetch-no-store',
         '/cache-life',
         '/cache-tag',
+        '/directive-in-node-modules/with-handler',
+        '/directive-in-node-modules/without-handler',
         '/draft-mode',
         '/form',
         '/imported-from-client',
@@ -913,6 +915,25 @@ describe('use-cache', () => {
       ])
     })
   }
+
+  describe('usage in node_modules', () => {
+    it('should cache results when using a directive without a handler', async () => {
+      const browser = await next.browser(
+        '/directive-in-node-modules/without-handler'
+      )
+      const randomOne = await browser.elementByCss('#one').text()
+      const randomTwo = await browser.elementByCss('#two').text()
+      expect(randomOne).toBe(randomTwo)
+    })
+    it('should cache results when using a directive with a handler', async () => {
+      const browser = await next.browser(
+        '/directive-in-node-modules/with-handler'
+      )
+      const randomOne = await browser.elementByCss('#one').text()
+      const randomTwo = await browser.elementByCss('#two').text()
+      expect(randomOne).toBe(randomTwo)
+    })
+  })
 })
 
 async function getSanitizedLogs(browser: Playwright): Promise<string[]> {
