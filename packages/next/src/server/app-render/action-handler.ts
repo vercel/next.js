@@ -796,7 +796,9 @@ export async function handleAction({
 
         if (isMultipartAction) {
           if (isFetchAction) {
-            const busboy = (require('busboy') as typeof import('busboy'))({
+            const busboy = (
+              require('next/dist/compiled/busboy') as typeof import('next/dist/compiled/busboy')
+            )({
               defParamCharset: 'utf8',
               headers: req.headers,
               limits: { fieldSize: bodySizeLimitBytes },

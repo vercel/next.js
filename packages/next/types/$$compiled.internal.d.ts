@@ -391,6 +391,11 @@ declare module 'next/dist/compiled/p-queue' {
   export = m
 }
 
+declare module 'next/dist/compiled/busboy' {
+  import m from 'busboy'
+  export = m
+}
+
 declare module 'next/dist/compiled/raw-body' {
   import m from 'raw-body'
   export = m
