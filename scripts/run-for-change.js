@@ -1,5 +1,6 @@
 const { promisify } = require('util')
 const { exec: execOrig, spawn } = require('child_process')
+const yargs = require('yargs')
 
 const exec = promisify(execOrig)
 
@@ -54,8 +55,64 @@ const CHANGE_ITEM_GROUPS = {
 }
 
 async function main() {
-  let eventData = {}
+  const argv = await yargs(process.argv.slice(2))
+    .usage(
+      'Usage: $0 --type <type> [--not] [--always-canary] (--exec <command...> | --listChangedDirectories)'
+    )
+    .option('type', {
+      alias: 't',
+      description: 'Specify the type of change group to check against',
+      type: 'string',
+      choices: Object.keys(CHANGE_ITEM_GROUPS),
+      demandOption: true,
+    })
+    .option('not', {
+      description:
+        'Execute if *any* file *not* in the specified type group changed',
+      type: 'boolean',
+      default: false,
+    })
+    .option('always-canary', {
+      description: 'Always execute/list if the current branch is canary',
+      type: 'boolean',
+      default: false,
+    })
+    .option('listChangedDirectories', {
+      alias: 'l',
+      description:
+        'List matching changed directories instead of executing a command. ' +
+        'Incompatible with a command specified using postional arguments.',
+      type: 'boolean',
+      default: false,
+    })
+    .check((argv) => {
+      if (argv['--'].length === 0 && !argv.listChangedDirectories) {
+        throw new Error(
+          'Must provide either a command after options ' +
+            '(e.g., `$0 -- my-cmd with args`) or use --listChangedDirectories'
+        )
+      }
+      if (argv['--'].length > 0 && argv.listChangedDirectories) {
+        throw new Error(
+          'Both a command and --listChangedDirectories provided. ' +
+            'Prioritizing --listChangedDirectories.'
+        )
+      }
+      return true
+    })
+    .help()
+    .alias('help', 'h')
+    .example(
+      '$0 --type docs -- echo "docs changed!"',
+      'Prints "docs changed" if any docs have changed'
+    )
+    .example(
+      '$0 --type docs --listChangedDirectories',
+      'Prints the list of changed directories'
+    )
+    .strict().argv // Ensure only defined options/commands are used
 
+  let eventData = {}
   try {
     eventData = require(process.env.GITHUB_EVENT_PATH)['pull_request'] || {}
   } catch (_) {}
@@ -63,7 +120,7 @@ async function main() {
   const branchName =
     eventData?.head?.ref ||
     process.env.GITHUB_REF_NAME ||
-    (await exec('git rev-parse --abbrev-ref HEAD')).stdout
+    (await exec('git rev-parse --abbrev-ref HEAD')).stdout.trim()
 
   const remoteUrl =
     eventData?.head?.repo?.full_name ||
@@ -71,7 +128,7 @@ async function main() {
     (await exec('git remote get-url origin')).stdout
 
   const isCanary =
-    branchName.trim() === 'canary' && remoteUrl.includes('vercel/next.js')
+    branchName === 'canary' && remoteUrl.includes('vercel/next.js')
 
   try {
     await exec('git remote set-branches --add origin canary')
@@ -94,46 +151,17 @@ async function main() {
   console.error({ branchName, remoteUrl, isCanary, changesResult })
   const changedFilesOutput = changesResult.stdout
 
-  const typeIndex = process.argv.indexOf('--type')
-  const type = typeIndex > -1 && process.argv[typeIndex + 1]
-  const isNegated = process.argv.indexOf('--not') > -1
-  const alwaysCanary = process.argv.indexOf('--always-canary') > -1
+  const { type, not: isNegated, alwaysCanary, listChangedDirectories } = argv
+  const execArgs = argv._
 
-  if (!type) {
-    throw new Error(
-      `Missing "--type" flag, e.g. "node run-for-change.js --type docs"`
-    )
-  }
-  const execArgIndex = process.argv.indexOf('--exec')
-  const listChangedDirectories = process.argv.includes(
-    '--listChangedDirectories'
-  )
-
-  if (execArgIndex < 0 && !listChangedDirectories) {
-    throw new Error(
-      'Invalid: must provide either "--exec" or "--listChangedDirectories" flag'
-    )
-  }
   let hasMatchingChange = false
+  // `type` is validated by yargs `choices`
   const changeItems = CHANGE_ITEM_GROUPS[type]
-  const execArgs = process.argv.slice(execArgIndex + 1)
-
-  if (execArgs.length < 1 && !listChangedDirectories) {
-    throw new Error('Missing exec arguments after "--exec"')
-  }
-
-  if (!changeItems) {
-    throw new Error(
-      `Invalid change type, allowed types are ${Object.keys(
-        CHANGE_ITEM_GROUPS
-      ).join(', ')}`
-    )
-  }
   let changedFilesCount = 0
   let changedDirectories = []
 
   // always run for canary if flag is enabled
-  if (alwaysCanary && branchName === 'canary') {
+  if (alwaysCanary && isCanary) {
     changedFilesCount += 1
     hasMatchingChange = true
   }
