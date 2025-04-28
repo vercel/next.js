@@ -160,100 +160,86 @@ const metadata = {
       const diagnostics: tsModule.Diagnostic[] = []
 
       const exportClause = node.exportClause
-      if (!node.isTypeOnly && exportClause && ts.isNamedExports(exportClause)) {
+      if (exportClause && ts.isNamedExports(exportClause)) {
         for (const e of exportClause.elements) {
-          if (e.isTypeOnly) {
-            continue
-          }
           const exportName = e.name.getText()
-          if (exportName !== 'generateMetadata' && exportName !== 'metadata') {
+          if (exportName !== 'metadata' && exportName !== 'generateMetadata') {
             continue
           }
 
-          // Get the symbol and type for the export
           const symbol = typeChecker.getSymbolAtLocation(e.name)
           if (!symbol) continue
 
-          const type = typeChecker.getTypeOfSymbolAtLocation(symbol, e.name)
-          if (!type) continue
+          const originalSymbol = typeChecker.getAliasedSymbol(symbol)
+          if (!originalSymbol) continue
+
+          const declarations = originalSymbol.getDeclarations()
+          if (!declarations) {
+            continue
+          }
+
+          const declaration = declarations[0]
+          if (hasType(declaration)) {
+            continue
+          }
 
           if (exportName === 'generateMetadata') {
             let isAsync = false
-
-            // For export declarations, we need to get the actual declaration through the type checker
-            const originalSymbol = typeChecker.getAliasedSymbol(symbol)
-            const declaration = originalSymbol?.declarations?.[0]
-
-            if (declaration) {
-              if (ts.isFunctionDeclaration(declaration)) {
+            if (ts.isFunctionDeclaration(declaration)) {
+              isAsync =
+                declaration.modifiers?.some(
+                  (m) => m.kind === ts.SyntaxKind.AsyncKeyword
+                ) ?? false
+            } else if (
+              ts.isVariableDeclaration(declaration) &&
+              declaration.initializer
+            ) {
+              if (
+                ts.isArrowFunction(declaration.initializer) ||
+                ts.isFunctionExpression(declaration.initializer)
+              ) {
                 isAsync =
-                  declaration.modifiers?.some(
+                  declaration.initializer.modifiers?.some(
                     (m) => m.kind === ts.SyntaxKind.AsyncKeyword
                   ) ?? false
-              } else if (
-                ts.isVariableDeclaration(declaration) &&
-                declaration.initializer
-              ) {
-                if (
-                  ts.isArrowFunction(declaration.initializer) ||
-                  ts.isFunctionExpression(declaration.initializer)
-                ) {
-                  isAsync =
-                    declaration.initializer.modifiers?.some(
-                      (m) => m.kind === ts.SyntaxKind.AsyncKeyword
-                    ) ?? false
-                }
               }
             }
-
-            if (
-              declaration &&
-              ts.isFunctionDeclaration(declaration) &&
-              !hasType(declaration)
-            ) {
-              diagnostics.push({
-                file: source,
-                category: ts.DiagnosticCategory.Warning,
-                code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
-                messageText: `The "generateMetadata" export should have a return type of ${isAsync ? '"Promise<Metadata>"' : '"Metadata"'} from "next".`,
-                start: e.name.getStart(),
-                length: e.name.getWidth(),
-              })
-            }
+            diagnostics.push({
+              file: source,
+              category: ts.DiagnosticCategory.Warning,
+              code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
+              messageText: `The Next.js "generateMetadata" export should have a return type of ${isAsync ? '"Promise<Metadata>"' : '"Metadata"'} from "next".`,
+              start: e.name.getStart(),
+              length: e.name.getWidth(),
+            })
           } else {
-            // must be 'metadata' at this point
-            const declaration = symbol.declarations?.[0]
-            if (
-              declaration &&
-              ts.isVariableDeclaration(declaration) &&
-              !hasType(declaration)
-            ) {
-              diagnostics.push({
-                file: source,
-                category: ts.DiagnosticCategory.Warning,
-                code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
-                messageText: `The Next.js "metadata" export should be type of "Metadata" from "next".`,
-                start: e.name.getStart(),
-                length: e.name.getWidth(),
-              })
-            }
+            diagnostics.push({
+              file: source,
+              category: ts.DiagnosticCategory.Warning,
+              code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
+              messageText: `The Next.js "metadata" export should be type of "Metadata" from "next".`,
+              start: e.name.getStart(),
+              length: e.name.getWidth(),
+            })
           }
         }
       }
-
       return diagnostics
     },
   },
 }
 
-function hasType(
-  node:
-    | tsModule.FunctionDeclaration
-    | tsModule.VariableDeclaration
-    | tsModule.FunctionExpression
-    | tsModule.ArrowFunction
-): boolean {
+function hasType(node: tsModule.Declaration): boolean {
   const ts = getTs()
+
+  if (
+    !ts.isVariableDeclaration(node) &&
+    !ts.isFunctionDeclaration(node) &&
+    !ts.isArrowFunction(node) &&
+    !ts.isFunctionExpression(node)
+  ) {
+    return false
+  }
 
   // For function declarations, expressions, and arrow functions, check if they have return type
   if (
