@@ -210,14 +210,12 @@ impl EcmascriptAnalyzable for EcmascriptModuleFacadeModule {
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContent>> {
-        let this = self.await?;
-
-        let (esm_references, part_references) = this.specific_references().await?;
+        let (esm_references, part_references) = self.await?.specific_references().await?;
 
         Ok(EcmascriptModuleContent::new(
             EcmascriptModuleContentOptions {
                 parsed: ParseResult::empty().to_resolved().await?,
-                ident: this.module.ident().to_resolved().await?,
+                ident: self.ident().to_resolved().await?,
                 specified_module_type: SpecifiedModuleType::EcmaScript,
                 module_graph,
                 chunking_context,
