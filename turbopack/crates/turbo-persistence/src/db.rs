@@ -571,12 +571,14 @@ impl TurboPersistence {
             )?;
         }
 
-        self.commit(
-            new_sst_files,
-            Vec::new(),
-            indicies_to_delete,
-            *sequence_number.get_mut(),
-        )?;
+        if !new_sst_files.is_empty() {
+            self.commit(
+                new_sst_files,
+                Vec::new(),
+                indicies_to_delete,
+                *sequence_number.get_mut(),
+            )?;
+        }
 
         self.active_write_operation.store(false, Ordering::Release);
 
@@ -592,9 +594,9 @@ impl TurboPersistence {
         indicies_to_delete: &mut Vec<usize>,
         max_coverage: f32,
         max_merge_sequence: usize,
-    ) -> Result<bool> {
+    ) -> Result<()> {
         if static_sorted_files.is_empty() {
-            return Ok(false);
+            return Ok(());
         }
 
         struct SstWithRange {
@@ -869,7 +871,7 @@ impl TurboPersistence {
             indicies_to_delete.append(&mut inner_indicies_to_delete);
         }
 
-        Ok(true)
+        Ok(())
     }
 
     /// Get a value from the database. Returns None if the key is not found. The returned value
