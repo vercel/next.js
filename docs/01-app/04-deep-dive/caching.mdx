@@ -231,4 +231,19 @@ Unlike the default in-memory cache, a persistent remote cache stores entries in 
 
 Cache entries persist for their [configured lifetime]() or until they are [manually revalidated]().
 
+## Client cache
+
+On the first visit, the client cache is populated with cache entries from the server response and background [prefetching]().
+
+As the user navigates, the router checks the client cache:
+
+- If a cache entry exists and is still fresh, navigation is instant.
+- If the entry is missing or stale, the client sends a new request to the server.
+
+Cache entries are stored in the browser's memory for the duration of the session or until the entry becomes [stale]() or are [revalidated]().
+
+For users, it means faster page transitions and fewer loading states.
+
+> **Good to know:** Client-side cache granularity is currently route-based. Segment-level granularity is coming soon.
+
 - Works well as a simple and affordable starting point for [self-hosted]() applications.
