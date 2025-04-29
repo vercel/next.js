@@ -55,6 +55,13 @@ impl Glob {
             .any(|result| matches!(result, ("", _)))
     }
 
+    // Returns true if the glob could match a filename underneath this path prefix
+    // Typically this prefix would represent a directory.
+    pub fn match_prefix(&self, path: &str) -> bool {
+        self.iter_matches(path, true, true)
+            .any(|result| matches!(result, ("", _)))
+    }
+
     fn iter_matches<'a>(
         &'a self,
         path: &'a str,

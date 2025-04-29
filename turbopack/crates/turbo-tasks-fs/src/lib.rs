@@ -1510,24 +1510,25 @@ impl FileSystemPath {
     /// depend on the order.
     #[turbo_tasks::function]
     pub async fn read_dir(self: Vc<Self>) -> Result<Vc<DirectoryContent>> {
-        match &*self.await?.fs.raw_read_dir(self).await? {
+        let fs = self.await?.fs;
+        match &*fs.raw_read_dir(self).await? {
             RawDirectoryContent::NotFound => Ok(DirectoryContent::not_found()),
             RawDirectoryContent::Entries(entries) => {
                 let mut normalized_entries = AutoMap::new();
+                let dir_path = &self.await?.path;
                 for (name, entry) in entries {
+                    // Construct the path directly instead of going through `join`.
+                    // We do not need to normalize since the `name` is guaranteed to be a simple
+                    // path segment.
+                    let entry_path =
+                        Self::new_normalized(*fs, RcStr::from(format!("{dir_path}/{name}")))
+                            .to_resolved()
+                            .await?;
                     let entry = match entry {
-                        RawDirectoryEntry::File => {
-                            DirectoryEntry::File(self.join(name.clone()).to_resolved().await?)
-                        }
-                        RawDirectoryEntry::Directory => {
-                            DirectoryEntry::Directory(self.join(name.clone()).to_resolved().await?)
-                        }
-                        RawDirectoryEntry::Symlink => {
-                            DirectoryEntry::Symlink(self.join(name.clone()).to_resolved().await?)
-                        }
-                        RawDirectoryEntry::Other => {
-                            DirectoryEntry::Other(self.join(name.clone()).to_resolved().await?)
-                        }
+                        RawDirectoryEntry::File => DirectoryEntry::File(entry_path),
+                        RawDirectoryEntry::Directory => DirectoryEntry::Directory(entry_path),
+                        RawDirectoryEntry::Symlink => DirectoryEntry::Symlink(entry_path),
+                        RawDirectoryEntry::Other => DirectoryEntry::Other(entry_path),
                         RawDirectoryEntry::Error => DirectoryEntry::Error,
                     };
                     normalized_entries.insert(name.clone(), entry);
@@ -2391,6 +2392,8 @@ impl From<&RawDirectoryEntry> for FileSystemEntryType {
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub enum RawDirectoryContent {
+    // The entry keys are the directory relative file names
+    // e.g. for `/bar/foo`, it will be `foo`
     Entries(AutoMap<RcStr, RawDirectoryEntry>),
     NotFound,
 }

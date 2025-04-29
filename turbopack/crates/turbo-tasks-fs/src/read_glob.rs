@@ -1,7 +1,6 @@
 use anyhow::Result;
 use futures::try_join;
 use rustc_hash::FxHashMap;
-use turbo_rcstr::RcStr;
 use turbo_tasks::{Completion, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{glob::Glob, DirectoryContent, DirectoryEntry, FileSystemPath};
@@ -23,31 +22,10 @@ pub async fn read_glob(
     glob: Vc<Glob>,
     include_dot_files: bool,
 ) -> Result<Vc<ReadGlobResult>> {
-    Ok(*read_glob_internal("", directory, glob, include_dot_files).await?)
-}
-
-/// Tracks all files and directories that match of a glob pattern.
-#[turbo_tasks::function(fs)]
-pub async fn track_glob(
-    directory: Vc<FileSystemPath>,
-    glob: Vc<Glob>,
-    include_dot_files: bool,
-) -> Result<Vc<Completion>> {
-    track_glob_internal("", directory, glob, include_dot_files).await
-}
-
-#[turbo_tasks::function(fs)]
-async fn read_glob_inner(
-    prefix: RcStr,
-    directory: Vc<FileSystemPath>,
-    glob: Vc<Glob>,
-    include_dot_files: bool,
-) -> Result<Vc<ReadGlobResult>> {
-    Ok(*read_glob_internal(&prefix, directory, glob, include_dot_files).await?)
+    Ok(*read_glob_internal(directory, glob, include_dot_files).await?)
 }
 
 async fn read_glob_internal(
-    prefix: &str,
     directory: Vc<FileSystemPath>,
     glob: Vc<Glob>,
     include_dot_files: bool,
@@ -64,28 +42,32 @@ async fn read_glob_internal(
                 let entry = entry.resolve_symlink().await?;
                 match entry {
                     DirectoryEntry::Directory(path) => {
-                        let full_path = format!("{prefix}{segment}");
-                        let full_path_prefix: RcStr = format!("{full_path}/").into();
-                        if glob_value.execute(&full_path) {
+                        let full_path = &path.await?.path;
+                        let full_path_str = full_path.as_str();
+                        if glob_value.execute(full_path_str) {
                             result
                                 .results
-                                .insert(full_path.clone(), DirectoryEntry::Directory(path));
+                                .insert(full_path.to_string(), DirectoryEntry::Directory(path));
                         }
-                        if glob_value.execute(&full_path_prefix) {
+                        if glob_value.match_prefix(full_path_str) {
                             result.inner.insert(
-                                full_path,
-                                read_glob_inner(full_path_prefix, *path, glob, include_dot_files)
+                                full_path.to_string(),
+                                read_glob(*path, glob, include_dot_files)
                                     .to_resolved()
                                     .await?,
                             );
                         }
                     }
-                    entry => {
-                        let full_path = format!("{prefix}{segment}");
-                        if glob_value.execute(&full_path) {
-                            result.results.insert(full_path, entry);
+                    DirectoryEntry::File(path)
+                    | DirectoryEntry::Other(path)
+                    | DirectoryEntry::Symlink(path) => {
+                        let full_path = &path.await?.path;
+                        let full_path_str = full_path.as_str();
+                        if glob_value.execute(full_path_str) {
+                            result.results.insert(full_path.to_string(), entry);
                         }
                     }
+                    DirectoryEntry::Error => {}
                 }
             }
         }
@@ -97,19 +79,17 @@ async fn read_glob_internal(
 /// Traverses all directories that match the given `glob`.
 ///
 /// This ensures that the calling task will be invalidated
-/// whenever the directories change, but unlike
+/// whenever the directories change, but unlike read_glob doesn't accumulate data.
 #[turbo_tasks::function(fs)]
-async fn track_glob_inner(
-    prefix: RcStr,
+pub async fn track_glob(
     directory: Vc<FileSystemPath>,
     glob: Vc<Glob>,
     include_dot_files: bool,
 ) -> Result<Vc<Completion>> {
-    track_glob_internal(&prefix, directory, glob, include_dot_files).await
+    track_glob_internal(directory, glob, include_dot_files).await
 }
 
 async fn track_glob_internal(
-    prefix: &str,
     directory: Vc<FileSystemPath>,
     glob: Vc<Glob>,
     include_dot_files: bool,
@@ -125,26 +105,23 @@ async fn track_glob_internal(
                 if !include_dot_files && segment.starts_with('.') {
                     continue;
                 }
-                let entry = entry.resolve_symlink().await?;
-                let full_path_prefix: RcStr = match entry {
-                    DirectoryEntry::Directory(..) => format!("{prefix}{segment}/").into(),
-                    _ => format!("{prefix}{segment}").into(),
-                };
-                if !glob_value.execute(&full_path_prefix) {
-                    continue;
-                }
-                match entry {
+                match entry.resolve_symlink().await? {
                     DirectoryEntry::Directory(path) => {
-                        completions.push(track_glob_inner(
-                            full_path_prefix,
-                            *path,
-                            glob,
-                            include_dot_files,
-                        ));
+                        if glob_value.match_prefix(&path.await?.path) {
+                            completions.push(track_glob(*path, glob, include_dot_files));
+                        }
                     }
-                    DirectoryEntry::File(path) => reads.push(path.track()),
+                    DirectoryEntry::File(path) => {
+                        if glob_value.execute(&path.await?.path) {
+                            reads.push(path.read())
+                        }
+                    }
                     DirectoryEntry::Symlink(_) => panic!("we already resolved symlinks"),
-                    DirectoryEntry::Other(path) => types.push(path.get_type()),
+                    DirectoryEntry::Other(path) => {
+                        if glob_value.execute(&path.await?.path) {
+                            types.push(path.get_type())
+                        }
+                    }
                     DirectoryEntry::Error => {}
                 }
             }
