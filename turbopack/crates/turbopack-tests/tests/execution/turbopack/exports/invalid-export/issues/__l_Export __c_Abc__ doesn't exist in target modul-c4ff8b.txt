@@ -1,11 +1,11 @@
 error - [bindings] [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/invalid-export/index.js  /turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/invalid-export/index.js:1:0  Export Abc doesn't exist in target module
   
-         + v-----------------------------v
-       1 + import { Abc } from "./module";
-         + ^-----------------------------^
+         + v----------------------------v
+       1 + import { Abc } from './module'
+         + ^----------------------------^
        2 | // We don't report errors for unused invalid exports
-       3 | import { Def } from "./module";
-       4 | import * as X from "./module";
+       3 | import { Def } from './module'
+       4 | import * as X from './module'
        5 | 
   
   The export Abc was not found in module [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/invalid-export/module.js [test] (ecmascript) <exports>.

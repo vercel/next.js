@@ -4,7 +4,7 @@
 
 var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
 {
-console.log("hello world");
+console.log('hello world');
 }}),
 }]);
 

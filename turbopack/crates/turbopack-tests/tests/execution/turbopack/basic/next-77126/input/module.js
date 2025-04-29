@@ -1,11 +1,11 @@
-const shouldRun = () => false;
+const shouldRun = () => false
 
 export default function run() {
   if (shouldRun()) {
-    var x = true;
+    var x = true
   }
   if (x) {
-    return 'should not run';
+    return 'should not run'
   }
-  return 'should run';
+  return 'should run'
 }

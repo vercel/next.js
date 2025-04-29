@@ -4,7 +4,7 @@
 
 var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
 {
-console.log("test") //# sourceMappingURL=index.js.map
+console.log('test') //# sourceMappingURL=index.js.map
 ;
 }}),
 }]);

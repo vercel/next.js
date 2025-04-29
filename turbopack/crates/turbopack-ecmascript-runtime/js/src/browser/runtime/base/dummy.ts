@@ -10,14 +10,14 @@
 /// <reference path="../../../shared/runtime-utils.ts" />
 /// <reference path="../../../shared/require-type.d.ts" />
 
-declare var BACKEND: RuntimeBackend;
+declare var BACKEND: RuntimeBackend
 declare var loadWebAssembly: (
   source: SourceInfo,
   wasmChunkPath: ChunkPath,
   imports: WebAssembly.Imports
-) => Exports;
+) => Exports
 declare var loadWebAssemblyModule: (
   source: SourceInfo,
   wasmChunkPath: ChunkPath
-) => WebAssembly.Module;
-declare var relativeURL: (inputUrl: string) => void;
+) => WebAssembly.Module
+declare var relativeURL: (inputUrl: string) => void
