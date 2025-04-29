@@ -89,6 +89,7 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
             batch: self.db.write_batch()?,
             db: &self.db,
             compact_join_handle: &self.compact_join_handle,
+            initial_write: self.db.is_empty(),
         }))
     }
 
@@ -106,6 +107,7 @@ pub struct TurboWriteBatch<'a> {
     batch: turbo_persistence::WriteBatch<WriteBuffer<'static>, 5>,
     db: &'a Arc<TurboPersistence>,
     compact_join_handle: &'a Mutex<Option<JoinHandle<Result<()>>>>,
+    initial_write: bool,
 }
 
 impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
@@ -126,10 +128,13 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
         // Commit the write batch
         self.db.commit_write_batch(self.batch)?;
 
-        // Start a new compaction in the background
-        let db = self.db.clone();
-        let handle = spawn(move || db.compact(COMPACT_MAX_COVERAGE, COMPACT_MAX_MERGE_SEQUENCE));
-        self.compact_join_handle.lock().replace(handle);
+        if !self.initial_write {
+            // Start a new compaction in the background
+            let db = self.db.clone();
+            let handle =
+                spawn(move || db.compact(COMPACT_MAX_COVERAGE, COMPACT_MAX_MERGE_SEQUENCE));
+            self.compact_join_handle.lock().replace(handle);
+        }
 
         Ok(())
     }
