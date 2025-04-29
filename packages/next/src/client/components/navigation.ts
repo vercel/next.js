@@ -14,7 +14,7 @@ import {
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { PAGE_SEGMENT_KEY, DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
-import { ReadonlyURLSearchParams } from './navigation.react-server'
+import { ReadonlyURLSearchParams } from '../../api/navigation'
 
 const useDynamicRouteParams =
   typeof window === 'undefined'
