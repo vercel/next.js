@@ -401,7 +401,6 @@ impl TurboPersistence {
     fn open_log(&self) -> Result<BufWriter<File>> {
         let log_path = self.path.join("LOG");
         let log_file = OpenOptions::new()
-            .write(true)
             .create(true)
             .append(true)
             .open(log_path)?;
