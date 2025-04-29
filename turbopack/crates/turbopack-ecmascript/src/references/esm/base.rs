@@ -109,6 +109,14 @@ impl ReferencedAsset {
 #[turbo_tasks::value(transparent)]
 pub struct EsmAssetReferences(Vec<ResolvedVc<EsmAssetReference>>);
 
+#[turbo_tasks::value_impl]
+impl EsmAssetReferences {
+    #[turbo_tasks::function]
+    pub fn empty() -> Vc<Self> {
+        Vc::cell(Vec::new())
+    }
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct EsmAssetReference {
