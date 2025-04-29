@@ -133,7 +133,7 @@ type InternalLinkProps = {
    * Prefetching is only enabled in production.
    *
    * - In the **App Router**:
-   *   - `null` (default): Prefetch behavior depends on static vs dynamic routes:
+   *   - `"auto"`, `null`, `undefined` (default): Prefetch behavior depends on static vs dynamic routes:
    *     - Static routes: fully prefetched
    *     - Dynamic routes: partial prefetch to the nearest segment with a `loading.js`
    *   - `true`: Always prefetch the full route and data.
@@ -151,7 +151,7 @@ type InternalLinkProps = {
    * </Link>
    * ```
    */
-  prefetch?: boolean | null
+  prefetch?: boolean | 'auto' | null
 
   /**
    * (unstable) Switch to a dynamic prefetch on hover. Effectively the same as
@@ -366,7 +366,9 @@ export default function LinkComponent(
    * - 'unstable_dynamicOnHover': this starts in "auto" mode, but switches to "full" when the link is hovered
    */
   const appPrefetchKind =
-    prefetchProp === null ? PrefetchKind.AUTO : PrefetchKind.FULL
+    prefetchProp === null || prefetchProp === 'auto'
+      ? PrefetchKind.AUTO
+      : PrefetchKind.FULL
 
   if (process.env.NODE_ENV !== 'production') {
     function createPropError(args: {
