@@ -28,8 +28,13 @@ import {
   routerServerGlobal,
 } from '../../server/lib/router-utils/router-server-context'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
-import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
+import {
+  normalizeLocalePath,
+  type PathLocale,
+} from '../../shared/lib/i18n/normalize-locale-path'
 import { loadManifestFromRelativePath } from '../../server/load-manifest.external'
+import { getHostname } from '../../shared/lib/get-hostname'
+import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 
 // Re-export the handler (should be the default export).
 export default hoist(userland, 'default')
@@ -91,9 +96,11 @@ export async function handler(
     req.url = removePathPrefix(req.url || '/', basePath)
   }
 
+  let localeResult: PathLocale | undefined
+
   if (i18n) {
     const urlParts = (req.url || '/').split('?')
-    const localeResult = normalizeLocalePath(urlParts[0] || '/', i18n.locales)
+    localeResult = normalizeLocalePath(urlParts[0] || '/', i18n.locales)
 
     if (localeResult.detectedLocale) {
       req.url = `${localeResult.pathname}${
@@ -114,6 +121,21 @@ export async function handler(
     trailingSlash: process.env.__NEXT_TRAILING_SLASH as any as boolean,
     caseSensitive: Boolean(routesManifest.caseSensitive),
   })
+
+  const domainLocale = detectDomainLocale(
+    i18n?.domains,
+    getHostname(parsedUrl, req.headers),
+    localeResult?.detectedLocale
+  )
+
+  const defaultLocale = domainLocale?.defaultLocale || i18n?.defaultLocale
+
+  // Ensure parsedUrl.pathname includes locale before processing
+  // rewrites or they won't match correctly.
+  if (defaultLocale && !localeResult?.detectedLocale) {
+    parsedUrl.pathname = `/${defaultLocale}${parsedUrl.pathname}`
+  }
+
   const rewriteParamKeys = Object.keys(
     serverUtils.handleRewrites(req, parsedUrl)
   )
@@ -124,7 +146,9 @@ export async function handler(
 
   const params: Record<string, undefined | string | string[]> =
     serverUtils.dynamicRouteMatcher
-      ? serverUtils.dynamicRouteMatcher(parsedUrl.pathname || '') || {}
+      ? serverUtils.dynamicRouteMatcher(
+          localeResult?.pathname || parsedUrl.pathname || ''
+        ) || {}
       : {}
 
   const query = {

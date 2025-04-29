@@ -1321,6 +1321,11 @@ export default async function build(
               buildCustomRoute('redirect', r, restrictedRedirectPaths)
             ),
             headers: headers.map((r) => buildCustomRoute('header', r)),
+            rewrites: {
+              beforeFiles: [],
+              afterFiles: [],
+              fallback: [],
+            },
             dynamicRoutes,
             staticRoutes,
             dataRoutes: [],
@@ -1342,11 +1347,6 @@ export default async function build(
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,
               queryHeader: NEXT_REWRITTEN_QUERY_HEADER,
-            },
-            rewrites: {
-              beforeFiles: [],
-              afterFiles: [],
-              fallback: [],
             },
             skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
             ppr: isAppPPREnabled
