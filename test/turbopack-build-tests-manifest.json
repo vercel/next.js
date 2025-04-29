@@ -5246,7 +5246,8 @@
     "passed": [
       "conflicting routes /en/vercel/~/monitoring matches the right route",
       "conflicting routes /es/vercel/~/monitoring matches the right route",
-      "conflicting routes /fr/vercel/~/monitoring matches the right route"
+      "conflicting routes /fr/vercel/~/monitoring matches the right route",
+      "conflicting routes matches the right route when the original route has no dynamic params, is dynamic, and PPR is disabled"
     ],
     "failed": [],
     "pending": [],
@@ -5577,13 +5578,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/turbopack-loader-resource-query/turbopack-loader-resource-query.test.ts": {
-    "passed": ["turbopack-loader-resource-query should pass query to loader"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/turbopack-reports/turbopack-reports.test.ts": {
     "passed": ["turbopack-reports should render page importing sqlite3"],
     "failed": [],
@@ -5786,6 +5780,8 @@
       "use-cache should send an SWR cache-control header based on the revalidate and expire values",
       "use-cache should update after unstable_expireTag correctly",
       "use-cache should use revalidate config in fetch",
+      "use-cache usage in node_modules should cache results when using a directive with a handler",
+      "use-cache usage in node_modules should cache results when using a directive without a handler",
       "use-cache works with \"use cache\" in method props",
       "use-cache works with \"use cache\" in static class methods",
       "use-cache works with useActionState if previousState parameter is not used in \"use cache\" function"
@@ -5844,11 +5840,27 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/webpack-loader-binary/webpack-loader-binary.test.ts": {
+    "passed": [
+      "webpack-loader-ts-transform should allow passing binary assets to and from a Webpack loader"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/webpack-loader-conditions/webpack-loader-conditions.test.ts": {
     "passed": [
       "webpack-loader-conditions should render correctly on client side",
       "webpack-loader-conditions should render correctly on server site"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/webpack-loader-resource-query/turbopack-loader-resource-query.test.ts": {
+    "passed": ["webpack-loader-resource-query should pass query to loader"],
     "failed": [],
     "pending": [],
     "flakey": [],
