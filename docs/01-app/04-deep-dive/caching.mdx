@@ -20,7 +20,7 @@ In Next.js, caching is:
 
 - [Client-first](#client-first): The browser is the first place the framework checks before making new requests to the server.
 - [Declarative](#declarative): You describe when a cache entry should be updated, not how it's stored.
-- [Composable](#composable): You can granularly cache individual route segments, React Server Components, or regular functions, and interleave static and dynamic content.
+- [Composable](#composable): You can granularly cache individual route segments, React Server Components, or regular functions.
 
 ### Client-first
 
@@ -30,69 +30,52 @@ Next.js uses the same model for client and server caching. When retrieving a cac
 2. The server in-memory cache
 3. A remote persistent cache, if defined
 
-{/* TODO: Add diagram */}
-
-However, **client-first does not mean client-only**. The server still plays a role in:
-
-- Fetching data and rendering as needed
-- Deduping requests for the same data
-- Reusing static shells across users
-- Persisting results to a remote cache
-
-In this hybrid model, we can reduce server requests by reusing previously visited segments, and improve the user experience by [prefetching](/docs/app/building-your-application/optimizing/prefetching) in the background.
-
-For users, it means faster page transitions and fewer loading states. For developers, it means using the same API to manage cache behavior across both client and server.
+However, **client-first does not mean client-only**. The server still plays a role in fetching and rendering, deduplicating requests, reusing static shells across users, and persisting results to a remote cache.
 
 ### Declarative
 
 Caching in Next.js is declarative. You don't configure caching layers and infrastructure directly. Instead:
 
-- You describe when a cache entry should be updated
-- Next.js handles how and where it's cached-on the client, server in-memory, or remote persistent cache
+- You describe how long some data or UI can be reused, when it should be refreshed, and what triggers a revalidation.
+- Next.js handles how and where it's cached-during build time or during runtime on [client](#client-cache), [server in-memory](#in-memory-caching-and-deduplication), or [remote persistent cache](#persistent-remote-caching).
 
 ### Composable
 
-Modern web applications are dynamic and personalized. They have:
+Next.js caching is granular and composable. You can cache route segments, nested Server Components, and individual functions. And interleave static and dynamic content, only caching what's needed, while keeping dynamic or user-specific parts fresh.
 
-1. **Hybrid pages** that combine static and dynamic content.
-2. **High-cardinality params** that generate many unique pages, making prerendering resource-intensive.
-3. **Personalized content** based on user-specific data available only at request time.
+This is specially helpful for:
 
-Next.js caching is granular and composable. You can cache:
-
-- Route Segments
-- Nested Server Components
-- Individual functions
-
-This lets you cache only what's needed, while keeping dynamic or user-specific parts fresh—without applying a single strategy across the entire page or app.
+1. Hybrid pages that combine static and dynamic content.
+2. High-cardinality params that generate many unique pages, making prerendering resource-intensive.
+3. Personalized content \based on user-specific data available only at request time.
 
 ## Caching APIs
 
-There are three main APIs used for caching:
+The APIs used for caching are:
 
-- [`"use cache"`](#how-use-cache-works): Defines a cache **boundary** for an async Server Component or function.
-- [`cacheLife()`](#how-cacheLife-works): Defines the cache lifetime for a component or function.
-- [`cacheTag()`](#how-cacheTag-works): Defines a cache tag across multiple boundaries to be invalidated together.
+- [`"use cache"`](#how-use-cache-works): Marks a Server Component or function as cacheable.
+- [`cacheLife`](#how-cacheLife-works): Sets when a cache entry should be updated.
+- [`cacheTag`](#how-cacheTag-works): Groups entries based on tags to be updated together.
 
 ## How `"use cache"` works
 
-`"use cache"` is a Next.js directive you can place inside an async [Server Component](https://react.dev/reference/rsc/server-components) or function to declare a **cache boundary**. This tells Next.js to cache the **return value** of that function or component based on its inputs.
+`"use cache"` can be placed inside am async [Server Component](https://react.dev/reference/rsc/server-components) or function to mark it as cacheable.
 
-```tsx filename="app/lib/data.ts" switcher
-export async function getUser(id: string) {
+```tsx filename="app/page.tsx" switcher
+export default async function Page() {
   'use cache'
-  // Fetch data
+  // ...
 }
 ```
 
-```jsx filename="app/lib/data.js" switcher
-export async function getUser(id) {
+```jsx filename="app/page.js" switcher
+export default async function Page() {
   'use cache'
-  // Fetch data
+  // ...
 }
 ```
 
-Similar to React's [`"use server"`](https://react.dev/reference/rsc/use-server) directive, functions annotated with `"use cache"` are compiled into [Server Functions](https://react.dev/reference/rsc/server-functions).
+Functions marked with `"use cache"` are compiled into [Server Functions](https://react.dev/reference/rsc/server-functions).
 
 Behind-the-scenes, Next.js:
 
