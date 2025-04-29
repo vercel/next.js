@@ -9,12 +9,11 @@ use std::{
         atomic::{AtomicBool, AtomicU32, Ordering},
         Arc,
     },
-    time::Instant,
 };
 
 use anyhow::{bail, Context, Result};
 use byteorder::{ReadBytesExt, WriteBytesExt, BE};
-use chrono::Local;
+use jiff::Timestamp;
 use lzzzz::lz4::decompress;
 use memmap2::Mmap;
 use parking_lot::{Mutex, RwLock};
@@ -436,8 +435,7 @@ impl TurboPersistence {
         mut indicies_to_delete: Vec<usize>,
         mut seq: u32,
     ) -> Result<(), anyhow::Error> {
-        let time = Local::now();
-        let start = Instant::now();
+        let time = Timestamp::now();
 
         new_sst_files.sort_unstable_by_key(|(seq, _)| *seq);
 
@@ -508,8 +506,9 @@ impl TurboPersistence {
 
         {
             let mut log = self.open_log()?;
-            writeln!(log, "Time {}", time.format("%Y-%m-%d %H:%M"))?;
-            writeln!(log, "Commit {seq:08} {:?}", start.elapsed())?;
+            writeln!(log, "Time {}", time)?;
+            let span = time.until(Timestamp::now())?;
+            writeln!(log, "Commit {seq:08} {:#}", span)?;
             for (index, family, min, max, size) in new_sst_info.iter() {
                 writeln!(
                     log,
