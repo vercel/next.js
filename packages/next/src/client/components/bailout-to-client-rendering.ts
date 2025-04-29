@@ -12,14 +12,8 @@ export function bailoutToClientRendering(reason: string): void | never {
 
   const workUnitStore = workUnitAsyncStorage.getStore()
 
-  if (workUnitStore) {
-    if (workStore.isPrefetchRequest && workUnitStore.type === 'prerender-ppr') {
-      postponeWithTracking(
-        workStore.route,
-        reason,
-        workUnitStore.dynamicTracking
-      )
-    }
+  if (workStore.isPrefetchRequest && workUnitStore?.type === 'prerender-ppr') {
+    postponeWithTracking(workStore.route, reason, workUnitStore.dynamicTracking)
   } else {
     throw new BailoutToCSRError(reason)
   }
