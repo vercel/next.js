@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::{
-    common::Span,
+    common::{Mark, Span, SyntaxContext},
     ecma::{
         ast::{
             ComputedPropName, Expr, Ident, KeyValueProp, Lit, MemberExpr, MemberProp, Number, Prop,
@@ -16,9 +16,14 @@ use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use super::EsmAssetReference;
 use crate::{
+    ScopeHoistingContext,
+    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
-    references::{AstPath, esm::base::ReferencedAsset},
+    references::{
+        AstPath,
+        esm::{EsmExport, base::ReferencedAsset},
+    },
 };
 
 #[derive(Hash, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs, NonLocalValue)]
@@ -45,20 +50,55 @@ impl EsmBinding {
         &self,
         _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        scope_hoisting_context: Option<ScopeHoistingContext<'_>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = vec![];
 
         let export = self.export.clone();
-        let imported_module = self.reference.get_referenced_asset();
+        let imported_module = self.reference.get_referenced_asset().await?;
 
         enum ImportedIdent {
             Module(String),
+            Local(RcStr, [Mark; 2]),
             None,
             Unresolvable,
         }
 
-        let imported_ident = match &*imported_module.await? {
+        let imported_ident = match &*imported_module {
             ReferencedAsset::None => ImportedIdent::None,
+            ReferencedAsset::Some(module) => {
+                let mut result = None;
+                if let Some(scope_hoisting_context) = scope_hoisting_context {
+                    if let Some(mark) = scope_hoisting_context
+                        .module_marks
+                        .get(&ResolvedVc::upcast(*module))
+                    {
+                        if let Some(export) = &export {
+                            if let EcmascriptExports::EsmExports(exports) =
+                                *module.get_exports().await?
+                            {
+                                let exports = exports.await?;
+                                let export = exports.exports.get(export);
+                                if let Some(EsmExport::LocalBinding(name, _)) = export {
+                                    result = Some(ImportedIdent::Local(
+                                        name.clone(),
+                                        [*mark, scope_hoisting_context.is_export_mark],
+                                    ));
+                                } else {
+                                    // TODO
+                                }
+                            }
+                        }
+                    }
+                }
+                if let Some(result) = result {
+                    result
+                } else {
+                    ImportedIdent::Module(
+                        imported_module.get_ident(chunking_context).await?.unwrap(),
+                    )
+                }
+            }
             imported_module => imported_module
                 .get_ident(chunking_context)
                 .await?
@@ -80,7 +120,7 @@ impl EsmBinding {
                                     ImportedIdent::Module(imported_ident) => {
                                         *prop = Prop::KeyValue(KeyValueProp {
                                             key: PropName::Ident(ident.clone().into()),
-                                            value: Box::new(make_expr(
+                                            value: Box::new(make_module_expr(
                                                 imported_ident,
                                                 export.as_deref(),
                                                 ident.span,
@@ -89,10 +129,25 @@ impl EsmBinding {
                                         });
                                     }
                                     ImportedIdent::None => {
+
                                         *prop = Prop::KeyValue(KeyValueProp {
                                             key: PropName::Ident(ident.clone().into()),
-                                            value: Expr::undefined(ident.span),
+                                            value:
+                                            Expr::undefined(ident.span),
                                         });
+                                    }
+                                    ImportedIdent::Local(local_ident, marks) => {
+                                        *prop = Prop::KeyValue(
+                                            KeyValueProp {
+                                                key: PropName::Ident(ident.clone().into()),
+                                                value: Box::new(make_local_expr(
+                                                    local_ident,
+                                                    export.as_deref(),
+                                                    ident.span,
+                                                    *marks
+                                                ).into()),
+                                            }
+                                        );
                                     }
                                     ImportedIdent::Unresolvable => {
                                         // Do nothing, the reference will insert a throw
@@ -118,7 +173,15 @@ impl EsmBinding {
                             use swc_core::common::Spanned;
                             match &imported_ident {
                                 ImportedIdent::Module(imported_ident) => {
-                                    *expr = make_expr(imported_ident, export.as_deref(), expr.span(), in_call);
+                                    *expr = make_module_expr(imported_ident, export.as_deref(), expr.span(), in_call);
+                                }
+                                ImportedIdent::Local(local_ident, marks) => {
+                                    *expr = make_local_expr(
+                                        local_ident,
+                                        export.as_deref(),
+                                        expr.span(),
+                                        *marks
+                                    ).into();
                                 }
                                 ImportedIdent::None => {
                                     *expr = *Expr::undefined(expr.span());
@@ -149,11 +212,14 @@ impl EsmBinding {
                             use swc_core::common::Spanned;
                             match &imported_ident {
                                 ImportedIdent::Module(imported_ident) => {
-                                    *l = match make_expr(imported_ident, export.as_deref(), l.span(), false) {
+                                    *l = match make_module_expr(imported_ident, export.as_deref(), l.span(), false) {
                                         Expr::Ident(ident) => SimpleAssignTarget::Ident(ident.into()),
                                         Expr::Member(member) => SimpleAssignTarget::Member(member),
                                         _ => unreachable!(),
                                     };
+                                }
+                                ImportedIdent::Local(local_ident, marks) => {
+                                    *l = SimpleAssignTarget::Ident(make_local_expr(local_ident, export.as_deref(), l.span(), *marks).into());
                                 }
                                 ImportedIdent::None => {
                                     // Do nothing, cannot assign to `undefined`
@@ -183,7 +249,12 @@ impl From<EsmBinding> for CodeGen {
     }
 }
 
-fn make_expr(imported_module: &str, export: Option<&str>, span: Span, in_call: bool) -> Expr {
+fn make_module_expr(
+    imported_module: &str,
+    export: Option<&str>,
+    span: Span,
+    in_call: bool,
+) -> Expr {
     if let Some(export) = export {
         let mut expr = Expr::Member(MemberExpr {
             span,
@@ -218,4 +289,27 @@ fn make_expr(imported_module: &str, export: Option<&str>, span: Span, in_call: b
     } else {
         Expr::Ident(Ident::new(imported_module.into(), span, Default::default()))
     }
+}
+
+fn make_local_expr(
+    local_module: &str,
+    _export: Option<&str>,
+    span: Span,
+    marks: [Mark; 2],
+) -> Ident {
+    // if let Some(export) = export {
+    //     Ident::new(
+    //         format!("{local_module}_{export}").into(),
+    //         span,
+    //         Default::default(),
+    //     )
+    // } else {
+    Ident::new(
+        local_module.into(),
+        span,
+        SyntaxContext::empty()
+            .apply_mark(marks[0])
+            .apply_mark(marks[1]),
+    )
+    // }
 }
