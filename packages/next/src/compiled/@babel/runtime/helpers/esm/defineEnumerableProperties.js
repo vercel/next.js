@@ -1,19 +1,12 @@
-export default function _defineEnumerableProperties(obj, descs) {
-  for (var key in descs) {
-    var desc = descs[key];
-    desc.configurable = desc.enumerable = true;
-    if ("value" in desc) desc.writable = true;
-    Object.defineProperty(obj, key, desc);
+function _defineEnumerableProperties(e, r) {
+  for (var t in r) {
+    var n = r[t];
+    n.configurable = n.enumerable = !0, "value" in n && (n.writable = !0), Object.defineProperty(e, t, n);
   }
-  if (Object.getOwnPropertySymbols) {
-    var objectSymbols = Object.getOwnPropertySymbols(descs);
-    for (var i = 0; i < objectSymbols.length; i++) {
-      var sym = objectSymbols[i];
-      var desc = descs[sym];
-      desc.configurable = desc.enumerable = true;
-      if ("value" in desc) desc.writable = true;
-      Object.defineProperty(obj, sym, desc);
-    }
+  if (Object.getOwnPropertySymbols) for (var a = Object.getOwnPropertySymbols(r), b = 0; b < a.length; b++) {
+    var i = a[b];
+    (n = r[i]).configurable = n.enumerable = !0, "value" in n && (n.writable = !0), Object.defineProperty(e, i, n);
   }
-  return obj;
+  return e;
 }
+export { _defineEnumerableProperties as default };
