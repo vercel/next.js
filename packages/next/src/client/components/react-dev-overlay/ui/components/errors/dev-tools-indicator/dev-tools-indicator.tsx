@@ -261,26 +261,27 @@ function DevToolsPopover({
   const popover = { [vertical]: 'calc(100% + 8px)', [horizontal]: 0 }
 
   return (
-    <Draggable
-      padding={INDICATOR_PADDING}
-      position={position}
-      setPosition={(p) => {
-        localStorage.setItem(STORAGE_KEY_POSITION, p)
-        setPosition(p)
-      }}
+    <Toast
+      data-nextjs-toast
+      style={
+        {
+          '--animate-out-duration-ms': `${MENU_DURATION_MS}ms`,
+          '--animate-out-timing-function': MENU_CURVE,
+          boxShadow: 'none',
+          zIndex: 2147483647,
+          [vertical]: `${INDICATOR_PADDING}px`,
+          [horizontal]: `${INDICATOR_PADDING}px`,
+        } as CSSProperties
+      }
     >
-      <Toast
-        data-nextjs-toast
-        style={
-          {
-            '--animate-out-duration-ms': `${MENU_DURATION_MS}ms`,
-            '--animate-out-timing-function': MENU_CURVE,
-            boxShadow: 'none',
-            zIndex: 2147483647,
-            [vertical]: `${INDICATOR_PADDING}px`,
-            [horizontal]: `${INDICATOR_PADDING}px`,
-          } as CSSProperties
-        }
+      <Draggable
+        padding={INDICATOR_PADDING}
+        onDragStart={() => setOpen(null)}
+        position={position}
+        setPosition={(p) => {
+          localStorage.setItem(STORAGE_KEY_POSITION, p)
+          setPosition(p)
+        }}
       >
         {/* Trigger */}
         <NextLogo
@@ -299,109 +300,109 @@ function DevToolsPopover({
           isBuildError={isBuildError}
           scale={scale}
         />
+      </Draggable>
 
-        {/* Route Info */}
-        <RouteInfo
-          isOpen={isRouteInfoOpen}
-          close={openRootMenu}
-          triggerRef={triggerRef}
+      {/* Route Info */}
+      <RouteInfo
+        isOpen={isRouteInfoOpen}
+        close={openRootMenu}
+        triggerRef={triggerRef}
+        style={popover}
+        routerType={routerType}
+        routeType={isStaticRoute ? 'Static' : 'Dynamic'}
+      />
+
+      {/* Turbopack Info */}
+      <TurbopackInfo
+        isOpen={isTurbopackInfoOpen}
+        close={openRootMenu}
+        triggerRef={triggerRef}
+        style={popover}
+      />
+
+      {/* Preferences */}
+      <UserPreferences
+        isOpen={isPreferencesOpen}
+        close={openRootMenu}
+        triggerRef={triggerRef}
+        style={popover}
+        hide={handleHideDevtools}
+        setPosition={setPosition}
+        position={position}
+        scale={scale}
+        setScale={setScale}
+      />
+
+      {/* Dropdown Menu */}
+      {menuMounted && (
+        <div
+          ref={menuRef}
+          id="nextjs-dev-tools-menu"
+          role="menu"
+          dir="ltr"
+          aria-orientation="vertical"
+          aria-label="Next.js Dev Tools Items"
+          tabIndex={-1}
+          className="dev-tools-indicator-menu"
+          onKeyDown={onMenuKeydown}
+          data-rendered={menuRendered}
           style={popover}
-          routerType={routerType}
-          routeType={isStaticRoute ? 'Static' : 'Dynamic'}
-        />
-
-        {/* Turbopack Info */}
-        <TurbopackInfo
-          isOpen={isTurbopackInfoOpen}
-          close={openRootMenu}
-          triggerRef={triggerRef}
-          style={popover}
-        />
-
-        {/* Preferences */}
-        <UserPreferences
-          isOpen={isPreferencesOpen}
-          close={openRootMenu}
-          triggerRef={triggerRef}
-          style={popover}
-          hide={handleHideDevtools}
-          setPosition={setPosition}
-          position={position}
-          scale={scale}
-          setScale={setScale}
-        />
-
-        {/* Dropdown Menu */}
-        {menuMounted && (
-          <div
-            ref={menuRef}
-            id="nextjs-dev-tools-menu"
-            role="menu"
-            dir="ltr"
-            aria-orientation="vertical"
-            aria-label="Next.js Dev Tools Items"
-            tabIndex={-1}
-            className="dev-tools-indicator-menu"
-            onKeyDown={onMenuKeydown}
-            data-rendered={menuRendered}
-            style={popover}
+        >
+          <Context.Provider
+            value={{
+              closeMenu,
+              selectedIndex,
+              setSelectedIndex,
+            }}
           >
-            <Context.Provider
-              value={{
-                closeMenu,
-                selectedIndex,
-                setSelectedIndex,
-              }}
-            >
-              <div className="dev-tools-indicator-inner">
-                {issueCount > 0 && (
-                  <MenuItem
-                    title={`${issueCount} ${issueCount === 1 ? 'issue' : 'issues'} found. Click to view details in the dev overlay.`}
-                    index={0}
-                    label="Issues"
-                    value={<IssueCount>{issueCount}</IssueCount>}
-                    onClick={openErrorOverlay}
-                  />
-                )}
+            <div className="dev-tools-indicator-inner">
+              {issueCount > 0 && (
                 <MenuItem
-                  title={`Current route is ${isStaticRoute ? 'static' : 'dynamic'}.`}
-                  label="Route"
-                  index={1}
-                  value={isStaticRoute ? 'Static' : 'Dynamic'}
-                  onClick={() => setOpen(OVERLAYS.Route)}
-                  data-nextjs-route-type={isStaticRoute ? 'static' : 'dynamic'}
+                  title={`${issueCount} ${issueCount === 1 ? 'issue' : 'issues'} found. Click to view details in the dev overlay.`}
+                  index={0}
+                  label="Issues"
+                  value={<IssueCount>{issueCount}</IssueCount>}
+                  onClick={openErrorOverlay}
                 />
-                {isTurbopack ? (
-                  <MenuItem
-                    title="Turbopack is enabled."
-                    label="Turbopack"
-                    value="Enabled"
-                  />
-                ) : (
-                  <MenuItem
-                    index={2}
-                    title="Learn about Turbopack and how to enable it in your application."
-                    label="Try Turbopack"
-                    value={<ChevronRight />}
-                    onClick={() => setOpen(OVERLAYS.Turbo)}
-                  />
-                )}
-              </div>
+              )}
+              <MenuItem
+                title={`Current route is ${isStaticRoute ? 'static' : 'dynamic'}.`}
+                label="Route"
+                index={1}
+                value={isStaticRoute ? 'Static' : 'Dynamic'}
+                onClick={() => setOpen(OVERLAYS.Route)}
+                data-nextjs-route-type={isStaticRoute ? 'static' : 'dynamic'}
+              />
+              {isTurbopack ? (
+                <MenuItem
+                  title="Turbopack is enabled."
+                  label="Turbopack"
+                  value="Enabled"
+                />
+              ) : (
+                <MenuItem
+                  index={2}
+                  title="Learn about Turbopack and how to enable it in your application."
+                  label="Try Turbopack"
+                  value={<ChevronRight />}
+                  onClick={() => setOpen(OVERLAYS.Turbo)}
+                />
+              )}
+            </div>
 
-              <div className="dev-tools-indicator-footer">
-                <MenuItem
-                  data-preferences
-                  label="Preferences"
-                  value={<GearIcon />}
-                  onClick={() => setOpen(OVERLAYS.Preferences)}
-                  index={isTurbopack ? 2 : 3}
-                />
-              </div>
-            </Context.Provider>
-          </div>
-        )}
-      </Toast>
-    </Draggable>
+            <div className="dev-tools-indicator-footer">
+              <MenuItem
+                data-preferences
+                label="Preferences"
+                value={<GearIcon />}
+                onClick={() => setOpen(OVERLAYS.Preferences)}
+                index={isTurbopack ? 2 : 3}
+              />
+            </div>
+          </Context.Provider>
+        </div>
+      )}
+    </Toast>
   )
 }
 
@@ -628,5 +629,42 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
       font-size: var(--size-12);
       line-height: var(--size-16);
     }
+  }
+
+  .dev-tools-dismiss-overlay {
+    display: flex;
+    justify-content: center;
+    position: fixed;
+    width: 100%;
+    // outline: 1px solid red;
+    height: 50vh;
+    bottom: 0;
+    // background: red;
+
+    [data-nextjs-scroll-fader] {
+      height: 100%;
+      --color-bg: rgba(255, 255, 255, 0.5);
+
+      @media (prefers-color-scheme: dark) {
+        --color-bg: rgba(0, 0, 0, 0.5);
+      }
+    }
+  } 
+
+  .dev-tools-dismiss-region {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 32px;
+    position: relative;
+    z-index: 2;
+    color: var(--color-gray-1000);
+    border-radius: var(--rounded-full);
+    background: var(--color-gray-alpha-500);
+    backdrop-filter: blur(12px);
+    width: 126px;
+    height: 36px;
+    margin-top: auto;
+    margin-bottom: 48px;
   }
 `

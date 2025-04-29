@@ -1,4 +1,7 @@
-import { cloneElement, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { getActiveElement } from './utils'
+import { Fader } from '../../fader'
 
 interface Point {
   x: number
@@ -8,7 +11,7 @@ interface Point {
 type Corners = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
 
 interface Corner {
-  corner: Corner
+  corner: Corners
   translation: Point
 }
 
@@ -17,32 +20,39 @@ export function Draggable({
   padding: PADDING,
   position: currentCorner,
   setPosition: setCurrentCorner,
+  onDragStart,
 }: {
   children: React.ReactElement
   position: Corners
   padding: number
   setPosition: (position: Corners) => void
+  onDragStart?: () => void
 }) {
-  const { ref, animate, animating, ...drag } = useDrag({
-    onDragEnd: (translation, velocity) => {
-      const projectedPosition = {
-        x: translation.x + project(velocity.x),
-        y: translation.y + project(velocity.y),
-      }
-
-      const nearestCorner = getNearestCorner(projectedPosition)
-      animate(nearestCorner)
-    },
-    onAnimationEnd: ({ corner }: Corner) => {
-      // Unset drag translation
-      // ref.current.style.transition = 'none'
-      console.log('animating', animating)
-      setTimeout(() => {
-        ref.current.style.translate = 'none'
-        setCurrentCorner(corner)
-      })
-    },
+  const dismissRegionRef = useRef<HTMLDivElement>(null)
+  const [showDismissRegion, setShowDismissRegion] = useState(false)
+  const { ref, animate, ...drag } = useDrag({
+    threshold: 10,
+    onDragStart,
+    onDragEnd,
+    onAnimationEnd,
   })
+
+  function onDragEnd(translation: Point, velocity: Point) {
+    const projectedPosition = {
+      x: translation.x + project(velocity.x),
+      y: translation.y + project(velocity.y),
+    }
+    const nearestCorner = getNearestCorner(projectedPosition)
+    animate(nearestCorner)
+  }
+
+  function onAnimationEnd({ corner }: Corner) {
+    // Unset drag translation
+    setTimeout(() => {
+      ref.current.style.translate = 'none'
+      setCurrentCorner(corner)
+    }, 10)
+  }
 
   function getNearestCorner({ x, y }: Point): Corner {
     const allCorners = getCorners()
@@ -56,7 +66,7 @@ export function Draggable({
     const nearest = distances.find((d) => d.distance === min)
     if (!nearest) {
       // Safety fallback
-      return allCorners['bottom-left']
+      return { corner: currentCorner, translation: allCorners[currentCorner] }
     }
     return {
       translation: allCorners[nearest.key as Corners],
@@ -69,7 +79,7 @@ export function Draggable({
     const triggerWidth = ref.current?.offsetWidth || 0
     const triggerHeight = ref.current?.offsetHeight || 0
 
-    function getAbsolutePosition(corner) {
+    function getAbsolutePosition(corner: Corners) {
       const isRight = corner.includes('right')
       const isBottom = corner.includes('bottom')
 
@@ -102,23 +112,71 @@ export function Draggable({
     }
   }
 
-  return cloneElement(children, {
-    ref,
-    ...drag,
-    style: {
-      ...children.props.style,
-      transition: animating
-        ? 'translate 491.22ms var(--timing-bounce)'
-        : undefined,
-    },
-  })
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    return () => {
+      setMounted(false)
+    }
+  }, [])
+
+  return (
+    <>
+      <div ref={ref} {...drag}>
+        {children}
+      </div>
+      {mounted &&
+        createPortal(
+          <div className="dev-tools-dismiss-overlay">
+            <Fader side="bottom" blur="15px" />
+            <div ref={dismissRegionRef} className="dev-tools-dismiss-region">
+              <svg
+                data-testid="geist-icon"
+                height="16"
+                stroke-linejoin="round"
+                viewBox="0 0 16 16"
+                width="16"
+              >
+                <path
+                  fill-rule="evenodd"
+                  clip-rule="evenodd"
+                  d="M12.4697 13.5303L13 14.0607L14.0607 13L13.5303 12.4697L9.06065 7.99999L13.5303 3.53032L14.0607 2.99999L13 1.93933L12.4697 2.46966L7.99999 6.93933L3.53032 2.46966L2.99999 1.93933L1.93933 2.99999L2.46966 3.53032L6.93933 7.99999L2.46966 12.4697L1.93933 13L2.99999 14.0607L3.53032 13.5303L7.99999 9.06065L12.4697 13.5303Z"
+                  fill="currentColor"
+                ></path>
+              </svg>
+            </div>
+          </div>,
+          ref.current.getRootNode()
+        )}
+      <svg style={{ display: 'none' }}>
+        <defs>
+          <filter id="filter">
+            <feGaussianBlur
+              in="SourceGraphic"
+              stdDeviation="10"
+              result="blur"
+            />
+            <feColorMatrix
+              in="blur"
+              mode="matrix"
+              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -9"
+              result="filter"
+            />
+            <feComposite in="SourceGraphic" in2="filter" operator="atop" />
+          </filter>
+        </defs>
+      </svg>
+    </>
+  )
 }
 
 interface UseDragOptions {
+  onDragStart?: () => void
   onDrag?: (translation: Point) => void
   onDragEnd?: (translation: Point, velocity: Point) => void
   onAnimationEnd?: (corner: Corner) => void
-  threshold?: number // Minimum movement before drag starts
+  threshold: number // Minimum movement before drag starts
 }
 
 interface Velocity {
@@ -126,70 +184,14 @@ interface Velocity {
   timestamp: number
 }
 
-export function useDrag(options: UseDragOptions = {}) {
-  // How many px to move before we initiate dragging
-  const { threshold = 10 } = options
-
+export function useDrag(options: UseDragOptions) {
   const ref = useRef<HTMLDivElement>(null)
-  const state = useRef<'idle' | 'press' | 'drag'>('idle')
+  const state = useRef<'idle' | 'press' | 'drag' | 'drag-end'>('idle')
 
   const origin = useRef<Point>({ x: 0, y: 0 })
   const translation = useRef<Point>({ x: 0, y: 0 })
   const lastTimestamp = useRef(0)
   const velocities = useRef<Velocity[]>([])
-  const [animating, setAnimating] = useState(false)
-
-  useEffect(() => {
-    function onPointerMove(e: PointerEvent) {
-      if (state.current === 'press') {
-        const dx = e.clientX - origin.current.x
-        const dy = e.clientY - origin.current.y
-        const distance = Math.sqrt(dx * dx + dy * dy)
-
-        if (state.current === 'press' && distance >= threshold) {
-          state.current = 'drag'
-          ref.current!.style.pointerEvents = 'none'
-          ref.current?.setPointerCapture(e.pointerId)
-        }
-      }
-
-      if (state.current !== 'drag') return
-
-      const currentPosition = { x: e.clientX, y: e.clientY }
-      const now = Date.now()
-
-      const dx = currentPosition.x - origin.current.x
-      const dy = currentPosition.y - origin.current.y
-      origin.current = currentPosition
-
-      const newTranslation = {
-        x: translation.current.x + dx,
-        y: translation.current.y + dy,
-      }
-
-      set(newTranslation)
-
-      // Keep a history of recent positions for velocity calculation
-      // Only store points that are at least 10ms apart to avoid too many samples
-      const shouldAddToHistory = now - lastTimestamp.current >= 10
-      if (shouldAddToHistory) {
-        velocities.current = [
-          ...velocities.current.slice(-5),
-          { position: currentPosition, timestamp: now },
-        ]
-      }
-
-      lastTimestamp.current = now
-      options.onDrag?.(translation.current)
-    }
-
-    window.addEventListener('pointermove', onPointerMove)
-
-    return () => {
-      window.removeEventListener('pointermove', onPointerMove)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   function set(position: Point) {
     if (ref.current) {
@@ -199,49 +201,104 @@ export function useDrag(options: UseDragOptions = {}) {
   }
 
   function animate(corner: Corner) {
+    const el = ref.current
+    if (el === null) return
+
     function listener(e: TransitionEvent) {
       if (e.propertyName === 'translate') {
-        setAnimating(false)
         options.onAnimationEnd?.(corner)
         translation.current = { x: 0, y: 0 }
-        ref.current?.removeEventListener('transitionend', listener)
+        el!.style.transition = ''
+        el!.removeEventListener('transitionend', listener)
       }
     }
-    if (ref.current) {
-      ref.current.addEventListener('transitionend', listener)
-    }
-    setAnimating(true)
+
+    el.style.transition = 'translate 491.22ms var(--timing-bounce)'
+    el.addEventListener('transitionend', listener)
     set(corner.translation)
+  }
+
+  function onClick(e: MouseEvent) {
+    if (state.current === 'drag-end') {
+      console.log('Prevent')
+      e.preventDefault()
+      e.stopPropagation()
+      state.current = 'idle'
+      ref.current?.removeEventListener('click', onClick)
+    }
   }
 
   function onPointerDown(e: React.PointerEvent) {
     origin.current = { x: e.clientX, y: e.clientY }
     state.current = 'press'
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', onPointerUp)
+    ref.current?.addEventListener('click', onClick)
   }
 
-  function onPointerUp(e: React.PointerEvent) {
-    state.current = 'idle'
-    ref.current!.style.pointerEvents = ''
+  function onPointerMove(e: PointerEvent) {
+    if (state.current === 'press') {
+      const dx = e.clientX - origin.current.x
+      const dy = e.clientY - origin.current.y
+      const distance = Math.sqrt(dx * dx + dy * dy)
+
+      if (state.current === 'press' && distance >= options.threshold) {
+        state.current = 'drag'
+        ref.current?.setPointerCapture(e.pointerId)
+        options.onDragStart?.()
+      }
+    }
+
+    if (state.current !== 'drag') return
+
+    const currentPosition = { x: e.clientX, y: e.clientY }
+    const now = Date.now()
+
+    const dx = currentPosition.x - origin.current.x
+    const dy = currentPosition.y - origin.current.y
+    origin.current = currentPosition
+
+    const newTranslation = {
+      x: translation.current.x + dx,
+      y: translation.current.y + dy,
+    }
+
+    set(newTranslation)
+
+    // Keep a history of recent positions for velocity calculation
+    // Only store points that are at least 10ms apart to avoid too many samples
+    const shouldAddToHistory = now - lastTimestamp.current >= 10
+    if (shouldAddToHistory) {
+      velocities.current = [
+        ...velocities.current.slice(-5),
+        { position: currentPosition, timestamp: now },
+      ]
+    }
+
+    lastTimestamp.current = now
+    options.onDrag?.(translation.current)
+  }
+
+  function onPointerUp(e: PointerEvent) {
+    if (state.current === 'drag') {
+      state.current = 'drag-end'
+    } else {
+      state.current = 'idle'
+    }
+
+    window.removeEventListener('pointermove', onPointerMove)
+    window.removeEventListener('pointerup', onPointerUp)
+
     const velocity = calculateVelocity(velocities.current)
     options.onDragEnd?.(translation.current, velocity)
     velocities.current = []
-    if (ref.current) {
-      ref.current.releasePointerCapture(e.pointerId)
-    }
-  }
-
-  function onPointerCancel() {
-    state.current = 'idle'
-    velocities.current = []
+    ref.current?.releasePointerCapture(e.pointerId)
   }
 
   return {
     ref,
     onPointerDown,
-    onPointerUp,
-    onPointerCancel,
     animate,
-    animating,
   }
 }
 
@@ -276,4 +333,16 @@ function calculateVelocity(
 
 function project(initialVelocity: number, decelerationRate = 0.999) {
   return ((initialVelocity / 1000) * decelerationRate) / (1 - decelerationRate)
+}
+
+function areIntersecting(el1: HTMLElement, el2: HTMLElement, padding = 0) {
+  const rect1 = el1.getBoundingClientRect()
+  const rect2 = el2.getBoundingClientRect()
+
+  return !(
+    rect1.right + padding < rect2.left ||
+    rect1.left - padding > rect2.right ||
+    rect1.bottom + padding < rect2.top ||
+    rect1.top - padding > rect2.bottom
+  )
 }
