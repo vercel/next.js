@@ -4,78 +4,67 @@ nav_title: Caching
 description: An deep dive into how caching works in Next.js
 ---
 
-Caching is a technique for storing the result of expensive work (rendering, data fetching, and other computations) so that future requests for the same content can be served faster, without recomputing the result.
+Caching is a technique for storing the result of rendering, data fetching, and other computations so that future requests for the same data can be served faster, without doing the work again.
 
-In this deep dive, you’ll learn:
+In this deep dive, you'll learn:
 
+- [Caching principles](#caching-principles)
 - [How caching works in Next.js](#how-caching-works-in-nextjs)
 - [How to define cache boundaries with `"use cache"`](#how-use-cache-works)
 - How to define update semantics with `cacheLife` and `cacheTag`
 - How to configure a remote, persistent cache (coming soon)
 
-## How caching works in Next.js
+## Caching principles
 
-In Next.js, caching can be described as:
+In Next.js, caching is:
 
-- [Client-first](#client-first): The browser becomes an active participant in caching, and is the first place Next.js checks for cached data or UI.
-- [Declarative](#declarative): You describe when a cache should be updated, rather than how and where the cache is stored.
-- [Granular](#granular): You can cache components and individual async functions, rather than the entire page.
+- [Client-first](#client-first): The browser is the first place the framework checks before making new requests to the server.
+- [Declarative](#declarative): You describe when a cache entry should be updated, not how it's stored.
+- [Composable](#composable): You can granularly cache individual route segments, React Server Components, or regular functions, and interleave static and dynamic content.
 
 ### Client-first
 
-Historically, web frameworks were primarily concerned with **server-side** caching:
+Next.js uses the same model for client and server caching. When retrieving a cache entry, it checks:
 
-- Cache was coupled to infrastructure (e.g. [ISR](https://vercel.com/docs/incremental-static-regeneration), [Data Cache](https://vercel.com/docs/data-cache), CDNs, etc).
-- Pages were described as entirely static or dynamic:
-  - Static: Prerendered and cached on the server.
-  - Dynamic: Re-rendered at request time.
-- Personalized data bypassed caching altogether.
-
-Next.js uses both the client and server environments for caching. When resolving a cache miss, it checks:
-
-1. The client cache (prefetched or previously visited content)
-2. The server in-memory cache (Lambda or Node runtime)
-3. A persistent remote cache, if defined (e.g. [ISR](https://vercel.com/docs/incremental-static-regeneration) or [Data Cache](https://vercel.com/docs/data-cache))
+1. The client cache
+2. The server in-memory cache
+3. A remote persistent cache, if defined
 
 {/* TODO: Add diagram */}
 
-By making caching **client-first**, we can reduce unnecessary server requests and optimize React Server Components to provide a similar **user experience** as Single-Page Applications (SPAs)—while still leveraging the benefits of doing work on the server. For the user, it means faster navigation and less intermediary loading states like skeletons and spinners.
-
 However, **client-first does not mean client-only**. The server still plays a role in:
 
-- Executing logic when needed (e.g. data fetching and rendering)
-- Deduping requests for the same content (in-memory caching)
-- Reusing static shells across users (PPR)
-- Persisting the result in a remote cache (e.g. ISR, CDN, etc)
+- Fetching data and rendering as needed
+- Deduping requests for the same data
+- Reusing static shells across users
+- Persisting results to a remote cache
 
-In this hybrid model, the client is prioritized, becoming an active participant in improving the navigation experience and reducing server load.
+In this hybrid model, we can reduce server requests by reusing previously visited segments, and improve the user experience by [prefetching](/docs/app/building-your-application/optimizing/prefetching) in the background.
+
+For users, it means faster page transitions and fewer loading states. For developers, it means using the same API to manage cache behavior across both client and server.
 
 ### Declarative
 
-Next.js caching APIs let you describe caching **semantics** instead of caching **mechanics**.
+Caching in Next.js is declarative. You don't configure caching layers and infrastructure directly. Instead:
 
-Instead of asking: _"Where should this be cached?"_
-You ask: _"When should this cache be updated?"_
+- You describe when a cache entry should be updated
+- Next.js handles how and where it's cached-on the client, server in-memory, or remote persistent cache
 
-In other words:
+### Composable
 
-- You describe the [update semantics](#update-semantics): how long something is fresh, when it should revalidate, and what causes invalidation.
-- Next.js determines the most appropriate environment and layer based on your declared semantics.
+Modern web applications are dynamic and personalized. They have:
 
-This declarative and agnostic approach allows Next.js to provide a consistent API regardless of your static or dynamic requirements and infrastructure setup.
+1. **Hybrid pages** that combine static and dynamic content.
+2. **High-cardinality params** that generate many unique pages, making prerendering resource-intensive.
+3. **Personalized content** based on user-specific data available only at request time.
 
-### Granular
+Next.js caching is granular and composable. You can cache:
 
-Modern web applications are **dynamic**, **personalized**, **interactive**, and require a granular approach to caching, specifically for:
+- Route Segments
+- Nested Server Components
+- Individual functions
 
-1. [**Dynamic route segments**](/docs/app/building-your-application/routing/dynamic-routes) - which can potentially create a large number of unique pages. Trying to prerender or cache all of them on the server can be time-consuming and server-intensive.
-2. **Personalized content** - some content can only be fetched after authentication—once a browser session exists and cookies are available.
-
-In Next.js, in addition to caching entire pages, you can more granularly cache:
-
-- Route Segments (e.g. layouts, static shell)
-- Nested UI components (e.g. user avatar and name)
-- Individual data fetching functions (e.g. `getUser()`)
+This lets you cache only what's needed, while keeping dynamic or user-specific parts fresh—without applying a single strategy across the entire page or app.
 
 ## Caching APIs
 
