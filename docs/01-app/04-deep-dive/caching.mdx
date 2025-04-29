@@ -222,4 +222,13 @@ The in-memory cache provides a foundational default that:
 
 - Speeds up rendering by accumulating cache entries during a pass.
 - Reduces requests to external database or APIs, improving performance and reducing costs.
+
+### Persistent remote caching
+
+> **Coming soon:** Persistent remote caching is under active development.
+
+Unlike the default in-memory cache, a persistent remote cache stores entries in an external service. This allows cached entries to be reused across requests, servers, and deployments.
+
+Cache entries persist for their [configured lifetime]() or until they are [manually revalidated]().
+
 - Works well as a simple and affordable starting point for [self-hosted]() applications.
