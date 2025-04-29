@@ -10,25 +10,29 @@ use turbopack_core::{
     chunk::ChunkingContext, module_graph::ModuleGraph, reference::ModuleReference,
 };
 
-use crate::references::{
-    amd::AmdDefineWithDependenciesCodeGen,
-    cjs::{
-        CjsRequireAssetReferenceCodeGen, CjsRequireCacheAccess,
-        CjsRequireResolveAssetReferenceCodeGen,
+use crate::{
+    references::{
+        amd::AmdDefineWithDependenciesCodeGen,
+        cjs::{
+            CjsRequireAssetReferenceCodeGen, CjsRequireCacheAccess,
+            CjsRequireResolveAssetReferenceCodeGen,
+        },
+        constant_condition::ConstantConditionCodeGen,
+        constant_value::ConstantValueCodeGen,
+        dynamic_expression::DynamicExpression,
+        esm::{
+            dynamic::EsmAsyncAssetReferenceCodeGen, module_id::EsmModuleIdAssetReferenceCodeGen,
+            url::UrlAssetReferenceCodeGen, EsmBinding, EsmModuleItem, ImportMetaBinding,
+            ImportMetaRef,
+        },
+        ident::IdentReplacement,
+        member::MemberReplacement,
+        require_context::RequireContextAssetReferenceCodeGen,
+        unreachable::Unreachable,
+        worker::WorkerAssetReferenceCodeGen,
+        AstPath,
     },
-    constant_condition::ConstantConditionCodeGen,
-    constant_value::ConstantValueCodeGen,
-    dynamic_expression::DynamicExpression,
-    esm::{
-        dynamic::EsmAsyncAssetReferenceCodeGen, module_id::EsmModuleIdAssetReferenceCodeGen,
-        url::UrlAssetReferenceCodeGen, EsmBinding, EsmModuleItem, ImportMetaBinding, ImportMetaRef,
-    },
-    ident::IdentReplacement,
-    member::MemberReplacement,
-    require_context::RequireContextAssetReferenceCodeGen,
-    unreachable::Unreachable,
-    worker::WorkerAssetReferenceCodeGen,
-    AstPath,
+    ScopeHoistingContext,
 };
 
 #[derive(Default)]
@@ -125,6 +129,7 @@ impl CodeGen {
         &self,
         g: Vc<ModuleGraph>,
         ctx: Vc<Box<dyn ChunkingContext>>,
+        scope_hoisting_context: Option<ScopeHoistingContext<'_>>,
     ) -> Result<CodeGeneration> {
         match self {
             Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(g, ctx).await,
@@ -132,7 +137,7 @@ impl CodeGen {
             Self::ConstantConditionCodeGen(v) => v.code_generation(g, ctx).await,
             Self::ConstantValueCodeGen(v) => v.code_generation(g, ctx).await,
             Self::DynamicExpression(v) => v.code_generation(g, ctx).await,
-            Self::EsmBinding(v) => v.code_generation(g, ctx).await,
+            Self::EsmBinding(v) => v.code_generation(g, ctx, scope_hoisting_context).await,
             Self::EsmModuleItem(v) => v.code_generation(g, ctx).await,
             Self::IdentReplacement(v) => v.code_generation(g, ctx).await,
             Self::ImportMetaBinding(v) => v.code_generation(g, ctx).await,

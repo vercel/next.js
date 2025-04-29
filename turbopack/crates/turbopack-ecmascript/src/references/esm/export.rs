@@ -18,7 +18,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
-    chunk::ChunkingContext,
+    chunk::{ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, StyledString},
     module::Module,
@@ -33,9 +33,10 @@ use crate::{
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier,
     parse::ParseResult,
-    runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
+    runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM, TURBOPACK_ESM_OTHER},
     tree_shake::asset::EcmascriptModulePartAsset,
-    EcmascriptModuleAsset,
+    utils::module_id_to_lit,
+    EcmascriptModuleAsset, ScopeHoistingContext,
 };
 
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
@@ -540,6 +541,7 @@ impl EsmExports {
         self: Vc<Self>,
         _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        scope_hoisting_context: Option<ScopeHoistingContext<'_>>,
         parsed: Option<Vc<ParseResult>>,
     ) -> Result<CodeGeneration> {
         let expanded = self.expand_exports().await?;
@@ -562,28 +564,33 @@ impl EsmExports {
             ));
         }
 
-        let mut props = Vec::new();
+        let mut getters = Vec::new();
         for (exported, local) in &expanded.exports {
             let expr = match local {
                 EsmExport::Error => Some(quote!(
                     "(() => { throw new Error(\"Failed binding. See build errors!\"); })" as Expr,
                 )),
                 EsmExport::LocalBinding(name, mutable) => {
-                    let local = if name == "default" {
-                        Cow::Owned(magic_identifier::mangle("default export"))
+                    let (local, ctxt) = if name == "default" {
+                        (
+                            Cow::Owned(magic_identifier::mangle("default export")),
+                            Default::default(),
+                        )
                     } else {
-                        Cow::Borrowed(name.as_str())
+                        (
+                            Cow::Borrowed(name.as_str()),
+                            parsed
+                                .as_ref()
+                                .and_then(|parsed| {
+                                    if let ParseResult::Ok { eval_context, .. } = &**parsed {
+                                        eval_context.imports.exports.get(name).map(|id| id.1)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .unwrap_or_default(),
+                        )
                     };
-                    let ctxt = parsed
-                        .as_ref()
-                        .and_then(|parsed| {
-                            if let ParseResult::Ok { eval_context, .. } = &**parsed {
-                                eval_context.imports.exports.get(name).map(|id| id.1)
-                            } else {
-                                None
-                            }
-                        })
-                        .unwrap_or_default();
 
                     if *mutable {
                         Some(quote!(
@@ -654,7 +661,7 @@ impl EsmExports {
                 }
             };
             if let Some(expr) = expr {
-                props.push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                getters.push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
                     key: PropName::Str(Str {
                         span: DUMMY_SP,
                         value: exported.as_str().into(),
@@ -666,7 +673,7 @@ impl EsmExports {
         }
         let getters = Expr::Object(ObjectLit {
             span: DUMMY_SP,
-            props,
+            props: getters,
         });
         let dynamic_stmt = if !dynamic_exports.is_empty() {
             Some(Stmt::Expr(ExprStmt {
@@ -677,6 +684,46 @@ impl EsmExports {
             None
         };
 
+        let early_hoisted_stmts = if let Some(scope_hoisting_context) = scope_hoisting_context {
+            let (index, _, exposed) = scope_hoisting_context
+                .modules
+                .get_full(&scope_hoisting_context.module)
+                .unwrap();
+            let registry = if *exposed {
+                Some(CodeGenerationHoistedStmt::new(
+                    "__turbopack_esm__".into(),
+                    {
+                        let id = scope_hoisting_context
+                            .module
+                            .chunk_item_id(Vc::upcast(chunking_context))
+                            .await?;
+                        quote!("$turbopack_esm_other($id, $getters);" as Stmt,
+                            turbopack_esm_other: Expr = TURBOPACK_ESM_OTHER.into(),
+                            id: Expr = module_id_to_lit(&id),
+                            getters: Expr = getters
+                        )
+                    },
+                ))
+            } else {
+                None
+            };
+
+            let local_re_bindings = vec![];
+
+            registry
+                .into_iter()
+                .chain(local_re_bindings.into_iter())
+                .collect()
+        } else {
+            vec![CodeGenerationHoistedStmt::new(
+                "__turbopack_esm__".into(),
+                quote!("$turbopack_esm($getters);" as Stmt,
+                    turbopack_esm: Expr = TURBOPACK_ESM.into(),
+                    getters: Expr = getters
+                ),
+            )]
+        };
+
         Ok(CodeGeneration::new(
             vec![],
             [dynamic_stmt
@@ -684,13 +731,7 @@ impl EsmExports {
             .into_iter()
             .flatten()
             .collect(),
-            vec![CodeGenerationHoistedStmt::new(
-                "__turbopack_esm__".into(),
-                quote!("$turbopack_esm($getters);" as Stmt,
-                    turbopack_esm: Expr = TURBOPACK_ESM.into(),
-                    getters: Expr = getters
-                ),
-            )],
+            early_hoisted_stmts,
         ))
     }
 }

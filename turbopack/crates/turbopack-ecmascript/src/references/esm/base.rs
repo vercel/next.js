@@ -39,7 +39,7 @@ use crate::{
     runtime_functions::{TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT},
     tree_shake::{asset::EcmascriptModulePartAsset, TURBOPACK_PART_IMPORT_SOURCE},
     utils::module_id_to_lit,
-    TreeShakingMode,
+    ScopeHoistingContext, TreeShakingMode,
 };
 
 #[turbo_tasks::value]
@@ -294,6 +294,7 @@ impl EsmAssetReference {
     pub async fn code_generation(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        scope_hoisting_context: Option<ScopeHoistingContext<'_>>,
     ) -> Result<CodeGeneration> {
         let this = &*self.await?;
 
@@ -323,20 +324,28 @@ impl EsmAssetReference {
                         unreachable!()
                     }
                     ReferencedAsset::Some(asset) => {
-                        let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
-                        let name = ident;
-                        Some((
-                            id.to_string().into(),
-                            var_decl_with_span(
-                                quote!(
-                                    "var $name = $turbopack_import($id);" as Stmt,
-                                    name = Ident::new(name.clone().into(), DUMMY_SP, Default::default()),
-                                    turbopack_import: Expr = TURBOPACK_IMPORT.into(),
-                                    id: Expr = module_id_to_lit(&id),
+                        if scope_hoisting_context
+                            .is_some_and(|c| c.modules.contains_key(&ResolvedVc::upcast(*asset)))
+                        {
+                            // No need to import, the module is already available in the same scope
+                            // hoisting group.
+                            None
+                        } else {
+                            let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
+                            let name = ident;
+                            Some((
+                                id.to_string().into(),
+                                var_decl_with_span(
+                                    quote!(
+                                        "var $name = $turbopack_import($id);" as Stmt,
+                                        name = Ident::new(name.clone().into(), DUMMY_SP, Default::default()),
+                                        turbopack_import: Expr = TURBOPACK_IMPORT.into(),
+                                        id: Expr = module_id_to_lit(&id),
+                                    ),
+                                    span,
                                 ),
-                                span,
-                            ),
-                        ))
+                            ))
+                        }
                     }
                     ReferencedAsset::External(request, ExternalType::EcmaScriptModule) => {
                         if !*chunking_context
