@@ -287,7 +287,7 @@ pub trait EcmascriptParsable {
 }
 
 #[turbo_tasks::value_trait]
-pub trait EcmascriptAnalyzable {
+pub trait EcmascriptAnalyzable: Module + Asset {
     fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult>;
 
     /// Generates module contents without an analysis pass. This is useful for
@@ -795,7 +795,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
 }
 
 /// The transformed contents of an Ecmascript module.
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 pub struct EcmascriptModuleContent {
     pub inner_code: Rope,
     pub source_map: Option<Rope>,
@@ -822,15 +822,10 @@ pub struct EcmascriptModuleContentOptions {
     async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
 }
 
-#[turbo_tasks::value_impl]
-impl EcmascriptModuleContent {
-    /// Creates a new [`Vc<EcmascriptModuleContent>`].
-    #[turbo_tasks::function]
-    pub async fn new(input: Vc<EcmascriptModuleContentOptions>) -> Result<Vc<Self>> {
+impl EcmascriptModuleContentOptions {
+    async fn merged_code_gens(&self) -> Result<Vec<CodeGeneration>> {
         let EcmascriptModuleContentOptions {
             parsed,
-            ident,
-            specified_module_type,
             module_graph,
             chunking_context,
             references,
@@ -838,13 +833,12 @@ impl EcmascriptModuleContent {
             part_references,
             code_generation,
             async_module,
-            generate_source_map,
-            original_source_map,
             exports,
             async_module_info,
-        } = &*input.await?;
+            ..
+        } = self;
 
-        let (esm_code_gens, part_code_gens, additional_code_gens, code_gens) = async {
+        async {
             let additional_code_gens = [
                 if let Some(async_module) = &*async_module.await? {
                     Some(
@@ -890,21 +884,36 @@ impl EcmascriptModuleContent {
                 .try_join()
                 .await?;
 
-            anyhow::Ok((
-                esm_code_gens,
-                part_code_gens,
-                additional_code_gens,
-                code_gens,
-            ))
+            anyhow::Ok(
+                esm_code_gens
+                    .into_iter()
+                    .chain(part_code_gens.into_iter())
+                    .chain(additional_code_gens.into_iter().flatten())
+                    .chain(code_gens.into_iter())
+                    .collect(),
+            )
         }
         .instrument(tracing::info_span!("precompute code generation"))
-        .await?;
+        .await
+    }
+}
 
-        let code_gens = esm_code_gens
-            .iter()
-            .chain(part_code_gens.iter())
-            .chain(additional_code_gens.iter().flatten())
-            .chain(code_gens.iter());
+#[turbo_tasks::value_impl]
+impl EcmascriptModuleContent {
+    /// Creates a new [`Vc<EcmascriptModuleContent>`].
+    #[turbo_tasks::function]
+    pub async fn new(input: Vc<EcmascriptModuleContentOptions>) -> Result<Vc<Self>> {
+        let input = input.await?;
+        let EcmascriptModuleContentOptions {
+            parsed,
+            ident,
+            specified_module_type,
+            generate_source_map,
+            original_source_map,
+            ..
+        } = &*input;
+
+        let code_gens = input.merged_code_gens().await?;
 
         gen_content_with_code_gens(
             *parsed,
@@ -930,7 +939,7 @@ impl EcmascriptModuleContent {
             parsed.to_resolved().await?,
             ident,
             specified_module_type,
-            &[],
+            vec![],
             generate_source_map,
             OptionStringifiedSourceMap::none().to_resolved().await?,
         )
@@ -942,7 +951,7 @@ async fn gen_content_with_code_gens(
     parsed: ResolvedVc<ParseResult>,
     ident: Vc<AssetIdent>,
     specified_module_type: SpecifiedModuleType,
-    code_gens: impl IntoIterator<Item = &CodeGeneration>,
+    code_gens: Vec<CodeGeneration>,
     generate_source_map: bool,
     original_source_map: ResolvedVc<OptionStringifiedSourceMap>,
 ) -> Result<Vc<EcmascriptModuleContent>> {
@@ -1076,17 +1085,17 @@ async fn gen_content_with_code_gens(
     }
 }
 
-fn process_content_with_code_gens<'a>(
+fn process_content_with_code_gens(
     program: &mut Program,
     globals: &Globals,
     top_level_mark: Option<Mark>,
-    code_gens: impl IntoIterator<Item = &'a CodeGeneration>,
+    code_gens: Vec<CodeGeneration>,
 ) {
     let mut visitors = Vec::new();
     let mut root_visitors = Vec::new();
     let mut early_hoisted_stmts = FxIndexMap::default();
     let mut hoisted_stmts = FxIndexMap::default();
-    for code_gen in code_gens {
+    for code_gen in &code_gens {
         for CodeGenerationHoistedStmt { key, stmt } in &code_gen.hoisted_stmts {
             hoisted_stmts.entry(key.clone()).or_insert(stmt.clone());
         }
