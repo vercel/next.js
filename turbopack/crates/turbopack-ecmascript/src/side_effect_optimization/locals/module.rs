@@ -93,26 +93,27 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
 
     #[turbo_tasks::function]
     async fn module_content(
-        &self,
+        self: Vc<Self>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContent>> {
-        let exports = self.module.get_exports().to_resolved().await?;
-        let parsed = self.module.parse().to_resolved().await?;
+        let exports = self.get_exports().to_resolved().await?;
+        let original_module = self.await?.module;
+        let parsed = original_module.parse().to_resolved().await?;
 
-        let analyze = self.module.analyze();
+        let analyze = original_module.analyze();
         let analyze_result = analyze.await?;
 
-        let module_type_result = *self.module.determine_module_type().await?;
+        let module_type_result = *original_module.determine_module_type().await?;
         let generate_source_map = *chunking_context
-            .reference_module_source_maps(*ResolvedVc::upcast(self.module))
+            .reference_module_source_maps(Vc::upcast(self))
             .await?;
 
         Ok(EcmascriptModuleContent::new(
             EcmascriptModuleContentOptions {
                 parsed,
-                ident: self.module.ident().to_resolved().await?,
+                ident: self.ident().to_resolved().await?,
                 specified_module_type: module_type_result.module_type,
                 module_graph,
                 chunking_context,
