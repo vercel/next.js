@@ -62,9 +62,9 @@ pub struct WriteBatch<K: StoreKey + Send, const FAMILIES: usize> {
     /// The list of new SST files that have been created.
     /// Tuple of (sequence number, file).
     new_sst_files: Mutex<Vec<(u32, File)>>,
-    /// Collectors are are current unused, but have memory preallocated.
+    /// Collectors that are currently unused, but have memory preallocated.
     idle_collectors: Mutex<Vec<Collector<K>>>,
-    /// Collectors are are current unused, but have memory preallocated.
+    /// Collectors that are currently unused, but have memory preallocated.
     idle_thread_local_collectors: Mutex<Vec<Collector<K, THREAD_LOCAL_SIZE_SHIFT>>>,
 }
 
@@ -180,7 +180,6 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
     /// Finishes the write batch by returning the new sequence number and the new SST files. This
     /// writes all outstanding thread local data to disk.
     pub(crate) fn finish(&mut self) -> Result<FinishResult> {
-        let mut new_sst_files = take(self.new_sst_files.get_mut());
         let mut new_blob_files = Vec::new();
         let shared_error = Mutex::new(Ok(()));
 
@@ -215,6 +214,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         });
 
         // Now we reduce the global collectors in parallel
+        let mut new_sst_files = take(self.new_sst_files.get_mut());
         let shared_new_sst_files = Mutex::new(&mut new_sst_files);
 
         let collectors = replace(
