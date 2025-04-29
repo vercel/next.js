@@ -118,6 +118,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
                 chunking_context,
                 references: analyze.local_references().to_resolved().await?,
                 esm_references: analyze_result.esm_local_references,
+                part_references: vec![],
                 code_generation: analyze_result.code_generation,
                 async_module: analyze_result.async_module,
                 generate_source_map,

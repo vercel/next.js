@@ -105,6 +105,7 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
                 chunking_context,
                 references: analyze.references().to_resolved().await?,
                 esm_references: analyze_ref.esm_references,
+                part_references: vec![],
                 code_generation: analyze_ref.code_generation,
                 async_module: analyze_ref.async_module,
                 generate_source_map,

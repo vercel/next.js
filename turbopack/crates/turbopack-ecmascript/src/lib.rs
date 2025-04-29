@@ -98,6 +98,7 @@ use crate::{
     references::{
         analyse_ecmascript_module, async_module::OptionAsyncModule, esm::base::EsmAssetReferences,
     },
+    side_effect_optimization::reference::EcmascriptModulePartReference,
     transform::remove_shebang,
 };
 
@@ -124,6 +125,7 @@ pub enum SpecifiedModuleType {
     Deserialize,
     TraceRawVcs,
     NonLocalValue,
+    TaskInput,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum TreeShakingMode {
@@ -436,6 +438,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
                 chunking_context,
                 references: analyze.references().to_resolved().await?,
                 esm_references: analyze_ref.esm_references,
+                part_references: vec![],
                 code_generation: analyze_ref.code_generation,
                 async_module: analyze_ref.async_module,
                 generate_source_map,
@@ -747,30 +750,35 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         self: Vc<Self>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let this = self.await?;
-        let _span = tracing::info_span!(
+        let span = tracing::info_span!(
             "code generation",
             module = self.asset_ident().to_string().await?.to_string()
-        )
-        .entered();
-        let async_module_options = this
-            .module
-            .get_async_module()
-            .module_options(async_module_info);
-
-        // TODO check if we need to pass async_module_info at all
-        let content = this.module.module_content(
-            *this.module_graph,
-            *this.chunking_context,
-            async_module_info,
         );
+        async {
+            let this = self.await?;
+            let async_module_options = this
+                .module
+                .get_async_module()
+                .module_options(async_module_info);
 
-        Ok(EcmascriptChunkItemContent::new(
-            content,
-            *this.chunking_context,
-            this.module.options(),
-            async_module_options,
-        ))
+            // TODO check if we need to pass async_module_info at all
+            let content = this.module.module_content(
+                *this.module_graph,
+                *this.chunking_context,
+                async_module_info,
+            );
+
+            EcmascriptChunkItemContent::new(
+                content,
+                *this.chunking_context,
+                this.module.options(),
+                async_module_options,
+            )
+            .resolve()
+            .await
+        }
+        .instrument(span)
+        .await
     }
 }
 
@@ -792,6 +800,7 @@ pub struct EcmascriptModuleContentOptions {
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     references: ResolvedVc<ModuleReferences>,
     esm_references: ResolvedVc<EsmAssetReferences>,
+    part_references: Vec<ResolvedVc<EcmascriptModulePartReference>>,
     code_generation: ResolvedVc<CodeGens>,
     async_module: ResolvedVc<OptionAsyncModule>,
     generate_source_map: bool,
@@ -813,6 +822,7 @@ impl EcmascriptModuleContent {
             chunking_context,
             references,
             esm_references,
+            part_references,
             code_generation,
             async_module,
             generate_source_map,
@@ -821,7 +831,7 @@ impl EcmascriptModuleContent {
             async_module_info,
         } = input;
 
-        let (esm_code_gens, additional_code_gens, code_gens) = async {
+        let (esm_code_gens, part_code_gens, additional_code_gens, code_gens) = async {
             let additional_code_gens = [
                 if let Some(async_module) = &*async_module.await? {
                     Some(
@@ -853,6 +863,13 @@ impl EcmascriptModuleContent {
                 .map(|r| r.code_generation(*chunking_context))
                 .try_join()
                 .await?;
+
+            let part_code_gens = part_references
+                .iter()
+                .map(|r| r.code_generation(*chunking_context))
+                .try_join()
+                .await?;
+
             let code_gens = code_generation
                 .await?
                 .iter()
@@ -860,13 +877,19 @@ impl EcmascriptModuleContent {
                 .try_join()
                 .await?;
 
-            anyhow::Ok((esm_code_gens, additional_code_gens, code_gens))
+            anyhow::Ok((
+                esm_code_gens,
+                part_code_gens,
+                additional_code_gens,
+                code_gens,
+            ))
         }
         .instrument(tracing::info_span!("precompute code generation"))
         .await?;
 
         let code_gens = esm_code_gens
             .iter()
+            .chain(part_code_gens.iter())
             .chain(additional_code_gens.iter().flatten())
             .chain(code_gens.iter());
 
