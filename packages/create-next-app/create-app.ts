@@ -167,9 +167,7 @@ export async function createApp({
           )}. This might take a moment.`
         )
         console.log()
-        await retry(() => downloadAndExtractRepo(root, repoInfo2), {
-          retries: 3,
-        })
+        await retry(() => downloadAndExtractRepo(root, repoInfo2))
       } else {
         console.log(
           `Downloading files for example ${cyan(
@@ -177,9 +175,7 @@ export async function createApp({
           )}. This might take a moment.`
         )
         console.log()
-        await retry(() => downloadAndExtractExample(root, example), {
-          retries: 3,
-        })
+        await retry(() => downloadAndExtractExample(root, example))
       }
     } catch (reason) {
       function isErrorLike(err: unknown): err is { message: string } {
