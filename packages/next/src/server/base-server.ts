@@ -2353,6 +2353,10 @@ export default abstract class Server<
       isSSG &&
       isRSCRequest &&
       !isDynamicRSCRequest &&
+      // TODO: Find a more suitable condition to omit stripping the flight
+      // headers in this case, so that we can read `workStore.isPrefetchRequest`
+      // in `bailoutToClientRendering`.
+      !req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()] &&
       (!isEdgeRuntime(opts.runtime) ||
         (this.serverOptions as any).webServerConfig)
     ) {
