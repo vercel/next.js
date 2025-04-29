@@ -168,7 +168,7 @@ graph TD
     Export(
         "GET",
     ): 0,
-    Exports: 4,
+    Exports: 1,
 }
 ```
 
@@ -196,39 +196,6 @@ export { };
 
 ```
 ## Part 1
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { NextResponse } from 'next/server';
-export { NextResponse as b } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 2
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { ClientComponent } from '../../ClientComponent';
-export { ClientComponent as c } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 3
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { MyModuleClientComponent } from 'my-module/MyModuleClientComponent';
-export { MyModuleClientComponent as d } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 4
 ```js
 export { GET } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export GET"
@@ -264,7 +231,7 @@ export { };
     Export(
         "GET",
     ): 0,
-    Exports: 4,
+    Exports: 1,
 }
 ```
 
@@ -292,39 +259,6 @@ export { };
 
 ```
 ## Part 1
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { NextResponse } from 'next/server';
-export { NextResponse as b } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 2
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { ClientComponent } from '../../ClientComponent';
-export { ClientComponent as c } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 3
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { MyModuleClientComponent } from 'my-module/MyModuleClientComponent';
-export { MyModuleClientComponent as d } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 4
 ```js
 export { GET } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export GET"

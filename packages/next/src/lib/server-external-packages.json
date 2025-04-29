@@ -55,6 +55,7 @@
   "prisma",
   "puppeteer",
   "puppeteer-core",
+  "ravendb",
   "require-in-the-middle",
   "rimraf",
   "sharp",

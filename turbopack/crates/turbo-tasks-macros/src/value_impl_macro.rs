@@ -11,7 +11,7 @@ use syn::{
 use turbo_tasks_macros_shared::{
     get_inherent_impl_function_id_ident, get_inherent_impl_function_ident, get_path_ident,
     get_register_trait_methods_ident, get_trait_impl_function_id_ident,
-    get_trait_impl_function_ident, get_type_ident,
+    get_trait_impl_function_ident, get_type_ident, is_self_used,
 };
 
 use crate::func::{
@@ -125,6 +125,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     .inspect_err(|err| errors.push(err.to_compile_error()))
                     .unwrap_or_default();
                 let local = func_args.local.is_some();
+                let is_self_used = func_args.operation.is_some() || is_self_used(block);
 
                 let Some(turbo_fn) =
                     TurboFn::new(sig, DefinitionContext::ValueInherentImpl, func_args)
@@ -133,14 +134,17 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         // An error occurred while parsing the function signature.
                     };
                 };
+
                 let inline_function_ident = turbo_fn.inline_ident();
-                let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
+                let (inline_signature, inline_block) =
+                    turbo_fn.inline_signature_and_block(block, is_self_used);
                 let inline_attrs = filter_inline_attributes(attrs.iter().copied());
 
                 let native_fn = NativeFn {
                     function_path_string: format!("{ty}::{ident}", ty = ty.to_token_stream()),
                     function_path: parse_quote! { <#ty>::#inline_function_ident },
                     is_method: turbo_fn.is_method(),
+                    is_self_used,
                     filter_trait_call_args: None, // not a trait method
                     local,
                 };
@@ -225,6 +229,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     .inspect_err(|err| errors.push(err.to_compile_error()))
                     .unwrap_or_default();
                 let local = func_args.local.is_some();
+                let is_self_used = func_args.operation.is_some() || is_self_used(block);
 
                 let Some(turbo_fn) =
                     TurboFn::new(sig, DefinitionContext::ValueTraitImpl, func_args)
@@ -239,7 +244,8 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     &format!("{}_{}_{}_inline", ty_ident, trait_ident, ident),
                     ident.span(),
                 );
-                let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
+                let (inline_signature, inline_block) =
+                    turbo_fn.inline_signature_and_block(block, is_self_used);
                 let inline_attrs = filter_inline_attributes(attrs.iter().copied());
 
                 let native_fn = NativeFn {
@@ -252,6 +258,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         <#ty as #inline_extension_trait_ident>::#inline_function_ident
                     },
                     is_method: turbo_fn.is_method(),
+                    is_self_used,
                     filter_trait_call_args: turbo_fn.filter_trait_call_args(),
                     local,
                 };

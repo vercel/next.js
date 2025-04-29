@@ -1,9 +1,13 @@
 import type { NextApiResponse } from '../../types'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { PrerenderManifest } from '..'
+import type { DevRoutesManifest } from '../../server/lib/router-utils/setup-dev-bundler'
+import type { InstrumentationOnRequestError } from '../../server/instrumentation/types'
 
 import { parse } from 'node:url'
-import { RouteKind } from '../../server/route-kind'
 import { sendError } from '../../server/api-utils'
+import { RouteKind } from '../../server/route-kind'
+import type { Span } from '../../server/lib/trace/tracer'
 import { PagesAPIRouteModule } from '../../server/route-modules/pages-api/module.compiled'
 
 import { hoist } from './helpers'
@@ -11,24 +15,20 @@ import { hoist } from './helpers'
 // Import the userland code.
 import * as userland from 'VAR_USERLAND'
 import { getTracer, SpanKind } from '../../server/lib/trace/tracer'
-import type { Span } from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import {
   ensureInstrumentationRegistered,
   instrumentationOnRequestError,
 } from '../../server/lib/router-utils/instrumentation-globals.external'
-import type { InstrumentationOnRequestError } from '../../server/instrumentation/types'
 import { getUtils } from '../../server/server-utils'
 import { PRERENDER_MANIFEST, ROUTES_MANIFEST } from '../../api/constants'
 import { isDynamicRoute } from '../../shared/lib/router/utils'
-import type { BaseNextRequest } from '../../server/base-http'
 import {
   RouterServerContextSymbol,
   routerServerGlobal,
 } from '../../server/lib/router-utils/router-server-context'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
-import type { PrerenderManifest, RoutesManifest } from '..'
 import { loadManifestFromRelativePath } from '../../server/load-manifest.external'
 
 // Re-export the handler (should be the default export).
@@ -62,17 +62,18 @@ export async function handler(
   const distDir = process.env.__NEXT_RELATIVE_DIST_DIR || ''
   const isDev = process.env.NODE_ENV === 'development'
 
-  const routesManifest = await loadManifestFromRelativePath<RoutesManifest>(
-    projectDir,
-    distDir,
-    ROUTES_MANIFEST
-  )
-  const prerenderManifest =
-    await loadManifestFromRelativePath<PrerenderManifest>(
+  const [routesManifest, prerenderManifest] = await Promise.all([
+    loadManifestFromRelativePath<DevRoutesManifest>(
+      projectDir,
+      distDir,
+      ROUTES_MANIFEST
+    ),
+    loadManifestFromRelativePath<PrerenderManifest>(
       projectDir,
       distDir,
       PRERENDER_MANIFEST
-    )
+    ),
+  ])
   let srcPage = 'VAR_DEFINITION_PAGE'
 
   // turbopack doesn't normalize `/index` in the page name
@@ -114,9 +115,9 @@ export async function handler(
     caseSensitive: Boolean(routesManifest.caseSensitive),
   })
   const rewriteParamKeys = Object.keys(
-    serverUtils.handleRewrites(req as any as BaseNextRequest, parsedUrl)
+    serverUtils.handleRewrites(req, parsedUrl)
   )
-  serverUtils.normalizeCdnUrl(req as any as BaseNextRequest, [
+  serverUtils.normalizeCdnUrl(req, [
     ...rewriteParamKeys,
     ...Object.keys(serverUtils.defaultRouteRegex?.groups || {}),
   ])
@@ -150,8 +151,8 @@ export async function handler(
 
     const activeSpan = tracer.getActiveScopeSpan()
 
-    const invokeRouteModule = async (span?: Span) => {
-      await routeModule
+    const invokeRouteModule = async (span?: Span) =>
+      routeModule
         .render(req, res, {
           query,
           params,
@@ -210,7 +211,6 @@ export async function handler(
             span.updateName(`${method} ${req.url}`)
           }
         })
-    }
 
     // TODO: activeSpan code path is for when wrapped by
     // next-server can be removed when this is no longer used

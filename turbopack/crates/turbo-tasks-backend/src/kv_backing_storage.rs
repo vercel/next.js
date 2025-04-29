@@ -128,11 +128,13 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
     }
 
     fn next_free_task_id(&self) -> TaskId {
-        TaskId::from(get_infra_u32(&self.database, META_KEY_NEXT_FREE_TASK_ID).unwrap_or(1))
+        TaskId::try_from(get_infra_u32(&self.database, META_KEY_NEXT_FREE_TASK_ID).unwrap_or(1))
+            .unwrap()
     }
 
     fn next_session_id(&self) -> SessionId {
-        SessionId::from(get_infra_u32(&self.database, META_KEY_SESSION_ID).unwrap_or(0) + 1)
+        SessionId::try_from(get_infra_u32(&self.database, META_KEY_SESSION_ID).unwrap_or(0) + 1)
+            .unwrap()
     }
 
     fn uncompleted_operations(&self) -> Vec<AnyOperation> {
@@ -367,7 +369,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                 return Ok(None);
             };
             let bytes = bytes.borrow().try_into()?;
-            let id = TaskId::from(u32::from_le_bytes(bytes));
+            let id = TaskId::try_from(u32::from_le_bytes(bytes)).unwrap();
             Ok(Some(id))
         }
         if self.database.is_empty() {

@@ -171,7 +171,7 @@ process.env = new Proxy(originalEnv, {
 
 const transform = (
   ipc: Ipc<IpcInfoMessage, IpcRequestMessage>,
-  content: string,
+  content: string | { binary: string },
   name: string,
   query: string,
   loaders: LoaderConfig[],
@@ -455,8 +455,12 @@ const transform = (
           options: loader.options,
         })),
         readResource: (_filename, callback) => {
-          // TODO assuming the filename === resource, but loaders might change that
-          callback(null, Buffer.from(content, "utf-8"));
+          // TODO assuming that filename === resource, but loaders might change that
+          let data =
+            typeof content === "string"
+              ? Buffer.from(content, "utf-8")
+              : Buffer.from(content.binary, "base64")
+          callback(null, data);
         },
       },
       (err, result) => {
