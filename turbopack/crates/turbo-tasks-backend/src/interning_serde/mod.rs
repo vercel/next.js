@@ -7,37 +7,99 @@ use smallvec::SmallVec;
 use turbo_rcstr::RcStr;
 use turbo_tasks::FxIndexSet;
 
-#[derive(Serialize)]
-struct SerData<'l>(&'l [u8], FxIndexSet<RcStr>);
-
-#[derive(Deserialize)]
-struct DeserData(SmallVec<[u8; 16]>, Vec<RcStr>);
-
-pub fn to_vec<T>(config: &pot::Config, value: &T) -> pot::Result<Vec<u8>>
+pub fn to_vec<T>(config: &pot::Config, value: &T) -> anyhow::Result<(Vec<u8>, RcStrToLocalId)>
 where
     T: Serialize,
 {
     let mut vec = Vec::new();
-    to_writer(config, value, &mut vec)?;
-    Ok(vec)
+    let ser_map = to_writer(config, value, &mut vec)?;
+    Ok((vec, ser_map))
 }
 
-pub fn to_writer<T, W>(config: &pot::Config, value: &T, writer: W) -> pot::Result<()>
+pub struct LocalIdToRcStr(Vec<RcStr>);
+
+impl From<Vec<RcStr>> for LocalIdToRcStr {
+    fn from(value: Vec<RcStr>) -> Self {
+        Self(value)
+    }
+}
+
+#[derive(Default)]
+pub struct RcStrToLocalId(FxIndexSet<RcStr>);
+
+impl RcStrToLocalId {
+    pub fn iter(&self) -> impl Iterator<Item = &RcStr> {
+        self.0.iter()
+    }
+}
+
+#[derive(Default)]
+pub struct LocalIdToGlobalId(Vec<u32>);
+
+impl From<Vec<u32>> for LocalIdToGlobalId {
+    fn from(value: Vec<u32>) -> Self {
+        Self(value)
+    }
+}
+
+impl LocalIdToGlobalId {
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn iter(&self) -> impl '_ + Iterator<Item = u32> {
+        self.0.iter().copied()
+    }
+
+    pub fn write_to(&self, writer: &mut impl Write) -> anyhow::Result<()> {
+        let len = self.0.len() as u32;
+        for id in self.0.iter().rev() {
+            writer.write_all(&id.to_le_bytes())?;
+        }
+
+        writer.write_all(&len.to_le_bytes())?;
+
+        Ok(())
+    }
+
+    pub fn read_from_slice(mut bytes: &[u8]) -> anyhow::Result<(Self, &[u8])> {
+        let mut global_ids = Vec::new();
+
+        // Length is the last 4 bytes
+        let len = u32::from_le_bytes(bytes[bytes.len() - 4..].try_into().unwrap());
+        global_ids.reserve(len as usize);
+
+        bytes = &bytes[..bytes.len() - 4];
+
+        // Read the ids in reverse order
+        for _ in 0..len {
+            let id = u32::from_le_bytes(bytes[bytes.len() - 4..].try_into().unwrap());
+            global_ids.push(id);
+            bytes = &bytes[..bytes.len() - 4];
+        }
+
+        Ok((Self(global_ids), bytes))
+    }
+}
+
+pub fn to_writer<T, W>(config: &pot::Config, value: &T, writer: W) -> anyhow::Result<RcStrToLocalId>
 where
     T: Serialize,
     W: Write,
 {
-    let (result, ser_map) = turbo_rcstr::set_ser_map(|| config.serialize(value));
-    let value = result?;
-    let data = SerData(&value, ser_map);
-    config.serialize_into(&data, writer)
+    let (result, ser_map) = turbo_rcstr::set_ser_map(|| config.serialize_into(value, writer));
+    result?;
+
+    Ok(RcStrToLocalId(ser_map))
 }
 
-pub fn from_slice<T>(config: &pot::Config, slice: &[u8]) -> pot::Result<T>
+pub fn from_slice<T>(
+    config: &pot::Config,
+    bytes: &[u8],
+    de_map: &LocalIdToRcStr,
+) -> anyhow::Result<T>
 where
     T: DeserializeOwned,
 {
-    let data: DeserData = config.deserialize(slice)?;
-
-    turbo_rcstr::set_de_map(&data.1, || config.deserialize(&data.0))
+    turbo_rcstr::set_de_map(&de_map.0, || Ok(config.deserialize(bytes)?))
 }
