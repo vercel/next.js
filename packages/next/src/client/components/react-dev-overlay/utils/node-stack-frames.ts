@@ -25,15 +25,33 @@ export function getFilesystemFrame(frame: StackFrame): StackFrame {
   return f
 }
 
-function getErrorRootCause(error: unknown): unknown {
-  if (isError(error) && 'cause' in error) {
-    return getErrorRootCause(error.cause) ?? error
+// If there's a cause of the error, will keep the new error message
+// but with the original stack trace.
+function decorateErrorWithCause(error: Error): Error {
+  let message = error.message
+  let stack = error.stack
+  let curr: any = error
+  while (curr && isError(curr) && curr.cause) {
+    const cause = curr.cause
+    if (isError(cause)) {
+      if (cause.stack) {
+        stack = cause.stack
+      }
+    }
+    curr = cause
+  }
+  // Override the error message if there's new information
+  if (error.message !== message) {
+    error.message = message
+  }
+  if (error.stack !== stack) {
+    error.stack = stack
   }
   return error
 }
 
 export function getServerError(err: Error, type: ErrorSourceType): Error {
-  const error = getErrorRootCause(err) as Error
+  const error = decorateErrorWithCause(err)
 
   if (error.name === 'TurbopackInternalError') {
     // If this is an internal Turbopack error we shouldn't show internal details
