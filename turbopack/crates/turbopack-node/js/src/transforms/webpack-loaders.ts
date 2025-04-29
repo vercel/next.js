@@ -19,27 +19,17 @@ import { type StructuredError } from "src/ipc";
 
 export type IpcInfoMessage =
   | {
-    type: "fileDependency";
-    path: string;
-  }
-  | {
-    type: "buildDependency";
-    path: string;
-  }
-  | {
-    type: "dirDependency";
-    path: string;
-    glob: string;
-  }
-  | {
-    type: "envDependency";
-    name: string;
-  }
+      type: 'dependencies'
+      envVariables?: string[]
+      directories?: Array<[string, string]>
+      filePaths?: string[],
+      buildFilePaths?: string[],
+    }
   | {
     type: "emittedError";
     severity: "warning" | "error";
     error: StructuredError;
-  }
+    }
   | {
     type: "log";
     time: number;
@@ -181,7 +171,7 @@ process.env = new Proxy(originalEnv, {
 
 const transform = (
   ipc: Ipc<IpcInfoMessage, IpcRequestMessage>,
-  content: string,
+  content: string | { binary: string },
   name: string,
   query: string,
   loaders: LoaderConfig[],
@@ -364,7 +354,8 @@ const transform = (
                   // TODO: do we need to handle this?
                   break
               }
-
+              // TODO(lukesandberg): should we batch these and flush lazily?
+              // turbopack just collects these and reports them when finishing the task.
               ipc.sendInfo({
                 type: "log",
                 time: Date.now(),
@@ -464,30 +455,24 @@ const transform = (
           options: loader.options,
         })),
         readResource: (_filename, callback) => {
-          // TODO assuming the filename === resource, but loaders might change that
-          callback(null, Buffer.from(content, "utf-8"));
+          // TODO assuming that filename === resource, but loaders might change that
+          let data =
+            typeof content === "string"
+              ? Buffer.from(content, "utf-8")
+              : Buffer.from(content.binary, "base64")
+          callback(null, data);
         },
       },
       (err, result) => {
-        for (const envVar of readEnvVars) {
-          ipc.sendInfo({
-            type: "envDependency",
-            name: envVar,
-          });
-        }
-        for (const dep of result.contextDependencies) {
-          ipc.sendInfo({
-            type: "dirDependency",
-            path: toPath(dep),
-            glob: "**",
-          });
-        }
-        for (const dep of result.fileDependencies) {
-          ipc.sendInfo({
-            type: "fileDependency",
-            path: toPath(dep),
-          });
-        }
+        ipc.sendInfo({
+          type: 'dependencies',
+          envVariables: Array.from(readEnvVars),
+          filePaths: result.fileDependencies.map(toPath),
+          directories: result.contextDependencies.map((dep) => [
+            toPath(dep),
+            '**',
+          ]),
+        });
         if (err) return reject(err);
         if (!result.result) return reject(new Error("No result from loaders"));
         const [source, map] = result.result;
@@ -518,17 +503,17 @@ function makeErrorEmitter(
       error:
         error instanceof Error
           ? {
-            name: error.name,
-            message: error.message,
-            stack: error.stack ? parseStackTrace(error.stack) : [],
-            cause: undefined,
-          }
+              name: error.name,
+              message: error.message,
+              stack: error.stack ? parseStackTrace(error.stack) : [],
+              cause: undefined,
+            }
           : {
             name: "Error",
-            message: error,
-            stack: [],
-            cause: undefined,
-          },
+              message: error,
+              stack: [],
+              cause: undefined,
+            },
     });
   };
 }

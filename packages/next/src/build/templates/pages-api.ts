@@ -1,36 +1,35 @@
 import type { NextApiResponse } from '../../types'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { PrerenderManifest } from '..'
+import type { DevRoutesManifest } from '../../server/lib/router-utils/setup-dev-bundler'
+import type { InstrumentationOnRequestError } from '../../server/instrumentation/types'
 
-import { RouteKind } from '../../server/route-kind'
-import { sendError } from '../../server/api-utils'
-import { PagesAPIRouteModule } from '../../server/route-modules/pages-api/module.compiled'
-import fs from 'node:fs'
-import path from 'node:path'
 import { parse } from 'node:url'
+import { sendError } from '../../server/api-utils'
+import { RouteKind } from '../../server/route-kind'
+import type { Span } from '../../server/lib/trace/tracer'
+import { PagesAPIRouteModule } from '../../server/route-modules/pages-api/module.compiled'
 
 import { hoist } from './helpers'
 
 // Import the userland code.
 import * as userland from 'VAR_USERLAND'
 import { getTracer, SpanKind } from '../../server/lib/trace/tracer'
-import type { Span } from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import {
   ensureInstrumentationRegistered,
   instrumentationOnRequestError,
 } from '../../server/lib/router-utils/instrumentation-globals.external'
-import type { InstrumentationOnRequestError } from '../../server/instrumentation/types'
 import { getUtils } from '../../server/server-utils'
 import { PRERENDER_MANIFEST, ROUTES_MANIFEST } from '../../api/constants'
 import { isDynamicRoute } from '../../shared/lib/router/utils'
-import type { BaseNextRequest } from '../../server/base-http'
 import {
   RouterServerContextSymbol,
   routerServerGlobal,
 } from '../../server/lib/router-utils/router-server-context'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
-import type { PrerenderManifest, RoutesManifest } from '..'
+import { loadManifestFromRelativePath } from '../../server/load-manifest.external'
 
 // Re-export the handler (should be the default export).
 export default hoist(userland, 'default')
@@ -51,19 +50,6 @@ const routeModule = new PagesAPIRouteModule({
   userland,
 })
 
-const loadedManifests = new Map<string, any>()
-
-async function loadManifest(key: string, loader: () => Promise<any>) {
-  const cached = loadedManifests.get(key)
-
-  if (cached) {
-    return cached
-  }
-  const currentManifest = await loader()
-  loadedManifests.set(key, currentManifest)
-  return currentManifest
-}
-
 export async function handler(
   req: IncomingMessage,
   res: ServerResponse,
@@ -71,31 +57,23 @@ export async function handler(
     waitUntil?: (prom: Promise<void>) => void
   }
 ): Promise<void> {
-  const dir =
+  const projectDir =
     routerServerGlobal[RouterServerContextSymbol]?.dir || process.cwd()
   const distDir = process.env.__NEXT_RELATIVE_DIST_DIR || ''
   const isDev = process.env.NODE_ENV === 'development'
 
-  const routesManifest: RoutesManifest = await loadManifest(
-    ROUTES_MANIFEST,
-    async () =>
-      JSON.parse(
-        await fs.promises.readFile(
-          path.join(dir, distDir, ROUTES_MANIFEST),
-          'utf8'
-        )
-      )
-  )
-  const prerenderManifest: PrerenderManifest = await loadManifest(
-    PRERENDER_MANIFEST,
-    async () =>
-      JSON.parse(
-        await fs.promises.readFile(
-          path.join(dir, distDir, PRERENDER_MANIFEST),
-          'utf8'
-        )
-      )
-  )
+  const [routesManifest, prerenderManifest] = await Promise.all([
+    loadManifestFromRelativePath<DevRoutesManifest>(
+      projectDir,
+      distDir,
+      ROUTES_MANIFEST
+    ),
+    loadManifestFromRelativePath<PrerenderManifest>(
+      projectDir,
+      distDir,
+      PRERENDER_MANIFEST
+    ),
+  ])
   let srcPage = 'VAR_DEFINITION_PAGE'
 
   // turbopack doesn't normalize `/index` in the page name
@@ -131,21 +109,15 @@ export async function handler(
     page: srcPage,
     i18n,
     basePath,
-    rewrites: Array.isArray(rewrites)
-      ? { beforeFiles: [], afterFiles: rewrites, fallback: [] }
-      : rewrites || {
-          beforeFiles: [],
-          afterFiles: [],
-          fallback: [],
-        },
+    rewrites,
     pageIsDynamic,
     trailingSlash: process.env.__NEXT_TRAILING_SLASH as any as boolean,
     caseSensitive: Boolean(routesManifest.caseSensitive),
   })
   const rewriteParamKeys = Object.keys(
-    serverUtils.handleRewrites(req as any as BaseNextRequest, parsedUrl)
+    serverUtils.handleRewrites(req, parsedUrl)
   )
-  serverUtils.normalizeCdnUrl(req as any as BaseNextRequest, [
+  serverUtils.normalizeCdnUrl(req, [
     ...rewriteParamKeys,
     ...Object.keys(serverUtils.defaultRouteRegex?.groups || {}),
   ])
@@ -171,8 +143,7 @@ export async function handler(
 
   // ensure instrumentation is registered and pass
   // onRequestError below
-  const absoluteDistDir = path.join(dir, distDir)
-  await ensureInstrumentationRegistered(absoluteDistDir)
+  await ensureInstrumentationRegistered(projectDir, distDir)
 
   try {
     const method = req.method || 'GET'
@@ -180,8 +151,8 @@ export async function handler(
 
     const activeSpan = tracer.getActiveScopeSpan()
 
-    const invokeRouteModule = async (span?: Span) => {
-      await routeModule
+    const invokeRouteModule = async (span?: Span) =>
+      routeModule
         .render(req, res, {
           query,
           params,
@@ -198,7 +169,7 @@ export async function handler(
           page: 'VAR_DEFINITION_PAGE',
 
           onError: (...args: Parameters<InstrumentationOnRequestError>) =>
-            instrumentationOnRequestError(absoluteDistDir, ...args),
+            instrumentationOnRequestError(projectDir, distDir, ...args),
         })
         .finally(() => {
           if (!span) return
@@ -240,7 +211,6 @@ export async function handler(
             span.updateName(`${method} ${req.url}`)
           }
         })
-    }
 
     // TODO: activeSpan code path is for when wrapped by
     // next-server can be removed when this is no longer used

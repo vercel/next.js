@@ -23,11 +23,12 @@ import {
   NEXT_QUERY_PARAM_PREFIX,
 } from '../lib/constants'
 import { normalizeNextQueryParam } from './web/utils'
-import type { IncomingHttpHeaders } from 'http'
+import type { IncomingHttpHeaders, IncomingMessage } from 'http'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
 
 export function normalizeCdnUrl(
-  req: BaseNextRequest,
+  req: BaseNextRequest | IncomingMessage,
   paramKeys: string[],
   defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
 ) {
@@ -176,11 +177,11 @@ export function getUtils({
   page: string
   i18n?: NextConfig['i18n']
   basePath: string
-  rewrites: {
+  rewrites: DeepReadonly<{
     fallback?: ReadonlyArray<Rewrite>
     afterFiles?: ReadonlyArray<Rewrite>
     beforeFiles?: ReadonlyArray<Rewrite>
-  }
+  }>
   pageIsDynamic: boolean
   trailingSlash?: boolean
   caseSensitive: boolean
@@ -197,7 +198,10 @@ export function getUtils({
     defaultRouteMatches = dynamicRouteMatcher(page) as ParsedUrlQuery
   }
 
-  function handleRewrites(req: BaseNextRequest, parsedUrl: UrlWithParsedQuery) {
+  function handleRewrites(
+    req: BaseNextRequest | IncomingMessage,
+    parsedUrl: UrlWithParsedQuery
+  ) {
     const rewriteParams = {}
     let fsPathname = parsedUrl.pathname
 
@@ -209,7 +213,7 @@ export function getUtils({
       )
     }
 
-    const checkRewrite = (rewrite: Rewrite): boolean => {
+    const checkRewrite = (rewrite: DeepReadonly<Rewrite>): boolean => {
       const matcher = getPathMatch(
         rewrite.source + (trailingSlash ? '(/)?' : ''),
         {
@@ -227,8 +231,8 @@ export function getUtils({
         const hasParams = matchHas(
           req,
           parsedUrl.query,
-          rewrite.has,
-          rewrite.missing
+          rewrite.has as Rewrite['has'],
+          rewrite.missing as Rewrite['missing']
         )
 
         if (hasParams) {
@@ -415,8 +419,10 @@ export function getUtils({
         ignoreMissingOptional
       )
     },
-    normalizeCdnUrl: (req: BaseNextRequest, paramKeys: string[]) =>
-      normalizeCdnUrl(req, paramKeys, defaultRouteRegex),
+    normalizeCdnUrl: (
+      req: BaseNextRequest | IncomingMessage,
+      paramKeys: string[]
+    ) => normalizeCdnUrl(req, paramKeys, defaultRouteRegex),
     interpolateDynamicPath: (
       pathname: string,
       params: Record<string, undefined | string | string[]>

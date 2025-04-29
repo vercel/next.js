@@ -33,7 +33,7 @@ Let's explore common patterns used to build SPAs and how Next.js solves them.
 
 ### Using React’s `use` within a Context Provider
 
-We recommend fetching data in a parent component (or layout), returning the Promise, and then unwrapping the value in a client component with React’s [`use` hook](https://react.dev/reference/react/use).
+We recommend fetching data in a parent component (or layout), returning the Promise, and then unwrapping the value in a Client Component with React’s [`use` hook](https://react.dev/reference/react/use).
 
 Next.js can start data fetching early on the server. In this example, that’s the root layout — the entry point to your application. The server can immediately begin streaming a response to the client.
 
@@ -79,7 +79,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-While you can [defer and pass a single Promise](/docs/app/getting-started/fetching-data#with-the-use-hook) as a prop to a client component, we generally see this pattern paired with a React context provider. This enables easier access from client components with a custom React hook.
+While you can [defer and pass a single Promise](/docs/app/getting-started/fetching-data#with-the-use-hook) as a prop to a Client Component, we generally see this pattern paired with a React context provider. This enables easier access from Client Components with a custom React Hook.
 
 You can forward a Promise to the React context provider:
 
@@ -142,7 +142,7 @@ export function UserProvider({ children, userPromise }) {
 }
 ```
 
-Finally, you can call the `useUser()` custom hook in any client component and unwrap the Promise:
+Finally, you can call the `useUser()` custom hook in any Client Component and unwrap the Promise:
 
 ```tsx filename="app/profile.tsx" switcher
 'use client'
@@ -232,7 +232,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Because this is a server component, `getUser()` can securely read cookies, headers, or talk to your database. No separate API route is needed. Client components below the `<SWRConfig>` can call `useSWR()` with the same key to retrieve the user data. The component code with `useSWR` **does not require any changes** from your existing client-fetching solution.
+Because this is a Server Component, `getUser()` can securely read cookies, headers, or talk to your database. No separate API route is needed. Client components below the `<SWRConfig>` can call `useSWR()` with the same key to retrieve the user data. The component code with `useSWR` **does not require any changes** from your existing client-fetching solution.
 
 ```tsx filename="app/profile.tsx" switcher
 'use client'
@@ -281,7 +281,7 @@ Learn more in the [React Query documentation](https://tanstack.com/query/latest/
 
 ### Rendering components only in the browser
 
-Client components are [prerendered](https://github.com/reactwg/server-components/discussions/4) during `next build`. If you want to disable prerendering for a client component and only load it in the browser environment, you can use [`next/dynamic`](/docs/app/building-your-application/optimizing/lazy-loading#nextdynamic):
+Client components are [prerendered](https://github.com/reactwg/server-components/discussions/4) during `next build`. If you want to disable prerendering for a Client Component and only load it in the browser environment, you can use [`next/dynamic`](/docs/app/guides/lazy-loading#nextdynamic):
 
 ```jsx
 import dynamic from 'next/dynamic'
@@ -349,9 +349,9 @@ export default function SortProducts() {
 
 Learn more about how [routing and navigation](/docs/app/building-your-application/routing/linking-and-navigating#how-routing-and-navigation-works) work in Next.js.
 
-### Using Server Actions in client components
+### Using Server Actions in Client Components
 
-You can progressively adopt Server Actions while still using client components. This allows you to remove boilerplate code to call an API route, and instead use React features like `useActionState` to handle loading and error states.
+You can progressively adopt Server Actions while still using Client Components. This allows you to remove boilerplate code to call an API route, and instead use React features like `useActionState` to handle loading and error states.
 
 For example, create your first Server Action:
 

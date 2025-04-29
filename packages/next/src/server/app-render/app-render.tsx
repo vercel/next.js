@@ -132,7 +132,7 @@ import {
   createDynamicValidationState,
   getFirstDynamicReason,
   trackAllowedDynamicAccess,
-  throwIfDisallowedEmptyShell,
+  throwIfDisallowedDynamic,
   consumeDynamicAccess,
   type DynamicAccess,
 } from './dynamic-rendering'
@@ -1270,7 +1270,7 @@ async function renderToHTMLOrFlightImpl(
 
   if (enableTainting) {
     taintObjectReference(
-      'Do not pass process.env to client components since it will leak sensitive data',
+      'Do not pass process.env to Client Components since it will leak sensitive data',
       process.env
     )
   }
@@ -2550,14 +2550,16 @@ async function spawnDynamicValidationInDev(
 
   function LogDynamicValidation() {
     try {
-      if (preludeIsEmpty) {
-        throwIfDisallowedEmptyShell(
-          route,
-          dynamicValidation,
-          serverDynamicTracking,
-          clientDynamicTracking
-        )
-      }
+      // If we've disabled throwing on empty static shell, then we don't need to
+      // track any dynamic access that occurs above the suspense boundary because
+      // we'll do so in the route shell.
+      throwIfDisallowedDynamic(
+        route,
+        preludeIsEmpty,
+        dynamicValidation,
+        serverDynamicTracking,
+        clientDynamicTracking
+      )
     } catch {}
     return null
   }
@@ -3085,9 +3087,13 @@ async function prerenderToStream(
         const { prelude, preludeIsEmpty } =
           await processPrelude(unprocessedPrelude)
 
-        if (preludeIsEmpty) {
-          throwIfDisallowedEmptyShell(
+        // If we've disabled throwing on empty static shell, then we don't need to
+        // track any dynamic access that occurs above the suspense boundary because
+        // we'll do so in the route shell.
+        if (!ctx.renderOpts.doNotThrowOnEmptyStaticShell) {
+          throwIfDisallowedDynamic(
             workStore.route,
+            preludeIsEmpty,
             dynamicValidation,
             serverDynamicTracking,
             clientDynamicTracking
@@ -3568,10 +3574,14 @@ async function prerenderToStream(
           }
         }
 
-        if (preludeIsEmpty) {
+        // If we've disabled throwing on empty static shell, then we don't need to
+        // track any dynamic access that occurs above the suspense boundary because
+        // we'll do so in the route shell.
+        if (!ctx.renderOpts.doNotThrowOnEmptyStaticShell) {
           // We don't have a shell because the root errored when we aborted.
-          throwIfDisallowedEmptyShell(
+          throwIfDisallowedDynamic(
             workStore.route,
+            preludeIsEmpty,
             dynamicValidation,
             serverDynamicTracking,
             clientDynamicTracking

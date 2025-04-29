@@ -128,8 +128,11 @@
       "app-dir action size limit invalid config should error if serverActions.bodySizeLimit config is a negative number",
       "app-dir action size limit invalid config should error if serverActions.bodySizeLimit config is a negative size",
       "app-dir action size limit invalid config should error if serverActions.bodySizeLimit config is invalid",
-      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit",
-      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit when submitting form"
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should error for requests that exceed the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should not error for requests that are at the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should not error for requests that stay below the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for plaintext fetch actions should error for requests that exceed the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for plaintext fetch actions should not error for requests that stay below the size limit"
     ],
     "failed": [],
     "pending": [],
@@ -1544,6 +1547,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/css-modules-data-urls/css-modules-data-urls.test.ts": {
+    "passed": [
+      "css-modules-data-urls should apply client class name from data url correctly",
+      "css-modules-data-urls should apply client styles from data url correctly",
+      "css-modules-data-urls should apply rsc class name from data url correctly",
+      "css-modules-data-urls should apply rsc styles from data url correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/css-modules-pure-no-check/css-modules-pure-no-check.test.ts": {
     "passed": [
       "css-modules-pure-no-check should apply styles correctly",
@@ -1892,16 +1907,18 @@
     "passed": [
       "Dynamic IO Errors - With Minification Dynamic Boundary should not error the build when all dynamic components are inside a Suspense boundary",
       "Dynamic IO Errors - With Minification Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
+      "Dynamic IO Errors - With Minification Dynamic Metadata - Error Route should error the build for the correct reason when there is a dynamic IO violation alongside dynamic metadata",
       "Dynamic IO Errors - With Minification Dynamic Metadata - Static Route With Suspense should not error the build if generateMetadata is dynamic",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Static Route should not error the build if generateMetadata is dynamic",
+      "Dynamic IO Errors - With Minification Dynamic Metadata - Static Route should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
       "Dynamic IO Errors - With Minification Dynamic Root should error the build if dynamic IO happens in the root (outside a Suspense)",
       "Dynamic IO Errors - With Minification Dynamic Viewport - Dynamic Route should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page",
       "Dynamic IO Errors - With Minification Dynamic Viewport - Static Route should error the build if generateViewport is dynamic",
       "Dynamic IO Errors - With Minification Static Route should not error the build when all routes are static",
       "Dynamic IO Errors - Without Minification Dynamic Boundary should not error the build when all dynamic components are inside a Suspense boundary",
       "Dynamic IO Errors - Without Minification Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
+      "Dynamic IO Errors - Without Minification Dynamic Metadata - Error Route should error the build for the correct reason when there is a dynamic IO violation alongside dynamic metadata",
       "Dynamic IO Errors - Without Minification Dynamic Metadata - Static Route With Suspense should not error the build if generateMetadata is dynamic",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Static Route should not error the build if generateMetadata is dynamic",
+      "Dynamic IO Errors - Without Minification Dynamic Metadata - Static Route should error the build if generateMetadata is dynamic when the rest of the route is prerenderable",
       "Dynamic IO Errors - Without Minification Dynamic Root should error the build if dynamic IO happens in the root (outside a Suspense)",
       "Dynamic IO Errors - Without Minification Dynamic Viewport - Dynamic Route should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page",
       "Dynamic IO Errors - Without Minification Dynamic Viewport - Static Route should error the build if generateViewport is dynamic",
@@ -2241,6 +2258,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/empty-fallback-shells/empty-fallback-shells.test.ts": {
+    "passed": [
+      "empty-fallback-shells should start and not postpone the response"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/error-boundary-navigation/index.test.ts": {
     "passed": [
       "app dir - not found navigation should allow navigating to a non-existent page",
@@ -2515,6 +2541,13 @@
       "app dir - imports we can import all components from .ts",
       "app dir - imports we can import all components from .tsx"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/instrumentation-order/instrumentation-order.test.ts": {
+    "passed": ["instrumentation-order should work using cheerio"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -5246,7 +5279,10 @@
       "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR disabled, and has a loading boundary",
       "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR enabled",
       "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR enabled, and has a dynamic param",
+      "segment cache (incremental opt in) prefetches a dynamic route when PPR is disabled if it has a loading.tsx boundary",
       "segment cache (incremental opt in) prefetches a shared layout on a PPR-enabled route that was previously omitted from a non-PPR-enabled route",
+      "segment cache (incremental opt in) skips prefetching a dynamic route when PPR is disabled if everything up to its loading.tsx boundary is already cached",
+      "segment cache (incremental opt in) skips prefetching a dynamic route when PPR is disabled if it has no loading.tsx boundary",
       "segment cache (incremental opt in) when a link is prefetched with <Link prefetch=true>, no dynamic request is made on navigation",
       "segment cache (incremental opt in) when prefetching with prefetch=true, refetches cache entries that only contain partial data",
       "segment cache (incremental opt in) when prefetching with prefetch=true, refetches partial cache entries even if there's already a pending PPR request"
@@ -6090,6 +6126,17 @@
     "passed": [
       "next.config.js schema validating - defaultConfig should validate against defaultConfig",
       "next.config.js schema validating - invalid config should warn the invalid next config"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/config-turbopack/index.test.ts": {
+    "passed": [
+      "config-turbopack when webpack is configured and config.experimental.turbo is set does not warn",
+      "config-turbopack when webpack is configured and config.turbopack is set does not warn",
+      "config-turbopack when webpack is configured but Turbopack is not warns"
     ],
     "failed": [],
     "pending": [],
@@ -8049,7 +8096,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/socket-io/index.test.js": {
+  "test/e2e/socket-io/index.test.ts": {
     "passed": [
       "socket-io should support socket.io without falling back to polling"
     ],
@@ -8354,6 +8401,13 @@
       "withRouter production mode allows observation of navigation events using top level Router deprecated behavior",
       "withRouter production mode allows observation of navigation events using withRouter"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/worker-react-refresh/worker-react-refresh.test.tsx": {
+    "passed": ["worker-react-refresh does not cause any runtime errors"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -18737,14 +18791,14 @@
   "test/production/graceful-shutdown/index.test.ts": {
     "passed": [
       "Graceful Shutdown development (next dev) should shut down child immediately",
-      "Graceful Shutdown production (next start) should not accept new requests during shutdown cleanup when there is no activity",
-      "Graceful Shutdown production (standalone mode) should not accept new requests during shutdown cleanup when there is no activity"
+      "Graceful Shutdown production (next start) should not accept new requests during shutdown cleanup should finish pending requests but refuse new ones",
+      "Graceful Shutdown production (next start) should not accept new requests during shutdown cleanup should stop accepting new requests when shutting down",
+      "Graceful Shutdown production (standalone mode) should not accept new requests during shutdown cleanup should finish pending requests but refuse new ones",
+      "Graceful Shutdown production (standalone mode) should not accept new requests during shutdown cleanup should stop accepting new requests when shutting down"
     ],
     "failed": [],
     "pending": [
-      "Graceful Shutdown production (next start) should not accept new requests during shutdown cleanup when request is made before shutdown",
       "Graceful Shutdown production (next start) should wait for requests to complete before exiting",
-      "Graceful Shutdown production (standalone mode) should not accept new requests during shutdown cleanup when request is made before shutdown",
       "Graceful Shutdown production (standalone mode) should wait for requests to complete before exiting"
     ],
     "flakey": [],

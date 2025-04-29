@@ -94,7 +94,7 @@ import { pipeToNodeResponse } from './pipe-readable'
 import { createRequestResponseMocks } from './lib/mock-request'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
-import { loadManifest } from './load-manifest'
+import { loadManifest } from './load-manifest.external'
 import { lazyRenderAppPage } from './route-modules/app-page/module.render'
 import { lazyRenderPagesPage } from './route-modules/pages/module.render'
 import { interopDefault } from '../lib/interop-default'
@@ -376,6 +376,9 @@ export default class NextNodeServer extends BaseServer<
   }
 
   public async unstable_preloadEntries(): Promise<void> {
+    // Ensure prepare process will be finished before preloading entries.
+    await this.prepare()
+
     const appPathsManifest = this.getAppPathsManifest()
     const pagesManifest = this.getPagesManifest()
 

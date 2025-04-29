@@ -252,6 +252,7 @@ auto-hash-map = { path = "turbopack/crates/turbo-tasks-auto-hash-map" }
 swc-ast-explorer = { path = "turbopack/crates/turbopack-swc-ast-explorer" }
 turbo-prehash = { path = "turbopack/crates/turbo-prehash" }
 turbo-rcstr = { path = "turbopack/crates/turbo-rcstr" }
+turbo-esregex = { path = "turbopack/crates/turbo-esregex" }
 turbo-persistence = { path = "turbopack/crates/turbo-persistence" }
 turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }
 turbo-tasks = { path = "turbopack/crates/turbo-tasks" }
@@ -305,7 +306,7 @@ testing = { version = "9.0.0" }
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = { version = "0.17.0" }
 miette = { version = "5.10.0", features = ["fancy"] }
-mdxjs = "0.3.3"
+mdxjs = "1"
 modularize_imports = { version = "0.82.0" }
 styled_components = { version = "0.110.0" }
 styled_jsx = { version = "0.86.0" }
@@ -410,7 +411,7 @@ sourcemap = "9.0.0"
 strsim = "0.11.1"
 shrink-to-fit = "0.2.10"
 swc-rustc-hash = { package = "rustc-hash", version = "1.1.0" } # used with swc
-syn = "1.0.107"
+syn = "2.0.100"
 tempfile = "3.3.0"
 thread_local = "1.1.8"
 thiserror = "1.0.48"
@@ -435,4 +436,3 @@ wasmer-cache = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
 wasmer-compiler-cranelift = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
 wasmer-wasix = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
 
-mdxjs = { git = "https://github.com/kdy1/mdxjs-rs", branch = "swc-core-22" }

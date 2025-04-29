@@ -91,7 +91,8 @@ pub use completion::{Completion, Completions};
 pub use display::ValueToString;
 pub use effect::{apply_effects, effect, get_effects, Effects};
 pub use id::{
-    FunctionId, LocalTaskId, SessionId, TaskId, TraitTypeId, ValueTypeId, TRANSIENT_TASK_BIT,
+    ExecutionId, FunctionId, LocalTaskId, SessionId, TaskId, TraitTypeId, ValueTypeId,
+    TRANSIENT_TASK_BIT,
 };
 pub use invalidation::{
     get_invalidator, DynamicEqHash, InvalidationReason, InvalidationReasonKind,
@@ -118,7 +119,7 @@ pub use shrink_to_fit::ShrinkToFit;
 pub use state::{State, TransientState};
 pub use task::{task_input::TaskInput, SharedReference, TypedSharedReference};
 pub use trait_ref::{IntoTraitRef, TraitRef};
-pub use turbo_tasks_macros::{function, value_impl, value_trait, KeyValuePair, TaskInput};
+pub use turbo_tasks_macros::{function, value_impl, TaskInput};
 pub use value::{TransientInstance, TransientValue, Value};
 pub use value_type::{TraitMethod, TraitType, ValueType};
 pub use vc::{
@@ -274,6 +275,27 @@ macro_rules! fxindexset {
 /// [`NonLocalValue`]s.
 #[rustfmt::skip]
 pub use turbo_tasks_macros::value;
+
+/// Allows this trait to be used as part of a trait object inside of a value
+/// cell, in the form of `Vc<dyn MyTrait>`.
+///
+/// ## Arguments
+///
+/// Example: `#[turbo_tasks::value_trait(no_debug, resolved)]`
+///
+/// ### 'no_debug`
+///
+/// Disables the automatic implementation of [`ValueDebug`][crate::debug::ValueDebug].
+///
+/// Example: `#[turbo_tasks::value_trait(no_debug)]`
+///
+/// ### 'resolved`
+///
+/// Adds [`NonLocalValue`] as a supertrait of this trait.
+///
+/// Example: `#[turbo_tasks::value_trait(resolved)]`
+#[rustfmt::skip]
+pub use turbo_tasks_macros::value_trait;
 
 pub type TaskIdSet = AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>;
 

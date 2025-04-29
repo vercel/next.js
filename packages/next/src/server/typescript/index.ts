@@ -343,15 +343,6 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       return prior
     }
 
-    // Get definition and link for specific node
-    proxy.getDefinitionAndBoundSpan = (fileName: string, position: number) => {
-      const entryInfo = getEntryInfo(fileName)
-      if (isAppEntryFile(fileName) && !entryInfo.client) {
-      }
-
-      return info.languageService.getDefinitionAndBoundSpan(fileName, position)
-    }
-
     return proxy
   }
 

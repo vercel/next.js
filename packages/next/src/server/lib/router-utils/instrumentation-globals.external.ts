@@ -10,6 +10,7 @@ import { interopDefault } from '../../../lib/interop-default'
 let cachedInstrumentationModule: InstrumentationModule
 
 export async function getInstrumentationModule(
+  projectDir: string,
   distDir: string
 ): Promise<InstrumentationModule | undefined> {
   if (cachedInstrumentationModule && process.env.NODE_ENV === 'production') {
@@ -19,7 +20,12 @@ export async function getInstrumentationModule(
   try {
     cachedInstrumentationModule = interopDefault(
       await require(
-        path.join(distDir, 'server', `${INSTRUMENTATION_HOOK_FILENAME}.js`)
+        path.join(
+          projectDir,
+          distDir,
+          'server',
+          `${INSTRUMENTATION_HOOK_FILENAME}.js`
+        )
       )
     )
     return cachedInstrumentationModule
@@ -36,11 +42,11 @@ export async function getInstrumentationModule(
 }
 
 let instrumentationModulePromise: Promise<any> | null = null
-async function registerInstrumentation(distDir: string) {
+async function registerInstrumentation(projectDir: string, distDir: string) {
   // Ensure registerInstrumentation is not called in production build
   if (process.env.NEXT_PHASE === 'phase-production-build') return
   if (!instrumentationModulePromise) {
-    instrumentationModulePromise = getInstrumentationModule(distDir)
+    instrumentationModulePromise = getInstrumentationModule(projectDir, distDir)
   }
   const instrumentation = await instrumentationModulePromise
   if (instrumentation?.register) {
@@ -54,10 +60,11 @@ async function registerInstrumentation(distDir: string) {
 }
 
 export async function instrumentationOnRequestError(
+  projectDir: string,
   distDir: string,
   ...args: Parameters<InstrumentationOnRequestError>
 ) {
-  const instrumentation = await getInstrumentationModule(distDir)
+  const instrumentation = await getInstrumentationModule(projectDir, distDir)
   try {
     await instrumentation?.onRequestError?.(...args)
   } catch (err) {
@@ -67,9 +74,15 @@ export async function instrumentationOnRequestError(
 }
 
 let registerInstrumentationPromise: Promise<void> | null = null
-export function ensureInstrumentationRegistered(distDir: string) {
+export function ensureInstrumentationRegistered(
+  projectDir: string,
+  distDir: string
+) {
   if (!registerInstrumentationPromise) {
-    registerInstrumentationPromise = registerInstrumentation(distDir)
+    registerInstrumentationPromise = registerInstrumentation(
+      projectDir,
+      distDir
+    )
   }
   return registerInstrumentationPromise
 }
