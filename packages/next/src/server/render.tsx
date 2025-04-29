@@ -104,6 +104,7 @@ import { getCacheControlHeader } from './lib/cache-control'
 import { getErrorSource } from '../shared/lib/error-source'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import type { PagesDevOverlayType } from '../client/components/react-dev-overlay/pages/pages-dev-overlay'
+import { ReadonlyURLSearchParams } from '../api/navigation'
 
 let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -742,7 +743,9 @@ export async function renderToHTMLImpl(
 
   const AppContainer = ({ children }: { children: JSX.Element }) => (
     <AppRouterContext.Provider value={appRouter}>
-      <SearchParamsContext.Provider value={adaptForSearchParams(router)}>
+      <SearchParamsContext.Provider
+        value={new ReadonlyURLSearchParams(adaptForSearchParams(router))}
+      >
         <PathnameContextProviderAdapter
           router={router}
           isAutoExport={isAutoExport}

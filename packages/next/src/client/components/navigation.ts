@@ -1,7 +1,7 @@
 import type { FlightRouterState } from '../../server/app-render/types'
 import type { Params } from '../../server/request/params'
 
-import { useContext, useMemo } from 'react'
+import { useContext } from 'react'
 import {
   AppRouterContext,
   LayoutRouterContext,
@@ -14,7 +14,7 @@ import {
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { PAGE_SEGMENT_KEY, DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
-import { ReadonlyURLSearchParams } from './navigation.react-server'
+import type { ReadonlyURLSearchParams } from './navigation.react-server'
 
 const useDynamicRouteParams =
   typeof window === 'undefined'
@@ -45,20 +45,15 @@ const useDynamicRouteParams =
  */
 // Client components API
 export function useSearchParams(): ReadonlyURLSearchParams {
-  const searchParams = useContext(SearchParamsContext)
+  const maybeSearchParams = useContext(SearchParamsContext)
 
+  // When the router is not ready in Pages, we won't have the search params
+  // available.
+  //
   // In the case where this is `null`, the compat types added in
   // `next-env.d.ts` will add a new overload that changes the return type to
   // include `null`.
-  const readonlySearchParams = useMemo(() => {
-    if (!searchParams) {
-      // When the router is not ready in pages, we won't have the search params
-      // available.
-      return null
-    }
-
-    return new ReadonlyURLSearchParams(searchParams)
-  }, [searchParams]) as ReadonlyURLSearchParams
+  const searchParams = maybeSearchParams as ReadonlyURLSearchParams
 
   if (typeof window === 'undefined') {
     // AsyncLocalStorage should not be included in the client bundle.
@@ -68,7 +63,7 @@ export function useSearchParams(): ReadonlyURLSearchParams {
     bailoutToClientRendering('useSearchParams()')
   }
 
-  return readonlySearchParams
+  return searchParams
 }
 
 /**
