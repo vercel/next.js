@@ -22,6 +22,9 @@ overrides:
   scheduler: 0.27.0-canary-5dc00d6b-20250428
 
 patchedDependencies:
+  '@ampproject/toolbox-optimizer@2.8.3':
+    hash: baeiwbdq3sqmjnnh2lznmpb5bu
+    path: patches/@ampproject__toolbox-optimizer@2.8.3.patch
   stacktrace-parser@0.1.10:
     hash: misknddihoqkqinipod62zbcj4
     path: patches/stacktrace-parser@0.1.10.patch
@@ -920,7 +923,7 @@ importers:
     devDependencies:
       '@ampproject/toolbox-optimizer':
         specifier: 2.8.3
-        version: 2.8.3
+        version: 2.8.3(patch_hash=baeiwbdq3sqmjnnh2lznmpb5bu)
       '@babel/code-frame':
         specifier: 7.22.5
         version: 7.22.5
@@ -17454,7 +17457,7 @@ snapshots:
       cross-fetch: 3.1.2
       lru-cache: 6.0.0
 
-  '@ampproject/toolbox-optimizer@2.8.3':
+  '@ampproject/toolbox-optimizer@2.8.3(patch_hash=baeiwbdq3sqmjnnh2lznmpb5bu)':
     dependencies:
       '@ampproject/toolbox-core': 2.8.0
       '@ampproject/toolbox-runtime-version': 2.8.0
