@@ -1093,10 +1093,25 @@ export default abstract class Server<
               parsedUrl.pathname === '/index' ? '/' : parsedUrl.pathname
           }
 
+          // x-matched-path header can be decoded incorrectly
+          // and should only be utf8 characters so this fixes
+          // incorrectly encoded values
+          function fixMojibake(input: string): string {
+            // Convert each character's char code to a byte
+            const bytes = new Uint8Array(input.length)
+            for (let i = 0; i < input.length; i++) {
+              bytes[i] = input.charCodeAt(i)
+            }
+
+            // Decode the bytes as proper UTF-8
+            const decoder = new TextDecoder('utf-8')
+            return decoder.decode(bytes)
+          }
+
           // x-matched-path is the source of truth, it tells what page
           // should be rendered because we don't process rewrites in minimalMode
           let { pathname: matchedPath } = new URL(
-            req.headers[MATCHED_PATH_HEADER] as string,
+            fixMojibake(req.headers[MATCHED_PATH_HEADER] as string),
             'http://localhost'
           )
 
@@ -1249,9 +1264,14 @@ export default abstract class Server<
           if (pageIsDynamic) {
             let params: ParsedUrlQuery | false = {}
 
-            // ensure we normalize the dynamic route params for encoding/
-            // default values
-            paramsResult = utils.normalizeDynamicRouteParams(queryParams, false)
+            // If we don't already have valid params, try to parse them from
+            // the query params.
+            if (!paramsResult.hasValidParams) {
+              paramsResult = utils.normalizeDynamicRouteParams(
+                queryParams,
+                false
+              )
+            }
 
             // for prerendered ISR paths we attempt parsing the route
             // params from the URL directly as route-matches may not
