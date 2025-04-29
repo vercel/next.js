@@ -889,9 +889,6 @@ importers:
       '@next/env':
         specifier: 15.4.0-canary.14
         version: link:../next-env
-      '@swc/counter':
-        specifier: 0.1.3
-        version: 0.1.3
       '@swc/helpers':
         specifier: 0.5.15
         version: 0.5.15
