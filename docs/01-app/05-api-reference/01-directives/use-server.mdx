@@ -91,7 +91,7 @@ export default async function PostPage({ params }: { params: { id: string } }) {
     await savePost(params.id, formData)
     revalidatePath(`/posts/${params.id}`)
   }
-  
+
   return <EditPost updatePostAction={updatePost} post={post} />
 }
 ```
@@ -108,7 +108,7 @@ export default async function PostPage({ params }) {
     await savePost(params.id, formData)
     revalidatePath(`/posts/${params.id}`)
   }
-  
+
   return <EditPost updatePostAction={updatePost} post={post} />
 }
 ```
