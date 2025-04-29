@@ -47,7 +47,7 @@ This is specially helpful for:
 
 1. Hybrid pages that combine static and dynamic content.
 2. High-cardinality params that generate many unique pages, making prerendering resource-intensive.
-3. Personalized content \based on user-specific data available only at request time.
+3. Personalized content based on user-specific data available only at request time.
 
 ## Caching APIs
 
@@ -195,7 +195,7 @@ async function Profile({ id, children }) {
 }
 ```
 
-**How it works**:
+#### How interleaving works
 
 The non-serializable values — like `{children}` props or dynamic nested components — are treated as references and not included in the [cache key](#cache-keys). Instead, these references are filled in at runtime. This prevents the dynamic values from “poisoning” the cache, which would otherwise generate a new cache entry for every variation.
 
@@ -205,18 +205,18 @@ The non-serializable values — like `{children}` props or dynamic nested compon
 
 By default, `"use cache"` uses an in-memory cache on the server. This avoids re-executing expensive operations like database reads or API calls for every cached function invocation.
 
-**How long does it last?**
+#### How long does it last?
 
 The in-memory cache only exists while the server is running.
 
 - **Serverless**: the cache lasts for the lifetime of the serverless function.
 - **Long-running server**: the cache lasts until the server is restarted or the memory is cleared.
 
-**What is deduplication?**
+#### What is deduplication?
 
 During a server render pass, Next.js automatically deduplicates functions marked with `"use cache"`. This prevents the same function with the same inputs from being executed multiple times.
 
-**Why in-memory caching?**
+#### Why in-memory caching?
 
 The in-memory cache provides a foundational default that:
 
