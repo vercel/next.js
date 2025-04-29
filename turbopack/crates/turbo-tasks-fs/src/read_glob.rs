@@ -3,7 +3,7 @@ use futures::try_join;
 use rustc_hash::FxHashMap;
 use turbo_tasks::{Completion, ResolvedVc, TryJoinIterExt, Vc};
 
-use crate::{glob::Glob, DirectoryContent, DirectoryEntry, FileSystemPath};
+use crate::{glob::Glob, DirectoryContent, DirectoryEntry, FileSystem, FileSystemPath};
 
 #[turbo_tasks::value]
 #[derive(Default, Debug)]
@@ -96,6 +96,7 @@ async fn track_glob_internal(
 ) -> Result<Vc<Completion>> {
     let dir = directory.read_dir().await?;
     let glob_value = glob.await?;
+    let fs = directory.fs().to_resolved().await?;
     let mut reads = Vec::new();
     let mut completions = Vec::new();
     let mut types = Vec::new();
@@ -113,7 +114,7 @@ async fn track_glob_internal(
                     }
                     DirectoryEntry::File(path) => {
                         if glob_value.execute(&path.await?.path) {
-                            reads.push(path.read())
+                            reads.push(fs.read(*path))
                         }
                     }
                     DirectoryEntry::Symlink(_) => panic!("we already resolved symlinks"),
