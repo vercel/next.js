@@ -137,8 +137,13 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
         if !self.initial_write {
             // Start a new compaction in the background
             let db = self.db.clone();
-            let handle =
-                spawn(move || db.compact(COMPACT_MAX_COVERAGE, COMPACT_MAX_MERGE_SEQUENCE));
+            let handle = spawn(move || {
+                db.compact(
+                    COMPACT_MAX_COVERAGE,
+                    COMPACT_MAX_MERGE_SEQUENCE,
+                    COMPACT_MAX_MERGE_SIZE,
+                )
+            });
             self.compact_join_handle.lock().replace(handle);
         }
 
