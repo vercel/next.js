@@ -55,6 +55,13 @@ pub async fn dynamic_image_metadata_source(
     let sizes = if use_numeric_sizes {
         "data.width = size.width; data.height = size.height;".to_string()
     } else {
+        // Note: This case seemingly can never happen because this code runs for dynamic metadata
+        // which has e.g. a `.js` or `.ts` extension not `.svg`. Branching code is still here to
+        // match the static implementation
+        //
+        // For SVGs, skip sizes and use "any" to let it scale automatically based on viewport,
+        // For the images doesn't provide the size properly, use "any" as well.
+        // If the size is presented, use the actual size for the image.
         let sizes = if ext == "svg" {
             "any"
         } else {
