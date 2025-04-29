@@ -843,7 +843,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         #[cfg(not(feature = "tokio_tracing"))]
         tokio::task::spawn(future);
 
-        RawVc::LocalOutput(persistence, execution_id, local_task_id)
+        RawVc::LocalOutput(execution_id, local_task_id, persistence)
     }
 
     fn begin_primary_job(&self) {
