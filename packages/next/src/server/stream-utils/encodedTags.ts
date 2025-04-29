@@ -18,4 +18,13 @@ export const ENCODED_TAGS = {
       60, 47, 98, 111, 100, 121, 62, 60, 47, 104, 116, 109, 108, 62,
     ]),
   },
+  META: {
+    // <meta name="«nxt-icon»" content=""/>
+    // This is a special mark that will be replaced by the icon insertion script tag.
+    ICON_MARK: new Uint8Array([
+      60, 109, 101, 116, 97, 32, 110, 97, 109, 101, 61, 34, 194, 171, 110, 120,
+      116, 45, 105, 99, 111, 110, 194, 187, 34, 32, 99, 111, 110, 116, 101, 110,
+      116, 61, 34, 34, 47, 62,
+    ]),
+  },
 } as const

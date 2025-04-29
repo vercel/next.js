@@ -7,6 +7,7 @@ import {
   indexOfUint8Array,
   isEquivalentUint8Arrays,
   removeFromUint8Array,
+  replaceInUint8Array,
 } from './uint8array-helpers'
 import { MISSING_ROOT_TAGS_ERROR } from '../../shared/lib/errors/constants'
 
@@ -193,32 +194,34 @@ export function renderToInitialFizzStream({
   )
 }
 
-function createBodySentInsertionTransformStream(
+function createMetadataTransformStream(
   insert: () => Promise<string> | string
 ): TransformStream<Uint8Array, Uint8Array> {
   let inserted = false
-  let isBodySent = false
   return new TransformStream({
     async transform(chunk, controller) {
       // We need to track if this transform saw any bytes because if it didn't
       // we won't want to insert any server HTML at all
-      const index = indexOfUint8Array(chunk, ENCODED_TAGS.CLOSED.BODY)
-      if (index !== -1) {
-        isBodySent = true
-      }
-
-      controller.enqueue(chunk)
       if (inserted) {
         return
       }
-
-      if (isBodySent) {
+      const index = indexOfUint8Array(chunk, ENCODED_TAGS.META.ICON_MARK)
+      if (index !== -1) {
         const insertion = await insert()
         if (insertion !== null) {
-          const encodedInsertion = encoder.encode(insertion)
-          controller.enqueue(encodedInsertion)
+          // Replace <meta name="«nxt-icon»" content="" /> with
+          // the icon re-insertion script tag <script>document.querySelector(...)</script>
+          const replacedChunk = replaceInUint8Array(
+            chunk,
+            ENCODED_TAGS.META.ICON_MARK,
+            encoder.encode(insertion),
+            index
+          )
+          controller.enqueue(replacedChunk)
         }
         inserted = true
+      } else {
+        controller.enqueue(chunk)
       }
     },
   })
@@ -599,7 +602,7 @@ export async function continueFizzStream(
 
     // Insert generated metadata
     serveStreamingMetadata
-      ? createBodySentInsertionTransformStream(getServerInsertedMetadata)
+      ? createMetadataTransformStream(getServerInsertedMetadata)
       : null,
 
     // Insert suffix content
@@ -643,9 +646,7 @@ export async function continueDynamicPrerender(
       // Insert generated tags to head
       .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
       // Insert generated metadata
-      .pipeThrough(
-        createBodySentInsertionTransformStream(getServerInsertedMetadata)
-      )
+      .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
   )
 }
 
@@ -670,9 +671,7 @@ export async function continueStaticPrerender(
       // Insert generated tags to head
       .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
       // Insert generated metadata to head
-      .pipeThrough(
-        createBodySentInsertionTransformStream(getServerInsertedMetadata)
-      )
+      .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
       // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
       .pipeThrough(createMergedTransformStream(inlinedDataStream))
       // Close tags should always be deferred to the end
@@ -701,9 +700,7 @@ export async function continueDynamicHTMLResume(
       // Insert generated tags to head
       .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
       // Insert generated metadata to body
-      .pipeThrough(
-        createBodySentInsertionTransformStream(getServerInsertedMetadata)
-      )
+      .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
       // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
       .pipeThrough(createMergedTransformStream(inlinedDataStream))
       // Close tags should always be deferred to the end
