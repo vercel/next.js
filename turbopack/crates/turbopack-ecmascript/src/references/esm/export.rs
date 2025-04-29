@@ -18,7 +18,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
-    chunk::ChunkingContext,
+    chunk::{ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, analyze::AnalyzeIssue},
     module::Module,
@@ -28,7 +28,7 @@ use turbopack_core::{
 
 use super::base::ReferencedAsset;
 use crate::{
-    EcmascriptModuleAsset,
+    EcmascriptModuleAsset, ScopeHoistingContext,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier,
@@ -36,6 +36,7 @@ use crate::{
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
     simple_tree_shake::ModuleExportUsageInfo,
     tree_shake::asset::EcmascriptModulePartAsset,
+    utils::module_id_to_lit,
 };
 
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
@@ -552,6 +553,7 @@ impl EsmExports {
     pub async fn code_generation(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        scope_hoisting_context: Option<ScopeHoistingContext<'_>>,
         parsed: Option<Vc<ParseResult>>,
         export_usage_info: Option<ResolvedVc<ModuleExportUsageInfo>>,
     ) -> Result<CodeGeneration> {
@@ -575,7 +577,7 @@ impl EsmExports {
             ));
         }
 
-        let mut props = Vec::new();
+        let mut getters = Vec::new();
         for (exported, local) in &expanded.exports {
             let expr = match local {
                 EsmExport::Error => Some(quote!(
@@ -684,7 +686,7 @@ impl EsmExports {
                 }
             };
             if let Some(expr) = expr {
-                props.push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                getters.push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
                     key: PropName::Str(Str {
                         span: DUMMY_SP,
                         value: exported.as_str().into(),
@@ -696,7 +698,7 @@ impl EsmExports {
         }
         let getters = Expr::Object(ObjectLit {
             span: DUMMY_SP,
-            props,
+            props: getters,
         });
         let dynamic_stmt = if !dynamic_exports.is_empty() {
             Some(Stmt::Expr(ExprStmt {
@@ -707,6 +709,46 @@ impl EsmExports {
             None
         };
 
+        let early_hoisted_stmts = if let Some(scope_hoisting_context) = scope_hoisting_context {
+            let exposed = *scope_hoisting_context
+                .modules
+                .get(&scope_hoisting_context.module)
+                .unwrap();
+            let registry = if exposed {
+                Some(CodeGenerationHoistedStmt::new(
+                    "__turbopack_esm__".into(),
+                    {
+                        let id = scope_hoisting_context
+                            .module
+                            .chunk_item_id(Vc::upcast(chunking_context))
+                            .await?;
+                        quote!("$turbopack_esm_other($id, $getters);" as Stmt,
+                            turbopack_esm_other: Expr = TURBOPACK_ESM_OTHER.into(),
+                            id: Expr = module_id_to_lit(&id),
+                            getters: Expr = getters
+                        )
+                    },
+                ))
+            } else {
+                None
+            };
+
+            let local_re_bindings = vec![];
+
+            registry
+                .into_iter()
+                .chain(local_re_bindings.into_iter())
+                .collect()
+        } else {
+            vec![CodeGenerationHoistedStmt::new(
+                rcstr!("__turbopack_esm__"),
+                quote!("$turbopack_esm($getters);" as Stmt,
+                    turbopack_esm: Expr = TURBOPACK_ESM.into(),
+                    getters: Expr = getters
+                ),
+            )]
+        };
+
         Ok(CodeGeneration::new(
             vec![],
             [dynamic_stmt
@@ -714,13 +756,7 @@ impl EsmExports {
             .into_iter()
             .flatten()
             .collect(),
-            vec![CodeGenerationHoistedStmt::new(
-                rcstr!("__turbopack_esm__"),
-                quote!("$turbopack_esm($getters);" as Stmt,
-                    turbopack_esm: Expr = TURBOPACK_ESM.into(),
-                    getters: Expr = getters
-                ),
-            )],
+            early_hoisted_stmts,
         ))
     }
 }
