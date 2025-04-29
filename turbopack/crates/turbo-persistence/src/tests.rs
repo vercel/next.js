@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{time::Instant, usize};
 
 use anyhow::Result;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -433,7 +433,7 @@ fn persist_changes() -> Result<()> {
     {
         let db = TurboPersistence::open(path.to_path_buf())?;
 
-        db.compact(1.0, 3)?;
+        db.compact(1.0, 3, usize::MAX)?;
 
         check(&db, 1, 13)?;
         check(&db, 2, 22)?;

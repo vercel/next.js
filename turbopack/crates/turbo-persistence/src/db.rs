@@ -9,6 +9,7 @@ use std::{
         atomic::{AtomicBool, AtomicU32, Ordering},
         Arc,
     },
+    usize,
 };
 
 use anyhow::{bail, Context, Result};
@@ -534,7 +535,7 @@ impl TurboPersistence {
     /// Runs a full compaction on the database. This will rewrite all SST files, removing all
     /// duplicate keys and separating all key ranges into unique files.
     pub fn full_compact(&self) -> Result<()> {
-        self.compact(0.0, usize::MAX)?;
+        self.compact(0.0, usize::MAX, usize::MAX)?;
         Ok(())
     }
 
@@ -542,7 +543,12 @@ impl TurboPersistence {
     /// files is above the given threshold. The coverage is the average number of SST files that
     /// need to be read to find a key. It also limits the maximum number of SST files that are
     /// merged at once, which is the main factor for the runtime of the compaction.
-    pub fn compact(&self, max_coverage: f32, max_merge_sequence: usize) -> Result<()> {
+    pub fn compact(
+        &self,
+        max_coverage: f32,
+        max_merge_sequence: usize,
+        max_merge_size: usize,
+    ) -> Result<()> {
         if self
             .active_write_operation
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
@@ -568,6 +574,7 @@ impl TurboPersistence {
                 &mut indicies_to_delete,
                 max_coverage,
                 max_merge_sequence,
+                max_merge_size,
             )?;
         }
 
@@ -594,6 +601,7 @@ impl TurboPersistence {
         indicies_to_delete: &mut Vec<usize>,
         max_coverage: f32,
         max_merge_sequence: usize,
+        max_merge_size: usize,
     ) -> Result<()> {
         if static_sorted_files.is_empty() {
             return Ok(());
@@ -602,18 +610,29 @@ impl TurboPersistence {
         struct SstWithRange {
             index: usize,
             range: StaticSortedFileRange,
+            size: usize,
         }
 
         impl Compactable for SstWithRange {
             fn range(&self) -> (u64, u64) {
                 (self.range.min_hash, self.range.max_hash)
             }
+
+            fn size(&self) -> usize {
+                self.size
+            }
         }
 
         let ssts_with_ranges = static_sorted_files
             .iter()
             .enumerate()
-            .flat_map(|(index, sst)| sst.range().ok().map(|range| SstWithRange { index, range }))
+            .flat_map(|(index, sst)| {
+                sst.range().ok().map(|range| SstWithRange {
+                    index,
+                    range,
+                    size: sst.size(),
+                })
+            })
             .collect::<Vec<_>>();
 
         let families = ssts_with_ranges
@@ -651,8 +670,9 @@ impl TurboPersistence {
                 } = get_compaction_jobs(
                     &ssts_with_ranges,
                     &CompactConfig {
-                        max_merge: max_merge_sequence,
                         min_merge: 2,
+                        max_merge: max_merge_sequence,
+                        max_merge_size,
                     },
                 );
 
