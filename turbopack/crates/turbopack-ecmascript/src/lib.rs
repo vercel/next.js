@@ -50,7 +50,7 @@ pub use references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER};
 use serde::{Deserialize, Serialize};
 pub use static_code::StaticEcmascriptCode;
 use swc_core::{
-    common::{comments::Comments, util::take::Take, Globals, Mark, GLOBALS},
+    common::{comments::Comments, util::take::Take, Globals, Mark, SourceMap, GLOBALS},
     ecma::{
         ast::{self, ModuleItem, Program, Script},
         codegen::{text_writer::JsWriter, Emitter},
@@ -99,6 +99,7 @@ use crate::{
         analyse_ecmascript_module, async_module::OptionAsyncModule, esm::base::EsmAssetReferences,
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
+    swc_comments::ImmutableComments,
     transform::remove_shebang,
 };
 
@@ -1000,61 +1001,19 @@ async fn gen_content_with_code_gens(
                 }
                 _ => unreachable!(),
             };
+            let top_level_mark = eval_context.top_level_mark;
+            let is_esm = eval_context.is_esm(specified_module_type);
 
-            process_content_with_code_gens(
-                &mut program,
-                globals,
-                Some(eval_context.top_level_mark),
-                code_gens,
-            );
+            process_content_with_code_gens(&mut program, globals, Some(top_level_mark), code_gens);
 
-            let mut bytes: Vec<u8> = vec![];
-            // TODO: Insert this as a sourceless segment so that sourcemaps aren't affected.
-            // = format!("/* {} */\n", self.module.path().to_string().await?).into_bytes();
-
-            let mut mappings = vec![];
-
-            {
-                let comments = match comments {
-                    Either::Left(comments) => Either::Left(comments.into_consumable()),
-                    Either::Right(ref comments) => Either::Right(comments.consumable()),
-                };
-                let comments: &dyn Comments = match &comments {
-                    Either::Left(comments) => comments,
-                    Either::Right(comments) => comments,
-                };
-
-                let mut emitter = Emitter {
-                    cfg: swc_core::ecma::codegen::Config::default(),
-                    cm: source_map.clone(),
-                    comments: Some(&comments),
-                    wr: JsWriter::new(
-                        source_map.clone(),
-                        "\n",
-                        &mut bytes,
-                        generate_source_map.then_some(&mut mappings),
-                    ),
-                };
-
-                emitter.emit_program(&program)?;
-            }
-
-            let source_map = if generate_source_map {
-                Some(generate_js_source_map(
-                    source_map.clone(),
-                    mappings,
-                    original_source_map.await?.as_ref(),
-                )?)
-            } else {
-                None
-            };
-
-            Ok(EcmascriptModuleContent {
-                inner_code: bytes.into(),
-                source_map,
-                is_esm: eval_context.is_esm(specified_module_type),
-            }
-            .cell())
+            emit_content(
+                program,
+                source_map.clone(),
+                comments,
+                is_esm,
+                generate_source_map,
+                original_source_map.await?.as_ref(),
+            )
         }
         ParseResult::Unparseable { messages } => Ok(EcmascriptModuleContent {
             inner_code: format!(
@@ -1083,6 +1042,63 @@ async fn gen_content_with_code_gens(
         }
         .cell()),
     }
+}
+
+fn emit_content(
+    program: Program,
+    source_map: Arc<SourceMap>,
+    comments: Either<ImmutableComments, Arc<ImmutableComments>>,
+    is_esm: bool,
+    generate_source_map: bool,
+    original_source_map: Option<&Rope>,
+) -> Result<Vc<EcmascriptModuleContent>> {
+    let mut bytes: Vec<u8> = vec![];
+    // TODO: Insert this as a sourceless segment so that sourcemaps aren't affected.
+    // = format!("/* {} */\n", self.module.path().to_string().await?).into_bytes();
+
+    let mut mappings = vec![];
+
+    {
+        let comments = match comments {
+            Either::Left(comments) => Either::Left(comments.into_consumable()),
+            Either::Right(ref comments) => Either::Right(comments.consumable()),
+        };
+        let comments: &dyn Comments = match &comments {
+            Either::Left(comments) => comments,
+            Either::Right(comments) => comments,
+        };
+
+        let mut emitter = Emitter {
+            cfg: swc_core::ecma::codegen::Config::default(),
+            cm: source_map.clone(),
+            comments: Some(&comments),
+            wr: JsWriter::new(
+                source_map.clone(),
+                "\n",
+                &mut bytes,
+                generate_source_map.then_some(&mut mappings),
+            ),
+        };
+
+        emitter.emit_program(&program)?;
+    }
+
+    let source_map = if generate_source_map {
+        Some(generate_js_source_map(
+            source_map.clone(),
+            mappings,
+            original_source_map,
+        )?)
+    } else {
+        None
+    };
+
+    Ok(EcmascriptModuleContent {
+        inner_code: bytes.into(),
+        source_map,
+        is_esm,
+    }
+    .cell())
 }
 
 fn process_content_with_code_gens(
