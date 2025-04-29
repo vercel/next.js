@@ -9244,6 +9244,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "turbo-esregex"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "regex",
+ "regress",
+ "serde",
+ "turbo-tasks",
+ "turbo-tasks-build",
+]
+
+[[package]]
 name = "turbo-persistence"
 version = "0.1.0"
 dependencies = [
@@ -9888,7 +9900,6 @@ dependencies = [
  "parking_lot",
  "petgraph 0.6.3",
  "regex",
- "regress",
  "rustc-hash 2.1.0",
  "serde",
  "serde_json",
@@ -9898,6 +9909,7 @@ dependencies = [
  "swc_core",
  "tokio",
  "tracing",
+ "turbo-esregex",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",

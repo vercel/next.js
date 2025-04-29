@@ -1,4 +1,11 @@
+#![feature(arbitrary_self_types_pointers)]
+
 use anyhow::{bail, Result};
+
+pub fn register() {
+    turbo_tasks::register();
+    include!(concat!(env!("OUT_DIR"), "/register.rs"));
+}
 
 /// A simple regular expression implementation following ecmascript semantics
 ///

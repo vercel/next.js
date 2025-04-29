@@ -24,6 +24,7 @@ use swc_core::{
         atoms::Atom,
     },
 };
+use turbo_esregex::EsRegex;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
 use turbopack_core::compile_time_info::{
@@ -32,12 +33,9 @@ use turbopack_core::compile_time_info::{
 
 use self::imports::ImportAnnotations;
 pub(crate) use self::imports::ImportMap;
-use crate::{
-    analyzer::es_regex::EsRegex, references::require_context::RequireContextMap, utils::StringifyJs,
-};
+use crate::{references::require_context::RequireContextMap, utils::StringifyJs};
 
 pub mod builtin;
-pub mod es_regex;
 pub mod graph;
 pub mod imports;
 pub mod linker;
