@@ -35,7 +35,8 @@ function decorateErrorWithCause(error: Error): Error {
     const cause = curr.cause
     if (isError(cause)) {
       if (cause.stack) {
-        stack = cause.stack
+        // Append the stack trace of the cause to the current error
+        stack = `${stack}\nCaused by: ${cause.stack}`
       }
     }
     curr = cause
@@ -72,7 +73,7 @@ export function getServerError(err: Error, type: ErrorSourceType): Error {
 
   n.name = error.name
   try {
-    n.stack = `${n.toString()}\n${parse(error.stack!)
+    n.stack = `${n.toString()}\n${parse(error.stack || '')
       .map(getFilesystemFrame)
       .map((f) => {
         let str = `    at ${f.methodName}`
