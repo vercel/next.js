@@ -151,7 +151,7 @@
     "@babel/preset-env": "7.22.5",
     "@babel/preset-react": "7.22.5",
     "@babel/preset-typescript": "7.22.5",
-    "@babel/runtime": "7.22.5",
+    "@babel/runtime": "7.26.10",
     "@babel/traverse": "7.22.5",
     "@babel/types": "7.22.5",
     "@capsizecss/metrics": "3.4.0",
