@@ -38,8 +38,3 @@ export function trackPendingModules(cacheSignal: CacheSignal): void {
   // we can unsubscribe it.
   cacheSignal.cacheReady().then(unsubscribe)
 }
-
-/** Wait for currently pending imports and chunk loads to finish. */
-export async function waitForPendingModules() {
-  await moduleLoadingSignal.cacheReady()
-}

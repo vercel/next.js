@@ -195,7 +195,6 @@ import { executeRevalidates } from '../revalidation-utils'
 import {
   trackPendingChunkLoad,
   trackPendingImport,
-  waitForPendingModules,
   trackPendingModules,
 } from './module-loading/track-module-loading.external'
 
@@ -2340,19 +2339,13 @@ async function spawnDynamicValidationInDev(
   const { ServerInsertedMetadataProvider } = createServerInsertedMetadata(nonce)
 
   if (initialServerStream) {
-    const [warmupStream, renderStream] = initialServerStream.tee()
-    initialServerStream = null
-    // Before we attempt the SSR initial render we need to ensure all client modules
-    // are already loaded.
-    await warmFlightResponse(warmupStream, clientReferenceManifest)
-
     const prerender = require('react-dom/static.edge')
       .prerender as (typeof import('react-dom/static.edge'))['prerender']
     const pendingInitialClientResult = workUnitAsyncStorage.run(
       initialClientPrerenderStore,
       prerender,
       <App
-        reactServerStream={renderStream}
+        reactServerStream={initialServerStream}
         preinitScripts={() => {}}
         clientReferenceManifest={clientReferenceManifest}
         ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -2864,13 +2857,6 @@ async function prerenderToStream(
         }
 
         if (initialServerResult) {
-          // Before we attempt the SSR initial render we need to ensure all client modules
-          // are already loaded.
-          await warmFlightResponse(
-            initialServerResult.asStream(),
-            clientReferenceManifest
-          )
-
           const initialClientController = new AbortController()
           const initialClientPrerenderStore: PrerenderStore = {
             type: 'prerender',
@@ -3374,19 +3360,13 @@ async function prerenderToStream(
         }
 
         if (initialServerStream) {
-          const [warmupStream, renderStream] = initialServerStream.tee()
-          initialServerStream = null
-          // Before we attempt the SSR initial render we need to ensure all client modules
-          // are already loaded.
-          await warmFlightResponse(warmupStream, clientReferenceManifest)
-
           const prerender = require('react-dom/static.edge')
             .prerender as (typeof import('react-dom/static.edge'))['prerender']
           const pendingInitialClientResult = workUnitAsyncStorage.run(
             initialClientPrerenderStore,
             prerender,
             <App
-              reactServerStream={renderStream}
+              reactServerStream={initialServerStream}
               preinitScripts={preinitScripts}
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -4193,45 +4173,6 @@ async function prerenderToStream(
       throw finalErr
     }
   }
-}
-
-export async function warmFlightResponse(
-  flightStream: ReadableStream<Uint8Array>,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
-) {
-  const { createFromReadableStream } =
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    require('react-server-dom-webpack/client.edge') as typeof import('react-server-dom-webpack/client.edge')
-
-  void (async () => {
-    try {
-      await createFromReadableStream(flightStream, {
-        serverConsumerManifest: {
-          moduleLoading: clientReferenceManifest.moduleLoading,
-          moduleMap: clientReferenceManifest.ssrModuleMapping,
-          serverModuleMap: null,
-        },
-      })
-    } catch {
-      // We don't want to handle errors here but we don't want it to
-      // interrupt the outer flow. We simply ignore it here and expect
-      // it will bubble up during a render.
-    }
-  })()
-
-  // We'll wait at least one task. During that time, we should start loading all chunks
-  // that are needed to load the client references from this flight stream.
-  // During build, we collect all chunks needed to load each client reference, and then React loads them in parallel while rendering,
-  // so don't need to worry about chunk loads that spawn more chunk loads after some indefinite delay.
-  // (if there were pending chunks when we started, we want to wait for those too, because the render might depend on them,
-  //  and react only calls `__next_chunk_load__` for each chunk once, so we can't detect those loads)
-  //
-  // Note that, if we're warming multiple responses in parallel, then we might unnecessarily wait
-  // for chunks needed by other responses but not this one (because chunk loading is tracked globally),
-  // but that's acceptable.
-  //
-  await waitAtLeastOneReactRenderTask()
-  await waitForPendingModules()
 }
 
 const getGlobalErrorStyles = async (

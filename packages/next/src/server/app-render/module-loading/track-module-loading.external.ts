@@ -6,12 +6,6 @@ import {
   trackPendingChunkLoad,
   trackPendingImport,
   trackPendingModules,
-  waitForPendingModules,
 } from './track-module-loading.instance' with { 'turbopack-transition': 'next-shared' }
 
-export {
-  trackPendingChunkLoad,
-  trackPendingImport,
-  trackPendingModules,
-  waitForPendingModules,
-}
+export { trackPendingChunkLoad, trackPendingImport, trackPendingModules }
