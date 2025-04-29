@@ -677,5 +677,6 @@
   "676": "Invariant: missing internal router-server-methods this is an internal bug",
   "677": "Next.js navigation API is not allowed to be used in Middleware.",
   "678": "An error occurred while loading instrumentation hook",
-  "679": "Next.js failed to read file %s for getting static info"
+  "679": "Next.js failed to read file %s for getting static info",
+  "680": "Next.js navigation API is not allowed to be used in Pages Router."
 }
