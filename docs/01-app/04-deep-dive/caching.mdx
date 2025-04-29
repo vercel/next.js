@@ -91,10 +91,13 @@ Behind-the-scenes, Next.js:
 Each cache boundary creates an unique cache entry, which is generated from:
 
 - The build ID (generated for each build)
-- The function signature (a secure identifier unique to the function)
+- The function signature (a secure identifier)
 - Any [serializable](#serialization) arguments or props passed to the function
+- Any values it reads from the parent scope
 
-If the arguments or props passed to the function are different, a new cache entry is created. For example:
+If the inputs passed to the function are different, a new cache entry is created.
+
+For example:
 
 ```tsx filename="app/lib/data.ts" switcher
 // Same user ID = cache hit
@@ -118,9 +121,15 @@ export async function getUser(id: string) {
 
 ### Serialization
 
-The return value of the cacheable function must be [serializable](https://react.dev/reference/rsc/use-server#serializable-parameters-and-return-values). This ensures that the cached content can be stored and retrieved correctly.
+The return value of the cacheable function must be [serializable](https://react.dev/reference/rsc/use-server#serializable-parameters-and-return-values) by React.
 
-If you pass non-serializable values like functions, event handlers, or symbols, they are excluded from the [cache key](#cache-keys). Instead, they are treated as references and resolved at runtime. This makes it possible to cache a [layout](/docs/app/api-reference/file-conventions/layout) while allowing `{children}` to remain dynamic.
+If you pass non-serializable values like functions or components, they are excluded from the [cache key](#cache-keys). Instead, they are treated as references and resolved at runtime. This allows [interleaving](#interleaving) dynamic and static content.
+
+### Interleaving dynamic and static content
+
+Interleaving lets you nest dynamic content inside cached components.
+
+For example, you can mark a [layout](/docs/app/api-reference/file-conventions/layout) as cacheable while keeping its page (`{children}`) dynamic:
 
 ```tsx filename="app/dashboard/layout.tsx" switcher
 function Layout({ children }: { children: React.ReactNode }) {
@@ -130,8 +139,8 @@ function Layout({ children }: { children: React.ReactNode }) {
     <div>
       {/* Navigation will be cached */}
       <Navigation />
-      {/* Children will not be cached */}
-      <main>{children}</main>
+      {/* Children can be dynamic */}
+      {children}
     </div>
   )
 }
@@ -145,14 +154,50 @@ function Layout({ children }: { children: React.ReactNode }) {
     <div>
       {/* Navigation will be cached */}
       <Navigation />
-      {/* Children will not be cached */}
-      <main>{children}</main>
+      {/* Children can be dynamic */}
+      {children}
     </div>
   )
 }
 ```
 
-### Behavior
+The same applies for nested Server Components deeper in the tree:
+
+```tsx filename="app/ui/profile.tsx" switcher
+async function Profile({ id, children }) {
+  'use cache'
+  const user = await getUser(id)
+
+  return (
+    <>
+      {/* Username is cached */}
+      <h1>{user.name}</h1>
+      {/* Children can be dynamic */}
+      {children}
+    </>
+  )
+}
+```
+
+```jsx filename="app/ui/profile.js" switcher
+async function Profile({ id, children }) {
+  'use cache'
+  const user = await getUser(id)
+
+  return (
+    <>
+      {/* Username is cached */}
+      <h1>{user.name}</h1>
+      {/* Children can be dynamic */}
+      {children}
+    </>
+  )
+}
+```
+
+**How it works**:
+
+The non-serializable values — like `{children}` props or dynamic nested components — are treated as references and not included in the [cache key](#cache-keys). Instead, these references are filled in at runtime. This prevents the dynamic values from “poisoning” the cache, which would otherwise generate a new cache entry for every variation.
 
 The behavior of `"use cache"` depends on when it runs:
 
