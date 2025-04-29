@@ -79,12 +79,12 @@ Functions marked with `"use cache"` are compiled into [Server Functions](https:/
 
 Behind-the-scenes, Next.js:
 
-1. Wraps the Server Function with a [Higher Order Component](https://legacy.reactjs.org/docs/higher-order-components.html) that integrates the necessary caching behaviors.
-2. Generates an unique [cache key](#cache-keys) for the entry.
-3. Deduplicates identical calls using React’s [`cache`](https://react.dev/reference/react/cache) function.
-4. Annotates the Server Component Payload and sends it to the client with the necessary semantics for how it should treat the cached content.
-
-On the client, the payload is reused during navigation—leading to faster page transitions.
+1. Integrates the Server Function with caching logic.
+2. Generates an unique [cache key](#cache-keys).
+3. Deduplicates identical calls using React's [`cache`](https://react.dev/reference/react/cache) function.
+4. Stores the cache entry in [server memory](#in-memory-caching-and-deduplication) or a persistent, remote cache.
+5. Annotates the Server Component payload with [#update-semantics](##update-semantics).
+6. Sends the RSC payload to the client where the [client router]() will use the information to manage the cache.
 
 ### Cache keys
 
