@@ -198,27 +198,33 @@ function createMetadataTransformStream(
   insert: () => Promise<string> | string
 ): TransformStream<Uint8Array, Uint8Array> {
   let inserted = false
+  let closedHeadIndex = -1
+  let iconMarkIndex = -1
   return new TransformStream({
     async transform(chunk, controller) {
-      // We need to track if this transform saw any bytes because if it didn't
-      // we won't want to insert any server HTML at all
       if (inserted) {
         return
       }
-      const index = indexOfUint8Array(chunk, ENCODED_TAGS.META.ICON_MARK)
-      if (index !== -1) {
+      if (closedHeadIndex === -1) {
+        closedHeadIndex = indexOfUint8Array(chunk, ENCODED_TAGS.CLOSED.HEAD)
+      }
+      if (iconMarkIndex === -1) {
+        iconMarkIndex = indexOfUint8Array(chunk, ENCODED_TAGS.META.ICON_MARK)
+      }
+
+      // When icon mark appears after </head>, we replace it with the
+      // icon re-insertion script tag.
+      if (iconMarkIndex > closedHeadIndex) {
         const insertion = await insert()
-        if (insertion !== null) {
-          // Replace <meta name="«nxt-icon»" content="" /> with
-          // the icon re-insertion script tag <script>document.querySelector(...)</script>
-          const replacedChunk = replaceInUint8Array(
-            chunk,
-            ENCODED_TAGS.META.ICON_MARK,
-            encoder.encode(insertion),
-            index
-          )
-          controller.enqueue(replacedChunk)
-        }
+        // Replace <meta name="«nxt-icon»" content="" /> with
+        // the icon re-insertion script tag <script>document.querySelector(...)</script>
+        const replacedChunk = replaceInUint8Array(
+          chunk,
+          ENCODED_TAGS.META.ICON_MARK,
+          encoder.encode(insertion),
+          iconMarkIndex
+        )
+        controller.enqueue(replacedChunk)
         inserted = true
       } else {
         controller.enqueue(chunk)
@@ -584,7 +590,6 @@ export async function continueFizzStream(
     getServerInsertedHTML,
     getServerInsertedMetadata,
     validateRootLayout,
-    serveStreamingMetadata,
   }: ContinueStreamOptions
 ): Promise<ReadableStream<Uint8Array>> {
   // Suffix itself might contain close tags at the end, so we need to split it.
@@ -600,10 +605,8 @@ export async function continueFizzStream(
     // Buffer everything to avoid flushing too frequently
     createBufferedTransformStream(),
 
-    // Insert generated metadata
-    serveStreamingMetadata
-      ? createMetadataTransformStream(getServerInsertedMetadata)
-      : null,
+    // Transform metadata
+    createMetadataTransformStream(getServerInsertedMetadata),
 
     // Insert suffix content
     suffixUnclosed != null && suffixUnclosed.length > 0
@@ -645,7 +648,7 @@ export async function continueDynamicPrerender(
       .pipeThrough(createStripDocumentClosingTagsTransform())
       // Insert generated tags to head
       .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
-      // Insert generated metadata
+      // Transform metadata
       .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
   )
 }
@@ -670,7 +673,7 @@ export async function continueStaticPrerender(
       .pipeThrough(createBufferedTransformStream())
       // Insert generated tags to head
       .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
-      // Insert generated metadata to head
+      // Transform metadata
       .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
       // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
       .pipeThrough(createMergedTransformStream(inlinedDataStream))
@@ -699,7 +702,7 @@ export async function continueDynamicHTMLResume(
       .pipeThrough(createBufferedTransformStream())
       // Insert generated tags to head
       .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
-      // Insert generated metadata to body
+      // Transform metadata
       .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
       // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
       .pipeThrough(createMergedTransformStream(inlinedDataStream))
