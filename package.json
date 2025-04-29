@@ -289,6 +289,7 @@
       "@babel/traverse": "7.27.0",
       "@types/react": "^19.1.1",
       "@types/react-dom": "19.1.2",
+      "@types/retry": "0.12.0",
       "jest-snapshot": "30.0.0-alpha.6",
       "react": "19.2.0-canary-5dc00d6b-20250428",
       "react-dom": "19.2.0-canary-5dc00d6b-20250428",

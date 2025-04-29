@@ -15,6 +15,7 @@ overrides:
   '@babel/traverse': 7.27.0
   '@types/react': ^19.1.1
   '@types/react-dom': 19.1.2
+  '@types/retry': 0.12.0
   jest-snapshot: 30.0.0-alpha.6
   react: 19.2.0-canary-5dc00d6b-20250428
   react-dom: 19.2.0-canary-5dc00d6b-20250428
@@ -5306,8 +5307,8 @@ packages:
   '@types/responselike@1.0.0':
     resolution: {integrity: sha512-85Y2BjiufFzaMIlvJDvTTB8Fxl2xfLo4HgmHzVBz08w4wDePCTjYw66PdrolO0kzli3yam/YCgRufyo1DdQVTA==}
 
-  '@types/retry@0.12.2':
-    resolution: {integrity: sha512-XISRgDJ2Tc5q4TRqvgJtzsRkFYNJzZrhTdtMoGVBttwzzQJkPnS3WWTFc7kuDRoPtPakl+T+OfdEUjYJj7Jbow==}
+  '@types/retry@0.12.0':
+    resolution: {integrity: sha512-wWKOClTTiizcZhXnPY4wikVAwmdYHp8q6DmC+EJUzAMsycb7HB32Kh9RN4+0gExjmPmZSAQjgURXIGATPegAvA==}
 
   '@types/semver@7.3.1':
     resolution: {integrity: sha512-ooD/FJ8EuwlDKOI6D9HWxgIgJjMg2cuziXm/42npDC8y4NjxplBUn9loewZiBNCt44450lHAU0OSb51/UqXeag==}
@@ -19818,7 +19819,7 @@ snapshots:
 
   '@types/async-retry@1.4.2':
     dependencies:
-      '@types/retry': 0.12.2
+      '@types/retry': 0.12.0
 
   '@types/aws-lambda@8.10.119': {}
 
@@ -20160,7 +20161,7 @@ snapshots:
     dependencies:
       '@types/node': 20.17.6
 
-  '@types/retry@0.12.2': {}
+  '@types/retry@0.12.0': {}
 
   '@types/semver@7.3.1':
     dependencies:
@@ -28709,7 +28710,7 @@ snapshots:
 
   p-retry@6.2.1:
     dependencies:
-      '@types/retry': 0.12.2
+      '@types/retry': 0.12.0
       is-network-error: 1.1.0
       retry: 0.13.1
 
