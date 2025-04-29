@@ -14,6 +14,7 @@ export interface SelfSignedCertificate {
   key: string
   cert: string
   rootCA?: string
+  passphrase?: string
 }
 
 function getBinaryName() {
