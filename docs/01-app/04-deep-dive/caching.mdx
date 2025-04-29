@@ -199,23 +199,27 @@ async function Profile({ id, children }) {
 
 The non-serializable values — like `{children}` props or dynamic nested components — are treated as references and not included in the [cache key](#cache-keys). Instead, these references are filled in at runtime. This prevents the dynamic values from “poisoning” the cache, which would otherwise generate a new cache entry for every variation.
 
-The behavior of `"use cache"` depends on when it runs:
+## Server cache
 
-- [Prerender](#prerender-build-time) (during build or revalidation)
-- [Runtime](#runtime) (resume render)
-- [Subsequent requests](#subsequent-requests) (reusing the client cache)
+### In-memory caching and deduplication
 
-#### Prerender (build time)
+By default, `"use cache"` uses an in-memory cache on the server. This avoids re-executing expensive operations like database reads or API calls for every cached function invocation.
 
-At build time, Next.js prerenders functions annotated with `"use cache"`. The result is saved in an internal framework **Resume Data Cache**, which is part of the [Partial Prerendering](/docs/app/building-your-application/rendering/partial-prerendering) architecture.
+**How long does it last?**
 
-If a `"use cache"` function uses [`cookies`](/docs/app/api-reference/functions/cookies), it’s marked as dynamic, and skips prerendering. It will only run at runtime, where cookie data is available in the request.
+The in-memory cache only exists while the server is running.
 
-#### Runtime (resume render)
+- **Serverless**: the cache lasts for the lifetime of the serverless function.
+- **Long-running server**: the cache lasts until the server is restarted or the memory is cleared.
 
-Runtime (resume render) refers to the phase where a user navigates to a route for the first time or the route is prefetched in the background.
+**What is deduplication?**
 
-At this point, Next.js has [prerendered](#prerender-build-time) some or all of the route, and sends the RSC payload to the client.
+During a server render pass, Next.js automatically deduplicates functions marked with `"use cache"`. This prevents the same function with the same inputs from being executed multiple times.
 
-- If a `"use cache"` entry was present in the Resume Data Cache, it's reused.
-- If it was missing or expired, the function re-runs on the server.
+**Why in-memory caching?**
+
+The in-memory cache provides a foundational default that:
+
+- Speeds up rendering by accumulating cache entries during a pass.
+- Reduces requests to external database or APIs, improving performance and reducing costs.
+- Works well as a simple and affordable starting point for [self-hosted]() applications.
