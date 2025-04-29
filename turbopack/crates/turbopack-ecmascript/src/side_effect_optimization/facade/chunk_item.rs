@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{bail, Result};
+use either::Either;
 use swc_core::{
     common::{util::take::Take, Globals},
     ecma::{
@@ -8,7 +9,7 @@ use swc_core::{
         codegen::{text_writer::JsWriter, Emitter},
     },
 };
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::rope::RopeBuilder;
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkingContext},
@@ -66,9 +67,17 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
 
         let mut code = RopeBuilder::default();
 
-        let esm_code_gens = self
-            .module
-            .code_generation(*self.module_graph, *chunking_context)
+        let (esm_references, part_references) = self.module.await?.specific_references().await?;
+        let esm_code_gens = esm_references
+            .await?
+            .iter()
+            .map(|r| Either::Left(r.code_generation(*chunking_context)))
+            .chain(
+                part_references
+                    .iter()
+                    .map(|r| Either::Right(r.code_generation(*chunking_context))),
+            )
+            .try_join()
             .await?;
         let additional_code_gens = [
             self.module
