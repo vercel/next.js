@@ -50,12 +50,13 @@ pub use references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER};
 use serde::{Deserialize, Serialize};
 pub use static_code::StaticEcmascriptCode;
 use swc_core::{
-    common::{comments::Comments, util::take::Take, Globals, Mark, SourceMap, GLOBALS},
+    common::{comments::Comments, util::take::Take, Globals, Mark, SourceMap, DUMMY_SP, GLOBALS},
     ecma::{
-        ast::{self, ModuleItem, Program, Script},
+        ast::{self, Expr, ModuleItem, Program, Script},
         codegen::{text_writer::JsWriter, Emitter},
         visit::{VisitMutWith, VisitMutWithAstPath},
     },
+    quote,
 };
 use tracing::Instrument;
 pub use transform::{
@@ -913,17 +914,19 @@ impl EcmascriptModuleContent {
             original_source_map,
             ..
         } = &*input;
-
         let code_gens = input.merged_code_gens().await?;
-
-        gen_content_with_code_gens(
-            *parsed,
-            **ident,
-            *specified_module_type,
-            code_gens,
-            *generate_source_map,
-            *original_source_map,
-        )
+        async {
+            let content = process_parse_result(
+                *parsed,
+                **ident,
+                *specified_module_type,
+                code_gens,
+                *generate_source_map,
+                *original_source_map,
+            )
+            .await?;
+            emit_content(content).await
+        }
         .instrument(tracing::info_span!("gen content with code gens"))
         .await
     }
@@ -936,7 +939,7 @@ impl EcmascriptModuleContent {
         specified_module_type: SpecifiedModuleType,
         generate_source_map: bool,
     ) -> Result<Vc<Self>> {
-        gen_content_with_code_gens(
+        let content = process_parse_result(
             parsed.to_resolved().await?,
             ident,
             specified_module_type,
@@ -944,21 +947,31 @@ impl EcmascriptModuleContent {
             generate_source_map,
             OptionStringifiedSourceMap::none().to_resolved().await?,
         )
-        .await
+        .await?;
+        emit_content(content).await
     }
 }
 
-async fn gen_content_with_code_gens(
+struct CodeGenResult {
+    program: Program,
+    source_map: Arc<SourceMap>,
+    comments: Either<ImmutableComments, Arc<ImmutableComments>>,
+    is_esm: bool,
+    generate_source_map: bool,
+    original_source_map: Option<ResolvedVc<OptionStringifiedSourceMap>>,
+}
+
+async fn process_parse_result(
     parsed: ResolvedVc<ParseResult>,
     ident: Vc<AssetIdent>,
     specified_module_type: SpecifiedModuleType,
     code_gens: Vec<CodeGeneration>,
     generate_source_map: bool,
     original_source_map: ResolvedVc<OptionStringifiedSourceMap>,
-) -> Result<Vc<EcmascriptModuleContent>> {
+) -> Result<CodeGenResult> {
     let parsed = parsed.final_read_hint().await?;
 
-    match &*parsed {
+    Ok(match &*parsed {
         ParseResult::Ok { .. } => {
             // We need a mutable version of the AST. We try to avoid cloning it by unwrapping the
             // ReadRef.
@@ -1006,52 +1019,82 @@ async fn gen_content_with_code_gens(
 
             process_content_with_code_gens(&mut program, globals, Some(top_level_mark), code_gens);
 
-            emit_content(
+            CodeGenResult {
                 program,
-                source_map.clone(),
+                source_map: source_map.clone(),
                 comments,
                 is_esm,
                 generate_source_map,
-                original_source_map.await?.as_ref(),
-            )
+                original_source_map: Some(original_source_map),
+            }
         }
-        ParseResult::Unparseable { messages } => Ok(EcmascriptModuleContent {
-            inner_code: format!(
-                "const e = new Error(`Could not parse module \
-                 '{path}'\n{error_messages}`);\ne.code = 'MODULE_UNPARSEABLE';\nthrow e;",
-                path = ident.path().to_string().await?,
-                error_messages = messages
-                    .as_ref()
-                    .and_then(|m| { m.first().map(|f| format!("\n{}", f)) })
-                    .unwrap_or("".into())
-            )
-            .into(),
-            source_map: None,
-            is_esm: false,
+        ParseResult::Unparseable { messages } => {
+            let path = ident.path().to_string().await?;
+            let path = &**path;
+            let error_messages = messages
+                .as_ref()
+                .and_then(|m| m.first().map(|f| format!("\n{}", f)))
+                .unwrap_or("".into());
+            let body = vec![
+                quote!(
+                    "const e = new Error('Could not parse module \\'' + $path + '\\'\\n' + $error_messages);" as Stmt,
+                    path: Expr = Expr::Lit(path.into()),
+                    error_messages: Expr = Expr::Lit(error_messages.into()),
+                ),
+                quote!("e.code = 'MODULE_UNPARSEABLE';" as Stmt),
+                quote!("throw e;" as Stmt),
+            ];
+
+            CodeGenResult {
+                program: Program::Script(Script {
+                    span: DUMMY_SP,
+                    body,
+                    shebang: None,
+                }),
+                source_map: Arc::new(SourceMap::default()),
+                comments: Either::Left(Default::default()),
+                is_esm: false,
+                generate_source_map: false,
+                original_source_map: None,
+            }
         }
-        .cell()),
-        ParseResult::NotFound => Ok(EcmascriptModuleContent {
-            inner_code: format!(
-                "const e = new Error(\"Could not parse module '{path}'\");\ne.code = \
-                 'MODULE_UNPARSEABLE';\nthrow e;",
-                path = ident.path().to_string().await?
-            )
-            .into(),
-            source_map: None,
-            is_esm: false,
+        ParseResult::NotFound => {
+            let path = ident.path().to_string().await?;
+            let path = &**path;
+            let body = vec![
+                quote!(
+                    "const e = new Error('Could not parse module ' + $path);" as Stmt,
+                    path: Expr = Expr::Lit(path.into()),
+                ),
+                quote!("e.code = 'MODULE_UNPARSEABLE';" as Stmt),
+                quote!("throw e;" as Stmt),
+            ];
+            CodeGenResult {
+                program: Program::Script(Script {
+                    span: DUMMY_SP,
+                    body,
+                    shebang: None,
+                }),
+                source_map: Arc::new(SourceMap::default()),
+                comments: Either::Left(Default::default()),
+                is_esm: false,
+                generate_source_map: false,
+                original_source_map: None,
+            }
         }
-        .cell()),
-    }
+    })
 }
 
-fn emit_content(
-    program: Program,
-    source_map: Arc<SourceMap>,
-    comments: Either<ImmutableComments, Arc<ImmutableComments>>,
-    is_esm: bool,
-    generate_source_map: bool,
-    original_source_map: Option<&Rope>,
-) -> Result<Vc<EcmascriptModuleContent>> {
+async fn emit_content(content: CodeGenResult) -> Result<Vc<EcmascriptModuleContent>> {
+    let CodeGenResult {
+        program,
+        source_map,
+        comments,
+        is_esm,
+        generate_source_map,
+        original_source_map,
+    } = content;
+
     let mut bytes: Vec<u8> = vec![];
     // TODO: Insert this as a sourceless segment so that sourcemaps aren't affected.
     // = format!("/* {} */\n", self.module.path().to_string().await?).into_bytes();
@@ -1084,11 +1127,15 @@ fn emit_content(
     }
 
     let source_map = if generate_source_map {
-        Some(generate_js_source_map(
-            source_map.clone(),
-            mappings,
-            original_source_map,
-        )?)
+        if let Some(original_source_map) = original_source_map {
+            Some(generate_js_source_map(
+                source_map.clone(),
+                mappings,
+                original_source_map.await?.as_ref(),
+            )?)
+        } else {
+            Some(generate_js_source_map(source_map.clone(), mappings, None)?)
+        }
     } else {
         None
     };
