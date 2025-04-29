@@ -268,10 +268,13 @@ impl AppPageLoaderTreeBuilder {
             writeln!(self.loader_tree_code, "{s}  width: {identifier}.width,")?;
             writeln!(self.loader_tree_code, "{s}  height: {identifier}.height,")?;
         } else {
-            writeln!(
-                self.loader_tree_code,
-                "{s}  sizes: `${{{identifier}.width}}x${{{identifier}.height}}`,"
-            )?;
+            let ext = &*path.extension().await?;
+            let sizes = if ext == "svg" {
+                "any".to_string()
+            } else {
+                format!("${{{identifier}.width}}x${{{identifier}.height}}")
+            };
+            writeln!(self.loader_tree_code, "{s}  sizes: `{sizes}`,")?;
         }
 
         let content_type = get_content_type(path).await?;

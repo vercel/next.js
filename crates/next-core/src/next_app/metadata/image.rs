@@ -53,9 +53,15 @@ pub async fn dynamic_image_metadata_source(
 
     let use_numeric_sizes = ty == "twitter" || ty == "openGraph";
     let sizes = if use_numeric_sizes {
-        "data.width = size.width; data.height = size.height;"
+        "data.width = size.width; data.height = size.height;".to_string()
     } else {
-        "data.sizes = size.width + \"x\" + size.height;"
+        let sizes = if ext == "svg" {
+            "any"
+        } else {
+            "${size.width}x${size.height}"
+        };
+
+        format!("data.sizes = `{sizes}`;")
     };
 
     let source = Vc::upcast(FileSource::new(path));
