@@ -1,19 +1,10 @@
-it('runs sync tests', () => {
-  expect(true).toBe(true)
-})
+// import otherImported from './other.js'
+// console.log('3 index', otherImported)
 
-it('runs async tests', async () => {
-  await Promise.resolve()
-  expect(true).toBe(true)
-})
+// import { x } from './x.js'
+const { x } = require('./x.js')
+import { y } from './y.js'
+import { z } from './z.js'
+console.log('4 index', x, y, z)
 
-describe('nested describe', () => {
-  it('runs sync tests', () => {
-    expect(true).toBe(true)
-  })
-
-  it('runs async tests', async () => {
-    await Promise.resolve()
-    expect(true).toBe(true)
-  })
-})
+it('works', () => {})
