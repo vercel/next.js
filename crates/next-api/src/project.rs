@@ -1417,7 +1417,6 @@ impl Project {
 
         Ok(Vc::upcast(MiddlewareEndpoint::new(
             self,
-            self.await?.build_id.clone(),
             middleware_asset_context,
             source,
             app_dir.as_deref().copied(),
