@@ -111,14 +111,18 @@ describe('use-cache', () => {
     expect(first).toBe(second)
   })
 
-  it('should dedupe across concurrent requests', async () => {
-    const [{ rand: first }, { rand: second }] = await Promise.all([
-      next.fetch('/api/simple').then((response) => response.json()),
-      next.fetch('/api/simple').then((response) => response.json()),
-    ])
+  if (!isNextDeploy) {
+    // This test is not guaranteed to pass in deploy mode, because we might hit
+    // two different lambdas.
+    it('should dedupe across concurrent requests', async () => {
+      const [{ rand: first }, { rand: second }] = await Promise.all([
+        next.fetch('/api/simple').then((response) => response.json()),
+        next.fetch('/api/simple').then((response) => response.json()),
+      ])
 
-    expect(first).toBe(second)
-  })
+      expect(first).toBe(second)
+    })
+  }
 
   it('should return the same object reference for multiple invocations', async () => {
     const browser = await next.browser('/referential-equality')
