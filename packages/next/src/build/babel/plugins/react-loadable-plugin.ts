@@ -120,7 +120,7 @@ export default function ({
 
           properties.forEach((property) => {
             const key: any = property.get('key')
-            propertiesMap[key.node.name] = property as any
+            propertiesMap[key.node.name] = property
           })
 
           if (propertiesMap.loadableGenerated) {
