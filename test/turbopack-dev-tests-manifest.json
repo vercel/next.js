@@ -436,6 +436,20 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/build/static-paths/app.test.ts": {
+    "passed": [
+      "assignErrorIfEmpty should assign throwOnEmptyStaticShell false for a static route",
+      "assignErrorIfEmpty should assign throwOnEmptyStaticShell to the prerendered routes",
+      "assignErrorIfEmpty should handle more complex routes",
+      "filterUniqueParams should filter out duplicate parameters",
+      "filterUniqueParams should handle more complex routes",
+      "filterUniqueRootParamsCombinations should return only the root parameters"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/build/webpack/loaders/metadata/resolve-route-data.test.ts": {
     "passed": [
       "resolveRouteData resolveRobots should error with ts when specify both wildcard userAgent and specific userAgent",
@@ -1082,6 +1096,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/server/lib/fix-mojibake.test.ts": {
+    "passed": [
+      "Mojibake handling should fix invalid encoding",
+      "Mojibake handling should maintain value when encoding is correct $1"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/server/lib/i18n-provider.test.ts": {
     "passed": [
       "I18NProvider analyze for pathname / and defaultLocale en",
@@ -1148,6 +1172,7 @@
   },
   "packages/next/src/server/lib/router-utils/build-prefetch-segment-data-route.test.ts": {
     "passed": [
+      "buildInversePrefetchSegmentDataRoute should build an inverted prefetch segment data route",
       "buildPrefetchSegmentDataRoute should build a prefetch segment data route"
     ],
     "failed": [],
@@ -3800,7 +3825,11 @@
   },
   "test/e2e/app-dir/actions/app-action-size-limit-invalid.test.ts": {
     "passed": [
-      "app-dir action size limit invalid config skip test for development mode"
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should error for requests that exceed the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should not error for requests that are at the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should not error for requests that stay below the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for plaintext fetch actions should error for requests that exceed the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for plaintext fetch actions should not error for requests that stay below the size limit"
     ],
     "failed": [],
     "pending": [],
@@ -5022,6 +5051,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/css-modules-data-urls/css-modules-data-urls.test.ts": {
+    "passed": [
+      "css-modules-data-urls should apply client class name from data url correctly",
+      "css-modules-data-urls should apply client styles from data url correctly",
+      "css-modules-data-urls should apply rsc class name from data url correctly",
+      "css-modules-data-urls should apply rsc styles from data url correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/css-modules-pure-no-check/css-modules-pure-no-check.test.ts": {
     "passed": ["css-modules-pure-no-check should apply styles correctly"],
     "failed": [],
@@ -5345,6 +5386,7 @@
     "passed": [
       "Dynamic IO Errors - With Minification Dynamic Boundary does not run in dev",
       "Dynamic IO Errors - With Minification Dynamic Metadata - Dynamic Route does not run in dev",
+      "Dynamic IO Errors - With Minification Dynamic Metadata - Error Route does not run in dev",
       "Dynamic IO Errors - With Minification Dynamic Metadata - Static Route With Suspense does not run in dev",
       "Dynamic IO Errors - With Minification Dynamic Metadata - Static Route does not run in dev",
       "Dynamic IO Errors - With Minification Dynamic Root does not run in dev",
@@ -5353,6 +5395,7 @@
       "Dynamic IO Errors - With Minification Static Route does not run in dev",
       "Dynamic IO Errors - Without Minification Dynamic Boundary does not run in dev",
       "Dynamic IO Errors - Without Minification Dynamic Metadata - Dynamic Route does not run in dev",
+      "Dynamic IO Errors - Without Minification Dynamic Metadata - Error Route does not run in dev",
       "Dynamic IO Errors - Without Minification Dynamic Metadata - Static Route With Suspense does not run in dev",
       "Dynamic IO Errors - Without Minification Dynamic Metadata - Static Route does not run in dev",
       "Dynamic IO Errors - Without Minification Dynamic Root does not run in dev",
@@ -5696,6 +5739,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/empty-fallback-shells/empty-fallback-shells.test.ts": {
+    "passed": [
+      "empty-fallback-shells should start and not postpone the response"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/error-boundary-navigation/index.test.ts": {
     "passed": [
       "app dir - not found navigation should allow navigating to a non-existent page",
@@ -5965,6 +6017,13 @@
       "app dir - imports we can import all components from .ts",
       "app dir - imports we can import all components from .tsx"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/instrumentation-order/instrumentation-order.test.ts": {
+    "passed": ["instrumentation-order should work using cheerio"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -6320,6 +6379,7 @@
   },
   "test/e2e/app-dir/metadata-streaming-parallel-routes/metadata-streaming-parallel-routes.test.ts": {
     "passed": [
+      "app-dir - metadata-streaming should change metadata when navigating between two pages under a slot when children is not rendered",
       "app-dir - metadata-streaming should only insert metadata once for parallel routes when slots match",
       "app-dir - metadata-streaming should only insert metadata once for parallel routes when there is a missing slot",
       "app-dir - metadata-streaming should still render metadata if children is not rendered in parallel routes layout"
@@ -6384,6 +6444,13 @@
     "passed": [
       "app dir - metadata dynamic routes suspense should render metadata in head even root layout is wrapped with Suspense"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-svg-icon/metadata-svg-icon.test.ts": {
+    "passed": ["metadata-svg-icon should have sizes=any for .svg icon"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -7697,15 +7764,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/react-owner-stacks-svgr/react-owner-stacks-svgr.test.ts": {
-    "passed": [
-      "react-owner-stacks-svgr renders an SVG that is transformed by @svgr/webpack into a React component"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/reexport-client-component-metadata/reexport-client-component-metadata.test.ts": {
     "passed": [
       "app-dir - reexport-client-component-metadata should render the layout metadata if not override",
@@ -8459,6 +8517,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/conflicting-routes/conflicting-routes.test.ts": {
+    "passed": ["conflicting routes prefetching is disabled"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/dynamic-on-hover/dynamic-on-hover.test.ts": {
     "passed": ["dynamic on hover prefetching is disabled"],
     "failed": [],
@@ -8750,13 +8815,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/turbopack-loader-resource-query/turbopack-loader-resource-query.test.ts": {
-    "passed": ["turbopack-loader-resource-query should pass query to loader"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/turbopack-reports/turbopack-reports.test.ts": {
     "passed": ["turbopack-reports should render page importing sqlite3"],
     "failed": [],
@@ -8956,7 +9014,8 @@
       "use-cache should dedupe with react cache inside \"use cache\"",
       "use-cache should error when cookies/headers/draftMode is used inside \"use cache\"",
       "use-cache should not have unhandled rejection of Request data promises when use cache is enabled without dynamicIO",
-      "use-cache should not read nor write cached data when draft mode is enabled",
+      "use-cache should not read nor write cached data when draft mode is enabled js disabled",
+      "use-cache should not read nor write cached data when draft mode is enabled js enabled",
       "use-cache should not use stale caches in server actions that have revalidated",
       "use-cache should override fetch with cookies/auth in use cache properly",
       "use-cache should override fetch with no-store in use cache properly",
@@ -8967,6 +9026,8 @@
       "use-cache should revalidate caches nested in unstable_cache",
       "use-cache should update after unstable_expireTag correctly",
       "use-cache should use revalidate config in fetch",
+      "use-cache usage in node_modules should cache results when using a directive with a handler",
+      "use-cache usage in node_modules should cache results when using a directive without a handler",
       "use-cache works with \"use cache\" in method props",
       "use-cache works with \"use cache\" in static class methods",
       "use-cache works with useActionState if previousState parameter is not used in \"use cache\" function"
@@ -9025,11 +9086,27 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/webpack-loader-binary/webpack-loader-binary.test.ts": {
+    "passed": [
+      "webpack-loader-ts-transform should allow passing binary assets to and from a Webpack loader"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/webpack-loader-conditions/webpack-loader-conditions.test.ts": {
     "passed": [
       "webpack-loader-conditions should render correctly on client side",
       "webpack-loader-conditions should render correctly on server site"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/webpack-loader-resource-query/turbopack-loader-resource-query.test.ts": {
+    "passed": ["webpack-loader-resource-query should pass query to loader"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -9308,6 +9385,17 @@
     "passed": [
       "next.config.js schema validating - defaultConfig should validate against defaultConfig",
       "next.config.js schema validating - invalid config should warn the invalid next config"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/config-turbopack/index.test.ts": {
+    "passed": [
+      "config-turbopack when webpack is configured and config.experimental.turbo is set does not warn",
+      "config-turbopack when webpack is configured and config.turbopack is set does not warn",
+      "config-turbopack when webpack is configured but Turbopack is not warns"
     ],
     "failed": [],
     "pending": [],
@@ -10491,6 +10579,33 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/middleware-static-files/index.test.ts": {
+    "passed": [
+      "Middleware Runtime should match middleware correctly for /another%2ffile.svg",
+      "Middleware Runtime should match middleware correctly for /another%2fhello",
+      "Middleware Runtime should match middleware correctly for /another/file.svg",
+      "Middleware Runtime should match middleware correctly for /another/hello",
+      "Middleware Runtime should match middleware correctly for /dynamic%2f/first",
+      "Middleware Runtime should match middleware correctly for /dynamic/first",
+      "Middleware Runtime should match middleware correctly for /file.svg",
+      "Middleware Runtime should match middleware correctly for /glob%2ffile.svg",
+      "Middleware Runtime should match middleware correctly for /glob%2fhello",
+      "Middleware Runtime should match middleware correctly for /glob/file.svg",
+      "Middleware Runtime should match middleware correctly for /glob/hello",
+      "Middleware Runtime should match middleware correctly for /pages-another%2fhello",
+      "Middleware Runtime should match middleware correctly for /pages-another/hello",
+      "Middleware Runtime should match middleware correctly for /pages-dynamic%2f/first",
+      "Middleware Runtime should match middleware correctly for /pages-dynamic/first",
+      "Middleware Runtime should match middleware correctly for /pages-glob%2fhello",
+      "Middleware Runtime should match middleware correctly for /pages-glob/hello",
+      "Middleware Runtime should match middleware correctly for /vercel copy.svg",
+      "Middleware Runtime should match middleware correctly for /vercel%20copy.svg"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/middleware-trailing-slash/test/index.test.ts": {
     "passed": [
       "Middleware Runtime trailing slash allows shallow linking with middleware",
@@ -11210,7 +11325,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/socket-io/index.test.js": {
+  "test/e2e/socket-io/index.test.ts": {
     "passed": [
       "socket-io should support socket.io without falling back to polling"
     ],
@@ -11511,6 +11626,13 @@
       "withRouter production mode allows observation of navigation events using top level Router deprecated behavior",
       "withRouter production mode allows observation of navigation events using withRouter"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/worker-react-refresh/worker-react-refresh.test.tsx": {
+    "passed": ["worker-react-refresh does not cause any runtime errors"],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -18605,13 +18727,13 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/next-image-legacy/svgo-webpack/test/index.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "svgo-webpack with Image Component development mode should print error when invalid Image usage",
-      "svgo-webpack with Image Component production mode should not fail to build invalid usage of the Image component"
+  "test/e2e/next-image-svgo-webpack/svgo-webpack.test.ts": {
+    "passed": [
+      "svgo-webpack loader should render an SVG that is transformed by @svgr/webpack into a React component (pages router)",
+      "svgo-webpack loader should render an SVG that is transformed by @svgr/webpack into a React component (app router)"
     ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },

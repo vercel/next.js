@@ -1,4 +1,4 @@
-import "./a.js";
-import "./b.js";
-import "./c.js";
-import "./d.js";
+import './a.js'
+import './b.js'
+import './c.js'
+import './d.js'

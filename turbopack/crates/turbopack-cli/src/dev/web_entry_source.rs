@@ -156,7 +156,7 @@ pub async fn create_web_entry_source(
         )
         .collect::<Vec<ResolvedVc<Box<dyn Module>>>>();
     let module_graph =
-        ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(all_modules)]))
+        ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(all_modules)]), false)
             .to_resolved()
             .await?;
 

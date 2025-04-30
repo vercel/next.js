@@ -110,7 +110,7 @@ function getHeader() {
 ```
 
 When we detect property access on the `params` or `searchParams` props in the page / route entries (`page.js`, `layout.js`, `route.js`, or `default.js`) or the `generateMetadata` / `generateViewport` APIs,
-it will attempt to transform the callsite from a sync to an async function, and await the property access. If it can't be made async (such as with a client component), it will use `React.use` to unwrap the promise .
+it will attempt to transform the callsite from a sync to an async function, and await the property access. If it can't be made async (such as with a Client Component), it will use `React.use` to unwrap the promise .
 
 For example:
 

@@ -1,2 +1,2 @@
 // @ts-ignore
-process.turbopack = {};
+process.turbopack = {}

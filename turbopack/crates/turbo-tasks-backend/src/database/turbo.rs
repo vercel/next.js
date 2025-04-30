@@ -13,7 +13,7 @@ use crate::database::{
     write_batch::{BaseWriteBatch, ConcurrentWriteBatch, WriteBatch, WriteBuffer},
 };
 
-const COMPACT_MAX_COVERAGE: f32 = 20.0;
+const COMPACT_MAX_COVERAGE: f32 = 10.0;
 const COMPACT_MAX_MERGE_SEQUENCE: usize = 8;
 
 pub struct TurboKeyValueDatabase {
@@ -89,6 +89,7 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
             batch: self.db.write_batch()?,
             db: &self.db,
             compact_join_handle: &self.compact_join_handle,
+            initial_write: self.db.is_empty(),
         }))
     }
 
@@ -106,6 +107,7 @@ pub struct TurboWriteBatch<'a> {
     batch: turbo_persistence::WriteBatch<WriteBuffer<'static>, 5>,
     db: &'a Arc<TurboPersistence>,
     compact_join_handle: &'a Mutex<Option<JoinHandle<Result<()>>>>,
+    initial_write: bool,
 }
 
 impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
@@ -126,10 +128,13 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
         // Commit the write batch
         self.db.commit_write_batch(self.batch)?;
 
-        // Start a new compaction in the background
-        let db = self.db.clone();
-        let handle = spawn(move || db.compact(COMPACT_MAX_COVERAGE, COMPACT_MAX_MERGE_SEQUENCE));
-        self.compact_join_handle.lock().replace(handle);
+        if !self.initial_write {
+            // Start a new compaction in the background
+            let db = self.db.clone();
+            let handle =
+                spawn(move || db.compact(COMPACT_MAX_COVERAGE, COMPACT_MAX_MERGE_SEQUENCE));
+            self.compact_join_handle.lock().replace(handle);
+        }
 
         Ok(())
     }
@@ -138,11 +143,11 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
 impl<'a> ConcurrentWriteBatch<'a> for TurboWriteBatch<'a> {
     fn put(&self, key_space: KeySpace, key: WriteBuffer<'_>, value: WriteBuffer<'_>) -> Result<()> {
         self.batch
-            .put(key_space as usize, key.into_static(), value.into())
+            .put(key_space as u32, key.into_static(), value.into())
     }
 
     fn delete(&self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
-        self.batch.delete(key_space as usize, key.into_static())
+        self.batch.delete(key_space as u32, key.into_static())
     }
 }
 

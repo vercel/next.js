@@ -719,6 +719,15 @@ export type ExportPathMap = {
      * @internal
      */
     _isProspectiveRender?: boolean
+
+    /**
+     * When true, it indicates that the diagnostic render for this page is
+     * disabled. This is only used when the app has `experimental.ppr` and
+     * `experimental.dynamicIO` enabled.
+     *
+     * @internal
+     */
+    _doNotThrowOnEmptyStaticShell?: boolean
   }
 }
 

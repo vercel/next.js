@@ -186,7 +186,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                         PluginSerializedBytes::try_serialize(&module_program)?;
 
                     let transform_metadata_context = Arc::new(TransformPluginMetadataContext::new(
-                        Some(ctx.file_name_str.to_string()),
+                        Some(ctx.file_path_str.to_string()),
                         //[TODO]: Support env-related variable injection, i.e process.env.NODE_ENV
                         "development".to_string(),
                         None,

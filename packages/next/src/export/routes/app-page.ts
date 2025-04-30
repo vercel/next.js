@@ -232,7 +232,7 @@ export async function exportAppPage(
     }
 
     // Writing static HTML to a file.
-    fileWriter.append(htmlFilepath, html ?? '')
+    fileWriter.append(htmlFilepath, html)
 
     const isParallelRoute = /\/@\w+/.test(page)
     const isNonSuccessfulStatusCode = res.statusCode > 300
@@ -268,7 +268,7 @@ export async function exportAppPage(
     return {
       // Only include the metadata if the environment has next support.
       metadata: hasNextSupport ? meta : undefined,
-      hasEmptyPrelude: Boolean(postponed) && html === '',
+      hasEmptyStaticShell: Boolean(postponed) && html === '',
       hasPostponed: Boolean(postponed),
       cacheControl,
       fetchMetrics,

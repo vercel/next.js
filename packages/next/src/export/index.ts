@@ -652,8 +652,8 @@ async function exportAppImpl(
         info.metadata = result.metadata
       }
 
-      if (typeof result.hasEmptyPrelude !== 'undefined') {
-        info.hasEmptyPrelude = result.hasEmptyPrelude
+      if (typeof result.hasEmptyStaticShell !== 'undefined') {
+        info.hasEmptyStaticShell = result.hasEmptyStaticShell
       }
 
       if (typeof result.hasPostponed !== 'undefined') {

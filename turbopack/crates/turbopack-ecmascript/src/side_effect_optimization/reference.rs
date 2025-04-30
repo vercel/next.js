@@ -8,7 +8,6 @@ use turbopack_core::{
         ModuleChunkItemIdExt,
     },
     module::Module,
-    module_graph::ModuleGraph,
     reference::ModuleReference,
     resolve::{ModulePart, ModuleResolveResult},
 };
@@ -110,7 +109,6 @@ impl ChunkableModuleReference for EcmascriptModulePartReference {
 impl EcmascriptModulePartReference {
     pub async fn code_generation(
         self: Vc<Self>,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let referenced_asset = ReferencedAsset::from_resolve_result(self.resolve_reference());

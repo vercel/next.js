@@ -33,7 +33,7 @@ use turbo_tasks::{
     ReadRef, ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
-use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
+use turbo_tasks_fs::{invalidation, DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
 use turbopack::{
     evaluate_context::node_build_environment, global_module_ids::get_global_module_id_strategy,
     transition::TransitionOptions, ModuleAssetContext,
@@ -308,12 +308,16 @@ impl ProjectContainer {
                 .start_watching_with_invalidation_reason(watch.poll_interval)
                 .await?;
         } else {
-            project_fs.invalidate_with_reason();
+            project_fs.invalidate_with_reason(|path| invalidation::Initialize {
+                path: RcStr::from(path),
+            });
         }
         let output_fs = output_fs_operation(project)
             .read_strongly_consistent()
             .await?;
-        output_fs.invalidate_with_reason();
+        output_fs.invalidate_with_reason(|path| invalidation::Initialize {
+            path: RcStr::from(path),
+        });
         Ok(())
     }
 
@@ -402,11 +406,15 @@ impl ProjectContainer {
                     .start_watching_with_invalidation_reason(watch.poll_interval)
                     .await?;
             } else {
-                project_fs.invalidate_with_reason();
+                project_fs.invalidate_with_reason(|path| invalidation::Initialize {
+                    path: RcStr::from(path),
+                });
             }
         }
         if !ReadRef::ptr_eq(&prev_output_fs, &output_fs) {
-            prev_output_fs.invalidate_with_reason();
+            prev_output_fs.invalidate_with_reason(|path| invalidation::Initialize {
+                path: RcStr::from(path),
+            });
         }
 
         Ok(())
@@ -888,7 +896,7 @@ impl Project {
         entry: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(if *self.per_page_module_graph().await? {
-            ModuleGraph::from_entry_module(*entry)
+            ModuleGraph::from_entry_module(*entry, self.next_mode().await?.is_production())
         } else {
             *self.whole_app_module_graphs().await?.full
         })
@@ -906,7 +914,10 @@ impl Project {
                 .copied()
                 .map(ResolvedVc::upcast)
                 .collect();
-            ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(entries)]))
+            ModuleGraph::from_modules(
+                Vc::cell(vec![ChunkGroupEntry::Entry(entries)]),
+                self.next_mode().await?.is_production(),
+            )
         } else {
             *self.whole_app_module_graphs().await?.full
         })
@@ -918,7 +929,7 @@ impl Project {
         entries: Vc<GraphEntries>,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(if *self.per_page_module_graph().await? {
-            ModuleGraph::from_modules(entries)
+            ModuleGraph::from_modules(entries, self.next_mode().await?.is_production())
         } else {
             *self.whole_app_module_graphs().await?.full
         })
@@ -1739,14 +1750,20 @@ async fn whole_app_module_graph_operation(
     project: ResolvedVc<Project>,
 ) -> Result<Vc<ModuleGraphs>> {
     mark_root();
-    let base_single_module_graph = SingleModuleGraph::new_with_entries(project.get_all_entries());
+
+    let should_trace = project.next_mode().await?.is_production();
+    let base_single_module_graph =
+        SingleModuleGraph::new_with_entries(project.get_all_entries(), should_trace);
     let base_visited_modules = VisitedModules::from_graph(base_single_module_graph);
 
     let base = ModuleGraph::from_single_graph(base_single_module_graph);
     let additional_entries = project.get_all_additional_entries(base);
 
-    let additional_module_graph =
-        SingleModuleGraph::new_with_entries_visited(additional_entries, base_visited_modules);
+    let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
+        additional_entries,
+        base_visited_modules,
+        should_trace,
+    );
 
     let full = ModuleGraph::from_graphs(vec![base_single_module_graph, additional_module_graph]);
     Ok(ModuleGraphs {

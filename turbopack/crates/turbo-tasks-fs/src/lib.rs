@@ -11,7 +11,7 @@
 pub mod attach;
 pub mod embed;
 pub mod glob;
-mod invalidation;
+pub mod invalidation;
 mod invalidator_map;
 pub mod json;
 mod mutex_map;
@@ -42,7 +42,6 @@ use bitflags::bitflags;
 use dunce::simplified;
 use glob::Glob;
 use indexmap::IndexSet;
-use invalidation::InvalidateFilesystem;
 use invalidator_map::InvalidatorMap;
 use jsonc_parser::{parse_to_serde_value, ParseOptions};
 use mime::Mime;
@@ -60,7 +59,8 @@ use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat, effect, mark_session_dependent, mark_stateful, trace::TraceRawVcs,
-    Completion, Invalidator, NonLocalValue, ReadRef, ResolvedVc, ValueToString, Vc,
+    Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef, ResolvedVc, ValueToString,
+    Vc,
 };
 use turbo_tasks_hash::{
     hash_xxh3_hash128, hash_xxh3_hash64, DeterministicHash, DeterministicHasher,
@@ -318,7 +318,13 @@ impl DiskFileSystemInner {
         });
     }
 
-    fn invalidate_with_reason(&self) {
+    /// Invalidates every tracked file in the filesystem.
+    ///
+    /// Calls the given
+    fn invalidate_with_reason<R: InvalidationReason + Clone>(
+        &self,
+        reason: impl Fn(String) -> R + Sync,
+    ) {
         let _span = tracing::info_span!("invalidate filesystem", path = &*self.root).entered();
         let span = tracing::Span::current();
         let handle = tokio::runtime::Handle::current();
@@ -329,10 +335,10 @@ impl DiskFileSystemInner {
             .chain(dir_invalidator_map.into_par_iter())
             .flat_map(|(path, invalidators)| {
                 let _span = span.clone().entered();
-                let reason = InvalidateFilesystem { path: path.into() };
+                let reason_for_path = reason(path);
                 invalidators
                     .into_par_iter()
-                    .map(move |i| (reason.clone(), i))
+                    .map(move |i| (reason_for_path.clone(), i))
             });
         iter.for_each(|(reason, (invalidator, _))| {
             let _span = span.clone().entered();
@@ -408,8 +414,11 @@ impl DiskFileSystem {
         self.inner.invalidate();
     }
 
-    pub fn invalidate_with_reason(&self) {
-        self.inner.invalidate_with_reason();
+    pub fn invalidate_with_reason<R: InvalidationReason + Clone>(
+        &self,
+        reason: impl Fn(String) -> R + Sync,
+    ) {
+        self.inner.invalidate_with_reason(reason);
     }
 
     pub async fn start_watching(&self, poll_interval: Option<Duration>) -> Result<()> {
@@ -1279,6 +1288,10 @@ impl FileSystemPath {
     /// None when the joined path would leave the filesystem root.
     #[turbo_tasks::function]
     pub async fn try_join(&self, path: RcStr) -> Result<Vc<FileSystemPathOption>> {
+        // TODO(PACK-3279): Remove this once we do not produce invalid paths at the first place.
+        #[cfg(target_os = "windows")]
+        let path = path.replace('\\', "/");
+
         if let Some(path) = join_path(&self.path, &path) {
             Ok(Vc::cell(Some(
                 Self::new_normalized(*self.fs, path.into())

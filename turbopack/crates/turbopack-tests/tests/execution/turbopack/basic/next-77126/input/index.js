@@ -1,5 +1,5 @@
-import run from './module';
+import run from './module'
 
 it('should handle undefined variables', () => {
-  expect(run()).toEqual('should run');
-});
+  expect(run()).toEqual('should run')
+})

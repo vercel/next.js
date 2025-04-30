@@ -6,5 +6,6 @@ module.exports = {
   },
   experimental: {
     nodeMiddleware: true,
+    serverActions: { bodySizeLimit: '2mb' },
   },
 }

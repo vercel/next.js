@@ -177,6 +177,7 @@ import {
 import { InvariantError } from '../shared/lib/invariant-error'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
 import { getCacheHandlers } from './use-cache/handlers'
+import { fixMojibake } from './lib/fix-mojibake'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1096,7 +1097,7 @@ export default abstract class Server<
           // x-matched-path is the source of truth, it tells what page
           // should be rendered because we don't process rewrites in minimalMode
           let { pathname: matchedPath } = new URL(
-            req.headers[MATCHED_PATH_HEADER] as string,
+            fixMojibake(req.headers[MATCHED_PATH_HEADER] as string),
             'http://localhost'
           )
 
@@ -1249,9 +1250,14 @@ export default abstract class Server<
           if (pageIsDynamic) {
             let params: ParsedUrlQuery | false = {}
 
-            // ensure we normalize the dynamic route params for encoding/
-            // default values
-            paramsResult = utils.normalizeDynamicRouteParams(queryParams, false)
+            // If we don't already have valid params, try to parse them from
+            // the query params.
+            if (!paramsResult.hasValidParams) {
+              paramsResult = utils.normalizeDynamicRouteParams(
+                queryParams,
+                false
+              )
+            }
 
             // for prerendered ISR paths we attempt parsing the route
             // params from the URL directly as route-matches may not
@@ -1720,9 +1726,11 @@ export default abstract class Server<
   public async prepare(): Promise<void> {
     if (this.prepared) return
 
-    if (this.preparedPromise === null) {
-      // Get instrumentation module
+    // Get instrumentation module
+    if (!this.instrumentation) {
       this.instrumentation = await this.loadInstrumentationModule()
+    }
+    if (this.preparedPromise === null) {
       this.preparedPromise = this.prepareImpl().then(() => {
         this.prepared = true
         this.preparedPromise = null

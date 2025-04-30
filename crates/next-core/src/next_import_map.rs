@@ -196,19 +196,23 @@ pub async fn get_next_client_import_map(
                     &format!("next/dist/compiled/react-server-dom-turbopack{react_flavor}/*"),
                 ),
             );
-            import_map.insert_exact_alias(
+            insert_exact_alias_or_js(
+                &mut import_map,
                 "next/head",
                 request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
             );
-            import_map.insert_exact_alias(
+            insert_exact_alias_or_js(
+                &mut import_map,
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
-            import_map.insert_exact_alias(
+            insert_exact_alias_or_js(
+                &mut import_map,
                 "next/link",
                 request_to_import_mapping(project_path, "next/dist/client/app-dir/link"),
             );
-            import_map.insert_exact_alias(
+            insert_exact_alias_or_js(
+                &mut import_map,
                 "next/form",
                 request_to_import_mapping(project_path, "next/dist/client/app-dir/form"),
             );
@@ -337,19 +341,23 @@ pub async fn get_next_server_import_map(
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
-            import_map.insert_exact_alias(
+            insert_exact_alias_or_js(
+                &mut import_map,
                 "next/head",
                 request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
             );
-            import_map.insert_exact_alias(
+            insert_exact_alias_or_js(
+                &mut import_map,
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
-            import_map.insert_exact_alias(
+            insert_exact_alias_or_js(
+                &mut import_map,
                 "next/link",
                 request_to_import_mapping(project_path, "next/dist/client/app-dir/link"),
             );
-            import_map.insert_exact_alias(
+            insert_exact_alias_or_js(
+                &mut import_map,
                 "next/form",
                 request_to_import_mapping(project_path, "next/dist/client/app-dir/form"),
             );
@@ -450,18 +458,21 @@ pub async fn get_next_edge_import_map(
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
-            import_map.insert_exact_alias(
+            insert_exact_alias_or_js(
+                &mut import_map,
                 "next/head",
                 request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
             );
-            import_map.insert_exact_alias(
+            insert_exact_alias_or_js(
+                &mut import_map,
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
-            import_map.insert_exact_alias(
+            insert_exact_alias_or_js(
+                &mut import_map,
                 "next/link",
                 request_to_import_mapping(project_path, "next/dist/client/app-dir/link"),
-            )
+            );
         }
     }
 
@@ -1122,6 +1133,16 @@ async fn insert_instrumentation_client_alias(
     );
 
     Ok(())
+}
+
+// To alias e.g. both `import "next/link"` and `import "next/link.js"`
+fn insert_exact_alias_or_js(
+    import_map: &mut ImportMap,
+    pattern: &str,
+    mapping: ResolvedVc<ImportMapping>,
+) {
+    import_map.insert_exact_alias(pattern, mapping);
+    import_map.insert_exact_alias(format!("{pattern}.js"), mapping);
 }
 
 /// Creates a direct import mapping to the result of resolving a request

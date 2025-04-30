@@ -1,6 +1,6 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -9,13 +9,13 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
-    reference::{ModuleReference, ModuleReferences},
+    reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
     resolve::{origin::ResolveOrigin, ModulePart},
 };
 
 use super::{
     chunk_item::EcmascriptModulePartChunkItem, get_part_id, part_of_module, split, split_module,
-    PartId, SplitResult,
+    SplitResult,
 };
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
@@ -24,11 +24,10 @@ use crate::{
         analyse_ecmascript_module, esm::FoundExportType, follow_reexports, FollowExportsResult,
     },
     side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
-    tree_shake::{
-        reference::EcmascriptModulePartReference, side_effect_module::SideEffectsModule, Key,
-    },
+    tree_shake::{side_effect_module::SideEffectsModule, Key},
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
-    EcmascriptModuleAssetType, EcmascriptModuleContent, EcmascriptParsable,
+    EcmascriptModuleAssetType, EcmascriptModuleContent, EcmascriptModuleContentOptions,
+    EcmascriptParsable,
 };
 
 /// A reference to part of an ES module.
@@ -76,14 +75,45 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
     }
 
     #[turbo_tasks::function]
-    fn module_content(
-        &self,
-        module_graph: Vc<ModuleGraph>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Vc<EcmascriptModuleContent> {
-        self.full_module
-            .module_content(module_graph, chunking_context, async_module_info)
+    async fn module_content(
+        self: Vc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
+    ) -> Result<Vc<EcmascriptModuleContent>> {
+        let module = self.await?;
+
+        let split_data = split_module(*module.full_module);
+        let parsed = part_of_module(split_data, module.part.clone())
+            .to_resolved()
+            .await?;
+
+        let analyze = self.analyze();
+        let analyze_ref = analyze.await?;
+
+        let module_type_result = *module.full_module.determine_module_type().await?;
+        let generate_source_map = *chunking_context
+            .reference_module_source_maps(Vc::upcast(self))
+            .await?;
+
+        Ok(EcmascriptModuleContent::new(
+            EcmascriptModuleContentOptions {
+                parsed,
+                ident: self.ident().to_resolved().await?,
+                specified_module_type: module_type_result.module_type,
+                module_graph,
+                chunking_context,
+                references: analyze.references().to_resolved().await?,
+                esm_references: analyze_ref.esm_references,
+                part_references: vec![],
+                code_generation: analyze_ref.code_generation,
+                async_module: analyze_ref.async_module,
+                generate_source_map,
+                original_source_map: analyze_ref.source_map,
+                exports: analyze_ref.exports,
+                async_module_info,
+            },
+        ))
     }
 }
 
@@ -124,7 +154,7 @@ impl EcmascriptModulePartAsset {
     pub async fn select_part(
         module: Vc<EcmascriptModuleAsset>,
         part: ModulePart,
-    ) -> Result<Vc<Box<dyn Module>>> {
+    ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
         let SplitResult::Ok { entrypoints, .. } = &*split_module(module).await? else {
             return Ok(Vc::upcast(module));
         };
@@ -293,7 +323,13 @@ impl Module for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let part_dep = |part: ModulePart| -> Vc<Box<dyn ModuleReference>> {
-            Vc::upcast(EcmascriptModulePartReference::new(*self.full_module, part))
+            Vc::upcast(SingleChunkableModuleReference::new(
+                Vc::upcast(EcmascriptModulePartAsset::new_with_resolved_part(
+                    *self.full_module,
+                    part,
+                )),
+                Vc::cell("part reference".into()),
+            ))
         };
 
         if let ModulePart::Facade = self.part {
@@ -304,50 +340,9 @@ impl Module for EcmascriptModulePartAsset {
             return Ok(Vc::cell(references));
         }
 
-        let split_data = split_module(*self.full_module).await?;
-
-        let SplitResult::Ok { deps, .. } = &*split_data else {
-            // If the module is not split, we don't need to add any references
-            return Ok(Vc::cell(vec![]));
-        };
-
-        let mut references = vec![];
-
-        let part_id = get_part_id(&split_data, &self.part)
-            .await
-            .with_context(|| format!("part {:?} is not found in the module", self.part))?;
-
-        let deps = match deps.get(&part_id) {
-            Some(v) => &**v,
-            None => &[],
-        };
-
-        references.extend(
-            deps.iter()
-                .filter_map(|part_id| {
-                    Some(part_dep(match part_id {
-                        // This is an internal part that is not for evaluation, so we don't need to
-                        // force-add it.
-                        PartId::Internal(.., false) => return None,
-                        // Because of this we still need `PartId::Internal` to have `is_for_eval`
-                        // flag.
-                        PartId::Internal(part_id, true) => ModulePart::internal(*part_id),
-                        PartId::Export(name) => ModulePart::export(name.clone()),
-                        _ => unreachable!(
-                            "PartId other than Internal and Export should not be used here"
-                        ),
-                    }))
-                })
-                .map(|v| async move { v.to_resolved().await })
-                .try_join()
-                .await?,
-        );
-
         let analyze = analyze(*self.full_module, self.part.clone());
 
-        references.extend(analyze.references().owned().await?);
-
-        Ok(Vc::cell(references))
+        Ok(analyze.references())
     }
 }
 

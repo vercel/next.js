@@ -20,7 +20,8 @@ pub enum LocalTask {
 pub fn get_local_task_execution_spec<'a>(
     turbo_tasks: &'_ dyn TurboTasksBackendApi<impl Backend + 'static>,
     ty: &'a LocalTaskType,
-    // if this is a `LocalTaskType::Resolve*`, we'll spawn another task with this persistence
+    // if this is a `LocalTaskType::Resolve*`, we'll spawn another task with this persistence, if
+    // this is a `LocalTaskType::Native`, this refers to the parent non-local task.
     persistence: TaskPersistence,
 ) -> TaskExecutionSpec<'a> {
     match ty {
@@ -29,7 +30,6 @@ pub fn get_local_task_execution_spec<'a>(
             this,
             arg,
         } => {
-            debug_assert_eq!(persistence, TaskPersistence::Local);
             let func = registry::get_function(*native_fn_id);
             let span = func.span(TaskPersistence::Local);
             let entered = span.enter();
