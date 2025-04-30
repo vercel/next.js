@@ -736,7 +736,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     collectedDeclarations,
   })
 
-  if (!treeCodeResult.rootLayout) {
+  const isGlobalNotFoundPath = page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY && !!treeCodeResult.globalNotFound
+  if (!treeCodeResult.rootLayout && !isGlobalNotFoundPath) {
     if (!isDev) {
       // If we're building and missing a root layout, exit the build
       Log.error(
