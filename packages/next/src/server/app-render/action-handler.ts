@@ -50,6 +50,7 @@ import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server.edge
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { executeRevalidates } from '../revalidation-utils'
+import { serverTimingAsyncStorage } from './server-timing.external'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -940,13 +941,26 @@ export async function handleAction({
 
       let returnVal: unknown
       requestStore.phase = 'action'
+      const responseStore = {
+        metrics: new Map(),
+      }
       try {
         returnVal = await workUnitAsyncStorage.run(requestStore, () =>
-          actionHandler.apply(null, boundActionArguments)
+          serverTimingAsyncStorage.run(responseStore, () =>
+            actionHandler.apply(null, boundActionArguments)
+          )
         )
       } finally {
         requestStore.phase = 'render'
       }
+      const serverTiming = responseStore.metrics
+        .entries()
+        .toArray()
+        .map(([key, value]) => {
+          return `${key}${value.dur ? `;dur=${value.dur}` : ''}${value.desc ? `;desc=${value.desc}` : ''}`
+        })
+        .join(', ')
+      res.setHeader('server-timing', serverTiming)
 
       // For form actions, we need to continue rendering the page.
       if (isFetchAction) {
