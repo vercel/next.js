@@ -56,9 +56,8 @@ use crate::{
     backing_storage::BackingStorage,
     data::{
         ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
-        CachedDataItemValue, CachedDataItemValueRef, CellRef, CollectibleRef, CollectiblesRef,
-        DirtyState, InProgressCellState, InProgressState, InProgressStateInner, OutputValue,
-        RootType,
+        CachedDataItemValueRef, CellRef, CollectibleRef, CollectiblesRef, DirtyState,
+        InProgressCellState, InProgressState, InProgressStateInner, OutputValue, RootType,
     },
     utils::{
         bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc, sharded::Sharded, swap_retain,
