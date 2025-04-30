@@ -4473,15 +4473,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/react-owner-stacks-svgr/react-owner-stacks-svgr.test.ts": {
-    "passed": [
-      "react-owner-stacks-svgr renders an SVG that is transformed by @svgr/webpack into a React component"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/reexport-client-component-metadata/reexport-client-component-metadata.test.ts": {
     "passed": [
       "app-dir - reexport-client-component-metadata should render the layout metadata if not override",
@@ -15535,11 +15526,12 @@
     "runtimeError": false
   },
   "test/e2e/next-image-svgo-webpack/svgo-webpack.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "svgo-webpack loader should load icon properly with svgo webpack loader"
+    "passed": [
+      "svgo-webpack loader should render an SVG that is transformed by @svgr/webpack into a React component (pages router)",
+      "svgo-webpack loader should render an SVG that is transformed by @svgr/webpack into a React component (app router)"
     ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
