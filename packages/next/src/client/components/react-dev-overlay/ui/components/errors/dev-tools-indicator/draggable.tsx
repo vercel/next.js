@@ -25,7 +25,7 @@ export function Draggable({
   onDragStart?: () => void
 }) {
   const { ref, animate, ...drag } = useDrag({
-    threshold: 10,
+    threshold: 5,
     onDragStart,
     onDragEnd,
     onAnimationEnd,
@@ -107,14 +107,7 @@ export function Draggable({
   }
 
   return (
-    <div
-      ref={ref}
-      {...drag}
-      style={{
-        // width: 'fit-content',
-        touchAction: 'none',
-      }}
-    >
+    <div ref={ref} {...drag} style={{ touchAction: 'none' }}>
       {children}
     </div>
   )
@@ -190,7 +183,7 @@ export function useDrag(options: UseDragOptions) {
       const dy = e.clientY - origin.current.y
       const distance = Math.sqrt(dx * dx + dy * dy)
 
-      if (state.current === 'press' && distance >= options.threshold) {
+      if (distance >= options.threshold) {
         state.current = 'drag'
         ref.current?.setPointerCapture(e.pointerId)
         ref.current?.classList.add('dev-tools-grabbing')
@@ -201,7 +194,6 @@ export function useDrag(options: UseDragOptions) {
     if (state.current !== 'drag') return
 
     const currentPosition = { x: e.clientX, y: e.clientY }
-    const now = Date.now()
 
     const dx = currentPosition.x - origin.current.x
     const dy = currentPosition.y - origin.current.y
@@ -212,12 +204,11 @@ export function useDrag(options: UseDragOptions) {
       y: translation.current.y + dy,
     }
 
-    console.log(newTranslation)
-
     set(newTranslation)
 
     // Keep a history of recent positions for velocity calculation
     // Only store points that are at least 10ms apart to avoid too many samples
+    const now = Date.now()
     const shouldAddToHistory = now - lastTimestamp.current >= 10
     if (shouldAddToHistory) {
       velocities.current = [
