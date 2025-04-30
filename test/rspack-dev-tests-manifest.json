@@ -18742,14 +18742,12 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/next-image-legacy/svgo-webpack/test/index.test.ts": {
+  "test/e2e/next-image-svgo-webpack/svgo-webpack.test.ts": {
     "passed": [],
     "failed": [
-      "svgo-webpack with Image Component development mode should print error when invalid Image usage"
+      "svgo-webpack loader should load icon properly with svgo webpack loader"
     ],
-    "pending": [
-      "svgo-webpack with Image Component production mode should not fail to build invalid usage of the Image component"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },

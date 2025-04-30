@@ -1,20 +1,17 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// Skip as this is a webpack specific test.
-;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
-  'svgo-webpack with Image Component',
-  () => {
-    const { next } = nextTestSetup({
-      files: __dirname,
-      skipDeployment: true,
-      dependencies: {
-        '@svgr/webpack': '8.1.0',
-      },
-    })
+// Skip this is a webpack specific test in turbopack manifest.
+describe('svgo-webpack loader', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipDeployment: true,
+    dependencies: {
+      '@svgr/webpack': '8.1.0',
+    },
+  })
 
-    it('should print error when invalid Image usage', async () => {
-      const { status } = await next.fetch('/')
-      expect(status).toBe(200)
-    })
-  }
-)
+  it('should load icon properly with svgo webpack loader', async () => {
+    const { status } = await next.fetch('/')
+    expect(status).toBe(200)
+  })
+})
