@@ -176,7 +176,7 @@ pub fn make_task_dirty(
         return;
     }
 
-    let mut task = ctx.task(task_id, TaskDataCategory::All);
+    let mut task = ctx.task(task_id, TaskDataCategory::Meta);
 
     make_task_dirty_internal(
         &mut task,
