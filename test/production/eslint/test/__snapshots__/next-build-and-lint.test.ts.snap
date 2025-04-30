@@ -142,9 +142,6 @@ exports[`Next Build production mode first time setup - ESLint v8 1`] = `
     "react/jsx-no-duplicate-props": [
       2,
     ],
-    "react/jsx-no-target-blank": [
-      "off",
-    ],
     "react/jsx-no-undef": [
       2,
     ],
@@ -180,18 +177,6 @@ exports[`Next Build production mode first time setup - ESLint v8 1`] = `
     ],
     "react/no-unescaped-entities": [
       2,
-    ],
-    "react/no-unknown-property": [
-      "off",
-    ],
-    "react/no-unsafe": [
-      0,
-    ],
-    "react/prop-types": [
-      "off",
-    ],
-    "react/react-in-jsx-scope": [
-      "off",
     ],
     "react/require-render-return": [
       2,
@@ -342,9 +327,6 @@ exports[`Next Build production mode first time setup - ESLint v9 1`] = `
     "react/jsx-no-duplicate-props": [
       2,
     ],
-    "react/jsx-no-target-blank": [
-      "off",
-    ],
     "react/jsx-no-undef": [
       2,
     ],
@@ -380,18 +362,6 @@ exports[`Next Build production mode first time setup - ESLint v9 1`] = `
     ],
     "react/no-unescaped-entities": [
       2,
-    ],
-    "react/no-unknown-property": [
-      "off",
-    ],
-    "react/no-unsafe": [
-      0,
-    ],
-    "react/prop-types": [
-      "off",
-    ],
-    "react/react-in-jsx-scope": [
-      "off",
     ],
     "react/require-render-return": [
       2,
@@ -556,12 +526,6 @@ exports[`Next Build production mode first time setup with TypeScript - ESLint v8
     "@typescript-eslint/triple-slash-reference": [
       "error",
     ],
-    "constructor-super": [
-      "off",
-    ],
-    "getter-return": [
-      "off",
-    ],
     "import/no-anonymous-default-export": [
       "warn",
     ],
@@ -590,63 +554,6 @@ exports[`Next Build production mode first time setup with TypeScript - ESLint v8
     ],
     "jsx-a11y/role-supports-aria-props": [
       "warn",
-    ],
-    "no-array-constructor": [
-      "off",
-    ],
-    "no-class-assign": [
-      "off",
-    ],
-    "no-const-assign": [
-      "off",
-    ],
-    "no-dupe-args": [
-      "off",
-    ],
-    "no-dupe-class-members": [
-      "off",
-    ],
-    "no-dupe-keys": [
-      "off",
-    ],
-    "no-func-assign": [
-      "off",
-    ],
-    "no-import-assign": [
-      "off",
-    ],
-    "no-new-native-nonconstructor": [
-      "off",
-    ],
-    "no-new-symbol": [
-      "off",
-    ],
-    "no-obj-calls": [
-      "off",
-    ],
-    "no-redeclare": [
-      "off",
-    ],
-    "no-setter-return": [
-      "off",
-    ],
-    "no-this-before-super": [
-      "off",
-    ],
-    "no-undef": [
-      "off",
-    ],
-    "no-unreachable": [
-      "off",
-    ],
-    "no-unsafe-negation": [
-      "off",
-    ],
-    "no-unused-expressions": [
-      "off",
-    ],
-    "no-unused-vars": [
-      "off",
     ],
     "no-var": [
       "error",
@@ -677,9 +584,6 @@ exports[`Next Build production mode first time setup with TypeScript - ESLint v8
     ],
     "react/jsx-no-duplicate-props": [
       2,
-    ],
-    "react/jsx-no-target-blank": [
-      "off",
     ],
     "react/jsx-no-undef": [
       2,
@@ -716,18 +620,6 @@ exports[`Next Build production mode first time setup with TypeScript - ESLint v8
     ],
     "react/no-unescaped-entities": [
       2,
-    ],
-    "react/no-unknown-property": [
-      "off",
-    ],
-    "react/no-unsafe": [
-      0,
-    ],
-    "react/prop-types": [
-      "off",
-    ],
-    "react/react-in-jsx-scope": [
-      "off",
     ],
     "react/require-render-return": [
       2,
@@ -892,12 +784,6 @@ exports[`Next Build production mode first time setup with TypeScript - ESLint v9
     "@typescript-eslint/triple-slash-reference": [
       "error",
     ],
-    "constructor-super": [
-      "off",
-    ],
-    "getter-return": [
-      "off",
-    ],
     "import/no-anonymous-default-export": [
       "warn",
     ],
@@ -926,63 +812,6 @@ exports[`Next Build production mode first time setup with TypeScript - ESLint v9
     ],
     "jsx-a11y/role-supports-aria-props": [
       "warn",
-    ],
-    "no-array-constructor": [
-      "off",
-    ],
-    "no-class-assign": [
-      "off",
-    ],
-    "no-const-assign": [
-      "off",
-    ],
-    "no-dupe-args": [
-      "off",
-    ],
-    "no-dupe-class-members": [
-      "off",
-    ],
-    "no-dupe-keys": [
-      "off",
-    ],
-    "no-func-assign": [
-      "off",
-    ],
-    "no-import-assign": [
-      "off",
-    ],
-    "no-new-native-nonconstructor": [
-      "off",
-    ],
-    "no-new-symbol": [
-      "off",
-    ],
-    "no-obj-calls": [
-      "off",
-    ],
-    "no-redeclare": [
-      "off",
-    ],
-    "no-setter-return": [
-      "off",
-    ],
-    "no-this-before-super": [
-      "off",
-    ],
-    "no-undef": [
-      "off",
-    ],
-    "no-unreachable": [
-      "off",
-    ],
-    "no-unsafe-negation": [
-      "off",
-    ],
-    "no-unused-expressions": [
-      "off",
-    ],
-    "no-unused-vars": [
-      "off",
     ],
     "no-var": [
       "error",
@@ -1013,9 +842,6 @@ exports[`Next Build production mode first time setup with TypeScript - ESLint v9
     ],
     "react/jsx-no-duplicate-props": [
       2,
-    ],
-    "react/jsx-no-target-blank": [
-      "off",
     ],
     "react/jsx-no-undef": [
       2,
@@ -1052,18 +878,6 @@ exports[`Next Build production mode first time setup with TypeScript - ESLint v9
     ],
     "react/no-unescaped-entities": [
       2,
-    ],
-    "react/no-unknown-property": [
-      "off",
-    ],
-    "react/no-unsafe": [
-      0,
-    ],
-    "react/prop-types": [
-      "off",
-    ],
-    "react/react-in-jsx-scope": [
-      "off",
     ],
     "react/require-render-return": [
       2,
