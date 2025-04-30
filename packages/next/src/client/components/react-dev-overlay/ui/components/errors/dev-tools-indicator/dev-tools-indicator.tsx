@@ -1,15 +1,7 @@
 import type { CSSProperties, Dispatch, SetStateAction } from 'react'
 import { STORAGE_KEY_POSITION, type OverlayState } from '../../../../shared'
 
-import {
-  useState,
-  useEffect,
-  useRef,
-  createContext,
-  useContext,
-  useCallback,
-  useMemo,
-} from 'react'
+import { useState, useEffect, useRef, createContext, useContext } from 'react'
 import { Toast } from '../../toast'
 import { NextLogo } from './next-logo'
 import { useIsDevBuilding } from '../../../../../../dev/dev-build-indicator/internal/initialize'
@@ -631,26 +623,6 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
     }
   }
 
-  .dev-tools-dismiss-overlay {
-    display: flex;
-    justify-content: center;
-    position: fixed;
-    width: 100%;
-    // outline: 1px solid red;
-    height: 50vh;
-    bottom: 0;
-    // background: red;
-
-    [data-nextjs-scroll-fader] {
-      height: 100%;
-      --color-bg: rgba(255, 255, 255, 0.5);
-
-      @media (prefers-color-scheme: dark) {
-        --color-bg: rgba(0, 0, 0, 0.5);
-      }
-    }
-  } 
-    
   .dev-tools-grabbing {
     cursor: grabbing;
 

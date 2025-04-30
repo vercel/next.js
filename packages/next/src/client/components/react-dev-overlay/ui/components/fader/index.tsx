@@ -55,11 +55,5 @@ export const FADER_STYLES = `
       background: linear-gradient(to top, transparent, var(--color-bg));
       mask-image: linear-gradient(to bottom, var(--color-bg) var(--stop), transparent);
     }
-
-    &[data-side="bottom"] {
-      bottom: 0;
-      background: linear-gradient(to bottom, transparent, var(--color-bg));
-      mask-image: linear-gradient(to top, var(--color-bg) var(--stop), transparent);
-    }
   }
 `
