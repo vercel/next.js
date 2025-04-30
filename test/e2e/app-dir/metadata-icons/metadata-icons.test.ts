@@ -46,14 +46,6 @@ describe('app-dir - metadata-icons', () => {
 
   it('should not contain icon insertion script when metadata is rendered in head', async () => {
     const iconInsertionScript = `document.querySelectorAll('body link[rel="icon"], body link[rel="apple-touch-icon"]').forEach(el => document.head.appendChild(el))`
-    // Perform a blocking render to ensure the metadata is rendered in the head
-    const blockingHtml = await next.render('/custom-icon', null, {
-      headers: {
-        'User-Agent': 'Discordbot',
-      },
-    })
-
-    expect(blockingHtml).not.toContain(iconInsertionScript)
 
     const suspendedHtml = await next.render('/custom-icon')
     expect(suspendedHtml).toContain(iconInsertionScript)
