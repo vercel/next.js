@@ -140,9 +140,12 @@ export class MinifyPlugin {
                     },
                   }
                 : {}),
-              // Compress options are defined in crates/napi/src/minify.rs.
-              compress: false,
-              // Mangle options may be amended in crates/napi/src/minify.rs.
+              compress: {
+                inline: 2,
+                global_defs: {
+                  'process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE': false,
+                },
+              },
               mangle,
               module: 'unknown',
               output: {
