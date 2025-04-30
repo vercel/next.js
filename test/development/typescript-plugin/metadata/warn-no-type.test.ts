@@ -31,8 +31,10 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
 
     for (const tsFile of tsFiles) {
       const relativePath = relative(__dirname, tsFile)
-      // When the test fails, the terminal output is too long and omits the
-      // filename, so we filter out only the important properties.
+      // This test expects no diagnostics, but if somehow the test
+      // detects one and fails, the diagnostics output on the terminal
+      // is too long and omits the filename, so we filter out only the
+      // necessary properties for debugging.
       const diagnostics = languageService
         .getSemanticDiagnostics(tsFile)
         .map((diagnostic) => ({
@@ -58,8 +60,10 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
 
     for (const tsFile of tsFiles) {
       const relativePath = relative(__dirname, tsFile)
-      // When the test fails, the terminal output is too long and omits the
-      // filename, so we filter out only the important properties.
+      // This test expects no diagnostics, but if somehow the test
+      // detects one and fails, the diagnostics output on the terminal
+      // is too long and omits the filename, so we filter out only the
+      // necessary properties for debugging.
       const diagnostics = languageService
         .getSemanticDiagnostics(tsFile)
         .map((diagnostic) => ({
