@@ -26,7 +26,8 @@ use crate::{
     side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
     tree_shake::{side_effect_module::SideEffectsModule, Key},
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
-    EcmascriptModuleAssetType, EcmascriptModuleContent, EcmascriptParsable,
+    EcmascriptModuleAssetType, EcmascriptModuleContent, EcmascriptModuleContentOptions,
+    EcmascriptParsable,
 };
 
 /// A reference to part of an ES module.
@@ -74,14 +75,45 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
     }
 
     #[turbo_tasks::function]
-    fn module_content(
-        &self,
-        module_graph: Vc<ModuleGraph>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Vc<EcmascriptModuleContent> {
-        self.full_module
-            .module_content(module_graph, chunking_context, async_module_info)
+    async fn module_content(
+        self: Vc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
+    ) -> Result<Vc<EcmascriptModuleContent>> {
+        let module = self.await?;
+
+        let split_data = split_module(*module.full_module);
+        let parsed = part_of_module(split_data, module.part.clone())
+            .to_resolved()
+            .await?;
+
+        let analyze = self.analyze();
+        let analyze_ref = analyze.await?;
+
+        let module_type_result = *module.full_module.determine_module_type().await?;
+        let generate_source_map = *chunking_context
+            .reference_module_source_maps(Vc::upcast(self))
+            .await?;
+
+        Ok(EcmascriptModuleContent::new(
+            EcmascriptModuleContentOptions {
+                parsed,
+                ident: self.ident().to_resolved().await?,
+                specified_module_type: module_type_result.module_type,
+                module_graph,
+                chunking_context,
+                references: analyze.references().to_resolved().await?,
+                esm_references: analyze_ref.esm_references,
+                part_references: vec![],
+                code_generation: analyze_ref.code_generation,
+                async_module: analyze_ref.async_module,
+                generate_source_map,
+                original_source_map: analyze_ref.source_map,
+                exports: analyze_ref.exports,
+                async_module_info,
+            },
+        ))
     }
 }
 
