@@ -509,10 +509,10 @@ exports[`Next Build production mode first time setup with TypeScript - ESLint v8
       "error",
     ],
     "@typescript-eslint/no-unused-expressions": [
-      "error",
+      1,
     ],
     "@typescript-eslint/no-unused-vars": [
-      "error",
+      1,
     ],
     "@typescript-eslint/no-wrapper-object-types": [
       "error",
@@ -767,10 +767,10 @@ exports[`Next Build production mode first time setup with TypeScript - ESLint v9
       "error",
     ],
     "@typescript-eslint/no-unused-expressions": [
-      "error",
+      1,
     ],
     "@typescript-eslint/no-unused-vars": [
-      "error",
+      1,
     ],
     "@typescript-eslint/no-wrapper-object-types": [
       "error",
