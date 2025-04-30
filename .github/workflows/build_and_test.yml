@@ -214,7 +214,6 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
-        pnpm install
         ./node_modules/.bin/devlow-bench ./scripts/devlow-bench.mjs \
           --datadog=ubuntu-latest-16-core \
           ${{ matrix.mode }} \
@@ -230,7 +229,6 @@ jobs:
     with:
       stepName: 'test-devlow'
       afterBuild: |
-        pnpm install
         pnpm run --filter=devlow-bench test
     secrets: inherit
 
