@@ -52,6 +52,7 @@ export class MinifyPlugin {
     const mangle = this.options.noMangling
       ? false
       : {
+          reserved: ['AbortSignal'],
           disableCharFreq: !!this.options.disableCharFreq,
         }
     const compilationSpan =
