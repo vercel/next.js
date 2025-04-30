@@ -1030,16 +1030,15 @@ async fn process_parse_result(
         }
         ParseResult::Unparseable { messages } => {
             let path = ident.path().to_string().await?;
-            let path = &**path;
             let error_messages = messages
                 .as_ref()
                 .and_then(|m| m.first().map(|f| format!("\n{}", f)))
                 .unwrap_or("".into());
+            let msg = format!("Could not parse module '{path}'\n{error_messages}");
             let body = vec![
                 quote!(
-                    "const e = new Error('Could not parse module \\'' + $path + '\\'\\n' + $error_messages);" as Stmt,
-                    path: Expr = Expr::Lit(path.into()),
-                    error_messages: Expr = Expr::Lit(error_messages.into()),
+                    "const e = new Error($msg);" as Stmt,
+                    msg: Expr = Expr::Lit(msg.into()),
                 ),
                 quote!("e.code = 'MODULE_UNPARSEABLE';" as Stmt),
                 quote!("throw e;" as Stmt),
@@ -1060,11 +1059,11 @@ async fn process_parse_result(
         }
         ParseResult::NotFound => {
             let path = ident.path().to_string().await?;
-            let path = &**path;
+            let msg = format!("Could not parse module '{path}'");
             let body = vec![
                 quote!(
-                    "const e = new Error('Could not parse module ' + $path);" as Stmt,
-                    path: Expr = Expr::Lit(path.into()),
+                    "const e = new Error($msg);" as Stmt,
+                    msg: Expr = Expr::Lit(msg.into()),
                 ),
                 quote!("e.code = 'MODULE_UNPARSEABLE';" as Stmt),
                 quote!("throw e;" as Stmt),
