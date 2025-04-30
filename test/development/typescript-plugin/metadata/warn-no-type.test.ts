@@ -1,10 +1,11 @@
 import type { PluginLanguageService } from '../test-utils'
+
+import { join } from 'node:path'
 import {
   getPluginLanguageService,
   getTsFiles,
   NEXT_TS_ERRORS,
 } from '../test-utils'
-import { join } from 'path'
 
 const fixturesDir = join(__dirname, 'app/warn-no-type')
 
@@ -21,7 +22,7 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
 
     for (const tsFile of tsFiles) {
       const diagnostics = languageService.getSemanticDiagnostics(tsFile)
-      expect(diagnostics.length).toBe(0)
+      expect({ diagnostics, tsFile }).toEqual({ diagnostics: [], tsFile })
     }
   })
 
@@ -31,7 +32,7 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
 
     for (const tsFile of tsFiles) {
       const diagnostics = languageService.getSemanticDiagnostics(tsFile)
-      expect(diagnostics.length).toBe(0)
+      expect({ diagnostics, tsFile }).toEqual({ diagnostics: [], tsFile })
     }
   })
 
@@ -41,16 +42,18 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
 
     for (const tsFile of tsFiles) {
       const diagnostics = languageService.getSemanticDiagnostics(tsFile)
-      expect(diagnostics.length).toBe(1)
 
-      const diagnostic = diagnostics[0]
-      expect(diagnostic).toMatchObject({
-        code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
-        messageText:
-          'The Next.js "metadata" export should be type of "Metadata" from "next".',
-        // Use lastIndexOf to match export { ... }
-        start: diagnostic.file.getFullText().lastIndexOf('metadata'),
-        length: 'metadata'.length,
+      expect({ diagnostics, tsFile }).toEqual({
+        diagnostics: [
+          expect.objectContaining({
+            code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
+            messageText:
+              'The Next.js "metadata" export should be type of "Metadata" from "next".',
+            start: diagnostics[0].file.getFullText().lastIndexOf('metadata'),
+            length: 'metadata'.length,
+          }),
+        ],
+        tsFile,
       })
     }
   })
@@ -61,17 +64,21 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
 
     for (const tsFile of tsFiles) {
       const diagnostics = languageService.getSemanticDiagnostics(tsFile)
-      expect(diagnostics.length).toBe(1)
-
-      const diagnostic = diagnostics[0]
       const type = tsFile.includes('-async-') ? 'Promise<Metadata>' : 'Metadata'
 
-      expect(diagnostic).toMatchObject({
-        code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
-        messageText: `The Next.js "generateMetadata" export should have a return type of "${type}" from "next".`,
-        // Use lastIndexOf to match export { ... }
-        start: diagnostic.file.getFullText().lastIndexOf('generateMetadata'),
-        length: 'generateMetadata'.length,
+      expect({ diagnostics, tsFile }).toEqual({
+        diagnostics: [
+          expect.objectContaining({
+            code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
+            messageText: `The Next.js "generateMetadata" export should have a return type of "${type}" from "next".`,
+            // Use lastIndexOf to match export { ... }
+            start: diagnostics[0].file
+              .getFullText()
+              .lastIndexOf('generateMetadata'),
+            length: 'generateMetadata'.length,
+          }),
+        ],
+        tsFile,
       })
     }
   })
