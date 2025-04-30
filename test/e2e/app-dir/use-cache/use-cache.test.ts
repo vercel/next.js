@@ -740,12 +740,33 @@ describe('use-cache', () => {
     expect(text).toBe('This page could not be found.')
   })
 
-  it.each([
-    { description: 'js enabled', disableJavaScript: false },
-    { description: 'js disabled', disableJavaScript: true },
-  ])(
-    'should not read nor write cached data when draft mode is enabled: $description',
-    async ({ disableJavaScript }) => {
+  describe('should not read nor write cached data when draft mode is enabled', () => {
+    if (isNextDeploy) {
+      // Wait for the background revalidation after the deployment to settle.
+      beforeAll(async () => {
+        const browser = await next.browser('/draft-mode')
+        try {
+          const initialTopLevelValue = await browser
+            .elementById('top-level')
+            .text()
+          await retry(async () => {
+            await browser.refresh()
+
+            expect(await browser.elementById('top-level').text()).not.toBe(
+              initialTopLevelValue
+            )
+          })
+        } finally {
+          // we're not in a test, so the browser won't get cleaned up automatically.
+          await browser.close()
+        }
+      })
+    }
+
+    it.each([
+      { description: 'js enabled', disableJavaScript: false },
+      { description: 'js disabled', disableJavaScript: true },
+    ])('$description', async ({ disableJavaScript }) => {
       const browser = await next.browser('/draft-mode', {
         // This test relies on a server action to set draft mode.
         // To ensure that it works for both fetch actions and MPA actions,
@@ -769,20 +790,7 @@ describe('use-cache', () => {
         'Enable Draft Mode'
       )
 
-      let initialTopLevelValue = await browser.elementById('top-level').text()
-
-      if (isNextDeploy) {
-        await retry(async () => {
-          // Wait for the background revalidation after the deployment to settle.
-          await browser.refresh()
-
-          expect(await browser.elementById('top-level').text()).not.toBe(
-            initialTopLevelValue
-          )
-        })
-
-        initialTopLevelValue = await browser.elementById('top-level').text()
-      }
+      const initialTopLevelValue = await browser.elementById('top-level').text()
 
       // Draft mode is disabled, cached data should be returned on refresh.
 
@@ -853,8 +861,8 @@ describe('use-cache', () => {
       expect(await browser.elementById('closure').text()).toBe(
         initialClosureValue
       )
-    }
-  )
+    })
+  })
 
   if (isNextDev) {
     it('should not have unhandled rejection of Request data promises when use cache is enabled without dynamicIO', async () => {
