@@ -146,7 +146,6 @@ async function createTreeCodeFromPath(
   globalError: string
   globalNotFound: string
 }> {
-  console.log('createTreeCodeFromPath', pagePath)
   const splittedPath = pagePath.split(/[\\/]/, 1)
   const isNotFoundRoute = page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
   const isDefaultNotFound = isAppBuiltinNotFoundPage(pagePath)
@@ -385,24 +384,31 @@ async function createTreeCodeFromPath(
       let subtreeCode
       // If it's root not found page, set not-found boundary as children page
       if (isNotFoundRoute) {
-        console.log('has custom not-found found', normalizedParallelKey)
         if (normalizedParallelKey === 'children') {
-          // has custom not-found
-          const notFoundPath = definedFilePaths.find(
-            ([type]) => type === 'not-found'
-          )?.[1]
-
-          const globalNotFound = definedFilePaths.find(
+          const matchedGlobalNotFound = definedFilePaths.find(
             ([type]) => type === GLOBAL_NOT_FOUND_FILE_TYPE
           )?.[1]
-          // ??
-          // defaultHTTPAccessFallbackPaths['not-found']
 
-          // If custom not-found.js is found, use it and layout to compose the page
-          if (globalNotFound) {
-            console.log('no custom not-found found')
-            // If custom root not-found.js is not found, use global-not-found.js
-            const notFoundPath = globalNotFound
+          // If custom global-not-found.js is defined, use global-not-found.js
+          if (matchedGlobalNotFound) {
+            const varName = `notFound${nestedCollectedDeclarations.length}`
+            nestedCollectedDeclarations.push([varName, matchedGlobalNotFound])
+            subtreeCode = `{
+              children: [${JSON.stringify(UNDERSCORE_NOT_FOUND_ROUTE)}, {
+                children: ['${PAGE_SEGMENT_KEY}', {}, {
+                  page: [
+                    ${varName},
+                    ${JSON.stringify(matchedGlobalNotFound)}
+                  ]
+                }]
+              }, {}]
+            }`
+          } else {
+            // If custom not-found.js is found, use it and layout to compose the page,
+            // and fallback to built-in not-found component if doesn't exist.
+            const notFoundPath =
+              definedFilePaths.find(([type]) => type === 'not-found')?.[1] ??
+              defaultNotFoundPath
             const varName = `notFound${nestedCollectedDeclarations.length}`
             nestedCollectedDeclarations.push([varName, notFoundPath])
             subtreeCode = `{
@@ -415,28 +421,13 @@ async function createTreeCodeFromPath(
                 }]
               }, {}]
             }`
-          } else {
-            
-
-            const varName = `notFound${nestedCollectedDeclarations.length}`
-            nestedCollectedDeclarations.push([varName, defaultNotFoundPath])
-            // const globalNotFoundPath = defaultNotFoundPath
-            subtreeCode = `{
-              children: [${JSON.stringify(UNDERSCORE_NOT_FOUND_ROUTE)}, {
-                children: ['${PAGE_SEGMENT_KEY}', {}, {
-                  page: [
-                    ${varName},
-                    ${JSON.stringify(defaultNotFoundPath)}
-                  ]
-                }]
-              }, {}]
-            }`
           }
         }
       }
 
+      // For 404 route
       // if global-not-found is in definedFilePaths, remove root layout for /_not-found
-      if (globalNotFound) {
+      if (isNotFoundRoute && globalNotFound) {
         definedFilePaths = definedFilePaths.filter(
           ([type]) => type !== 'layout'
         )
@@ -733,7 +724,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     })
   }
 
-  console.log('createTreeCodeFromPath', page)
   let treeCodeResult = await createTreeCodeFromPath(pagePath, {
     page,
     resolveDir,
