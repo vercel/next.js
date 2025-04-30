@@ -740,96 +740,121 @@ describe('use-cache', () => {
     expect(text).toBe('This page could not be found.')
   })
 
-  it('should not read nor write cached data when draft mode is enabled', async () => {
-    const browser = await next.browser('/draft-mode')
-
-    expect(await browser.elementByCss('button#toggle').text()).toBe(
-      'Enable Draft Mode'
-    )
-
-    let initialTopLevelValue = await browser.elementById('top-level').text()
-
-    if (isNextDeploy) {
-      await retry(async () => {
-        // Wait for the background revalidation after the deployment to settle.
-        await browser.refresh()
-
-        expect(await browser.elementById('top-level').text()).not.toBe(
-          initialTopLevelValue
-        )
+  it.each([
+    { description: 'js enabled', disableJavaScript: false },
+    { description: 'js disabled', disableJavaScript: true },
+  ])(
+    'should not read nor write cached data when draft mode is enabled: $description',
+    async ({ disableJavaScript }) => {
+      const browser = await next.browser('/draft-mode', {
+        // This test relies on a server action to set draft mode.
+        // To ensure that it works for both fetch actions and MPA actions,
+        // we test it with javascript disabled too.
+        // (this is because of a bug where draft mode status was not correctly propagated to the workStore for MPA actions)
+        disableJavaScript,
       })
 
-      initialTopLevelValue = await browser.elementById('top-level').text()
+      const refreshAfterServerAction = async () => {
+        if (disableJavaScript) {
+          // browser.refresh() seems to automatically resubmit POST requests,
+          // so if we submitted an MPA action, it'll trigger the action again,
+          // which in this case will toggle draftMode again.
+          await browser.get(new URL('/draft-mode', next.url).href)
+        } else {
+          await browser.refresh()
+        }
+      }
+
+      expect(await browser.elementByCss('button#toggle').text()).toBe(
+        'Enable Draft Mode'
+      )
+
+      let initialTopLevelValue = await browser.elementById('top-level').text()
+
+      if (isNextDeploy) {
+        await retry(async () => {
+          // Wait for the background revalidation after the deployment to settle.
+          await browser.refresh()
+
+          expect(await browser.elementById('top-level').text()).not.toBe(
+            initialTopLevelValue
+          )
+        })
+
+        initialTopLevelValue = await browser.elementById('top-level').text()
+      }
+
+      // Draft mode is disabled, cached data should be returned on refresh.
+
+      const initialClosureValue = await browser.elementById('closure').text()
+
+      await browser.refresh()
+
+      expect(await browser.elementById('top-level').text()).toBe(
+        initialTopLevelValue
+      )
+      expect(await browser.elementById('closure').text()).toBe(
+        initialClosureValue
+      )
+
+      await browser.elementByCss('button#toggle').click()
+      await browser.waitForElementByCss('button#toggle:enabled')
+
+      expect(await browser.elementByCss('button#toggle').text()).toBe(
+        'Disable Draft Mode'
+      )
+
+      // Draft mode is now enabled, no cached data should be returned on refresh.
+
+      const newTopLevelValue = await browser.elementById('top-level').text()
+      const newClosureValue = await browser.elementById('closure').text()
+      console.log(await browser.elementById('top-level').text())
+
+      expect(newTopLevelValue).not.toBe(initialTopLevelValue)
+      expect(newClosureValue).not.toBe(initialClosureValue)
+
+      await refreshAfterServerAction()
+
+      expect(await browser.elementById('top-level').text()).not.toBe(
+        newTopLevelValue
+      )
+      console.log(await browser.elementById('top-level').text())
+
+      expect(await browser.elementById('closure').text()).not.toBe(
+        newClosureValue
+      )
+
+      // Accessing request-scoped data should still not be allowed.
+      expect(
+        await browser
+          .elementById('is-accessing-request-scoped-data-allowed-in-use-cache')
+          .text()
+      ).toBe('false')
+
+      await browser.elementByCss('button#toggle').click()
+      await browser.waitForElementByCss('button#toggle:enabled')
+
+      expect(await browser.elementByCss('button#toggle').text()).toBe(
+        'Enable Draft Mode'
+      )
+
+      // Draft mode is disabled again, the initially cached data should be
+      // returned again.
+
+      console.log(await browser.elementById('top-level').text())
+
+      await refreshAfterServerAction()
+
+      console.log(await browser.elementById('top-level').text())
+
+      expect(await browser.elementById('top-level').text()).toBe(
+        initialTopLevelValue
+      )
+      expect(await browser.elementById('closure').text()).toBe(
+        initialClosureValue
+      )
     }
-
-    // Draft mode is disabled, cached data should be returned on refresh.
-
-    const initialClosureValue = await browser.elementById('closure').text()
-
-    await browser.refresh()
-
-    expect(await browser.elementById('top-level').text()).toBe(
-      initialTopLevelValue
-    )
-    expect(await browser.elementById('closure').text()).toBe(
-      initialClosureValue
-    )
-
-    await browser.elementByCss('button#toggle').click()
-    await browser.waitForElementByCss('button#toggle:enabled')
-
-    expect(await browser.elementByCss('button#toggle').text()).toBe(
-      'Disable Draft Mode'
-    )
-
-    // Draft mode is now enabled, no cached data should be returned on refresh.
-
-    const newTopLevelValue = await browser.elementById('top-level').text()
-    const newClosureValue = await browser.elementById('closure').text()
-    console.log(await browser.elementById('top-level').text())
-
-    expect(newTopLevelValue).not.toBe(initialTopLevelValue)
-    expect(newClosureValue).not.toBe(initialClosureValue)
-
-    await browser.refresh()
-
-    expect(await browser.elementById('top-level').text()).not.toBe(
-      newTopLevelValue
-    )
-    console.log(await browser.elementById('top-level').text())
-
-    expect(await browser.elementById('closure').text()).not.toBe(
-      newClosureValue
-    )
-
-    // Accessing request-scoped data should still not be allowed.
-    expect(
-      await browser
-        .elementById('is-accessing-request-scoped-data-allowed-in-use-cache')
-        .text()
-    ).toBe('false')
-
-    await browser.elementByCss('button#toggle').click()
-    await browser.waitForElementByCss('button#toggle:enabled')
-
-    expect(await browser.elementByCss('button#toggle').text()).toBe(
-      'Enable Draft Mode'
-    )
-
-    // Draft mode is disabled again, the initially cached data should be
-    // returned again.
-
-    console.log(await browser.elementById('top-level').text())
-    await browser.refresh()
-    console.log(await browser.elementById('top-level').text())
-
-    expect(await browser.elementById('top-level').text()).toBe(
-      initialTopLevelValue
-    )
-    expect(await browser.elementById('closure').text()).toBe(
-      initialClosureValue
-    )
-  })
+  )
 
   if (isNextDev) {
     it('should not have unhandled rejection of Request data promises when use cache is enabled without dynamicIO', async () => {
