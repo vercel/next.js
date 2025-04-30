@@ -11,6 +11,10 @@ env:
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+  TURBO_TEAM: 'vercel'
+  TURBO_CACHE: 'remote:rw'
+  TURBO_API: ${{ secrets.HOSTED_TURBO_API }}
+  TURBO_TOKEN: ${{ secrets.HOSTED_TURBO_TOKEN }}
   DD_ENV: 'ci'
 
 jobs:
