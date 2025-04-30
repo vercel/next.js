@@ -1501,7 +1501,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // handle stateful
         if stateful {
-            task.insert(CachedDataItem::Stateful { value: () });
+            let _ = task.add(CachedDataItem::Stateful { value: () });
         }
 
         // handle cell counters: update max index and remove cells that are no longer used
@@ -1938,7 +1938,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     .entry(RawVc::TaskCell(collectible.task, collectible.cell))
                     .or_insert(0) += count;
             }
-            task.insert(CachedDataItem::CollectiblesDependent {
+            let _ = task.add(CachedDataItem::CollectiblesDependent {
                 collectible_type,
                 task: reader_id,
                 value: (),
