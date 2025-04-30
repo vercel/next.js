@@ -32,7 +32,9 @@ function buildError(error: any, file: string) {
 const debugMinify = process.env.NEXT_DEBUG_MINIFY
 
 export class MinifyPlugin {
-  constructor(private options: { noMangling?: boolean }) {}
+  constructor(
+    private options: { noMangling?: boolean; disableCharFreq?: boolean }
+  ) {}
 
   async optimize(
     compiler: any,
@@ -47,7 +49,11 @@ export class MinifyPlugin {
       RawSource: typeof sources.RawSource
     }
   ) {
-    const mangle = !this.options.noMangling
+    const mangle = this.options.noMangling
+      ? false
+      : {
+          disableCharFreq: !!this.options.disableCharFreq,
+        }
     const compilationSpan =
       getCompilationSpan(compilation)! || getCompilationSpan(compiler)
 
