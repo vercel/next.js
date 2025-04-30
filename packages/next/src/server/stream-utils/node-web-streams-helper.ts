@@ -197,35 +197,47 @@ export function renderToInitialFizzStream({
 function createMetadataTransformStream(
   insert: () => Promise<string> | string
 ): TransformStream<Uint8Array, Uint8Array> {
-  let inserted = false
+  let replaced = false
   let closedHeadIndex = -1
   let iconMarkIndex = -1
+  let isIconAppearAfterClosedHead = false
   return new TransformStream({
     async transform(chunk, controller) {
-      if (inserted) {
+      if (replaced) {
         return
       }
+      // Only search for the closed head tag once
+      if (iconMarkIndex === -1) {
+        iconMarkIndex = indexOfUint8Array(chunk, ENCODED_TAGS.META.ICON_MARK)
+        // If </head> index appears before, it indicates that icon mark appears after </head>.
+        // Check it earlier cause the closed head searching could be done in previous stream transform.
+        if (closedHeadIndex !== -1) {
+          isIconAppearAfterClosedHead = true
+        }
+      }
+      // If </head> index appears after, it indicates that icon mark appears before </head>.
       if (closedHeadIndex === -1) {
         closedHeadIndex = indexOfUint8Array(chunk, ENCODED_TAGS.CLOSED.HEAD)
       }
-      if (iconMarkIndex === -1) {
-        iconMarkIndex = indexOfUint8Array(chunk, ENCODED_TAGS.META.ICON_MARK)
-      }
 
-      // When icon mark appears after </head>, we replace it with the
-      // icon re-insertion script tag.
-      if (iconMarkIndex > closedHeadIndex) {
+      if (iconMarkIndex !== -1) {
         const insertion = await insert()
         // Replace <meta name="«nxt-icon»" content="" /> with
         // the icon re-insertion script tag <script>document.querySelector(...)</script>
         const replacedChunk = replaceInUint8Array(
           chunk,
           ENCODED_TAGS.META.ICON_MARK,
-          encoder.encode(insertion),
+          // - When icon mark appears after </head>, which means it's located in <body>,
+          //   we replace it with the icon re-insertion script tag;
+          // - When icon mark appears before </head>, which means it's located in <head>,
+          //   we simply remove the icon mark since icons are already in head.
+          isIconAppearAfterClosedHead
+            ? encoder.encode(insertion)
+            : encoder.encode(''),
           iconMarkIndex
         )
         controller.enqueue(replacedChunk)
-        inserted = true
+        replaced = true
       } else {
         controller.enqueue(chunk)
       }
