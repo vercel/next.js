@@ -922,7 +922,7 @@ export default class NextNodeServer extends BaseServer<
       const imagesConfig = this.nextConfig.images
 
       if (imagesConfig.loader !== 'default' || imagesConfig.unoptimized) {
-        await this.render404(req, res)
+        await this.render404(req, res, parsedUrl)
         return true
       }
 
@@ -1331,6 +1331,20 @@ export default class NextNodeServer extends BaseServer<
     setHeaders?: boolean
   ): Promise<void> {
     return super.render404(
+      this.normalizeReq(req),
+      this.normalizeRes(res),
+      parsedUrl,
+      setHeaders
+    )
+  }
+
+  public async render410(
+    req: NodeNextRequest | IncomingMessage,
+    res: NodeNextResponse | ServerResponse,
+    parsedUrl?: NextUrlWithParsedQuery,
+    setHeaders?: boolean
+  ): Promise<void> {
+    return super.render410(
       this.normalizeReq(req),
       this.normalizeRes(res),
       parsedUrl,

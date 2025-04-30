@@ -1852,7 +1852,8 @@ export default abstract class Server<
       // use the `waitUntil` from there, whether actually present or not --
       // if not present, `after` will error.
 
-      // NOTE: if we're in an edge runtime sandbox, this context will be used to forward the outer waitUntil.
+      // NOTE: if we're in an edge runtime sandbox, this context will be used to
+      // forward the outer waitUntil.
       return builtinRequestContext.waitUntil
     }
 
@@ -2016,6 +2017,8 @@ export default abstract class Server<
     const isErrorPathname = pathname === '/_error'
     const is404Page =
       pathname === '/404' || (isErrorPathname && res.statusCode === 404)
+    const is410Page =
+      pathname === '/410' || (isErrorPathname && res.statusCode === 410)
     const is500Page =
       pathname === '/500' || (isErrorPathname && res.statusCode === 500)
     const isAppPath = components.isAppPath === true
@@ -2106,15 +2109,13 @@ export default abstract class Server<
 
     // NOTE: Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
 
-    const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
-
-    // when we are handling a middleware prefetch and it doesn't
+    const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false // when we are handling a middleware prefetch and it doesn't
     // resolve to a static data route we bail early to avoid
     // unexpected SSR invocations
     if (
       !isSSG &&
       req.headers['x-middleware-prefetch'] &&
-      !(is404Page || pathname === '/_error')
+      !(is404Page || is410Page || pathname === '/_error')
     ) {
       res.setHeader(MATCHED_PATH_HEADER, pathname)
       res.setHeader('x-middleware-skip', '1')
@@ -2230,11 +2231,14 @@ export default abstract class Server<
     if (isHtmlBot && isRoutePPREnabled) {
       isSSG = false
       this.renderOpts.serveStreamingMetadata = false
-    }
-
-    // we need to ensure the status code if /404 is visited directly
+    } // we need to ensure the status code if /404 or /410 is visited directly
     if (is404Page && !isNextDataRequest && !isRSCRequest) {
       res.statusCode = 404
+    }
+
+    // ensure the status code if /410 is visited directly
+    if (is410Page && !isNextDataRequest && !isRSCRequest) {
+      res.statusCode = 410
     }
 
     // ensure correct status is set when visiting a status page
@@ -2249,6 +2253,7 @@ export default abstract class Server<
       // Resume can use non-GET/HEAD methods.
       !minimalPostponed &&
       !is404Page &&
+      !is410Page &&
       !is500Page &&
       pathname !== '/_error' &&
       req.method !== 'HEAD' &&
@@ -2395,8 +2400,7 @@ export default abstract class Server<
           : resolvedUrlPathname
       }${query.amp ? '.amp' : ''}`
     }
-
-    if ((is404Page || is500Page) && isSSG) {
+    if ((is404Page || is410Page || is500Page) && isSSG) {
       ssgCacheKey = `${locale ? `/${locale}` : ''}${pathname}${
         query.amp ? '.amp' : ''
       }`
@@ -3345,8 +3349,7 @@ export default abstract class Server<
       // revalidate period from the value that trigged the not found
       // to be rendered. So if `getStaticProps` returns
       // { notFound: true, revalidate 60 } the revalidate period should
-      // be 60 but if a static asset 404s directly it should have a revalidate
-      // period of 0 so that it doesn't get cached unexpectedly by a CDN
+      // be 60 but if a static asset 404s directly it should have a revalidate      // period of 0 so that it doesn't get cached unexpectedly by a CDN
       else if (is404Page) {
         const notFoundRevalidate = getRequestMeta(req, 'notFoundRevalidate')
 
@@ -3355,6 +3358,9 @@ export default abstract class Server<
             typeof notFoundRevalidate === 'undefined' ? 0 : notFoundRevalidate,
           expire: undefined,
         }
+      } else if (is410Page) {
+        // For 410 Gone pages, use a revalidate period of 0 to prevent caching
+        cacheControl = { revalidate: 0, expire: undefined }
       } else if (is500Page) {
         cacheControl = { revalidate: 0, expire: undefined }
       } else if (cacheEntry.cacheControl) {
@@ -4220,6 +4226,26 @@ export default abstract class Server<
     }
 
     res.statusCode = 404
+    return this.renderError(null, req, res, pathname!, query, setHeaders)
+  }
+
+  public async render410(
+    req: ServerRequest,
+    res: ServerResponse,
+    parsedUrl?: Pick<NextUrlWithParsedQuery, 'pathname' | 'query'>,
+    setHeaders = true
+  ): Promise<void> {
+    const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(req.url!, true)
+
+    // Ensure the locales are provided on the request meta.
+    if (this.nextConfig.i18n) {
+      if (!getRequestMeta(req, 'locale')) {
+        addRequestMeta(req, 'locale', this.nextConfig.i18n.defaultLocale)
+      }
+      addRequestMeta(req, 'defaultLocale', this.nextConfig.i18n.defaultLocale)
+    }
+
+    res.statusCode = 410
     return this.renderError(null, req, res, pathname!, query, setHeaders)
   }
 }

@@ -26,6 +26,7 @@ interface HTTPAccessFallbackBoundaryProps {
   notFound?: React.ReactNode
   forbidden?: React.ReactNode
   unauthorized?: React.ReactNode
+  gone?: React.ReactNode
   children: React.ReactNode
   missingSlots?: Set<string>
 }
@@ -108,14 +109,14 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
       previousPathname: props.pathname,
     }
   }
-
   render() {
-    const { notFound, forbidden, unauthorized, children } = this.props
+    const { notFound, forbidden, unauthorized, gone, children } = this.props
     const { triggeredStatus } = this.state
     const errorComponents = {
       [HTTPAccessErrorStatus.NOT_FOUND]: notFound,
       [HTTPAccessErrorStatus.FORBIDDEN]: forbidden,
       [HTTPAccessErrorStatus.UNAUTHORIZED]: unauthorized,
+      [HTTPAccessErrorStatus.GONE]: gone,
     }
 
     if (triggeredStatus) {
@@ -125,9 +126,10 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
         triggeredStatus === HTTPAccessErrorStatus.FORBIDDEN && forbidden
       const isUnauthorized =
         triggeredStatus === HTTPAccessErrorStatus.UNAUTHORIZED && unauthorized
+      const isGone = triggeredStatus === HTTPAccessErrorStatus.GONE && gone
 
       // If there's no matched boundary in this layer, keep throwing the error by rendering the children
-      if (!(isNotFound || isForbidden || isUnauthorized)) {
+      if (!(isNotFound || isForbidden || isUnauthorized || isGone)) {
         return children
       }
 
@@ -153,6 +155,7 @@ export function HTTPAccessFallbackBoundary({
   notFound,
   forbidden,
   unauthorized,
+  gone,
   children,
 }: HTTPAccessFallbackBoundaryProps) {
   // When we're rendering the missing params shell, this will return null. This
@@ -161,7 +164,7 @@ export function HTTPAccessFallbackBoundary({
   // (where these error can occur), we will get the correct pathname.
   const pathname = useUntrackedPathname()
   const missingSlots = useContext(MissingSlotContext)
-  const hasErrorFallback = !!(notFound || forbidden || unauthorized)
+  const hasErrorFallback = !!(notFound || forbidden || unauthorized || gone)
 
   if (hasErrorFallback) {
     return (
@@ -170,6 +173,7 @@ export function HTTPAccessFallbackBoundary({
         notFound={notFound}
         forbidden={forbidden}
         unauthorized={unauthorized}
+        gone={gone}
         missingSlots={missingSlots}
       >
         {children}

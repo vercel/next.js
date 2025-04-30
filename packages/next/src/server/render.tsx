@@ -929,7 +929,6 @@ export async function renderToHTMLImpl(
     if (invalidKeys.length) {
       throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
     }
-
     if (process.env.NODE_ENV !== 'production') {
       if (
         typeof (data as any).notFound !== 'undefined' &&
@@ -941,8 +940,27 @@ export async function renderToHTMLImpl(
           } at the same time. Page: ${pathname}\nSee more info here: https://nextjs.org/docs/messages/gssp-mixed-not-found-redirect`
         )
       }
+      if (
+        typeof (data as any).gone !== 'undefined' &&
+        typeof (data as any).redirect !== 'undefined'
+      ) {
+        throw new Error(
+          `\`redirect\` and \`gone\` can not both be returned from ${
+            isSSG ? 'getStaticProps' : 'getServerSideProps'
+          } at the same time. Page: ${pathname}`
+        )
+      }
+      if (
+        typeof (data as any).notFound !== 'undefined' &&
+        typeof (data as any).gone !== 'undefined'
+      ) {
+        throw new Error(
+          `\`notFound\` and \`gone\` can not both be returned from ${
+            isSSG ? 'getStaticProps' : 'getServerSideProps'
+          } at the same time. Page: ${pathname}`
+        )
+      }
     }
-
     if ('notFound' in data && data.notFound) {
       if (pathname === '/404') {
         throw new Error(
@@ -951,6 +969,16 @@ export async function renderToHTMLImpl(
       }
 
       metadata.isNotFound = true
+    }
+
+    if ('gone' in data && data.gone) {
+      if (pathname === '/410') {
+        throw new Error(
+          `The /410 page can not return gone in "getStaticProps", please remove it to continue!`
+        )
+      }
+
+      metadata.isGone = true
     }
 
     if (
@@ -1051,10 +1079,12 @@ export async function renderToHTMLImpl(
 
     // pass up cache control and props for export
     metadata.cacheControl = { revalidate, expire: undefined }
-    metadata.pageData = props
-
-    // this must come after revalidate is added to renderResultMeta
+    metadata.pageData = props // this must come after revalidate is added to renderResultMeta
     if (metadata.isNotFound) {
+      return new RenderResult(null, { metadata })
+    }
+
+    if (metadata.isGone) {
       return new RenderResult(null, { metadata })
     }
   }

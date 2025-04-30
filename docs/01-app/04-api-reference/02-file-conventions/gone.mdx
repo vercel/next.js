@@ -1,0 +1,114 @@
+---
+title: gone.js
+description: API reference for the gone.js file convention.
+---
+
+A `gone.js` file is used to render UI when the [`gone()`](/docs/app/api-reference/functions/gone) function is thrown within a route segment.
+
+```tsx filename="app/posts/[slug]/gone.js"
+export default function PostGone() {
+  return (
+    <div>
+      <h1>Post Removed</h1>
+      <p>
+        This content has been permanently removed and is no longer available.
+      </p>
+    </div>
+  )
+}
+```
+
+## Props
+
+`gone.js` components do not receive any props.
+
+## Returns
+
+`gone.js` components should return valid JSX.
+
+## Behavior
+
+### Status Code
+
+When the `gone()` function is thrown in a route segment, the HTTP status code is set to `410 Gone`.
+
+### File Conventions
+
+- A `gone.js` file will handle all 410 errors in the current segment and any nested segments below it.
+- The closest `gone.js` file will be used.
+- If no `gone.js` file is found, the runtime will use the default `gone` UI.
+- You can use a `gone.js` file at the root of your `app` directory to create a custom 410 page for your entire application.
+
+### Nesting
+
+You can use `gone.js` with route segments to create custom "gone" UIs for specific parts of your application:
+
+```
+app/
+├── posts/
+│   ├── [slug]/
+│   │   ├── gone.js    # Handles 410 errors for /posts/[slug]
+│   │   └── page.js
+│   └── gone.js        # Handles 410 errors for /posts
+├── products/
+│   └── [...slug]/
+│       ├── gone.js    # Handles 410 errors for /products/[...slug]
+│       └── page.js
+└── gone.js            # Handles 410 errors for all other routes
+```
+
+### SEO
+
+- The `gone.js` component automatically includes a `<meta name="robots" content="noindex" />` tag to prevent search engines from indexing the page.
+- The HTTP status code 410 informs search engines that the resource is permanently gone, which helps with faster removal from search indexes compared to a 404 status.
+
+### Examples
+
+#### Basic Usage
+
+```tsx filename="app/posts/[slug]/gone.js"
+export default function PostGone() {
+  return (
+    <div className="container">
+      <h1>Content Removed</h1>
+      <p>This post has been permanently removed from our site.</p>
+      <p>
+        You may be interested in <a href="/posts">our other articles</a>.
+      </p>
+    </div>
+  )
+}
+```
+
+#### With Layout
+
+```tsx filename="app/gone.js"
+export default function Gone() {
+  return (
+    <div className="error-container">
+      <div className="error-content">
+        <h1>410 - Content Gone</h1>
+        <p>This content has been permanently removed.</p>
+        <button onClick={() => window.history.back()}>Go Back</button>
+      </div>
+    </div>
+  )
+}
+```
+
+## Pages Router Support
+
+If you're using the Pages Router, you can create a `pages/410.js` file to create a custom 410 Gone page:
+
+```tsx filename="pages/410.js"
+export default function Custom410() {
+  return (
+    <div>
+      <h1>410 - Content Permanently Removed</h1>
+      <p>
+        The requested content has been permanently removed from this server.
+      </p>
+    </div>
+  )
+}
+```

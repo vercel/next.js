@@ -88,7 +88,7 @@ export async function getServerSideProps(context) {
 
 ### `notFound`
 
-The `notFound` boolean allows the page to return a `404` status and [404 Page](/docs/pages/building-your-application/routing/custom-error#404-page). With `notFound: true`, the page will return a `404` even if there was a successfully generated page before. This is meant to support use cases like user-generated content getting removed by its author.
+The `notFound` boolean allows the page to return a `404` status and [404 Page](/docs/pages/building-your-application/routing/custom-error#404-page). With `notFound: true`, the page will return a `404` even if there was a successfully generated page before. This is meant to support use cases like user-generated content that can't be found.
 
 ```js
 export async function getServerSideProps(context) {
@@ -135,6 +135,7 @@ export async function getServerSideProps(context) {
 
 | Version   | Changes                                                                                                     |
 | --------- | ----------------------------------------------------------------------------------------------------------- |
+| `v15.0.0` | `gone` option added.                                                                                        |
 | `v13.4.0` | [App Router](/docs/app/building-your-application/data-fetching) is now stable with simplified data fetching |
 | `v10.0.0` | `locale`, `locales`, `defaultLocale`, and `notFound` options added.                                         |
 | `v9.3.0`  | `getServerSideProps` introduced.                                                                            |

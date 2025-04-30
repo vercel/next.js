@@ -1,0 +1,182 @@
+---
+title: Handling Removed Content
+description: Learn how to properly handle content that has been permanently removed from your Next.js application.
+---
+
+# Handling Removed Content
+
+There are situations where content that was once available should be marked as "permanently removed" rather than "not found." HTTP provides two different status codes for these cases:
+
+- **404 Not Found**: The resource could not be found but might be available in the future
+- **410 Gone**: The resource has been permanently removed and will not be available again
+
+This guide explains how to implement and use the 410 Gone status in your Next.js application, which can improve your site's UX and SEO by clearly communicating when content has been permanently removed.
+
+## When to Use 410 Gone vs 404 Not Found
+
+Use a **410 Gone** status when:
+
+- Content has been deliberately and permanently removed
+- You want search engines to remove the content from their indices faster
+- You want to communicate to users that the content will not return
+
+Use a **404 Not Found** status when:
+
+- Content simply can't be found but might exist in the future
+- A user has entered an incorrect URL
+- Content is temporarily unavailable
+
+## App Router Implementation
+
+### Using the `gone()` Function in Server Components
+
+In React Server Components, you can use the `gone()` function to trigger a 410 Gone response:
+
+```tsx filename="app/posts/[slug]/page.tsx"
+import { gone } from 'next/navigation'
+
+async function getPost(slug: string) {
+  const res = await fetch(`https://api.example.com/posts/${slug}`)
+  if (res.status === 410) return { isDeleted: true }
+  if (!res.ok) return null
+  return res.json()
+}
+
+export default async function Post({ params }: { params: { slug: string } }) {
+  const post = await getPost(params.slug)
+
+  // For content that doesn't exist
+  if (!post) {
+    notFound()
+  }
+
+  // For content that has been deliberately removed
+  if (post.isDeleted) {
+    gone()
+  }
+
+  return (
+    <article>
+      <h1>{post.title}</h1>
+      <div dangerouslySetInnerHTML={{ __html: post.content }} />
+    </article>
+  )
+}
+```
+
+### Creating a Custom 410 Page with `gone.js`
+
+You can create custom UI for 410 responses by adding a `gone.js` file to the appropriate route segment:
+
+```tsx filename="app/posts/gone.js"
+export default function PostGone() {
+  return (
+    <div className="content-gone">
+      <h1>Content Permanently Removed</h1>
+      <p>This post has been permanently removed and is no longer available.</p>
+      <p>
+        You might be interested in <a href="/posts">our other posts</a>.
+      </p>
+    </div>
+  )
+}
+```
+
+The closest `gone.js` file to the route where `gone()` was called will be used to render the UI.
+
+## Pages Router Implementation
+
+### Using 410 in Data Fetching Methods
+
+For the Pages Router, you can return `{ gone: true }` from data fetching methods to trigger a 410 Gone response:
+
+```tsx filename="pages/posts/[slug].tsx"
+export async function getServerSideProps({ params }) {
+  const res = await fetch(`https://api.example.com/posts/${params.slug}`)
+
+  if (res.status === 410) {
+    // Return gone: true to indicate the content has been permanently removed
+    return {
+      gone: true,
+    }
+  }
+
+  if (!res.ok) {
+    // Return notFound for content that couldn't be found
+    return {
+      notFound: true,
+    }
+  }
+
+  const post = await res.json()
+
+  return {
+    props: {
+      post,
+    },
+  }
+}
+
+export default function Post({ post }) {
+  return (
+    <article>
+      <h1>{post.title}</h1>
+      <div dangerouslySetInnerHTML={{ __html: post.content }} />
+    </article>
+  )
+}
+```
+
+### Creating a Custom 410 Page
+
+For the Pages Router, you can create a custom 410 page by adding a `410.js` file to your `pages` directory:
+
+```tsx filename="pages/410.js"
+export default function Custom410() {
+  return (
+    <div className="error-container">
+      <h1>410 - Content Permanently Removed</h1>
+      <p>
+        The content you are looking for has been permanently removed and is no
+        longer available.
+      </p>
+      <p>
+        <a href="/">Return to home page</a>
+      </p>
+    </div>
+  )
+}
+```
+
+## SEO Benefits of Using 410 Gone
+
+Using the 410 status code provides several SEO benefits:
+
+1. **Faster removal from search indices**: Search engines like Google treat 410 responses as a strong signal that the content should be removed from their indices more quickly than with a 404.
+
+2. **Clear communication**: It clearly indicates that the removal was intentional rather than a temporary error or missing content.
+
+3. **User experience**: It allows you to create specific messaging for users looking for content that has been deliberately removed.
+
+All `gone.js` components and pages with 410 responses automatically include a `<meta name="robots" content="noindex" />` tag to ensure search engines don't index these pages.
+
+## Best Practices
+
+1. **Use judiciously**: Only use 410 for content that has been deliberately removed and won't return.
+
+2. **Provide alternatives**: When showing a 410 page, offer users alternative content when possible.
+
+3. **Maintain consistency**: Be consistent in your approach to removed content across your application.
+
+4. **Monitor 410 responses**: Keep track of URLs returning 410 responses to identify patterns or issues.
+
+5. **Consider redirection**: For high-traffic pages that have been removed, consider redirecting to related content instead of showing a 410 page.
+
+## Common Use Cases
+
+- Discontinued products in e-commerce
+- Deleted blog posts or articles
+- Removed user profiles
+- Content that violates terms of service
+- Content removed for legal reasons
+- Expired time-limited content (contests, promotions)

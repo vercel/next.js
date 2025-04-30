@@ -1,0 +1,49 @@
+---
+title: '`notFound` and `gone` cannot both be returned'
+---
+
+# `notFound` and `gone` cannot both be returned
+
+## Why This Error Occurred
+
+In a page's `getStaticProps` or `getServerSideProps` function, you attempted to return both the `notFound` property and the `gone` property. These properties are mutually exclusive—you can only return one of them at a time.
+
+```js
+// This will cause an error
+export async function getServerSideProps() {
+  return {
+    notFound: true,
+    gone: true,
+  }
+}
+```
+
+## Possible Ways to Fix It
+
+Decide whether you want to show a 404 Not Found error page (`notFound`) or a 410 Gone error page (`gone`):
+
+### If the content cannot be found but might exist in the future:
+
+```js
+export async function getServerSideProps() {
+  return {
+    notFound: true,
+  }
+}
+```
+
+### If the content has been deliberately and permanently removed:
+
+```js
+export async function getServerSideProps() {
+  return {
+    gone: true,
+  }
+}
+```
+
+Remember that:
+
+- `notFound` (404) is used when content cannot be found but might exist in the future
+- `gone` (410) is used when content has been permanently removed and will not be available again
+- You cannot use both at the same time

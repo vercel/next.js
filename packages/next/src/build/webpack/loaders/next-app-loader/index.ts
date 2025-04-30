@@ -57,11 +57,13 @@ const HTTP_ACCESS_FALLBACKS = {
   'not-found': 'not-found',
   forbidden: 'forbidden',
   unauthorized: 'unauthorized',
+  gone: 'gone',
 } as const
 const defaultHTTPAccessFallbackPaths = {
   'not-found': 'next/dist/client/components/not-found-error',
   forbidden: 'next/dist/client/components/forbidden-error',
   unauthorized: 'next/dist/client/components/unauthorized-error',
+  gone: 'next/dist/client/components/gone-error',
 } as const
 
 const FILE_TYPES = {

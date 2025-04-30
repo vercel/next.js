@@ -93,10 +93,13 @@ interface NextWrapperServer {
   renderErrorToHTML(
     ...args: Parameters<NextNodeServer['renderErrorToHTML']>
   ): ReturnType<NextNodeServer['renderErrorToHTML']>
-
   render404(
     ...args: Parameters<NextNodeServer['render404']>
   ): ReturnType<NextNodeServer['render404']>
+
+  render410(
+    ...args: Parameters<NextNodeServer['render410']>
+  ): ReturnType<NextNodeServer['render410']>
 }
 
 /** The wrapper server used by `next start` */
@@ -182,6 +185,11 @@ export class NextServer implements NextWrapperServer {
   async render404(...args: Parameters<NextWrapperServer['render404']>) {
     const server = await this.getServer()
     return server.render404(...args)
+  }
+
+  async render410(...args: Parameters<NextWrapperServer['render410']>) {
+    const server = await this.getServer()
+    return server.render410(...args)
   }
 
   async prepare(serverFields?: ServerFields) {
@@ -440,6 +448,10 @@ class NextCustomServer implements NextWrapperServer {
 
   async render404(...args: Parameters<NextWrapperServer['render404']>) {
     return this.server.render404(...args)
+  }
+
+  async render410(...args: Parameters<NextWrapperServer['render410']>) {
+    return this.server.render410(...args)
   }
 
   async close() {

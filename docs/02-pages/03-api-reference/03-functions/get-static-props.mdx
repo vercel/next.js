@@ -128,6 +128,31 @@ export async function getStaticProps(context) {
 
 > **Good to know**: `notFound` is not needed for [`fallback: false`](/docs/pages/api-reference/functions/get-static-paths#fallback-false) mode as only paths returned from `getStaticPaths` will be pre-rendered.
 
+### `gone`
+
+The `gone` boolean allows the page to return a `410 Gone` status and [410 Page](/docs/pages/building-your-application/routing/custom-error#410-page). With `gone: true`, the page will return a `410` even if there was a successfully generated page before. This is meant to support use cases like user-generated content that has been deliberately removed by its author. Note, `gone` follows the same `revalidate` behavior [described here](#revalidate).
+
+While a 404 status indicates that a resource could not be found but might be available in the future, a 410 status indicates that the resource has been permanently removed and will not be available again. This is particularly useful for SEO and helps search engines to remove the content from their indices faster.
+
+```js
+export async function getStaticProps(context) {
+  const res = await fetch(`https://.../data`)
+  const data = await res.json()
+
+  if (data?.isDeleted) {
+    return {
+      gone: true,
+    }
+  }
+
+  return {
+    props: { data }, // will be passed to the page component as props
+  }
+}
+```
+
+> **Good to know**: Like `notFound`, `gone` is not needed for [`fallback: false`](/docs/pages/api-reference/functions/get-static-paths#fallback-false) mode as only paths returned from `getStaticPaths` will be pre-rendered.
+
 ### `redirect`
 
 The `redirect` object allows redirecting to internal or external resources. It should match the shape of `{ destination: string, permanent: boolean }`.
@@ -220,6 +245,7 @@ export default Blog
 
 | Version   | Changes                                                                                                                                                                                   |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v15.0.0` | `gone` option added.                                                                                                                                                                      |
 | `v13.4.0` | [App Router](/docs/app/building-your-application/data-fetching) is now stable with simplified data fetching                                                                               |
 | `v12.2.0` | [On-Demand Incremental Static Regeneration](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration#on-demand-revalidation-with-revalidatepath) is stable.    |
 | `v12.1.0` | [On-Demand Incremental Static Regeneration](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration#on-demand-revalidation-with-revalidatepath) added (beta). |

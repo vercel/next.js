@@ -48,6 +48,7 @@ export type PagesRenderResultMetadata = {
   cacheControl?: CacheControl
   assetQueryString?: string
   isNotFound?: boolean
+  isGone?: boolean
   isRedirect?: boolean
 }
 

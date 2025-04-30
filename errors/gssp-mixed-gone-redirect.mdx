@@ -1,0 +1,55 @@
+---
+title: '`redirect` and `gone` cannot both be returned'
+---
+
+# `redirect` and `gone` cannot both be returned
+
+## Why This Error Occurred
+
+In a page's `getStaticProps` or `getServerSideProps` function, you attempted to return both the `redirect` property and the `gone` property. These properties are mutually exclusive—you can only return one of them at a time.
+
+```js
+// This will cause an error
+export async function getServerSideProps() {
+  return {
+    redirect: {
+      destination: '/',
+      permanent: false,
+    },
+    gone: true,
+  }
+}
+```
+
+## Possible Ways to Fix It
+
+Decide whether you want to redirect the user to a different page (`redirect`) or show a 410 Gone error page (`gone`):
+
+### If you want to redirect:
+
+```js
+export async function getServerSideProps() {
+  return {
+    redirect: {
+      destination: '/',
+      permanent: false,
+    },
+  }
+}
+```
+
+### If you want to show a 410 Gone error page:
+
+```js
+export async function getServerSideProps() {
+  return {
+    gone: true,
+  }
+}
+```
+
+Remember that:
+
+- `redirect` is used to send users to a different page
+- `gone` is used to show a 410 Gone error page for content that has been permanently removed
+- You cannot use both at the same time

@@ -1,0 +1,90 @@
+---
+title: gone
+description: API Reference for the gone function.
+---
+
+The `gone()` function allows you to render the [`gone.js` file](/docs/app/api-reference/file-conventions/gone) within a route segment as well as inject a `<meta name="robots" content="noindex" />` tag.
+
+## `gone()`
+
+Invoking the `gone()` function throws a `NEXT_HTTP_ERROR_FALLBACK` error and terminates rendering of the route segment in which it was thrown. Specifying a [**gone** file](/docs/app/api-reference/file-conventions/gone) allows you to gracefully handle such errors by rendering a Gone UI within the segment.
+
+```jsx filename="app/post/[slug]/page.js"
+import { gone } from 'next/navigation'
+
+async function fetchPost(slug) {
+  const res = await fetch('https://...')
+  if (res.status === 410) return undefined
+  return res.json()
+}
+
+export default async function Post({ params }) {
+  const post = await fetchPost(params.slug)
+
+  if (!post) {
+    gone()
+  }
+
+  // Continue rendering if post exists...
+  return <PostUI post={post} />
+}
+```
+
+### When to Use `gone()`
+
+The HTTP 410 status code indicates that the resource once existed but has been permanently removed and will not be available again. This differs from a 404 status code which indicates that a resource could not be found but might appear later.
+
+Use `gone()` when:
+
+- A resource has been deliberately removed and won't be coming back
+- You want to clearly communicate to users and search engines that the content is permanently gone
+- You want to maintain your SEO by properly distinguishing between nonexistent resources (404) and deliberately removed ones (410)
+
+### Returns
+
+`gone()` does not return anything as it throws an error to stop the rendering of the route segment.
+
+### Examples
+
+#### Handling Deleted Content
+
+```jsx filename="app/products/[id]/page.js"
+import { gone } from 'next/navigation'
+import { getProduct, isProductDeleted } from '@/lib/products'
+
+export default async function Product({ params }) {
+  // Check if product was explicitly deleted
+  if (await isProductDeleted(params.id)) {
+    // Respond with a 410 Gone status
+    gone()
+  }
+
+  const product = await getProduct(params.id)
+
+  // Handle product not found (404 case)
+  if (!product) {
+    notFound()
+  }
+
+  return <ProductDetails product={product} />
+}
+```
+
+#### Using with a Custom Gone UI
+
+You can create a custom UI for 410 responses by creating a `gone.js` file in the appropriate route segment:
+
+```jsx filename="app/products/gone.js"
+export default function ProductGone() {
+  return (
+    <div>
+      <h1>Product Removed</h1>
+      <p>This product has been permanently removed from our catalog.</p>
+      <p>
+        You may want to browse our <a href="/products">current products</a>{' '}
+        instead.
+      </p>
+    </div>
+  )
+}
+```
