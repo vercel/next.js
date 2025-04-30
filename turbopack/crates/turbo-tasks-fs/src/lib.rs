@@ -714,7 +714,6 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function(fs)]
     async fn write(&self, fs_path: Vc<FileSystemPath>, content: Vc<FileContent>) -> Result<()> {
-        mark_session_dependent();
         let full_path = self.to_sys_path(fs_path).await?;
         let content = content.await?;
         let inner = self.inner.clone();
@@ -841,7 +840,6 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function(fs)]
     async fn write_link(&self, fs_path: Vc<FileSystemPath>, target: Vc<LinkContent>) -> Result<()> {
-        mark_session_dependent();
         let full_path = self.to_sys_path(fs_path).await?;
         let content = target.await?;
         let inner = self.inner.clone();
