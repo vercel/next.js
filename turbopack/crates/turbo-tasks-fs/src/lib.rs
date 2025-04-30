@@ -39,6 +39,7 @@ use std::{
 use anyhow::{anyhow, bail, Context, Result};
 use auto_hash_map::{AutoMap, AutoSet};
 use bitflags::bitflags;
+use dashmap::DashSet;
 use dunce::simplified;
 use glob::Glob;
 use indexmap::IndexSet;
@@ -226,6 +227,10 @@ struct DiskFileSystemInner {
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[serde(skip)]
     invalidation_lock: RwLock<()>,
+    /// A cache of already created directories to avoid creating them multiple times.
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[serde(skip)]
+    created_directories: DashSet<PathBuf>,
     /// Semaphore to limit the maximum number of concurrent file operations.
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[serde(skip, default = "create_semaphore")]
@@ -393,6 +398,27 @@ impl DiskFileSystemInner {
 
         Ok(())
     }
+
+    async fn create_directory(self: &Arc<Self>, directory: &Path) -> Result<()> {
+        if !self.created_directories.contains(directory) {
+            let func = {
+                let inner = self.clone();
+                move |p: &Path| -> io::Result<()> {
+                    std::fs::create_dir_all(p)?;
+                    inner.created_directories.insert(p.to_path_buf());
+                    Ok(())
+                }
+            };
+            retry_blocking(directory, func)
+                .concurrency_limited(&self.semaphore)
+                .instrument(tracing::info_span!(
+                    "create directory",
+                    path = display(directory.display())
+                ))
+                .await?;
+        }
+        Ok(())
+    }
 }
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
@@ -499,6 +525,7 @@ impl DiskFileSystem {
                 invalidation_lock: Default::default(),
                 invalidator_map: InvalidatorMap::new(),
                 dir_invalidator_map: InvalidatorMap::new(),
+                created_directories: Default::default(),
                 semaphore: create_semaphore(),
                 watcher: DiskWatcher::new(
                     ignored_subpaths.into_iter().map(PathBuf::from).collect(),
@@ -735,20 +762,13 @@ impl FileSystem for DiskFileSystem {
                     let create_directory = compare == FileComparison::Create;
                     if create_directory {
                         if let Some(parent) = full_path.parent() {
-                            retry_blocking(parent, |p| std::fs::create_dir_all(p))
-                                .concurrency_limited(&inner.semaphore)
-                                .instrument(tracing::info_span!(
-                                    "create directory",
-                                    path = display(parent.display())
-                                ))
-                                .await
-                                .with_context(|| {
-                                    format!(
-                                        "failed to create directory {} for write to {}",
-                                        parent.display(),
-                                        full_path.display()
-                                    )
-                                })?;
+                            inner.create_directory(parent).await.with_context(|| {
+                                format!(
+                                    "failed to create directory {} for write to {}",
+                                    parent.display(),
+                                    full_path.display()
+                                )
+                            })?;
                         }
                     }
                     let full_path_to_write = full_path.clone();
@@ -872,20 +892,13 @@ impl FileSystem for DiskFileSystem {
                     let create_directory = old_content.is_none();
                     if create_directory {
                         if let Some(parent) = full_path.parent() {
-                            retry_blocking(parent, |path| std::fs::create_dir_all(path))
-                                .concurrency_limited(&inner.semaphore)
-                                .instrument(tracing::info_span!(
-                                    "create directory",
-                                    path = display(parent.display())
-                                ))
-                                .await
-                                .with_context(|| {
-                                    format!(
-                                        "failed to create directory {} for write to {}",
-                                        parent.display(),
-                                        full_path.display()
-                                    )
-                                })?;
+                            inner.create_directory(parent).await.with_context(|| {
+                                format!(
+                                    "failed to create directory {} for write link to {}",
+                                    parent.display(),
+                                    full_path.display()
+                                )
+                            })?;
                         }
                     }
 
