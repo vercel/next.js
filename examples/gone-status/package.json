@@ -1,0 +1,19 @@
+{
+  "name": "gone-status",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "^20.1.0",
+    "@types/react": "^18.2.0",
+    "typescript": "^5.0.4"
+  }
+}
