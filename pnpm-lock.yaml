@@ -1343,8 +1343,8 @@ importers:
         specifier: 4.3.0
         version: 4.3.0
       loader-utils2:
-        specifier: npm:loader-utils@2.0.0
-        version: loader-utils@2.0.0
+        specifier: npm:loader-utils@2.0.4
+        version: loader-utils@2.0.4
       loader-utils3:
         specifier: npm:loader-utils@3.1.3
         version: loader-utils@3.1.3
@@ -11082,8 +11082,8 @@ packages:
     resolution: {integrity: sha512-qH0WSMBtn/oHuwjy/NucEgbx5dbxxnxup9s4PVXJUDHZBQY+s0NWA9rJf53RBnQZxfch7euUui7hpoAPvALZdA==}
     engines: {node: '>=4.0.0'}
 
-  loader-utils@2.0.0:
-    resolution: {integrity: sha512-rP4F0h2RaWSvPEkD7BLDFQnvSf+nK+wr3ESUjNTyAGobqrijmW92zc+SO6d4p4B1wh7+B/Jg1mkQe5NYUEHtHQ==}
+  loader-utils@2.0.4:
+    resolution: {integrity: sha512-xXqpXoINfFhgua9xiqD8fPFHgkoq1mmmpE92WlDbm9rNRd/EbRb+Gqf908T2DMfuHjjJlksiK2RbHVOdD/MqSw==}
     engines: {node: '>=8.9.0'}
 
   loader-utils@3.1.3:
@@ -28265,7 +28265,7 @@ snapshots:
       emojis-list: 3.0.0
       json5: 1.0.2
 
-  loader-utils@2.0.0:
+  loader-utils@2.0.4:
     dependencies:
       big.js: 5.2.2
       emojis-list: 3.0.0
