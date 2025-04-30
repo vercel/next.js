@@ -9,3 +9,10 @@ export async function middleware(req) {
 
   return NextResponse.next()
 }
+
+/**
+ * @type {import('next/server').MiddlewareConfig}
+ */
+export const config = {
+  runtime: 'nodejs',
+}

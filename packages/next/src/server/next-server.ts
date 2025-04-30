@@ -1687,11 +1687,26 @@ export default class NextNodeServer extends BaseServer<
       const adapterFn: typeof import('./web/adapter').adapter =
         middlewareModule.default || middlewareModule
 
-      result = await adapterFn({
-        handler: middlewareModule.middleware || middlewareModule,
-        request: requestData,
-        page: 'middleware',
-      })
+      const hasRequestBody =
+        !['HEAD', 'GET'].includes(params.request.method) &&
+        Boolean(requestData.body)
+
+      try {
+        result = await adapterFn({
+          handler: middlewareModule.middleware || middlewareModule,
+          request: {
+            ...requestData,
+            body: hasRequestBody
+              ? requestData.body.cloneBodyStream()
+              : undefined,
+          },
+          page: 'middleware',
+        })
+      } finally {
+        if (hasRequestBody) {
+          requestData.body.finalize()
+        }
+      }
     } else {
       const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
 
