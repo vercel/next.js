@@ -6048,7 +6048,7 @@
                     0 === newBoundary.pendingTasks &&
                       newBoundary.status === PENDING &&
                       ((newBoundary.status = COMPLETED),
-                      !(newBoundary.byteSize > request.progressiveChunkSize)))
+                      !(500 < newBoundary.byteSize)))
                   ) {
                     0 === request.pendingRootTasks &&
                       task.blockedPreamble &&
@@ -7459,7 +7459,7 @@
                 boundary.parentFlushed &&
                   request.completedBoundaries.push(boundary),
                 boundary.status === COMPLETED &&
-                  (boundary.byteSize > request.progressiveChunkSize ||
+                  (500 < boundary.byteSize ||
                     (boundary.fallbackAbortableTasks.forEach(
                       abortTaskSoft,
                       request
@@ -7952,7 +7952,10 @@
               hoistableState
             )),
           flushSubtree(request, destination, segment, hoistableState);
-      else if (boundary.byteSize > request.progressiveChunkSize)
+      else if (
+        500 < boundary.byteSize &&
+        flushedByteSize + boundary.byteSize > request.progressiveChunkSize
+      )
         (boundary.rootSegmentID = request.nextSegmentId++),
           request.completedBoundaries.push(boundary),
           writeStartPendingSuspenseBoundary(
@@ -7962,6 +7965,7 @@
           ),
           flushSubtree(request, destination, segment, hoistableState);
       else {
+        flushedByteSize += boundary.byteSize;
         hoistableState &&
           ((segment = boundary.contentState),
           segment.styles.forEach(hoistStyleQueueDependency, hoistableState),
@@ -7995,6 +7999,7 @@
       return writeEndSegment(destination, segment.parentFormatContext);
     }
     function flushCompletedBoundary(request, destination, boundary) {
+      flushedByteSize = boundary.byteSize;
       for (
         var completedSegments = boundary.completedSegments, i = 0;
         i < completedSegments.length;
@@ -8141,6 +8146,7 @@
             if (completedRootSegment.status === POSTPONED) return;
             var completedPreambleSegments = request.completedPreambleSegments;
             if (null === completedPreambleSegments) return;
+            flushedByteSize = request.byteSize;
             var resumableState = request.resumableState,
               renderState = request.renderState;
             if (
@@ -8455,8 +8461,9 @@
             a: {
               clientRenderedBoundaries = request;
               boundary = destination;
-              var boundary$jscomp$0 = partialBoundaries[i],
-                completedSegments = boundary$jscomp$0.completedSegments;
+              var boundary$jscomp$0 = partialBoundaries[i];
+              flushedByteSize = boundary$jscomp$0.byteSize;
+              var completedSegments = boundary$jscomp$0.completedSegments;
               for (
                 JSCompiler_inline_result = 0;
                 JSCompiler_inline_result < completedSegments.length;
@@ -8646,11 +8653,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-experimental-5dc00d6b-20250428" !== isomorphicReactPackageVersion)
+      if ("19.2.0-experimental-408d055a-20250430" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-experimental-5dc00d6b-20250428\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-experimental-408d055a-20250430\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -10206,7 +10213,8 @@
       didWarnAboutGetDerivedStateOnFunctionComponent = {},
       didWarnAboutReassigningProps = !1,
       didWarnAboutGenerators = !1,
-      didWarnAboutMaps = !1;
+      didWarnAboutMaps = !1,
+      flushedByteSize = 0;
     ensureCorrectIsomorphicReactVersion();
     ensureCorrectIsomorphicReactVersion();
     exports.prerender = function (children, options) {
@@ -10461,5 +10469,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.2.0-experimental-5dc00d6b-20250428";
+    exports.version = "19.2.0-experimental-408d055a-20250430";
   })();

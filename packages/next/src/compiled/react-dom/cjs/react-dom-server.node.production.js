@@ -4623,8 +4623,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
                 queueCompletedSegment(newBoundary, contentRootSegment),
                 0 === newBoundary.pendingTasks &&
                   0 === newBoundary.status &&
-                  ((newBoundary.status = 1),
-                  !(newBoundary.byteSize > request.progressiveChunkSize)))
+                  ((newBoundary.status = 1), !(500 < newBoundary.byteSize)))
               ) {
                 0 === request.pendingRootTasks &&
                   task.blockedPreamble &&
@@ -5509,7 +5508,7 @@ function finishedTask(request, boundary, segment) {
             boundary.parentFlushed &&
               request.completedBoundaries.push(boundary),
             1 === boundary.status &&
-              (boundary.byteSize > request.progressiveChunkSize ||
+              (500 < boundary.byteSize ||
                 (boundary.fallbackAbortableTasks.forEach(
                   abortTaskSoft,
                   request
@@ -5821,6 +5820,7 @@ function flushSubtree(request, destination, segment, hoistableState) {
       );
   }
 }
+var flushedByteSize = 0;
 function flushSegment(request, destination, segment, hoistableState) {
   var boundary = segment.boundary;
   if (null === boundary)
@@ -5856,7 +5856,10 @@ function flushSegment(request, destination, segment, hoistableState) {
           hoistableState
         )),
       flushSubtree(request, destination, segment, hoistableState);
-  else if (boundary.byteSize > request.progressiveChunkSize)
+  else if (
+    500 < boundary.byteSize &&
+    flushedByteSize + boundary.byteSize > request.progressiveChunkSize
+  )
     (boundary.rootSegmentID = request.nextSegmentId++),
       request.completedBoundaries.push(boundary),
       writeStartPendingSuspenseBoundary(
@@ -5866,6 +5869,7 @@ function flushSegment(request, destination, segment, hoistableState) {
       ),
       flushSubtree(request, destination, segment, hoistableState);
   else {
+    flushedByteSize += boundary.byteSize;
     hoistableState &&
       ((segment = boundary.contentState),
       segment.styles.forEach(hoistStyleQueueDependency, hoistableState),
@@ -5891,6 +5895,7 @@ function flushSegmentContainer(request, destination, segment, hoistableState) {
   return writeEndSegment(destination, segment.parentFormatContext);
 }
 function flushCompletedBoundary(request, destination, boundary) {
+  flushedByteSize = boundary.byteSize;
   for (
     var completedSegments = boundary.completedSegments, i = 0;
     i < completedSegments.length;
@@ -5989,6 +5994,7 @@ function flushCompletedQueues(request, destination) {
         if (5 === completedRootSegment.status) return;
         var completedPreambleSegments = request.completedPreambleSegments;
         if (null === completedPreambleSegments) return;
+        flushedByteSize = request.byteSize;
         var resumableState = request.resumableState,
           renderState = request.renderState,
           preamble = renderState.preamble,
@@ -6174,6 +6180,7 @@ function flushCompletedQueues(request, destination) {
         a: {
           clientRenderedBoundaries = request;
           boundary = destination;
+          flushedByteSize = boundary$53.byteSize;
           var completedSegments = boundary$53.completedSegments;
           for (
             JSCompiler_inline_result = 0;
@@ -6304,11 +6311,11 @@ function abort(request, reason) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-canary-5dc00d6b-20250428" !== isomorphicReactPackageVersion)
+  if ("19.2.0-canary-408d055a-20250430" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.2.0-canary-5dc00d6b-20250428\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.2.0-canary-408d055a-20250430\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -6457,4 +6464,4 @@ exports.renderToPipeableStream = function (children, options) {
     }
   };
 };
-exports.version = "19.2.0-canary-5dc00d6b-20250428";
+exports.version = "19.2.0-canary-408d055a-20250430";
