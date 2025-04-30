@@ -53,6 +53,7 @@ import {
 import type { Params } from '../request/params'
 import React from 'react'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
+import { startCacheHandlerTransaction } from './cache-handler-transactions'
 
 type CacheKeyParts =
   | [buildId: string, id: string, args: unknown[]]
@@ -754,196 +755,209 @@ export function cache(
           await lazyRefreshTags
         }
 
-        let entry = shouldForceRevalidate(workStore, workUnitStore)
-          ? undefined
-          : 'getExpiration' in cacheHandler
-            ? await cacheHandler.get(serializedCacheKey)
-            : // Legacy cache handlers require implicit tags to be passed in,
-              // instead of checking their staleness here, as we do for modern
-              // cache handlers (see below).
-              await cacheHandler.get(
-                serializedCacheKey,
-                workUnitStore?.implicitTags?.tags ?? []
-              )
+        const finishTransaction =
+          await startCacheHandlerTransaction(serializedCacheKey)
 
-        if (entry) {
-          const implicitTags = workUnitStore?.implicitTags?.tags ?? []
-          let implicitTagsExpiration = 0
-
-          if (workUnitStore?.implicitTags) {
-            const lazyExpiration =
-              workUnitStore.implicitTags.expirationsByCacheKind.get(kind)
-
-            if (lazyExpiration) {
-              if (isResolvedLazyResult(lazyExpiration)) {
-                implicitTagsExpiration = lazyExpiration.value
-              } else {
-                implicitTagsExpiration = await lazyExpiration
-              }
-            }
-          }
-
-          if (
-            shouldDiscardCacheEntry(
-              entry,
-              workStore,
-              implicitTags,
-              implicitTagsExpiration
-            )
-          ) {
-            debug?.('discarding stale entry', serializedCacheKey)
-            entry = undefined
-          }
-        }
-
-        const currentTime = performance.timeOrigin + performance.now()
-        if (
-          workUnitStore !== undefined &&
-          workUnitStore.type === 'prerender' &&
-          entry !== undefined &&
-          (entry.revalidate === 0 || entry.expire < DYNAMIC_EXPIRE)
-        ) {
-          // In a Dynamic I/O prerender, if the cache entry has revalidate: 0 or if the
-          // expire time is under 5 minutes, then we consider this cache entry dynamic
-          // as it's not worth generating static pages for such data. It's better to leave
-          // a PPR hole that can be filled in dynamically with a potentially cached entry.
-          if (cacheSignal) {
-            cacheSignal.endRead()
-          }
-
-          return makeHangingPromise(
-            workUnitStore.renderSignal,
-            'dynamic "use cache"'
-          )
-        } else if (
-          entry === undefined ||
-          currentTime > entry.timestamp + entry.expire * 1000 ||
-          (workStore.isStaticGeneration &&
-            currentTime > entry.timestamp + entry.revalidate * 1000)
-        ) {
-          // Miss. Generate a new result.
-
-          // If the cache entry is stale and we're prerendering, we don't want to use the
-          // stale entry since it would unnecessarily need to shorten the lifetime of the
-          // prerender. We're not time constrained here so we can re-generated it now.
-
-          // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
-          // generation cannot read anything from the context we're currently executing which
-          // might include request specific things like cookies() inside a React.cache().
-          // Note: It is important that we await at least once before this because it lets us
-          // pop out of any stack specific contexts as well - aka "Sync" Local Storage.
+        try {
+          let entry = shouldForceRevalidate(workStore, workUnitStore)
+            ? undefined
+            : 'getExpiration' in cacheHandler
+              ? await cacheHandler.get(serializedCacheKey)
+              : // Legacy cache handlers require implicit tags to be passed in,
+                // instead of checking their staleness here, as we do for modern
+                // cache handlers (see below).
+                await cacheHandler.get(
+                  serializedCacheKey,
+                  workUnitStore?.implicitTags?.tags ?? []
+                )
 
           if (entry) {
-            if (currentTime > entry.timestamp + entry.expire * 1000) {
-              debug?.('entry is expired', serializedCacheKey)
+            const implicitTags = workUnitStore?.implicitTags?.tags ?? []
+            let implicitTagsExpiration = 0
+
+            if (workUnitStore?.implicitTags) {
+              const lazyExpiration =
+                workUnitStore.implicitTags.expirationsByCacheKind.get(kind)
+
+              if (lazyExpiration) {
+                if (isResolvedLazyResult(lazyExpiration)) {
+                  implicitTagsExpiration = lazyExpiration.value
+                } else {
+                  implicitTagsExpiration = await lazyExpiration
+                }
+              }
             }
 
             if (
-              workStore.isStaticGeneration &&
-              currentTime > entry.timestamp + entry.revalidate * 1000
-            ) {
-              debug?.('static generation, entry is stale', serializedCacheKey)
-            }
-          }
-
-          const [newStream, pendingCacheEntry] = await generateCacheEntry(
-            workStore,
-            workUnitStore,
-            clientReferenceManifest,
-            encodedCacheKeyParts,
-            fn,
-            timeoutError
-          )
-
-          // When draft mode is enabled, we must not save the cache entry.
-          if (!workStore.isDraftMode) {
-            let savedCacheEntry
-
-            if (prerenderResumeDataCache) {
-              // Create a clone that goes into the cache scope memory cache.
-              const split = clonePendingCacheEntry(pendingCacheEntry)
-              savedCacheEntry = getNthCacheEntry(split, 0)
-              prerenderResumeDataCache.cache.set(
-                serializedCacheKey,
-                getNthCacheEntry(split, 1)
+              shouldDiscardCacheEntry(
+                entry,
+                workStore,
+                implicitTags,
+                implicitTagsExpiration
               )
-            } else {
-              savedCacheEntry = pendingCacheEntry
+            ) {
+              debug?.('discarding stale entry', serializedCacheKey)
+              entry = undefined
             }
-
-            const promise = cacheHandler.set(
-              serializedCacheKey,
-              savedCacheEntry
-            )
-
-            workStore.pendingRevalidateWrites ??= []
-            workStore.pendingRevalidateWrites.push(promise)
           }
 
-          stream = newStream
-        } else {
-          propagateCacheLifeAndTags(workUnitStore, entry)
-
-          // We want to return this stream, even if it's stale.
-          stream = entry.value
-
-          // If we have a cache scope, we need to clone the entry and set it on
-          // the inner cache scope.
-          if (prerenderResumeDataCache) {
-            const [entryLeft, entryRight] = cloneCacheEntry(entry)
+          const currentTime = performance.timeOrigin + performance.now()
+          if (
+            workUnitStore !== undefined &&
+            workUnitStore.type === 'prerender' &&
+            entry !== undefined &&
+            (entry.revalidate === 0 || entry.expire < DYNAMIC_EXPIRE)
+          ) {
+            // In a Dynamic I/O prerender, if the cache entry has revalidate: 0 or if the
+            // expire time is under 5 minutes, then we consider this cache entry dynamic
+            // as it's not worth generating static pages for such data. It's better to leave
+            // a PPR hole that can be filled in dynamically with a potentially cached entry.
             if (cacheSignal) {
-              stream = createTrackedReadableStream(entryLeft.value, cacheSignal)
-            } else {
-              stream = entryLeft.value
+              cacheSignal.endRead()
             }
 
-            prerenderResumeDataCache.cache.set(
-              serializedCacheKey,
-              Promise.resolve(entryRight)
+            return makeHangingPromise(
+              workUnitStore.renderSignal,
+              'dynamic "use cache"'
             )
-          } else {
-            // If we're not regenerating we need to signal that we've finished
-            // putting the entry into the cache scope at this point. Otherwise we do
-            // that inside generateCacheEntry.
-            cacheSignal?.endRead()
           }
 
-          if (currentTime > entry.timestamp + entry.revalidate * 1000) {
-            // If this is stale, and we're not in a prerender (i.e. this is dynamic render),
-            // then we should warm up the cache with a fresh revalidated entry.
-            const [ignoredStream, pendingCacheEntry] = await generateCacheEntry(
+          if (
+            entry === undefined ||
+            currentTime > entry.timestamp + entry.expire * 1000 ||
+            (workStore.isStaticGeneration &&
+              currentTime > entry.timestamp + entry.revalidate * 1000)
+          ) {
+            // Miss. Generate a new result.
+
+            // If the cache entry is stale and we're prerendering, we don't want to use the
+            // stale entry since it would unnecessarily need to shorten the lifetime of the
+            // prerender. We're not time constrained here so we can re-generated it now.
+
+            // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
+            // generation cannot read anything from the context we're currently executing which
+            // might include request specific things like cookies() inside a React.cache().
+            // Note: It is important that we await at least once before this because it lets us
+            // pop out of any stack specific contexts as well - aka "Sync" Local Storage.
+
+            if (entry) {
+              if (currentTime > entry.timestamp + entry.expire * 1000) {
+                debug?.('entry is expired', serializedCacheKey)
+              }
+
+              if (
+                workStore.isStaticGeneration &&
+                currentTime > entry.timestamp + entry.revalidate * 1000
+              ) {
+                debug?.('static generation, entry is stale', serializedCacheKey)
+              }
+            }
+
+            const [newStream, pendingCacheEntry] = await generateCacheEntry(
               workStore,
-              undefined, // This is not running within the context of this unit.
+              workUnitStore,
               clientReferenceManifest,
               encodedCacheKeyParts,
               fn,
               timeoutError
             )
 
-            let savedCacheEntry: Promise<CacheEntry>
+            // When draft mode is enabled, we must not save the cache entry.
+            if (!workStore.isDraftMode) {
+              let savedCacheEntry
+
+              if (prerenderResumeDataCache) {
+                // Create a clone that goes into the cache scope memory cache.
+                const split = clonePendingCacheEntry(pendingCacheEntry)
+                savedCacheEntry = getNthCacheEntry(split, 0)
+                prerenderResumeDataCache.cache.set(
+                  serializedCacheKey,
+                  getNthCacheEntry(split, 1)
+                )
+              } else {
+                savedCacheEntry = pendingCacheEntry
+              }
+
+              const promise = cacheHandler.set(
+                serializedCacheKey,
+                savedCacheEntry
+              )
+
+              workStore.pendingRevalidateWrites ??= []
+              workStore.pendingRevalidateWrites.push(promise)
+            }
+
+            stream = newStream
+          } else {
+            propagateCacheLifeAndTags(workUnitStore, entry)
+
+            // We want to return this stream, even if it's stale.
+            stream = entry.value
+
+            // If we have a cache scope, we need to clone the entry and set it on
+            // the inner cache scope.
             if (prerenderResumeDataCache) {
-              const split = clonePendingCacheEntry(pendingCacheEntry)
-              savedCacheEntry = getNthCacheEntry(split, 0)
+              const [entryLeft, entryRight] = cloneCacheEntry(entry)
+              if (cacheSignal) {
+                stream = createTrackedReadableStream(
+                  entryLeft.value,
+                  cacheSignal
+                )
+              } else {
+                stream = entryLeft.value
+              }
+
               prerenderResumeDataCache.cache.set(
                 serializedCacheKey,
-                getNthCacheEntry(split, 1)
+                Promise.resolve(entryRight)
               )
             } else {
-              savedCacheEntry = pendingCacheEntry
+              // If we're not regenerating we need to signal that we've finished
+              // putting the entry into the cache scope at this point. Otherwise we do
+              // that inside generateCacheEntry.
+              cacheSignal?.endRead()
             }
 
-            const promise = cacheHandler.set(
-              serializedCacheKey,
-              savedCacheEntry
-            )
+            if (currentTime > entry.timestamp + entry.revalidate * 1000) {
+              // If this is stale, and we're not in a prerender (i.e. this is dynamic render),
+              // then we should warm up the cache with a fresh revalidated entry.
+              const [ignoredStream, pendingCacheEntry] =
+                await generateCacheEntry(
+                  workStore,
+                  undefined, // This is not running within the context of this unit.
+                  clientReferenceManifest,
+                  encodedCacheKeyParts,
+                  fn,
+                  timeoutError
+                )
 
-            if (!workStore.pendingRevalidateWrites) {
-              workStore.pendingRevalidateWrites = []
+              let savedCacheEntry: Promise<CacheEntry>
+              if (prerenderResumeDataCache) {
+                const split = clonePendingCacheEntry(pendingCacheEntry)
+                savedCacheEntry = getNthCacheEntry(split, 0)
+                prerenderResumeDataCache.cache.set(
+                  serializedCacheKey,
+                  getNthCacheEntry(split, 1)
+                )
+              } else {
+                savedCacheEntry = pendingCacheEntry
+              }
+
+              const promise = cacheHandler.set(
+                serializedCacheKey,
+                savedCacheEntry
+              )
+
+              if (!workStore.pendingRevalidateWrites) {
+                workStore.pendingRevalidateWrites = []
+              }
+              workStore.pendingRevalidateWrites.push(promise)
+
+              await ignoredStream.cancel()
             }
-            workStore.pendingRevalidateWrites.push(promise)
-
-            await ignoredStream.cancel()
           }
+        } finally {
+          finishTransaction()
         }
       }
 

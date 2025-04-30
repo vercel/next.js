@@ -4,8 +4,10 @@ async function getCachedRandom() {
 }
 
 export async function GET() {
-  const rand1 = await getCachedRandom()
-  const rand2 = await getCachedRandom()
+  const [rand1, rand2] = await Promise.all([
+    getCachedRandom(),
+    getCachedRandom(),
+  ])
 
   const response = JSON.stringify({ rand1, rand2 })
 

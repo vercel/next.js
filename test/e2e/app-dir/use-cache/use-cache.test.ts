@@ -104,6 +104,22 @@ describe('use-cache', () => {
     expect(a).toBe(b)
   })
 
+  it('should dedupe shared inner caches across different outer caches', async () => {
+    const browser = await next.browser('/nested')
+    const first = await browser.elementByCss('.inner:nth-of-type(1)').text()
+    const second = await browser.elementByCss('.inner:nth-of-type(2)').text()
+    expect(first).toBe(second)
+  })
+
+  it('should dedupe across concurrent requests', async () => {
+    const [{ rand: first }, { rand: second }] = await Promise.all([
+      next.fetch('/api/simple').then((response) => response.json()),
+      next.fetch('/api/simple').then((response) => response.json()),
+    ])
+
+    expect(first).toBe(second)
+  })
+
   it('should return the same object reference for multiple invocations', async () => {
     const browser = await next.browser('/referential-equality')
     expect(await browser.elementById('same-arg').text()).toBe('true')
@@ -510,6 +526,7 @@ describe('use-cache', () => {
         '/imported-from-client',
         '/logs',
         '/method-props',
+        '/nested',
         '/nested-in-unstable-cache',
         '/not-found',
         '/on-demand-revalidate',

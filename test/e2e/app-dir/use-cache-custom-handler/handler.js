@@ -14,6 +14,14 @@ const cacheHandler = {
 
   async set(cacheKey, pendingEntry) {
     console.log('ModernCustomCacheHandler::set', cacheKey)
+
+    pendingEntry.then(({ revalidate, expire, tags }) => {
+      console.log(
+        `ModernCustomCacheHandler::set-resolved-entry revalidate: ${revalidate}, expire: ${expire}, tags: ${tags}
+  ${cacheKey}`
+      )
+    })
+
     return defaultCacheHandler.set(cacheKey, pendingEntry)
   },
 

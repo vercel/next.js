@@ -184,4 +184,27 @@ describe('use-cache-custom-handler', () => {
       )
     })
   })
+
+  it('should dedupe nested caches across different outer cache scopes, and still propagate cache life/tags correctly', async () => {
+    await next.fetch('/nested')
+
+    await retry(async () => {
+      const cliOutput = next.cliOutput.slice(outputIndex)
+
+      expect(cliOutput).toIncludeRepeated(
+        `ModernCustomCacheHandler::set-resolved-entry revalidate: 180, expire: 300, tags: inner`,
+        1
+      )
+
+      expect(cliOutput).toIncludeRepeated(
+        `ModernCustomCacheHandler::set-resolved-entry revalidate: 180, expire: 300, tags: outer1,inner`,
+        1
+      )
+
+      expect(cliOutput).toIncludeRepeated(
+        `ModernCustomCacheHandler::set-resolved-entry revalidate: 180, expire: 300, tags: outer2,inner`,
+        1
+      )
+    })
+  })
 })
