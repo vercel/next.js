@@ -15,7 +15,7 @@ use crate::database::{
 
 const COMPACT_MAX_COVERAGE: f32 = 10.0;
 const COMPACT_MAX_MERGE_SEQUENCE: usize = 16;
-const COMPACT_MAX_MERGE_SIZE: usize = 512 * 1024 * 1024; // 1GiB
+const COMPACT_MAX_MERGE_SIZE: usize = 512 * 1024 * 1024; // 512 MiB
 
 pub struct TurboKeyValueDatabase {
     db: Arc<TurboPersistence>,
