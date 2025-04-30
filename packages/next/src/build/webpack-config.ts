@@ -1207,7 +1207,10 @@ export default async function getBaseWebpackConfig(
               // @ts-ignore No typings yet
               const { MinifyPlugin } =
                 require('./webpack/plugins/minify-webpack-plugin/src/index.js') as typeof import('./webpack/plugins/minify-webpack-plugin/src')
-              new MinifyPlugin({ noMangling }).apply(compiler)
+              new MinifyPlugin({
+                noMangling,
+                disableCharFreq: !isClient,
+              }).apply(compiler)
             },
             // Minify CSS
             (compiler: webpack.Compiler) => {
