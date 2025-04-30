@@ -220,7 +220,6 @@ mod tests {
     use std::{
         fmt::Debug,
         mem::{swap, take},
-        usize,
     };
 
     use rand::{Rng, SeedableRng};

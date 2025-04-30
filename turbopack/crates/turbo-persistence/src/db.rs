@@ -9,7 +9,6 @@ use std::{
         atomic::{AtomicBool, AtomicU32, Ordering},
         Arc,
     },
-    usize,
 };
 
 use anyhow::{bail, Context, Result};

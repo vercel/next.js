@@ -1,4 +1,4 @@
-use std::{time::Instant, usize};
+use std::time::Instant;
 
 use anyhow::Result;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
