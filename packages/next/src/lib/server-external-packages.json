@@ -24,6 +24,7 @@
   "better-sqlite3",
   "canvas",
   "chromadb-default-embed",
+  "config",
   "cpu-features",
   "cypress",
   "dd-trace",
