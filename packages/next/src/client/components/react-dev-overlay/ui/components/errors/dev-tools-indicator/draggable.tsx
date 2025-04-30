@@ -1,8 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { getActiveElement } from './utils'
-import { Fader } from '../../fader'
-
+import { useRef } from 'react'
 interface Point {
   x: number
   y: number
@@ -28,8 +24,6 @@ export function Draggable({
   setPosition: (position: Corners) => void
   onDragStart?: () => void
 }) {
-  const dismissRegionRef = useRef<HTMLDivElement>(null)
-  const [showDismissRegion, setShowDismissRegion] = useState(false)
   const { ref, animate, ...drag } = useDrag({
     threshold: 10,
     onDragStart,
@@ -49,7 +43,7 @@ export function Draggable({
   function onAnimationEnd({ corner }: Corner) {
     // Unset drag translation
     setTimeout(() => {
-      ref.current.style.translate = 'none'
+      ref.current?.style.removeProperty('translate')
       setCurrentCorner(corner)
     }, 10)
   }
@@ -112,62 +106,17 @@ export function Draggable({
     }
   }
 
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-    return () => {
-      setMounted(false)
-    }
-  }, [])
-
   return (
-    <>
-      <div ref={ref} {...drag}>
-        {children}
-      </div>
-      {mounted &&
-        createPortal(
-          <div className="dev-tools-dismiss-overlay">
-            <Fader side="bottom" blur="15px" />
-            <div ref={dismissRegionRef} className="dev-tools-dismiss-region">
-              <svg
-                data-testid="geist-icon"
-                height="16"
-                stroke-linejoin="round"
-                viewBox="0 0 16 16"
-                width="16"
-              >
-                <path
-                  fill-rule="evenodd"
-                  clip-rule="evenodd"
-                  d="M12.4697 13.5303L13 14.0607L14.0607 13L13.5303 12.4697L9.06065 7.99999L13.5303 3.53032L14.0607 2.99999L13 1.93933L12.4697 2.46966L7.99999 6.93933L3.53032 2.46966L2.99999 1.93933L1.93933 2.99999L2.46966 3.53032L6.93933 7.99999L2.46966 12.4697L1.93933 13L2.99999 14.0607L3.53032 13.5303L7.99999 9.06065L12.4697 13.5303Z"
-                  fill="currentColor"
-                ></path>
-              </svg>
-            </div>
-          </div>,
-          ref.current.getRootNode()
-        )}
-      <svg style={{ display: 'none' }}>
-        <defs>
-          <filter id="filter">
-            <feGaussianBlur
-              in="SourceGraphic"
-              stdDeviation="10"
-              result="blur"
-            />
-            <feColorMatrix
-              in="blur"
-              mode="matrix"
-              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -9"
-              result="filter"
-            />
-            <feComposite in="SourceGraphic" in2="filter" operator="atop" />
-          </filter>
-        </defs>
-      </svg>
-    </>
+    <div
+      ref={ref}
+      {...drag}
+      style={{
+        // width: 'fit-content',
+        touchAction: 'none',
+      }}
+    >
+      {children}
+    </div>
   )
 }
 
@@ -220,7 +169,6 @@ export function useDrag(options: UseDragOptions) {
 
   function onClick(e: MouseEvent) {
     if (state.current === 'drag-end') {
-      console.log('Prevent')
       e.preventDefault()
       e.stopPropagation()
       state.current = 'idle'
@@ -245,6 +193,7 @@ export function useDrag(options: UseDragOptions) {
       if (state.current === 'press' && distance >= options.threshold) {
         state.current = 'drag'
         ref.current?.setPointerCapture(e.pointerId)
+        ref.current?.classList.add('dev-tools-grabbing')
         options.onDragStart?.()
       }
     }
@@ -263,6 +212,8 @@ export function useDrag(options: UseDragOptions) {
       y: translation.current.y + dy,
     }
 
+    console.log(newTranslation)
+
     set(newTranslation)
 
     // Keep a history of recent positions for velocity calculation
@@ -280,19 +231,17 @@ export function useDrag(options: UseDragOptions) {
   }
 
   function onPointerUp(e: PointerEvent) {
-    if (state.current === 'drag') {
-      state.current = 'drag-end'
-    } else {
-      state.current = 'idle'
-    }
+    state.current = state.current === 'drag' ? 'drag-end' : 'idle'
 
     window.removeEventListener('pointermove', onPointerMove)
     window.removeEventListener('pointerup', onPointerUp)
 
     const velocity = calculateVelocity(velocities.current)
-    options.onDragEnd?.(translation.current, velocity)
     velocities.current = []
+
+    ref.current?.classList.remove('dev-tools-grabbing')
     ref.current?.releasePointerCapture(e.pointerId)
+    options.onDragEnd?.(translation.current, velocity)
   }
 
   return {
@@ -333,16 +282,4 @@ function calculateVelocity(
 
 function project(initialVelocity: number, decelerationRate = 0.999) {
   return ((initialVelocity / 1000) * decelerationRate) / (1 - decelerationRate)
-}
-
-function areIntersecting(el1: HTMLElement, el2: HTMLElement, padding = 0) {
-  const rect1 = el1.getBoundingClientRect()
-  const rect2 = el2.getBoundingClientRect()
-
-  return !(
-    rect1.right + padding < rect2.left ||
-    rect1.left - padding > rect2.right ||
-    rect1.bottom + padding < rect2.top ||
-    rect1.top - padding > rect2.bottom
-  )
 }

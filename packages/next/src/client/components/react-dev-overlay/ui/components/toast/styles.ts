@@ -7,13 +7,6 @@ const styles = `
       rgba(0, 0, 0, 0.25);
   }
 
-  @media (max-width: 440px) {
-    .nextjs-toast {
-      max-width: 90vw;
-      left: 5vw;
-    }
-  }
-
   .nextjs-toast-errors-parent {
     padding: 16px;
     border-radius: var(--rounded-4xl);

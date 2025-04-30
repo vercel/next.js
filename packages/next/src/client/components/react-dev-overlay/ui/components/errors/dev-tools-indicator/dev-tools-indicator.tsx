@@ -650,21 +650,12 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
       }
     }
   } 
+    
+  .dev-tools-grabbing {
+    cursor: grabbing;
 
-  .dev-tools-dismiss-region {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 32px;
-    position: relative;
-    z-index: 2;
-    color: var(--color-gray-1000);
-    border-radius: var(--rounded-full);
-    background: var(--color-gray-alpha-500);
-    backdrop-filter: blur(12px);
-    width: 126px;
-    height: 36px;
-    margin-top: auto;
-    margin-bottom: 48px;
+    > * {
+      pointer-events: none;
+    }
   }
 `
