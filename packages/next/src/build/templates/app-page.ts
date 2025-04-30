@@ -19,6 +19,7 @@ declare const pages: any
 export { tree, pages }
 
 export { default as GlobalError } from 'VAR_MODULE_GLOBAL_ERROR' with { 'turbopack-transition': 'next-server-utility' }
+export { default as GlobalNotFound } from 'VAR_MODULE_GLOBAL_NOT_FOUND' with { 'turbopack-transition': 'next-server-utility' }
 
 // These are injected by the loader afterwards.
 declare const __next_app_require__: (id: string | number) => unknown

@@ -321,8 +321,23 @@ function parseRequestHeaders(
 }
 
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
+  console.log('createNotFoundLoaderTree')
   // Align the segment with parallel-route-default in next-app-loader
   const components = loaderTree[2]
+  const hasGlobalNotFound = !!components['global-not-found']
+  console.log('hasGlobalNotFound', hasGlobalNotFound)
+  // Override the layout to the default empty layout
+  if (hasGlobalNotFound) {
+    // TODO: move this logic into next-app-loader
+    // @ts-expect-error force override
+    components['layout'] = [
+      () => (({ children }: { children: React.ReactNode }) => {
+        return <>{children}</>
+      }),
+      '__global_not_found_layout__',
+    ]
+  }
+  
   return [
     '',
     {
@@ -330,7 +345,7 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
         PAGE_SEGMENT_KEY,
         {},
         {
-          page: components['not-found'],
+          page: components['global-not-found'] ?? components['not-found'],
         },
       ],
     },
@@ -1267,6 +1282,7 @@ async function renderToHTMLOrFlightImpl(
 
   // Pull out the hooks/references from the component.
   const { tree: loaderTree, taintObjectReference } = ComponentMod
+  console.log('loaderTree:log', loaderTree[1].children[1].children[2], pagePath, )
 
   if (enableTainting) {
     taintObjectReference(

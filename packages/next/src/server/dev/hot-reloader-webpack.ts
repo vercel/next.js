@@ -12,7 +12,7 @@ import {
   getSourceMapMiddleware,
 } from '../../client/components/react-dev-overlay/server/middleware-webpack'
 import { WebpackHotMiddleware } from './hot-middleware'
-import { join, relative, isAbsolute, posix } from 'path'
+import { join, relative, isAbsolute, posix, dirname } from 'path'
 import {
   createEntrypoints,
   createPagesMapping,
@@ -1052,17 +1052,23 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     preferredRegion: staticInfo?.preferredRegion,
                   })
                 } else if (isAppPath) {
-                  value = getAppEntry({
-                    name: bundlePath,
-                    page,
-                    appPaths: entryData.appPaths,
-                    pagePath: posix.join(
+                  // This path normalization is critical for webpack to resolve the next internals as entry.
+                  const pagePath = entryData.absolutePagePath.startsWith(
+                    dirname(require.resolve('next/package.json'))
+                  )
+                    ? entryData.absolutePagePath
+                    : posix.join(
                       APP_DIR_ALIAS,
                       relative(
                         this.appDir!,
                         entryData.absolutePagePath
                       ).replace(/\\/g, '/')
-                    ),
+                    )
+                  value = getAppEntry({
+                    name: bundlePath,
+                    page,
+                    appPaths: entryData.appPaths,
+                    pagePath,
                     appDir: this.appDir!,
                     pageExtensions: this.config.pageExtensions,
                     rootDir: this.dir,

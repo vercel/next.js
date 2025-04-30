@@ -441,7 +441,7 @@ export async function findPagePathData(
         'not-found',
         extensions,
         true
-      )
+      ) 
       if (notFoundPath) {
         return {
           filename: join(appDir, notFoundPath),
@@ -450,10 +450,9 @@ export async function findPagePathData(
         }
       }
 
+      // Fallback to internal global-not-found
       return {
-        filename: require.resolve(
-          'next/dist/client/components/not-found-error'
-        ),
+        filename: require.resolve('next/dist/client/components/global-not-found'),
         bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
         page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
       }

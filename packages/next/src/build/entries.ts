@@ -305,7 +305,8 @@ export async function createPagesMapping({
         // If there's any custom not-found page existed, it will override the default one.
         ...(hasAppPages && {
           [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]:
-            'next/dist/client/components/not-found-error',
+            // 'next/dist/client/components/not-found-error',
+            'next/dist/client/components/global-not-found',
         }),
         ...pages,
       }
@@ -435,6 +436,8 @@ export function getEdgeServerEntry(opts: {
     absoluteAppPath: opts.pages['/_app'],
     absoluteDocumentPath: opts.pages['/_document'],
     absoluteErrorPath: opts.pages['/_error'],
+    // TODO: pass global not found path to edge loader
+    absoluteGlobalNotFoundPath: '',
     absolutePagePath: opts.absolutePagePath,
     dev: opts.isDev,
     isServerComponent: opts.isServerComponent,

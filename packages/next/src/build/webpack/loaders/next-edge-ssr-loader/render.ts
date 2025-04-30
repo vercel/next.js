@@ -29,6 +29,7 @@ export function getRender({
   appMod,
   pageMod,
   errorMod,
+  globalNotFoundMod,
   error500Mod,
   pagesType,
   Document,
@@ -52,6 +53,7 @@ export function getRender({
   appMod: any
   pageMod: any
   errorMod: any
+  globalNotFoundMod: any
   error500Mod: any
   renderToHTML?: any
   Document: DocumentType
@@ -145,6 +147,21 @@ export function getRender({
             ComponentMod: errorMod,
             page: inputPage,
             routeModule: errorMod.routeModule,
+          }
+        }
+
+        // TODO: verify the inputPage is /404 or /_not-found
+        if (inputPage === '/404') {
+          return {
+            ...baseLoadComponentResult,
+            Component: globalNotFoundMod.default,
+            pageConfig: globalNotFoundMod.config || {},
+            getStaticProps: globalNotFoundMod.getStaticProps,
+            getServerSideProps: globalNotFoundMod.getServerSideProps,
+            getStaticPaths: globalNotFoundMod.getStaticPaths,
+            ComponentMod: globalNotFoundMod,
+            page: inputPage,
+            routeModule: globalNotFoundMod.routeModule,
           }
         }
 
