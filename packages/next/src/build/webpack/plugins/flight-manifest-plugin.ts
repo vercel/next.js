@@ -269,6 +269,7 @@ export class ClientReferenceManifestPlugin {
       })
 
     for (let [entryName, entrypoint] of compilation.entrypoints) {
+      // console.log('entryName', entryName)
       if (
         entryName === CLIENT_STATIC_FILES_RUNTIME_MAIN_APP ||
         entryName === APP_CLIENT_INTERNALS

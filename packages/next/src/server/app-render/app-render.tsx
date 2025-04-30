@@ -327,16 +327,16 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
   const hasGlobalNotFound = !!components['global-not-found']
   console.log('hasGlobalNotFound', hasGlobalNotFound)
   // Override the layout to the default empty layout
-  if (hasGlobalNotFound) {
-    // TODO: move this logic into next-app-loader
-    // @ts-expect-error force override
-    components['layout'] = [
-      () => (({ children }: { children: React.ReactNode }) => {
-        return <>{children}</>
-      }),
-      '__global_not_found_layout__',
-    ]
-  }
+  // if (hasGlobalNotFound) {
+  //   // TODO: move this logic into next-app-loader
+  //   // @ts-expect-error force override
+  //   components['layout'] = [
+  //     () => (({ children }: { children: React.ReactNode }) => {
+  //       return <>{children}</>
+  //     }),
+  //     '__global_not_found_layout__',
+  //   ]
+  // }
   
   return [
     '',
@@ -1282,8 +1282,6 @@ async function renderToHTMLOrFlightImpl(
 
   // Pull out the hooks/references from the component.
   const { tree: loaderTree, taintObjectReference } = ComponentMod
-  console.log('loaderTree:log', loaderTree[1].children[1].children[2], pagePath, )
-
   if (enableTainting) {
     taintObjectReference(
       'Do not pass process.env to Client Components since it will leak sensitive data',

@@ -436,6 +436,22 @@ export async function findPagePathData(
   // Check appDir first falling back to pagesDir
   if (appDir) {
     if (page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY) {
+      // First load global-not-found.js
+      const globalNotFoundPath = await findPageFile(
+        appDir,
+        'global-not-found',
+        extensions,
+        true
+      )
+      if (globalNotFoundPath) {
+        return {
+          filename: join(appDir, globalNotFoundPath),
+          bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+          page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+        }
+      }
+
+      // Then if global-not-found.js doesn't exist then load not-found.js
       const notFoundPath = await findPageFile(
         appDir,
         'not-found',
@@ -450,7 +466,7 @@ export async function findPagePathData(
         }
       }
 
-      // Fallback to internal global-not-found
+      // If they're not presented, then fallback to global-not-found
       return {
         filename: require.resolve('next/dist/client/components/global-not-found'),
         bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,

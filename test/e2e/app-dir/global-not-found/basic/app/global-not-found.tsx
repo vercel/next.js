@@ -1,8 +1,11 @@
+import { Client } from "./client"
+
 export default function GlobalNotFound() {
   return (
     <html>
       <body>
-        <div id="global-error">global-not-found</div>
+        <h1 id="global-error-title">global-not-found</h1>
+        <Client />
       </body>
     </html>
   )

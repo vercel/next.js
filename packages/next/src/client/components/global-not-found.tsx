@@ -1,4 +1,3 @@
-
 const styles: Record<string, React.CSSProperties> = {
   error: {
     // https://github.com/sindresorhus/modern-normalize/blob/main/modern-normalize.css#L38-L52
@@ -39,15 +38,16 @@ const message = 'This page could not be found.'
 
 function GlobalNotFound() {
   return (
-    <>
-      {/* <head> */}
-      <title>{`${status}: ${message}`}</title>
-      {/* </head> */}
-      <div style={styles.error}>
-        <div>
-          <style
-            dangerouslySetInnerHTML={{
-              /* Minified CSS from
+    <html data-global-not-found="true">
+      <body>
+        <head>
+          <title>{`${status}: ${message}`}</title>
+        </head>
+        <div style={styles.error}>
+          <div>
+            <style
+              dangerouslySetInnerHTML={{
+                /* Minified CSS from
                 body { margin: 0; color: #000; background: #fff; }
                 .next-error-h1 {
                   border-right: 1px solid rgba(0, 0, 0, .3);
@@ -60,20 +60,19 @@ function GlobalNotFound() {
                   }
                 }
               */
-              __html: `body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}`,
-            }}
-          />
-          <h1 className="next-error-h1" style={styles.h1}>
-            Global {status}
-          </h1>
-          <div style={styles.desc}>
-            <h2 style={styles.h2}>
-              {message}
-            </h2>
+                __html: `body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}`,
+              }}
+            />
+            <h1 className="next-error-h1" style={styles.h1}>
+              {status}
+            </h1>
+            <div style={styles.desc}>
+              <h2 style={styles.h2}>{message}</h2>
+            </div>
           </div>
         </div>
-      </div>
-    </>
+      </body>
+    </html>
   )
 }
 
