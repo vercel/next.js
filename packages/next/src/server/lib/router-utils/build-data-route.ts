@@ -14,18 +14,14 @@ export function buildDataRoute(page: string, buildId: string) {
   let routeKeys: { [named: string]: string } | undefined
 
   if (isDynamicRoute(page)) {
-    const routeRegex = getNamedRouteRegex(
-      dataRoute.replace(/\.json$/, ''),
-      true
-    )
+    const routeRegex = getNamedRouteRegex(dataRoute, {
+      prefixRouteKeys: true,
+      includeSuffix: true,
+      excludeOptionalTrailingSlash: true,
+    })
 
-    dataRouteRegex = normalizeRouteRegex(
-      routeRegex.re.source.replace(/\(\?:\\\/\)\?\$$/, `\\.json$`)
-    )
-    namedDataRouteRegex = routeRegex.namedRegex!.replace(
-      /\(\?:\/\)\?\$$/,
-      `\\.json$`
-    )
+    dataRouteRegex = normalizeRouteRegex(routeRegex.re.source)
+    namedDataRouteRegex = routeRegex.namedRegex
     routeKeys = routeRegex.routeKeys
   } else {
     dataRouteRegex = normalizeRouteRegex(

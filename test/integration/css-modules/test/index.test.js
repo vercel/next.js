@@ -58,7 +58,7 @@ describe('Basic CSS Module Support', () => {
           res.text()
         )
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(`".index-module__VJHdSq__redText{color:red}"`)
@@ -81,7 +81,7 @@ describe('Basic CSS Module Support', () => {
         expect(cssSheet.length).toBe(1)
         expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/.*\.css$/)
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect($('#verify-red').attr('class')).toMatchInlineSnapshot(
             `"index-module__VJHdSq__redText"`
           )
@@ -133,7 +133,7 @@ describe('3rd Party CSS Module Support', () => {
         const cssContent = await fetchViaHTTP(appPort, stylesheet).then((res) =>
           res.text()
         )
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
@@ -160,7 +160,7 @@ describe('3rd Party CSS Module Support', () => {
         expect(cssSheet.length).toBe(1)
         expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/.*\.css$/)
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect($('#verify-div').attr('class')).toMatchInlineSnapshot(
             `"index-module__jAE1EW__foo"`
           )
@@ -375,7 +375,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
         const $ = cheerio.load(content)
 
         const cssPreload = $('#nm-div')
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(cssPreload.text()).toMatchInlineSnapshot(
             `"{"message":"Why hello there","default":{"message":"Why hello there"}} {"redText":"index-module__kwuKnq__redText","default":{"redText":"index-module__kwuKnq__redText"}}"`
           )
@@ -398,7 +398,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
           res.text()
         )
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(`".index-module__kwuKnq__redText{color:red}"`)
@@ -460,7 +460,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
           res.text()
         )
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
@@ -470,7 +470,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
-            `".other2_other2__dYPgz{color:red}.other3_other3__7hgUE{color:violet}.other_className__OA8dV{background:red;color:#ff0}.example_subClass__m6Tyy{background:blue}"`
+            `".other2_other2__dYPgz{color:red}.other3_other3__7hgUE{color:violet}.other_className__OA8dV{background:red;color:yellow}.example_subClass__m6Tyy{background:blue}"`
           )
         }
       })
@@ -518,17 +518,17 @@ describe('CSS Module Composes Usage (Basic)', () => {
           res.text()
         )
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
-            `".index-module__QppuLW__className{background:red;color:#ff0}.index-module__QppuLW__subClass{background:#00f;}"`
+            `".index-module__QppuLW__className{color:#ff0;background:red}.index-module__QppuLW__subClass{background:#00f;}"`
           )
         } else {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
-            `".index_className__jjcZ1{background:red;color:#ff0}.index_subClass__eDzaW{background:blue}"`
+            `".index_className__jjcZ1{background:red;color:yellow}.index_subClass__eDzaW{background:blue}"`
           )
         }
       })
@@ -574,7 +574,7 @@ describe('CSS Module Composes Usage (External)', () => {
           res.text()
         )
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
@@ -584,7 +584,7 @@ describe('CSS Module Composes Usage (External)', () => {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
-            `".other_className__eZV4M{background:red;color:#ff0}.index_subClass__eDzaW{background:blue}"`
+            `".other_className__eZV4M{background:red;color:yellow}.index_subClass__eDzaW{background:blue}"`
           )
         }
       })
@@ -639,7 +639,7 @@ describe('Dynamic Route CSS Module Usage', () => {
         const cssContent = await fetchViaHTTP(appPort, stylesheet).then((res) =>
           res.text()
         )
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
@@ -648,7 +648,7 @@ describe('Dynamic Route CSS Module Usage', () => {
         } else {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
-          ).toMatchInlineSnapshot(`"._post__home__yRmHz{background:red}"`)
+          ).toMatchInlineSnapshot(`"._post__home__yRmHz{background:#f00}"`)
         }
       })
     }
@@ -705,22 +705,77 @@ describe('Catch-all Route CSS Module Usage', () => {
           res.text()
         )
 
-        if (process.env.TURBOPACK) {
-          expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
+        if (process.env.IS_TURBOPACK_TEST) {
+          expect(cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim())
             .toMatchInlineSnapshot(`
-            ".index-module___rV4CG__home{background:red}
+           ".index-module___rV4CG__home{background:red}
 
-
-            .\\35 5css-module__qe774W__home{color:green}"
+           .\\35 5css-module__qe774W__home{color:green}"
           `)
         } else {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
-            `".___post__home__e4zfx{background:red}.__55css_home__r8Rnq{color:green}"`
+            `".___post__home__e4zfx{background:#f00}.__55css_home__r8Rnq{color:green}"`
           )
         }
       })
     }
   )
+})
+
+describe('cssmodules-pure-no-check usage', () => {
+  const appDir = join(fixturesDir, 'cssmodules-pure-no-check')
+
+  let stdout
+  let code
+  let app
+  let appPort
+
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+    ;({ code, stdout } = await nextBuild(appDir, [], {
+      stdout: true,
+    }))
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
+  })
+
+  afterAll(() => killApp(app))
+
+  it('should have compiled successfully', () => {
+    console.log(stdout)
+    expect(code).toBe(0)
+    expect(stdout).toMatch(/Compiled successfully/)
+  })
+
+  it('should apply styles correctly', async () => {
+    const browser = await webdriver(appPort, '/')
+
+    const elementWithGlobalStyles = await browser
+      .elementByCss('#my-div')
+      .getComputedCss('font-weight')
+
+    expect(elementWithGlobalStyles).toBe('700')
+  })
+
+  it(`should've emitted a CSS file`, async () => {
+    const content = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(content)
+
+    const cssSheet = $('link[rel="stylesheet"]')
+    expect(cssSheet.length).toBe(1)
+    const stylesheet = cssSheet[0].attribs['href']
+
+    const cssContent = await fetchViaHTTP(appPort, stylesheet).then((res) =>
+      res.text()
+    )
+
+    const cssCode = cssContent.replace(/\/\*.*?\*\//g, '').trim()
+
+    expect(cssCode).toInclude(`.global{font-weight:700}`)
+    expect(cssCode).toInclude(
+      `::view-transition-old(root){animation-duration:.3s}`
+    )
+  })
 })

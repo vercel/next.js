@@ -75,6 +75,7 @@ export class DevBundlerService {
 
     if (
       mocked.res.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
+      mocked.res.statusCode !== 200 &&
       !(mocked.res.statusCode === 404 && revalidateOpts.unstable_onlyGenerated)
     ) {
       throw new Error(`Invalid response ${mocked.res.statusCode}`)
@@ -92,15 +93,19 @@ export class DevBundlerService {
     return serializableManifest
   }
 
-  public setAppIsrStatus(key: string, value: boolean | null) {
+  public setIsrStatus(key: string, value: boolean | null) {
     if (value === null) {
       this.appIsrManifestInner.remove(key)
     } else {
       this.appIsrManifestInner.set(key, value)
     }
     this.bundler?.hotReloader?.send({
-      action: HMR_ACTIONS_SENT_TO_BROWSER.APP_ISR_MANIFEST,
+      action: HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST,
       data: this.appIsrManifest,
     })
+  }
+
+  public close() {
+    this.bundler.hotReloader.close()
   }
 }

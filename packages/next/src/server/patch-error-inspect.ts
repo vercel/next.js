@@ -57,7 +57,7 @@ interface IgnoreableStackFrame extends StackFrame {
 
 type SourceMapCache = Map<
   string,
-  { map: SyncSourceMapConsumer; payload: ModernSourceMapPayload }
+  null | { map: SyncSourceMapConsumer; payload: ModernSourceMapPayload }
 >
 
 function frameToString(frame: StackFrame): string {
@@ -151,6 +151,28 @@ interface SourcemappableStackFrame extends StackFrame {
   file: NonNullable<StackFrame['file']>
 }
 
+interface SourceMappedFrame {
+  stack: IgnoreableStackFrame
+  // DEV only
+  code: string | null
+}
+
+function createUnsourcemappedFrame(
+  frame: SourcemappableStackFrame
+): SourceMappedFrame {
+  return {
+    stack: {
+      arguments: frame.arguments,
+      column: frame.column,
+      file: frame.file,
+      lineNumber: frame.lineNumber,
+      methodName: frame.methodName,
+      ignored: shouldIgnoreListGeneratedFrame(frame.file),
+    },
+    code: null,
+  }
+}
+
 /**
  * @param frame
  * @param sourceMapCache
@@ -158,7 +180,8 @@ interface SourcemappableStackFrame extends StackFrame {
  */
 function getSourcemappedFrameIfPossible(
   frame: SourcemappableStackFrame,
-  sourceMapCache: SourceMapCache
+  sourceMapCache: SourceMapCache,
+  inspectOptions: util.InspectOptions
 ): {
   stack: IgnoreableStackFrame
   // DEV only
@@ -169,37 +192,66 @@ function getSourcemappedFrameIfPossible(
   let sourceMapPayload: ModernSourceMapPayload
   if (sourceMapCacheEntry === undefined) {
     let sourceURL = frame.file
-    // e.g. "/APP/.next/server/chunks/ssr/[root of the server]__2934a0._.js"
-    // will be keyed by Node.js as "file:///APP/.next/server/chunks/ssr/[root%20of%20the%20server]__2934a0._.js".
+    // e.g. "/APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js"
+    // will be keyed by Node.js as "file:///APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js".
     // This is likely caused by `callsite.toString()` in `Error.prepareStackTrace converting file URLs to paths.
     if (sourceURL.startsWith('/')) {
       sourceURL = url.pathToFileURL(frame.file).toString()
     }
-    const maybeSourceMapPayload =
-      nativeFindSourceMap(sourceURL)?.payload ??
-      bundlerFindSourceMapPayload(sourceURL)
+    let maybeSourceMapPayload: ModernSourceMapPayload | undefined
+    try {
+      const sourceMap = nativeFindSourceMap(sourceURL)
+      maybeSourceMapPayload = sourceMap?.payload
+    } catch (cause) {
+      // We should not log an actual error instance here because that will re-enter
+      // this codepath during error inspection and could lead to infinite recursion.
+      console.error(
+        `${sourceURL}: Invalid source map. Only conformant source maps can be used to find the original code. Cause: ${cause}`
+      )
+      // If loading fails once, it'll fail every time.
+      // So set the cache to avoid duplicate errors.
+      sourceMapCache.set(frame.file, null)
+      // Don't even fall back to the bundler because it might be not as strict
+      // with regards to parsing and then we fail later once we consume the
+      // source map payload.
+      // This essentially avoids a redundant error where we fail here and then
+      // later on consumption because the bundler just handed back an invalid
+      // source map.
+      return createUnsourcemappedFrame(frame)
+    }
     if (maybeSourceMapPayload === undefined) {
-      return {
-        stack: {
-          arguments: frame.arguments,
-          column: frame.column,
-          file: frame.file,
-          lineNumber: frame.lineNumber,
-          methodName: frame.methodName,
-          ignored: shouldIgnoreListGeneratedFrame(frame.file),
-        },
-        code: null,
-      }
+      maybeSourceMapPayload = bundlerFindSourceMapPayload(sourceURL)
+    }
+
+    if (maybeSourceMapPayload === undefined) {
+      return createUnsourcemappedFrame(frame)
     }
     sourceMapPayload = maybeSourceMapPayload
-    sourceMapConsumer = new SyncSourceMapConsumer(
-      // @ts-expect-error -- Module.SourceMap['version'] is number but SyncSourceMapConsumer wants a string
-      sourceMapPayload
-    )
+    try {
+      sourceMapConsumer = new SyncSourceMapConsumer(
+        // @ts-expect-error -- Module.SourceMap['version'] is number but SyncSourceMapConsumer wants a string
+        sourceMapPayload
+      )
+    } catch (cause) {
+      // We should not log an actual error instance here because that will re-enter
+      // this codepath during error inspection and could lead to infinite recursion.
+      console.error(
+        `${sourceURL}: Invalid source map. Only conformant source maps can be used to find the original code. Cause: ${cause}`
+      )
+      // If creating the consumer fails once, it'll fail every time.
+      // So set the cache to avoid duplicate errors.
+      sourceMapCache.set(frame.file, null)
+      return createUnsourcemappedFrame(frame)
+    }
     sourceMapCache.set(frame.file, {
       map: sourceMapConsumer,
       payload: sourceMapPayload,
     })
+  } else if (sourceMapCacheEntry === null) {
+    // We failed earlier getting the payload or consumer.
+    // Just return an unsourcemapped frame.
+    // Errors will already be logged.
+    return createUnsourcemappedFrame(frame)
   } else {
     sourceMapConsumer = sourceMapCacheEntry.map
     sourceMapPayload = sourceMapCacheEntry.payload
@@ -272,7 +324,11 @@ function getSourcemappedFrameIfPossible(
 
   const codeFrame =
     process.env.NODE_ENV !== 'production'
-      ? getOriginalCodeFrame(originalFrame, sourceContent)
+      ? getOriginalCodeFrame(
+          originalFrame,
+          sourceContent,
+          inspectOptions.colors
+        )
       : null
 
   return {
@@ -281,7 +337,10 @@ function getSourcemappedFrameIfPossible(
   }
 }
 
-function parseAndSourceMap(error: Error): string {
+function parseAndSourceMap(
+  error: Error,
+  inspectOptions: util.InspectOptions
+): string {
   // TODO(veil): Expose as CLI arg or config option. Useful for local debugging.
   const showIgnoreListed = false
   // We overwrote Error.prepareStackTrace earlier so error.stack is not sourcemapped.
@@ -312,7 +371,8 @@ function parseAndSourceMap(error: Error): string {
       const sourcemappedFrame = getSourcemappedFrameIfPossible(
         // We narrowed this earlier by bailing if `frame.file` is null.
         frame as SourcemappableStackFrame,
-        sourceMapCache
+        sourceMapCache,
+        inspectOptions
       )
 
       if (
@@ -326,6 +386,8 @@ function parseAndSourceMap(error: Error): string {
       }
       if (!sourcemappedFrame.stack.ignored) {
         // TODO: Consider what happens if every frame is ignore listed.
+        sourceMappedStack += '\n' + frameToString(sourcemappedFrame.stack)
+      } else if (showIgnoreListed && !inspectOptions.colors) {
         sourceMappedStack += '\n' + frameToString(sourcemappedFrame.stack)
       } else if (showIgnoreListed) {
         sourceMappedStack += '\n' + dim(frameToString(sourcemappedFrame.stack))
@@ -342,7 +404,11 @@ function parseAndSourceMap(error: Error): string {
   )
 }
 
-function sourceMapError(this: void, error: Error): Error {
+function sourceMapError(
+  this: void,
+  error: Error,
+  inspectOptions: util.InspectOptions
+): Error {
   // Create a new Error object with the source mapping applied and then use native
   // Node.js formatting on the result.
   const newError =
@@ -352,7 +418,7 @@ function sourceMapError(this: void, error: Error): Error {
       : new Error(error.message)
 
   // TODO: Ensure `class MyError extends Error {}` prints `MyError` as the name
-  newError.stack = parseAndSourceMap(error)
+  newError.stack = parseAndSourceMap(error, inspectOptions)
 
   for (const key in error) {
     if (!Object.prototype.hasOwnProperty.call(newError, key)) {
@@ -381,7 +447,7 @@ export function patchErrorInspectNodeJS(
   ): string {
     // avoid false-positive dynamic i/o warnings e.g. due to usage of `Math.random` in `source-map`.
     return workUnitAsyncStorage.exit(() => {
-      const newError = sourceMapError(this)
+      const newError = sourceMapError(this, inspectOptions)
 
       const originalCustomInspect = (newError as any)[inspectSymbol]
       // Prevent infinite recursion.
@@ -422,7 +488,7 @@ export function patchErrorInspectEdgeLite(
   }): string {
     // avoid false-positive dynamic i/o warnings e.g. due to usage of `Math.random` in `source-map`.
     return workUnitAsyncStorage.exit(() => {
-      const newError = sourceMapError(this)
+      const newError = sourceMapError(this, {})
 
       const originalCustomInspect = (newError as any)[inspectSymbol]
       // Prevent infinite recursion.

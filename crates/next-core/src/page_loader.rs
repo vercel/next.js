@@ -10,7 +10,6 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkData, ChunksData},
     context::AssetContext,
-    ident::AssetIdent,
     module::Module,
     output::{OutputAsset, OutputAssets},
     proxied_asset::ProxiedAsset,
@@ -113,7 +112,7 @@ impl PageLoaderAsset {
                 .map(|&chunk| {
                     Vc::upcast::<Box<dyn OutputAsset>>(ProxiedAsset::new(
                         *chunk,
-                        FileSystemPath::rebase(chunk.ident().path(), **rebase_path, root_path),
+                        FileSystemPath::rebase(chunk.path(), **rebase_path, root_path),
                     ))
                     .to_resolved()
                 })
@@ -134,19 +133,17 @@ fn page_loader_chunk_reference_description() -> Vc<RcStr> {
 #[turbo_tasks::value_impl]
 impl OutputAsset for PageLoaderAsset {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+    async fn path(&self) -> Result<Vc<FileSystemPath>> {
         let root = self
             .rebase_prefix_path
             .await?
             .map_or(*self.server_root, |path| *path);
-        Ok(AssetIdent::from_path(
-            root.join(
-                format!(
-                    "static/chunks/pages{}",
-                    get_asset_path_from_pathname(&self.pathname.await?, ".js")
-                )
-                .into(),
-            ),
+        Ok(root.join(
+            format!(
+                "static/chunks/pages{}",
+                get_asset_path_from_pathname(&self.pathname.await?, ".js")
+            )
+            .into(),
         ))
     }
 

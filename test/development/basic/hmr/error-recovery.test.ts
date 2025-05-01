@@ -10,6 +10,7 @@ import {
   renderViaHTTP,
   retry,
   waitFor,
+  trimEndMultiline,
 } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 import { outdent } from 'outdent'
@@ -98,7 +99,7 @@ describe.each([
         throw err
       }
     })
-    ;(process.env.TURBOPACK ? it.skip : it)(
+    ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
       // this test fails frequently with turbopack
       'should not continously poll a custom error page',
       async () => {
@@ -169,7 +170,47 @@ describe.each([
       const source = next.normalizeTestDirContent(
         await getRedboxSource(browser)
       )
-      if (basePath === '' && !process.env.TURBOPACK) {
+
+      if (basePath === '' && process.env.IS_TURBOPACK_TEST) {
+        expect(source).toMatchInlineSnapshot(`
+         "./pages/hmr/about2.js (7:1)
+         Parsing ecmascript source code failed
+           5 |     div
+           6 |   )
+         > 7 | }
+             | ^
+           8 |
+
+         Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
+        `)
+      } else if (basePath === '' && process.env.NEXT_RSPACK) {
+        expect(trimEndMultiline(source)).toMatchInlineSnapshot(`
+         "./pages/hmr/about2.js
+           × Module build failed:
+           ├─▶   ×
+           │     │   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+           │     │    ,-[TEST_DIR/pages/hmr/about2.js:7:1]
+           │     │  4 |       <p>This is the about page.</p>
+           │     │  5 |     div
+           │     │  6 |   )
+           │     │  7 | }
+           │     │    : ^
+           │     │    \`----
+           │     │
+           │     │   x Unexpected eof
+           │     │    ,-[TEST_DIR/pages/hmr/about2.js:7:3]
+           │     │  5 |     div
+           │     │  6 |   )
+           │     │  7 | }
+           │     │    \`----
+           │     │
+           │
+           ╰─▶ Syntax Error
+
+         Import trace for requested module:
+         ./pages/hmr/about2.js"
+        `)
+      } else if (basePath === '') {
         expect(source).toMatchInlineSnapshot(`
           "./pages/hmr/about2.js
           Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
@@ -193,9 +234,9 @@ describe.each([
           Import trace for requested module:
           ./pages/hmr/about2.js"
         `)
-      } else if (basePath === '' && process.env.TURBOPACK) {
+      } else if (basePath === '/docs' && process.env.IS_TURBOPACK_TEST) {
         expect(source).toMatchInlineSnapshot(`
-            "./pages/hmr/about2.js:7:1
+            "./pages/hmr/about2.js (7:1)
             Parsing ecmascript source code failed
               5 |     div
               6 |   )
@@ -205,7 +246,34 @@ describe.each([
 
             Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
           `)
-      } else if (basePath === '/docs' && !process.env.TURBOPACK) {
+      } else if (basePath === '/docs' && process.env.NEXT_RSPACK) {
+        expect(trimEndMultiline(source)).toMatchInlineSnapshot(`
+         "./pages/hmr/about2.js
+           × Module build failed:
+           ├─▶   ×
+           │     │   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+           │     │    ,-[TEST_DIR/pages/hmr/about2.js:7:1]
+           │     │  4 |       <p>This is the about page.</p>
+           │     │  5 |     div
+           │     │  6 |   )
+           │     │  7 | }
+           │     │    : ^
+           │     │    \`----
+           │     │
+           │     │   x Unexpected eof
+           │     │    ,-[TEST_DIR/pages/hmr/about2.js:7:3]
+           │     │  5 |     div
+           │     │  6 |   )
+           │     │  7 | }
+           │     │    \`----
+           │     │
+           │
+           ╰─▶ Syntax Error
+
+         Import trace for requested module:
+         ./pages/hmr/about2.js"
+        `)
+      } else if (basePath === '/docs') {
         expect(source).toMatchInlineSnapshot(`
           "./pages/hmr/about2.js
           Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
@@ -229,18 +297,6 @@ describe.each([
           Import trace for requested module:
           ./pages/hmr/about2.js"
         `)
-      } else if (basePath === '/docs' && process.env.TURBOPACK) {
-        expect(source).toMatchInlineSnapshot(`
-            "./pages/hmr/about2.js:7:1
-            Parsing ecmascript source code failed
-              5 |     div
-              6 |   )
-            > 7 | }
-                | ^
-              8 |
-
-            Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
-          `)
       }
 
       await next.patchFile(aboutPage, aboutContent)
@@ -252,7 +308,7 @@ describe.each([
       })
     })
 
-    if (!process.env.TURBOPACK) {
+    if (!process.env.IS_TURBOPACK_TEST) {
       // Turbopack doesn't have this restriction
       it('should show the error on all pages', async () => {
         const aboutPage = join('pages', 'hmr', 'about2.js')
@@ -384,7 +440,7 @@ describe.each([
 
         await assertHasRedbox(browser)
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-          `"Error: The default export is not a React Component in page: "/hmr/about5""`
+          `"The default export is not a React Component in page: "/hmr/about5""`
         )
 
         await next.patchFile(aboutPage, aboutContent)
@@ -474,7 +530,7 @@ describe.each([
 
         await assertHasRedbox(browser)
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-          `"Error: The default export is not a React Component in page: "/hmr/about7""`
+          `"The default export is not a React Component in page: "/hmr/about7""`
         )
 
         await next.patchFile(aboutPage, aboutContent)
@@ -519,9 +575,9 @@ describe.each([
         )
 
         await assertHasRedbox(browser)
-        expect(await getRedboxHeader(browser)).toMatch('Failed to compile')
+        expect(await getRedboxHeader(browser)).toMatch('Build Error')
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
               "./components/parse-error.xyz
               Unknown module type
@@ -529,6 +585,28 @@ describe.each([
 
               Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders"
             `)
+        } else if (process.env.NEXT_RSPACK) {
+          expect(trimEndMultiline(await getRedboxSource(browser)))
+            .toMatchInlineSnapshot(`
+           "./components/parse-error.xyz
+             × Module parse failed:
+             ╰─▶   × JavaScript parsing error: Expression expected
+                    ╭─[3:0]
+                  1 │ This
+                  2 │ is
+                  3 │ }}}
+                    · ─
+                  4 │ invalid
+                  5 │ js
+                    ╰────
+
+             help:
+                   You may need an appropriate loader to handle this file type.
+
+           Import trace for requested module:
+           ./components/parse-error.xyz
+           ./pages/hmr/about8.js"
+          `)
         } else {
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
                       "./components/parse-error.xyz
@@ -545,6 +623,7 @@ describe.each([
                       ./pages/hmr/about8.js"
                   `)
         }
+
         await next.patchFile(aboutPage, aboutContent)
 
         await retry(async () => {
@@ -587,24 +666,47 @@ describe.each([
         )
 
         await assertHasRedbox(browser)
-        expect(await getRedboxHeader(browser)).toMatch('Failed to compile')
+        expect(await getRedboxHeader(browser)).toMatch('Build Error')
         let redboxSource = await getRedboxSource(browser)
 
         redboxSource = redboxSource.replace(`${next.testDir}`, '.')
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           expect(next.normalizeTestDirContent(redboxSource))
             .toMatchInlineSnapshot(`
-              "./components/parse-error.js:3:1
-              Parsing ecmascript source code failed
-                1 | This
-                2 | is
-              > 3 | }}}
-                  | ^
-                4 | invalid
-                5 | js
+           "./components/parse-error.js (3:1)
+           Parsing ecmascript source code failed
+             1 | This
+             2 | is
+           > 3 | }}}
+               | ^
+             4 | invalid
+             5 | js
 
-              Expression expected"
-            `)
+           Expression expected"
+          `)
+        } else if (process.env.NEXT_RSPACK) {
+          expect(trimEndMultiline(next.normalizeTestDirContent(redboxSource)))
+            .toMatchInlineSnapshot(`
+           "./components/parse-error.js
+             × Module build failed:
+             ├─▶   ×
+             │     │   x Expression expected
+             │     │    ,-[./components/parse-error.js:3:1]
+             │     │  1 | This
+             │     │  2 | is
+             │     │  3 | }}}
+             │     │    : ^
+             │     │  4 | invalid
+             │     │  5 | js
+             │     │    \`----
+             │     │
+             │
+             ╰─▶ Syntax Error
+
+           Import trace for requested module:
+           ./components/parse-error.js
+           ./pages/hmr/about9.js"
+          `)
         } else {
           redboxSource = redboxSource.substring(
             0,
@@ -654,7 +756,7 @@ describe.each([
 
         await assertHasRedbox(browser)
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-          `"Error: an-expected-error-in-gip"`
+          `"an-expected-error-in-gip"`
         )
 
         await next.patchFile(
@@ -693,7 +795,7 @@ describe.each([
       try {
         await assertHasRedbox(browser)
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-          `"Error: an-expected-error-in-gip"`
+          `"an-expected-error-in-gip"`
         )
 
         const erroredPage = join('pages', 'hmr', 'error-in-gip.js')
@@ -727,7 +829,7 @@ describe.each([
       }
     })
 
-    if (!process.env.TURBOPACK) {
+    if (!process.env.IS_TURBOPACK_TEST) {
       it('should have client HMR events in trace file', async () => {
         const traceData = await next.readFile('.next/trace')
         expect(traceData).toContain('client-hmr-latency')

@@ -14,7 +14,7 @@ function getClassNameRegex(className: string): RegExp {
 }
 
 function hrefMatchesFontWithSizeAdjust(href: string) {
-  if (process.env.TURBOPACK) {
+  if (process.env.IS_TURBOPACK_TEST) {
     expect(href).toMatch(
       // Turbopack includes the file hash
       /\/_next\/static\/media\/(.*)-s\.p\.(.*)\.woff2/
@@ -25,7 +25,7 @@ function hrefMatchesFontWithSizeAdjust(href: string) {
 }
 
 function hrefMatchesFontWithoutSizeAdjust(href: string) {
-  if (process.env.TURBOPACK) {
+  if (process.env.IS_TURBOPACK_TEST) {
     expect(href).toMatch(
       // Turbopack includes the file hash
       /\/_next\/static\/media\/(.*)\.p\.(.*)\.woff2/
@@ -71,6 +71,10 @@ describe('next/font', () => {
       )
     })
   }
+
+  it('should not have deprecation warning', async () => {
+    expect(next.cliOutput.toLowerCase()).not.toContain('deprecation')
+  })
 
   describe('import values', () => {
     test('page with font', async () => {

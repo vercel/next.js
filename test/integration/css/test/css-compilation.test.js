@@ -74,20 +74,20 @@ module.exports = {
               ).then((res) => res.text())
 
               const cssContentWithoutSourceMap = cssContent
-                .replace(/\/\*.*?\*\//g, '')
+                .replace(/\/\*.*?\*\/\n?/g, '')
                 .trim()
 
-              if (process.env.TURBOPACK && useLightningcss) {
+              if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
                 expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
                   `"@media (480px<=width<768px){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0px,0px)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
                 )
-              } else if (process.env.TURBOPACK && !useLightningcss) {
+              } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
                 expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
                   `"@media (480px<=width<768px){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0px,0px)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
                 )
               } else if (useLightningcss) {
                 expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
-                  `"@media (min-width:480px) and (max-width:767.999px){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0,0)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
+                  `"@media (min-width:480px) and (not (min-width:768px)){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0,0)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
                 )
               } else {
                 expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
@@ -116,155 +116,103 @@ module.exports = {
               delete sourceMapContentParsed.file
               delete sourceMapContentParsed.sources
 
-              if (process.env.TURBOPACK && useLightningcss) {
+              if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
                 expect(sourceMapContentParsed).toMatchInlineSnapshot(`
-                  {
-                    "sections": [
-                      {
-                        "map": {
-                          "mappings": "AAAA,4BACE,2BAKF,0DAIA,kDAIA,uCAIA",
-                          "names": [],
-                          "sources": [
-                            "turbopack://[project]/test/integration/css-fixtures/compilation-and-prefixing/styles/global.css",
-                          ],
-                          "sourcesContent": [
-                            "@media (480px <= width < 768px) {
-                    ::placeholder {
-                      color: green;
-                    }
-                  }
+                 {
+                   "mappings": "AAAA,4BACE,2BAKF,0DAIA,kDAIA,uCAIA",
+                   "names": [],
+                   "sourcesContent": [
+                     "@media (480px <= width < 768px) {
+                   ::placeholder {
+                     color: green;
+                   }
+                 }
 
-                  .flex-parsing {
-                    flex: 0 0 calc(50% - var(--vertical-gutter));
-                  }
+                 .flex-parsing {
+                   flex: 0 0 calc(50% - var(--vertical-gutter));
+                 }
 
-                  .transform-parsing {
-                    transform: translate3d(0px, 0px);
-                  }
+                 .transform-parsing {
+                   transform: translate3d(0px, 0px);
+                 }
 
-                  .css-grid-shorthand {
-                    grid-column: span 2;
-                  }
+                 .css-grid-shorthand {
+                   grid-column: span 2;
+                 }
 
-                  .g-docs-sidenav .filter::-webkit-input-placeholder {
-                    opacity: 80%;
-                  }
-                  ",
-                          ],
-                          "version": 3,
-                        },
-                        "offset": {
-                          "column": 0,
-                          "line": 1,
-                        },
-                      },
-                      {
-                        "map": {
-                          "mappings": "A",
-                          "names": [],
-                          "sources": [],
-                          "version": 3,
-                        },
-                        "offset": {
-                          "column": 264,
-                          "line": 1,
-                        },
-                      },
-                    ],
-                    "version": 3,
-                  }
+                 .g-docs-sidenav .filter::-webkit-input-placeholder {
+                   opacity: 80%;
+                 }
+                 ",
+                   ],
+                   "version": 3,
+                 }
                 `)
-              } else if (process.env.TURBOPACK && !useLightningcss) {
+              } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
                 expect(sourceMapContentParsed).toMatchInlineSnapshot(`
-                  {
-                    "sections": [
-                      {
-                        "map": {
-                          "mappings": "AAAA,4BACE,2BAKF,0DAIA,kDAIA,uCAIA",
-                          "names": [],
-                          "sources": [
-                            "turbopack://[project]/test/integration/css-fixtures/compilation-and-prefixing/styles/global.css",
-                          ],
-                          "sourcesContent": [
-                            "@media (480px <= width < 768px) {
-                    ::placeholder {
-                      color: green;
-                    }
-                  }
+                 {
+                   "mappings": "AAAA,4BACE,2BAKF,0DAIA,kDAIA,uCAIA",
+                   "names": [],
+                   "sourcesContent": [
+                     "@media (480px <= width < 768px) {
+                   ::placeholder {
+                     color: green;
+                   }
+                 }
 
-                  .flex-parsing {
-                    flex: 0 0 calc(50% - var(--vertical-gutter));
-                  }
+                 .flex-parsing {
+                   flex: 0 0 calc(50% - var(--vertical-gutter));
+                 }
 
-                  .transform-parsing {
-                    transform: translate3d(0px, 0px);
-                  }
+                 .transform-parsing {
+                   transform: translate3d(0px, 0px);
+                 }
 
-                  .css-grid-shorthand {
-                    grid-column: span 2;
-                  }
+                 .css-grid-shorthand {
+                   grid-column: span 2;
+                 }
 
-                  .g-docs-sidenav .filter::-webkit-input-placeholder {
-                    opacity: 80%;
-                  }
-                  ",
-                          ],
-                          "version": 3,
-                        },
-                        "offset": {
-                          "column": 0,
-                          "line": 1,
-                        },
-                      },
-                      {
-                        "map": {
-                          "mappings": "A",
-                          "names": [],
-                          "sources": [],
-                          "version": 3,
-                        },
-                        "offset": {
-                          "column": 264,
-                          "line": 1,
-                        },
-                      },
-                    ],
-                    "version": 3,
-                  }
+                 .g-docs-sidenav .filter::-webkit-input-placeholder {
+                   opacity: 80%;
+                 }
+                 ",
+                   ],
+                   "version": 3,
+                 }
                 `)
               } else if (useLightningcss) {
                 expect(sourceMapContentParsed).toMatchInlineSnapshot(`
-                  {
-                    "mappings": "AAAA,mDACE,cACE,WACF,CACF,CAEA,cACE,2CACF,CAEA,mBACE,0BACF,CAEA,oBACE,kBACF,CAEA,mDACE,UACF",
-                    "names": [],
-                    "sourceRoot": "",
-                    "sourcesContent": [
-                      "@media (min-width: 480px) and (max-width: 767.999px) {
-                    ::placeholder {
-                      color: green;
-                    }
-                  }
+                 {
+                   "mappings": "AAAA,qDACE,cACE,WACF,CACF,CAEA,cACE,2CACF,CAEA,mBACE,0BACF,CAEA,oBACE,kBACF,CAEA,mDACE,UACF",
+                   "names": [],
+                   "sourceRoot": "",
+                   "sourcesContent": [
+                     "@media (min-width: 480px) and (not (min-width: 768px)) {
+                   ::placeholder {
+                     color: green;
+                   }
+                 }
 
-                  .flex-parsing {
-                    flex: 0 0 calc(50% - var(--vertical-gutter));
-                  }
+                 .flex-parsing {
+                   flex: 0 0 calc(50% - var(--vertical-gutter));
+                 }
 
-                  .transform-parsing {
-                    transform: translate3d(0px, 0px);
-                  }
+                 .transform-parsing {
+                   transform: translate3d(0px, 0px);
+                 }
 
-                  .css-grid-shorthand {
-                    grid-column: span 2;
-                  }
+                 .css-grid-shorthand {
+                   grid-column: span 2;
+                 }
 
-                  .g-docs-sidenav .filter::-webkit-input-placeholder {
-                    opacity: .8;
-                  }
+                 .g-docs-sidenav .filter::-webkit-input-placeholder {
+                   opacity: .8;
+                 }
 
-                  ",
-                    ],
-                    "version": 3,
-                  }
+                 ",
+                   ],
+                   "version": 3,
+                 }
                 `)
               } else {
                 expect(sourceMapContentParsed).toMatchInlineSnapshot(`
@@ -483,10 +431,10 @@ module.exports = {
                   res.text()
                 )
               )
-                .replace(/\/\*.*?\*\//g, '')
+                .replace(/\/\*.*?\*\/\n?/g, '')
                 .trim()
 
-              expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
+              expect(cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim()).toMatch(
                 /nprogress/
               )
             })
@@ -543,32 +491,30 @@ module.exports = {
                   res.text()
                 )
               )
-                .replace(/\/\*.*?\*\//g, '')
+                .replace(/\/\*.*?\*\/\n?/g, '')
                 .trim()
 
-              if (process.env.TURBOPACK && useLightningcss) {
-                expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
+              if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
+                expect(cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim())
                   .toMatchInlineSnapshot(`
-".other{color:#00f}
+                 ".other{color:#00f}
 
-
-.test{color:red}"
-`)
-              } else if (process.env.TURBOPACK && !useLightningcss) {
-                expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
+                 .test{color:red}"
+                `)
+              } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
+                expect(cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim())
                   .toMatchInlineSnapshot(`
-".other{color:#00f}
+                 ".other{color:#00f}
 
-
-.test{color:red}"
-`)
+                 .test{color:red}"
+                `)
               } else if (useLightningcss) {
                 expect(
-                  cssContent.replace(/\/\*.*?\*\//g, '').trim()
+                  cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim()
                 ).toMatchInlineSnapshot(`".other{color:#00f}.test{color:red}"`)
               } else {
                 expect(
-                  cssContent.replace(/\/\*.*?\*\//g, '').trim()
+                  cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim()
                 ).toMatchInlineSnapshot(`".other{color:blue}.test{color:red}"`)
               }
             })

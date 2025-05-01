@@ -121,22 +121,34 @@ impl Introspectable for StaticAssetsContentSource {
         let prefix = self.prefix.await?;
         let children = entries
             .iter()
-            .map(|(name, entry)| {
-                let child = match entry {
-                    DirectoryEntry::File(path) | DirectoryEntry::Symlink(path) => {
-                        IntrospectableSource::new(Vc::upcast(FileSource::new(**path)))
-                    }
-                    DirectoryEntry::Directory(path) => {
-                        Vc::upcast(StaticAssetsContentSource::with_prefix(
-                            Vc::cell(format!("{}{name}/", &*prefix).into()),
-                            **path,
-                        ))
-                    }
-                    DirectoryEntry::Other(_) => todo!("what's DirectoryContent::Other?"),
-                    DirectoryEntry::Error => todo!(),
-                };
-                (ResolvedVc::cell(name.clone()), child)
+            .map(move |(name, entry)| {
+                let prefix = prefix.clone();
+                async move {
+                    let child = match entry {
+                        DirectoryEntry::File(path) | DirectoryEntry::Symlink(path) => {
+                            ResolvedVc::upcast(
+                                IntrospectableSource::new(Vc::upcast(FileSource::new(**path)))
+                                    .to_resolved()
+                                    .await?,
+                            )
+                        }
+                        DirectoryEntry::Directory(path) => ResolvedVc::upcast(
+                            StaticAssetsContentSource::with_prefix(
+                                Vc::cell(format!("{}{name}/", &*prefix).into()),
+                                **path,
+                            )
+                            .to_resolved()
+                            .await?,
+                        ),
+                        DirectoryEntry::Other(_) => todo!("what's DirectoryContent::Other?"),
+                        DirectoryEntry::Error => todo!(),
+                    };
+                    Ok((ResolvedVc::cell(name.clone()), child))
+                }
             })
+            .try_join()
+            .await?
+            .into_iter()
             .collect();
         Ok(Vc::cell(children))
     }

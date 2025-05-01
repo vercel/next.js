@@ -1,24 +1,17 @@
-use std::{cmp::max, num::NonZeroU32};
-
 use serde::{Deserialize, Serialize};
 use turbo_tasks::TaskId;
 
 use crate::{
     backend::{
+        get_mut,
         operation::{
-            aggregation_update::{
-                get_uppers, is_aggregating_node, AggregationUpdateJob, AggregationUpdateQueue,
-                LEAF_NUMBER,
-            },
-            is_root_node, ExecuteContext, Operation, TaskGuard,
+            aggregation_update::{AggregationUpdateJob, AggregationUpdateQueue},
+            ExecuteContext, Operation, TaskGuard,
         },
-        storage::{get, update_ucount_and_get},
         TaskDataCategory,
     },
-    data::{CachedDataItem, CachedDataItemKey},
+    data::{CachedDataItem, CachedDataItemKey, InProgressState, InProgressStateInner},
 };
-
-const AGGREGATION_NUMBER_BUFFER_SPACE: u32 = 3;
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 #[allow(clippy::large_enum_variant)]
@@ -33,7 +26,7 @@ pub enum ConnectChildOperation {
 impl ConnectChildOperation {
     pub fn run(parent_task_id: TaskId, child_task_id: TaskId, mut ctx: impl ExecuteContext) {
         if !ctx.should_track_children() {
-            let mut task = ctx.task(child_task_id, TaskDataCategory::Data);
+            let mut task = ctx.task(child_task_id, TaskDataCategory::All);
             if !task.has_key(&CachedDataItemKey::Output {}) {
                 let description = ctx.get_task_desc_fn(child_task_id);
                 let should_schedule = task.add(CachedDataItem::new_scheduled(description));
@@ -45,105 +38,55 @@ impl ConnectChildOperation {
             return;
         }
         let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::All);
+        let Some(InProgressState::InProgress(box InProgressStateInner { new_children, .. })) =
+            get_mut!(parent_task, InProgress)
+        else {
+            panic!("Task is not in progress while calling another task");
+        };
+
         // Quick skip if the child was already connected before
-        if parent_task
-            .remove(&CachedDataItemKey::OutdatedChild {
-                task: child_task_id,
-            })
-            .is_some()
-        {
+        if !new_children.insert(child_task_id) {
             return;
         }
-        if parent_task.add(CachedDataItem::Child {
+        if parent_task.has_key(&CachedDataItemKey::Child {
             task: child_task_id,
-            value: (),
         }) {
-            let mut queue = AggregationUpdateQueue::new();
+            // It is already connected, we can skip the rest
+            return;
+        }
+        drop(parent_task);
 
-            // Update the children count
-            let children_count = update_ucount_and_get!(parent_task, ChildrenCount, 1);
+        let mut queue = AggregationUpdateQueue::new();
 
-            // Compute future parent aggregation number based on the number of children
-            let current_parent_aggregation = get!(parent_task, AggregationNumber)
-                .copied()
-                .unwrap_or_default();
-            let (parent_aggregation, future_parent_aggregation) =
-                if is_root_node(current_parent_aggregation.base) {
-                    (u32::MAX, u32::MAX)
-                } else {
-                    let target_distance = children_count.ilog2() * 2;
-                    if target_distance > current_parent_aggregation.distance {
-                        queue.push(AggregationUpdateJob::UpdateAggregationNumber {
-                            task_id: parent_task_id,
-                            base_aggregation_number: 0,
-                            distance: NonZeroU32::new(target_distance),
-                        })
-                    }
-                    (
-                        current_parent_aggregation.effective,
-                        current_parent_aggregation.base.saturating_add(max(
-                            target_distance,
-                            current_parent_aggregation.distance,
-                        )),
-                    )
-                };
+        // Handle the transient to persistent boundary by making the persistent task a root task
+        if parent_task_id.is_transient() && !child_task_id.is_transient() {
+            queue.push(AggregationUpdateJob::UpdateAggregationNumber {
+                task_id: child_task_id,
+                base_aggregation_number: u32::MAX,
+                distance: None,
+            });
+        }
 
-            // Update child aggregation number based on parent aggregation number
-            let aggregating_node = is_aggregating_node(parent_aggregation);
-            if parent_task_id.is_transient() && !child_task_id.is_transient() {
-                queue.push(AggregationUpdateJob::UpdateAggregationNumber {
-                    task_id: child_task_id,
-                    base_aggregation_number: u32::MAX,
-                    distance: None,
-                });
-            } else if !aggregating_node {
-                let base_aggregation_number =
-                    future_parent_aggregation.saturating_add(AGGREGATION_NUMBER_BUFFER_SPACE);
-                queue.push(AggregationUpdateJob::UpdateAggregationNumber {
-                    task_id: child_task_id,
-                    base_aggregation_number: if is_aggregating_node(
-                        base_aggregation_number.saturating_add(AGGREGATION_NUMBER_BUFFER_SPACE - 1),
-                    ) {
-                        LEAF_NUMBER
-                    } else {
-                        base_aggregation_number
-                    },
-                    distance: None,
-                });
-            }
-            if aggregating_node {
-                queue.push(AggregationUpdateJob::InnerOfUpperHasNewFollower {
-                    upper_id: parent_task_id,
-                    new_follower_id: child_task_id,
-                });
-            } else {
-                let upper_ids = get_uppers(&parent_task);
-                queue.push(AggregationUpdateJob::InnerOfUppersHasNewFollower {
-                    upper_ids,
-                    new_follower_id: child_task_id,
-                });
-            }
-            drop(parent_task);
-
-            {
-                let mut task = ctx.task(child_task_id, TaskDataCategory::Meta);
-                if !task.has_key(&CachedDataItemKey::Output {}) {
-                    let description = ctx.get_task_desc_fn(child_task_id);
-                    let should_schedule = task.add(CachedDataItem::new_scheduled(description));
-                    drop(task);
-                    if should_schedule {
-                        ctx.schedule(child_task_id);
-                    }
+        if ctx.should_track_activeness() {
+            queue.push(AggregationUpdateJob::IncreaseActiveCount {
+                task: child_task_id,
+            });
+        } else {
+            let mut task = ctx.task(child_task_id, TaskDataCategory::All);
+            if !task.has_key(&CachedDataItemKey::Output {}) {
+                let description = ctx.get_task_desc_fn(child_task_id);
+                let should_schedule = task.add(CachedDataItem::new_scheduled(description));
+                drop(task);
+                if should_schedule {
+                    ctx.schedule(child_task_id);
                 }
             }
-
-            #[cfg(feature = "trace_aggregation_update")]
-            let _span = tracing::trace_span!("connect_child").entered();
-            ConnectChildOperation::UpdateAggregation {
-                aggregation_update: queue,
-            }
-            .execute(&mut ctx);
         }
+
+        ConnectChildOperation::UpdateAggregation {
+            aggregation_update: queue,
+        }
+        .execute(&mut ctx);
     }
 }
 

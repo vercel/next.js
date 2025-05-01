@@ -14,7 +14,6 @@ use turbopack_core::{
     source_map::Token,
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
     virtual_source::VirtualSource,
-    SOURCE_MAP_PREFIX,
 };
 
 use super::app_route_entry::get_app_route_entry;

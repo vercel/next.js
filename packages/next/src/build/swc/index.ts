@@ -10,10 +10,10 @@ import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadNativeNextSwc, downloadWasmSwc } from '../../lib/download-swc'
 import type {
   NextConfigComplete,
-  TurboLoaderItem,
-  TurboRuleConfigItem,
-  TurboRuleConfigItemOptions,
-  TurboRuleConfigItemOrShortcut,
+  TurbopackLoaderItem,
+  TurbopackRuleConfigItem,
+  TurbopackRuleConfigItemOptions,
+  TurbopackRuleConfigItemOrShortcut,
 } from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
 import {
@@ -21,7 +21,6 @@ import {
   getDefineEnv,
 } from '../webpack/plugins/define-env-plugin'
 import { getReactCompilerLoader } from '../get-babel-loader-config'
-import { TurbopackInternalError } from '../../server/dev/turbopack-utils'
 import type {
   NapiPartialProjectOptions,
   NapiProjectOptions,
@@ -33,6 +32,7 @@ import type {
   HmrIdentifiers,
   Project,
   ProjectOptions,
+  RawEntrypoints,
   Route,
   TurboEngineOptions,
   TurbopackResult,
@@ -41,6 +41,7 @@ import type {
   UpdateMessage,
   WrittenEndpoint,
 } from './types'
+import { TurbopackInternalError } from '../../shared/lib/turbopack/utils'
 
 type RawBindings = typeof import('./generated-native')
 type RawWasmBindings = typeof import('./generated-wasm') & {
@@ -165,7 +166,6 @@ let wasmBindings: Binding
 let downloadWasmPromise: any
 let pendingBindings: any
 let swcTraceFlushGuard: any
-let swcHeapProfilerFlushGuard: any
 let downloadNativeBindingsPromise: Promise<void> | undefined = undefined
 
 export const lockfilePatchPromise: { cur?: Promise<void> } = {}
@@ -441,6 +441,58 @@ function bindingToApi(
     callback: (err: Error, value: T) => void
   ) => Promise<{ __napiType: 'RootTask' }>
 
+  type NapiEndpoint = { __napiType: 'Endpoint' }
+
+  type NapiEntrypoints = {
+    routes: NapiRoute[]
+    middleware?: NapiMiddleware
+    instrumentation?: NapiInstrumentation
+    pagesDocumentEndpoint: NapiEndpoint
+    pagesAppEndpoint: NapiEndpoint
+    pagesErrorEndpoint: NapiEndpoint
+  }
+
+  type NapiMiddleware = {
+    endpoint: NapiEndpoint
+    runtime: 'nodejs' | 'edge'
+    matcher?: string[]
+  }
+
+  type NapiInstrumentation = {
+    nodeJs: NapiEndpoint
+    edge: NapiEndpoint
+  }
+
+  type NapiRoute = {
+    pathname: string
+  } & (
+    | {
+        type: 'page'
+        htmlEndpoint: NapiEndpoint
+        dataEndpoint: NapiEndpoint
+      }
+    | {
+        type: 'page-api'
+        endpoint: NapiEndpoint
+      }
+    | {
+        type: 'app-page'
+        pages: {
+          originalName: string
+          htmlEndpoint: NapiEndpoint
+          rscEndpoint: NapiEndpoint
+        }[]
+      }
+    | {
+        type: 'app-route'
+        originalName: string
+        endpoint: NapiEndpoint
+      }
+    | {
+        type: 'conflict'
+      }
+  )
+
   const cancel = new (class Cancel extends Error {})()
 
   /**
@@ -457,7 +509,7 @@ function bindingToApi(
     try {
       return await fn()
     } catch (nativeError: any) {
-      throw new TurbopackInternalError(nativeError)
+      throw TurbopackInternalError.createAndRecordTelemetry(nativeError)
     }
   }
 
@@ -525,7 +577,7 @@ function bindingToApi(
       } catch (e) {
         if (e === cancel) return
         if (e instanceof Error) {
-          throw new TurbopackInternalError(e)
+          throw TurbopackInternalError.createAndRecordTelemetry(e)
         }
         throw e
       } finally {
@@ -587,59 +639,20 @@ function bindingToApi(
       )
     }
 
+    async writeAllEntrypointsToDisk(
+      appDirOnly: boolean
+    ): Promise<TurbopackResult<RawEntrypoints>> {
+      return await withErrorCause(async () => {
+        const napiEndpoints = (await binding.projectWriteAllEntrypointsToDisk(
+          this._nativeProject,
+          appDirOnly
+        )) as TurbopackResult<NapiEntrypoints>
+
+        return napiEntrypointsToRawEntrypoints(napiEndpoints)
+      })
+    }
+
     entrypointsSubscribe() {
-      type NapiEndpoint = { __napiType: 'Endpoint' }
-
-      type NapiEntrypoints = {
-        routes: NapiRoute[]
-        middleware?: NapiMiddleware
-        instrumentation?: NapiInstrumentation
-        pagesDocumentEndpoint: NapiEndpoint
-        pagesAppEndpoint: NapiEndpoint
-        pagesErrorEndpoint: NapiEndpoint
-      }
-
-      type NapiMiddleware = {
-        endpoint: NapiEndpoint
-        runtime: 'nodejs' | 'edge'
-        matcher?: string[]
-      }
-
-      type NapiInstrumentation = {
-        nodeJs: NapiEndpoint
-        edge: NapiEndpoint
-      }
-
-      type NapiRoute = {
-        pathname: string
-      } & (
-        | {
-            type: 'page'
-            htmlEndpoint: NapiEndpoint
-            dataEndpoint: NapiEndpoint
-          }
-        | {
-            type: 'page-api'
-            endpoint: NapiEndpoint
-          }
-        | {
-            type: 'app-page'
-            pages: {
-              originalName: string
-              htmlEndpoint: NapiEndpoint
-              rscEndpoint: NapiEndpoint
-            }[]
-          }
-        | {
-            type: 'app-route'
-            originalName: string
-            endpoint: NapiEndpoint
-          }
-        | {
-            type: 'conflict'
-          }
-      )
-
       const subscription = subscribe<TurbopackResult<NapiEntrypoints>>(
         false,
         async (callback) =>
@@ -647,86 +660,7 @@ function bindingToApi(
       )
       return (async function* () {
         for await (const entrypoints of subscription) {
-          const routes = new Map()
-          for (const { pathname, ...nativeRoute } of entrypoints.routes) {
-            let route: Route
-            const routeType = nativeRoute.type
-            switch (routeType) {
-              case 'page':
-                route = {
-                  type: 'page',
-                  htmlEndpoint: new EndpointImpl(nativeRoute.htmlEndpoint),
-                  dataEndpoint: new EndpointImpl(nativeRoute.dataEndpoint),
-                }
-                break
-              case 'page-api':
-                route = {
-                  type: 'page-api',
-                  endpoint: new EndpointImpl(nativeRoute.endpoint),
-                }
-                break
-              case 'app-page':
-                route = {
-                  type: 'app-page',
-                  pages: nativeRoute.pages.map((page) => ({
-                    originalName: page.originalName,
-                    htmlEndpoint: new EndpointImpl(page.htmlEndpoint),
-                    rscEndpoint: new EndpointImpl(page.rscEndpoint),
-                  })),
-                }
-                break
-              case 'app-route':
-                route = {
-                  type: 'app-route',
-                  originalName: nativeRoute.originalName,
-                  endpoint: new EndpointImpl(nativeRoute.endpoint),
-                }
-                break
-              case 'conflict':
-                route = {
-                  type: 'conflict',
-                }
-                break
-              default:
-                const _exhaustiveCheck: never = routeType
-                invariant(
-                  nativeRoute,
-                  () => `Unknown route type: ${_exhaustiveCheck}`
-                )
-            }
-            routes.set(pathname, route)
-          }
-          const napiMiddlewareToMiddleware = (middleware: NapiMiddleware) => ({
-            endpoint: new EndpointImpl(middleware.endpoint),
-            runtime: middleware.runtime,
-            matcher: middleware.matcher,
-          })
-          const middleware = entrypoints.middleware
-            ? napiMiddlewareToMiddleware(entrypoints.middleware)
-            : undefined
-          const napiInstrumentationToInstrumentation = (
-            instrumentation: NapiInstrumentation
-          ) => ({
-            nodeJs: new EndpointImpl(instrumentation.nodeJs),
-            edge: new EndpointImpl(instrumentation.edge),
-          })
-          const instrumentation = entrypoints.instrumentation
-            ? napiInstrumentationToInstrumentation(entrypoints.instrumentation)
-            : undefined
-          yield {
-            routes,
-            middleware,
-            instrumentation,
-            pagesDocumentEndpoint: new EndpointImpl(
-              entrypoints.pagesDocumentEndpoint
-            ),
-            pagesAppEndpoint: new EndpointImpl(entrypoints.pagesAppEndpoint),
-            pagesErrorEndpoint: new EndpointImpl(
-              entrypoints.pagesErrorEndpoint
-            ),
-            issues: entrypoints.issues,
-            diagnostics: entrypoints.diagnostics,
-          }
+          yield napiEntrypointsToRawEntrypoints(entrypoints)
         }
       })()
     }
@@ -852,24 +786,24 @@ function bindingToApi(
     if (reactCompilerOptions) {
       const ruleKeys = ['*.ts', '*.js', '*.jsx', '*.tsx']
       if (
-        Object.keys(nextConfig?.experimental?.turbo?.rules ?? []).some((key) =>
+        Object.keys(nextConfig?.turbopack?.rules ?? []).some((key) =>
           ruleKeys.includes(key)
         )
       ) {
         Log.warn(
-          `The React Compiler cannot be enabled automatically because 'experimental.turbo' contains a rule for '*.ts', '*.js', '*.jsx', and '*.tsx'. Remove this rule, or add 'babel-loader' and 'babel-plugin-react-compiler' to the Turbopack configuration manually.`
+          `The React Compiler cannot be enabled automatically because 'turbopack.rules' contains a rule for '*.ts', '*.js', '*.jsx', and '*.tsx'. Remove this rule, or add 'babel-loader' and 'babel-plugin-react-compiler' to the Turbopack configuration manually.`
         )
       } else {
-        if (!nextConfig.experimental.turbo) {
-          nextConfig.experimental.turbo = {}
+        if (!nextConfig.turbopack) {
+          nextConfig.turbopack = {}
         }
 
-        if (!nextConfig.experimental.turbo.rules) {
-          nextConfig.experimental.turbo.rules = {}
+        if (!nextConfig.turbopack.rules) {
+          nextConfig.turbopack.rules = {}
         }
 
         for (const key of ['*.ts', '*.js', '*.jsx', '*.tsx']) {
-          nextConfig.experimental.turbo.rules[key] = {
+          nextConfig.turbopack.rules[key] = {
             browser: {
               foreign: false,
               loaders: [
@@ -906,7 +840,7 @@ function bindingToApi(
 
     if (nextConfigSerializable.experimental?.turbo?.rules) {
       ensureLoadersHaveSerializableOptions(
-        nextConfigSerializable.experimental.turbo?.rules
+        nextConfigSerializable.turbopack?.rules
       )
     }
 
@@ -944,7 +878,7 @@ function bindingToApi(
   }
 
   function ensureLoadersHaveSerializableOptions(
-    turbopackRules: Record<string, TurboRuleConfigItemOrShortcut>
+    turbopackRules: Record<string, TurbopackRuleConfigItemOrShortcut>
   ) {
     for (const [glob, rule] of Object.entries(turbopackRules)) {
       if (Array.isArray(rule)) {
@@ -954,10 +888,10 @@ function bindingToApi(
       }
     }
 
-    function checkConfigItem(rule: TurboRuleConfigItem, glob: string) {
+    function checkConfigItem(rule: TurbopackRuleConfigItem, glob: string) {
       if (!rule) return
       if ('loaders' in rule) {
-        checkLoaderItems((rule as TurboRuleConfigItemOptions).loaders, glob)
+        checkLoaderItems((rule as TurbopackRuleConfigItemOptions).loaders, glob)
       } else {
         for (const key in rule) {
           const inner = rule[key]
@@ -968,7 +902,10 @@ function bindingToApi(
       }
     }
 
-    function checkLoaderItems(loaderItems: TurboLoaderItem[], glob: string) {
+    function checkLoaderItems(
+      loaderItems: TurbopackLoaderItem[],
+      glob: string
+    ) {
       for (const loaderItem of loaderItems) {
         if (
           typeof loaderItem !== 'string' &&
@@ -979,6 +916,90 @@ function bindingToApi(
           )
         }
       }
+    }
+  }
+
+  function napiEntrypointsToRawEntrypoints(
+    entrypoints: TurbopackResult<NapiEntrypoints>
+  ): TurbopackResult<RawEntrypoints> {
+    const routes = new Map()
+    for (const { pathname, ...nativeRoute } of entrypoints.routes) {
+      let route: Route
+      const routeType = nativeRoute.type
+      switch (routeType) {
+        case 'page':
+          route = {
+            type: 'page',
+            htmlEndpoint: new EndpointImpl(nativeRoute.htmlEndpoint),
+            dataEndpoint: new EndpointImpl(nativeRoute.dataEndpoint),
+          }
+          break
+        case 'page-api':
+          route = {
+            type: 'page-api',
+            endpoint: new EndpointImpl(nativeRoute.endpoint),
+          }
+          break
+        case 'app-page':
+          route = {
+            type: 'app-page',
+            pages: nativeRoute.pages.map((page) => ({
+              originalName: page.originalName,
+              htmlEndpoint: new EndpointImpl(page.htmlEndpoint),
+              rscEndpoint: new EndpointImpl(page.rscEndpoint),
+            })),
+          }
+          break
+        case 'app-route':
+          route = {
+            type: 'app-route',
+            originalName: nativeRoute.originalName,
+            endpoint: new EndpointImpl(nativeRoute.endpoint),
+          }
+          break
+        case 'conflict':
+          route = {
+            type: 'conflict',
+          }
+          break
+        default:
+          const _exhaustiveCheck: never = routeType
+          invariant(
+            nativeRoute,
+            () => `Unknown route type: ${_exhaustiveCheck}`
+          )
+      }
+      routes.set(pathname, route)
+    }
+    const napiMiddlewareToMiddleware = (middleware: NapiMiddleware) => ({
+      endpoint: new EndpointImpl(middleware.endpoint),
+      runtime: middleware.runtime,
+      matcher: middleware.matcher,
+    })
+    const middleware = entrypoints.middleware
+      ? napiMiddlewareToMiddleware(entrypoints.middleware)
+      : undefined
+    const napiInstrumentationToInstrumentation = (
+      instrumentation: NapiInstrumentation
+    ) => ({
+      nodeJs: new EndpointImpl(instrumentation.nodeJs),
+      edge: new EndpointImpl(instrumentation.edge),
+    })
+    const instrumentation = entrypoints.instrumentation
+      ? napiInstrumentationToInstrumentation(entrypoints.instrumentation)
+      : undefined
+
+    return {
+      routes,
+      middleware,
+      instrumentation,
+      pagesDocumentEndpoint: new EndpointImpl(
+        entrypoints.pagesDocumentEndpoint
+      ),
+      pagesAppEndpoint: new EndpointImpl(entrypoints.pagesAppEndpoint),
+      pagesErrorEndpoint: new EndpointImpl(entrypoints.pagesErrorEndpoint),
+      issues: entrypoints.issues,
+      diagnostics: entrypoints.diagnostics,
     }
   }
 
@@ -1081,6 +1102,11 @@ async function loadWasm(importPath = '') {
           },
           compileSync(src: string, options: any) {
             return bindings.mdxCompileSync(src, getMdxOptions(options))
+          },
+        },
+        reactCompiler: {
+          isReactCompilerRequired(_filename: string) {
+            return Promise.resolve(true)
           },
         },
       }
@@ -1225,13 +1251,11 @@ function loadNative(importPath?: string) {
       getTargetTriple: bindings.getTargetTriple,
       initCustomTraceSubscriber: bindings.initCustomTraceSubscriber,
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
-      initHeapProfiler: bindings.initHeapProfiler,
-      teardownHeapProfiler: bindings.teardownHeapProfiler,
       turbo: {
         createProject: bindingToApi(customBindings ?? bindings, false),
         startTurbopackTraceServer(traceFilePath) {
           Log.warn(
-            'Turbopack trace server started. View trace at https://turbo-trace-viewer.vercel.app/'
+            'Turbopack trace server started. View trace at https://trace.nextjs.org'
           )
           ;(customBindings ?? bindings).startTurbopackTraceServer(traceFilePath)
         },
@@ -1254,6 +1278,11 @@ function loadNative(importPath?: string) {
               transformAttrOptions
             )
           },
+        },
+      },
+      reactCompiler: {
+        isReactCompilerRequired: (filename: string) => {
+          return bindings.isReactCompilerRequired(filename)
         },
       },
     }
@@ -1293,9 +1322,19 @@ export function transformSync(src: string, options?: any): any {
   return bindings.transformSync(src, options)
 }
 
-export async function minify(src: string, options: any): Promise<string> {
+export async function minify(
+  src: string,
+  options: any
+): Promise<{ code: string; map: any }> {
   let bindings = await loadBindings()
   return bindings.minify(src, options)
+}
+
+export async function isReactCompilerRequired(
+  filename: string
+): Promise<boolean> {
+  let bindings = await loadBindings()
+  return bindings.reactCompiler.isReactCompilerRequired(filename)
 }
 
 export async function parse(src: string, options: any): Promise<any> {
@@ -1324,27 +1363,10 @@ export function getBinaryMetadata() {
  *
  */
 export function initCustomTraceSubscriber(traceFileName?: string) {
-  if (!swcTraceFlushGuard) {
+  if (swcTraceFlushGuard) {
     // Wasm binary doesn't support trace emission
     let bindings = loadNative()
     swcTraceFlushGuard = bindings.initCustomTraceSubscriber?.(traceFileName)
-  }
-}
-
-/**
- * Initialize heap profiler, if possible.
- * Note this is not available in release build of next-swc by default,
- * only available by manually building next-swc with specific flags.
- * Calling in release build will not do anything.
- */
-export function initHeapProfiler() {
-  try {
-    if (!swcHeapProfilerFlushGuard) {
-      let bindings = loadNative()
-      swcHeapProfilerFlushGuard = bindings.initHeapProfiler?.()
-    }
-  } catch (_) {
-    // Suppress exceptions, this fn allows to fail to load native bindings
   }
 }
 
@@ -1359,23 +1381,6 @@ function once(fn: () => void): () => void {
     }
   }
 }
-
-/**
- * Teardown heap profiler, if possible.
- *
- * Same as initialization, this is not available in release build of next-swc by default
- * and calling it will not do anything.
- */
-export const teardownHeapProfiler = once(() => {
-  try {
-    let bindings = loadNative()
-    if (swcHeapProfilerFlushGuard) {
-      bindings.teardownHeapProfiler?.(swcHeapProfilerFlushGuard)
-    }
-  } catch (e) {
-    // Suppress exceptions, this fn allows to fail to load native bindings
-  }
-})
 
 /**
  * Teardown swc's trace subscriber if there's an initialized flush guard exists.

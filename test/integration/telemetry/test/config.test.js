@@ -6,10 +6,10 @@ import {
   launchApp,
   nextBuild,
   nextLint,
+  waitFor,
 } from 'next-test-utils'
 import fs from 'fs-extra'
 import path from 'path'
-
 const appDir = path.join(__dirname, '..')
 
 describe('config telemetry', () => {
@@ -84,7 +84,7 @@ describe('config telemetry', () => {
           expect(event1).toMatch(/"reactStrictMode": false/)
           expect(event1).toMatch(/"turboFlag": false/)
           expect(event1).toMatch(/"pagesDir": true/)
-          expect(event1).toMatch(/"appDir": false/)
+          expect(event1).toMatch(/"appDir": true/)
         } catch (err) {
           require('console').error('failing stderr', stderr, err)
           throw err
@@ -269,7 +269,7 @@ describe('config telemetry', () => {
       })
 
       // Turbopack intentionally does not support these events
-      ;(process.env.TURBOPACK ? it.skip : it)(
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'emits telemery for usage of image, script & dynamic',
         async () => {
           const { stderr } = await nextBuild(appDir, [], {
@@ -287,6 +287,7 @@ describe('config telemetry', () => {
             expect.arrayContaining([
               {
                 featureName: 'next/image',
+                // FIXME: Should be +1 from App Router
                 invocationCount: 2,
               },
               {
@@ -303,7 +304,7 @@ describe('config telemetry', () => {
       )
 
       // Turbopack intentionally does not support these events
-      ;(process.env.TURBOPACK ? it.skip : it)(
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'emits telemetry for usage of swc',
         async () => {
           await fs.remove(path.join(appDir, 'next.config.js'))
@@ -367,6 +368,32 @@ describe('config telemetry', () => {
           )
         }
       )
+
+      it('emits telemetry for usage of `experimental/dynamicIO`', async () => {
+        await fs.rename(
+          path.join(appDir, 'next.config.dynamic-io'),
+          path.join(appDir, 'next.config.js')
+        )
+
+        const { stderr } = await nextBuild(appDir, [], {
+          stderr: true,
+          env: { NEXT_TELEMETRY_DEBUG: 1 },
+        })
+
+        await fs.rename(
+          path.join(appDir, 'next.config.js'),
+          path.join(appDir, 'next.config.dynamic-io')
+        )
+
+        const events = findAllTelemetryEvents(
+          stderr,
+          'NEXT_BUILD_FEATURE_USAGE'
+        )
+        expect(events).toContainEqual({
+          featureName: 'experimental/dynamicIO',
+          invocationCount: 1,
+        })
+      })
 
       it('emits telemetry for usage of `optimizeCss`', async () => {
         await fs.rename(
@@ -493,7 +520,7 @@ describe('config telemetry', () => {
       })
 
       // Turbopack intentionally does not support these events
-      ;(process.env.TURBOPACK ? it.skip : it)(
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'emits telemetry for usage of next/legacy/image',
         async () => {
           const { stderr } = await nextBuild(appDir, [], {
@@ -506,19 +533,21 @@ describe('config telemetry', () => {
           )
           // eslint-disable-next-line jest/no-standalone-expect
           expect(featureUsageEvents).toContainEqual({
+            // FIXME: Should be +1 from App Router
             featureName: 'next/legacy/image',
             invocationCount: 2,
           })
           // eslint-disable-next-line jest/no-standalone-expect
           expect(featureUsageEvents).toContainEqual({
             featureName: 'next/image',
+            // FIXME: Should be +1 from App Router
             invocationCount: 2,
           })
         }
       )
 
       // Turbopack intentionally does not support these events
-      ;(process.env.TURBOPACK ? it.skip : it)(
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'emits telemetry for usage of @vercel/og',
         async () => {
           const { stderr } = await nextBuild(appDir, [], {
@@ -538,7 +567,7 @@ describe('config telemetry', () => {
       )
 
       // Turbopack intentionally does not support these events
-      ;(process.env.TURBOPACK ? it.skip : it)(
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'emits telemetry for transpilePackages',
         async () => {
           await fs.rename(
@@ -569,7 +598,7 @@ describe('config telemetry', () => {
       )
 
       // Turbopack intentionally does not support these events
-      ;(process.env.TURBOPACK ? it.skip : it)(
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'emits telemetry for middleware related options',
         async () => {
           await fs.rename(
@@ -684,6 +713,126 @@ describe('config telemetry', () => {
           await fs.rename(
             path.join(appDir, 'next.config.js'),
             path.join(appDir, 'next.config.reactCompiler-options')
+          )
+        }
+      })
+
+      // TODO: support use cache tracking in Turbopack
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
+        'emits telemetry for useCache directive',
+        async () => {
+          // use cache depends on dynamicIO flag
+          await fs.rename(
+            path.join(appDir, 'next.config.use-cache'),
+            path.join(appDir, 'next.config.js')
+          )
+
+          await fs.move(path.join(appDir, 'app'), path.join(appDir, '~app'))
+          await fs.move(path.join(appDir, '_app'), path.join(appDir, 'app'))
+
+          const { stderr } = await nextBuild(appDir, [], {
+            stderr: true,
+            env: { NEXT_TELEMETRY_DEBUG: 1 },
+          })
+
+          await fs.rename(
+            path.join(appDir, 'next.config.js'),
+            path.join(appDir, 'next.config.use-cache')
+          )
+
+          await fs.move(path.join(appDir, 'app'), path.join(appDir, '_app'))
+          await fs.move(path.join(appDir, '~app'), path.join(appDir, 'app'))
+
+          const featureUsageEvents = findAllTelemetryEvents(
+            stderr,
+            'NEXT_BUILD_FEATURE_USAGE'
+          )
+
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'useCache/default',
+            invocationCount: 2,
+          })
+
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'useCache/custom',
+            invocationCount: 3,
+          })
+        }
+      )
+
+      it('emits telemetry for persistent cache in build mode', async () => {
+        await fs.rename(
+          path.join(appDir, 'next.config.persistent-cache'),
+          path.join(appDir, 'next.config.js')
+        )
+
+        try {
+          const { stderr } = await nextBuild(appDir, [], {
+            stderr: true,
+            env: { NEXT_TELEMETRY_DEBUG: 1 },
+          })
+
+          try {
+            const featureUsageEvents = findAllTelemetryEvents(
+              stderr,
+              'NEXT_BUILD_FEATURE_USAGE'
+            )
+            expect(featureUsageEvents).toContainEqual({
+              featureName: 'turbopackPersistentCaching',
+              invocationCount: 1,
+            })
+          } catch (err) {
+            require('console').error('failing stderr', stderr, err)
+            throw err
+          }
+        } finally {
+          await fs.rename(
+            path.join(appDir, 'next.config.js'),
+            path.join(appDir, 'next.config.persistent-cache')
+          )
+        }
+      })
+
+      it('emits telemetry for persistent cache in dev mode', async () => {
+        await fs.rename(
+          path.join(appDir, 'next.config.persistent-cache'),
+          path.join(appDir, 'next.config.js')
+        )
+
+        let app
+        let stderr = ''
+
+        try {
+          app = await launchApp(appDir, await findPort(), {
+            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            onStderr(msg) {
+              stderr += msg || ''
+            },
+          })
+
+          await waitFor(2000)
+
+          const featureUsageEvents = findAllTelemetryEvents(
+            stderr,
+            'NEXT_BUILD_FEATURE_USAGE'
+          )
+
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'turbopackPersistentCaching',
+            invocationCount: 1,
+          })
+        } catch (err) {
+          require('console').error('failing stderr', err)
+          throw err
+        } finally {
+          if (app) {
+            await killApp(app)
+          }
+          await fs.rename(
+            path.join(appDir, 'next.config.js'),
+            path.join(appDir, 'next.config.persistent-cache')
           )
         }
       })

@@ -1,1 +1,1 @@
-import './mod.cjs';
+import './mod.cjs'

@@ -4,7 +4,7 @@ title: Cannot access Request information synchronously in route.js without await
 
 ## Why This Error Occurred
 
-When `dyanmicIO` is enabled Next.js treats most access to Request information as explicitly dynamic. However routes have a Request object and you can read values like the current pathname from that object synchronously. If you need to access Request information in a route handler you should first call `await connection()` to inform Next.js that everything after this point is explicitly dynamic.
+When `dynamicIO` is enabled Next.js treats most access to Request information as explicitly dynamic. However routes have a Request object and you can read values like the current pathname from that object synchronously. If you need to access Request information in a route handler you should first call `await connection()` to inform Next.js that everything after this point is explicitly dynamic.
 
 This is only needed in `GET` handlers because `GET` is the only handler Next.js will attempt to prerender.
 

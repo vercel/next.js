@@ -10,6 +10,8 @@
     "target": "ES2018",
     "moduleResolution": "node"
   },
+  // When changing `exclude`, also update
+  // `tsconfig.build.json`.
   "exclude": [
     "dist",
     "./*.d.ts",

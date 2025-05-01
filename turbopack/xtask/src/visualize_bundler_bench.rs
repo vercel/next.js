@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::BTreeMap,
     fs::{self, File},
     io::BufReader,
     path::PathBuf,
@@ -15,6 +15,7 @@ use plotters::{
     series::LineSeries,
     style::{Color, RGBAColor, RGBColor},
 };
+use rustc_hash::FxHashSet;
 
 use crate::summarize_bench::data::{BaseBenchmarks, CStats};
 
@@ -117,7 +118,7 @@ impl Bundler {
     }
 }
 
-pub fn generate(summary_path: PathBuf, filter_bundlers: Option<HashSet<&str>>) -> Result<()> {
+pub fn generate(summary_path: PathBuf, filter_bundlers: Option<FxHashSet<&str>>) -> Result<()> {
     let summary_file = File::open(&summary_path)?;
     let reader = BufReader::new(summary_file);
     let summary: BaseBenchmarks = serde_json::from_reader(reader)?;
@@ -260,7 +261,7 @@ fn generate_scaling(output_path: PathBuf, by_bench: &ByBench) -> Result<()> {
 
     for theme in THEMES {
         for (bench_name, by_bundler) in by_bench {
-            let module_counts: HashSet<_> = by_bundler
+            let module_counts: FxHashSet<_> = by_bundler
                 .values()
                 .flat_map(|by_module_count| by_module_count.keys())
                 .copied()

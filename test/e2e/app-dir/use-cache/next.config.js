@@ -3,11 +3,13 @@
  */
 const nextConfig = {
   experimental: {
-    dynamicIO: true,
+    ppr: process.env.__NEXT_EXPERIMENTAL_PPR === 'true',
+    useCache: true,
     cacheLife: {
       frequent: {
         stale: 19,
         revalidate: 100,
+        expire: 250,
       },
     },
     cacheHandlers: {

@@ -2,22 +2,26 @@ import { invalidateCacheByRouterState } from './invalidate-cache-by-router-state
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { FlightRouterState } from '../../../server/app-render/types'
 
+const navigatedAt = -1
+
 describe('invalidateCacheByRouterState', () => {
   it('should invalidate the cache by router state', () => {
     const cache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
-      head: [null, null],
+      head: null,
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       rsc: <>Root layout</>,
       prefetchRsc: null,
-      head: [null, null],
+      head: null,
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map([
@@ -27,10 +31,11 @@ describe('invalidateCacheByRouterState', () => {
             [
               'linking',
               {
+                navigatedAt,
                 lazyData: null,
                 rsc: <>Linking</>,
                 prefetchRsc: null,
-                head: [null, null],
+                head: null,
                 prefetchHead: null,
                 loading: null,
                 parallelRoutes: new Map([
@@ -40,10 +45,11 @@ describe('invalidateCacheByRouterState', () => {
                       [
                         '',
                         {
+                          navigatedAt,
                           lazyData: null,
                           rsc: <>Page</>,
                           prefetchRsc: null,
-                          head: [null, null],
+                          head: null,
                           prefetchHead: null,
                           loading: null,
                           parallelRoutes: new Map(),
@@ -82,10 +88,11 @@ describe('invalidateCacheByRouterState', () => {
     invalidateCacheByRouterState(cache, existingCache, routerState)
 
     const expectedCache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
-      head: [null, null],
+      head: null,
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map([['children', new Map()]]),

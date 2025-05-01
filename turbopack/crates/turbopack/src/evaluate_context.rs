@@ -37,7 +37,7 @@ pub async fn node_evaluate_asset_context(
     ignore_dynamic_requests: bool,
 ) -> Result<Vc<Box<dyn AssetContext>>> {
     let mut import_map = if let Some(import_map) = import_map {
-        import_map.await?.clone_value()
+        import_map.owned().await?
     } else {
         ImportMap::empty()
     };

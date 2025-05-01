@@ -40,10 +40,11 @@ export function clearCacheNodeDataForSegmentPath(
         lazyData: null,
         rsc: null,
         prefetchRsc: null,
-        head: [null, null],
+        head: null,
         prefetchHead: null,
         parallelRoutes: new Map(),
         loading: null,
+        navigatedAt: -1,
       })
     }
     return
@@ -56,10 +57,11 @@ export function clearCacheNodeDataForSegmentPath(
         lazyData: null,
         rsc: null,
         prefetchRsc: null,
-        head: [null, null],
+        head: null,
         prefetchHead: null,
         parallelRoutes: new Map(),
         loading: null,
+        navigatedAt: -1,
       })
     }
     return

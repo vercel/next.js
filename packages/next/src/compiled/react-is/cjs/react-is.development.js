@@ -22,6 +22,7 @@
               case REACT_STRICT_MODE_TYPE:
               case REACT_SUSPENSE_TYPE:
               case REACT_SUSPENSE_LIST_TYPE:
+              case REACT_VIEW_TRANSITION_TYPE:
                 return object;
               default:
                 switch (((object = object && object.$$typeof), object)) {
@@ -54,7 +55,7 @@
       REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"),
       REACT_MEMO_TYPE = Symbol.for("react.memo"),
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
-      REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
+      REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
     exports.ContextConsumer = REACT_CONSUMER_TYPE;
     exports.ContextProvider = REACT_CONTEXT_TYPE;
@@ -116,7 +117,6 @@
         type === REACT_STRICT_MODE_TYPE ||
         type === REACT_SUSPENSE_TYPE ||
         type === REACT_SUSPENSE_LIST_TYPE ||
-        type === REACT_OFFSCREEN_TYPE ||
         ("object" === typeof type &&
           null !== type &&
           (type.$$typeof === REACT_LAZY_TYPE ||

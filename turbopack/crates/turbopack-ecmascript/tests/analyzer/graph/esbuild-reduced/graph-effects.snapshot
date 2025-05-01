@@ -89,7 +89,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "path",
                         ),
                     ),
@@ -178,7 +178,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "path",
                         ),
                     ),

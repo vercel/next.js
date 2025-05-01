@@ -1,26 +1,4 @@
-'use client'
-
-import Link from 'next/link'
-import { useState } from 'react'
-
-function LinkAccordion({ href, children }) {
-  const [isVisible, setIsVisible] = useState(false)
-  return (
-    <>
-      <input
-        type="checkbox"
-        checked={isVisible}
-        onChange={() => setIsVisible(!isVisible)}
-        data-link-accordion={href}
-      />
-      {isVisible ? (
-        <Link href={href}>{children}</Link>
-      ) : (
-        `${children} (link is hidden)`
-      )}
-    </>
-  )
-}
+import { LinkAccordion } from './link-accordion'
 
 export default function Page() {
   return (
@@ -57,6 +35,13 @@ export default function Page() {
           <LinkAccordion href="/ppr-disabled-with-loading-boundary">
             Page with PPR disabled, but has a loading boundary
           </LinkAccordion>
+          <ul>
+            <li>
+              <LinkAccordion href="/ppr-disabled-with-loading-boundary/child">
+                Another dynamic page that shares the same loading boundary
+              </LinkAccordion>
+            </li>
+          </ul>
         </li>
       </ul>
     </>

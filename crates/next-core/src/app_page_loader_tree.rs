@@ -34,8 +34,8 @@ pub struct AppPageLoaderTreeBuilder {
 
 impl AppPageLoaderTreeBuilder {
     fn new(
-        module_asset_context: Vc<ModuleAssetContext>,
-        server_component_transition: Vc<Box<dyn Transition>>,
+        module_asset_context: ResolvedVc<ModuleAssetContext>,
+        server_component_transition: ResolvedVc<Box<dyn Transition>>,
         base_path: Option<RcStr>,
     ) -> Self {
         AppPageLoaderTreeBuilder {
@@ -133,11 +133,18 @@ impl AppPageLoaderTreeBuilder {
             return Ok(());
         };
 
-        let manifest_route = &format!("/{}", get_metadata_route_name(manifest).await?);
+        let metadata_manifest_route = get_metadata_route_name(manifest).await?;
+        // prefix with base_path if it exists
+        let manifest_route = if let Some(base_path) = &self.base_path {
+            format!("{}/{}", base_path, metadata_manifest_route)
+        } else {
+            metadata_manifest_route.to_string()
+        };
+
         writeln!(
             self.loader_tree_code,
             "    manifest: {},",
-            StringifyJs(manifest_route)
+            StringifyJs(&manifest_route)
         )?;
 
         Ok(())
@@ -188,7 +195,7 @@ impl AppPageLoaderTreeBuilder {
                     .push(format!("import {identifier} from \"{inner_module_id}\";").into());
 
                 let source = dynamic_image_metadata_source(
-                    Vc::upcast(self.base.module_asset_context),
+                    *ResolvedVc::upcast(self.base.module_asset_context),
                     **path,
                     name.into(),
                     app_page.clone(),
@@ -233,7 +240,7 @@ impl AppPageLoaderTreeBuilder {
         let module = Vc::upcast(StructuredImageModuleType::create_module(
             Vc::upcast(FileSource::new(path)),
             BlurPlaceholderMode::None,
-            self.base.module_asset_context,
+            *self.base.module_asset_context,
         ));
         let module = self.base.process_module(module).to_resolved().await?;
         self.base
@@ -250,7 +257,7 @@ impl AppPageLoaderTreeBuilder {
         let metadata_route = &*get_metadata_route_name((*item).into()).await?;
         writeln!(
             self.loader_tree_code,
-            "{s}  url: fillMetadataSegment({}, props.params, {}) + \
+            "{s}  url: fillMetadataSegment({}, await props.params, {}) + \
              `?${{{identifier}.src.split(\"/\").splice(-1)[0]}}`,",
             StringifyJs(&pathname_prefix),
             StringifyJs(metadata_route),
@@ -261,10 +268,16 @@ impl AppPageLoaderTreeBuilder {
             writeln!(self.loader_tree_code, "{s}  width: {identifier}.width,")?;
             writeln!(self.loader_tree_code, "{s}  height: {identifier}.height,")?;
         } else {
-            writeln!(
-                self.loader_tree_code,
-                "{s}  sizes: `${{{identifier}.width}}x${{{identifier}.height}}`,"
-            )?;
+            let ext = &*path.extension().await?;
+            // For SVGs, skip sizes and use "any" to let it scale automatically based on viewport,
+            // For the images doesn't provide the size properly, use "any" as well.
+            // If the size is presented, use the actual size for the image.
+            let sizes = if ext == "svg" {
+                "any".to_string()
+            } else {
+                format!("${{{identifier}.width}}x${{{identifier}.height}}")
+            };
+            writeln!(self.loader_tree_code, "{s}  sizes: `{sizes}`,")?;
         }
 
         let content_type = get_content_type(path).await?;
@@ -415,8 +428,8 @@ pub struct AppPageLoaderTreeModule {
 impl AppPageLoaderTreeModule {
     pub async fn build(
         loader_tree: Vc<AppPageLoaderTree>,
-        module_asset_context: Vc<ModuleAssetContext>,
-        server_component_transition: Vc<Box<dyn Transition>>,
+        module_asset_context: ResolvedVc<ModuleAssetContext>,
+        server_component_transition: ResolvedVc<Box<dyn Transition>>,
         base_path: Option<RcStr>,
     ) -> Result<Self> {
         AppPageLoaderTreeBuilder::new(module_asset_context, server_component_transition, base_path)

@@ -10,25 +10,13 @@ related:
     - app/api-reference/components/image
 ---
 
-Next.js comes with automatic image and font optimization for better performance and user experience. This page will guide you through how to start using them.
-
-## Handling static assets
-
-You can store static files, like images and fonts, under a folder called `public` in the root directory. Files inside `public` can then be referenced by your code starting from the base URL (`/`).
-
-<Image
-  alt="Folder structure showing app and public folders"
-  srcLight="/docs/light/public-folder.png"
-  srcDark="/docs/dark/public-folder.png"
-  width="1600"
-  height="282"
-/>
+Next.js comes with automatic image and font optimization. This page will guide you through how to start using them.
 
 ## Optimizing images
 
 The Next.js [`<Image>`](/docs/app/building-your-application/optimizing/images) component extends the HTML `<img>` element to provide:
 
-- **Size optimization:** Automatically serving correctly sized images for each device, using modern image formats like WebP and AVIF.
+- **Size optimization:** Automatically serving correctly sized images for each device, using modern image formats like WebP.
 - **Visual stability:** Preventing [layout shift](https://web.dev/articles/cls) automatically when images are loading.
 - **Faster page loads:** Only loading images when they enter the viewport using native browser lazy loading, with optional blur-up placeholders.
 - **Asset flexibility:** Resizing images on-demand, even images stored on remote servers.
@@ -55,7 +43,15 @@ The `src` property can be a [local](#local-images) or [remote](#remote-images) i
 
 ### Local images
 
-To use a local image, `import` your `.jpg`, `.png`, or `.webp` image files from your [`public` folder](#handling-static-assets).
+You can store static files, like images and fonts, under a folder called `public` in the root directory. Files inside `public` can then be referenced by your code starting from the base URL (`/`).
+
+<Image
+  alt="Folder structure showing app and public folders"
+  srcLight="/docs/light/public-folder.png"
+  srcDark="/docs/dark/public-folder.png"
+  width="1600"
+  height="282"
+/>
 
 ```tsx filename="app/page.tsx" switcher
 import Image from 'next/image'
@@ -129,9 +125,9 @@ export default function Page() {
 }
 ```
 
-Since Next.js does not have access to remote files during the build process, you'll need to provide the [`width`](/docs/app/api-reference/components/image#width), [`height`](/docs/app/api-reference/components/image#height) and optional [`blurDataURL`](/docs/app/api-reference/components/image#blurdataurl) props manually. The `width` and `height` attributes are used to infer the correct aspect ratio of image and avoid layout shift from the image loading in.
+Since Next.js does not have access to remote files during the build process, you'll need to provide the [`width`](/docs/app/api-reference/components/image#width), [`height`](/docs/app/api-reference/components/image#height) and optional [`blurDataURL`](/docs/app/api-reference/components/image#blurdataurl) props manually. The `width` and `height` are used to infer the correct aspect ratio of image and avoid layout shift from the image loading in.
 
-Then, to safely allow images from remote servers, you need to define a list of supported URL patterns in [`next.config.js`](/docs/app/api-reference/config/next-config-js). Be as specific as possible to prevent malicious usage. For example, the following configuration will only allow images from a specific AWS S3 bucket:
+To safely allow images from remote servers, you need to define a list of supported URL patterns in [`next.config.js`](/docs/app/api-reference/config/next-config-js). Be as specific as possible to prevent malicious usage. For example, the following configuration will only allow images from a specific AWS S3 bucket:
 
 ```ts filename="next.config.ts" switcher
 import { NextConfig } from 'next'
@@ -173,7 +169,7 @@ module.exports = {
 
 The [`next/font`](/docs/app/api-reference/components/font) module automatically optimizes your fonts and removes external network requests for improved privacy and performance.
 
-It includes **built-in automatic self-hosting** for _any_ font file. This means you can optimally load web fonts with no layout shift.
+It includes **built-in self-hosting** for any font file. This means you can optimally load web fonts with no layout shift.
 
 To start using `next/font`, import it from [`next/font/local`](#local-fonts) or [`next/font/google`](#google-fonts), call it as a function with the appropriate options, and set the `className` of the element you want to apply the font to. For example:
 
@@ -251,9 +247,9 @@ export default function RootLayout({ children }) {
 }
 ```
 
-We recommend using [variable fonts](https://fonts.google.com/variablefonts) for the best performance and flexibility. But if you can't use a variable font, you will **need to specify a weight**:
+We recommend using [variable fonts](https://fonts.google.com/variablefonts) for the best performance and flexibility. But if you can't use a variable font, you will need to specify a weight:
 
-```tsx filename="app/layout.tsx" switcher
+```tsx filename="app/layout.tsx" highlight={4} switcher
 import { Roboto } from 'next/font/google'
 
 const roboto = Roboto({
@@ -274,7 +270,7 @@ export default function RootLayout({
 }
 ```
 
-```jsx filename="app/layout.js" highlight={1,3-5,9} switcher
+```jsx filename="app/layout.js"  highlight={4} switcher
 import { Roboto } from 'next/font/google'
 
 const roboto = Roboto({
@@ -293,7 +289,7 @@ export default function RootLayout({ children }) {
 
 ### Local fonts
 
-To use a local font, import your font from `next/font/local` and specify the `src` of your local font file in the [`public` folder](#handling-static-assets).
+To use a local font, import your font from `next/font/local` and specify the [`src`](/docs/app/api-reference/components/font#src) of your local font file.
 
 ```tsx filename="app/layout.tsx" switcher
 import localFont from 'next/font/local'

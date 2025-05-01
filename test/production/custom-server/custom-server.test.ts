@@ -33,7 +33,7 @@ describe('custom server', () => {
       if (isReact18) {
         expect($('body').text()).toMatch(/pages: 18\.\d+\.\d+\{/)
       } else {
-        expect($('body').text()).toMatch(/pages: 19.0.0/)
+        expect($('body').text()).toMatch(/pages: 19\.\d+\.\d+/)
       }
     })
   })

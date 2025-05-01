@@ -116,7 +116,7 @@ module.exports = {
         const browser = await webdriver(appPort, '/')
         try {
           // There's a better test for CSS order in test/e2e/app-dir/css-order, this test in particular should check the UI, not the implementation detail of the ordering.
-          if (process.env.TURBOPACK) {
+          if (process.env.IS_TURBOPACK_TEST) {
             await checkGreenTitle(browser)
 
             // Navigate to other:
@@ -229,7 +229,7 @@ module.exports = {
   })
 
   // Turbopack keeps styles which mirrors development with webpack. This test only checks a behavior for webpack.
-  ;(process.env.TURBOPACK ? describe.skip : describe)(
+  ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
     'CSS Cleanup on Render Failure',
     () => {
       const appDir = join(fixturesDir, 'transition-cleanup')
@@ -274,7 +274,7 @@ module.exports = {
               await browser.waitForElementByCss('#link-other').click()
               await check(
                 () => browser.eval(`document.body.innerText`),
-                'Application error: a client-side exception has occurred (see the browser console for more information).',
+                'Application error: a client-side exception has occurred while loading localhost (see the browser console for more information).',
                 true
               )
 
@@ -362,7 +362,8 @@ module.exports = {
         })
       }
 
-      ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      // This test case will fail in Turbopack when both pages share some css chunks. Deleting them will cause the / page to fail too.
+      ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
         'production mode',
         () => {
           beforeAll(async () => {

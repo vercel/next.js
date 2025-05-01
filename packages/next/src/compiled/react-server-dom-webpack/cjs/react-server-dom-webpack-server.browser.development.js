@@ -13,6 +13,16 @@
   (function () {
     function voidHandler() {}
     function _defineProperty(obj, key, value) {
+      a: if ("object" == typeof key && key) {
+        var e = key[Symbol.toPrimitive];
+        if (void 0 !== e) {
+          key = e.call(key, "string");
+          if ("object" != typeof key) break a;
+          throw new TypeError("@@toPrimitive must return a primitive value.");
+        }
+        key = String(key);
+      }
+      key = "symbol" == typeof key ? key : key + "";
       key in obj
         ? Object.defineProperty(obj, key, {
             value: value,
@@ -313,6 +323,12 @@
     function resolveOwner() {
       return currentOwner ? currentOwner : null;
     }
+    function resetOwnerStackLimit() {
+      var now = getCurrentTime();
+      1e3 < now - lastResetTime &&
+        ((ReactSharedInternalsServer.recentlyCreatedOwnerStacks = 0),
+        (lastResetTime = now));
+    }
     function isObjectPrototype(object) {
       if (!object) return !1;
       var ObjectPrototype = Object.prototype;
@@ -559,7 +575,59 @@
       }
     }
     function getCurrentStackInDEV() {
-      return "";
+      var owner = resolveOwner();
+      if (null === owner) return "";
+      try {
+        var info = "";
+        if (owner.owner || "string" !== typeof owner.name) {
+          for (; owner; ) {
+            var ownerStack = owner.debugStack;
+            if (null != ownerStack) {
+              if ((owner = owner.owner)) {
+                var JSCompiler_temp_const = info;
+                var error = ownerStack,
+                  prevPrepareStackTrace = Error.prepareStackTrace;
+                Error.prepareStackTrace = void 0;
+                var stack = error.stack;
+                Error.prepareStackTrace = prevPrepareStackTrace;
+                stack.startsWith("Error: react-stack-top-frame\n") &&
+                  (stack = stack.slice(29));
+                var idx = stack.indexOf("\n");
+                -1 !== idx && (stack = stack.slice(idx + 1));
+                idx = stack.indexOf("react-stack-bottom-frame");
+                -1 !== idx && (idx = stack.lastIndexOf("\n", idx));
+                var JSCompiler_inline_result =
+                  -1 !== idx ? (stack = stack.slice(0, idx)) : "";
+                info =
+                  JSCompiler_temp_const + ("\n" + JSCompiler_inline_result);
+              }
+            } else break;
+          }
+          var JSCompiler_inline_result$jscomp$0 = info;
+        } else {
+          JSCompiler_temp_const = owner.name;
+          if (void 0 === prefix)
+            try {
+              throw Error();
+            } catch (x) {
+              (prefix =
+                ((error = x.stack.trim().match(/\n( *(at )?)/)) && error[1]) ||
+                ""),
+                (suffix =
+                  -1 < x.stack.indexOf("\n    at")
+                    ? " (<anonymous>)"
+                    : -1 < x.stack.indexOf("@")
+                      ? "@unknown:0:0"
+                      : "");
+            }
+          JSCompiler_inline_result$jscomp$0 =
+            "\n" + prefix + JSCompiler_temp_const + suffix;
+        }
+      } catch (x) {
+        JSCompiler_inline_result$jscomp$0 =
+          "\nError generating stack: " + x.message + "\n" + x.stack;
+      }
+      return JSCompiler_inline_result$jscomp$0;
     }
     function defaultErrorHandler(error) {
       console.error(error);
@@ -633,10 +701,62 @@
           ? defaultFilterStackFrame
           : filterStackFrame;
       this.didWarnForKey = null;
-      type = createTask(this, model, null, !1, abortSet, null);
+      type = createTask(this, model, null, !1, abortSet, null, null, null);
       pingedTasks.push(type);
     }
     function noop() {}
+    function createRequest(
+      model,
+      bundlerConfig,
+      onError,
+      identifierPrefix,
+      onPostpone,
+      temporaryReferences,
+      environmentName,
+      filterStackFrame
+    ) {
+      resetOwnerStackLimit();
+      return new RequestInstance(
+        20,
+        model,
+        bundlerConfig,
+        onError,
+        identifierPrefix,
+        onPostpone,
+        temporaryReferences,
+        environmentName,
+        filterStackFrame,
+        noop,
+        noop
+      );
+    }
+    function createPrerenderRequest(
+      model,
+      bundlerConfig,
+      onAllReady,
+      onFatalError,
+      onError,
+      identifierPrefix,
+      onPostpone,
+      temporaryReferences,
+      environmentName,
+      filterStackFrame
+    ) {
+      resetOwnerStackLimit();
+      return new RequestInstance(
+        PRERENDER,
+        model,
+        bundlerConfig,
+        onError,
+        identifierPrefix,
+        onPostpone,
+        temporaryReferences,
+        environmentName,
+        filterStackFrame,
+        onAllReady,
+        onFatalError
+      );
+    }
     function serializeThenable(request, task, thenable) {
       var newTask = createTask(
         request,
@@ -644,7 +764,9 @@
         task.keyPath,
         task.implicitSlot,
         request.abortableTasks,
-        task.debugOwner
+        task.debugOwner,
+        task.debugStack,
+        task.debugTask
       );
       (task = thenable._debugInfo) &&
         forwardDebugInfo(request, newTask.id, task);
@@ -696,10 +818,11 @@
       function progress(entry) {
         if (!aborted)
           if (entry.done)
-            request.abortListeners.delete(abortStream),
-              (entry = streamTask.id.toString(16) + ":C\n"),
+            (entry = streamTask.id.toString(16) + ":C\n"),
               request.completedRegularChunks.push(stringToChunk(entry)),
               enqueueFlush(request),
+              request.abortListeners.delete(abortStream),
+              callOnAllReadyIfReady(request),
               (aborted = !0);
           else
             try {
@@ -742,7 +865,9 @@
           task.keyPath,
           task.implicitSlot,
           request.abortableTasks,
-          task.debugOwner
+          task.debugOwner,
+          task.debugStack,
+          task.debugTask
         );
       request.abortableTasks.delete(streamTask);
       request.pendingChunks++;
@@ -758,7 +883,6 @@
       function progress(entry) {
         if (!aborted)
           if (entry.done) {
-            request.abortListeners.delete(abortIterable);
             if (void 0 === entry.value)
               var endStreamRow = streamTask.id.toString(16) + ":C\n";
             else
@@ -775,6 +899,8 @@
               }
             request.completedRegularChunks.push(stringToChunk(endStreamRow));
             enqueueFlush(request);
+            request.abortListeners.delete(abortIterable);
+            callOnAllReadyIfReady(request);
             aborted = !0;
           } else
             try {
@@ -812,7 +938,9 @@
           task.keyPath,
           task.implicitSlot,
           request.abortableTasks,
-          task.debugOwner
+          task.debugOwner,
+          task.debugStack,
+          task.debugTask
         );
       request.abortableTasks.delete(streamTask);
       request.pendingChunks++;
@@ -865,14 +993,21 @@
       return lazyType;
     }
     function callWithDebugContextInDEV(request, task, callback, arg) {
-      currentOwner = {
+      var componentDebugInfo = {
         name: "",
         env: task.environmentName,
         key: null,
         owner: task.debugOwner
       };
+      componentDebugInfo.stack =
+        null === task.debugStack
+          ? null
+          : filterStackTrace(request, task.debugStack, 1);
+      componentDebugInfo.debugStack = task.debugStack;
+      request = componentDebugInfo.debugTask = task.debugTask;
+      currentOwner = componentDebugInfo;
       try {
-        return callback(arg);
+        return request ? request.run(callback.bind(null, arg)) : callback(arg);
       } finally {
         currentOwner = null;
       }
@@ -942,7 +1077,14 @@
           (multiShot._debugInfo = result._debugInfo),
           multiShot);
     }
-    function renderFunctionComponent(request, task, key, Component, props) {
+    function renderFunctionComponent(
+      request,
+      task,
+      key,
+      Component,
+      props,
+      validated
+    ) {
       var prevThenableState = task.thenableState;
       task.thenableState = null;
       if (null === debugID) return outlineTask(request, task);
@@ -959,15 +1101,27 @@
           key: key,
           owner: task.debugOwner
         };
+        componentDebugInfo.stack =
+          null === task.debugStack
+            ? null
+            : filterStackTrace(request, task.debugStack, 1);
         componentDebugInfo.props = props;
+        componentDebugInfo.debugStack = task.debugStack;
+        componentDebugInfo.debugTask = task.debugTask;
         outlineComponentInfo(request, componentDebugInfo);
         emitDebugChunk(request, componentDebugID, componentDebugInfo);
         task.environmentName = componentEnv;
+        2 === validated &&
+          warnForMissingKey(request, key, componentDebugInfo, task.debugTask);
       }
       thenableIndexCounter = 0;
       thenableState = prevThenableState;
       currentComponentDebugInfo = componentDebugInfo;
-      props = callComponentInDEV(Component, props, componentDebugInfo);
+      props = task.debugTask
+        ? task.debugTask.run(
+            callComponentInDEV.bind(null, Component, props, componentDebugInfo)
+          )
+        : callComponentInDEV(Component, props, componentDebugInfo);
       if (request.status === ABORTING)
         throw (
           ("object" !== typeof props ||
@@ -984,14 +1138,35 @@
         props
       );
       Component = task.keyPath;
-      prevThenableState = task.implicitSlot;
+      validated = task.implicitSlot;
       null !== key
         ? (task.keyPath = null === Component ? key : Component + "," + key)
         : null === Component && (task.implicitSlot = !0);
       request = renderModelDestructive(request, task, emptyRoot, "", props);
       task.keyPath = Component;
-      task.implicitSlot = prevThenableState;
+      task.implicitSlot = validated;
       return request;
+    }
+    function warnForMissingKey(request, key, componentDebugInfo, debugTask) {
+      function logKeyError() {
+        console.error(
+          'Each child in a list should have a unique "key" prop.%s%s See https://react.dev/link/warning-keys for more information.',
+          "",
+          ""
+        );
+      }
+      key = request.didWarnForKey;
+      null == key && (key = request.didWarnForKey = new WeakSet());
+      request = componentDebugInfo.owner;
+      if (null != request) {
+        if (key.has(request)) return;
+        key.add(request);
+      }
+      debugTask
+        ? debugTask.run(
+            callComponentInDEV.bind(null, logKeyError, null, componentDebugInfo)
+          )
+        : callComponentInDEV(logKeyError, null, componentDebugInfo);
     }
     function renderFragment(request, task, children) {
       for (var i = 0; i < children.length; i++) {
@@ -1010,7 +1185,9 @@
             REACT_FRAGMENT_TYPE,
             task.keyPath,
             { children: children },
-            null
+            null,
+            null,
+            0
           ]),
           task.implicitSlot ? [request] : request
         );
@@ -1029,7 +1206,9 @@
             REACT_FRAGMENT_TYPE,
             task.keyPath,
             { children: children },
-            null
+            null,
+            null,
+            0
           ]),
           task.implicitSlot ? [request] : request
         );
@@ -1043,14 +1222,16 @@
         task.keyPath,
         task.implicitSlot,
         request.abortableTasks,
-        task.debugOwner
+        task.debugOwner,
+        task.debugStack,
+        task.debugTask
       );
       retryTask(request, task);
       return task.status === COMPLETED
         ? serializeByValueID(task.id)
         : "$L" + task.id.toString(16);
     }
-    function renderElement(request, task, type, key, ref, props) {
+    function renderElement(request, task, type, key, ref, props, validated) {
       if (null !== ref && void 0 !== ref)
         throw Error(
           "Refs cannot be used in Server Components, nor passed to Client Components."
@@ -1066,7 +1247,22 @@
       ) {
         if (type === REACT_FRAGMENT_TYPE && null === key)
           return (
-            (type = task.implicitSlot),
+            2 === validated &&
+              ((validated = {
+                name: "Fragment",
+                env: (0, request.environmentName)(),
+                key: key,
+                owner: task.debugOwner,
+                stack:
+                  null === task.debugStack
+                    ? null
+                    : filterStackTrace(request, task.debugStack, 1),
+                props: props,
+                debugStack: task.debugStack,
+                debugTask: task.debugTask
+              }),
+              warnForMissingKey(request, key, validated, task.debugTask)),
+            (validated = task.implicitSlot),
             null === task.keyPath && (task.implicitSlot = !0),
             (request = renderModelDestructive(
               request,
@@ -1075,7 +1271,7 @@
               "",
               props.children
             )),
-            (task.implicitSlot = type),
+            (task.implicitSlot = validated),
             request
           );
         if (
@@ -1087,26 +1283,61 @@
             case REACT_LAZY_TYPE:
               type = callLazyInitInDEV(type);
               if (request.status === ABORTING) throw null;
-              return renderElement(request, task, type, key, ref, props);
+              return renderElement(
+                request,
+                task,
+                type,
+                key,
+                ref,
+                props,
+                validated
+              );
             case REACT_FORWARD_REF_TYPE:
               return renderFunctionComponent(
                 request,
                 task,
                 key,
                 type.render,
-                props
+                props,
+                validated
               );
             case REACT_MEMO_TYPE:
-              return renderElement(request, task, type.type, key, ref, props);
+              return renderElement(
+                request,
+                task,
+                type.type,
+                key,
+                ref,
+                props,
+                validated
+              );
             case REACT_ELEMENT_TYPE:
               type._store.validated = 1;
           }
-      } else return renderFunctionComponent(request, task, key, type, props);
+      } else
+        return renderFunctionComponent(
+          request,
+          task,
+          key,
+          type,
+          props,
+          validated
+        );
       ref = task.keyPath;
       null === key ? (key = ref) : null !== ref && (key = ref + "," + key);
       null !== task.debugOwner &&
         outlineComponentInfo(request, task.debugOwner);
-      request = [REACT_ELEMENT_TYPE, type, key, props, task.debugOwner];
+      request = [
+        REACT_ELEMENT_TYPE,
+        type,
+        key,
+        props,
+        task.debugOwner,
+        null === task.debugStack
+          ? null
+          : filterStackTrace(request, task.debugStack, 1),
+        validated
+      ];
       task = task.implicitSlot && null !== key ? [request] : request;
       return task;
     }
@@ -1129,7 +1360,9 @@
       keyPath,
       implicitSlot,
       abortSet,
-      debugOwner
+      debugOwner,
+      debugStack,
+      debugTask
     ) {
       request.pendingChunks++;
       var id = request.nextChunkId++;
@@ -1177,6 +1410,8 @@
       };
       task.environmentName = request.environmentName();
       task.debugOwner = debugOwner;
+      task.debugStack = debugStack;
+      task.debugTask = debugTask;
       abortSet.add(task);
       return task;
     }
@@ -1269,6 +1504,8 @@
         null,
         !1,
         request.abortableTasks,
+        null,
+        null,
         null
       );
       retryTask(request, value);
@@ -1362,6 +1599,8 @@
           null,
           !1,
           request.abortableTasks,
+          null,
+          null,
           null
         ),
         reader = blob.stream().getReader(),
@@ -1404,7 +1643,9 @@
               task.keyPath,
               task.implicitSlot,
               request.abortableTasks,
-              task.debugOwner
+              task.debugOwner,
+              task.debugStack,
+              task.debugTask
             )),
             (value = request.ping),
             key.then(value, value),
@@ -1461,13 +1702,16 @@
             _existingReference = value.props;
             var refProp = _existingReference.ref;
             task.debugOwner = value._owner;
+            task.debugStack = value._debugStack;
+            task.debugTask = value._debugTask;
             request = renderElement(
               request,
               task,
               value.type,
               value.key,
               void 0 !== refProp ? refProp : null,
-              _existingReference
+              _existingReference,
+              value._store.validated
             );
             "object" === typeof request &&
               null !== request &&
@@ -1753,8 +1997,10 @@
         : ((request.status = CLOSING), (request.fatalError = error));
     }
     function serializeErrorValue(request, error) {
-      var env = (0, request.environmentName)();
+      var name = "Error",
+        env = (0, request.environmentName)();
       try {
+        name = error.name;
         var message = String(error.message);
         var stack = filterStackTrace(request, error, 0);
         var errorEnv = error.environmentName;
@@ -1767,6 +2013,7 @@
       return (
         "$Z" +
         outlineModel(request, {
+          name: name,
           message: message,
           stack: stack,
           env: env
@@ -1774,9 +2021,11 @@
       );
     }
     function emitErrorChunk(request, id, digest, error) {
-      var env = (0, request.environmentName)();
+      var name = "Error",
+        env = (0, request.environmentName)();
       try {
         if (error instanceof Error) {
+          name = error.name;
           var message = String(error.message);
           var stack = filterStackTrace(request, error, 0);
           var errorEnv = error.environmentName;
@@ -1792,7 +2041,13 @@
           "An error occurred but serializing the error message failed."),
           (stack = []);
       }
-      digest = { digest: digest, message: message, stack: stack, env: env };
+      digest = {
+        digest: digest,
+        name: name,
+        message: message,
+        stack: stack,
+        env: env
+      };
       id = id.toString(16) + ":E" + stringify(digest) + "\n";
       id = stringToChunk(id);
       request.completedErrorChunks.push(id);
@@ -1835,6 +2090,7 @@
           key: componentInfo.key,
           owner: componentInfo.owner
         };
+        componentDebugInfo.stack = componentInfo.stack;
         componentDebugInfo.props = componentInfo.props;
         objectLimit = outlineConsoleValue(
           request,
@@ -1900,25 +2156,34 @@
         counter.objectLimit--;
         switch (value.$$typeof) {
           case REACT_ELEMENT_TYPE:
-            return (
-              null != value._owner &&
-                outlineComponentInfo(request, value._owner),
-              "object" === typeof value.type &&
-                null !== value.type &&
-                doNotLimit.add(value.type),
-              "object" === typeof value.key &&
-                null !== value.key &&
-                doNotLimit.add(value.key),
-              doNotLimit.add(value.props),
-              null !== value._owner && doNotLimit.add(value._owner),
-              [
-                REACT_ELEMENT_TYPE,
-                value.type,
-                value.key,
-                value.props,
-                value._owner
-              ]
-            );
+            null != value._owner && outlineComponentInfo(request, value._owner);
+            "object" === typeof value.type &&
+              null !== value.type &&
+              doNotLimit.add(value.type);
+            "object" === typeof value.key &&
+              null !== value.key &&
+              doNotLimit.add(value.key);
+            doNotLimit.add(value.props);
+            null !== value._owner && doNotLimit.add(value._owner);
+            counter = null;
+            if (null != value._debugStack)
+              for (
+                counter = filterStackTrace(request, value._debugStack, 1),
+                  doNotLimit.add(counter),
+                  request = 0;
+                request < counter.length;
+                request++
+              )
+                doNotLimit.add(counter[request]);
+            return [
+              REACT_ELEMENT_TYPE,
+              value.type,
+              value.key,
+              value.props,
+              value._owner,
+              counter,
+              value._store.validated
+            ];
         }
         if ("function" === typeof value.then) {
           switch (value.status) {
@@ -2157,10 +2422,11 @@
                                     emitModelChunk(request, task.id, value));
     }
     function erroredTask(request, task, error) {
-      request.abortableTasks.delete(task);
       task.status = ERRORED$1;
       var digest = logRecoverableError(request, error, task);
       emitErrorChunk(request, task.id, digest, error);
+      request.abortableTasks.delete(task);
+      callOnAllReadyIfReady(request);
     }
     function retryTask(request, task) {
       if (task.status === PENDING$1) {
@@ -2194,8 +2460,9 @@
             var json = stringify(resolvedModel);
             emitModelChunk(request, task.id, json);
           }
-          request.abortableTasks.delete(task);
           task.status = COMPLETED;
+          request.abortableTasks.delete(task);
+          callOnAllReadyIfReady(request);
         } catch (thrownValue) {
           if (request.status === ABORTING) {
             request.abortableTasks.delete(task);
@@ -2237,7 +2504,6 @@
       ReactSharedInternalsServer.H = HooksDispatcher;
       var prevRequest = currentRequest;
       currentRequest$1 = currentRequest = request;
-      var hadAbortableTasks = 0 < request.abortableTasks.size;
       try {
         var pingedTasks = request.pingedTasks;
         request.pingedTasks = [];
@@ -2245,10 +2511,6 @@
           retryTask(request, pingedTasks[i]);
         null !== request.destination &&
           flushCompletedChunks(request, request.destination);
-        if (hadAbortableTasks && 0 === request.abortableTasks.size) {
-          var onAllReady = request.onAllReady;
-          onAllReady();
-        }
       } catch (error) {
         logRecoverableError(request, error, null), fatalError(request, error);
       } finally {
@@ -2340,6 +2602,13 @@
           destination && flushCompletedChunks(request, destination);
         }));
     }
+    function callOnAllReadyIfReady(request) {
+      if (
+        0 === request.abortableTasks.size &&
+        0 === request.abortListeners.size
+      )
+        request.onAllReady();
+    }
     function startFlowing(request, destination) {
       if (request.status === CLOSING)
         (request.status = CLOSED),
@@ -2384,8 +2653,7 @@
             }
           });
           abortableTasks.clear();
-          var onAllReady = request.onAllReady;
-          onAllReady();
+          callOnAllReadyIfReady(request);
         }
         var abortListeners = request.abortListeners;
         if (0 < abortListeners.size) {
@@ -2401,6 +2669,7 @@
             return callback(_error);
           });
           abortListeners.clear();
+          callOnAllReadyIfReady(request);
         }
         null !== request.destination &&
           flushCompletedChunks(request, request.destination);
@@ -3430,49 +3699,7 @@
       thenableState = null,
       currentComponentDebugInfo = null,
       HooksDispatcher = {
-        useMemo: function (nextCreate) {
-          return nextCreate();
-        },
-        useCallback: function (callback) {
-          return callback;
-        },
-        useDebugValue: function () {},
-        useDeferredValue: unsupportedHook,
-        useTransition: unsupportedHook,
         readContext: unsupportedContext,
-        useContext: unsupportedContext,
-        useReducer: unsupportedHook,
-        useRef: unsupportedHook,
-        useState: unsupportedHook,
-        useInsertionEffect: unsupportedHook,
-        useLayoutEffect: unsupportedHook,
-        useImperativeHandle: unsupportedHook,
-        useEffect: unsupportedHook,
-        useId: function () {
-          if (null === currentRequest$1)
-            throw Error("useId can only be used while React is rendering");
-          var id = currentRequest$1.identifierCount++;
-          return (
-            ":" +
-            currentRequest$1.identifierPrefix +
-            "S" +
-            id.toString(32) +
-            ":"
-          );
-        },
-        useHostTransitionStatus: unsupportedHook,
-        useOptimistic: unsupportedHook,
-        useFormState: unsupportedHook,
-        useActionState: unsupportedHook,
-        useSyncExternalStore: unsupportedHook,
-        useCacheRefresh: function () {
-          return unsupportedRefresh;
-        },
-        useMemoCache: function (size) {
-          for (var data = Array(size), i = 0; i < size; i++)
-            data[i] = REACT_MEMO_CACHE_SENTINEL;
-          return data;
-        },
         use: function (usable) {
           if (
             (null !== usable && "object" === typeof usable) ||
@@ -3499,6 +3726,48 @@
           throw Error(
             "An unsupported type was passed to use(): " + String(usable)
           );
+        },
+        useCallback: function (callback) {
+          return callback;
+        },
+        useContext: unsupportedContext,
+        useEffect: unsupportedHook,
+        useImperativeHandle: unsupportedHook,
+        useLayoutEffect: unsupportedHook,
+        useInsertionEffect: unsupportedHook,
+        useMemo: function (nextCreate) {
+          return nextCreate();
+        },
+        useReducer: unsupportedHook,
+        useRef: unsupportedHook,
+        useState: unsupportedHook,
+        useDebugValue: function () {},
+        useDeferredValue: unsupportedHook,
+        useTransition: unsupportedHook,
+        useSyncExternalStore: unsupportedHook,
+        useId: function () {
+          if (null === currentRequest$1)
+            throw Error("useId can only be used while React is rendering");
+          var id = currentRequest$1.identifierCount++;
+          return (
+            ":" +
+            currentRequest$1.identifierPrefix +
+            "S" +
+            id.toString(32) +
+            ":"
+          );
+        },
+        useHostTransitionStatus: unsupportedHook,
+        useFormState: unsupportedHook,
+        useActionState: unsupportedHook,
+        useOptimistic: unsupportedHook,
+        useMemoCache: function (size) {
+          for (var data = Array(size), i = 0; i < size; i++)
+            data[i] = REACT_MEMO_CACHE_SENTINEL;
+          return data;
+        },
+        useCacheRefresh: function () {
+          return unsupportedRefresh;
         }
       },
       currentOwner = null,
@@ -3520,7 +3789,23 @@
       throw Error(
         'The "react" package in this environment is not configured correctly. The "react-server" condition must be enabled in any environment that runs React Server Components.'
       );
+    var prefix, suffix;
     new ("function" === typeof WeakMap ? WeakMap : Map)();
+    var lastResetTime = 0;
+    if (
+      "object" === typeof performance &&
+      "function" === typeof performance.now
+    ) {
+      var localPerformance = performance;
+      var getCurrentTime = function () {
+        return localPerformance.now();
+      };
+    } else {
+      var localDate = Date;
+      getCurrentTime = function () {
+        return localDate.now();
+      };
+    }
     var callComponent = {
         "react-stack-bottom-frame": function (
           Component,
@@ -3713,8 +3998,7 @@
       });
     };
     exports.renderToReadableStream = function (model, webpackMap, options) {
-      var request = new RequestInstance(
-        20,
+      var request = createRequest(
         model,
         webpackMap,
         options ? options.onError : void 0,
@@ -3722,9 +4006,7 @@
         options ? options.onPostpone : void 0,
         options ? options.temporaryReferences : void 0,
         options ? options.environmentName : void 0,
-        options ? options.filterStackFrame : void 0,
-        noop,
-        noop
+        options ? options.filterStackFrame : void 0
       );
       if (options && options.signal) {
         var signal = options.signal;
@@ -3756,16 +4038,9 @@
     };
     exports.unstable_prerender = function (model, webpackMap, options) {
       return new Promise(function (resolve, reject) {
-        var request = new RequestInstance(
-          PRERENDER,
+        var request = createPrerenderRequest(
           model,
           webpackMap,
-          options ? options.onError : void 0,
-          options ? options.identifierPrefix : void 0,
-          options ? options.onPostpone : void 0,
-          options ? options.temporaryReferences : void 0,
-          options ? options.environmentName : void 0,
-          options ? options.filterStackFrame : void 0,
           function () {
             var stream = new ReadableStream(
               {
@@ -3785,7 +4060,13 @@
             );
             resolve({ prelude: stream });
           },
-          reject
+          reject,
+          options ? options.onError : void 0,
+          options ? options.identifierPrefix : void 0,
+          options ? options.onPostpone : void 0,
+          options ? options.temporaryReferences : void 0,
+          options ? options.environmentName : void 0,
+          options ? options.filterStackFrame : void 0
         );
         if (options && options.signal) {
           var signal = options.signal;

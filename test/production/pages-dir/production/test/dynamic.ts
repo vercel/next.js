@@ -64,11 +64,23 @@ export default (next: NextInstance, render) => {
         }
       })
 
-      // It seem to be abnormal, dynamic CSS modules are completely self-sufficient, so shared styles are copied across files
-      it('should output two css files even in case of three css module files while one is shared across files', async () => {
-        const $ = await get$('/dynamic/shared-css-module')
-        const cssFiles = $('link[rel=stylesheet]')
-        expect(cssFiles.length).toBe(2)
+      it('should output correct css even in case of three css module files while one is shared across files', async () => {
+        let browser
+        try {
+          browser = await webdriver(next.appPort, '/dynamic/shared-css-module')
+          await check(
+            () => browser.elementByCss('#with-css').getComputedCss('color'),
+            'rgb(0, 0, 0)'
+          )
+          await check(
+            () => browser.elementByCss('#with-css-2').getComputedCss('color'),
+            'rgb(0, 0, 0)'
+          )
+        } finally {
+          if (browser) {
+            await browser.close()
+          }
+        }
       })
 
       it('should render one dynamically imported component without any css files', async () => {
