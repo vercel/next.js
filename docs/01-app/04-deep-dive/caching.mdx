@@ -421,3 +421,23 @@ export async function updatePost(formData) {
 Behind the scenes, Next.js:
 
 TODO: Explain how `revalidateTag` works.
+
+### Nesting tags
+
+Cache tags are composable. A parent will inherit the tags its children. For example, `page` will revalidate when tag `a` or `b` is updated:
+
+```tsx filename="app/page.tsx" switcher
+export default async function Page() {
+  'use cache'
+  cacheTag('a')
+  // ...
+
+  return <CachedComponent />
+}
+
+async function CachedComponent() {
+  'use cache'
+  cacheTag('b')
+  // ...
+}
+```
