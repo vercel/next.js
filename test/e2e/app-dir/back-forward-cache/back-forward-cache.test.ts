@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('back/forward cache', () => {
   const { next } = nextTestSetup({
@@ -9,10 +10,18 @@ describe('back/forward cache', () => {
     const browser = await next.browser('/page/1')
 
     // Accumulate some state on page 1.
-    const incrementButton1 = await browser.elementById('increment-button-1')
+    // Accumulate some state on page 1.
+    await retry(async () => {
+      // we do this inside of retry in case button event handler
+      // isn't ready yet
+      await browser.elementById('increment-button-1').click()
+
+      const counterDisplay1 = await browser.elementById('counter-display-1')
+      expect(await counterDisplay1.text()).toBe('Count: 1')
+    })
+    await browser.elementById('increment-button-1').click()
+
     const counterDisplay1 = await browser.elementById('counter-display-1')
-    await incrementButton1.click()
-    await incrementButton1.click()
     expect(await counterDisplay1.text()).toBe('Count: 2')
 
     // Navigate to page 2. Accumulate some state here, too.
@@ -48,10 +57,18 @@ describe('back/forward cache', () => {
     const browser = await next.browser('/page/1')
 
     // Accumulate some state on page 1.
-    const incrementButton1 = await browser.elementById('increment-button-1')
+    // Accumulate some state on page 1.
+    await retry(async () => {
+      // we do this inside of retry in case button event handler
+      // isn't ready yet
+      await browser.elementById('increment-button-1').click()
+
+      const counterDisplay1 = await browser.elementById('counter-display-1')
+      expect(await counterDisplay1.text()).toBe('Count: 1')
+    })
+    await browser.elementById('increment-button-1').click()
+
     const counterDisplay1 = await browser.elementById('counter-display-1')
-    await incrementButton1.click()
-    await incrementButton1.click()
     expect(await counterDisplay1.text()).toBe('Count: 2')
 
     // Navigate to page 2. Accumulate some state here, too.
@@ -88,10 +105,17 @@ describe('back/forward cache', () => {
     const browser = await next.browser('/page/1')
 
     // Accumulate some state on page 1.
-    const incrementButton1 = await browser.elementById('increment-button-1')
+    await retry(async () => {
+      // we do this inside of retry in case button event handler
+      // isn't ready yet
+      await browser.elementById('increment-button-1').click()
+
+      const counterDisplay1 = await browser.elementById('counter-display-1')
+      expect(await counterDisplay1.text()).toBe('Count: 1')
+    })
+    await browser.elementById('increment-button-1').click()
+
     const counterDisplay1 = await browser.elementById('counter-display-1')
-    await incrementButton1.click()
-    await incrementButton1.click()
     expect(await counterDisplay1.text()).toBe('Count: 2')
 
     // Navigate to page 2.
@@ -115,15 +139,23 @@ describe('back/forward cache', () => {
     const browser = await next.browser('/page/1')
 
     // Accumulate some state on page 1.
-    const incrementButton1 = await browser.elementById('increment-button-1')
+    await retry(async () => {
+      // we do this inside of retry in case button event handler
+      // isn't ready yet
+      await browser.elementById('increment-button-1').click()
+
+      const counterDisplay1 = await browser.elementById('counter-display-1')
+      expect(await counterDisplay1.text()).toBe('Count: 1')
+    })
+    await browser.elementById('increment-button-1').click()
+
     const counterDisplay1 = await browser.elementById('counter-display-1')
-    await incrementButton1.click()
-    await incrementButton1.click()
     expect(await counterDisplay1.text()).toBe('Count: 2')
 
     // Navigate to page 2. Accumulate some state here, too.
     const linkToPage2 = await browser.elementByCss('a[href="/page/2"]')
     await linkToPage2.click()
+
     const incrementButton2 = await browser.elementById('increment-button-2')
     const counterDisplay2 = await browser.elementById('counter-display-2')
     await incrementButton2.click()
@@ -165,10 +197,17 @@ describe('back/forward cache', () => {
     const browser = await next.browser('/page/1')
 
     // Accumulate some state on page 1.
-    const incrementButton1 = await browser.elementById('increment-button-1')
+    await retry(async () => {
+      // we do this inside of retry in case button event handler
+      // isn't ready yet
+      await browser.elementById('increment-button-1').click()
+
+      const counterDisplay1 = await browser.elementById('counter-display-1')
+      expect(await counterDisplay1.text()).toBe('Count: 1')
+    })
+    await browser.elementById('increment-button-1').click()
+
     const counterDisplay1 = await browser.elementById('counter-display-1')
-    await incrementButton1.click()
-    await incrementButton1.click()
     expect(await counterDisplay1.text()).toBe('Count: 2')
 
     // Navigate to page 2. Accumulate some state here, too.
