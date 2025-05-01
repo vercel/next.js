@@ -211,8 +211,9 @@ Non-serializable values — like `{children}` props or dynamic nested components
 
 By default, `"use cache"` is deduped and in-memory. These defaults:
 
-- Speeds up server rendering by accumulating cache entries during a pass, preventing the same function with the same inputs from being executed multiple times.
-- Reduces requests to external database or APIs, reducing latency and costs.
+- Speed up server rendering by accumulating cache entries during a pass, preventing the same function with the same inputs from being executed multiple times.
+- Reduce requests to external database or APIs, reducing latency and costs.
+- Work well as a simple and affordable starting point for [self-hosted](/docs/app/guides/self-hosting) applications.
 
 #### How long does it last?
 
@@ -277,5 +278,3 @@ Profiles sets three properties:
 - `expire`: the maximum time a cached entry can be used before it expires.
 
 These properties are used to define the cache entry's [lifecycle](#the-cache-entry-lifecycle).
-
-- Works well as a simple and affordable starting point for [self-hosted]() applications.
