@@ -28,7 +28,7 @@ Next.js uses an unified model for client and server caching. When retrieving a c
 
 #### Why client-first?
 
-Som content, such as user-specific information (based on `cookies`), is _cacheable_ but not practical to prerender at build time or store in a persistent server cache.
+Some content, such as user-specific information (based on `cookies`), is _cacheable_ but not practical to prerender at build time or store in a persistent server cache.
 
 In the previous static-or-dynamic model, this type of content would be treated as dynamic, re-rendering on every request. But, in Next.js, you can [mark it as cacheable](), allowing the content to be prefetched and cached on the client.
 
