@@ -16,14 +16,14 @@ The `cacheTag` function allows you to tag cached data for on-demand invalidation
 
 ## Usage
 
-To use `cacheTag`, enable the [`dynamicIO` flag](/docs/app/api-reference/config/next-config-js/dynamicIO) in your `next.config.js` file:
+To use `cacheTag`, enable the [`useCache` flag](/docs/app/api-reference/config/next-config-js/useCache) in your `next.config.js` file:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   experimental: {
-    dynamicIO: true,
+    useCache: true,
   },
 }
 
@@ -33,14 +33,14 @@ export default nextConfig
 ```js filename="next.config.js" switcher
 const nextConfig = {
   experimental: {
-    dynamicIO: true,
+    useCache: true,
   },
 }
 
 export default nextConfig
 ```
 
-The `cacheTag` function takes a single string value, or a string array.
+The `cacheTag` function takes a single or multiple string values.
 
 ```tsx filename="app/data.ts" switcher
 import { unstable_cacheTag as cacheTag } from 'next/cache'
@@ -64,34 +64,12 @@ export async function getData() {
 }
 ```
 
-You can then purge the cache on-demand using [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) API in another function, for example, a [route handler](/docs/app/building-your-application/routing/route-handlers) or [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations):
+You can then purge the cache entry using the [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) API in another function such as a [Route Handler](#invalidating-tags-in-a-route-handler) or [Server Action](#invalidating-tags-in-a-server-action).
 
-```tsx filename="app/action.ts" switcher
-'use server'
-
-import { revalidateTag } from 'next/cache'
-
-export default async function submit() {
-  await addPost()
-  revalidateTag('my-data')
-}
-```
-
-```jsx filename="app/action.js" switcher
-'use server'
-
-import { revalidateTag } from 'next/cache'
-
-export default async function submit() {
-  await addPost()
-  revalidateTag('my-data')
-}
-```
-
-## Good to know
+## Single and multiple tags
 
 - **Idempotent Tags**: Applying the same tag multiple times has no additional effect.
-- **Multiple Tags**: You can assign multiple tags to a single cache entry by passing an array to `cacheTag`.
+- **Multiple Tags**: You can assign multiple tags to a single cache entry by passing comma separated values.
 
 ```tsx
 cacheTag('tag-one', 'tag-two')
