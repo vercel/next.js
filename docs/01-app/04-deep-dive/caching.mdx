@@ -12,19 +12,31 @@ Caching is a technique for storing the result of rendering, data fetching, and o
 
 In Next.js, caching is:
 
-- [Client-first](#client-first): The browser is the first place the framework checks before making new requests to the server.
+- [Client-first](#client-first-caching-with-server-first-rendering): The browser is the first place the framework checks before making new requests to the server.
 - [Declarative](#declarative): You describe when a cache entry should be updated, not how it's stored.
 - [Composable](#composable): You can granularly cache individual route segments, React Server Components, or regular functions.
 
-### Client-first
+### Client-first caching with server-first rendering
 
-Next.js uses the same model for client and server caching. When retrieving a cache entry, it checks:
+Next.js uses an unified model for client and server caching. When retrieving a cache entry, it checks:
 
 1. The client cache
 2. The server in-memory cache
 3. A remote persistent cache, if defined
 
-However, **client-first does not mean client-only**. The server still plays a role in fetching and rendering, deduplicating requests, reusing static shells across users, and persisting results to a remote cache.
+{/* TODO: Add diagram */}
+
+#### Why client-first?
+
+Some content—like personalized user information (based on `cookies`) or pages with high-cardinality params ([dynamic route segments]())-is _cacheable_ but not practical to prerender at build time or store in a persistent server cache.
+
+For example, user profile data that doesn't change often. In the previous static-or-dynamic model, this content would be excluded from prerendering and treated as dynamic, re-rendering on every request. But, in Next.js, you can [mark it as cacheable](). This allows the content to be prefetched and cached on the client.
+
+{/* TODO: Add diagram */}
+
+This means more of the route is ready before navigation, improving speed and reducing server load. And only truly dynamic or frequently updated content is re-fetched on navigation.
+
+However, **client-first does not mean client-only**. The server still plays a role in fetching and rendering, deduplicating requests, reusing static shells across users, and persisting static, shareable parts to a remote cache.
 
 ### Declarative
 
