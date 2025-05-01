@@ -99,6 +99,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/actions/app-action-form-state-node-middleware.test.ts": {
+    "passed": [
+      "app-dir action useActionState should send the action to the provided permalink with form state when JS disabled",
+      "app-dir action useActionState should support hydrating the app from progressively enhanced form request",
+      "app-dir action useActionState should support submitting form state with JS",
+      "app-dir action useActionState should support submitting form state without JS"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/actions/app-action-form-state.test.ts": {
     "passed": [
       "app-dir action useActionState should send the action to the provided permalink with form state when JS disabled",
@@ -111,12 +123,118 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/actions/app-action-node-middleware.test.ts": {
+    "passed": [
+      "app-dir action handling Edge SSR should allow cookie and header async storages",
+      "app-dir action handling Edge SSR should handle basic actions correctly",
+      "app-dir action handling Edge SSR should handle calls to redirect() with a absolute URL in a single pass",
+      "app-dir action handling Edge SSR should handle calls to redirect() with a relative URL in a single pass",
+      "app-dir action handling Edge SSR should handle calls to redirect() with external URLs",
+      "app-dir action handling Edge SSR should handle unicode search params",
+      "app-dir action handling Edge SSR should return error response for hoc auth wrappers in edge runtime",
+      "app-dir action handling caching disabled by default should not override force-cache in server action",
+      "app-dir action handling caching disabled by default should not override revalidate in server action",
+      "app-dir action handling caching disabled by default should use no-store as default for server action",
+      "app-dir action handling encryption should be able to resolve other server actions and client components",
+      "app-dir action handling encryption should send encrypted values from the closed over closure",
+      "app-dir action handling fetch actions should handle a fetch action initiated from a static page",
+      "app-dir action handling fetch actions should handle calls to redirect() with a absolute URL in a single pass",
+      "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
+      "app-dir action handling fetch actions should handle calls to redirect() with external URLs",
+      "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
+      "app-dir action handling fetch actions should handle unstable_expirePath",
+      "app-dir action handling fetch actions should handle unstable_expireTag",
+      "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
+      "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
+      "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
+      "app-dir action handling fetch actions should revalidate when cookies.set is called",
+      "app-dir action handling fetch actions should revalidate when cookies.set is called in a client action",
+      "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
+      "app-dir action handling redirects displays searchParams correctly when redirecting with SearchParams",
+      "app-dir action handling redirects merges cookies correctly when redirecting",
+      "app-dir action handling redirects redirects properly when server action handler redirects with a 307 status code",
+      "app-dir action handling redirects redirects properly when server action handler redirects with a 308 status code",
+      "app-dir action handling redirects redirects properly when server action handler uses `permanentRedirect`",
+      "app-dir action handling redirects redirects properly when server action handler uses `redirect`",
+      "app-dir action handling redirects should not forward next-action header to a redirected RSC request",
+      "app-dir action handling request body decoding should correctly decode multi-byte characters in the request body (edge)",
+      "app-dir action handling request body decoding should correctly decode multi-byte characters in the request body (node)",
+      "app-dir action handling server actions render client components server component imported action should support importing client components from actions",
+      "app-dir action handling should 404 when POSTing an invalid server action",
+      "app-dir action handling should be possible to catch network errors",
+      "app-dir action handling should be possible to catch regular errors",
+      "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
+      "app-dir action handling should forward action request to a worker that contains the action handler (node)",
+      "app-dir action handling should handle action correctly with middleware rewrite",
+      "app-dir action handling should handle actions executed in quick succession",
+      "app-dir action handling should handle basic actions correctly",
+      "app-dir action handling should invalidate the client router cache if the redirect action triggers a revalidation",
+      "app-dir action handling should keep action instances identical",
+      "app-dir action handling should log a warning when a server action is not found but an id is provided",
+      "app-dir action handling should not block navigation events while a server action is in flight",
+      "app-dir action handling should not block router.back() while a server action is in flight",
+      "app-dir action handling should not error when a forwarded action triggers a redirect (edge)",
+      "app-dir action handling should not error when a forwarded action triggers a redirect (node)",
+      "app-dir action handling should not expose action content in sourcemaps",
+      "app-dir action handling should not log errors for non-action form POSTs",
+      "app-dir action handling should only submit action once when resubmitting an action after navigation",
+      "app-dir action handling should propagate errors from a `text/plain` response to an error boundary",
+      "app-dir action handling should push new route when redirecting",
+      "app-dir action handling should replace current route when redirecting with type set to replace",
+      "app-dir action handling should report errors with bad inputs correctly",
+      "app-dir action handling should reset the form state when the action redirects to a page that contains the same form",
+      "app-dir action handling should reset the form state when the action redirects to itself",
+      "app-dir action handling should support .bind",
+      "app-dir action handling should support chained .bind",
+      "app-dir action handling should support formData and redirect",
+      "app-dir action handling should support headers and cookies",
+      "app-dir action handling should support headers in client imported actions",
+      "app-dir action handling should support hoc auth wrappers",
+      "app-dir action handling should support importing actions in client components",
+      "app-dir action handling should support importing the same action module instance in both server and action layers",
+      "app-dir action handling should support next/dynamic with ssr: false",
+      "app-dir action handling should support next/dynamic with ssr: false (edge)",
+      "app-dir action handling should support notFound",
+      "app-dir action handling should support notFound (javascript disabled)",
+      "app-dir action handling should support setting cookies in route handlers with the correct overrides",
+      "app-dir action handling should support setting cookies when redirecting (no javascript)",
+      "app-dir action handling should support setting cookies when redirecting (with javascript)",
+      "app-dir action handling should support uploading files",
+      "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
+      "app-dir action handling should trigger a refresh for a server action that gets discarded due to a navigation",
+      "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
+      "app-dir action handling should work with interception routes"
+    ],
+    "failed": [],
+    "pending": [
+      "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
+      "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/actions/app-action-progressive-enhancement.test.ts": {
     "passed": [
       "app-dir action progressive enhancement should support actions from client without JS",
       "app-dir action progressive enhancement should support formData and redirect without JS",
       "app-dir action progressive enhancement should support headers and cookies without JS (runtime: edge)",
       "app-dir action progressive enhancement should support headers and cookies without JS (runtime: node)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/actions/app-action-size-limit-invalid-node-middleware.test.ts": {
+    "passed": [
+      "app-dir action size limit invalid config should error if serverActions.bodySizeLimit config is a negative number",
+      "app-dir action size limit invalid config should error if serverActions.bodySizeLimit config is a negative size",
+      "app-dir action size limit invalid config should error if serverActions.bodySizeLimit config is invalid",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should error for requests that exceed the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should not error for requests that are at the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should not error for requests that stay below the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for plaintext fetch actions should error for requests that exceed the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for plaintext fetch actions should not error for requests that stay below the size limit"
     ],
     "failed": [],
     "pending": [],
@@ -5310,6 +5428,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/prefetch-auto/prefetch-auto.test.ts": {
+    "passed": [
+      "<Link prefetch=\"auto\"> <Link prefetch=\"auto\"> works the same as if prefetch were undefined or null"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/prefetch-scheduling/prefetch-scheduling.test.ts": {
     "passed": [
       "segment cache prefetch scheduling cancels a viewport-initiated prefetch if the link leaves the viewport before it finishes",
@@ -7582,6 +7709,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/next-image-svgo-webpack/svgo-webpack.test.ts": {
+    "passed": [
+      "svgo-webpack loader should render an SVG that is transformed by @svgr/webpack into a React component (app router)",
+      "svgo-webpack loader should render an SVG that is transformed by @svgr/webpack into a React component (pages router)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/next-link-errors/next-link-errors.test.ts": {
     "passed": [
       "next-link errors on invalid href",
@@ -8451,20 +8588,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/404-page-app/test/index.test.js": {
-    "passed": [
-      "404 Page Support with _app production mode should build successfully",
-      "404 Page Support with _app production mode should not output static 404 if _app has getInitialProps",
-      "404 Page Support with _app production mode should still use 404 page",
-      "404 Page Support with _app production mode specify to use the 404 page still in the routes-manifest"
-    ],
-    "failed": [],
-    "pending": [
-      "404 Page Support with _app development mode should not show pages/404 GIP error if _app has GIP"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/404-page-custom-error/test/index.test.js": {
     "passed": [
       "Default 404 Page with custom _error production mode should build successfully",
@@ -8647,53 +8770,6 @@
       "AMP SSG Support production mode should load dynamic hybrid SSG/AMP page with query",
       "AMP SSG Support production mode should load dynamic hybrid SSG/AMP page with trailing slash",
       "AMP SSG Support production mode should output prerendered files correctly during build"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/amphtml/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "AMP Usage AMP dev no-warn should not warn on valid amp",
-      "AMP Usage AMP development mode should add data-ampdevmode to development script tags",
-      "AMP Usage AMP development mode should detect amp validator warning on custom scripts",
-      "AMP Usage AMP development mode should detect amp validator warning on invalid amp",
-      "AMP Usage AMP development mode should detect changes and refresh a hybrid AMP page",
-      "AMP Usage AMP development mode should detect changes and refresh an AMP page",
-      "AMP Usage AMP development mode should detect changes and refresh an AMP page at root pages/",
-      "AMP Usage AMP development mode should detect changes to component and refresh an AMP page",
-      "AMP Usage AMP development mode should detect the changes and display it",
-      "AMP Usage AMP development mode should navigate from non-AMP to AMP without error",
-      "AMP Usage AMP development mode should not contain missing files warning",
-      "AMP Usage AMP development mode should not reload unless the page is edited for an AMP page",
-      "AMP Usage production mode With AMP context should render nested AMP page with AMP hook",
-      "AMP Usage production mode With AMP context should render nested normal page with AMP hook",
-      "AMP Usage production mode With AMP context should render the AMP page that uses the AMP hook",
-      "AMP Usage production mode With AMP context should render the normal page that uses the AMP hook",
-      "AMP Usage production mode With basic AMP usage should auto import extensions",
-      "AMP Usage production mode With basic AMP usage should drop custom scripts",
-      "AMP Usage production mode With basic AMP usage should not drop custom amp scripts",
-      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only",
-      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration",
-      "AMP Usage production mode With basic AMP usage should optimize clean",
-      "AMP Usage production mode With basic AMP usage should render the page as valid AMP",
-      "AMP Usage production mode With basic AMP usage should render the page without leaving render target",
-      "AMP Usage production mode With basic usage should render the page",
-      "AMP Usage production mode canonical amphtml should allow manually setting amphtml rel",
-      "AMP Usage production mode canonical amphtml should allow manually setting canonical",
-      "AMP Usage production mode canonical amphtml should not render amphtml link tag with no AMP page",
-      "AMP Usage production mode canonical amphtml should remove conflicting amp tags",
-      "AMP Usage production mode canonical amphtml should render a canonical regardless of amp-only status (explicit)",
-      "AMP Usage production mode canonical amphtml should render amphtml from provided rel link",
-      "AMP Usage production mode canonical amphtml should render link rel amphtml",
-      "AMP Usage production mode canonical amphtml should render link rel amphtml with existing query",
-      "AMP Usage production mode canonical amphtml should render the AMP page that uses the AMP hook",
-      "AMP Usage production mode combined styles should combine style tags",
-      "AMP Usage production mode combined styles should remove sourceMaps from styles",
-      "AMP Usage production mode should have amp optimizer in trace",
-      "AMP Usage production mode should not contain missing files warning",
-      "AMP Usage production mode should not have deprecation warning"
     ],
     "flakey": [],
     "runtimeError": false
@@ -8919,18 +8995,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/app-dir-export/test/dynamicpage-dev.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage 'error'",
-      "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage 'force-dynamic'",
-      "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage 'force-static'",
-      "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage undefined"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/app-dir-export/test/dynamicpage-prod.test.ts": {
     "passed": [
       "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage 'error'",
@@ -9044,18 +9108,6 @@
       "AppTree development mode should pass AppTree to NextPageContext",
       "AppTree development mode should provide router context in AppTree on CSR",
       "AppTree development mode should provide router context in AppTree on SSR"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/app-types/app-types.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "app type checking production mode should generate route types correctly and report form errors",
-      "app type checking production mode should generate route types correctly and report link error",
-      "app type checking production mode should generate route types correctly and report router API errors",
-      "app type checking production mode should type check invalid entry exports"
     ],
     "flakey": [],
     "runtimeError": false
@@ -9191,15 +9243,6 @@
       "Build Output production mode Basic Application Output (experimental: {}) should not deviate from snapshot",
       "Build Output production mode With AMP Output should not include custom error"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/build-trace-extra-entries-turbo/test/index.test.js": {
-    "passed": [],
-    "failed": [
-      "build trace with extra entries production mode should build and trace correctly"
-    ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -9391,25 +9434,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/config-experimental-warning/test/index.test.js": {
-    "passed": [
-      "Config Experimental Warning production mode should not show next app info in next start",
-      "Config Experimental Warning production mode should show next app info with all experimental features in next build",
-      "Config Experimental Warning production mode should show unrecognized experimental features in warning but not in start log experiments section",
-      "Config Experimental Warning should not show warning with config from object",
-      "Config Experimental Warning should not show warning with default config from function",
-      "Config Experimental Warning should not show warning with default value",
-      "Config Experimental Warning should show the configured value for numerical features",
-      "Config Experimental Warning should show warning with a symbol indicating that a default `true` value is set to `false`",
-      "Config Experimental Warning should show warning with config from function with experimental",
-      "Config Experimental Warning should show warning with config from object with experimental",
-      "Config Experimental Warning should show warning with config from object with experimental and multiple keys"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/config-mjs/test/index.test.js": {
     "passed": [
       "Configuration correctly imports a package that defines `module` but no `main` in package.json",
@@ -9545,18 +9569,6 @@
       "create-next-app should not create if the target directory is not empty",
       "create-next-app should not create if the target directory is not writable",
       "create-next-app should not install dependencies if --skip-install"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/create-next-app/package-manager/bun.test.ts": {
-    "passed": [
-      "create-next-app with package manager bun should use bun for --use-bun flag",
-      "create-next-app with package manager bun should use bun for --use-bun flag with example",
-      "create-next-app with package manager bun should use bun when user-agent is bun",
-      "create-next-app with package manager bun should use bun when user-agent is bun with example"
     ],
     "failed": [],
     "pending": [],
@@ -9765,19 +9777,6 @@
       "CSS Customization production mode Correct CSS Customization custom loader should compile successfully",
       "CSS Customization production mode Correct CSS Customization custom loader should've applied style"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/css-features/test/browserslist.test.js": {
-    "passed": [
-      "Browserslist: New production mode should have compiled successfully",
-      "Browserslist: Old production mode should have compiled successfully"
-    ],
-    "failed": [
-      "Browserslist: New production mode should've emitted a single CSS file",
-      "Browserslist: Old production mode should've emitted a single CSS file"
-    ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10019,15 +10018,6 @@
       "Invalid Global CSS production mode should fail to build",
       "Invalid Global CSS with Custom App production mode should fail to build",
       "Valid and Invalid Global CSS with Custom App production mode should fail to build"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/custom-error-page-exception/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Custom error page exception production mode should handle errors from _error render"
     ],
     "flakey": [],
     "runtimeError": false
@@ -10415,16 +10405,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/development-runtime-config/test/index.test.js": {
-    "passed": [
-      "should work with runtime-config in next.config.js empty runtime-config",
-      "should work with runtime-config in next.config.js with runtime-config"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/disable-js/test/index.test.js": {
     "passed": [
       "disabled runtime JS production mode should not have __NEXT_DATA__ script",
@@ -10779,163 +10759,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/dynamic-routing/test/middleware.test.js": {
-    "passed": [
-      "Dynamic Routing production mode [catch all] should not decode slashes (end)",
-      "Dynamic Routing production mode [catch all] should not decode slashes (middle)",
-      "Dynamic Routing production mode [catch all] should not decode slashes (start)",
-      "Dynamic Routing production mode [catch all] should not match root on SSR",
-      "Dynamic Routing production mode [catch all] should pass param in getInitialProps during SSR",
-      "Dynamic Routing production mode [catch all] should pass params in getInitialProps during SSR",
-      "Dynamic Routing production mode [catch all] should strip trailing slash",
-      "Dynamic Routing production mode [catch-all] should pass params in getInitialProps during client navigation (encoded)",
-      "Dynamic Routing production mode [catch-all] should pass params in getInitialProps during client navigation (multi)",
-      "Dynamic Routing production mode [catch-all] should pass params in getInitialProps during client navigation (single)",
-      "Dynamic Routing production mode [catch-all] shouldn't fail on colon followed by double digits in the path",
-      "Dynamic Routing production mode [nested ssg: catch all] should pass param in getStaticProps during SSR",
-      "Dynamic Routing production mode [nested ssg: catch all] should pass params in getStaticProps during SSR",
-      "Dynamic Routing production mode [nested ssg: catch-all] should pass params in getStaticProps during client navigation (multi)",
-      "Dynamic Routing production mode [nested ssg: catch-all] should pass params in getStaticProps during client navigation (single)",
-      "Dynamic Routing production mode [predefined ssg: catch all] should pass param in getStaticProps during SSR",
-      "Dynamic Routing production mode [predefined ssg: catch all] should pass params in getStaticProps during SSR",
-      "Dynamic Routing production mode [predefined ssg: prerendered catch all] should pass param in getStaticProps during SSR",
-      "Dynamic Routing production mode [predefined ssg: prerendered catch all] should pass params in getStaticProps during SSR",
-      "Dynamic Routing production mode [ssg: catch all] should pass param in getStaticProps during SSR",
-      "Dynamic Routing production mode [ssg: catch all] should pass params in getStaticProps during SSR",
-      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (multi interpolated)",
-      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (multi)",
-      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (multi) no as",
-      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (single interpolated)",
-      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (single)",
-      "Dynamic Routing production mode should allow calling Router.push on mount successfully",
-      "Dynamic Routing production mode should handle only hash on dynamic route",
-      "Dynamic Routing production mode should handle only query on dynamic route",
-      "Dynamic Routing production mode should have correct cache entries on prefetch",
-      "Dynamic Routing production mode should navigate optional dynamic page",
-      "Dynamic Routing production mode should navigate optional dynamic page with value",
-      "Dynamic Routing production mode should navigate to a dynamic page successfully",
-      "Dynamic Routing production mode should navigate to a dynamic page successfully interpolated",
-      "Dynamic Routing production mode should navigate to a dynamic page successfully interpolated with additional query values",
-      "Dynamic Routing production mode should navigate to a dynamic page successfully no as",
-      "Dynamic Routing production mode should navigate to a dynamic page with href with differing query and as correctly",
-      "Dynamic Routing production mode should navigate to a nested dynamic page successfully",
-      "Dynamic Routing production mode should navigate to a nested dynamic page successfully interpolated",
-      "Dynamic Routing production mode should navigate to a nested dynamic page successfully no as",
-      "Dynamic Routing production mode should navigate with hash to dynamic route with link",
-      "Dynamic Routing production mode should navigate with hash to dynamic route with router",
-      "Dynamic Routing production mode should not error when requesting dynamic page with /api",
-      "Dynamic Routing production mode should not have any query values when not defined",
-      "Dynamic Routing production mode should not have placeholder query values for SSS",
-      "Dynamic Routing production mode should not preload buildManifest for non-auto export dynamic pages",
-      "Dynamic Routing production mode should output a pages-manifest correctly",
-      "Dynamic Routing production mode should output a routes-manifest correctly",
-      "Dynamic Routing production mode should pass params in getInitialProps during SSR",
-      "Dynamic Routing production mode should pass params in getInitialProps during client navigation",
-      "Dynamic Routing production mode should prioritize a non-dynamic page",
-      "Dynamic Routing production mode should prioritize public files over dynamic route",
-      "Dynamic Routing production mode should render another normal route",
-      "Dynamic Routing production mode should render dynamic page",
-      "Dynamic Routing production mode should render dynamic route with query",
-      "Dynamic Routing production mode should render nested dynamic page",
-      "Dynamic Routing production mode should render nested optional dynamic page",
-      "Dynamic Routing production mode should render normal route",
-      "Dynamic Routing production mode should render optional dynamic page",
-      "Dynamic Routing production mode should respond with bad request with invalid encoding",
-      "Dynamic Routing production mode should scroll to a hash on client-side navigation",
-      "Dynamic Routing production mode should scroll to a hash on mount",
-      "Dynamic Routing production mode should serve file from public folder encoded",
-      "Dynamic Routing production mode should serve file from static folder encoded",
-      "Dynamic Routing production mode should serve file with %20 from public folder",
-      "Dynamic Routing production mode should serve file with %20 from static folder",
-      "Dynamic Routing production mode should serve file with plus from public folder",
-      "Dynamic Routing production mode should serve file with plus from static folder",
-      "Dynamic Routing production mode should serve file with space from public folder",
-      "Dynamic Routing production mode should serve file with space from static folder",
-      "Dynamic Routing production mode should support long URLs for dynamic routes",
-      "Dynamic Routing production mode should update dynamic values on mount",
-      "Dynamic Routing production mode should update with a hash in the URL"
-    ],
-    "failed": [],
-    "pending": [
-      "Dynamic Routing development mode [catch all] should not decode slashes (end)",
-      "Dynamic Routing development mode [catch all] should not decode slashes (middle)",
-      "Dynamic Routing development mode [catch all] should not decode slashes (start)",
-      "Dynamic Routing development mode [catch all] should not match root on SSR",
-      "Dynamic Routing development mode [catch all] should pass param in getInitialProps during SSR",
-      "Dynamic Routing development mode [catch all] should pass params in getInitialProps during SSR",
-      "Dynamic Routing development mode [catch all] should strip trailing slash",
-      "Dynamic Routing development mode [catch-all] should pass params in getInitialProps during client navigation (encoded)",
-      "Dynamic Routing development mode [catch-all] should pass params in getInitialProps during client navigation (multi)",
-      "Dynamic Routing development mode [catch-all] should pass params in getInitialProps during client navigation (single)",
-      "Dynamic Routing development mode [catch-all] shouldn't fail on colon followed by double digits in the path",
-      "Dynamic Routing development mode [nested ssg: catch all] should pass param in getStaticProps during SSR",
-      "Dynamic Routing development mode [nested ssg: catch all] should pass params in getStaticProps during SSR",
-      "Dynamic Routing development mode [nested ssg: catch-all] should pass params in getStaticProps during client navigation (multi)",
-      "Dynamic Routing development mode [nested ssg: catch-all] should pass params in getStaticProps during client navigation (single)",
-      "Dynamic Routing development mode [predefined ssg: catch all] should pass param in getStaticProps during SSR",
-      "Dynamic Routing development mode [predefined ssg: catch all] should pass params in getStaticProps during SSR",
-      "Dynamic Routing development mode [predefined ssg: prerendered catch all] should pass param in getStaticProps during SSR",
-      "Dynamic Routing development mode [predefined ssg: prerendered catch all] should pass params in getStaticProps during SSR",
-      "Dynamic Routing development mode [ssg: catch all] should pass param in getStaticProps during SSR",
-      "Dynamic Routing development mode [ssg: catch all] should pass params in getStaticProps during SSR",
-      "Dynamic Routing development mode [ssg: catch-all] should pass params in getStaticProps during client navigation (multi interpolated)",
-      "Dynamic Routing development mode [ssg: catch-all] should pass params in getStaticProps during client navigation (multi)",
-      "Dynamic Routing development mode [ssg: catch-all] should pass params in getStaticProps during client navigation (multi) no as",
-      "Dynamic Routing development mode [ssg: catch-all] should pass params in getStaticProps during client navigation (single interpolated)",
-      "Dynamic Routing development mode [ssg: catch-all] should pass params in getStaticProps during client navigation (single)",
-      "Dynamic Routing development mode should allow calling Router.push on mount successfully",
-      "Dynamic Routing development mode should handle only hash on dynamic route",
-      "Dynamic Routing development mode should handle only query on dynamic route",
-      "Dynamic Routing development mode should navigate optional dynamic page",
-      "Dynamic Routing development mode should navigate optional dynamic page with value",
-      "Dynamic Routing development mode should navigate to a dynamic page successfully",
-      "Dynamic Routing development mode should navigate to a dynamic page successfully interpolated",
-      "Dynamic Routing development mode should navigate to a dynamic page successfully interpolated with additional query values",
-      "Dynamic Routing development mode should navigate to a dynamic page successfully no as",
-      "Dynamic Routing development mode should navigate to a dynamic page with href with differing query and as correctly",
-      "Dynamic Routing development mode should navigate to a nested dynamic page successfully",
-      "Dynamic Routing development mode should navigate to a nested dynamic page successfully interpolated",
-      "Dynamic Routing development mode should navigate to a nested dynamic page successfully no as",
-      "Dynamic Routing development mode should navigate with hash to dynamic route with link",
-      "Dynamic Routing development mode should navigate with hash to dynamic route with router",
-      "Dynamic Routing development mode should not error when requesting dynamic page with /api",
-      "Dynamic Routing development mode should not have any console warnings on initial load",
-      "Dynamic Routing development mode should not have any console warnings when navigating to dynamic route",
-      "Dynamic Routing development mode should not have any query values when not defined",
-      "Dynamic Routing development mode should not have error after pinging WebSocket",
-      "Dynamic Routing development mode should not have placeholder query values for SSS",
-      "Dynamic Routing development mode should not preload buildManifest for non-auto export dynamic pages",
-      "Dynamic Routing development mode should pass params in getInitialProps during SSR",
-      "Dynamic Routing development mode should pass params in getInitialProps during client navigation",
-      "Dynamic Routing development mode should prioritize a non-dynamic page",
-      "Dynamic Routing development mode should prioritize public files over dynamic route",
-      "Dynamic Routing development mode should render another normal route",
-      "Dynamic Routing development mode should render dynamic page",
-      "Dynamic Routing development mode should render dynamic route with query",
-      "Dynamic Routing development mode should render nested dynamic page",
-      "Dynamic Routing development mode should render nested optional dynamic page",
-      "Dynamic Routing development mode should render normal route",
-      "Dynamic Routing development mode should render optional dynamic page",
-      "Dynamic Routing development mode should resolve dynamic route href for page added later",
-      "Dynamic Routing development mode should respond with bad request with invalid encoding",
-      "Dynamic Routing development mode should scroll to a hash on client-side navigation",
-      "Dynamic Routing development mode should scroll to a hash on mount",
-      "Dynamic Routing development mode should serve file from public folder encoded",
-      "Dynamic Routing development mode should serve file from static folder encoded",
-      "Dynamic Routing development mode should serve file with %20 from public folder",
-      "Dynamic Routing development mode should serve file with %20 from static folder",
-      "Dynamic Routing development mode should serve file with plus from public folder",
-      "Dynamic Routing development mode should serve file with plus from static folder",
-      "Dynamic Routing development mode should serve file with space from public folder",
-      "Dynamic Routing development mode should serve file with space from static folder",
-      "Dynamic Routing development mode should support long URLs for dynamic routes",
-      "Dynamic Routing development mode should update dynamic values on mount",
-      "Dynamic Routing development mode should update with a hash in the URL",
-      "Dynamic Routing development mode should work with HMR correctly"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/edge-runtime-configurable-guards/test/index.test.js": {
     "passed": [
       "Edge runtime configurable guards Edge API using lib with allowed, used dynamic code still warns in dev at runtime",
@@ -11221,15 +11044,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/error-load-fail/test/index.test.js": {
-    "passed": [],
-    "failed": [
-      "Failing to load _error production mode handles failing to load _error correctly"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/error-plugin-stack-overflow/test/index.test.js": {
     "passed": [],
     "failed": [],
@@ -11379,15 +11193,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/export-image-default/test/index.test.js": {
-    "passed": [
-      "Export with default loader next/image component production mode should error during next build"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/export-image-loader-legacy/test/index.test.js": {
     "passed": [
       "Export with cloudinary loader next/legacy/image component production mode should build successfully",
@@ -11528,21 +11333,6 @@
     "pending": [
       "Fallback Dynamic Route Params development mode should have correct fallback query (hydration)",
       "Fallback Dynamic Route Params development mode should have correct fallback query (skeleton)"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/fetch-polyfill-ky-universal/test/index.test.js": {
-    "passed": [
-      "Fetch polyfill with ky-universal production mode includes polyfilled fetch when using getInitialProps",
-      "Fetch polyfill with ky-universal production mode includes polyfilled fetch when using getServerSideProps",
-      "Fetch polyfill with ky-universal production mode includes polyfilled fetch when using getStaticProps"
-    ],
-    "failed": [],
-    "pending": [
-      "Fetch polyfill with ky-universal development mode includes polyfilled fetch when using getInitialProps",
-      "Fetch polyfill with ky-universal development mode includes polyfilled fetch when using getServerSideProps",
-      "Fetch polyfill with ky-universal development mode includes polyfilled fetch when using getStaticProps"
     ],
     "flakey": [],
     "runtimeError": false
@@ -13014,19 +12804,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/gssp-pageProps-merge/test/index.test.js": {
-    "passed": [
-      "pageProps GSSP conflict production mode should merge _app pageProps and getServerSideProps props",
-      "pageProps GSSP conflict production mode should merge _app pageProps and getStaticProps props"
-    ],
-    "failed": [],
-    "pending": [
-      "pageProps GSSP conflict development mode should merge _app pageProps and getServerSideProps props",
-      "pageProps GSSP conflict development mode should merge _app pageProps and getStaticProps props"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/gssp-redirect-base-path/test/index.test.js": {
     "passed": [
       "GS(S)P Redirect Support production mode should apply permanent redirect when visited directly for GSSP page",
@@ -13418,19 +13195,6 @@
     "runtimeError": false
   },
   "test/integration/i18n-support-fallback-rewrite-legacy/test/index.test.js": {
-    "passed": [
-      "i18n Support production mode should not rewrite for dynamic page",
-      "i18n Support production mode should not rewrite for index page"
-    ],
-    "failed": [],
-    "pending": [
-      "i18n Support development mode should not rewrite for dynamic page",
-      "i18n Support development mode should not rewrite for index page"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/i18n-support-fallback-rewrite/test/index.test.js": {
     "passed": [
       "i18n Support production mode should not rewrite for dynamic page",
       "i18n Support production mode should not rewrite for index page"
@@ -14720,16 +14484,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/import-attributes/test/index.test.js": {
-    "passed": [
-      "import-attributes dev should handle json attributes",
-      "production mode import-attributes prod should handle json attributes"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/index-index/test/index.test.js": {
     "passed": [
       "nested index.js production mode should 404 on /index/index/index",
@@ -14919,17 +14673,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/jsconfig-baseurl/test/index.test.js": {
-    "passed": [
-      "jsconfig.json baseurl default behavior should have correct module not found error",
-      "jsconfig.json baseurl default behavior should render the page",
-      "jsconfig.json baseurl should build production mode should trace correctly"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/jsconfig-empty/test/index.test.js": {
     "passed": [
       "Empty JSConfig Support production mode should compile successfully"
@@ -15081,21 +14824,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/middleware-build-errors/test/index.test.js": {
-    "passed": [
-      "Middleware validation during build production mode given a middleware building body with JSON.stringify does not throw an error",
-      "Middleware validation during build production mode given a middleware building response body with a variable does not throw an error",
-      "Middleware validation during build production mode given a middleware building response body with custom code does not throw an error",
-      "Middleware validation during build production mode given a middleware returning a null body builds successfully",
-      "Middleware validation during build production mode given a middleware returning a text body does not throw an error",
-      "Middleware validation during build production mode given a middleware returning a text body with NextResponse does not throw an error",
-      "Middleware validation during build production mode given a middleware returning an undefined body builds successfully"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/middleware-dev-update/test/index.test.js": {
     "passed": [
       "Middleware development errors when matcher is added sends response correctly",
@@ -15232,18 +14960,6 @@
       "next/dynamic lazy compilation production mode should render dynamic server rendered values before hydration",
       "next/dynamic lazy compilation production mode should render dynamic server rendered values on client mount",
       "next/dynamic lazy compilation production mode should render server value"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/next-dynamic/test/index.test.js": {
-    "passed": ["next/dynamic production mode should render server value"],
-    "failed": [
-      "next/dynamic production mode should render dynamic server rendered values on client mount"
-    ],
-    "pending": [
-      "next/dynamic development mode should render dynamic server rendered values on client mount",
-      "next/dynamic development mode should render server value"
     ],
     "flakey": [],
     "runtimeError": false
@@ -15522,27 +15238,6 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/next-image-svgo-webpack/svgo-webpack.test.ts": {
-    "passed": [
-      "svgo-webpack loader should render an SVG that is transformed by @svgr/webpack into a React component (pages router)",
-      "svgo-webpack loader should render an SVG that is transformed by @svgr/webpack into a React component (app router)"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/next-image-legacy/trailing-slash/test/index.test.ts": {
-    "passed": [
-      "Image Component Trailing Slash Tests production mode should include trailing slash when trailingSlash is set on config file during next start"
-    ],
-    "failed": [],
-    "pending": [
-      "Image Component Trailing Slash Tests development mode should include trailing slash when trailingSlash is set on config file during next dev"
-    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -15851,19 +15546,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/next-image-new/both-basepath-trailingslash/test/index.test.ts": {
-    "passed": [
-      "Image Component basePath + trailingSlash Tests production mode should correctly load image src from import",
-      "Image Component basePath + trailingSlash Tests production mode should correctly load image src from string"
-    ],
-    "failed": [],
-    "pending": [
-      "Image Component basePath + trailingSlash Tests development mode should correctly load image src from import",
-      "Image Component basePath + trailingSlash Tests development mode should correctly load image src from string"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/next-image-new/default/test/index.test.ts": {
     "passed": [
       "Image Component Default Tests production mode Fill-mode tests should add 100% width and height to fill images",
@@ -16115,27 +15797,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/next-image-new/svgo-webpack/test/index.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "svgo-webpack with Image Component development mode should print error when invalid Image usage",
-      "svgo-webpack with Image Component production mode should not fail to build invalid usage of the Image component"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/next-image-new/trailing-slash/test/index.test.ts": {
-    "passed": [
-      "Image Component Trailing Slash Tests production mode should include trailing slash when trailingSlash is set on config file during next start"
-    ],
-    "failed": [],
-    "pending": [
-      "Image Component Trailing Slash Tests development mode should include trailing slash when trailingSlash is set on config file during next dev"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/next-image-new/typescript/test/index.test.ts": {
     "passed": [
       "TypeScript Image Component production mode should fail to build invalid usage of the Image component",
@@ -16287,15 +15948,6 @@
       "Nullish configs in next.config.js development mode should ignore configs set to `null` in next.config.js",
       "Nullish configs in next.config.js development mode should ignore configs set to `undefined` in next.config.js"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/numeric-sep/test/index.test.js": {
-    "passed": [
-      "Numeric Separator Support production mode should successfully build for a JavaScript file"
-    ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -16458,15 +16110,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/prerender-invalid-catchall-params/test/index.test.js": {
-    "passed": [
-      "Invalid Prerender Catchall Params production mode should fail the build"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/prerender-invalid-paths/test/index.test.js": {
     "passed": [
       "Legacy Prerender production mode handles old getStaticParams should fail the build"
@@ -16623,30 +16266,6 @@
   "test/integration/production-start-no-build/test/index.test.js": {
     "passed": [
       "Production Usage without production build should show error when there is no production build"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/query-with-encoding/test/index.test.js": {
-    "passed": [
-      "Query String with Encoding production mode new line should have correct query on Router#push",
-      "Query String with Encoding production mode new line should have correct query on SSR",
-      "Query String with Encoding production mode new line should have correct query on complex client-side <Link>",
-      "Query String with Encoding production mode new line should have correct query on simple client-side <Link>",
-      "Query String with Encoding production mode percent should have correct query on Router#push",
-      "Query String with Encoding production mode percent should have correct query on SSR",
-      "Query String with Encoding production mode percent should have correct query on complex client-side <Link>",
-      "Query String with Encoding production mode percent should have correct query on simple client-side <Link>",
-      "Query String with Encoding production mode plus should have correct query on Router#push",
-      "Query String with Encoding production mode plus should have correct query on SSR",
-      "Query String with Encoding production mode plus should have correct query on complex client-side <Link>",
-      "Query String with Encoding production mode plus should have correct query on simple client-side <Link>",
-      "Query String with Encoding production mode trailing space should have correct query on Router#push",
-      "Query String with Encoding production mode trailing space should have correct query on SSR",
-      "Query String with Encoding production mode trailing space should have correct query on complex client-side <Link>",
-      "Query String with Encoding production mode trailing space should have correct query on simple client-side <Link>"
     ],
     "failed": [],
     "pending": [],
@@ -16873,18 +16492,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/revalidate-as-path/test/index.test.js": {
-    "passed": [
-      "Revalidate asPath Normalizing production mode should render with correct asPath with / requested",
-      "Revalidate asPath Normalizing production mode should render with correct asPath with /_next/data /another/index requested",
-      "Revalidate asPath Normalizing production mode should render with correct asPath with /_next/data /index requested",
-      "Revalidate asPath Normalizing production mode should render with correct asPath with /another/index requested"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/rewrite-with-browser-history/test/index.test.js": {
     "passed": [
       "rewrites persist with browser history actions production mode back-button should go back to rewritten path successfully"
@@ -17046,17 +16653,6 @@
     "failed": [],
     "pending": [
       "next/dynamic development mode should cancel slow page loads on re-navigation"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/router-hash-navigation/test/index.test.js": {
-    "passed": [
-      "router.isReady production mode scrolls to top when href=\"/\" and url already contains a hash"
-    ],
-    "failed": [],
-    "pending": [
-      "router.isReady development mode scrolls to top when href=\"/\" and url already contains a hash"
     ],
     "flakey": [],
     "runtimeError": false
@@ -17231,31 +16827,6 @@
     "pending": [
       "Dynamic Routing development mode should render from pages",
       "Dynamic Routing development mode should render not render from src/pages"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/src-dir-support/test/index.test.js": {
-    "passed": [
-      "Dynamic Routing production mode should navigate to a dynamic page successfully",
-      "Dynamic Routing production mode should navigate to a nested dynamic page successfully",
-      "Dynamic Routing production mode should pass params in getInitialProps during SSR",
-      "Dynamic Routing production mode should prioritize a non-dynamic page",
-      "Dynamic Routing production mode should render another normal route",
-      "Dynamic Routing production mode should render dynamic page",
-      "Dynamic Routing production mode should render nested dynamic page",
-      "Dynamic Routing production mode should render normal route"
-    ],
-    "failed": [],
-    "pending": [
-      "Dynamic Routing development mode should navigate to a dynamic page successfully",
-      "Dynamic Routing development mode should navigate to a nested dynamic page successfully",
-      "Dynamic Routing development mode should pass params in getInitialProps during SSR",
-      "Dynamic Routing development mode should prioritize a non-dynamic page",
-      "Dynamic Routing development mode should render another normal route",
-      "Dynamic Routing development mode should render dynamic page",
-      "Dynamic Routing development mode should render nested dynamic page",
-      "Dynamic Routing development mode should render normal route"
     ],
     "flakey": [],
     "runtimeError": false
@@ -17438,172 +17009,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/trailing-slashes/test/index.test.js": {
-    "passed": [
-      "Trailing slashes development mode, trailingSlash: false / should client side render /index.js, with router path /",
-      "Trailing slashes development mode, trailingSlash: false / should resolve to /index.js, with router path /",
-      "Trailing slashes development mode, trailingSlash: false /about should client side render /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: false /about should resolve to /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: false /about/ should redirect to /about",
-      "Trailing slashes development mode, trailingSlash: false /about?hello=world should client side render /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: false /about?hello=world should resolve to /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: false /catch-all/hello.world/ should redirect to /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: false /catch-all/hello/world should client side render /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes development mode, trailingSlash: false /catch-all/hello/world should resolve to /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes development mode, trailingSlash: false /catch-all/hello/world/ should redirect to /catch-all/hello/world",
-      "Trailing slashes development mode, trailingSlash: false /external-linker?href=https://nextjs.org should have href https://nextjs.org",
-      "Trailing slashes development mode, trailingSlash: false /external-linker?href=https://nextjs.org/ should have href https://nextjs.org/",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/ should have href /",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/ should navigate to /",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/ should push route to /",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about should have href /about",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about should navigate to /about",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about should push route to /about",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about/ should have href /about",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about/ should navigate to /about",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about/ should push route to /about",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about/?hello=world should have href /about?hello=world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about/?hello=world should navigate to /about?hello=world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about/?hello=world should push route to /about?hello=world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about?hello=world should have href /about?hello=world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about?hello=world should navigate to /about?hello=world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/about?hello=world should push route to /about?hello=world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should have href /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should navigate to /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should push route to /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello/ should have href /catch-all/hello",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello/ should navigate to /catch-all/hello",
-      "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello/ should push route to /catch-all/hello",
-      "Trailing slashes development mode, trailingSlash: true / should client side render /index.js, with router path /",
-      "Trailing slashes development mode, trailingSlash: true / should resolve to /index.js, with router path /",
-      "Trailing slashes development mode, trailingSlash: true /about should redirect to /about/",
-      "Trailing slashes development mode, trailingSlash: true /about/ should client side render /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: true /about/ should resolve to /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: true /about/?hello=world should client side render /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: true /about/?hello=world should resolve to /about.js, with router path /about",
-      "Trailing slashes development mode, trailingSlash: true /catch-all/hello.world/ should redirect to /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: true /catch-all/hello/world should redirect to /catch-all/hello/world/",
-      "Trailing slashes development mode, trailingSlash: true /catch-all/hello/world/ should client side render /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes development mode, trailingSlash: true /catch-all/hello/world/ should resolve to /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes development mode, trailingSlash: true /external-linker?href=https://nextjs.org should have href https://nextjs.org",
-      "Trailing slashes development mode, trailingSlash: true /external-linker?href=https://nextjs.org/ should have href https://nextjs.org/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/ should have href /",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/ should navigate to /",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/ should push route to /",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about should have href /about/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about should navigate to /about/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about should push route to /about/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about/ should have href /about/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about/ should navigate to /about/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about/ should push route to /about/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about/?hello=world should have href /about/?hello=world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about/?hello=world should navigate to /about/?hello=world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about/?hello=world should push route to /about/?hello=world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about?hello=world should have href /about/?hello=world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about?hello=world should navigate to /about/?hello=world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/about?hello=world should push route to /about/?hello=world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should have href /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should navigate to /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should push route to /catch-all/hello.world",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello/ should have href /catch-all/hello/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello/ should navigate to /catch-all/hello/",
-      "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello/ should push route to /catch-all/hello/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs should redirect to /docs/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/about should redirect to /docs/about/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/catch-all/hello.world/ should redirect to /docs/catch-all/hello.world",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/catch-all/hello/world should redirect to /docs/catch-all/hello/world/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/ should have href /docs/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/ should navigate to /docs/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/ should push route to /docs/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/about should have href /docs/about/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/about should navigate to /docs/about/",
-      "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/about should push route to /docs/about/",
-      "Trailing slashes production mode, trailingSlash: false / should client side render /index.js, with router path /",
-      "Trailing slashes production mode, trailingSlash: false / should resolve to /index.js, with router path /",
-      "Trailing slashes production mode, trailingSlash: false /about should client side render /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: false /about should resolve to /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: false /about/ should redirect to /about",
-      "Trailing slashes production mode, trailingSlash: false /about?hello=world should client side render /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: false /about?hello=world should resolve to /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: false /catch-all/hello.world/ should redirect to /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: false /catch-all/hello/world should client side render /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes production mode, trailingSlash: false /catch-all/hello/world should resolve to /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes production mode, trailingSlash: false /catch-all/hello/world/ should redirect to /catch-all/hello/world",
-      "Trailing slashes production mode, trailingSlash: false /external-linker?href=https://nextjs.org should have href https://nextjs.org",
-      "Trailing slashes production mode, trailingSlash: false /external-linker?href=https://nextjs.org/ should have href https://nextjs.org/",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/ should have href /",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/ should navigate to /",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/ should push route to /",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about should have href /about",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about should navigate to /about",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about should push route to /about",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about/ should have href /about",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about/ should navigate to /about",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about/ should push route to /about",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about/?hello=world should have href /about?hello=world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about/?hello=world should navigate to /about?hello=world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about/?hello=world should push route to /about?hello=world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about?hello=world should have href /about?hello=world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about?hello=world should navigate to /about?hello=world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/about?hello=world should push route to /about?hello=world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should have href /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should navigate to /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should push route to /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/catch-all/hello/ should have href /catch-all/hello",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/catch-all/hello/ should navigate to /catch-all/hello",
-      "Trailing slashes production mode, trailingSlash: false /linker?href=/catch-all/hello/ should push route to /catch-all/hello",
-      "Trailing slashes production mode, trailingSlash: false should have a redirect in the routesmanifest",
-      "Trailing slashes production mode, trailingSlash: true / should client side render /index.js, with router path /",
-      "Trailing slashes production mode, trailingSlash: true / should resolve to /index.js, with router path /",
-      "Trailing slashes production mode, trailingSlash: true /about should redirect to /about/",
-      "Trailing slashes production mode, trailingSlash: true /about/ should client side render /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: true /about/ should resolve to /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: true /about/?hello=world should client side render /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: true /about/?hello=world should resolve to /about.js, with router path /about",
-      "Trailing slashes production mode, trailingSlash: true /catch-all/hello.world/ should redirect to /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: true /catch-all/hello/world should redirect to /catch-all/hello/world/",
-      "Trailing slashes production mode, trailingSlash: true /catch-all/hello/world/ should client side render /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes production mode, trailingSlash: true /catch-all/hello/world/ should resolve to /catch-all/[...slug].js, with router path /catch-all/[...slug]",
-      "Trailing slashes production mode, trailingSlash: true /external-linker?href=https://nextjs.org should have href https://nextjs.org",
-      "Trailing slashes production mode, trailingSlash: true /external-linker?href=https://nextjs.org/ should have href https://nextjs.org/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/ should have href /",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/ should navigate to /",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/ should push route to /",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about should have href /about/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about should navigate to /about/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about should push route to /about/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about/ should have href /about/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about/ should navigate to /about/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about/ should push route to /about/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about/?hello=world should have href /about/?hello=world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about/?hello=world should navigate to /about/?hello=world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about/?hello=world should push route to /about/?hello=world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about?hello=world should have href /about/?hello=world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about?hello=world should navigate to /about/?hello=world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/about?hello=world should push route to /about/?hello=world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should have href /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should navigate to /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should push route to /catch-all/hello.world",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello/ should have href /catch-all/hello/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello/ should navigate to /catch-all/hello/",
-      "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello/ should push route to /catch-all/hello/",
-      "Trailing slashes production mode, trailingSlash: true should have a trailing redirect in the routesmanifest",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs should redirect to /docs/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/about should redirect to /docs/about/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/catch-all/hello.world/ should redirect to /docs/catch-all/hello.world",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/catch-all/hello/world should redirect to /docs/catch-all/hello/world/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/linker?href=/ should have href /docs/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/linker?href=/ should navigate to /docs/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/linker?href=/ should push route to /docs/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/linker?href=/about should have href /docs/about/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/linker?href=/about should navigate to /docs/about/",
-      "Trailing slashes production mode, with basepath, trailingSlash: true /docs/linker?href=/about should push route to /docs/about/"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/tsconfig-verifier/test/index.test.js": {
     "passed": [
       "tsconfig.json verifier Creates a default tsconfig.json when one is missing",
@@ -17719,18 +17124,6 @@
     ],
     "failed": [],
     "pending": ["TypeScript HMR should recover from a type error"],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/typescript-ignore-errors/test/index.test.js": {
-    "passed": [
-      "TypeScript with error handling options production mode ignoreBuildErrors: false Next fails to build the application despite type errors in incremental mode",
-      "TypeScript with error handling options production mode ignoreBuildErrors: false Next fails to build the application despite type errors without incremental mode",
-      "TypeScript with error handling options production mode ignoreBuildErrors: true Next builds the application despite type errors in incremental mode",
-      "TypeScript with error handling options production mode ignoreBuildErrors: true Next builds the application despite type errors without incremental mode"
-    ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -17896,16 +17289,6 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/worker-webpack5/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Web Workers with webpack 5 development mode should pass on both client and worker",
-      "Web Workers with webpack 5 production mode should pass on both client and worker"
-    ],
     "flakey": [],
     "runtimeError": false
   },
