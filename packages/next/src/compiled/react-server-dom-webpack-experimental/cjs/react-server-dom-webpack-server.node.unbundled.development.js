@@ -1305,6 +1305,20 @@
       getAsyncIterator = getAsyncIterator.call(children);
       return serializeAsyncIterable(request, task, children, getAsyncIterator);
     }
+    function deferTask(request, task) {
+      task = createTask(
+        request,
+        task.model,
+        task.keyPath,
+        task.implicitSlot,
+        request.abortableTasks,
+        task.debugOwner,
+        task.debugStack,
+        task.debugTask
+      );
+      pingTask(request, task);
+      return serializeLazyID(task.id);
+    }
     function outlineTask(request, task) {
       task = createTask(
         request,
@@ -1781,6 +1795,7 @@
       value
     ) {
       task.model = value;
+      serializedSize += parentPropertyName.length;
       if (value === REACT_ELEMENT_TYPE) return "$";
       if (null === value) return null;
       if ("object" === typeof value) {
@@ -1801,6 +1816,7 @@
                       _existingReference + ":" + parentPropertyName),
                     _writtenObjects.set(value, elementReference)));
             }
+            if (serializedSize > MAX_ROW_SIZE) return deferTask(request, task);
             if ((_existingReference = value._debugInfo)) {
               if (null === debugID) return outlineTask(request, task);
               forwardDebugInfo(request, debugID, _existingReference);
@@ -1826,6 +1842,7 @@
                 _writtenObjects.set(request, elementReference));
             return request;
           case REACT_LAZY_TYPE:
+            if (serializedSize > MAX_ROW_SIZE) return deferTask(request, task);
             task.thenableState = null;
             elementReference = callLazyInitInDEV(value);
             if (request.status === ABORTING) throw null;
@@ -1996,6 +2013,7 @@
         return (
           (task = TaintRegistryValues.get(value)),
           void 0 !== task && throwTaintViolation(task.message),
+          (serializedSize += value.length),
           "Z" === value[value.length - 1] &&
           parent[parentPropertyName] instanceof Date
             ? "$D" + value
@@ -2570,38 +2588,45 @@
     }
     function emitChunk(request, task, value) {
       var id = task.id;
-      "string" === typeof value && null !== byteLengthOfChunk
-        ? ((task = TaintRegistryValues.get(value)),
+      if ("string" === typeof value && null !== byteLengthOfChunk)
+        (task = TaintRegistryValues.get(value)),
           void 0 !== task && throwTaintViolation(task.message),
-          emitTextChunk(request, id, value))
-        : value instanceof ArrayBuffer
-          ? emitTypedArrayChunk(request, id, "A", new Uint8Array(value))
-          : value instanceof Int8Array
-            ? emitTypedArrayChunk(request, id, "O", value)
-            : value instanceof Uint8Array
-              ? emitTypedArrayChunk(request, id, "o", value)
-              : value instanceof Uint8ClampedArray
-                ? emitTypedArrayChunk(request, id, "U", value)
-                : value instanceof Int16Array
-                  ? emitTypedArrayChunk(request, id, "S", value)
-                  : value instanceof Uint16Array
-                    ? emitTypedArrayChunk(request, id, "s", value)
-                    : value instanceof Int32Array
-                      ? emitTypedArrayChunk(request, id, "L", value)
-                      : value instanceof Uint32Array
-                        ? emitTypedArrayChunk(request, id, "l", value)
-                        : value instanceof Float32Array
-                          ? emitTypedArrayChunk(request, id, "G", value)
-                          : value instanceof Float64Array
-                            ? emitTypedArrayChunk(request, id, "g", value)
-                            : value instanceof BigInt64Array
-                              ? emitTypedArrayChunk(request, id, "M", value)
-                              : value instanceof BigUint64Array
-                                ? emitTypedArrayChunk(request, id, "m", value)
-                                : value instanceof DataView
-                                  ? emitTypedArrayChunk(request, id, "V", value)
-                                  : ((value = stringify(value, task.toJSON)),
-                                    emitModelChunk(request, task.id, value));
+          emitTextChunk(request, id, value);
+      else if (value instanceof ArrayBuffer)
+        emitTypedArrayChunk(request, id, "A", new Uint8Array(value));
+      else if (value instanceof Int8Array)
+        emitTypedArrayChunk(request, id, "O", value);
+      else if (value instanceof Uint8Array)
+        emitTypedArrayChunk(request, id, "o", value);
+      else if (value instanceof Uint8ClampedArray)
+        emitTypedArrayChunk(request, id, "U", value);
+      else if (value instanceof Int16Array)
+        emitTypedArrayChunk(request, id, "S", value);
+      else if (value instanceof Uint16Array)
+        emitTypedArrayChunk(request, id, "s", value);
+      else if (value instanceof Int32Array)
+        emitTypedArrayChunk(request, id, "L", value);
+      else if (value instanceof Uint32Array)
+        emitTypedArrayChunk(request, id, "l", value);
+      else if (value instanceof Float32Array)
+        emitTypedArrayChunk(request, id, "G", value);
+      else if (value instanceof Float64Array)
+        emitTypedArrayChunk(request, id, "g", value);
+      else if (value instanceof BigInt64Array)
+        emitTypedArrayChunk(request, id, "M", value);
+      else if (value instanceof BigUint64Array)
+        emitTypedArrayChunk(request, id, "m", value);
+      else if (value instanceof DataView)
+        emitTypedArrayChunk(request, id, "V", value);
+      else {
+        id = serializedSize;
+        try {
+          var json = stringify(value, task.toJSON);
+          emitModelChunk(request, task.id, json);
+        } finally {
+          serializedSize = id;
+        }
+      }
     }
     function erroredTask(request, task, error) {
       task.timed && emitTimingChunk(request, task.id, performance.now());
@@ -4104,6 +4129,8 @@
         ReactSharedInternalsServer.TaintRegistryPendingRequests,
       currentRequest = null,
       debugID = null,
+      serializedSize = 0,
+      MAX_ROW_SIZE = 3200,
       modelRoot = !1,
       emptyRoot = {},
       asyncModuleCache = new Map(),
