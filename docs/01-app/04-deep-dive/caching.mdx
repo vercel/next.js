@@ -365,3 +365,59 @@ async function CachedComponent() {
   // ...
 }
 ```
+
+## How `cacheTag` and `revalidateTag` works
+
+[`cacheTag`](/docs/app/api-reference/functions/cacheTag) is a function that lets you mark one or more cache entries to be explicitly revalidated based on an event, such as a mutation or webhook. For example, you can tag a component to be revalidated:
+
+```tsx filename="app/blog/post/[id]/page.tsx" switcher
+import { unstable_cacheTag as cacheTag } from 'next/cache'
+
+export default function Post({ params }: { params: { id: string } }) {
+  'use cache'
+  cacheTag('posts', `post-${params.id}`)
+
+  // ...
+}
+```
+
+```jsx filename="app/blog/post/[id]/page.js" switcher
+import { unstable_cacheTag as cacheTag } from 'next/cache'
+
+export default function Post({ params }) {
+  'use cache'
+  cacheTag('posts', `post-${params.id}`)
+
+  // ...
+}
+```
+
+And trigger the revalidation using `revalidateTag` in a Server Action or Route Handler:
+
+```tsx filename="app/actions.ts" switcher
+import { revalidateTag } from 'next/cache'
+
+export async function updatePost(formData: FormData) {
+  'use server'
+  const id = formData.get('id')
+  // Update post data
+  // ...
+  revalidateTag(`post-${id}`)
+}
+```
+
+```jsx filename="app/actions.js" switcher
+import { revalidateTag } from 'next/cache'
+
+export async function updatePost(formData) {
+  'use server'
+  const id = formData.get('id')
+  // Update post data
+  // ...
+  revalidateTag(`post-${id}`)
+}
+```
+
+Behind the scenes, Next.js:
+
+TODO: Explain how `revalidateTag` works.
