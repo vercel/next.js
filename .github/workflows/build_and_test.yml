@@ -479,8 +479,7 @@ jobs:
 
   test-new-tests-deploy:
     name: Test new tests when deployed
-    needs:
-      ['optimize-ci', 'test-prod', 'test-new-tests-dev', 'test-new-tests-start']
+    needs: ['optimize-ci']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' }}
 
     strategy:
@@ -492,7 +491,7 @@ jobs:
     with:
       afterBuild: |
         export NEXT_E2E_TEST_TIMEOUT=240000
-
+        export GH_PR_NUMBER=${{ github.event.pull_request && github.event.pull_request.number || "" }}
         node scripts/test-new-tests.mjs \
           --mode deploy \
           --group ${{ matrix.group }}
