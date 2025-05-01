@@ -1,0 +1,23 @@
+{
+  "mode": "pre",
+  "tag": "canary",
+  "initialVersions": {
+    "create-next-app": "15.4.0-canary.15",
+    "eslint-config-next": "15.4.0-canary.15",
+    "@next/eslint-plugin-next": "15.4.0-canary.15",
+    "@next/font": "15.4.0-canary.15",
+    "next": "15.4.0-canary.15",
+    "@next/bundle-analyzer": "15.4.0-canary.15",
+    "@next/codemod": "15.4.0-canary.15",
+    "@next/env": "15.4.0-canary.15",
+    "@next/mdx": "15.4.0-canary.15",
+    "@next/plugin-storybook": "15.4.0-canary.15",
+    "@next/polyfill-module": "15.4.0-canary.15",
+    "@next/polyfill-nomodule": "15.4.0-canary.15",
+    "next-rspack": "15.4.0-canary.15",
+    "@next/swc": "15.4.0-canary.15",
+    "@next/react-refresh-utils": "15.4.0-canary.15",
+    "@next/third-parties": "15.4.0-canary.15"
+  },
+  "changesets": []
+}
