@@ -131,13 +131,6 @@ function createExoticDraftMode(
     get() {
       return instance.isEnabled
     },
-    set(newValue) {
-      Object.defineProperty(promise, 'isEnabled', {
-        value: newValue,
-        writable: true,
-        enumerable: true,
-      })
-    },
     enumerable: true,
     configurable: true,
   })
@@ -159,13 +152,6 @@ function createExoticDraftModeWithDevWarnings(
       const expression = '`draftMode().isEnabled`'
       syncIODev(route, expression)
       return instance.isEnabled
-    },
-    set(newValue) {
-      Object.defineProperty(promise, 'isEnabled', {
-        value: newValue,
-        writable: true,
-        enumerable: true,
-      })
     },
     enumerable: true,
     configurable: true,
