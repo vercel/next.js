@@ -200,7 +200,7 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
             compress: {
               dead_code: true,
               // Zero means no limit.
-              passes: 0,
+              // passes: 0,
             },
             format: {
               preamble: '',
