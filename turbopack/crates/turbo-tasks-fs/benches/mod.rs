@@ -102,20 +102,20 @@ fn bench_rope_iteration(c: &mut Criterion) {
 }
 
 fn bench_glob_match_simple(c: &mut Criterion) {
-    const GLOB: &str = "some/**/n*d[k-m]e?txt";
+    const GLOB: &str = "some/**/n*de?txt";
     const PATH: &str = "some/a/bigger/path/to/the/crazy/needle.txt";
     glob_bench(c, "simple", GLOB, PATH);
 }
 
 fn bench_glob_match_alternations(c: &mut Criterion) {
-    const GLOB: &str = "some/**/{tob,crazy}/?*.{png,txt}";
+    const GLOB: &str = "some/**/{tob,crazy}/*.{png,txt}";
     const PATH: &str = "some/a/bigger/path/to/the/crazy/needle.txt";
 
     glob_bench(c, "alternations", GLOB, PATH);
 }
 
 fn glob_bench(c: &mut Criterion, name: &'static str, glob: &str, path: &str) {
-    let mut group = c.benchmark_group(format!("turbo-tasks-fs:{name}"));
+    let mut group = c.benchmark_group(format!("turbo-tasks-fs/glob/{name}"));
     group.bench_function("fast-glob", |b| {
         b.iter(|| fast_glob::glob_match(glob, path))
     });
@@ -127,6 +127,15 @@ fn glob_bench(c: &mut Criterion, name: &'static str, glob: &str, path: &str) {
     });
     let g = turbo_tasks_fs::glob::Glob::parse(glob).unwrap();
     group.bench_function("turbo-glob-cached", |b| b.iter(|| g.execute(path)));
+
+    group.bench_function("turbo-glob-2", |b| {
+        b.iter(|| {
+            let g = turbo_tasks_fs::glob::GlobProgram::compile(glob).unwrap();
+            g.matches(path, false)
+        })
+    });
+    let g = turbo_tasks_fs::glob::GlobProgram::compile(glob).unwrap();
+    group.bench_function("turbo-glob-2-cached", |b| b.iter(|| g.matches(path, false)));
     group.finish();
 }
 

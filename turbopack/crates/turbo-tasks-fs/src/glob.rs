@@ -1,4 +1,4 @@
-use std::mem::take;
+use std::{fmt::Display, iter::Peekable, mem::take, str::Chars};
 
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
@@ -151,6 +151,639 @@ impl<'a> Iterator for GlobMatchesIterator<'a> {
                 self.index -= 1;
 
                 return Some((self.current, self.is_path_separator_equivalent));
+            }
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+struct CharRange {
+    low: char,
+    high: char,
+}
+impl PartialOrd for CharRange {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+// Lower `lows` come first, if two `lows` match then the large range comes first
+// This makes the merge logic simpler.
+impl Ord for CharRange {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match self.low.cmp(&other.low) {
+            std::cmp::Ordering::Equal => other.high.cmp(&self.high),
+            c => c,
+        }
+    }
+}
+
+#[derive(Debug, Eq, Clone, PartialEq)]
+#[repr(transparent)]
+struct RangeSet {
+    ranges: Vec<CharRange>,
+}
+
+impl RangeSet {
+    fn new() -> RangeSet {
+        Self { ranges: Vec::new() }
+    }
+
+    fn contains(&self, c: char) -> bool {
+        self.ranges
+            .binary_search(&CharRange { low: c, high: c })
+            .is_ok()
+    }
+
+    fn add_singleton(&mut self, c: char) {
+        self.ranges.push(CharRange { low: c, high: c });
+    }
+    fn add_range(&mut self, low: char, high: char) {
+        self.ranges.push(CharRange { low, high });
+    }
+
+    // Sorts and merges redundant entries.
+    fn finalize(&mut self) {
+        self.ranges.sort();
+        self.ranges.dedup_by(|a, b| {
+            if b.high >= a.low {
+                b.high = a.high;
+                true
+            } else {
+                false
+            }
+        });
+        self.ranges.shrink_to_fit();
+    }
+}
+
+// A sparse set of integers that supports O(1) insertion, testing, clearing and O(n) iteration.
+// https://research.swtch.com/sparse
+struct SparseSet {
+    mem: Vec<usize>,
+    n: usize,
+    max: usize,
+}
+
+impl SparseSet {
+    fn new(size: usize) -> Self {
+        Self {
+            mem: unsafe {
+                std::mem::transmute(vec![std::mem::MaybeUninit::<usize>::uninit(); size * 2])
+            },
+            n: 0,
+            max: size,
+        }
+    }
+
+    #[inline]
+    fn sparse(&self) -> &[usize] {
+        return &self.mem[0..self.max];
+    }
+    #[inline]
+    fn dense(&self) -> &[usize] {
+        return &self.mem[self.max..];
+    }
+    #[inline]
+    fn sparse_mut(&mut self) -> &mut [usize] {
+        return &mut self.mem[0..self.max];
+    }
+    #[inline]
+    fn dense_mut(&mut self) -> &mut [usize] {
+        return &mut self.mem[self.max..];
+    }
+    fn contains(&self, v: usize) -> bool {
+        debug_assert!(v < self.max);
+        let sparse = self.sparse()[v];
+        sparse < self.n && self.dense()[sparse] == v
+    }
+    fn clear(&mut self) {
+        self.n = 0
+    }
+    fn add(&mut self, v: usize) {
+        debug_assert!(v < self.max);
+        if !self.contains(v) {
+            let n = self.n;
+            self.dense_mut()[n] = v;
+            self.sparse_mut()[v] = n;
+            self.n += 1;
+        }
+    }
+    fn get(&self, i: usize) -> usize {
+        debug_assert!(i < self.n);
+        return self.dense()[i];
+    }
+}
+
+#[derive(Debug)]
+pub struct GlobProgram {
+    instructions: Vec<GlobInstruction>,
+    range_sets: Vec<RangeSet>,
+}
+
+impl GlobProgram {
+    pub fn compile(pattern: &str) -> Result<GlobProgram> {
+        let mut tok = Tokenizer::new(pattern);
+        let mut instructions = Vec::new();
+        let mut range_sets = Vec::new();
+        // A stack of alternates
+        struct PendingAlternates {
+            prefix: Vec<GlobInstruction>,
+            branches: Vec<Vec<GlobInstruction>>,
+        }
+        let mut left_bracket_starts: Vec<PendingAlternates> = Vec::new();
+        // We avoid synthesizing an AST and compile directly from the lexer, this adds a touch of
+        // trickiness for alternations but that can be managed by a single stack and avoids the
+        // complexity of building and visiting an AST. This simple program also allows
+        // trivial optimizations to be performed during compilation inline.
+        loop {
+            let t = tok.next_token();
+            match t {
+                GlobToken::Literal(lit) => {
+                    instructions.push(GlobInstruction::MatchLiteral(lit));
+                }
+                GlobToken::Star => {
+                    instructions.push(GlobInstruction::MatchAnyNonDelim);
+                    // After a star match we either loop back to try again, or proceed.
+                    instructions.push(GlobInstruction::Fork(-1));
+                }
+                GlobToken::GlobStar => {
+                    if instructions.len() >= 2
+                        && matches!(
+                            instructions.last().unwrap(),
+                            GlobInstruction::MatchGlobStar { .. }
+                        )
+                    {
+                        // This is a redundant globstar
+                        // e.g. /**/**/
+                        // just skip this one.
+                    } else {
+                        // allow globstars to match nothing by skipping it
+                        instructions.push(GlobInstruction::Fork(2));
+                        // We don't actually know if it is terminal or not yet.  We will determing
+                        // this after code generation.
+                        instructions.push(GlobInstruction::MatchGlobStar { terminal: false });
+                    }
+                }
+                GlobToken::QuestionMark => {
+                    // A question match, optionally matches a non- delimiter character, so we either
+                    // skip forward or not.
+                    instructions.push(GlobInstruction::Fork(2));
+                    instructions.push(GlobInstruction::MatchAnyNonDelim);
+                }
+                GlobToken::LSquareBracket => {
+                    let mut set = RangeSet::new();
+                    // with in a square brachet we expect a mix of literals and hyphens followed by
+                    // a RSuareBracket
+                    let mut prev_literal: Option<char> = None;
+                    let mut partial_range: Option<char> = None;
+                    loop {
+                        let t = tok.next_token();
+                        match t {
+                            GlobToken::Literal(lit) => {
+                                debug_assert!(
+                                    prev_literal.is_none(),
+                                    "impossible, tokenizer failed to merge literals or we failed \
+                                     to handle a hyphen correctly"
+                                );
+                                if let Some(start) = partial_range {
+                                    set.add_range(start, lit);
+                                    partial_range = None;
+                                } else {
+                                    if let Some(prev) = prev_literal {
+                                        set.add_singleton(prev);
+                                    }
+                                    prev_literal = Some(lit);
+                                }
+                            }
+                            GlobToken::Hyphen => {
+                                if let Some(lit) = prev_literal {
+                                    prev_literal = None;
+                                    partial_range = Some(lit);
+                                } else {
+                                    bail!("Unexpected hyphen at the beginning of a character class")
+                                }
+                            }
+
+                            GlobToken::RSquareBracket => {
+                                if let Some(lit) = prev_literal {
+                                    set.add_singleton(lit);
+                                }
+                                if partial_range.is_some() {
+                                    bail!("unexpectedm hyphen at the end of a character class")
+                                }
+                                set.finalize();
+                                let index = range_sets.len();
+                                range_sets.push(set);
+                                instructions
+                                    .push(GlobInstruction::MatchClass(index.try_into().unwrap()));
+                                break;
+                            }
+                            _ => {
+                                bail!("Unexpected token {t} inside of character class");
+                            }
+                        }
+                    }
+                }
+                GlobToken::RSquareBracket | GlobToken::Hyphen => panic!(
+                    "should never happen, tokenizer should have already rejected or been consumed \
+                     within another branch"
+                ),
+                GlobToken::LBracket => {
+                    let mut tmp = Vec::new();
+                    std::mem::swap(&mut instructions, &mut tmp);
+                    left_bracket_starts.push(PendingAlternates {
+                        prefix: tmp,
+                        branches: Vec::new(),
+                    });
+                }
+                GlobToken::Comma | GlobToken::RBracket => {
+                    // We don't need to check this, the tokenizer enforces that these tokens can
+                    // only occur inside of an alternation so there must be something on our stack.
+                    let pending = left_bracket_starts.last_mut().unwrap();
+                    // for an alternation we either 'jump' past it to the next one, or we process it
+                    // directly
+
+                    let mut branch = Vec::new();
+                    std::mem::swap(&mut instructions, &mut branch);
+                    pending.branches.push(branch);
+
+                    // If we hit a `}` then we are done so compute the jumps and pop the prefix.
+                    if t == GlobToken::RBracket {
+                        let num_branches = pending.branches.len();
+                        if num_branches == 1 {
+                            bail!("Cannot have an alternation with only one member");
+                        }
+                        // TODO(lukesandberg): consider looking for common suffixes or prefixes,
+                        // shouldn't be common
+
+                        // The length of each branch plus one for the jump to the end
+                        // For each alternative we have a `Fork` instruction so account for those
+                        let mut next_branch_offset = num_branches - 1;
+                        for branch in &pending.branches[0..num_branches - 1] {
+                            // to jump past the branch we need to jump past all its instructions +1
+                            // to account for the JUMP instruction at the end
+                            next_branch_offset += branch.len() + 1;
+                            pending.prefix.push(GlobInstruction::Fork(
+                                next_branch_offset.try_into().unwrap(),
+                            ));
+                            next_branch_offset -= 1; // subtract one since we added a fork
+                                                     // instruction.
+                        }
+                        // NOTE: The last branch doesn't get a JUMP instruction, so no `+1`
+                        // this is the relative offet to the end, from the very beginning
+                        // however we aren't starting at the beginning, we already added
+                        // `num_branches-1` `FORK` instructions`
+                        let mut end_of_alternation =
+                            next_branch_offset + pending.branches.last().unwrap().len();
+                        for branch in &mut pending.branches[0..num_branches - 1] {
+                            end_of_alternation -= branch.len(); // from the end of this branch, this is how far it is to the end of the
+                                                                // alternation
+                            pending.prefix.extend(branch.drain(..));
+                            pending.prefix.push(GlobInstruction::Jump(
+                                end_of_alternation.try_into().unwrap(),
+                            ));
+                            end_of_alternation -= 1; // account for the jump instruction
+                        }
+                        end_of_alternation -= pending.branches.last().unwrap().len();
+                        pending
+                            .prefix
+                            .extend(pending.branches.last_mut().unwrap().drain(..));
+                        debug_assert!(end_of_alternation == 0);
+                        std::mem::swap(&mut instructions, &mut pending.prefix);
+                        left_bracket_starts.pop();
+                    }
+                }
+                GlobToken::End => {
+                    instructions.push(GlobInstruction::Match);
+                    break;
+                }
+            }
+        }
+        if let Some(err) = tok.err {
+            return Err(err);
+        }
+
+        // Now we need to annotate 'terminal' globstars in order to speed up validating program
+        // matches The issue is that if we are executing a globstar when the program
+        // completes then pass or fail is dependant upon whether there are unconditioal require
+        // subsequent matches e.g. `foo/**` matches `foo/bar/baz.js` but foo/**/a` does not,
+        // because we have to match that 'a' similarly `foo/{**,bar}` matches
+        // `foo/bar/baz.js` Do determin this we need to chase pointers from globstars to the
+        // end of the program, and if there is a path to match then it is a terminal globstar.
+
+        let mut visited = SparseSet::new(instructions.len());
+        for start in 0..instructions.len() {
+            if matches!(instructions[start], GlobInstruction::MatchGlobStar { .. }) {
+                visited.add(start + 1);
+                let mut thread_index = 0;
+                while thread_index < visited.n {
+                    let ip = visited.get(thread_index);
+                    match &instructions[ip] {
+                        GlobInstruction::Fork(offset) => {
+                            visited.add(ip + 1);
+                            visited.add(((*offset as isize) + (ip as isize)) as usize);
+                        }
+                        GlobInstruction::Jump(offset) => {
+                            visited.add(((*offset as isize) + (ip as isize)) as usize);
+                        }
+                        GlobInstruction::Match => {
+                            // There is a path to the end, update to `terminal`
+                            instructions[start] = GlobInstruction::MatchGlobStar { terminal: true };
+                            break;
+                        }
+                        _ => {
+                            break;
+                        }
+                    }
+                    thread_index += 1;
+                }
+
+                // Check if this has an unconditional path to Match
+
+                visited.clear();
+            }
+        }
+
+        Ok(GlobProgram {
+            instructions,
+            range_sets,
+        })
+    }
+
+    pub fn matches(&self, v: &str, prefix: bool) -> bool {
+        let len = self.instructions.len();
+        let mut cur = SparseSet::new(len);
+        let mut next = SparseSet::new(len);
+        cur.add(0);
+        // Process all characters in order
+        // It would be faster to process `bytes` but this adds complexity in a number of places
+        // TODO(lukesandberg): optimize for ascii bytes since those are legion in filepaths, put
+        // multibyte characters in separate instructions
+        for c in v.chars() {
+            let mut thread_index = 0;
+            // We need to use this looping construct since we may add elements to `cur` as we go.
+            // `cur.n` will never be > `len` so this loop is bounded to N iterations.
+            while thread_index < cur.n {
+                let ip = cur.get(thread_index);
+                let insn = &self.instructions[ip];
+                match insn {
+                    GlobInstruction::MatchLiteral(m) => {
+                        if c == *m {
+                            // We matched, proceed to the next character
+                            next.add(ip + 1);
+                        }
+                    }
+                    GlobInstruction::MatchAnyNonDelim => {
+                        if c != '/' {
+                            next.add(ip + 1);
+                        }
+                    }
+                    GlobInstruction::MatchGlobStar { terminal } => {
+                        if *terminal {
+                            // If we find a terminal globstar, we are done! this must match
+                            return true;
+                        }
+                        // If we see a `/` then we need to consider ending the globstar.
+                        if c == '/' {
+                            next.add(ip + 1);
+                        }
+                        // but even so we should keep trying to match, just like a fork.
+                        next.add(ip);
+                    }
+                    GlobInstruction::MatchClass(set_index) => {
+                        if self.range_sets[*set_index as usize].contains(c) {
+                            next.add(ip + 1);
+                        }
+                    }
+                    GlobInstruction::Jump(offset) => {
+                        // Push another thread onto the current list
+                        cur.add(((*offset as isize) + (ip as isize)) as usize);
+                    }
+                    GlobInstruction::Fork(offset) => {
+                        cur.add(ip + 1);
+                        cur.add(((*offset as isize) + (ip as isize)) as usize);
+                    }
+                    GlobInstruction::Match => {
+                        // We ran out of instructions while we still have characters
+                        // so this thread dies
+                    }
+                }
+                thread_index += 1;
+            }
+            if next.n == 0 {
+                // This means that all threads exited early.  This isn't needed for correctness,
+                // but there is no point iterating the rest of the characters.
+                return false;
+            }
+            // We have some progress! clear current and swap the two lists to advance to the next
+            // character.
+            cur.clear();
+            std::mem::swap(&mut cur, &mut next);
+        }
+        // If we get here we have matched a prefix of the instructions and run out of text.
+        // So in prefix mode we are done, otherwise we need to check if we hit the end of the
+        // isntructions
+        if prefix {
+            return true;
+        }
+
+        // We matched if there is some path from any current thread to the end, so we need to
+        // process all jumps and forks
+        let mut i = 0;
+        while i < cur.n {
+            let ip = cur.get(i);
+            match &self.instructions[ip] {
+                GlobInstruction::Jump(offset) => {
+                    // Push another thread onto the current list
+                    cur.add(((*offset as isize) + (ip as isize)) as usize);
+                }
+                GlobInstruction::Fork(offset) => {
+                    cur.add(ip + 1);
+                    cur.add(((*offset as isize) + (ip as isize)) as usize);
+                }
+                GlobInstruction::Match => {
+                    return true;
+                }
+                _ => {
+                    //ignore
+                }
+            }
+            i += 1;
+        }
+        // We are checking that we hit the end, which is always a Match instruction, so if any
+        // of the threads found it, then it is a match.
+
+        debug_assert!(self.instructions[len - 1] == GlobInstruction::Match);
+        return cur.contains(len - 1);
+    }
+}
+
+// Consider a more compact encoding.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+enum GlobInstruction {
+    // Matches a single literal char
+    MatchLiteral(char), /* N.B. this bloats the enum size to 8 even though chars only need 21
+                         * bits. */
+    // Matches any non-`/` character
+    MatchAnyNonDelim,
+    // Matches **, which is any character but can only 'end' on a `/` or end of string
+    MatchGlobStar { terminal: bool },
+    // Matches any character in the set
+    MatchClass(u32),
+    // Unconditional jump. This would occur at the end of an alternate to jump past the other
+    // alternates.
+    Jump(i32),
+    // Splits control flow into two branches.
+    Fork(i32),
+    // End of program
+    Match,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum GlobToken {
+    // A sequence of bytes, possibly including `/` characters
+    // all bytes are unescaped.
+    Literal(char),
+    // a `*` token
+    Star,
+    // a `**` token
+    GlobStar,
+    // A  `?` token`
+    QuestionMark,
+    // a `[` token
+    LSquareBracket,
+    // a `]` token
+    RSquareBracket,
+    // a `{` token
+    LBracket,
+    // a `}` token
+    RBracket,
+    // a `,` token
+    Comma,
+    // a `-` token
+    Hyphen,
+    End,
+}
+impl Display for GlobToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let GlobToken::Literal(c) = self {
+            let s = c.to_string();
+            f.write_str(&s)
+        } else {
+            f.write_str(match self {
+                GlobToken::Star => "*",
+                GlobToken::GlobStar => "**",
+                GlobToken::QuestionMark => "?",
+                GlobToken::LSquareBracket => "[",
+                GlobToken::RSquareBracket => "]",
+                GlobToken::LBracket => "{",
+                GlobToken::RBracket => "}",
+                GlobToken::Comma => ",",
+                GlobToken::Hyphen => "-",
+                GlobToken::End => "<END>",
+                GlobToken::Literal(_) => panic!("impossible"),
+            })
+        }
+    }
+}
+
+struct Tokenizer<'a> {
+    input: Peekable<Chars<'a>>,
+    pos: usize,
+    err: Option<anyhow::Error>,
+    bracket_count: u32,
+    square_bracket_count: u32,
+}
+
+impl<'a> Tokenizer<'a> {
+    fn new(input: &'a str) -> Tokenizer<'a> {
+        Self {
+            input: input.chars().peekable(),
+            pos: 0,
+            err: None,
+            bracket_count: 0,
+            square_bracket_count: 0,
+        }
+    }
+    fn next_token(&mut self) -> GlobToken {
+        self.pos += 1;
+        match self.input.next() {
+            None => GlobToken::End,
+            Some(c) => {
+                match c {
+                    '*' if self.square_bracket_count == 0 => match self.input.next_if_eq(&'*') {
+                        Some(_) => {
+                            // TODO: we should validate that the previous character was a `/` as
+                            // well, but this isn't a big deal/
+                            self.pos += 1;
+                            match self.input.next() {
+                                None => {}
+                                Some('/') => {
+                                    self.pos += 1;
+                                } // ok if we are at the end or followed by a `/`
+                                _ => {
+                                    self.err = Some(anyhow!(
+                                        "a glob star must be a full path segment, e.g. `/**/`"
+                                    ));
+                                    return GlobToken::End;
+                                }
+                            }
+
+                            GlobToken::GlobStar
+                        }
+                        _ => GlobToken::Star,
+                    },
+                    '?' if self.square_bracket_count == 0 => GlobToken::QuestionMark,
+                    '[' => {
+                        self.square_bracket_count += 1;
+                        GlobToken::LSquareBracket
+                    }
+                    ']' => {
+                        if self.square_bracket_count == 0 {
+                            self.err = Some(anyhow!(
+                                "mismatched square brackets at {} in glob",
+                                self.pos
+                            ));
+                            return GlobToken::End;
+                        }
+                        self.square_bracket_count -= 1;
+                        GlobToken::RSquareBracket
+                    }
+                    // These are not tokens inside of a character class, they are just literals
+                    '{' if self.square_bracket_count == 0 => {
+                        self.bracket_count += 1;
+                        GlobToken::LBracket
+                    }
+                    '}' if self.square_bracket_count == 0 => {
+                        if self.bracket_count == 0 {
+                            self.err = Some(anyhow!("mismatched brackets at {} in glob", self.pos));
+                            return GlobToken::End;
+                        }
+
+                        self.bracket_count -= 1;
+                        GlobToken::RBracket
+                    }
+                    // This is only a meaninful token inside of a character class
+                    '-' if self.square_bracket_count > 0 => GlobToken::Hyphen,
+                    // This is only meaningful inside of an alternation (aka brackets)
+                    ',' if self.bracket_count > 0 => GlobToken::Comma,
+                    cur => {
+                        if cur == '\\' {
+                            match self.input.next() {
+                                Some(c) => {
+                                    self.pos += 1;
+                                    GlobToken::Literal(c)
+                                }
+                                None => {
+                                    self.err = Some(anyhow!("found `\\` character at end of glob"));
+                                    GlobToken::End
+                                }
+                            }
+                        } else {
+                            GlobToken::Literal(cur)
+                        }
+                    }
+                }
             }
         }
     }
@@ -433,7 +1066,8 @@ impl Glob {
 mod tests {
     use rstest::*;
 
-    use super::Glob;
+    use super::{Glob, GlobToken, Tokenizer};
+    use crate::glob::GlobProgram;
 
     #[rstest]
     #[case::file("file.js", "file.js")]
@@ -507,11 +1141,17 @@ mod tests {
     #[case::alternatives_nested4("{a,b/c,d/e/{f,g/h}}", "d/e/g/h")]
     // #[case::alternatives_chars("[abc]", "b")]
     fn glob_match(#[case] glob: &str, #[case] path: &str) {
-        let glob = Glob::parse(glob).unwrap();
+        let parsed = Glob::parse(glob).unwrap();
 
-        println!("{glob:?} {path}");
+        println!("{glob:?} compiled to {parsed:?} matching {path}");
 
-        assert!(glob.execute(path));
+        assert!(parsed.execute(path));
+
+        let parsed2 = GlobProgram::compile(glob).unwrap();
+        println!("{glob:?} compiled to\n{parsed2:#?}\nmatching {path}");
+        let prefix = path.ends_with('/');
+
+        assert!(parsed2.matches(path, prefix));
     }
 
     #[rstest]
@@ -521,10 +1161,35 @@ mod tests {
         "next/dist/shared/lib/app-router-context.shared-runtime.js"
     )]
     fn glob_not_matching(#[case] glob: &str, #[case] path: &str) {
-        let glob = Glob::parse(glob).unwrap();
+        let parsed = Glob::parse(glob).unwrap();
 
-        println!("{glob:?} {path}");
+        println!("{glob:?} compiled to {parsed:?} matching {path}");
 
-        assert!(!glob.execute(path));
+        assert!(!parsed.execute(path));
+
+        let parsed2 = GlobProgram::compile(glob).unwrap();
+        println!("{glob:?} compiled to {parsed2:?} matching {path}");
+        let prefix = path.ends_with('/');
+
+        assert!(!parsed2.matches(path, prefix));
+    }
+
+    #[test]
+    fn test_tokenizer() {
+        let mut tok = Tokenizer::new("foo/bar[a-z]/?/**");
+        let prefix: Vec<GlobToken> = "foo/bar".chars().map(|c| GlobToken::Literal(c)).collect();
+        for t in prefix {
+            assert_eq!(t, tok.next_token());
+        }
+        assert_eq!(GlobToken::LSquareBracket, tok.next_token());
+        assert_eq!(GlobToken::Literal('a'), tok.next_token());
+        assert_eq!(GlobToken::Hyphen, tok.next_token());
+        assert_eq!(GlobToken::Literal('z'), tok.next_token());
+        assert_eq!(GlobToken::RSquareBracket, tok.next_token());
+        assert_eq!(GlobToken::Literal('/'), tok.next_token());
+        assert_eq!(GlobToken::QuestionMark, tok.next_token());
+        assert_eq!(GlobToken::Literal('/'), tok.next_token());
+        assert_eq!(GlobToken::GlobStar, tok.next_token());
+        assert_eq!(GlobToken::End, tok.next_token());
     }
 }
