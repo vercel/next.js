@@ -290,4 +290,16 @@ After a cache entry is stored on the client, Next.js determines when to update i
 
 {/* TODO: Add lifecycle diagram */}
 
+### High vs low traffic patterns
+
+The model adapts to high and low traffic patterns on the server.
+
+During **low traffic**, requests are rare, so cache entries might become stale or expire. Revalidating on a fixed time schedule would be wasteful for rarely accessed data. Instead, a revalidation is triggered only when a new request comes in.
+
+{/* TODO: Add diagram */}
+
+During **high traffic**, requests are frequent, the server is shielded from excessive re-executions while the cache entry is fresh. At the same time, frequent requests signal that the cached function is important and shouldn't be stale for a long time. By tying revalidation to the incoming request, this ensures the cache entry is updated soon after it becomes stale.
+
+{/* TODO: Add diagram */}
+
 > The difference between `revalidate` and `expire` is that `revalidate` immediately responds with a stale entry and revalidates in the background, whereas `expire` blocks the response until the new entry is generated.
