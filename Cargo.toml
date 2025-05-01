@@ -240,6 +240,12 @@ opt-level = 3
 [profile.release.package.serde]
 opt-level = 3
 
+
+[profile.profiling]
+inherits = "release"
+debug = true
+
+
 [workspace.dependencies]
 # Workspace crates
 next-api = { path = "crates/next-api" }
