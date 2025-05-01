@@ -174,6 +174,7 @@ pub async fn parse(
 ) -> Result<Vc<ParseResult>> {
     let name = source.ident().to_string().await?.to_string();
     let span = tracing::info_span!("parse ecmascript", name = name, ty = display(&*ty));
+
     match parse_internal(source, ty, transforms)
         .instrument(span)
         .await
@@ -428,8 +429,8 @@ async fn parse_file_content(
                 }
                 anyhow::Ok(())
             }
-            .instrument(span)
-            .await?;
+                .instrument(span)
+                .await?;
 
             if parser_handler.has_errors() {
                 let messages = if let Some(error) = collector_parse.last_emitted_issue() {
@@ -476,7 +477,7 @@ async fn parse_file_content(
             })
         },
     )
-    .await?;
+        .await?;
     if let ParseResult::Ok {
         globals: ref mut g, ..
     } = result
