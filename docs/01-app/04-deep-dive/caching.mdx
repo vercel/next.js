@@ -303,3 +303,65 @@ During **high traffic**, requests are frequent, the server is shielded from exce
 {/* TODO: Add diagram */}
 
 > The difference between `revalidate` and `expire` is that `revalidate` immediately responds with a stale entry and revalidates in the background, whereas `expire` blocks the response until the new entry is generated.
+
+### Nested cache boundaries and lifetime resolution
+
+#### Route segments
+
+Each route segment is cached independently. This means their cache lifetimes are evaluated in isolation. For instance, a `layout` can use the `days` profile, while its corresponding `page` uses the `hours` profile:
+
+```tsx filename="app/layout.tsx" switcher
+export default async function Layout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  'use cache'
+  cacheLife('days')
+  // ...
+}
+```
+
+```tsx filename="app/page.tsx" switcher
+export default async function Page() {
+  'use cache'
+  cacheLife('hours')
+  // ...
+}
+```
+
+#### Components and functions
+
+For components and functions nested deeper within the route segment, the shortest lifetime takes precedence. For example, if the `page` has an `hours` profile but a component inside it has a `minutes` profile, the cache duration for the `page`will be `minutes`:
+
+```tsx filename="app/page.tsx" switcher
+export default async function Page() {
+  'use cache'
+  cacheLife('hours')
+  // ...
+
+  return <CachedComponent />
+}
+
+async function CachedComponent() {
+  'use cache'
+  cacheLife('minutes')
+  // ...
+}
+```
+
+```jsx filename="app/page.js" switcher
+export default async function Page() {
+  'use cache'
+  cacheLife('hours')
+  // ...
+
+  return <CachedComponent />
+}
+
+async function CachedComponent() {
+  'use cache'
+  cacheLife('minutes')
+  // ...
+}
+```
