@@ -1,7 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// test 4
-
 describe('back/forward cache', () => {
   const { next } = nextTestSetup({
     files: __dirname,
