@@ -258,7 +258,7 @@ impl<'a> SparseSet<'a> {
     fn clear(&mut self) {
         self.n = 0
     }
-    fn add(&mut self, v: u16) {
+    fn add(&mut self, v: u16) -> bool {
         debug_assert!((v as usize) < self.mem.len() / 2);
         let n = self.n;
         let s = self.get_sparse(v);
@@ -267,11 +267,12 @@ impl<'a> SparseSet<'a> {
         // index is `v`
         if s < n && self.get_dense(s) == v {
             // this value is already in the set.
-            return;
+            return false;
         }
         *self.get_sparse_mut(v) = n;
         *self.get_dense_mut(n) = v;
         self.n += 1;
+        true
     }
     fn get(&self, i: u16) -> u16 {
         debug_assert!(i < self.n);
@@ -304,7 +305,13 @@ impl GlobProgram {
             let t = tok.next_token();
             match t {
                 GlobToken::Literal(lit) => {
-                    instructions.push(GlobInstruction::MatchLiteral(lit));
+                    // If the previous token is a literal mark it as having a successor.
+                    if let Some(GlobInstruction::MatchLiteral((_, has_next))) =
+                        instructions.last_mut()
+                    {
+                        *has_next = true;
+                    }
+                    instructions.push(GlobInstruction::MatchLiteral((lit, false)));
                 }
                 GlobToken::Star => {
                     instructions.push(GlobInstruction::MatchAnyNonDelim);
@@ -560,10 +567,11 @@ impl GlobProgram {
             let mut thread_index = 0;
             // We need to use this looping construct since we may add elements to `cur` as we go.
             // `cur.n` will never be > `len` so this loop is bounded to N iterations.
-            while thread_index < cur.n {
+            let mut n_threads = cur.n;
+            while thread_index < n_threads {
                 let ip = cur.get(thread_index);
                 match self.instructions[ip as usize] {
-                    GlobInstruction::MatchLiteral(m) => {
+                    GlobInstruction::MatchLiteral((m, has_next)) => {
                         if byte == m {
                             // We matched, proceed to the next character
                             next.add(ip + 1);
@@ -582,6 +590,7 @@ impl GlobProgram {
                         // If we see a `/` then we need to consider ending the globstar.
                         if byte == b'/' {
                             next.add(ip + 1);
+                        } else if n_threads == 1 {
                         }
                         // but even so we should keep trying to match, just like a fork.
                         next.add(ip);
@@ -593,11 +602,16 @@ impl GlobProgram {
                     }
                     GlobInstruction::Jump(offset) => {
                         // Push another thread onto the current list
-                        cur.add(offset + ip);
+                        if cur.add(offset + ip) {
+                            n_threads += 1;
+                        }
                     }
                     GlobInstruction::Fork(offset) => {
-                        cur.add(ip + 1);
-                        cur.add((offset + (ip as i16)) as u16);
+                        let added1 = cur.add(ip + 1);
+                        let added2 = cur.add((offset + (ip as i16)) as u16);
+                        if added1 || added2 {
+                            n_threads = cur.n;
+                        }
                     }
                     GlobInstruction::Match => {
                         // We ran out of instructions while we still have characters
@@ -628,14 +642,14 @@ impl GlobProgram {
         let mut i = 0;
         while i < cur.n {
             let ip = cur.get(i);
-            match &self.instructions[ip as usize] {
+            match self.instructions[ip as usize] {
                 GlobInstruction::Jump(offset) => {
                     // Push another thread onto the current list
-                    cur.add(*offset + ip);
+                    cur.add(offset + ip);
                 }
                 GlobInstruction::Fork(offset) => {
                     cur.add(ip + 1);
-                    cur.add((*offset + (ip as i16)) as u16);
+                    cur.add((offset + (ip as i16)) as u16);
                 }
                 GlobInstruction::Match => {
                     return true;
@@ -653,9 +667,8 @@ impl GlobProgram {
 // Consider a more compact encoding.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum GlobInstruction {
-    // Matches a single literal byte
-    MatchLiteral(u8), /* N.B. this bloats the enum size to 8 even though chars only need 21
-                       * bits. */
+    // Matches a single literal byte, stores if there is a following literal
+    MatchLiteral((u8, bool)),
     // Matches any non-`/` character
     MatchAnyNonDelim,
     // Matches **, which is any character but can only 'end' on a `/` or end of string
