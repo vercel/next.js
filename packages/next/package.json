@@ -99,6 +99,12 @@
       "./taskfile-watch.js"
     ]
   },
+  "imports": {
+    "#isomorphic-component": {
+      "react-server": "./dist/shared/lib/isomorphic-component/component.react-server.js",
+      "default": "./dist/shared/lib/isomorphic-component/component.js"
+    }
+  },
   "dependencies": {
     "@next/env": "15.4.0-canary.17",
     "@swc/helpers": "0.5.15",
