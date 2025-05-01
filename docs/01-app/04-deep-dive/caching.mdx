@@ -278,3 +278,16 @@ Profiles sets three properties:
 - `expire`: the maximum time a cached entry can be used before it expires.
 
 These properties are used to define the cache entry's [lifecycle](#the-cache-entry-lifecycle).
+
+### The cache entry's lifecycle
+
+After a cache entry is stored on the client, Next.js determines when to update it based on its lifetime properties:
+
+1. Once the `stale` period has passed, the client checks the server for updates.
+2. If the entry is still within the `revalidate` period, the server returns the existing cached entry.
+3. If the `revalidate` period has passed, the server immediately returns the stale entry and triggers a background revalidation, creating a fresh entry with extended lifetimes. The next request will receive the updated entry.
+4. `expire` sets a hard limit on the server—once it passes, the server must generate a new entry before responding.
+
+{/* TODO: Add lifecycle diagram */}
+
+> The difference between `revalidate` and `expire` is that `revalidate` immediately responds with a stale entry and revalidates in the background, whereas `expire` blocks the response until the new entry is generated.
