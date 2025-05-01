@@ -244,8 +244,38 @@ Cache entries are stored in the browser's memory for the duration of the session
 
 > **Good to know:** Client-side cache granularity is currently route-based. Segment-level granularity is coming soon and in the future we want to provide even more granular control of how long the client can reuse UI before checking the server.
 
-For users, it means faster page transitions and fewer loading states.
+[`cacheLife`](/docs/app/api-reference/functions/cacheLife) is a function that lets you define a cache entry's lifetime across the client and server. It should be used within the scope of the cacheable component or function:
 
-> **Good to know:** Client-side cache granularity is currently route-based. Segment-level granularity is coming soon.
+## How `cacheLife` works
+
+```tsx filename="app/page.tsx" switcher
+import { unstable_cacheLife as cacheLife } from 'next/cache'
+
+export default async function Page() {
+  'use cache'
+  cacheLife('hours')
+  // ...
+}
+```
+
+```jsx filename="app/page.js" switcher
+import { unstable_cacheLife as cacheLife } from 'next/cache'
+
+export default async function Page() {
+  'use cache'
+  cacheLife('hours')
+  // ...
+}
+```
+
+The function accepts a [predefined cache profile](/docs/app/api-reference/functions/cacheLife#default-cache-profiles) (e.g. `'seconds'`, `'minutes'`, `'hours'`, or a [custom one](/docs/app/api-reference/functions/cacheLife#custom-cache-profiles)). A `'use cache'` boundary that isn't annotated with `cacheLife` will use the `default` cache profile.
+
+Profiles sets three properties:
+
+- `stale`: when a cache entry on the client should be updated.
+- `revalidate`: when the same cache entry on the server should be updated.
+- `expire`: the maximum time a cached entry can be used before it expires.
+
+These properties are used to define the cache entry's [lifecycle](#the-cache-entry-lifecycle).
 
 - Works well as a simple and affordable starting point for [self-hosted]() applications.
