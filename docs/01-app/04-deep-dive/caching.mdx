@@ -28,13 +28,11 @@ Next.js uses an unified model for client and server caching. When retrieving a c
 
 #### Why client-first?
 
-Some content—like personalized user information (based on `cookies`) or pages with high-cardinality params ([dynamic route segments]())-is _cacheable_ but not practical to prerender at build time or store in a persistent server cache.
+Som content, such as user-specific information (based on `cookies`), is _cacheable_ but not practical to prerender at build time or store in a persistent server cache.
 
-For example, user profile data that doesn't change often. In the previous static-or-dynamic model, this content would be excluded from prerendering and treated as dynamic, re-rendering on every request. But, in Next.js, you can [mark it as cacheable](). This allows the content to be prefetched and cached on the client.
+In the previous static-or-dynamic model, this type of content would be treated as dynamic, re-rendering on every request. But, in Next.js, you can [mark it as cacheable](), allowing the content to be prefetched and cached on the client.
 
-{/* TODO: Add diagram */}
-
-This means more of the route is ready before navigation, improving speed and reducing server load. And only truly dynamic or frequently updated content is re-fetched on navigation.
+This means more of the route is ready before navigation, and only truly dynamic or frequently updated content is refetched and rendered on navigation.
 
 However, **client-first does not mean client-only**. The server still plays a role in fetching and rendering, deduplicating requests, reusing static shells across users, and persisting static, shareable parts to a remote cache.
 
@@ -81,7 +79,7 @@ export default async function Page() {
 }
 ```
 
-### How a cache entry is created
+### How is a cache entry created?
 
 Functions marked with `"use cache"` are compiled into [Server Functions](https://react.dev/reference/rsc/server-functions).
 
@@ -288,7 +286,7 @@ After a cache entry is stored on the client, Next.js determines when to update i
 3. If the `revalidate` period has passed, the server immediately returns the stale entry and triggers a background revalidation, creating a fresh entry with extended lifetimes. The next request will receive the updated entry.
 4. `expire` sets a hard limit on the server—once it passes, the server must generate a new entry before responding.
 
-{/* TODO: Add lifecycle diagram */}
+> The difference between `revalidate` and `expire` is that `revalidate` immediately responds with a stale entry and revalidates in the background, whereas `expire` blocks the response until the new entry is generated. For this reason, the `revalidate` time should be shorter than `expire`.
 
 ### High vs low traffic patterns
 
