@@ -47,11 +47,11 @@ Caching in Next.js is declarative. You don't configure caching layers and infras
 
 ### Composable
 
-Next.js caching is granular and composable. You can cache route segments, nested Server Components, and individual functions. And interleave static and dynamic content, only caching what's needed, while keeping dynamic or user-specific parts fresh.
+Next.js caching is granular and composable. You can cache route segments, nested Server Components, and individual functions. And [interleave](#interleaving-dynamic-and-static-content) static and dynamic content, only caching what's needed, while keeping dynamic or user-specific parts fresh.
 
-This is specially helpful for:
+This is helpful for:
 
-1. Hybrid pages that combine static and dynamic content.
+1. Hybrid pages that combine static and dynamic parts.
 2. High-cardinality params that generate many unique pages, making prerendering resource-intensive.
 3. Personalized content based on user-specific data available only at request time.
 
@@ -61,11 +61,11 @@ The APIs used for caching are:
 
 - [`"use cache"`](#how-use-cache-works): Marks a Server Component or function as cacheable.
 - [`cacheLife`](#how-cacheLife-works): Sets when a cache entry should be updated.
-- [`cacheTag`](#how-cacheTag-works): Groups entries based on tags to be updated together.
+- [`cacheTag`](#how-cacheTag-works) and [`revalidateTag`](#how-revalidateTag-works): Tag cache entries and update all entries with a matching tag.
 
 ## How `"use cache"` works
 
-`"use cache"` can be placed inside am async [Server Component](https://react.dev/reference/rsc/server-components) or function to mark it as cacheable.
+`"use cache"` is a Next.js directive that marks an async [Server Component](https://react.dev/reference/rsc/server-components) or function as cacheable. It creates a **boundary** around some inputs and outputs so you can describe when the output should update.
 
 ```tsx filename="app/page.tsx" switcher
 export default async function Page() {
@@ -81,29 +81,31 @@ export default async function Page() {
 }
 ```
 
+### How a cache entry is created
+
 Functions marked with `"use cache"` are compiled into [Server Functions](https://react.dev/reference/rsc/server-functions).
 
 Behind-the-scenes, Next.js:
 
-1. Integrates the Server Function with caching logic.
+1. Wraps the Server Function with caching semantics.
 2. Generates an unique [cache key](#cache-keys).
 3. Deduplicates identical calls using React's [`cache`](https://react.dev/reference/react/cache) function.
 4. Stores the cache entry in [server memory](#in-memory-caching-and-deduplication) or a persistent, remote cache.
 5. Annotates the Server Component payload with [#update-semantics](##update-semantics).
 6. Sends the RSC payload to the client where the [client router]() will use the information to manage the cache.
 
-### Cache keys
+> Jump to the [cache entry's lifecycle](#the-cache-entry-lifecycle) section to learn more about how Next.js determines when to update a cache entry.
 
-Each cache boundary creates an unique cache entry, which is generated from:
+### How are cache keys generated?
+
+Each cache entry has a unique key, which is generated from:
 
 - The build ID (generated for each build)
 - The function signature (a secure identifier)
 - Any [serializable](#serialization) arguments or props passed to the function
 - Any values it reads from the parent scope
 
-If the inputs passed to the function are different, a new cache entry is created.
-
-For example:
+If the inputs passed to the function are different, a new cache entry is created. For example:
 
 ```tsx filename="app/lib/data.ts" switcher
 // Same user ID = cache hit
@@ -127,7 +129,7 @@ export async function getUser(id: string) {
 
 ### Serialization
 
-The return value of the cacheable function must be [serializable](https://react.dev/reference/rsc/use-server#serializable-parameters-and-return-values) by React.
+The return value of a cacheable function can be anything React can render. Concretely, it must be [serializable](https://react.dev/reference/rsc/use-server#serializable-parameters-and-return-values).
 
 If you pass non-serializable values like functions or components, they are excluded from the [cache key](#cache-keys). Instead, they are treated as references and resolved at runtime. This allows [interleaving](#interleaving) dynamic and static content.
 
@@ -201,15 +203,16 @@ async function Profile({ id, children }) {
 }
 ```
 
-#### How interleaving works
-
-The non-serializable values — like `{children}` props or dynamic nested components — are treated as references and not included in the [cache key](#cache-keys). Instead, these references are filled in at runtime. This prevents the dynamic values from “poisoning” the cache, which would otherwise generate a new cache entry for every variation.
+Non-serializable values — like `{children}` props or dynamic nested components — are treated as references and not included in the [cache key](#cache-keys). Instead, these references are filled in at runtime. This prevents the dynamic values from “poisoning” the cache, which would otherwise generate a new cache entry for every variation.
 
 ## Server cache
 
-### In-memory caching and deduplication
+### Deduplication and in-memory caching
 
-By default, `"use cache"` uses an in-memory cache on the server. This avoids re-executing expensive operations like database reads or API calls for every cached function invocation.
+By default, `"use cache"` is deduped and in-memory. These defaults:
+
+- Speeds up server rendering by accumulating cache entries during a pass, preventing the same function with the same inputs from being executed multiple times.
+- Reduces requests to external database or APIs, reducing latency and costs.
 
 #### How long does it last?
 
@@ -218,35 +221,28 @@ The in-memory cache only exists while the server is running.
 - **Serverless**: the cache lasts for the lifetime of the serverless function.
 - **Long-running server**: the cache lasts until the server is restarted or the memory is cleared.
 
-#### What is deduplication?
-
-During a server render pass, Next.js automatically deduplicates functions marked with `"use cache"`. This prevents the same function with the same inputs from being executed multiple times.
-
-#### Why in-memory caching?
-
-The in-memory cache provides a foundational default that:
-
-- Speeds up rendering by accumulating cache entries during a pass.
-- Reduces requests to external database or APIs, improving performance and reducing costs.
-
 ### Persistent remote caching
 
 > **Coming soon:** Persistent remote caching is under active development.
 
-Unlike the default in-memory cache, a persistent remote cache stores entries in an external service. This allows cached entries to be reused across requests, servers, and deployments.
+Unlike the default in-memory cache, a persistent remote cache stores entries in an external source. This allows cached entries to be reused across requests, servers, and deployments.
 
-Cache entries persist for their [configured lifetime]() or until they are [manually revalidated]().
+Cache entries persist for their [configured lifetime](#how-cachelife-works) or until they are [manually revalidated](#how-cacheTag-and-revalidateTag-works).
+
+#### Defining a remote source
 
 ## Client cache
 
-On the first visit, the client cache is populated with cache entries from the server response and background [prefetching]().
+When a user visits the app for the first time, the client cache is populated with cache entries from the server response and background [prefetching]().
 
 As the user navigates, the router checks the client cache:
 
 - If a cache entry exists and is still fresh, navigation is instant.
 - If the entry is missing or stale, the client sends a new request to the server.
 
-Cache entries are stored in the browser's memory for the duration of the session or until the entry becomes [stale]() or are [revalidated]().
+Cache entries are stored in the browser's memory for the duration of the session or until the entry becomes become stale or are revalidated.
+
+> **Good to know:** Client-side cache granularity is currently route-based. Segment-level granularity is coming soon and in the future we want to provide even more granular control of how long the client can reuse UI before checking the server.
 
 For users, it means faster page transitions and fewer loading states.
 
