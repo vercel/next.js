@@ -153,18 +153,21 @@ export async function Bookings({ type = 'haircut' }) {
 }
 ```
 
-### Invalidating tagged cache
+### Invalidating tags in a Server Action
 
-Using [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag), you can invalidate the cache for a specific tag when needed:
+You can use [Server Actions](/docs/app/getting-started/updating-data#creating-server-functions) to invalidate tags with `revalidateTag`. This is commonly used with form submissions or when updating data.
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
 
 import { revalidateTag } from 'next/cache'
 
-export async function updateBookings() {
-  await updateBookingData()
-  revalidateTag('bookings-data')
+export async function updatePost(formData: FormData) {
+  const id = formData.get('id')
+  // ...
+  // Update post data
+
+  revalidateTag(`post-${id}`)
 }
 ```
 
@@ -173,8 +176,39 @@ export async function updateBookings() {
 
 import { revalidateTag } from 'next/cache'
 
-export async function updateBookings() {
-  await updateBookingData()
-  revalidateTag('bookings-data')
+export async function updatePost(formData) {
+  const id = formData.get('id')
+  // ...
+  // Update post data
+
+  revalidateTag(`post-${id}`)
+}
+```
+
+### Invalidating tags in a Route Handler
+
+You can use [Route Handlers](/docs/app/building-your-application/routing/route-handlers) to invalidate tags as a response to an external event, such as a webhook from a Content Management System (CMS) when a post is updated. After handling the webhook, you can invalidate the tag with `revalidateTag`.
+
+```tsx filename="app/webhooks/posts/route.ts" switcher
+import { revalidateTag } from 'next/cache'
+
+export async function POST(request: Request) {
+  // Validate the request is from a trusted source
+  // ...
+  const { id } = await request.json()
+  revalidateTag(`post-${id}`)
+  return Response.json({ success: true })
+}
+```
+
+```jsx filename="app/webhooks/posts/route.js" switcher
+import { revalidateTag } from 'next/cache'
+
+export async function POST(request) {
+  // Validate the request is from a trusted source
+  // ...
+  const { id } = await request.json()
+  revalidateTag(`post-${id}`)
+  return Response.json({ success: true })
 }
 ```
