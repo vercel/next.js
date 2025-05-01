@@ -1,0 +1,17 @@
+diff --git a/lib/transformers/OptimizeAmpBind.js b/lib/transformers/OptimizeAmpBind.js
+index 2d17ce26676853230ec933d8e489bb3633116af4..38a4ac6746d385cdb9292773e575829e708c8c0e 100644
+--- a/lib/transformers/OptimizeAmpBind.js
++++ b/lib/transformers/OptimizeAmpBind.js
+@@ -48,7 +48,11 @@ class OptimizeAmpBind {
+     for (let node = html; node !== null; node = nextNode(node)) {
+       if (isTemplate(node)) {
+         node = skipNodeAndChildren(node);
+-        continue;
++        if (node === null) {
++          break;
++        } else {
++          continue;
++        }
+       }
+ 
+       const {attribs} = node;

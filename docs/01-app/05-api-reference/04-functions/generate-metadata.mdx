@@ -162,7 +162,7 @@ export default function Page({ params, searchParams }) {}
 > **Good to know**:
 >
 > - If metadata doesn't depend on runtime information, it should be defined using the static [`metadata` object](#the-metadata-object) rather than `generateMetadata`.
-> - `fetch` requests are automatically [memoized](/docs/app/building-your-application/caching#request-memoization) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/building-your-application/caching#react-cache-function) if `fetch` is unavailable.
+> - `fetch` requests are automatically [memoized](/docs/app/deep-dive/caching#request-memoization) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/deep-dive/caching#react-cache-function) if `fetch` is unavailable.
 > - `searchParams` are only available in `page.js` segments.
 > - The [`redirect()`](/docs/app/api-reference/functions/redirect) and [`notFound()`](/docs/app/api-reference/functions/not-found) Next.js methods can also be used inside `generateMetadata`.
 
@@ -391,7 +391,6 @@ export const metadata = {
 
 - `metadataBase` allows URL-based `metadata` fields defined in the **current route segment and below** to use a **relative path** instead of an otherwise required absolute URL.
 - The field's relative path will be composed with `metadataBase` to form a fully qualified URL.
-- If not configured, `metadataBase` is **automatically populated** with a [default value](#default-value).
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
@@ -424,19 +423,6 @@ export const metadata = {
 > - If a `metadata` field provides an absolute URL, `metadataBase` will be ignored.
 > - Using a relative path in a URL-based `metadata` field without configuring a `metadataBase` will cause a build error.
 > - Next.js will normalize duplicate slashes between `metadataBase` (e.g. `https://acme.com/`) and a relative field (e.g. `/path`) to a single slash (e.g. `https://acme.com/path`)
-
-#### Default value
-
-If not configured, `metadataBase` has a **default value**.
-
-> On Vercel:
->
-> - For production deployments, `VERCEL_PROJECT_PRODUCTION_URL` will be used.
-> - For preview deployments, `VERCEL_BRANCH_URL` will take priority, and fallback to `VERCEL_URL` if it's not present.
->
-> If these values are present they will be used as the **default value** of `metadataBase`, otherwise it falls back to `http://localhost:${process.env.PORT || 3000}`. This allows Open Graph images to work on both local build and Vercel preview and production deployments. When overriding the default, we recommend using environment variables to compute the URL. This allows configuring a URL for local development, staging, and production environments.
->
-> See more details about these environment variables in the [System Environment Variables](https://vercel.com/docs/concepts/projects/environment-variables/system-environment-variables) docs.
 
 #### URL Composition
 

@@ -282,6 +282,7 @@ pub struct ModulesWithChunkingType(Vec<(ChunkingType, ModulesVec)>);
 #[turbo_tasks::function]
 pub async fn primary_chunkable_referenced_modules(
     module: Vc<Box<dyn Module>>,
+    include_traced: bool,
 ) -> Result<Vc<ModulesWithChunkingType>> {
     let modules = module
         .references()
@@ -292,6 +293,10 @@ pub async fn primary_chunkable_referenced_modules(
                 ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(*reference)
             {
                 if let Some(chunking_type) = &*reference.chunking_type().await? {
+                    if !include_traced && matches!(chunking_type, ChunkingType::Traced) {
+                        return Ok(None);
+                    }
+
                     let resolved = reference
                         .resolve_reference()
                         .resolve()

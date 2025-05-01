@@ -4,7 +4,7 @@ module.exports = {
 
 var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
 {
-console.log("Hello, world!");
+console.log('Hello, world!');
 }}),
 
 };

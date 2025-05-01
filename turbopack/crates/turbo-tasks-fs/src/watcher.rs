@@ -9,7 +9,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use notify::{
     event::{MetadataKind, ModifyKind, RenameMode},
     Config, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
@@ -112,6 +112,7 @@ impl DiskWatcher {
         dir_path: &Path,
         root_path: &Path,
     ) -> Result<()> {
+        use anyhow::Context;
         // HACK: Rewrite NotFound io errors to PathNotFound
         // This shouldn't ever happen (notify should transform this for us), but even after
         // https://github.com/notify-rs/notify/pull/611, it seems like there's still some case where

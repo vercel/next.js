@@ -6,7 +6,7 @@ description: Recommendations to ensure the best performance and user experience 
 
 Before taking your Next.js application to production, there are some optimizations and patterns you should consider implementing for the best user experience, performance, and security.
 
-This page provides best practices that you can use as a reference when [building your application](#during-development), [before going to production](#before-going-to-production), and [after deployment](#after-deployment) - as well as the [automatic Next.js optimizations](#automatic-optimizations) you should be aware of.
+This page provides best practices that you can use as a reference when [building your application](#during-development) and [before going to production](#before-going-to-production), as well as the [automatic Next.js optimizations](#automatic-optimizations) you should be aware of.
 
 ## Automatic optimizations
 
@@ -18,7 +18,7 @@ These Next.js optimizations are enabled by default and require no configuration:
 - **[Code-splitting](/docs/app/building-your-application/routing/linking-and-navigating#how-routing-and-navigation-works):** Server Components enable automatic code-splitting by route segments. You may also consider [lazy loading](/docs/app/guides/lazy-loading) Client Components and third-party libraries, where appropriate.
 - **[Prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching):** When a link to a new route enters the user's viewport, Next.js prefetches the route in background. This makes navigation to new routes almost instant. You can opt out of prefetching, where appropriate.
 - **[Static Rendering](/docs/app/building-your-application/rendering/server-components#static-rendering-default):** Next.js statically renders Server and Client Components on the server at build time and caches the rendered result to improve your application's performance. You can opt into [Dynamic Rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) for specific routes, where appropriate. {/* TODO: Update when PPR is stable */}
-- **[Caching](/docs/app/building-your-application/caching):** Next.js caches data requests, the rendered result of Server and Client Components, static assets, and more, to reduce the number of network requests to your server, database, and backend services. You may opt out of caching, where appropriate.
+- **[Caching](/docs/app/deep-dive/caching):** Next.js caches data requests, the rendered result of Server and Client Components, static assets, and more, to reduce the number of network requests to your server, database, and backend services. You may opt out of caching, where appropriate.
 
 </AppOnly>
 
@@ -65,7 +65,7 @@ While building your application, we recommend using the following features to en
 - **[Route Handlers](/docs/app/building-your-application/routing/route-handlers):** Use Route Handlers to access your backend resources from Client Components. But do not call Route Handlers from Server Components to avoid an additional server request.
 - **[Streaming](/docs/app/building-your-application/routing/loading-ui-and-streaming):** Use Loading UI and React Suspense to progressively send UI from the server to the client, and prevent the whole route from blocking while data is being fetched.
 - **[Parallel Data Fetching](/docs/app/building-your-application/data-fetching/fetching#parallel-and-sequential-data-fetching):** Reduce network waterfalls by fetching data in parallel, where appropriate. Also, consider [preloading data](/docs/app/building-your-application/data-fetching/fetching#preloading-data) where appropriate.
-- **[Data Caching](/docs/app/building-your-application/caching#data-cache):** Verify whether your data requests are being cached or not, and opt into caching, where appropriate. Ensure requests that don't use `fetch` are [cached](/docs/app/api-reference/functions/unstable_cache).
+- **[Data Caching](/docs/app/deep-dive/caching#data-cache):** Verify whether your data requests are being cached or not, and opt into caching, where appropriate. Ensure requests that don't use `fetch` are [cached](/docs/app/api-reference/functions/unstable_cache).
 - **[Static Images](/docs/app/api-reference/file-conventions/public-folder):** Use the `public` directory to automatically cache your application's static assets, e.g. images.
 
 </AppOnly>
@@ -148,19 +148,3 @@ Additionally, the following tools can help you understand the impact of adding n
 - [Package Phobia](https://packagephobia.com/)
 - [Bundle Phobia](https://bundlephobia.com/)
 - [bundlejs](https://bundlejs.com/)
-
-## After deployment
-
-Depending on where you deploy your application, you might have access to additional tools and integrations to help you monitor and improve your application's performance.
-
-For Vercel deployments, we recommend the following:
-
-- **[Analytics](https://vercel.com/analytics?utm_source=next-site&utm_campaign=nextjs-docs&utm_medium=docs):** A built-in analytics dashboard to help you understand your application's traffic, including the number of unique visitors, page views, and more.
-- **[Speed Insights](https://vercel.com/docs/speed-insights?utm_source=next-site&utm_campaign=nextjs-docs&utm_medium=docs):** Real-world performance insights based on visitor data, offering a practical view of how your website is performing in the field.
-- **[Logging](https://vercel.com/docs/observability/runtime-logs?utm_source=next-site&utm_campaign=nextjs-docs&utm_medium=docs):** Runtime and Activity logs to help you debug issues and monitor your application in production. Alternatively, see the [integrations page](https://vercel.com/integrations?utm_source=next-site&utm_campaign=nextjs-docs&utm_medium=docs) for a list of third-party tools and services.
-
-> **Good to know:**
->
-> To get a comprehensive understanding of the best practices for production deployments on Vercel, including detailed strategies for improving website performance, refer to the [Vercel Production Checklist](https://vercel.com/docs/production-checklist?utm_source=next-site&utm_campaign=nextjs-docs&utm_medium=docs).
-
-Following these recommendations will help you build a faster, more reliable, and secure application for your users.

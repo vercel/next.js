@@ -11,7 +11,7 @@ import {
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
-import type { PrerenderManifest } from '../build'
+import type { PrerenderManifest, RoutesManifest } from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from './request/params'
@@ -94,7 +94,7 @@ import { pipeToNodeResponse } from './pipe-readable'
 import { createRequestResponseMocks } from './lib/mock-request'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
-import { loadManifest } from './load-manifest'
+import { loadManifest } from './load-manifest.external'
 import { lazyRenderAppPage } from './route-modules/app-page/module.render'
 import { lazyRenderPagesPage } from './route-modules/pages/module.render'
 import { interopDefault } from '../lib/interop-default'
@@ -1687,11 +1687,26 @@ export default class NextNodeServer extends BaseServer<
       const adapterFn: typeof import('./web/adapter').adapter =
         middlewareModule.default || middlewareModule
 
-      result = await adapterFn({
-        handler: middlewareModule.middleware || middlewareModule,
-        request: requestData,
-        page: 'middleware',
-      })
+      const hasRequestBody =
+        !['HEAD', 'GET'].includes(params.request.method) &&
+        Boolean(requestData.body)
+
+      try {
+        result = await adapterFn({
+          handler: middlewareModule.middleware || middlewareModule,
+          request: {
+            ...requestData,
+            body: hasRequestBody
+              ? requestData.body.cloneBodyStream()
+              : undefined,
+          },
+          page: 'middleware',
+        })
+      } finally {
+        if (hasRequestBody) {
+          requestData.body.finalize()
+        }
+      }
     } else {
       const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
 
@@ -1866,25 +1881,10 @@ export default class NextNodeServer extends BaseServer<
   }
 
   protected getRoutesManifest(): NormalizedRouteManifest | undefined {
-    return getTracer().trace(NextNodeServerSpan.getRoutesManifest, () => {
-      const manifest = loadManifest(join(this.distDir, ROUTES_MANIFEST)) as any
-
-      let rewrites = manifest.rewrites ?? {
-        beforeFiles: [],
-        afterFiles: [],
-        fallback: [],
-      }
-
-      if (Array.isArray(rewrites)) {
-        rewrites = {
-          beforeFiles: [],
-          afterFiles: rewrites,
-          fallback: [],
-        }
-      }
-
-      return { ...manifest, rewrites }
-    })
+    return getTracer().trace(
+      NextNodeServerSpan.getRoutesManifest,
+      () => loadManifest(join(this.distDir, ROUTES_MANIFEST)) as RoutesManifest
+    )
   }
 
   protected attachRequestMeta(

@@ -697,14 +697,11 @@ impl Visit for Analyzer<'_> {
         // we could actually unwrap thanks to the optimisation above but it can't hurt to be safe...
         if let Some(comments) = self.comments {
             let callee_span = match &n.callee {
-                Callee::Import(Import { span, .. }) => Some(span),
-                Callee::Expr(box Expr::Ident(Ident { span, sym, .. })) if sym == "require" => {
-                    Some(span)
-                }
+                Callee::Import(Import { span, .. }) => Some(*span),
+                Callee::Expr(e) => Some(e.span()),
                 _ => None,
             };
 
-            // we are interested here in the last comment with a valid directive
             let ignore_directive = parse_ignore_directive(comments, n.args.first());
 
             if let Some((callee_span, ignore_directive)) = callee_span.zip(ignore_directive) {

@@ -8,7 +8,7 @@ var { g: global, __dirname } = __turbopack_context__;
 __turbopack_context__.s({
     "default": (()=>__TURBOPACK__default__export__)
 });
-const __TURBOPACK__default__export__ = "foo";
+const __TURBOPACK__default__export__ = 'foo';
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/subpath-imports/input/dep/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
@@ -18,7 +18,7 @@ var { g: global, __dirname } = __turbopack_context__;
 __turbopack_context__.s({
     "default": (()=>__TURBOPACK__default__export__)
 });
-const __TURBOPACK__default__export__ = "dep";
+const __TURBOPACK__default__export__ = 'dep';
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/subpath-imports/input/pat.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
@@ -28,7 +28,7 @@ var { g: global, __dirname } = __turbopack_context__;
 __turbopack_context__.s({
     "default": (()=>__TURBOPACK__default__export__)
 });
-const __TURBOPACK__default__export__ = "pat";
+const __TURBOPACK__default__export__ = 'pat';
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/subpath-imports/input/import.mjs [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
@@ -38,13 +38,13 @@ var { g: global, __dirname } = __turbopack_context__;
 __turbopack_context__.s({
     "default": (()=>__TURBOPACK__default__export__)
 });
-const __TURBOPACK__default__export__ = "import";
+const __TURBOPACK__default__export__ = 'import';
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/subpath-imports/input/require.cjs [test] (ecmascript)": (function(__turbopack_context__) {
 
 var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
 {
-module.exports = "require";
+module.exports = 'require';
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/subpath-imports/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";

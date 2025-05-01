@@ -2,7 +2,7 @@ use std::{
     cell::UnsafeCell,
     fs::File,
     io::Write,
-    mem::{replace, swap},
+    mem::{replace, take},
     path::PathBuf,
     sync::atomic::{AtomicU32, Ordering},
 };
@@ -12,14 +12,19 @@ use byteorder::{WriteBytesExt, BE};
 use lzzzz::lz4::{self, ACC_LEVEL_DEFAULT};
 use parking_lot::Mutex;
 use rayon::{
-    iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator},
-    scope, Scope,
+    iter::{Either, IndexedParallelIterator, IntoParallelIterator, ParallelIterator},
+    scope,
 };
+use smallvec::SmallVec;
 use thread_local::ThreadLocal;
 
 use crate::{
-    collector::Collector, collector_entry::CollectorEntry, constants::MAX_MEDIUM_VALUE_SIZE,
-    key::StoreKey, static_sorted_file_builder::StaticSortedFileBuilder, ValueBuffer,
+    collector::Collector,
+    collector_entry::CollectorEntry,
+    constants::{MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
+    key::StoreKey,
+    static_sorted_file_builder::StaticSortedFileBuilder,
+    ValueBuffer,
 };
 
 /// The thread local state of a `WriteBatch`. `FAMILIES` should fit within a `u32`.
@@ -29,18 +34,31 @@ use crate::{
 // `min_generic_const_args` feature.
 struct ThreadLocalState<K: StoreKey + Send, const FAMILIES: usize> {
     /// The collectors for each family.
-    collectors: [Option<Collector<K>>; FAMILIES],
-    /// The list of new SST files that have been created.
-    new_sst_files: Vec<(u32, File)>,
+    collectors: [Option<Collector<K, THREAD_LOCAL_SIZE_SHIFT>>; FAMILIES],
     /// The list of new blob files that have been created.
-    new_blob_files: Vec<File>,
+    /// Tuple of (sequence number, file).
+    new_blob_files: Vec<(u32, File)>,
 }
+
+const COLLECTOR_SHARDS: usize = 4;
+const COLLECTOR_SHARD_SHIFT: usize =
+    u64::BITS as usize - COLLECTOR_SHARDS.trailing_zeros() as usize;
 
 /// The result of a `WriteBatch::finish` operation.
 pub(crate) struct FinishResult {
     pub(crate) sequence_number: u32,
+    /// Tuple of (sequence number, file).
     pub(crate) new_sst_files: Vec<(u32, File)>,
-    pub(crate) new_blob_files: Vec<File>,
+    /// Tuple of (sequence number, file).
+    pub(crate) new_blob_files: Vec<(u32, File)>,
+}
+
+enum GlobalCollectorState<K: StoreKey + Send> {
+    /// Initial state. Single collector. Once the collector is full, we switch to sharded mode.
+    Unsharded(Collector<K>),
+    /// Sharded mode.
+    /// We use multiple collectors, and select one based on the first bits of the key hash.
+    Sharded([Collector<K>; COLLECTOR_SHARDS]),
 }
 
 /// A write batch.
@@ -51,8 +69,15 @@ pub struct WriteBatch<K: StoreKey + Send, const FAMILIES: usize> {
     current_sequence_number: AtomicU32,
     /// The thread local state.
     thread_locals: ThreadLocal<UnsafeCell<ThreadLocalState<K, FAMILIES>>>,
-    /// Collectors are are current unused, but have memory preallocated.
+    /// Collectors in use. The thread local collectors flush into these when they are full.
+    collectors: [Mutex<GlobalCollectorState<K>>; FAMILIES],
+    /// The list of new SST files that have been created.
+    /// Tuple of (sequence number, file).
+    new_sst_files: Mutex<Vec<(u32, File)>>,
+    /// Collectors that are currently unused, but have memory preallocated.
     idle_collectors: Mutex<Vec<Collector<K>>>,
+    /// Collectors that are currently unused, but have memory preallocated.
+    idle_thread_local_collectors: Mutex<Vec<Collector<K, THREAD_LOCAL_SIZE_SHIFT>>>,
 }
 
 impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
@@ -65,7 +90,11 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
             path,
             current_sequence_number: AtomicU32::new(current),
             thread_locals: ThreadLocal::new(),
+            collectors: [(); FAMILIES]
+                .map(|_| Mutex::new(GlobalCollectorState::Unsharded(Collector::new()))),
+            new_sst_files: Mutex::new(Vec::new()),
             idle_collectors: Mutex::new(Vec::new()),
+            idle_thread_local_collectors: Mutex::new(Vec::new()),
         }
     }
 
@@ -82,7 +111,6 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         let cell = self.thread_locals.get_or(|| {
             UnsafeCell::new(ThreadLocalState {
                 collectors: [const { None }; FAMILIES],
-                new_sst_files: Vec::new(),
                 new_blob_files: Vec::new(),
             })
         });
@@ -91,37 +119,94 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
     }
 
     /// Returns the collector for a family for the current thread.
-    fn collector_mut<'l>(
+    fn thread_local_collector_mut<'l>(
         &self,
         state: &'l mut ThreadLocalState<K, FAMILIES>,
         family: u32,
-    ) -> Result<&'l mut Collector<K>> {
-        let family_idx = usize_from_u32(family);
-        debug_assert!(family_idx < FAMILIES);
-        let collector = state.collectors[family_idx].get_or_insert_with(|| {
-            self.idle_collectors
+    ) -> Result<&'l mut Collector<K, THREAD_LOCAL_SIZE_SHIFT>> {
+        debug_assert!(usize_from_u32(family) < FAMILIES);
+        let collector = state.collectors[usize_from_u32(family)].get_or_insert_with(|| {
+            self.idle_thread_local_collectors
                 .lock()
                 .pop()
                 .unwrap_or_else(|| Collector::new())
         });
         if collector.is_full() {
-            let sst = self.create_sst_file(family, collector.sorted())?;
-            collector.clear();
-            state.new_sst_files.push(sst);
+            self.flush_thread_local_collector(family, collector)?;
         }
         Ok(collector)
+    }
+
+    fn flush_thread_local_collector(
+        &self,
+        family: u32,
+        collector: &mut Collector<K, THREAD_LOCAL_SIZE_SHIFT>,
+    ) -> Result<()> {
+        let mut full_collectors = SmallVec::<[_; 2]>::new();
+        {
+            let mut global_collector_state = self.collectors[usize_from_u32(family)].lock();
+            for entry in collector.drain() {
+                match &mut *global_collector_state {
+                    GlobalCollectorState::Unsharded(collector) => {
+                        collector.add_entry(entry);
+                        if collector.is_full() {
+                            // When full, split the entries into shards.
+                            let mut shards: [Collector<K>; 4] =
+                                [(); COLLECTOR_SHARDS].map(|_| Collector::new());
+                            for entry in collector.drain() {
+                                let shard = (entry.key.hash >> COLLECTOR_SHARD_SHIFT) as usize;
+                                shards[shard].add_entry(entry);
+                            }
+                            // There is a rare edge case where all entries are in the same shard,
+                            // and the collector is full after the split.
+                            for collector in shards.iter_mut() {
+                                if collector.is_full() {
+                                    full_collectors
+                                        .push(replace(&mut *collector, self.get_new_collector()));
+                                }
+                            }
+                            *global_collector_state = GlobalCollectorState::Sharded(shards);
+                        }
+                    }
+                    GlobalCollectorState::Sharded(shards) => {
+                        let shard = (entry.key.hash >> COLLECTOR_SHARD_SHIFT) as usize;
+                        let collector = &mut shards[shard];
+                        collector.add_entry(entry);
+                        if collector.is_full() {
+                            full_collectors
+                                .push(replace(&mut *collector, self.get_new_collector()));
+                        }
+                    }
+                }
+            }
+        }
+        for mut global_collector in full_collectors {
+            // When the global collector is full, we create a new SST file.
+            let sst = self.create_sst_file(family, global_collector.sorted())?;
+            global_collector.clear();
+            self.new_sst_files.lock().push(sst);
+            self.idle_collectors.lock().push(global_collector);
+        }
+        Ok(())
+    }
+
+    fn get_new_collector(&self) -> Collector<K> {
+        self.idle_collectors
+            .lock()
+            .pop()
+            .unwrap_or_else(|| Collector::new())
     }
 
     /// Puts a key-value pair into the write batch.
     pub fn put(&self, family: u32, key: K, value: ValueBuffer<'_>) -> Result<()> {
         let state = self.thread_local_state();
-        let collector = self.collector_mut(state, family)?;
+        let collector = self.thread_local_collector_mut(state, family)?;
         if value.len() <= MAX_MEDIUM_VALUE_SIZE {
             collector.put(key, value);
         } else {
             let (blob, file) = self.create_blob(&value)?;
             collector.put_blob(key, blob);
-            state.new_blob_files.push(file);
+            state.new_blob_files.push((blob, file));
         }
         Ok(())
     }
@@ -129,7 +214,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
     /// Puts a delete operation into the write batch.
     pub fn delete(&self, family: u32, key: K) -> Result<()> {
         let state = self.thread_local_state();
-        let collector = self.collector_mut(state, family)?;
+        let collector = self.thread_local_collector_mut(state, family)?;
         collector.delete(key);
         Ok(())
     }
@@ -137,98 +222,73 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
     /// Finishes the write batch by returning the new sequence number and the new SST files. This
     /// writes all outstanding thread local data to disk.
     pub(crate) fn finish(&mut self) -> Result<FinishResult> {
-        let mut new_sst_files = Vec::new();
         let mut new_blob_files = Vec::new();
-        let mut all_collectors = [(); FAMILIES].map(|_| Vec::new());
-        for cell in self.thread_locals.iter_mut() {
-            let state = cell.get_mut();
-            new_sst_files.append(&mut state.new_sst_files);
-            new_blob_files.append(&mut state.new_blob_files);
-            for (family, global_collector) in all_collectors.iter_mut().enumerate() {
-                if let Some(collector) = state.collectors[family].take() {
-                    if !collector.is_empty() {
-                        global_collector.push(Some(collector));
+        let shared_error = Mutex::new(Ok(()));
+
+        // First, we flush all thread local collectors to the global collectors.
+        scope(|scope| {
+            let mut collectors = [const { Vec::new() }; FAMILIES];
+            for cell in self.thread_locals.iter_mut() {
+                let state = cell.get_mut();
+                new_blob_files.append(&mut state.new_blob_files);
+                for (family, thread_local_collector) in state.collectors.iter_mut().enumerate() {
+                    if let Some(collector) = thread_local_collector.take() {
+                        if !collector.is_empty() {
+                            collectors[family].push(collector);
+                        }
                     }
                 }
             }
-        }
-        let shared_new_sst_files = Mutex::new(&mut new_sst_files);
-        let shared_error = Mutex::new(Ok(()));
-        scope(|scope| {
-            fn handle_done_collector<'scope, K: StoreKey + Send + Sync, const FAMILIES: usize>(
-                this: &'scope WriteBatch<K, FAMILIES>,
-                scope: &Scope<'scope>,
-                family: u32,
-                mut collector: Collector<K>,
-                shared_new_sst_files: &'scope Mutex<&mut Vec<(u32, File)>>,
-                shared_error: &'scope Mutex<Result<()>>,
-            ) {
-                scope.spawn(
-                    move |_| match this.create_sst_file(family, collector.sorted()) {
-                        Ok(sst) => {
-                            collector.clear();
-                            this.idle_collectors.lock().push(collector);
-                            shared_new_sst_files.lock().push(sst);
-                        }
-                        Err(err) => {
+            for (family, thread_local_collectors) in collectors.into_iter().enumerate() {
+                for mut collector in thread_local_collectors {
+                    let this = &self;
+                    let shared_error = &shared_error;
+                    scope.spawn(move |_| {
+                        if let Err(err) =
+                            this.flush_thread_local_collector(family as u32, &mut collector)
+                        {
                             *shared_error.lock() = Err(err);
                         }
-                    },
-                );
+                        this.idle_thread_local_collectors.lock().push(collector);
+                    });
+                }
             }
-
-            all_collectors
-                .into_par_iter()
-                .enumerate()
-                .for_each(|(family_idx, collectors)| {
-                    let family = u32::try_from(family_idx).unwrap();
-                    let final_collector = collectors.into_par_iter().reduce(
-                        || None,
-                        |a, b| match (a, b) {
-                            (Some(mut a), Some(mut b)) => {
-                                if a.len() < b.len() {
-                                    swap(&mut a, &mut b);
-                                }
-                                for entry in b.drain() {
-                                    if a.is_full() {
-                                        let full_collector = replace(
-                                            &mut a,
-                                            self.idle_collectors
-                                                .lock()
-                                                .pop()
-                                                .unwrap_or_else(|| Collector::new()),
-                                        );
-                                        handle_done_collector(
-                                            self,
-                                            scope,
-                                            family,
-                                            full_collector,
-                                            &shared_new_sst_files,
-                                            &shared_error,
-                                        );
-                                    }
-                                    a.add_entry(entry);
-                                }
-                                self.idle_collectors.lock().push(b);
-                                Some(a)
-                            }
-                            (Some(a), None) => Some(a),
-                            (None, Some(b)) => Some(b),
-                            (None, None) => None,
-                        },
-                    );
-                    if let Some(collector) = final_collector {
-                        handle_done_collector(
-                            self,
-                            scope,
-                            family,
-                            collector,
-                            &shared_new_sst_files,
-                            &shared_error,
-                        );
-                    }
-                });
         });
+
+        // Now we reduce the global collectors in parallel
+        let mut new_sst_files = take(self.new_sst_files.get_mut());
+        let shared_new_sst_files = Mutex::new(&mut new_sst_files);
+
+        let new_collectors = [(); FAMILIES]
+            .map(|_| Mutex::new(GlobalCollectorState::Unsharded(self.get_new_collector())));
+        let collectors = replace(&mut self.collectors, new_collectors);
+        collectors
+            .into_par_iter()
+            .enumerate()
+            .flat_map(|(family, state)| {
+                let collector = state.into_inner();
+                match collector {
+                    GlobalCollectorState::Unsharded(collector) => {
+                        Either::Left([(family, collector)].into_par_iter())
+                    }
+                    GlobalCollectorState::Sharded(shards) => Either::Right(
+                        shards
+                            .into_par_iter()
+                            .map(move |collector| (family, collector)),
+                    ),
+                }
+            })
+            .try_for_each(|(family, mut collector)| {
+                let family = family as u32;
+                if !collector.is_empty() {
+                    let sst = self.create_sst_file(family, collector.sorted())?;
+                    collector.clear();
+                    self.idle_collectors.lock().push(collector);
+                    shared_new_sst_files.lock().push(sst);
+                }
+                anyhow::Ok(())
+            })?;
+
         shared_error.into_inner()?;
         let seq = self.current_sequence_number.load(Ordering::SeqCst);
         new_sst_files.sort_by_key(|(seq, _)| *seq);
@@ -240,6 +300,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
     }
 
     /// Creates a new blob file with the given value.
+    /// Returns a tuple of (sequence number, file).
     fn create_blob(&self, value: &[u8]) -> Result<(u32, File)> {
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
         let mut buffer = Vec::new();
@@ -256,6 +317,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
     }
 
     /// Creates a new SST file with the given collector data.
+    /// Returns a tuple of (sequence number, file).
     fn create_sst_file(
         &self,
         family: u32,

@@ -11,7 +11,6 @@ Next.js includes its own server with `next start` by default. If you have an exi
 > **Good to know**:
 >
 > - Before deciding to use a custom server, keep in mind that it should only be used when the integrated router of Next.js can't meet your app requirements. A custom server will remove important performance optimizations, like **[Automatic Static Optimization](/docs/pages/building-your-application/rendering/automatic-static-optimization).**
-> - A custom server **cannot** be deployed on [Vercel](https://vercel.com/frameworks/nextjs).
 > - When using standalone output mode, it does not trace custom server files. This mode outputs a separate minimal `server.js` file, instead. These cannot be used together.
 
 Take a look at the [following example](https://github.com/vercel/next.js/tree/canary/examples/custom-server) of a custom server:
