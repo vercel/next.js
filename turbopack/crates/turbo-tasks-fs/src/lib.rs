@@ -203,7 +203,6 @@ pub trait FileSystem: ValueToString {
     fn read(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<FileContent>;
     fn read_link(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<LinkContent>;
     fn raw_read_dir(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<RawDirectoryContent>;
-    fn track(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<Completion>;
     fn write(self: Vc<Self>, fs_path: Vc<FileSystemPath>, content: Vc<FileContent>) -> Vc<()>;
     fn write_link(self: Vc<Self>, fs_path: Vc<FileSystemPath>, target: Vc<LinkContent>) -> Vc<()>;
     fn metadata(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<FileMeta>;
@@ -684,14 +683,6 @@ impl FileSystem for DiskFileSystem {
             },
         }
         .cell())
-    }
-
-    #[turbo_tasks::function(fs)]
-    async fn track(&self, fs_path: Vc<FileSystemPath>) -> Result<Vc<Completion>> {
-        mark_session_dependent();
-        let full_path = self.to_sys_path(fs_path).await?;
-        self.inner.register_read_invalidator(&full_path)?;
-        Ok(Completion::new())
     }
 
     #[turbo_tasks::function(fs)]
@@ -1472,11 +1463,6 @@ impl FileSystemPath {
         self.fs().raw_read_dir(self)
     }
 
-    /// Tracks this path without reading the contents
-    pub fn track(self: Vc<Self>) -> Vc<Completion> {
-        self.fs().track(self)
-    }
-
     pub fn write(self: Vc<Self>, content: Vc<FileContent>) -> Vc<()> {
         self.fs().write(self, content)
     }
@@ -1510,12 +1496,13 @@ impl FileSystemPath {
     /// depend on the order.
     #[turbo_tasks::function]
     pub async fn read_dir(self: Vc<Self>) -> Result<Vc<DirectoryContent>> {
-        let fs = self.await?.fs;
+        let this = self.await?;
+        let fs = this.fs;
         match &*fs.raw_read_dir(self).await? {
             RawDirectoryContent::NotFound => Ok(DirectoryContent::not_found()),
             RawDirectoryContent::Entries(entries) => {
                 let mut normalized_entries = AutoMap::new();
-                let dir_path = &self.await?.path;
+                let dir_path = &this.path;
                 for (name, entry) in entries {
                     // Construct the path directly instead of going through `join`.
                     // We do not need to normalize since the `name` is guaranteed to be a simple
@@ -2443,11 +2430,6 @@ impl FileSystem for NullFileSystem {
     #[turbo_tasks::function]
     fn raw_read_dir(&self, _fs_path: Vc<FileSystemPath>) -> Vc<RawDirectoryContent> {
         RawDirectoryContent::not_found()
-    }
-
-    #[turbo_tasks::function]
-    fn track(&self, _fs_path: Vc<FileSystemPath>) -> Vc<Completion> {
-        Completion::immutable()
     }
 
     #[turbo_tasks::function]
