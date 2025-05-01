@@ -491,7 +491,7 @@ jobs:
     with:
       afterBuild: |
         export NEXT_E2E_TEST_TIMEOUT=240000
-        export GH_PR_NUMBER=${{ github.event.pull_request && github.event.pull_request.number || "" }}
+        export GH_PR_NUMBER=${{ github.event.pull_request && github.event.pull_request.number || '' }}
         node scripts/test-new-tests.mjs \
           --mode deploy \
           --group ${{ matrix.group }}
