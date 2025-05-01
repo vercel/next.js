@@ -3,8 +3,9 @@ name: build-and-deploy
 
 on:
   push:
-    # TODO: Run only on canary pushes but PR syncs.
-    # Requires checking if CI is approved
+  # we need the preview tarball for deploy tests
+  pull_request:
+    types: [opened, synchronize]
   workflow_dispatch:
 
 env:
