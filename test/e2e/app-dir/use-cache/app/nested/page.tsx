@@ -1,26 +1,42 @@
+import { connection } from 'next/server'
+import { Suspense } from 'react'
+import { setTimeout } from 'timers/promises'
+
 async function Inner() {
-  'use cache'
+  await setTimeout(3000)
 
   return <p className="inner">{Math.random()}</p>
 }
 
-async function Outer1() {
+async function InnerCached() {
   'use cache'
 
-  return <Inner />
+  return (
+    <Suspense fallback={<p className="loading">Loading...</p>}>
+      <Inner />
+    </Suspense>
+  )
 }
 
-async function Outer2() {
+async function OuterCached1() {
   'use cache'
 
-  return <Inner />
+  return <InnerCached />
 }
 
-export default function Page() {
+async function OuterCached2() {
+  'use cache'
+
+  return <InnerCached />
+}
+
+export default async function Page() {
+  await connection()
+
   return (
     <>
-      <Outer1 />
-      <Outer2 />
+      <OuterCached1 />
+      <OuterCached2 />
     </>
   )
 }

@@ -105,7 +105,22 @@ describe('use-cache', () => {
   })
 
   it('should dedupe shared inner caches across different outer caches', async () => {
-    const browser = await next.browser('/nested')
+    const browser = await next.browser('/nested', { waitUntil: 'commit' })
+
+    // The loading boundaries of both inner cache functions are expected to be
+    // shown while the page is loading. We're using `browser.eval` here to
+    // assert on the document as early as possible. The other Playwright APIs
+    // (incl. `page.$`) add a delay that sometimes leads to missing the
+    // ephemeral loading elements.
+    try {
+      expect(
+        await browser.eval(() => document.querySelectorAll('.loading').length)
+      ).toBe(2)
+    } catch {
+      console.error(await browser.eval(() => document.body.innerHTML))
+      throw new Error('Expected both loading elements to be present.')
+    }
+
     const first = await browser.elementByCss('.inner:nth-of-type(1)').text()
     const second = await browser.elementByCss('.inner:nth-of-type(2)').text()
     expect(first).toBe(second)
@@ -530,7 +545,6 @@ describe('use-cache', () => {
         '/imported-from-client',
         '/logs',
         '/method-props',
-        '/nested',
         '/nested-in-unstable-cache',
         '/not-found',
         '/on-demand-revalidate',
