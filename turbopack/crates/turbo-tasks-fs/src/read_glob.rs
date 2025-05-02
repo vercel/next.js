@@ -458,7 +458,8 @@ pub mod tests {
                 .expect_err("Should have detected an infinite loop");
 
             assert_eq!(
-                "'sub/link' is a symlink causes that causes an infinite loop!",
+                "Execution of read_glob_inner failed\n'sub/link' is a symlink causes that causes \
+                 an infinite loop!",
                 format!("{}", err.root_cause())
             );
 
@@ -470,7 +471,8 @@ pub mod tests {
                 .expect_err("Should have detected an infinite loop");
 
             assert_eq!(
-                "'sub/link' is a symlink causes that causes an infinite loop!",
+                "Execution of track_glob_inner failed\n'sub/link' is a symlink causes that causes \
+                 an infinite loop!",
                 format!("{}", err.root_cause())
             );
 

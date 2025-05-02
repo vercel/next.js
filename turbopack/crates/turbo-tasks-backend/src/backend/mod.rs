@@ -26,7 +26,7 @@ use tokio::time::{Duration, Instant};
 use turbo_tasks::{
     backend::{
         Backend, BackendJobId, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
-        TransientTaskType, TypedCellContent,
+        TransientTaskType, TurboTasksExecutionError, TypedCellContent,
     },
     event::{Event, EventListener},
     registry::{self, get_value_type_global_name},
@@ -558,9 +558,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let result = match output {
                 OutputValue::Cell(cell) => Some(Ok(Ok(RawVc::TaskCell(cell.task, cell.cell)))),
                 OutputValue::Output(task) => Some(Ok(Ok(RawVc::TaskOutput(*task)))),
-                OutputValue::Error | OutputValue::Panic => {
-                    get!(task, Error).map(|error| Err(error.clone().into()))
-                }
+                OutputValue::Error => get!(task, Error).map(|error| Err(error.clone().into())),
             };
             if let Some(result) = result {
                 if self.should_track_dependencies() {
@@ -1411,7 +1409,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn task_execution_result(
         &self,
         task_id: TaskId,
-        result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
+        result: Result<RawVc, Arc<TurboTasksExecutionError>>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         operation::UpdateOutputOperation::run(task_id, result, self.execute_context(turbo_tasks));
@@ -2343,7 +2341,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
     fn task_execution_result(
         &self,
         task_id: TaskId,
-        result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
+        result: Result<RawVc, Arc<TurboTasksExecutionError>>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
         self.0.task_execution_result(task_id, result, turbo_tasks);
