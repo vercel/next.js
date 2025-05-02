@@ -103,7 +103,7 @@ impl StaticSortedFileBuilder {
     }
 
     /// Computes a AQMF from the keys of all entries.
-    #[tracing::instrument(skip_all)]
+    #[tracing::instrument(level = "trace", skip_all)]
     fn compute_aqmf<E: Entry>(&mut self, entries: &[E]) {
         let mut filter = qfilter::Filter::new(entries.len() as u64, AQMF_FALSE_POSITIVE_RATE)
             // This won't fail as we limit the number of entries per SST file
@@ -118,7 +118,7 @@ impl StaticSortedFileBuilder {
     }
 
     /// Computes compression dictionaries from keys and values of all entries
-    #[tracing::instrument(skip_all)]
+    #[tracing::instrument(level = "trace", skip_all)]
     fn compute_compression_dictionary<E: Entry>(
         &mut self,
         entries: &[E],
@@ -204,7 +204,7 @@ impl StaticSortedFileBuilder {
     }
 
     /// Compute index, key and value blocks.
-    #[tracing::instrument(skip_all)]
+    #[tracing::instrument(level = "trace", skip_all)]
     fn compute_blocks<E: Entry>(&mut self, entries: &[E]) {
         // TODO implement multi level index
         // TODO place key and value block near to each other
@@ -355,19 +355,19 @@ impl StaticSortedFileBuilder {
     }
 
     /// Compresses an index or key block.
-    #[tracing::instrument(skip_all)]
+    #[tracing::instrument(level = "trace", skip_all)]
     fn compress_key_block(&self, block: &[u8]) -> (u32, Vec<u8>) {
         self.compress_block(block, &self.key_compression_dictionary)
     }
 
     /// Compresses a value block.
-    #[tracing::instrument(skip_all)]
+    #[tracing::instrument(level = "trace", skip_all)]
     fn compress_value_block(&self, block: &[u8]) -> (u32, Vec<u8>) {
         self.compress_block(block, &self.value_compression_dictionary)
     }
 
     /// Writes the SST file.
-    #[tracing::instrument(skip_all)]
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn write(&self, file: &Path) -> io::Result<File> {
         let mut file = BufWriter::new(File::create(file)?);
         // magic number and version
