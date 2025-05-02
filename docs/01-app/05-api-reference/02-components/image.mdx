@@ -102,7 +102,7 @@ The `width` and `height` properties represent the [intrinsic](https://developer.
 
 You **must** set both `width` and `height` properties unless:
 
-- The image is [statically imported](/docs/app/api-reference/components/image#local-images)
+- The image is [statically imported](/docs/app/getting-started/images#local-images)
 - The image has the [`fill` property](#fill)
 
 If the height and width are unknown, we recommend using the [`fill` property](#fill).
@@ -715,7 +715,7 @@ module.exports = {
 
 #### `minimumCacheTTL`
 
-`minimumCacheTTL` allows you to configure the Time to Live (TTL) in seconds for cached optimized images. In many cases, it's better to use a [Static Image Import](/docs/app/api-reference/components/image#local-images) which will automatically hash the file contents and cache the image forever with a `Cache-Control` header of `immutable`.
+`minimumCacheTTL` allows you to configure the Time to Live (TTL) in seconds for cached optimized images. In many cases, it's better to use a [Static Image Import](/docs/app/getting-started/images#local-images) which will automatically hash the file contents and cache the image forever with a `Cache-Control` header of `immutable`.
 
 If no configuration is provided, the default below is used.
 
