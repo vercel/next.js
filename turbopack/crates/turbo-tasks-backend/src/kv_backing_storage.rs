@@ -184,9 +184,11 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                 {
                     let _span = tracing::trace_span!("update task data").entered();
                     process_task_data(snapshots, Some(batch))?;
+                    let span = tracing::trace_span!("flush task data").entered();
                     [KeySpace::TaskMeta, KeySpace::TaskData]
                         .into_par_iter()
                         .try_for_each(|key_space| {
+                            let _span = span.clone().entered();
                             // Safety: We already finished all processing of the task data and task
                             // meta
                             unsafe { batch.flush(key_space) }
