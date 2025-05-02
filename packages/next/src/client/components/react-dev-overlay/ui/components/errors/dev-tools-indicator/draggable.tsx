@@ -156,6 +156,7 @@ export function useDrag(options: UseDragOptions) {
       }
     }
 
+    // Generated from https://www.easing.dev/spring
     el.style.transition = 'translate 491.22ms var(--timing-bounce)'
     el.addEventListener('transitionend', listener)
     set(corner.translation)
