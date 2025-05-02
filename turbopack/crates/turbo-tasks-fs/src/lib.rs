@@ -1320,6 +1320,7 @@ impl FileSystemPath {
     }
 
     // Tracks all files and directories matching the glob
+    // Follows symlinks as though they were part of the original hierarchy.
     #[turbo_tasks::function]
     pub fn track_glob(self: Vc<Self>, glob: Vc<Glob>, include_dot_files: bool) -> Vc<Completion> {
         track_glob(self, glob, include_dot_files)
@@ -1507,10 +1508,13 @@ impl FileSystemPath {
                     // Construct the path directly instead of going through `join`.
                     // We do not need to normalize since the `name` is guaranteed to be a simple
                     // path segment.
-                    let entry_path =
-                        Self::new_normalized(*fs, RcStr::from(format!("{dir_path}/{name}")))
-                            .to_resolved()
-                            .await?;
+                    let path = if dir_path.is_empty() {
+                        name.clone()
+                    } else {
+                        RcStr::from(format!("{dir_path}/{name}"))
+                    };
+
+                    let entry_path = Self::new_normalized(*fs, path).to_resolved().await?;
                     let entry = match entry {
                         RawDirectoryEntry::File => DirectoryEntry::File(entry_path),
                         RawDirectoryEntry::Directory => DirectoryEntry::Directory(entry_path),
@@ -2300,10 +2304,10 @@ pub enum DirectoryEntry {
     Error,
 }
 
-/// Handles the `DirectoryEntry::Symlink` variant by checking the symlink target
-/// type and replacing it with `DirectoryEntry::File` or
-/// `DirectoryEntry::Directory`.
 impl DirectoryEntry {
+    /// Handles the `DirectoryEntry::Symlink` variant by checking the symlink target
+    /// type and replacing it with `DirectoryEntry::File` or
+    /// `DirectoryEntry::Directory`.
     pub async fn resolve_symlink(self) -> Result<Self> {
         if let DirectoryEntry::Symlink(symlink) = self {
             let real_path = symlink.realpath().to_resolved().await?;
@@ -2314,6 +2318,16 @@ impl DirectoryEntry {
             }
         } else {
             Ok(self)
+        }
+    }
+
+    pub fn path(self) -> Option<ResolvedVc<FileSystemPath>> {
+        match self {
+            DirectoryEntry::File(path)
+            | DirectoryEntry::Directory(path)
+            | DirectoryEntry::Symlink(path)
+            | DirectoryEntry::Other(path) => Some(path),
+            DirectoryEntry::Error => None,
         }
     }
 }
