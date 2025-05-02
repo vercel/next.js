@@ -315,7 +315,9 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                 for mut collector in thread_local_collectors {
                     let this = &self;
                     let shared_error = &shared_error;
+                    let span = Span::current();
                     scope.spawn(move |_| {
+                        let _span = span.entered();
                         if let Err(err) =
                             this.flush_thread_local_collector(family as u32, &mut collector)
                         {
@@ -336,6 +338,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         let new_collectors = [(); FAMILIES]
             .map(|_| Mutex::new(GlobalCollectorState::Unsharded(self.get_new_collector())));
         let collectors = replace(&mut self.collectors, new_collectors);
+        let span = Span::current();
         collectors
             .into_par_iter()
             .enumerate()
@@ -353,6 +356,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                 }
             })
             .try_for_each(|(family, mut collector)| {
+                let _span = span.clone().entered();
                 let family = family as u32;
                 if !collector.is_empty() {
                     let sst = self.create_sst_file(family, collector.sorted())?;

@@ -208,6 +208,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                         .into_par_iter()
                         .with_max_len(1)
                         .map(|updates| {
+                            let _span = _span.clone().entered();
                             let mut max_task_id = 0;
 
                             let mut task_type_bytes = Vec::new();
