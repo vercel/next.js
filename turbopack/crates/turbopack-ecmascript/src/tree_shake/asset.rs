@@ -75,12 +75,12 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
     }
 
     #[turbo_tasks::function]
-    async fn module_content(
+    async fn module_content_options(
         self: Vc<Self>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
-    ) -> Result<Vc<EcmascriptModuleContent>> {
+    ) -> Result<Vc<EcmascriptModuleContentOptions>> {
         let module = self.await?;
 
         let split_data = split_module(*module.full_module);
@@ -96,24 +96,23 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
             .reference_module_source_maps(Vc::upcast(self))
             .await?;
 
-        Ok(EcmascriptModuleContent::new(
-            EcmascriptModuleContentOptions {
-                parsed,
-                ident: self.ident().to_resolved().await?,
-                specified_module_type: module_type_result.module_type,
-                module_graph,
-                chunking_context,
-                references: analyze.references().to_resolved().await?,
-                esm_references: analyze_ref.esm_references,
-                part_references: vec![],
-                code_generation: analyze_ref.code_generation,
-                async_module: analyze_ref.async_module,
-                generate_source_map,
-                original_source_map: analyze_ref.source_map,
-                exports: analyze_ref.exports,
-                async_module_info,
-            },
-        ))
+        Ok(EcmascriptModuleContentOptions {
+            parsed,
+            ident: self.ident().to_resolved().await?,
+            specified_module_type: module_type_result.module_type,
+            module_graph,
+            chunking_context,
+            references: analyze.references().to_resolved().await?,
+            esm_references: analyze_ref.esm_references,
+            part_references: vec![],
+            code_generation: analyze_ref.code_generation,
+            async_module: analyze_ref.async_module,
+            generate_source_map,
+            original_source_map: analyze_ref.source_map,
+            exports: analyze_ref.exports,
+            async_module_info,
+        }
+        .cell())
     }
 }
 
