@@ -70,8 +70,6 @@ const render = getRender({
   appMod,
   pageMod,
   errorMod,
-  // TODO: pass global not found mod
-  globalNotFoundMod: null,
   error500Mod,
   Document,
   buildManifest,

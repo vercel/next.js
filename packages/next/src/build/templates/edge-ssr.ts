@@ -8,7 +8,6 @@ import Document from 'VAR_MODULE_DOCUMENT'
 import * as appMod from 'VAR_MODULE_APP'
 import * as userlandPage from 'VAR_USERLAND'
 import * as userlandErrorPage from 'VAR_MODULE_GLOBAL_ERROR'
-import * as userlandNotFoundPage from 'VAR_MODULE_GLOBAL_NOT_FOUND'
 
 declare const userland500Page: any
 declare const incrementalCacheHandler: any
@@ -69,18 +68,6 @@ const errorMod = {
   }),
 }
 
-const globalNotFoundMod = {
-  ...userlandNotFoundPage,
-  routeModule: new RouteModule({
-    ...pageRouteModuleOptions,
-    components: {
-      App: appMod.default,
-      Document,
-    },
-    userland: userlandNotFoundPage,
-  }),
-}
-
 // FIXME: this needs to be made compatible with the template
 const error500Mod = userland500Page
   ? {
@@ -113,7 +100,6 @@ const render = getRender({
   appMod,
   pageMod,
   errorMod,
-  globalNotFoundMod,
   error500Mod,
   Document,
   buildManifest,
