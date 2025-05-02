@@ -236,6 +236,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
     ///
     /// Caller must ensure that no concurrent put or delete operation is happening on the flushed
     /// family.
+    #[tracing::instrument(level = "trace", skip(self))]
     pub unsafe fn flush(&self, family: u32) -> Result<()> {
         // Flush the thread local collectors to the global collector.
         let mut collectors = Vec::new();
