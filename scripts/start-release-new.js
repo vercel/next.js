@@ -3,6 +3,13 @@ const fs = require('fs/promises')
 const path = require('path')
 const execa = require('execa')
 
+function exec(command) {
+  return execa(command, {
+    stdio: 'inherit',
+    shell: true,
+  })
+}
+
 async function runChangesetVersion(tag) {
   const isCanary = tag === 'canary'
 
@@ -15,10 +22,7 @@ async function runChangesetVersion(tag) {
     await fs.writeFile(configPath, JSON.stringify(config, null, 2))
   }
 
-  await execa('pnpm changeset version', {
-    stdio: 'inherit',
-    shell: true,
-  })
+  await exec('pnpm changeset version')
 
   if (isCanary) {
     config.changelog = originalChangelog
@@ -47,18 +51,9 @@ export async function startReleaseNew() {
   const isDryRun = isNewReleaseDryRun || process.env.__NEW_RELEASE !== 'true'
   if (isDryRun) {
     // Create a .diff output and revert the `changeset version` result.
-    await execa('git diff > .changeset/canary.diff', {
-      stdio: 'inherit',
-      shell: true,
-    })
-    await execa('git add .changeset/canary.diff', {
-      stdio: 'inherit',
-      shell: true,
-    })
-    await execa('git checkout -- .', {
-      stdio: 'inherit',
-      shell: true,
-    })
+    await exec('git diff > .changeset/canary.diff')
+    await exec('git add .changeset/canary.diff')
+    await exec('git checkout -- .')
 
     // In legacy process, Lerna will push including the change.
     if (!isNewReleaseDryRun) {
@@ -66,37 +61,21 @@ export async function startReleaseNew() {
     }
   }
 
-  await execa(
-    `git remote set-url origin https://vercel-release-bot:${githubToken}@github.com/vercel/next.js.git`,
-    { stdio: 'inherit', shell: true }
+  await exec(
+    `git remote set-url origin https://vercel-release-bot:${githubToken}@github.com/vercel/next.js.git`
   )
-  await execa(`git config user.name "vercel-release-bot"`, {
-    stdio: 'inherit',
-    shell: true,
-  })
-  await execa(`git config user.email "infra+release@vercel.com"`, {
-    stdio: 'inherit',
-    shell: true,
-  })
+  await exec(`git config user.name "vercel-release-bot"`)
+  await exec(`git config user.email "infra+release@vercel.com"`)
 
   const { version } = require(require.resolve('next/package.json'))
   const commitMessage = isNewReleaseDryRun
     ? `v${version} (dry) [skip ci]`
     : `v${version}`
 
-  await execa('git add .', {
-    stdio: 'inherit',
-    shell: true,
-  })
-  await execa(`git commit -m "${commitMessage}"`, {
-    stdio: 'inherit',
-    shell: true,
-  })
+  await exec('git add .')
+  await exec(`git commit -m "${commitMessage}"`)
   // Bypass pre-push hook.
-  await execa('git push --no-verify', {
-    stdio: 'inherit',
-    shell: true,
-  })
+  await exec('git push --no-verify')
 }
 
 // TODO: Uncomment when replacing legacy release.
