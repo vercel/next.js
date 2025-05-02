@@ -2,7 +2,7 @@ use std::{borrow::Cow, future::Future, mem::replace, panic, pin::Pin};
 
 use anyhow::{anyhow, Result};
 use auto_hash_map::AutoSet;
-use futures::StreamExt;
+use futures::{StreamExt, TryStreamExt};
 use parking_lot::Mutex;
 use rustc_hash::FxHashSet;
 use tracing::{Instrument, Span};
@@ -171,24 +171,16 @@ pub async fn apply_effects(source: impl CollectiblesSource) -> Result<()> {
     }
     let span = tracing::info_span!("apply effects", count = effects.len());
     async move {
-        let effects = effects
-            .into_iter()
-            .map(async |effect| {
+        // Limit the concurrency of effects
+        futures::stream::iter(effects)
+            .map(Ok)
+            .try_for_each_concurrent(APPLY_EFFECTS_CONCURRENCY_LIMIT, async |effect| {
                 let Some(effect) = ResolvedVc::try_downcast_type::<EffectInstance>(effect) else {
                     panic!("Effect must only be implemented by EffectInstance");
                 };
                 effect.await?.apply().await
             })
-            // TODO remove this collect(), but rust was not happy with it...
-            .collect::<Vec<_>>();
-        // Limit the concurrency of effects,
-        // run them all even if an error occurs,
-        // report the first error.
-        let mut results = futures::stream::iter(effects).buffered(APPLY_EFFECTS_CONCURRENCY_LIMIT);
-        while let Some(result) = results.next().await {
-            result?;
-        }
-        Ok(())
+            .await
     }
     .instrument(span)
     .await
@@ -261,21 +253,13 @@ impl Effects {
     pub async fn apply(&self) -> Result<()> {
         let span = tracing::info_span!("apply effects", count = self.effects.len());
         async move {
-            let effects = self
-                .effects
-                .iter()
-                .map(async |effect| effect.apply().await)
-                // TODO remove this collect(), but rust was not happy with it...
-                .collect::<Vec<_>>();
-            // Limit the concurrency of effects,
-            // run them all even if an error occurs,
-            // report the first error.
-            let mut results =
-                futures::stream::iter(effects).buffered(APPLY_EFFECTS_CONCURRENCY_LIMIT);
-            while let Some(result) = results.next().await {
-                result?;
-            }
-            Ok(())
+            // Limit the concurrency of effects
+            futures::stream::iter(self.effects.iter())
+                .map(Ok)
+                .try_for_each_concurrent(APPLY_EFFECTS_CONCURRENCY_LIMIT, async |effect| {
+                    effect.apply().await
+                })
+                .await
         }
         .instrument(span)
         .await
