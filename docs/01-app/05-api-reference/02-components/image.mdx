@@ -771,7 +771,7 @@ module.exports = {
 }
 ```
 
-By default, [loader](#loader) does not optimize SVG images for a few reasons:
+By default, the [Next.js Image Loader](/docs/app/guides/image-optimization#the-image-loader) does not optimize SVG images for a few reasons:
 
 - SVG is a vector format meaning it can be resized losslessly.
 - SVG has many of the same features as HTML/CSS, which can lead to vulnerabilities without proper [Content Security Policy (CSP) headers](/docs/app/api-reference/config/next-config-js/headers#content-security-policy).
@@ -829,6 +829,34 @@ module.exports = {
   },
 }
 ```
+
+## Functions
+
+### `getImageProps`
+
+The `getImageProps` function can be used to get the props that would be passed to the underlying `<img>` element, and instead pass them to another component, style, canvas, etc.
+
+```jsx
+import { getImageProps } from 'next/image'
+
+const props = getImageProps({
+  src: 'https://example.com/image.jpg',
+  alt: 'A scenic mountain view',
+  width: 1200,
+  height: 800,
+})
+
+function ImageWithCaption() {
+  return (
+    <figure>
+      <img {...props} />
+      <figcaption>A scenic mountain view</figcaption>
+    </figure>
+  )
+}
+```
+
+This also avoid calling React `useState()` so it can lead to better performance, but it cannot be used with the [`placeholder`](#placeholder) prop because the placeholder will never be removed.
 
 ## Known browser bugs
 
