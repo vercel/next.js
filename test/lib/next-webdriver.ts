@@ -46,6 +46,12 @@ if (typeof afterAll === 'function') {
 
 export interface WebdriverOptions {
   /**
+   * When to consider the initial page load succeeded.
+   *
+   * @default "load"
+   */
+  waitUntil?: 'domcontentloaded' | 'load' | 'networkidle' | 'commit'
+  /**
    * whether to wait for React hydration to finish
    */
   waitHydration?: boolean
@@ -94,18 +100,13 @@ export interface WebdriverOptions {
 export default async function webdriver(
   appPortOrUrl: string | number,
   url: string,
-  options?: WebdriverOptions
+  options: WebdriverOptions = {}
 ): Promise<Playwright> {
-  const defaultOptions = {
-    waitHydration: true,
-    retryWaitHydration: false,
-    disableCache: false,
-  }
-  options = Object.assign(defaultOptions, options)
   const {
-    waitHydration,
-    retryWaitHydration,
-    disableCache,
+    waitUntil = 'load',
+    waitHydration = waitUntil === 'commit' ? false : true,
+    retryWaitHydration = false,
+    disableCache = false,
     beforePageLoad,
     locale,
     disableJavaScript,
@@ -145,8 +146,12 @@ export default async function webdriver(
     cpuThrottleRate,
     beforePageLoad,
     pushErrorAsConsoleLog,
+    waitUntil,
   })
-  console.log(`\n> Loaded browser with ${fullUrl}\n`)
+
+  console.log(
+    `\n> Loaded browser with ${fullUrl} (waitUntil: ${JSON.stringify(waitUntil)})\n`
+  )
 
   browserTeardown.push(browser.close.bind(browser))
 
