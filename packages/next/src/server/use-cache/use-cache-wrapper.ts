@@ -706,10 +706,12 @@ export function cache(
         if (prerenderResumeDataCache) {
           const clonedPendingEntries = clonePendingCacheEntry(pendingEntry)
           pendingEntry = getNthCacheEntry(clonedPendingEntries, 1)
-
           prerenderResumeDataCache.cache.set(serializedCacheKey, pendingEntry)
         }
 
+        // Otherwise, we don't need to clone the entry, because we don't read
+        // the value stream of the entry. We just need to propagate its cache
+        // life and tags to the workUnitStore.
         pendingEntry
           .then((entry) => propagateCacheLifeAndTags(workUnitStore, entry))
           .catch(() => {})
