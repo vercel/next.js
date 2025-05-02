@@ -84,19 +84,27 @@ function getTestFilter() {
       )
       .map((test) => {
         for (let manifest of manifests) {
-          const info = manifest.suites[test.file]
-
-          // If there's no info for this test, then it's a test that has no
-          // failures or flakey tests, so we can just include it as-is.
-          if (!info) {
-            continue
-          }
-
-          // Exclude failing and flakey tests, newly added tests are
-          // automatically included.
-          const { failed = [], flakey = [] } = info
-          if (failed.length > 0 || flakey.length > 0) {
-            test.excludedCases = failed.concat(flakey)
+          if (!manifest.version || typeof manifest.version !== 'number') {
+            const info = manifest[test.file]
+            // Exclude failing and flakey tests, newly added tests are automatically included
+            if (info && (info.failed.length > 0 || info.flakey.length > 0)) {
+              test.excludedCases = info.failed.concat(info.flakey)
+            }
+          } else if (manifest.version === 2) {
+            const info = manifest.suites[test.file]
+            // If there's no info for this test, then it's a test that has no
+            // failures or flakey tests, so we can just include it as-is.
+            if (!info) {
+              continue
+            }
+            // Exclude failing and flakey tests, newly added tests are
+            // automatically included.
+            const { failed = [], flakey = [] } = info
+            if (failed.length > 0 || flakey.length > 0) {
+              test.excludedCases = failed.concat(flakey)
+            }
+          } else {
+            throw new Error(`Unknown manifest version: ${manifest.version}`)
           }
         }
 
