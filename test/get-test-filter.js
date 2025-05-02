@@ -1,6 +1,10 @@
 const path = require('path')
 const minimatch = require('minimatch')
 
+/**
+ * @typedef {{ file: string, excludedCases: string[] }} TestFile
+ */
+
 function getTestFilter() {
   const manifests = process.env.NEXT_EXTERNAL_TESTS_FILTERS
     ? process.env.NEXT_EXTERNAL_TESTS_FILTERS.trim()
@@ -38,35 +42,44 @@ function getTestFilter() {
   // be run, with exclusions added based on rules. Any new tests that are added
   // will be automatically included if they match the include rules.
   // if (manifest.version === 2) {
+  /** @type {(tests:TestFile[]) => bool} */
   return (tests) =>
     tests
       .filter((test) =>
         manifests.every((manifest) => {
-          // Check to see if this was included as-is in the manifest.
-          if (test.file in manifest.suites) return true
+          if (!manifest.version || typeof manifest.version !== 'number') {
+            const info = manifest[test.file]
+            // Include tests that are not in the manifest
+            return !info || !info.runtimeError
+          } else if (manifest.version === 2) {
+            // Check to see if this was included as-is in the manifest.
+            if (test.file in manifest.suites) return true
 
-          // If this file doesn't match any of the include patterns, then it
-          // should be excluded.
-          if (
-            manifest.rules.include.every(
-              (pattern) => !minimatch(test.file, pattern)
-            )
-          ) {
-            return false
+            // If this file doesn't match any of the include patterns, then it
+            // should be excluded.
+            if (
+              manifest.rules.include.every(
+                (pattern) => !minimatch(test.file, pattern)
+              )
+            ) {
+              return false
+            }
+
+            // If the file matches any of the exclude patterns, then it should be
+            // excluded.
+            if (
+              manifest.rules.exclude?.some((pattern) =>
+                minimatch(test.file, pattern)
+              )
+            ) {
+              return false
+            }
+
+            // Otherwise, it should be included.
+            return true
+          } else {
+            throw new Error(`Unknown manifest version: ${manifest.version}`)
           }
-
-          // If the file matches any of the exclude patterns, then it should be
-          // excluded.
-          if (
-            manifest.rules.exclude?.some((pattern) =>
-              minimatch(test.file, pattern)
-            )
-          ) {
-            return false
-          }
-
-          // Otherwise, it should be included.
-          return true
         })
       )
       .map((test) => {
