@@ -48,7 +48,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
 
     await session.assertHasRedbox()
     await expect(session.getRedboxSource()).resolves.toMatch(
-      /That only works in a Server Component/
+      /You're importing a module that uses "next\/headers"/
     )
 
     if (process.env.IS_TURBOPACK_TEST) {
@@ -73,8 +73,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
          × Module build failed:
-         ╰─▶   × Error:   x You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-
-               │   | your-application/rendering/server-components
+         ╰─▶   × Error:   x You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-
+               │   | application/rendering/server-components
                │   |
                │   |
                │    ,-[1:1]
@@ -124,7 +124,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
 
     await session.assertHasRedbox()
     await expect(session.getRedboxSource()).resolves.toMatch(
-      /That only works in a Server Component/
+      /This directive only works in server-only files or Server Components within the App Router/
     )
 
     if (process.env.IS_TURBOPACK_TEST) {
@@ -138,7 +138,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
          3 | export default function Page() {
          4 |   return 'hello world'
 
-       You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components"
+       You're importing a module that uses "server-only". This directive only works in server-only files or Server Components within the App Router. It is not supported in Client Components or the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components"
       `)
     } else if (isRspack) {
       expect(
@@ -149,7 +149,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
          × Module build failed:
-         ╰─▶   × Error:   x You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-
+         ╰─▶   × Error:   x You're importing a module that uses "server-only". This directive only works in server-only files or Server Components within the App Router. It is not supported in Client Components or the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-
                │   | application/rendering/server-components
                │   |
                │   |
@@ -169,7 +169,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-       Error:   x You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+       Error:   x You're importing a module that uses "server-only". This directive only works in server-only files or Server Components within the App Router. It is not supported in Client Components or the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
          |
 
           ,-[1:1]
@@ -202,7 +202,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
 
     await session.assertHasRedbox()
     await expect(session.getRedboxSource()).resolves.toMatch(
-      /That only works in a Server Component/
+      /You're importing a module that uses "after"/
     )
 
     if (process.env.IS_TURBOPACK_TEST) {
@@ -288,7 +288,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
 
       await session.assertHasRedbox()
       await expect(session.getRedboxSource()).resolves.toMatch(
-        `You're importing a component that needs "${api}". That only works in a Server Component which is not supported in the pages/ directory.`
+        `You're importing a module that uses "${api}". This directive only works in server-only files or Server Components within the App Router. It is not supported in Client Components or the pages/ directory.`
       )
     })
 

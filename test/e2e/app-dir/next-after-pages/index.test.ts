@@ -62,7 +62,7 @@ _describe('after() - pages', () => {
 
         await assertHasRedbox(browser)
         expect(await getRedboxSource(browser)).toMatch(
-          /You're importing a component that needs "?after"?\. That only works in a Server Component which is not supported in the pages\/ directory\./
+          /You're importing a module that uses "?after"?\. This directive only works in server-only files or Server Components within the App Router\. It is not supported in Client Components or the pages\/ directory\./
         )
         expect(getLogs()).toHaveLength(0)
       })
