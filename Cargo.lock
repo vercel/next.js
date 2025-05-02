@@ -4508,6 +4508,7 @@ dependencies = [
  "turbopack-env",
  "turbopack-node",
  "turbopack-nodejs",
+ "turbopack-wasm",
  "vergen 9.0.5",
 ]
 
