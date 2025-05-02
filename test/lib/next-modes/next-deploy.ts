@@ -101,6 +101,11 @@ export class NextDeployInstance extends NextInstance {
       `VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION || 'vercel@latest'}`
     )
 
+    if (process.env.IS_TURBOPACK_TEST) {
+      additionalEnv.push('--build-env')
+      additionalEnv.push(`IS_TURBOPACK_TEST=1`)
+    }
+
     const deployRes = await execa(
       'vercel',
       [
