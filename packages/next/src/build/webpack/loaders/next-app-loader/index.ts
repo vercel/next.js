@@ -50,6 +50,7 @@ export type AppLoaderOptions = {
   nextConfigOutput?: NextConfig['output']
   nextConfigExperimentalUseEarlyImport?: true
   middlewareConfig: string
+  isGlobalNotFoundEnabled: boolean
 }
 type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
 
@@ -82,6 +83,7 @@ const PARALLEL_CHILDREN_SEGMENT = 'children$'
 const defaultGlobalErrorPath = 'next/dist/client/components/global-error'
 const defaultNotFoundPath = 'next/dist/client/components/not-found-error'
 const defaultLayoutPath = 'next/dist/client/components/default-layout'
+const defaultGlobalNotFoundPath = 'next/dist/client/components/global-not-found'
 
 type DirResolver = (pathToResolve: string) => string
 type PathResolver = (
@@ -126,6 +128,7 @@ async function createTreeCodeFromPath(
     pageExtensions,
     basePath,
     collectedDeclarations,
+    isGlobalNotFoundEnabled,
   }: {
     page: string
     resolveDir: DirResolver
@@ -138,6 +141,7 @@ async function createTreeCodeFromPath(
     pageExtensions: PageExtensions
     basePath: string
     collectedDeclarations: [string, string][]
+    isGlobalNotFoundEnabled: boolean
   }
 ): Promise<{
   treeCode: string
@@ -146,6 +150,12 @@ async function createTreeCodeFromPath(
   globalError: string
   globalNotFound: string
 }> {
+  if (!isGlobalNotFoundEnabled) {
+    // @ts-expect-error FILE_TYPES is static and readonly.
+    // This is a workaround to remove the global-not-found from convention names.
+    delete FILE_TYPES['global-not-found']
+  }
+
   const splittedPath = pagePath.split(/[\\/]/, 1)
   const isNotFoundRoute = page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
   const isDefaultNotFound = isAppBuiltinNotFoundPage(pagePath)
@@ -215,9 +225,7 @@ async function createTreeCodeFromPath(
       null
     const routerDirPath = `${appDirPrefix}${segmentPath}`
     // For default not-found, don't traverse the directory to find metadata.
-    const resolvedRouteDir = isDefaultNotFound
-      ? ''
-      : await resolveDir(routerDirPath)
+    const resolvedRouteDir = isDefaultNotFound ? '' : resolveDir(routerDirPath)
 
     if (resolvedRouteDir) {
       metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
@@ -343,7 +351,15 @@ async function createTreeCodeFromPath(
         )?.[1]
         rootLayout = layoutPath
 
-        if (isDefaultNotFound && !layoutPath && !rootLayout) {
+        // When `global-not-found` is disabled, we insert a default layout if
+        // root layout is presented. This logic and the default layout will be removed
+        // once `global-not-found` is stabilized.
+        if (
+          !isGlobalNotFoundEnabled &&
+          isDefaultNotFound &&
+          !layoutPath &&
+          !rootLayout
+        ) {
           rootLayout = defaultLayoutPath
           definedFilePaths.push(['layout', rootLayout])
         }
@@ -385,9 +401,10 @@ async function createTreeCodeFromPath(
       // If it's root not found page, set not-found boundary as children page
       if (isNotFoundRoute) {
         if (normalizedParallelKey === 'children') {
-          const matchedGlobalNotFound = definedFilePaths.find(
-            ([type]) => type === GLOBAL_NOT_FOUND_FILE_TYPE
-          )?.[1]
+          const matchedGlobalNotFound =
+            definedFilePaths.find(
+              ([type]) => type === GLOBAL_NOT_FOUND_FILE_TYPE
+            )?.[1] ?? defaultGlobalNotFoundPath
 
           // If custom global-not-found.js is defined, use global-not-found.js
           if (matchedGlobalNotFound) {
@@ -427,7 +444,8 @@ async function createTreeCodeFromPath(
 
       // For 404 route
       // if global-not-found is in definedFilePaths, remove root layout for /_not-found
-      if (isNotFoundRoute && globalNotFound) {
+      // TODO: remove this once global-not-found is stable.
+      if (isNotFoundRoute && isGlobalNotFoundEnabled) {
         definedFilePaths = definedFilePaths.filter(
           ([type]) => type !== 'layout'
         )
@@ -540,6 +558,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     basePath,
     middlewareConfig: middlewareConfigBase64,
     nextConfigExperimentalUseEarlyImport,
+    isGlobalNotFoundEnabled,
   } = loaderOptions
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
@@ -734,9 +753,11 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     pageExtensions,
     basePath,
     collectedDeclarations,
+    isGlobalNotFoundEnabled,
   })
 
-  const isGlobalNotFoundPath = page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY && !!treeCodeResult.globalNotFound
+  const isGlobalNotFoundPath =
+    page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY && !!treeCodeResult.globalNotFound
   if (!treeCodeResult.rootLayout && !isGlobalNotFoundPath) {
     if (!isDev) {
       // If we're building and missing a root layout, exit the build
@@ -784,6 +805,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         pageExtensions,
         basePath,
         collectedDeclarations,
+        isGlobalNotFoundEnabled,
       })
     }
   }

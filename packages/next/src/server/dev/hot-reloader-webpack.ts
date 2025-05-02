@@ -962,6 +962,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       middlewareConfig: Buffer.from(
                         JSON.stringify(staticInfo?.middleware || {})
                       ).toString('base64'),
+                      isGlobalNotFoundEnabled:
+                        !!this.config.experimental.globalNotFound,
                     }).import
                   : undefined
 
@@ -1058,12 +1060,12 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                   )
                     ? entryData.absolutePagePath
                     : posix.join(
-                      APP_DIR_ALIAS,
-                      relative(
-                        this.appDir!,
-                        entryData.absolutePagePath
-                      ).replace(/\\/g, '/')
-                    )
+                        APP_DIR_ALIAS,
+                        relative(
+                          this.appDir!,
+                          entryData.absolutePagePath
+                        ).replace(/\\/g, '/')
+                      )
                   value = getAppEntry({
                     name: bundlePath,
                     page,
@@ -1081,6 +1083,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     middlewareConfig: Buffer.from(
                       JSON.stringify(staticInfo?.middleware || {})
                     ).toString('base64'),
+                    isGlobalNotFoundEnabled:
+                      !!this.config.experimental.globalNotFound,
                   })
                 } else if (isAPIRoute(page)) {
                   value = getRouteLoaderEntry({

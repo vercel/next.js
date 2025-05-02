@@ -301,11 +301,10 @@ export async function createPagesMapping({
         page.endsWith('/page')
       )
       return {
-        // If there's any app pages existed, add a default not-found page.
-        // If there's any custom not-found page existed, it will override the default one.
+        // If there's any app pages existed, add a default /_not-found route as 404.
+        // If there's any custom /_not-found page, it will override the default one.
         ...(hasAppPages && {
           [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]:
-            // 'next/dist/client/components/not-found-error',
             'next/dist/client/components/global-not-found',
         }),
         ...pages,
@@ -723,6 +722,7 @@ export async function createEntrypoints(
                 : undefined,
               preferredRegion: staticInfo.preferredRegion,
               middlewareConfig: encodeToBase64(staticInfo.middleware || {}),
+              isGlobalNotFoundEnabled: !!config.experimental.globalNotFound,
             })
           } else if (isInstrumentation) {
             server[serverBundlePath.replace('src/', '')] =
@@ -802,6 +802,7 @@ export async function createEntrypoints(
                 middlewareConfig: Buffer.from(
                   JSON.stringify(staticInfo.middleware || {})
                 ).toString('base64'),
+                isGlobalNotFoundEnabled: !!config.experimental.globalNotFound,
               }).import
             }
             edgeServer[serverBundlePath] = getEdgeServerEntry({

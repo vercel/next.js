@@ -38,7 +38,7 @@ const message = 'This page could not be found.'
 
 function GlobalNotFound() {
   return (
-    <html data-global-not-found="true">
+    <html>
       <body>
         <head>
           <title>{`${status}: ${message}`}</title>

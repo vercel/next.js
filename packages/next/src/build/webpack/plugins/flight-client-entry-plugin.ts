@@ -405,7 +405,6 @@ export class FlightClientEntryPlugin {
           name === `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}` &&
           bundlePath === 'app/global-not-found'
         ) {
-          
           clientEntriesToInject.push({
             compiler,
             compilation,

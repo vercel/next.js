@@ -3,7 +3,7 @@
  */
 const nextConfig = {
   experimental: {
-    globalNotFound: true,
+    globalNotFound: false,
   },
 }
 
