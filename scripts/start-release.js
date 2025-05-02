@@ -2,12 +2,23 @@
 const path = require('path')
 const execa = require('execa')
 const resolveFrom = require('resolve-from')
+const { startReleaseNew } = require('./start-release-new')
 
 const SEMVER_TYPES = ['patch', 'minor', 'major']
 
 async function main() {
   const args = process.argv
   const releaseType = args[args.indexOf('--release-type') + 1]
+
+  const isNewRelease =
+    process.env.__NEW_RELEASE === 'true' ||
+    process.env.__NEW_RELEASE_DRY_RUN === 'true'
+  if (isNewRelease) {
+    console.log('New release process in action, skipping legacy release...')
+    await startReleaseNew()
+    return
+  }
+
   const semverType = args[args.indexOf('--semver-type') + 1]
   const isCanary = releaseType === 'canary'
   const isReleaseCandidate = releaseType === 'release-candidate'
