@@ -9,13 +9,11 @@ related:
     - app/api-reference/components/image
 ---
 
-Next.js comes with a built-in Image Optimization API for better loading performance and user experience.
-
-In this deep dive, you'll learn how image optimization works in Next.js.
+Next.js provides automatic image optimization to improveloading performance and user experience. In this deep dive, you'll learn how image optimization works in Next.js.
 
 ## The Image Component
 
-The Next.js `<Image />` component extends the HTML `<img>` element for automatic image optimization with best practices built-in.
+The Next.js `<Image />` component extends the HTML `<img>` element with built-in best practices for optimizing images.
 
 ```jsx filename="app/page.js"
 import Image from 'next/image'
@@ -24,8 +22,6 @@ export default function Page() {
   return <Image src="/profile.png" alt="Picture of the author" />
 }
 ```
-
-By default, it's a Client Component that runs in the browser. Using the component signals to the [Next.js Image Loader](#the-image-loader) to optimize and cache the image on the server.
 
 > See the [Image Component API](/docs/app/api-reference/components/image) reference for all available props.
 
@@ -41,6 +37,36 @@ TODO: This should be sequential
 - Serves the optimized images through the Next.js web server.
 
 > If you would like to serve your images directly from a CDN or external image service, you can also [write your own loader](/docs/app/api-reference/components/image#loader) function.
+
+## Caching and revalidating images
+
+> The following describes the caching behavior for the default [Next.js Image Loader](#the-image-loader). For other loaders, please refer to your cloud provider's documentation.
+
+Image caching and revalidation is handled automatically by Next.js at request time.
+
+1. **First request (miss)**: The image is optimized and cached in the `<distDir>/cache/images` directory.
+2. **Subsequent requests (hit)**: The image is served from the cache.
+3. **Expired (stale)**: The stale cached image is served immediately, and revalidation is triggered in the background.
+4. **Revalidation**: The image is optimized again and saved to the cache with the new expiration date.
+
+TODO: Add a diagram
+
+### Duration
+
+TODO: What is the default duration with no configuration?
+
+The cache lifetime is the greater of:
+
+- The [`minimumCacheTTL`](/docs/app/api-reference/components/image#minimum-cache-ttl) configuration
+- The upstream image `Cache-Control` header. If both `s-maxage` and `max-age` are found, then `s-maxage` is preferred.
+
+### Status
+
+You can check the image cache status with the `x-nextjs-cache` response header:
+
+- `MISS` – Not in cache (first time)
+- `HIT` – Cached and fresh
+- `STALE` – Cached but expired, will be updated in the background
 
 ### Image Sizing
 
@@ -68,33 +94,3 @@ The optimized output is served as `webp` and `avif` images where supported.
 
 - **Animated images** (e.g., GIF, APNG, ets) as served as-is, bypassing optimization.
 - **SVGs** are blocked by default unless [`unoptimized`](/docs/app/api-reference/components/image#unoptimized) or [`dangerouslyAllowSVG`](/docs/app/api-reference/components/image#dangerouslyallowsvg) is enabled.
-
-## Caching and revalidating images
-
-> The following describes the caching behavior for the default [Next.js Image Loader](#the-image-loader). For other loaders, please refer to your cloud provider's documentation.
-
-Image caching and revalidation is handled automatically by Next.js at runtime.
-
-1. **First request (miss)**: The image is optimized and cached in the `<distDir>/cache/images` directory.
-2. **Subsequent requests (hit)**: The image is served from the cache.
-3. **Expired (stale)**: The stale cached image is served immediately, and revalidation is triggered in the background.
-4. **Revalidation**: The image is optimized again and saved to the cache with the new expiration date.
-
-TODO: Add a diagram
-
-### Duration
-
-TODO: What is the default duration with no configuration?
-
-The cache lifetime is the greater of:
-
-- The [`minimumCacheTTL`](/docs/app/api-reference/components/image#minimum-cache-ttl) configuration
-- The upstream image `Cache-Control` header. If both `s-maxage` and `max-age` are found, then `s-maxage` is preferred.
-
-### Status
-
-You can check the image cache status with the `x-nextjs-cache` response header:
-
-- `MISS` – Not in cache (first time)
-- `HIT` – Cached and fresh
-- `STALE` – Cached but expired, will be updated in the background
