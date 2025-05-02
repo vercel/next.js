@@ -1440,12 +1440,12 @@ function augmentContext(context) {
 function fetchWebAssembly(wasmChunkPath) {
     return fetch(getChunkRelativeUrl(wasmChunkPath));
 }
-async function loadWebAssembly(_source, wasmChunkPath, importsObj) {
+async function loadWebAssembly(_source, wasmChunkPath, _edgeModule, importsObj) {
     const req = fetchWebAssembly(wasmChunkPath);
     const { instance } = await WebAssembly.instantiateStreaming(req, importsObj);
     return instance.exports;
 }
-async function loadWebAssemblyModule(_source, wasmChunkPath) {
+async function loadWebAssemblyModule(_source, wasmChunkPath, _edgeModule) {
     const req = fetchWebAssembly(wasmChunkPath);
     return await WebAssembly.compileStreaming(req);
 }
