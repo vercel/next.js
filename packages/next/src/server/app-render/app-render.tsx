@@ -321,23 +321,8 @@ function parseRequestHeaders(
 }
 
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
-  console.log('createNotFoundLoaderTree')
-  // Align the segment with parallel-route-default in next-app-loader
   const components = loaderTree[2]
   const hasGlobalNotFound = !!components['global-not-found']
-  console.log('hasGlobalNotFound', hasGlobalNotFound)
-  // Override the layout to the default empty layout
-  // if (hasGlobalNotFound) {
-  //   // TODO: move this logic into next-app-loader
-  //   // @ts-expect-error force override
-  //   components['layout'] = [
-  //     () => (({ children }: { children: React.ReactNode }) => {
-  //       return <>{children}</>
-  //     }),
-  //     '__global_not_found_layout__',
-  //   ]
-  // }
-  
   return [
     '',
     {
@@ -349,7 +334,8 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
         },
       ],
     },
-    components,
+    // When global-not-found is present, skip layout from components
+    hasGlobalNotFound ? components : {},
   ]
 }
 
@@ -1288,6 +1274,12 @@ async function renderToHTMLOrFlightImpl(
       process.env
     )
   }
+
+  console.log(
+    'loaderTree',
+    loaderTree[2],
+    loaderTree[1].children[1].children[1]
+  )
 
   workStore.fetchMetrics = []
   metadata.fetchMetrics = workStore.fetchMetrics

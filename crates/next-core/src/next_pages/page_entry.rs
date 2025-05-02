@@ -212,6 +212,7 @@ async fn wrap_edge_page(
     const INNER_APP: &str = "INNER_APP";
     const INNER_ERROR: &str = "INNER_ERROR";
     const INNER_ERROR_500: &str = "INNER_500";
+    const INNER_NOT_FOUND: &str = "INNER_NOT_FOUND";
 
     let next_config_val = &*next_config.await?;
 
@@ -235,6 +236,7 @@ async fn wrap_edge_page(
             "VAR_MODULE_DOCUMENT" => INNER_DOCUMENT.into(),
             "VAR_MODULE_APP" => INNER_APP.into(),
             "VAR_MODULE_GLOBAL_ERROR" => INNER_ERROR.into(),
+            "VAR_MODULE_GLOBAL_NOT_FOUND" => INNER_NOT_FOUND.into(),
         },
         fxindexmap! {
             "pagesType" => StringifyJs("pages").to_string().into(),
