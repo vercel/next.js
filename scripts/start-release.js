@@ -2,7 +2,7 @@
 const path = require('path')
 const execa = require('execa')
 const resolveFrom = require('resolve-from')
-const { startReleaseNew } = require('./start-release-new')
+const startRelease = require('./release/start-release')
 
 const SEMVER_TYPES = ['patch', 'minor', 'major']
 
@@ -15,7 +15,7 @@ async function main() {
     process.env.__NEW_RELEASE_DRY_RUN === 'true'
   if (isNewRelease) {
     console.log('New release process in action, skipping legacy release...')
-    await startReleaseNew()
+    await startRelease()
     return
   }
 

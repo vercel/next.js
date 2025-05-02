@@ -30,7 +30,7 @@ async function runChangesetVersion(tag) {
   }
 }
 
-export async function startReleaseNew() {
+async function main() {
   const githubToken = process.env.RELEASE_BOT_GITHUB_TOKEN
   if (!githubToken) {
     console.log('Missing RELEASE_BOT_GITHUB_TOKEN')
@@ -79,4 +79,5 @@ export async function startReleaseNew() {
 }
 
 // TODO: Uncomment when replacing legacy release.
-// release()
+// main()
+module.exports = main
