@@ -14,7 +14,7 @@ interface Corner {
 
 export function Draggable({
   children,
-  padding: PADDING,
+  padding,
   position: currentCorner,
   setPosition: setCurrentCorner,
   onDragStart,
@@ -70,7 +70,7 @@ export function Draggable({
   }
 
   function getCorners(): Record<Corners, Point> {
-    const offset = PADDING * 2
+    const offset = padding * 2
     const triggerWidth = ref.current?.offsetWidth || 0
     const triggerHeight = ref.current?.offsetHeight || 0
 
