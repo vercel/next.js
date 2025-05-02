@@ -50,6 +50,28 @@ fn full_cycle() -> Result<()> {
 
     test_case(
         &mut test_cases,
+        "Many SST files",
+        |batch| {
+            for i in 10..100u8 {
+                batch.put(0, vec![i], vec![i].into())?;
+                unsafe { batch.flush(0)? };
+            }
+            Ok(())
+        },
+        |db| {
+            let Some(value) = db.get(0, &[42u8])? else {
+                panic!("Value not found");
+            };
+            assert_eq!(&*value, &[42]);
+            assert_eq!(db.get(0, &[42u8, 42])?, None);
+            assert_eq!(db.get(0, &[1u8])?, None);
+            assert_eq!(db.get(0, &[255u8])?, None);
+            Ok(())
+        },
+    );
+
+    test_case(
+        &mut test_cases,
         "Families",
         |batch| {
             for i in 0..16u8 {
