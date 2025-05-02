@@ -10,7 +10,6 @@ describe('back/forward cache', () => {
     const browser = await next.browser('/page/1')
 
     // Accumulate some state on page 1.
-    // Accumulate some state on page 1.
     await retry(async () => {
       // we do this inside of retry in case button event handler
       // isn't ready yet
@@ -127,11 +126,14 @@ describe('back/forward cache', () => {
       'a[href="/page/1?param=true"]'
     )
     await linkToPage1WithSearchParam.click()
-    const counterDisplay1AfterNav =
-      await browser.elementById('counter-display-1')
-    const hasSearchParam = await browser.elementById('has-search-param-1')
-    expect(await counterDisplay1AfterNav.text()).toBe('Count: 2')
-    expect(await hasSearchParam.text()).toBe('Has search param: yes')
+
+    await retry(async () => {
+      const counterDisplay1AfterNav =
+        await browser.elementById('counter-display-1')
+      const hasSearchParam = await browser.elementById('has-search-param-1')
+      expect(await counterDisplay1AfterNav.text()).toBe('Count: 2')
+      expect(await hasSearchParam.text()).toBe('Has search param: yes')
+    })
   })
 
   it('bfcache only preserves up to N entries', async () => {
@@ -185,11 +187,14 @@ describe('back/forward cache', () => {
     expect(await counterDisplay2AfterNav.text()).toBe('Count: 9')
 
     // Navigate back to page 1 to confirm its state is not preserved.
-    const linkToPage1 = await browser.elementByCss('a[href="/page/1"]')
-    await linkToPage1.click()
-    const counterDisplay1AfterNav =
-      await browser.elementById('counter-display-1')
-    expect(await counterDisplay1AfterNav.text()).toBe('Count: 0')
+    await retry(async () => {
+      const linkToPage1 = await browser.elementByCss('a[href="/page/1"]')
+      await linkToPage1.click()
+
+      const counterDisplay1AfterNav =
+        await browser.elementById('counter-display-1')
+      expect(await counterDisplay1AfterNav.text()).toBe('Count: 0')
+    })
   })
 
   it('navigate back and forth repeatedly between the same pages without evicting', async () => {
