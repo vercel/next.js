@@ -15,8 +15,6 @@ export type EdgeSSRLoaderQuery = {
   absoluteAppPath: string
   absoluteDocumentPath: string
   absoluteErrorPath: string
-  // TODO: add this on the loader side
-  absoluteGlobalNotFoundPath: string
   absolutePagePath: string
   dev: boolean
   isServerComponent: boolean
@@ -72,7 +70,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       absoluteDocumentPath,
       absolute500Path,
       absoluteErrorPath,
-      absoluteGlobalNotFoundPath,
       isServerComponent,
       stringifiedConfig: stringifiedConfigBase64,
       appDirLoader: appDirLoaderBase64,
@@ -132,10 +129,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       this.context || this.rootContext,
       swapDistFolderWithEsmDistFolder(absoluteErrorPath)
     )
-    const globalNotFoundPath = this.utils.contextify(
-      this.context || this.rootContext,
-      swapDistFolderWithEsmDistFolder(absoluteGlobalNotFoundPath)
-    )
     const documentPath = this.utils.contextify(
       this.context || this.rootContext,
       swapDistFolderWithEsmDistFolder(absoluteDocumentPath)
@@ -184,7 +177,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
           VAR_MODULE_DOCUMENT: documentPath,
           VAR_MODULE_APP: appPath,
           VAR_MODULE_GLOBAL_ERROR: errorPath,
-          VAR_MODULE_GLOBAL_NOT_FOUND: globalNotFoundPath,
         },
         {
           pagesType: JSON.stringify(pagesType),

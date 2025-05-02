@@ -435,8 +435,6 @@ export function getEdgeServerEntry(opts: {
     absoluteAppPath: opts.pages['/_app'],
     absoluteDocumentPath: opts.pages['/_document'],
     absoluteErrorPath: opts.pages['/_error'],
-    // TODO: pass global not found path to edge loader
-    absoluteGlobalNotFoundPath: '',
     absolutePagePath: opts.absolutePagePath,
     dev: opts.isDev,
     isServerComponent: opts.isServerComponent,
