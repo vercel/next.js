@@ -53,6 +53,7 @@ import {
 import type { Params } from '../request/params'
 import React from 'react'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
+import { trackPendingInvocation } from './pending-invocations'
 
 export interface UseCachePageComponentProps {
   params: Promise<Params>
@@ -67,11 +68,6 @@ type CacheKeyParts =
 interface EntryAndStream {
   readonly pendingEntry: Promise<CacheEntry>
   readonly stream: ReadableStream
-}
-
-interface EntryAndResult {
-  readonly pendingEntry: Promise<CacheEntry>
-  readonly result: Promise<unknown>
 }
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
@@ -566,11 +562,6 @@ function createTrackedReadableStream(
   })
 }
 
-// TODO: Move this map to the work store when cookies are allowed to be read in
-// "use cache". This is needed to avoid sharing a result with late-encountered
-// cookies (i.e. not part of the cache key yet) with other concurrent requests.
-const pendingInvocations = new Map<string, Promise<EntryAndResult>>()
-
 export function cache(
   kind: string,
   id: string,
@@ -693,21 +684,15 @@ export function cache(
             encodedCacheKeyParts
           : await encodeFormData(encodedCacheKeyParts)
 
-      let resolvePendingInvocation:
-        | ((value: EntryAndResult) => void)
-        | undefined
-
-      let rejectPendingInvocation: ((reason: unknown) => void) | undefined
-
-      const pendingInvocation = pendingInvocations.get(serializedCacheKey)
-
       const cacheSignal =
         workUnitStore && workUnitStore.type === 'prerender'
           ? workUnitStore.cacheSignal
           : null
 
-      if (pendingInvocation) {
-        const { pendingEntry, result } = await pendingInvocation
+      const pendingInvocation = trackPendingInvocation(serializedCacheKey)
+
+      if (pendingInvocation.status === 'current') {
+        const { pendingEntry, result } = await pendingInvocation.promise
 
         cacheSignal?.beginRead()
 
@@ -720,21 +705,6 @@ export function cache(
           .finally(() => cacheSignal?.endRead())
 
         return result
-      } else {
-        pendingInvocations.set(
-          serializedCacheKey,
-          new Promise<EntryAndResult>((resolve, reject) => {
-            resolvePendingInvocation = (entryAndResult: EntryAndResult) => {
-              pendingInvocations.delete(serializedCacheKey)
-              resolve(entryAndResult)
-            }
-
-            rejectPendingInvocation = (reason: unknown) => {
-              pendingInvocations.delete(serializedCacheKey)
-              reject(reason)
-            }
-          })
-        )
       }
 
       try {
@@ -1052,11 +1022,11 @@ export function cache(
           environmentName: 'Cache',
         })
 
-        resolvePendingInvocation?.({ pendingEntry, result })
+        pendingInvocation.resolve({ pendingEntry, result })
 
         return result
       } catch (error) {
-        rejectPendingInvocation?.(error)
+        pendingInvocation.reject(error)
 
         throw error
       }
