@@ -1,5 +1,5 @@
 use std::{
-    cell::UnsafeCell,
+    cell::SyncUnsafeCell,
     fs::File,
     io::Write,
     mem::{replace, take},
@@ -68,7 +68,7 @@ pub struct WriteBatch<K: StoreKey + Send, const FAMILIES: usize> {
     /// The current sequence number counter. Increased for every new SST file or blob file.
     current_sequence_number: AtomicU32,
     /// The thread local state.
-    thread_locals: ThreadLocal<UnsafeCell<ThreadLocalState<K, FAMILIES>>>,
+    thread_locals: ThreadLocal<SyncUnsafeCell<ThreadLocalState<K, FAMILIES>>>,
     /// Collectors in use. The thread local collectors flush into these when they are full.
     collectors: [Mutex<GlobalCollectorState<K>>; FAMILIES],
     /// The list of new SST files that have been created.
@@ -109,7 +109,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
     #[allow(clippy::mut_from_ref)]
     fn thread_local_state(&self) -> &mut ThreadLocalState<K, FAMILIES> {
         let cell = self.thread_locals.get_or(|| {
-            UnsafeCell::new(ThreadLocalState {
+            SyncUnsafeCell::new(ThreadLocalState {
                 collectors: [const { None }; FAMILIES],
                 new_blob_files: Vec::new(),
             })
@@ -216,6 +216,45 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         let state = self.thread_local_state();
         let collector = self.thread_local_collector_mut(state, family)?;
         collector.delete(key);
+        Ok(())
+    }
+
+    /// Flushes a family of the write batch, reducing the amount of buffered memory used.
+    /// Does not commit any data persistently.
+    ///
+    /// Safety: Caller must ensure that no concurrent put or delete operation is happening on the
+    /// flushed family.
+    pub unsafe fn flush(&self, family: u32) -> Result<()> {
+        let mut collectors = Vec::new();
+        for cell in self.thread_locals.iter() {
+            let state = unsafe { &mut *cell.get() };
+            if let Some(collector) = state.collectors[usize_from_u32(family)].take() {
+                if !collector.is_empty() {
+                    collectors.push(collector);
+                }
+            }
+        }
+
+        let shared_error = Mutex::new(Ok(()));
+        scope(|scope| {
+            for mut collector in collectors {
+                let this = &self;
+                let shared_error = &shared_error;
+                let span = Span::current();
+                scope.spawn(move |_| {
+                    let _span = span.entered();
+                    if let Err(err) =
+                        this.flush_thread_local_collector(family as u32, &mut collector)
+                    {
+                        *shared_error.lock() = Err(err);
+                    }
+                    this.idle_thread_local_collectors.lock().push(collector);
+                });
+            }
+        });
+
+        shared_error.into_inner()?;
+
         Ok(())
     }
 

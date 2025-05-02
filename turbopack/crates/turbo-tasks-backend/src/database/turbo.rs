@@ -160,6 +160,10 @@ impl<'a> ConcurrentWriteBatch<'a> for TurboWriteBatch<'a> {
     fn delete(&self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
         self.batch.delete(key_space as u32, key.into_static())
     }
+
+    unsafe fn flush(&self, key_space: KeySpace) -> Result<()> {
+        self.batch.flush(key_space as u32)
+    }
 }
 
 impl KeyBase for WriteBuffer<'_> {
