@@ -962,8 +962,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       middlewareConfig: Buffer.from(
                         JSON.stringify(staticInfo?.middleware || {})
                       ).toString('base64'),
-                      isGlobalNotFoundEnabled:
-                        !!this.config.experimental.globalNotFound,
+                      isGlobalNotFoundEnabled: this.config.experimental
+                        .globalNotFound
+                        ? true
+                        : undefined,
                     }).import
                   : undefined
 
@@ -1083,8 +1085,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     middlewareConfig: Buffer.from(
                       JSON.stringify(staticInfo?.middleware || {})
                     ).toString('base64'),
-                    isGlobalNotFoundEnabled:
-                      !!this.config.experimental.globalNotFound,
+                    isGlobalNotFoundEnabled: this.config.experimental
+                      .globalNotFound
+                      ? true
+                      : undefined,
                   })
                 } else if (isAPIRoute(page)) {
                   value = getRouteLoaderEntry({

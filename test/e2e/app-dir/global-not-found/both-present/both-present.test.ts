@@ -20,16 +20,12 @@ describe('global-not-found - both-present', () => {
   })
 
   it('should render not-found boundary when calling notFound() in a page', async () => {
-    const $ = await next.render$('/')
-    expect($('html').attr('data-global-not-found')).toBe('false')
-    expect($('#not-found-boundary').text()).toBe('not-found.js')
-
-    const browser = await next.browser('/not-found')
+    const browser = await next.browser('/')
     expect(await browser.elementByCss('#not-found-boundary').text()).toBe(
       'not-found.js'
     )
     expect(
       await browser.elementByCss('html').getAttribute('data-global-not-found')
-    ).toBe('false')
+    ).toBeNull()
   })
 })

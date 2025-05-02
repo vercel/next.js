@@ -720,7 +720,9 @@ export async function createEntrypoints(
                 : undefined,
               preferredRegion: staticInfo.preferredRegion,
               middlewareConfig: encodeToBase64(staticInfo.middleware || {}),
-              isGlobalNotFoundEnabled: !!config.experimental.globalNotFound,
+              isGlobalNotFoundEnabled: config.experimental.globalNotFound
+                ? true
+                : undefined,
             })
           } else if (isInstrumentation) {
             server[serverBundlePath.replace('src/', '')] =
@@ -800,7 +802,9 @@ export async function createEntrypoints(
                 middlewareConfig: Buffer.from(
                   JSON.stringify(staticInfo.middleware || {})
                 ).toString('base64'),
-                isGlobalNotFoundEnabled: !!config.experimental.globalNotFound,
+                isGlobalNotFoundEnabled: config.experimental.globalNotFound
+                  ? true
+                  : undefined,
               }).import
             }
             edgeServer[serverBundlePath] = getEdgeServerEntry({

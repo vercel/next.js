@@ -20,7 +20,7 @@ use turbopack_ecmascript::{
 
 use super::app_entry::AppEntry;
 use crate::{
-    app_page_loader_tree::{AppPageLoaderTreeModule, GLOBAL_ERROR, GLOBAL_NOT_FOUND},
+    app_page_loader_tree::{AppPageLoaderTreeModule, GLOBAL_ERROR},
     app_structure::AppPageLoaderTree,
     next_app::{AppPage, AppPath},
     next_config::NextConfig,
@@ -89,11 +89,6 @@ pub async fn get_app_page_entry(
                 GLOBAL_ERROR.into()
              } else {
                 "next/dist/client/components/global-error".into()
-            },
-            "VAR_MODULE_GLOBAL_NOT_FOUND" => if inner_assets.contains_key(GLOBAL_NOT_FOUND) {
-                GLOBAL_NOT_FOUND.into()
-            } else {
-                "next/dist/client/components/global-not-found".into()
             },
         },
         fxindexmap! {
