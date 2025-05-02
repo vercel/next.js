@@ -1275,12 +1275,6 @@ async function renderToHTMLOrFlightImpl(
     )
   }
 
-  console.log(
-    'loaderTree',
-    loaderTree[2],
-    loaderTree[1].children[1].children[1]
-  )
-
   workStore.fetchMetrics = []
   metadata.fetchMetrics = workStore.fetchMetrics
 
