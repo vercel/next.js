@@ -99,6 +99,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/actions/app-action-form-state-node-middleware.test.ts": {
+    "passed": [
+      "app-dir action useActionState should send the action to the provided permalink with form state when JS disabled",
+      "app-dir action useActionState should support hydrating the app from progressively enhanced form request",
+      "app-dir action useActionState should support submitting form state with JS",
+      "app-dir action useActionState should support submitting form state without JS"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/actions/app-action-form-state.test.ts": {
     "passed": [
       "app-dir action useActionState should send the action to the provided permalink with form state when JS disabled",
@@ -111,12 +123,118 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/actions/app-action-node-middleware.test.ts": {
+    "passed": [
+      "app-dir action handling Edge SSR should allow cookie and header async storages",
+      "app-dir action handling Edge SSR should handle basic actions correctly",
+      "app-dir action handling Edge SSR should handle calls to redirect() with a absolute URL in a single pass",
+      "app-dir action handling Edge SSR should handle calls to redirect() with a relative URL in a single pass",
+      "app-dir action handling Edge SSR should handle calls to redirect() with external URLs",
+      "app-dir action handling Edge SSR should handle unicode search params",
+      "app-dir action handling Edge SSR should return error response for hoc auth wrappers in edge runtime",
+      "app-dir action handling caching disabled by default should not override force-cache in server action",
+      "app-dir action handling caching disabled by default should not override revalidate in server action",
+      "app-dir action handling caching disabled by default should use no-store as default for server action",
+      "app-dir action handling encryption should be able to resolve other server actions and client components",
+      "app-dir action handling encryption should send encrypted values from the closed over closure",
+      "app-dir action handling fetch actions should handle a fetch action initiated from a static page",
+      "app-dir action handling fetch actions should handle calls to redirect() with a absolute URL in a single pass",
+      "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
+      "app-dir action handling fetch actions should handle calls to redirect() with external URLs",
+      "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
+      "app-dir action handling fetch actions should handle unstable_expirePath",
+      "app-dir action handling fetch actions should handle unstable_expireTag",
+      "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
+      "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
+      "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
+      "app-dir action handling fetch actions should revalidate when cookies.set is called",
+      "app-dir action handling fetch actions should revalidate when cookies.set is called in a client action",
+      "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
+      "app-dir action handling redirects displays searchParams correctly when redirecting with SearchParams",
+      "app-dir action handling redirects merges cookies correctly when redirecting",
+      "app-dir action handling redirects redirects properly when server action handler redirects with a 307 status code",
+      "app-dir action handling redirects redirects properly when server action handler redirects with a 308 status code",
+      "app-dir action handling redirects redirects properly when server action handler uses `permanentRedirect`",
+      "app-dir action handling redirects redirects properly when server action handler uses `redirect`",
+      "app-dir action handling redirects should not forward next-action header to a redirected RSC request",
+      "app-dir action handling request body decoding should correctly decode multi-byte characters in the request body (edge)",
+      "app-dir action handling request body decoding should correctly decode multi-byte characters in the request body (node)",
+      "app-dir action handling server actions render client components server component imported action should support importing client components from actions",
+      "app-dir action handling should 404 when POSTing an invalid server action",
+      "app-dir action handling should be possible to catch network errors",
+      "app-dir action handling should be possible to catch regular errors",
+      "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
+      "app-dir action handling should forward action request to a worker that contains the action handler (node)",
+      "app-dir action handling should handle action correctly with middleware rewrite",
+      "app-dir action handling should handle actions executed in quick succession",
+      "app-dir action handling should handle basic actions correctly",
+      "app-dir action handling should invalidate the client router cache if the redirect action triggers a revalidation",
+      "app-dir action handling should keep action instances identical",
+      "app-dir action handling should log a warning when a server action is not found but an id is provided",
+      "app-dir action handling should not block navigation events while a server action is in flight",
+      "app-dir action handling should not block router.back() while a server action is in flight",
+      "app-dir action handling should not error when a forwarded action triggers a redirect (edge)",
+      "app-dir action handling should not error when a forwarded action triggers a redirect (node)",
+      "app-dir action handling should not expose action content in sourcemaps",
+      "app-dir action handling should not log errors for non-action form POSTs",
+      "app-dir action handling should only submit action once when resubmitting an action after navigation",
+      "app-dir action handling should propagate errors from a `text/plain` response to an error boundary",
+      "app-dir action handling should push new route when redirecting",
+      "app-dir action handling should replace current route when redirecting with type set to replace",
+      "app-dir action handling should report errors with bad inputs correctly",
+      "app-dir action handling should reset the form state when the action redirects to a page that contains the same form",
+      "app-dir action handling should reset the form state when the action redirects to itself",
+      "app-dir action handling should support .bind",
+      "app-dir action handling should support chained .bind",
+      "app-dir action handling should support formData and redirect",
+      "app-dir action handling should support headers and cookies",
+      "app-dir action handling should support headers in client imported actions",
+      "app-dir action handling should support hoc auth wrappers",
+      "app-dir action handling should support importing actions in client components",
+      "app-dir action handling should support importing the same action module instance in both server and action layers",
+      "app-dir action handling should support next/dynamic with ssr: false",
+      "app-dir action handling should support next/dynamic with ssr: false (edge)",
+      "app-dir action handling should support notFound",
+      "app-dir action handling should support notFound (javascript disabled)",
+      "app-dir action handling should support setting cookies in route handlers with the correct overrides",
+      "app-dir action handling should support setting cookies when redirecting (no javascript)",
+      "app-dir action handling should support setting cookies when redirecting (with javascript)",
+      "app-dir action handling should support uploading files",
+      "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
+      "app-dir action handling should trigger a refresh for a server action that gets discarded due to a navigation",
+      "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
+      "app-dir action handling should work with interception routes"
+    ],
+    "failed": [],
+    "pending": [
+      "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
+      "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/actions/app-action-progressive-enhancement.test.ts": {
     "passed": [
       "app-dir action progressive enhancement should support actions from client without JS",
       "app-dir action progressive enhancement should support formData and redirect without JS",
       "app-dir action progressive enhancement should support headers and cookies without JS (runtime: edge)",
       "app-dir action progressive enhancement should support headers and cookies without JS (runtime: node)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/actions/app-action-size-limit-invalid-node-middleware.test.ts": {
+    "passed": [
+      "app-dir action size limit invalid config should error if serverActions.bodySizeLimit config is a negative number",
+      "app-dir action size limit invalid config should error if serverActions.bodySizeLimit config is a negative size",
+      "app-dir action size limit invalid config should error if serverActions.bodySizeLimit config is invalid",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should error for requests that exceed the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should not error for requests that are at the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for multipart fetch actions should not error for requests that stay below the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for plaintext fetch actions should error for requests that exceed the size limit",
+      "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit for plaintext fetch actions should not error for requests that stay below the size limit"
     ],
     "failed": [],
     "pending": [],
@@ -5310,6 +5428,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/prefetch-auto/prefetch-auto.test.ts": {
+    "passed": [
+      "<Link prefetch=\"auto\"> <Link prefetch=\"auto\"> works the same as if prefetch were undefined or null"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/prefetch-scheduling/prefetch-scheduling.test.ts": {
     "passed": [
       "segment cache prefetch scheduling cancels a viewport-initiated prefetch if the link leaves the viewport before it finishes",
@@ -7576,6 +7703,16 @@
   "test/e2e/next-image-forward-ref/index.test.ts": {
     "passed": [
       "next-image-forward-ref allows framer-motion to animate opacity"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/next-image-svgo-webpack/svgo-webpack.test.ts": {
+    "passed": [
+      "svgo-webpack loader should render an SVG that is transformed by @svgr/webpack into a React component (app router)",
+      "svgo-webpack loader should render an SVG that is transformed by @svgr/webpack into a React component (pages router)"
     ],
     "failed": [],
     "pending": [],
@@ -15525,16 +15662,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/next-image-svgo-webpack/svgo-webpack.test.ts": {
-    "passed": [
-      "svgo-webpack loader should render an SVG that is transformed by @svgr/webpack into a React component (pages router)",
-      "svgo-webpack loader should render an SVG that is transformed by @svgr/webpack into a React component (app router)"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/next-image-legacy/trailing-slash/test/index.test.ts": {
     "passed": [
       "Image Component Trailing Slash Tests production mode should include trailing slash when trailingSlash is set on config file during next start"
@@ -16112,16 +16239,6 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/next-image-new/svgo-webpack/test/index.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "svgo-webpack with Image Component development mode should print error when invalid Image usage",
-      "svgo-webpack with Image Component production mode should not fail to build invalid usage of the Image component"
-    ],
     "flakey": [],
     "runtimeError": false
   },
