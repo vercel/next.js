@@ -869,16 +869,20 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 return (task_id, None, None);
             }
             let len = inner.len();
-            let mut meta = Vec::with_capacity(len);
-            let mut data = Vec::with_capacity(len);
+            let mut meta = inner.meta_modified.then(|| Vec::with_capacity(len));
+            let mut data = inner.data_modified.then(|| Vec::with_capacity(len));
             for (key, value) in inner.iter_all() {
                 if key.is_persistent() && value.is_persistent() {
                     match key.category() {
                         TaskDataCategory::Meta => {
-                            meta.push(CachedDataItem::from_key_and_value_ref(key, value))
+                            if let Some(meta) = &mut meta {
+                                meta.push(CachedDataItem::from_key_and_value_ref(key, value));
+                            }
                         }
                         TaskDataCategory::Data => {
-                            data.push(CachedDataItem::from_key_and_value_ref(key, value))
+                            if let Some(data) = &mut data {
+                                data.push(CachedDataItem::from_key_and_value_ref(key, value));
+                            }
                         }
                         _ => {}
                     }
@@ -886,8 +890,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
             (
                 task_id,
-                inner.meta_restored.then(|| B::serialize(task_id, &meta)),
-                inner.data_restored.then(|| B::serialize(task_id, &data)),
+                meta.map(|meta| B::serialize(task_id, &meta)),
+                data.map(|data| B::serialize(task_id, &data)),
             )
         };
 
