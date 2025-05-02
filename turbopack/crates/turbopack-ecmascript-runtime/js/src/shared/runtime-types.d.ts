@@ -45,9 +45,13 @@ type LoadChunk = (chunkPath: ChunkPath) => Promise<any> | undefined
 type LoadChunkByUrl = (chunkUrl: ChunkUrl) => Promise<any> | undefined
 type LoadWebAssembly = (
   wasmChunkPath: ChunkPath,
+  edgeModule: () => WebAssembly.Module,
   imports: WebAssembly.Imports
 ) => Exports
-type LoadWebAssemblyModule = (wasmChunkPath: ChunkPath) => WebAssembly.Module
+type LoadWebAssemblyModule = (
+  wasmChunkPath: ChunkPath,
+  edgeModule: () => WebAssembly.Module
+) => WebAssembly.Module
 
 type ModuleCache<M> = Record<ModuleId, M>
 type ModuleFactories = Record<ModuleId, unknown>

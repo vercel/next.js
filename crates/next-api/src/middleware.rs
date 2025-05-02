@@ -304,7 +304,7 @@ impl MiddlewareEndpoint {
 
             let edge_function_definition = EdgeFunctionDefinition {
                 files: file_paths_from_root,
-                wasm: wasm_paths_to_bindings(wasm_paths_from_root),
+                wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                 assets: paths_to_bindings(all_assets),
                 name: "middleware".into(),
                 page: "/".into(),

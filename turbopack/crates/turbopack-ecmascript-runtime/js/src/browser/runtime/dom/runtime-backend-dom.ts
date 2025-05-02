@@ -31,6 +31,7 @@ function fetchWebAssembly(wasmChunkPath: ChunkPath) {
 async function loadWebAssembly(
   _source: unknown,
   wasmChunkPath: ChunkPath,
+  _edgeModule: () => WebAssembly.Module,
   importsObj: WebAssembly.Imports
 ): Promise<Exports> {
   const req = fetchWebAssembly(wasmChunkPath)
@@ -42,7 +43,8 @@ async function loadWebAssembly(
 
 async function loadWebAssemblyModule(
   _source: unknown,
-  wasmChunkPath: ChunkPath
+  wasmChunkPath: ChunkPath,
+  _edgeModule: () => WebAssembly.Module
 ): Promise<WebAssembly.Module> {
   const req = fetchWebAssembly(wasmChunkPath)
 

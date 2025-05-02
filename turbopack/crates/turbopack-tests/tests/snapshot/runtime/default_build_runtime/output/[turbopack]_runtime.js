@@ -540,11 +540,11 @@ async function loadChunkAsyncByUrl(source, chunkUrl) {
     const path1 = url.fileURLToPath(new URL(chunkUrl, RUNTIME_ROOT));
     return loadChunkAsync(source, path1);
 }
-function loadWebAssembly(chunkPath, imports) {
+function loadWebAssembly(chunkPath, _edgeModule, imports) {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
     return instantiateWebAssemblyFromPath(resolved, imports);
 }
-function loadWebAssemblyModule(chunkPath) {
+function loadWebAssemblyModule(chunkPath, _edgeModule) {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
     return compileWebAssemblyFromPath(resolved);
 }
