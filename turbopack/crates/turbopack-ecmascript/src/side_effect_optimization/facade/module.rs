@@ -204,32 +204,31 @@ impl EcmascriptAnalyzable for EcmascriptModuleFacadeModule {
     }
 
     #[turbo_tasks::function]
-    async fn module_content(
+    async fn module_content_options(
         self: Vc<Self>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
-    ) -> Result<Vc<EcmascriptModuleContent>> {
+    ) -> Result<Vc<EcmascriptModuleContentOptions>> {
         let (esm_references, part_references) = self.await?.specific_references().await?;
 
-        Ok(EcmascriptModuleContent::new(
-            EcmascriptModuleContentOptions {
-                parsed: ParseResult::empty().to_resolved().await?,
-                ident: self.ident().to_resolved().await?,
-                specified_module_type: SpecifiedModuleType::EcmaScript,
-                module_graph,
-                chunking_context,
-                references: self.references().to_resolved().await?,
-                esm_references,
-                part_references,
-                code_generation: CodeGens::empty().to_resolved().await?,
-                async_module: ResolvedVc::cell(Some(self.async_module().to_resolved().await?)),
-                generate_source_map: false,
-                original_source_map: OptionStringifiedSourceMap::none().to_resolved().await?,
-                exports: self.get_exports().to_resolved().await?,
-                async_module_info,
-            },
-        ))
+        Ok(EcmascriptModuleContentOptions {
+            parsed: ParseResult::empty().to_resolved().await?,
+            ident: self.ident().to_resolved().await?,
+            specified_module_type: SpecifiedModuleType::EcmaScript,
+            module_graph,
+            chunking_context,
+            references: self.references().to_resolved().await?,
+            esm_references,
+            part_references,
+            code_generation: CodeGens::empty().to_resolved().await?,
+            async_module: ResolvedVc::cell(Some(self.async_module().to_resolved().await?)),
+            generate_source_map: false,
+            original_source_map: OptionStringifiedSourceMap::none().to_resolved().await?,
+            exports: self.get_exports().to_resolved().await?,
+            async_module_info,
+        }
+        .cell())
     }
 }
 
