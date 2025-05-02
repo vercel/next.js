@@ -36,9 +36,11 @@ export default function Page() {
 
 The `src` property can be a [local](#local-images) or [remote](#remote-images) image.
 
+> **🎥 Watch:** Learn more about how to use `next/image` → [YouTube (9 minutes)](https://youtu.be/IU_qq_c_lKA).
+
 ### Local images
 
-You can store static files, like images and fonts, under a folder called `public` in the root directory. Files inside `public` can then be referenced by your code starting from the base URL (`/`).
+You can store static files, like images and fonts, under a folder called [`public`](/docs/app/api-reference/file-conventions/public) in the root directory. Files inside `public` can then be referenced by your code starting from the base URL (`/`).
 
 <Image
   alt="Folder structure showing app and public folders"
@@ -50,12 +52,11 @@ You can store static files, like images and fonts, under a folder called `public
 
 ```tsx filename="app/page.tsx" switcher
 import Image from 'next/image'
-import profilePic from './me.png'
 
 export default function Page() {
   return (
     <Image
-      src={profilePic}
+      src="/profile.png"
       alt="Picture of the author"
       // width={500} automatically provided
       // height={500} automatically provided
@@ -68,12 +69,11 @@ export default function Page() {
 
 ```jsx filename="app/page.js" switcher
 import Image from 'next/image'
-import profilePic from './me.png'
 
 export default function Page() {
   return (
     <Image
-      src={profilePic}
+      src="/profile.png"
       alt="Picture of the author"
       // width={500} automatically provided
       // height={500} automatically provided
