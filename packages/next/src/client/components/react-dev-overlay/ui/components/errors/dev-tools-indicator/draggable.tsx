@@ -45,7 +45,7 @@ export function Draggable({
     setTimeout(() => {
       ref.current?.style.removeProperty('translate')
       setCurrentCorner(corner)
-    }, 10)
+    })
   }
 
   function getNearestCorner({ x, y }: Point): Corner {
