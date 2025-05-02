@@ -689,16 +689,27 @@ export function cache(
           ? workUnitStore.cacheSignal
           : null
 
+      // Get an immutable and mutable versions of the resume data cache.
+      const prerenderResumeDataCache = workUnitStore
+        ? getPrerenderResumeDataCache(workUnitStore)
+        : null
+
       const pendingInvocation = trackPendingInvocation(serializedCacheKey)
 
       if (pendingInvocation.status === 'current') {
-        const { pendingEntry, result } = await pendingInvocation.promise
+        let { pendingEntry, result } = await pendingInvocation.promise
 
         cacheSignal?.beginRead()
 
-        // The shared pending entry does not need to be cloned here, because we
-        // don't need to read the stream. We only need to read the cache life
-        // and tags to propagate them to the parent context.
+        // If we have a prerender resume data cache, we need to clone the
+        // entry and set it on the prerender resume data cache.
+        if (prerenderResumeDataCache) {
+          const clonedPendingEntries = clonePendingCacheEntry(pendingEntry)
+          pendingEntry = getNthCacheEntry(clonedPendingEntries, 1)
+
+          prerenderResumeDataCache.cache.set(serializedCacheKey, pendingEntry)
+        }
+
         pendingEntry
           .then((entry) => propagateCacheLifeAndTags(workUnitStore, entry))
           .catch(() => {})
@@ -710,10 +721,6 @@ export function cache(
       try {
         let entryAndStream: EntryAndStream | undefined
 
-        // Get an immutable and mutable versions of the resume data cache.
-        const prerenderResumeDataCache = workUnitStore
-          ? getPrerenderResumeDataCache(workUnitStore)
-          : null
         const renderResumeDataCache = workUnitStore
           ? getRenderResumeDataCache(workUnitStore)
           : null
@@ -892,8 +899,9 @@ export function cache(
             if (!workStore.isDraftMode) {
               let savedCacheEntry
 
+              // If we have a prerender resume data cache, we need to clone the
+              // entry and set it on the prerender resume data cache.
               if (prerenderResumeDataCache) {
-                // Create a clone that goes into the cache scope memory cache.
                 const split = clonePendingCacheEntry(pendingCacheEntry)
                 savedCacheEntry = getNthCacheEntry(split, 0)
                 prerenderResumeDataCache.cache.set(
@@ -924,7 +932,7 @@ export function cache(
             let stream = entry.value
 
             // If we have a prerender resume data cache, we need to clone the
-            // entry and set it on the resume data cache.
+            // entry and set it on the prerender resume data cache.
             if (prerenderResumeDataCache) {
               const [entryLeft, entryRight] = cloneCacheEntry(entry)
               if (cacheSignal) {
