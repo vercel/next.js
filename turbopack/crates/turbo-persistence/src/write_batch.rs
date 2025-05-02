@@ -185,7 +185,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
             let sst = self.create_sst_file(family, global_collector.sorted())?;
             global_collector.clear();
             self.new_sst_files.lock().push(sst);
-            self.idle_collectors.lock().push(global_collector);
+            self.dispose_collector(global_collector);
         }
         Ok(())
     }
@@ -195,6 +195,14 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
             .lock()
             .pop()
             .unwrap_or_else(|| Collector::new())
+    }
+
+    fn dispose_collector(&self, collector: Collector<K>) {
+        self.idle_collectors.lock().push(collector);
+    }
+
+    fn dispose_thread_local_collector(&self, collector: Collector<K, THREAD_LOCAL_SIZE_SHIFT>) {
+        self.idle_thread_local_collectors.lock().push(collector);
     }
 
     /// Puts a key-value pair into the write batch.
@@ -224,7 +232,9 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
     ///
     /// Safety: Caller must ensure that no concurrent put or delete operation is happening on the
     /// flushed family.
+    #[tracing::instrument(level = "trace", skip(self))]
     pub unsafe fn flush(&self, family: u32) -> Result<()> {
+        // Flush the thread local collectors to the global collector.
         let mut collectors = Vec::new();
         for cell in self.thread_locals.iter() {
             let state = unsafe { &mut *cell.get() };
@@ -235,25 +245,43 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
             }
         }
 
-        let shared_error = Mutex::new(Ok(()));
-        scope(|scope| {
-            for mut collector in collectors {
-                let this = &self;
-                let shared_error = &shared_error;
-                let span = Span::current();
-                scope.spawn(move |_| {
-                    let _span = span.entered();
-                    if let Err(err) =
-                        this.flush_thread_local_collector(family as u32, &mut collector)
-                    {
-                        *shared_error.lock() = Err(err);
-                    }
-                    this.idle_thread_local_collectors.lock().push(collector);
-                });
-            }
-        });
+        let span = Span::current();
+        collectors.into_par_iter().try_for_each(|mut collector| {
+            let _span = span.clone().entered();
+            self.flush_thread_local_collector(family, &mut collector)?;
+            self.dispose_thread_local_collector(collector);
+            anyhow::Ok(())
+        })?;
 
-        shared_error.into_inner()?;
+        // Now we flush the global collector(s).
+        let mut collector_state = self.collectors[usize_from_u32(family)].lock();
+        match &mut *collector_state {
+            GlobalCollectorState::Unsharded(collector) => {
+                if !collector.is_empty() {
+                    let sst = self.create_sst_file(family, collector.sorted())?;
+                    collector.clear();
+                    self.new_sst_files.lock().push(sst);
+                }
+            }
+            GlobalCollectorState::Sharded(_) => {
+                let GlobalCollectorState::Sharded(shards) = replace(
+                    &mut *collector_state,
+                    GlobalCollectorState::Unsharded(self.get_new_collector()),
+                ) else {
+                    unreachable!();
+                };
+                shards.into_par_iter().try_for_each(|mut collector| {
+                    let _span = span.clone().entered();
+                    if !collector.is_empty() {
+                        let sst = self.create_sst_file(family, collector.sorted())?;
+                        collector.clear();
+                        self.new_sst_files.lock().push(sst);
+                        self.dispose_collector(collector);
+                    }
+                    anyhow::Ok(())
+                })?;
+            }
+        }
 
         Ok(())
     }
@@ -288,7 +316,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                         {
                             *shared_error.lock() = Err(err);
                         }
-                        this.idle_thread_local_collectors.lock().push(collector);
+                        this.dispose_thread_local_collector(collector);
                     });
                 }
             }
@@ -322,7 +350,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                 if !collector.is_empty() {
                     let sst = self.create_sst_file(family, collector.sorted())?;
                     collector.clear();
-                    self.idle_collectors.lock().push(collector);
+                    self.dispose_collector(collector);
                     shared_new_sst_files.lock().push(sst);
                 }
                 anyhow::Ok(())
