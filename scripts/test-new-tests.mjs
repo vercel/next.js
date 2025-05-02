@@ -73,10 +73,10 @@ async function main() {
   }
   currentTests = fileGroups[currentGroup - 1] || []
 
-  // if (currentTests.length === 0) {
-  //   console.log(`No added/changed tests detected`)
-  //   return
-  // }
+  if (currentTests.length === 0) {
+    console.log(`No added/changed tests detected`)
+    return
+  }
 
   const RUN_TESTS_ARGS = ['run-tests.js', '-c', '1', '--retries', '0']
   const PR_NUMBER = process.env.GH_PR_NUMBER
@@ -128,21 +128,21 @@ async function main() {
     }
   }
 
-  // for (let i = 0; i < attempts; i++) {
-  //   console.log(`\n\nRun ${i + 1}/${attempts} for ${testMode} tests (Webpack)`)
-  //   await execa('node', [...RUN_TESTS_ARGS, ...currentTests], {
-  //     ...EXECA_OPTS_STDIO,
-  //     env: {
-  //       ...process.env,
-  //       NEXT_TEST_MODE: testMode,
-  //       NEXT_TEST_VERSION: nextTestVersion,
-  //       NEXT_EXTERNAL_TESTS_FILTERS:
-  //         testMode === 'deploy' ? 'test/deploy-tests-manifest.json' : undefined,
-  //     },
-  //   })
-  // }
+  for (let i = 0; i < attempts; i++) {
+    console.log(`\n\nRun ${i + 1}/${attempts} for ${testMode} tests (Webpack)`)
+    await execa('node', [...RUN_TESTS_ARGS, ...currentTests], {
+      ...EXECA_OPTS_STDIO,
+      env: {
+        ...process.env,
+        NEXT_TEST_MODE: testMode,
+        NEXT_TEST_VERSION: nextTestVersion,
+        NEXT_EXTERNAL_TESTS_FILTERS:
+          testMode === 'deploy' ? 'test/deploy-tests-manifest.json' : undefined,
+      },
+    })
+  }
 
-  if (!isFlakeDetectionMode && testMode === 'deploy') {
+  if (isFlakeDetectionMode && testMode !== 'deploy') {
     for (let i = 0; i < attempts; i++) {
       console.log(
         `\n\nRun ${i + 1}/${attempts} for ${testMode} tests (Turbopack)`
@@ -154,9 +154,11 @@ async function main() {
           NEXT_TEST_MODE: testMode,
           NEXT_TEST_VERSION: nextTestVersion,
           IS_TURBOPACK_TEST: '1',
-          TURBOPACK_BUILD: '1',
+          TURBOPACK_BUILD: testMode === 'start' ? '1' : undefined,
           NEXT_EXTERNAL_TESTS_FILTERS:
-            'test/turbopack-build-tests-manifest.json',
+            testMode === 'dev'
+              ? 'test/turbopack-dev-tests-manifest.json'
+              : 'test/turbopack-build-tests-manifest.json',
         },
       })
     }
