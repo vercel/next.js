@@ -134,7 +134,7 @@ If no styles are applied to the image, the image will stretch to fit the contain
 A custom function used to generate the image URL. The function receives the following parameters, and returns a URL string for the image:
 
 - [`src`](#src)
-- [`width`](#width)
+- [`width`](#width-and-height)
 - [`quality`](#quality)
 
 <AppOnly>
@@ -695,7 +695,7 @@ module.exports = {
 
 Next.js automatically detects the browser's supported image formats via the request's `Accept` header in order to determine the best output format.
 
-If the `Accept` header matches more than one of the configured formats, the first match in the array is used. Therefore, the array order matters. If there is no match (or the source image is [animated](#animated-images)), it will use the original image's format.
+If the `Accept` header matches more than one of the configured formats, the first match in the array is used. Therefore, the array order matters. If there is no match (or the source image is animated), it will use the original image's format.
 
 You can enable AVIF support, which will fallback to the original format of the src image if the browser [does not support AVIF](https://caniuse.com/avif):
 
