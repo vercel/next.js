@@ -2,6 +2,8 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
+use std::{env, time::Duration};
+
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{duration_span, mark_session_dependent, ResolvedVc, Vc};
@@ -43,6 +45,7 @@ impl HttpResponseBody {
 pub enum ProxyConfig {
     Http(String),
     Https(String),
+    All(String),
 }
 
 #[turbo_tasks::value(transparent)]
@@ -58,12 +61,18 @@ pub async fn fetch(
     let user_agent = &*user_agent.await?;
     let proxy_option = &*proxy_option.await?;
 
-    let client_builder = reqwest::Client::builder();
-    let client_builder = match proxy_option {
+    let mut client_builder = reqwest::Client::builder();
+    client_builder = match proxy_option {
         Some(ProxyConfig::Http(proxy)) => client_builder.proxy(reqwest::Proxy::http(proxy)?),
         Some(ProxyConfig::Https(proxy)) => client_builder.proxy(reqwest::Proxy::https(proxy)?),
+        Some(ProxyConfig::All(proxy)) => client_builder.proxy(reqwest::Proxy::all(proxy)?),
         _ => client_builder,
     };
+
+    if let Ok(timeout) = env::var("REQUEST_TIMEOUT_SECONDS") {
+        let timeout = timeout.parse().unwrap_or(30);
+        client_builder = client_builder.timeout(Duration::from_secs(timeout));
+    }
 
     let client = client_builder.build()?;
 
