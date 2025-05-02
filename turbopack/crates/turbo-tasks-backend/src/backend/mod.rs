@@ -869,16 +869,20 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 return (task_id, None, None);
             }
             let len = inner.len();
-            let mut meta = Vec::with_capacity(len);
-            let mut data = Vec::with_capacity(len);
+            let mut meta = inner.meta_modified.then(|| Vec::with_capacity(len));
+            let mut data = inner.data_modified.then(|| Vec::with_capacity(len));
             for (key, value) in inner.iter_all() {
                 if key.is_persistent() && value.is_persistent() {
                     match key.category() {
                         TaskDataCategory::Meta => {
-                            meta.push(CachedDataItem::from_key_and_value_ref(key, value))
+                            if let Some(meta) = &mut meta {
+                                meta.push(CachedDataItem::from_key_and_value_ref(key, value));
+                            }
                         }
                         TaskDataCategory::Data => {
-                            data.push(CachedDataItem::from_key_and_value_ref(key, value))
+                            if let Some(data) = &mut data {
+                                data.push(CachedDataItem::from_key_and_value_ref(key, value));
+                            }
                         }
                         _ => {}
                     }
@@ -886,8 +890,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
             (
                 task_id,
-                inner.meta_restored.then(|| B::serialize(task_id, &meta)),
-                inner.data_restored.then(|| B::serialize(task_id, &data)),
+                meta.map(|meta| B::serialize(task_id, &meta)),
+                data.map(|data| B::serialize(task_id, &data)),
             )
         };
 
@@ -2031,15 +2035,31 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
     fn mark_own_task_as_session_dependent(
         &self,
-        task: TaskId,
+        task_id: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         if !self.should_track_dependencies() {
             // Without dependency tracking we don't need session dependent tasks
             return;
         }
+        const SESSION_DEPENDENT_AGGREGATION_NUMBER: u32 = u32::MAX >> 2;
         let mut ctx = self.execute_context(turbo_tasks);
-        let mut task = ctx.task(task, TaskDataCategory::Data);
+        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+        let aggregation_number = get_aggregation_number(&task);
+        if aggregation_number < SESSION_DEPENDENT_AGGREGATION_NUMBER {
+            drop(task);
+            // We want to use a high aggregation number to avoid large aggregation chains for
+            // session dependent tasks (which change on every run)
+            AggregationUpdateQueue::run(
+                AggregationUpdateJob::UpdateAggregationNumber {
+                    task_id,
+                    base_aggregation_number: SESSION_DEPENDENT_AGGREGATION_NUMBER,
+                    distance: None,
+                },
+                &mut ctx,
+            );
+            task = ctx.task(task_id, TaskDataCategory::Meta);
+        }
         if let Some(InProgressState::InProgress(box InProgressStateInner {
             session_dependent,
             ..
