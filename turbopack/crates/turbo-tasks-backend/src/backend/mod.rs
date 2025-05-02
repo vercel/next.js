@@ -2031,15 +2031,31 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
     fn mark_own_task_as_session_dependent(
         &self,
-        task: TaskId,
+        task_id: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         if !self.should_track_dependencies() {
             // Without dependency tracking we don't need session dependent tasks
             return;
         }
+        const SESSION_DEPENDENT_AGGREGATION_NUMBER: u32 = u32::MAX >> 2;
         let mut ctx = self.execute_context(turbo_tasks);
-        let mut task = ctx.task(task, TaskDataCategory::Data);
+        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+        let aggregation_number = get_aggregation_number(&task);
+        if aggregation_number < SESSION_DEPENDENT_AGGREGATION_NUMBER {
+            drop(task);
+            // We want to use a high aggregation number to avoid large aggregation chains for
+            // session dependent tasks (which change on every run)
+            AggregationUpdateQueue::run(
+                AggregationUpdateJob::UpdateAggregationNumber {
+                    task_id,
+                    base_aggregation_number: SESSION_DEPENDENT_AGGREGATION_NUMBER,
+                    distance: None,
+                },
+                &mut ctx,
+            );
+            task = ctx.task(task_id, TaskDataCategory::Meta);
+        }
         if let Some(InProgressState::InProgress(box InProgressStateInner {
             session_dependent,
             ..
