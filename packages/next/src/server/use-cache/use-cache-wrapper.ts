@@ -53,16 +53,25 @@ import {
 import type { Params } from '../request/params'
 import React from 'react'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
-import { startCacheHandlerTransaction } from './cache-handler-transactions'
-
-type CacheKeyParts =
-  | [buildId: string, id: string, args: unknown[]]
-  | [buildId: string, id: string, args: unknown[], hmrRefreshHash: string]
 
 export interface UseCachePageComponentProps {
   params: Promise<Params>
   searchParams: Promise<SearchParams>
   $$isPageComponent: true
+}
+
+type CacheKeyParts =
+  | [buildId: string, id: string, args: unknown[]]
+  | [buildId: string, id: string, args: unknown[], hmrRefreshHash: string]
+
+interface EntryAndStream {
+  readonly pendingEntry: Promise<CacheEntry>
+  readonly stream: ReadableStream
+}
+
+interface EntryAndResult {
+  readonly pendingEntry: Promise<CacheEntry>
+  readonly result: Promise<unknown>
 }
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
@@ -557,6 +566,11 @@ function createTrackedReadableStream(
   })
 }
 
+// TODO: Move this map to the work store when cookies are allowed to be read in
+// "use cache". This is needed to avoid sharing a result with late-encountered
+// cookies (i.e. not part of the cache key yet) with other concurrent requests.
+const pendingInvocations = new Map<string, Promise<EntryAndResult>>()
+
 export function cache(
   kind: string,
   id: string,
@@ -674,91 +688,129 @@ export function cache(
 
       const serializedCacheKey =
         typeof encodedCacheKeyParts === 'string'
-          ? // Fast path for the simple case for simple inputs. We let the CacheHandler
-            // Convert it to an ArrayBuffer if it wants to.
+          ? // Fast path for the simple case for simple inputs. We let the
+            // CacheHandler Convert it to an ArrayBuffer if it wants to.
             encodedCacheKeyParts
           : await encodeFormData(encodedCacheKeyParts)
 
-      let stream: undefined | ReadableStream = undefined
+      let resolvePendingInvocation:
+        | ((value: EntryAndResult) => void)
+        | undefined
 
-      // Get an immutable and mutable versions of the resume data cache.
-      const prerenderResumeDataCache = workUnitStore
-        ? getPrerenderResumeDataCache(workUnitStore)
-        : null
-      const renderResumeDataCache = workUnitStore
-        ? getRenderResumeDataCache(workUnitStore)
-        : null
+      let rejectPendingInvocation: ((reason: unknown) => void) | undefined
 
-      if (renderResumeDataCache) {
-        const cacheSignal =
-          workUnitStore && workUnitStore.type === 'prerender'
-            ? workUnitStore.cacheSignal
-            : null
+      const pendingInvocation = pendingInvocations.get(serializedCacheKey)
 
-        if (cacheSignal) {
-          cacheSignal.beginRead()
-        }
-        const cachedEntry = renderResumeDataCache.cache.get(serializedCacheKey)
-        if (cachedEntry !== undefined) {
-          const existingEntry = await cachedEntry
-          propagateCacheLifeAndTags(workUnitStore, existingEntry)
-          if (
-            workUnitStore !== undefined &&
-            workUnitStore.type === 'prerender' &&
-            existingEntry !== undefined &&
-            (existingEntry.revalidate === 0 ||
-              existingEntry.expire < DYNAMIC_EXPIRE)
-          ) {
-            // In a Dynamic I/O prerender, if the cache entry has revalidate: 0 or if the
-            // expire time is under 5 minutes, then we consider this cache entry dynamic
-            // as it's not worth generating static pages for such data. It's better to leave
-            // a PPR hole that can be filled in dynamically with a potentially cached entry.
+      const cacheSignal =
+        workUnitStore && workUnitStore.type === 'prerender'
+          ? workUnitStore.cacheSignal
+          : null
+
+      if (pendingInvocation) {
+        const { pendingEntry, result } = await pendingInvocation
+
+        cacheSignal?.beginRead()
+
+        // The shared pending entry does not need to be cloned here, because we
+        // don't need to read the stream. We only need to read the cache life
+        // and tags to propagate them to the parent context.
+        pendingEntry
+          .then((entry) => propagateCacheLifeAndTags(workUnitStore, entry))
+          .catch(() => {})
+          .finally(() => cacheSignal?.endRead())
+
+        return result
+      } else {
+        pendingInvocations.set(
+          serializedCacheKey,
+          new Promise<EntryAndResult>((resolve, reject) => {
+            resolvePendingInvocation = (entryAndResult: EntryAndResult) => {
+              pendingInvocations.delete(serializedCacheKey)
+              resolve(entryAndResult)
+            }
+
+            rejectPendingInvocation = (reason: unknown) => {
+              pendingInvocations.delete(serializedCacheKey)
+              reject(reason)
+            }
+          })
+        )
+      }
+
+      try {
+        let entryAndStream: EntryAndStream | undefined
+
+        // Get an immutable and mutable versions of the resume data cache.
+        const prerenderResumeDataCache = workUnitStore
+          ? getPrerenderResumeDataCache(workUnitStore)
+          : null
+        const renderResumeDataCache = workUnitStore
+          ? getRenderResumeDataCache(workUnitStore)
+          : null
+
+        if (renderResumeDataCache) {
+          if (cacheSignal) {
+            cacheSignal.beginRead()
+          }
+          const cachedEntry =
+            renderResumeDataCache.cache.get(serializedCacheKey)
+          if (cachedEntry !== undefined) {
+            const existingEntry = await cachedEntry
+            propagateCacheLifeAndTags(workUnitStore, existingEntry)
+            if (
+              workUnitStore !== undefined &&
+              workUnitStore.type === 'prerender' &&
+              existingEntry !== undefined &&
+              (existingEntry.revalidate === 0 ||
+                existingEntry.expire < DYNAMIC_EXPIRE)
+            ) {
+              // In a Dynamic I/O prerender, if the cache entry has revalidate:
+              // 0 or if the expire time is under 5 minutes, then we consider
+              // this cache entry dynamic as it's not worth generating static
+              // pages for such data. It's better to leave a PPR hole that can
+              // be filled in dynamically with a potentially cached entry.
+              if (cacheSignal) {
+                cacheSignal.endRead()
+              }
+              return makeHangingPromise(
+                workUnitStore.renderSignal,
+                'dynamic "use cache"'
+              )
+            }
+            const [streamA, streamB] = existingEntry.value.tee()
+            existingEntry.value = streamB
+
+            const stream = cacheSignal
+              ? // When we have a cacheSignal we need to block on reading the
+                // cache entry before ending the read.
+                createTrackedReadableStream(streamA, cacheSignal)
+              : streamA
+
+            entryAndStream = {
+              pendingEntry: Promise.resolve(existingEntry),
+              stream,
+            }
+          } else {
             if (cacheSignal) {
               cacheSignal.endRead()
             }
-            return makeHangingPromise(
-              workUnitStore.renderSignal,
-              'dynamic "use cache"'
-            )
           }
-          const [streamA, streamB] = existingEntry.value.tee()
-          existingEntry.value = streamB
+        }
 
+        if (entryAndStream === undefined) {
           if (cacheSignal) {
-            // When we have a cacheSignal we need to block on reading the cache
-            // entry before ending the read.
-            stream = createTrackedReadableStream(streamA, cacheSignal)
-          } else {
-            stream = streamA
+            // Either the cache handler or the generation can be using I/O at
+            // this point. We need to track when they start and when they
+            // complete.
+            cacheSignal.beginRead()
           }
-        } else {
-          if (cacheSignal) {
-            cacheSignal.endRead()
+
+          const lazyRefreshTags = workStore.refreshTagsByCacheKind.get(kind)
+
+          if (lazyRefreshTags && !isResolvedLazyResult(lazyRefreshTags)) {
+            await lazyRefreshTags
           }
-        }
-      }
 
-      if (stream === undefined) {
-        const cacheSignal =
-          workUnitStore && workUnitStore.type === 'prerender'
-            ? workUnitStore.cacheSignal
-            : null
-        if (cacheSignal) {
-          // Either the cache handler or the generation can be using I/O at this point.
-          // We need to track when they start and when they complete.
-          cacheSignal.beginRead()
-        }
-
-        const lazyRefreshTags = workStore.refreshTagsByCacheKind.get(kind)
-
-        if (lazyRefreshTags && !isResolvedLazyResult(lazyRefreshTags)) {
-          await lazyRefreshTags
-        }
-
-        const finishTransaction =
-          await startCacheHandlerTransaction(serializedCacheKey)
-
-        try {
           let entry = shouldForceRevalidate(workStore, workUnitStore)
             ? undefined
             : 'getExpiration' in cacheHandler
@@ -808,10 +860,11 @@ export function cache(
             entry !== undefined &&
             (entry.revalidate === 0 || entry.expire < DYNAMIC_EXPIRE)
           ) {
-            // In a Dynamic I/O prerender, if the cache entry has revalidate: 0 or if the
-            // expire time is under 5 minutes, then we consider this cache entry dynamic
-            // as it's not worth generating static pages for such data. It's better to leave
-            // a PPR hole that can be filled in dynamically with a potentially cached entry.
+            // In a Dynamic I/O prerender, if the cache entry has revalidate: 0
+            // or if the expire time is under 5 minutes, then we consider this
+            // cache entry dynamic as it's not worth generating static pages for
+            // such data. It's better to leave a PPR hole that can be filled in
+            // dynamically with a potentially cached entry.
             if (cacheSignal) {
               cacheSignal.endRead()
             }
@@ -830,15 +883,18 @@ export function cache(
           ) {
             // Miss. Generate a new result.
 
-            // If the cache entry is stale and we're prerendering, we don't want to use the
-            // stale entry since it would unnecessarily need to shorten the lifetime of the
-            // prerender. We're not time constrained here so we can re-generated it now.
+            // If the cache entry is stale and we're prerendering, we don't want
+            // to use the stale entry since it would unnecessarily need to
+            // shorten the lifetime of the prerender. We're not time constrained
+            // here so we can re-generated it now.
 
-            // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
-            // generation cannot read anything from the context we're currently executing which
-            // might include request specific things like cookies() inside a React.cache().
-            // Note: It is important that we await at least once before this because it lets us
-            // pop out of any stack specific contexts as well - aka "Sync" Local Storage.
+            // We need to run this inside a clean AsyncLocalStorage snapshot so
+            // that the cache generation cannot read anything from the context
+            // we're currently executing which might include request specific
+            // things like cookies() inside a React.cache(). Note: It is
+            // important that we await at least once before this because it lets
+            // us pop out of any stack specific contexts as well - aka "Sync"
+            // Local Storage.
 
             if (entry) {
               if (currentTime > entry.timestamp + entry.expire * 1000) {
@@ -887,15 +943,18 @@ export function cache(
               workStore.pendingRevalidateWrites.push(promise)
             }
 
-            stream = newStream
+            entryAndStream = {
+              pendingEntry: pendingCacheEntry,
+              stream: newStream,
+            }
           } else {
             propagateCacheLifeAndTags(workUnitStore, entry)
 
             // We want to return this stream, even if it's stale.
-            stream = entry.value
+            let stream = entry.value
 
-            // If we have a cache scope, we need to clone the entry and set it on
-            // the inner cache scope.
+            // If we have a prerender resume data cache, we need to clone the
+            // entry and set it on the resume data cache.
             if (prerenderResumeDataCache) {
               const [entryLeft, entryRight] = cloneCacheEntry(entry)
               if (cacheSignal) {
@@ -913,14 +972,17 @@ export function cache(
               )
             } else {
               // If we're not regenerating we need to signal that we've finished
-              // putting the entry into the cache scope at this point. Otherwise we do
-              // that inside generateCacheEntry.
+              // putting the entry into the cache scope at this point. Otherwise
+              // we do that inside generateCacheEntry.
               cacheSignal?.endRead()
             }
 
+            entryAndStream = { pendingEntry: Promise.resolve(entry), stream }
+
             if (currentTime > entry.timestamp + entry.revalidate * 1000) {
-              // If this is stale, and we're not in a prerender (i.e. this is dynamic render),
-              // then we should warm up the cache with a fresh revalidated entry.
+              // If this is stale, and we're not in a prerender (i.e. this is
+              // dynamic render), then we should warm up the cache with a fresh
+              // revalidated entry.
               const [ignoredStream, pendingCacheEntry] =
                 await generateCacheEntry(
                   workStore,
@@ -956,37 +1018,48 @@ export function cache(
               await ignoredStream.cancel()
             }
           }
-        } finally {
-          finishTransaction()
         }
+
+        // Logs are replayed even if it's a hit - to ensure we see them on the
+        // client eventually. If we didn't then the client wouldn't see the logs
+        // if it was seeded from a prewarm that never made it to the client.
+        // However, this also means that you see logs even when the cached
+        // function isn't actually re-executed. We should instead ensure
+        // prewarms always make it to the client. Another issue is that this
+        // will cause double logging in the server terminal. Once while
+        // generating the cache entry and once when replaying it on the server,
+        // which is required to pick it up for replaying again on the client.
+        const replayConsoleLogs = true
+
+        const serverConsumerManifest = {
+          // moduleLoading must be null because we don't want to trigger
+          // preloads of ClientReferences to be added to the consumer. Instead,
+          // we'll wait for any ClientReference to be emitted which themselves
+          // will handle the preloading.
+          moduleLoading: null,
+          moduleMap: isEdgeRuntime
+            ? clientReferenceManifest.edgeRscModuleMapping
+            : clientReferenceManifest.rscModuleMapping,
+          serverModuleMap: getServerModuleMap(),
+        }
+
+        const { pendingEntry, stream } = entryAndStream
+
+        const result = createFromReadableStream(stream, {
+          serverConsumerManifest,
+          temporaryReferences,
+          replayConsoleLogs,
+          environmentName: 'Cache',
+        })
+
+        resolvePendingInvocation?.({ pendingEntry, result })
+
+        return result
+      } catch (error) {
+        rejectPendingInvocation?.(error)
+
+        throw error
       }
-
-      // Logs are replayed even if it's a hit - to ensure we see them on the client eventually.
-      // If we didn't then the client wouldn't see the logs if it was seeded from a prewarm that
-      // never made it to the client. However, this also means that you see logs even when the
-      // cached function isn't actually re-executed. We should instead ensure prewarms always
-      // make it to the client. Another issue is that this will cause double logging in the
-      // server terminal. Once while generating the cache entry and once when replaying it on
-      // the server, which is required to pick it up for replaying again on the client.
-      const replayConsoleLogs = true
-
-      const serverConsumerManifest = {
-        // moduleLoading must be null because we don't want to trigger preloads of ClientReferences
-        // to be added to the consumer. Instead, we'll wait for any ClientReference to be emitted
-        // which themselves will handle the preloading.
-        moduleLoading: null,
-        moduleMap: isEdgeRuntime
-          ? clientReferenceManifest.edgeRscModuleMapping
-          : clientReferenceManifest.rscModuleMapping,
-        serverModuleMap: getServerModuleMap(),
-      }
-
-      return createFromReadableStream(stream, {
-        serverConsumerManifest,
-        temporaryReferences,
-        replayConsoleLogs,
-        environmentName: 'Cache',
-      })
     },
   }[name]
 
