@@ -4508,6 +4508,7 @@ dependencies = [
  "turbopack-env",
  "turbopack-node",
  "turbopack-nodejs",
+ "turbopack-wasm",
  "vergen 9.0.5",
 ]
 
@@ -10315,6 +10316,7 @@ dependencies = [
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",
+ "turbo-tasks-hash",
  "turbopack-core",
  "turbopack-ecmascript",
  "wasmparser 0.110.0",

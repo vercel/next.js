@@ -214,6 +214,7 @@ import { populateStaticEnv } from '../lib/static-env'
 import { durationToString } from './duration-to-string'
 import { traceGlobals } from '../trace/shared'
 import { extractNextErrorCode } from '../lib/error-telemetry-utils'
+import { runAfterProductionCompile } from './after-production-compile'
 
 type Fallback = null | boolean | string
 
@@ -1583,6 +1584,15 @@ export default async function build(
             )
           }
         }
+        await runAfterProductionCompile({
+          config,
+          buildSpan: nextBuildSpan,
+          telemetry,
+          metadata: {
+            projectDir: dir,
+            distDir,
+          },
+        })
       }
 
       // For app directory, we run type checking after build.

@@ -801,7 +801,7 @@ import { cookies } from 'next/headers'
 import { deleteSession } from '@/app/lib/session'
 
 export async function logout() {
-  deleteSession()
+  await deleteSession()
   redirect('/login')
 }
 ```
@@ -811,7 +811,7 @@ import { cookies } from 'next/headers'
 import { deleteSession } from '@/app/lib/session'
 
 export async function logout() {
-  deleteSession()
+  await deleteSession()
   redirect('/login')
 }
 ```
