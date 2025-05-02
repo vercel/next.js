@@ -43,7 +43,7 @@ Depending on your needs, Next.js allows you to choose your data fetching strateg
 
 ### Built-in Optimizations
 
-[Images](/docs/app/building-your-application/optimizing/images), [fonts](/docs/app/building-your-application/optimizing/fonts), and [third-party scripts](/docs/app/guides/scripts) often have significant impact on an application's performance. Next.js comes with built-in components that automatically optimize those for you.
+[Images](/docs/app/api-reference/components/image), [fonts](/docs/app/building-your-application/optimizing/fonts), and [third-party scripts](/docs/app/guides/scripts) often have significant impact on an application's performance. Next.js comes with built-in components that automatically optimize those for you.
 
 ## Migration Steps
 
@@ -469,7 +469,7 @@ Next.js [`<Image>` component](/docs/app/api-reference/components/image), or you 
 `src` property with your existing `<img>` tag.
 
 The `<Image>` component has the added benefits of
-[automatic image optimization](/docs/app/building-your-application/optimizing/images). The `<Image>`
+[automatic image optimization](/docs/app/api-reference/components/image). The `<Image>`
 component automatically sets the `width` and `height` attributes of the resulting `<img>` based on
 the image's dimensions. This prevents layout shifts when the image loads. However, this can cause
 issues if your app contains images with only one of their dimensions being styled without the other
@@ -477,7 +477,7 @@ styled to `auto`. When not styled to `auto`, the dimension will default to the `
 attribute's value, which can cause the image to appear distorted.
 
 Keeping the `<img>` tag will reduce the amount of changes in your application and prevent the above
-issues. You can then optionally later migrate to the `<Image>` component to take advantage of optimizing images by [configuring a loader](/docs/app/building-your-application/optimizing/images#loaders), or moving to the default Next.js server which has automatic image optimization.
+issues. You can then optionally later migrate to the `<Image>` component to take advantage of optimizing images by [configuring a loader](/docs/app/api-reference/components/image#loaders), or moving to the default Next.js server which has automatic image optimization.
 
 1. **Convert absolute import paths for images imported from `/public` into relative imports:**
 
@@ -596,7 +596,7 @@ do next:
   - Automatic code splitting
   - [Streaming Server-Rendering](/docs/app/building-your-application/routing/loading-ui-and-streaming)
   - [React Server Components](/docs/app/building-your-application/rendering/server-components)
-- [Optimize images with the `<Image>` component](/docs/app/building-your-application/optimizing/images)
+- [Optimize images with the `<Image>` component](/docs/app/api-reference/components/image)
 - [Optimize fonts with `next/font`](/docs/app/building-your-application/optimizing/fonts)
 - [Optimize third-party scripts with the `<Script>` component](/docs/app/guides/scripts)
 - [Update your ESLint configuration to support Next.js rules](/docs/app/api-reference/config/eslint)

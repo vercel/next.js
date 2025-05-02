@@ -12,7 +12,7 @@ When [deploying](docs/app/getting-started/deploying) your Next.js app, you may w
 
 ## Image Optimization
 
-[Image Optimization](/docs/app/building-your-application/optimizing/images) through `next/image` works self-hosted with zero configuration when deploying using `next start`. If you would prefer to have a separate service to optimize images, you can [configure an image loader](/docs/app/building-your-application/optimizing/images#loaders).
+[Image Optimization](/docs/app/api-reference/components/image) through `next/image` works self-hosted with zero configuration when deploying using `next start`. If you would prefer to have a separate service to optimize images, you can [configure an image loader](/docs/app/api-reference/components/image#loaders).
 
 Image Optimization can be used with a [static export](/docs/app/guides/static-exports#image-optimization) by defining a custom image loader in `next.config.js`. Note that images are optimized at runtime, not during the build.
 
@@ -91,7 +91,7 @@ You can configure the Next.js cache location if you want to persist cached pages
 
 ### Automatic Caching
 
-- Next.js sets the `Cache-Control` header of `public, max-age=31536000, immutable` to truly immutable assets. It cannot be overridden. These immutable files contain a SHA-hash in the file name, so they can be safely cached indefinitely. For example, [Static Image Imports](/docs/app/building-your-application/optimizing/images#local-images). You can [configure the TTL](/docs/app/api-reference/components/image#caching-behavior) for images.
+- Next.js sets the `Cache-Control` header of `public, max-age=31536000, immutable` to truly immutable assets. It cannot be overridden. These immutable files contain a SHA-hash in the file name, so they can be safely cached indefinitely. For example, [Static Image Imports](/docs/app/api-reference/components/image#local-images). You can [configure the TTL](/docs/app/api-reference/components/image#caching-behavior) for images.
 - Incremental Static Regeneration (ISR) sets the `Cache-Control` header of `s-maxage: <revalidate in getStaticProps>, stale-while-revalidate`. This revalidation time is defined in your [`getStaticProps` function](/docs/pages/building-your-application/data-fetching/get-static-props) in seconds. If you set `revalidate: false`, it will default to a one-year cache duration.
 - Dynamically rendered pages set a `Cache-Control` header of `private, no-cache, no-store, max-age=0, must-revalidate` to prevent user-specific data from being cached. This applies to both the App Router and Pages Router. This also includes [Draft Mode](/docs/app/guides/draft-mode).
 
