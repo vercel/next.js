@@ -204,7 +204,7 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
          {
            "code": 71008,
            "length": 16,
-           "messageText": "The "generateMetadata" export should have a return type of "Promise<Metadata>" from "next".",
+           "messageText": "The Next.js "generateMetadata" export should have a return type of "Promise<Metadata>" from "next".",
            "start": 119,
          },
        ],
@@ -212,7 +212,7 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
          {
            "code": 71008,
            "length": 16,
-           "messageText": "The "generateMetadata" export should have a return type of "Promise<Metadata>" from "next".",
+           "messageText": "The Next.js "generateMetadata" export should have a return type of "Promise<Metadata>" from "next".",
            "start": 77,
          },
        ],
@@ -220,7 +220,7 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
          {
            "code": 71008,
            "length": 16,
-           "messageText": "The "generateMetadata" export should have a return type of "Promise<Metadata>" from "next".",
+           "messageText": "The Next.js "generateMetadata" export should have a return type of "Promise<Metadata>" from "next".",
            "start": 119,
          },
        ],
@@ -228,7 +228,7 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
          {
            "code": 71008,
            "length": 16,
-           "messageText": "The "generateMetadata" export should have a return type of "Promise<Metadata>" from "next".",
+           "messageText": "The Next.js "generateMetadata" export should have a return type of "Promise<Metadata>" from "next".",
            "start": 77,
          },
        ],
@@ -236,7 +236,7 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
          {
            "code": 71008,
            "length": 16,
-           "messageText": "The "generateMetadata" export should have a return type of "Promise<Metadata>" from "next".",
+           "messageText": "The Next.js "generateMetadata" export should have a return type of "Promise<Metadata>" from "next".",
            "start": 128,
          },
        ],
@@ -244,7 +244,7 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
          {
            "code": 71008,
            "length": 16,
-           "messageText": "The "generateMetadata" export should have a return type of "Promise<Metadata>" from "next".",
+           "messageText": "The Next.js "generateMetadata" export should have a return type of "Promise<Metadata>" from "next".",
            "start": 86,
          },
        ],
@@ -252,7 +252,7 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
          {
            "code": 71008,
            "length": 16,
-           "messageText": "The "generateMetadata" export should have a return type of "Metadata" from "next".",
+           "messageText": "The Next.js "generateMetadata" export should have a return type of "Metadata" from "next".",
            "start": 119,
          },
        ],
@@ -260,7 +260,7 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
          {
            "code": 71008,
            "length": 16,
-           "messageText": "The "generateMetadata" export should have a return type of "Metadata" from "next".",
+           "messageText": "The Next.js "generateMetadata" export should have a return type of "Metadata" from "next".",
            "start": 77,
          },
        ],
@@ -268,7 +268,7 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
          {
            "code": 71008,
            "length": 16,
-           "messageText": "The "generateMetadata" export should have a return type of "Metadata" from "next".",
+           "messageText": "The Next.js "generateMetadata" export should have a return type of "Metadata" from "next".",
            "start": 119,
          },
        ],
@@ -276,7 +276,7 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
          {
            "code": 71008,
            "length": 16,
-           "messageText": "The "generateMetadata" export should have a return type of "Metadata" from "next".",
+           "messageText": "The Next.js "generateMetadata" export should have a return type of "Metadata" from "next".",
            "start": 77,
          },
        ],
@@ -284,7 +284,7 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
          {
            "code": 71008,
            "length": 16,
-           "messageText": "The "generateMetadata" export should have a return type of "Metadata" from "next".",
+           "messageText": "The Next.js "generateMetadata" export should have a return type of "Metadata" from "next".",
            "start": 122,
          },
        ],
@@ -292,7 +292,7 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
          {
            "code": 71008,
            "length": 16,
-           "messageText": "The "generateMetadata" export should have a return type of "Metadata" from "next".",
+           "messageText": "The Next.js "generateMetadata" export should have a return type of "Metadata" from "next".",
            "start": 80,
          },
        ],
