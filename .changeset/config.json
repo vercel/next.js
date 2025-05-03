@@ -2,26 +2,7 @@
   "$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
   "changelog": "@changesets/cli/changelog",
   "commit": false,
-  "fixed": [
-    [
-      "create-next-app",
-      "eslint-config-next",
-      "@next/eslint-plugin-next",
-      "@next/font",
-      "@next/bundle-analyzer",
-      "@next/codemod",
-      "@next/env",
-      "@next/mdx",
-      "@next/plugin-storybook",
-      "@next/polyfill-module",
-      "@next/polyfill-nomodule",
-      "next-rspack",
-      "@next/swc",
-      "next",
-      "@next/react-refresh-utils",
-      "@next/third-parties"
-    ]
-  ],
+  "fixed": [],
   "linked": [],
   "access": "public",
   "baseBranch": "canary",

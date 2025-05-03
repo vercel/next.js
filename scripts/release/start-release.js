@@ -1,27 +1,5 @@
 // @ts-check
-const fs = require('fs/promises')
-const path = require('path')
 const { exec } = require('./utils')
-
-async function runChangesetVersion(tag) {
-  const isCanary = tag === 'canary'
-
-  const configPath = path.join(process.cwd(), '.changeset/config.json')
-  const config = require(configPath)
-  const originalChangelog = config.changelog
-  if (isCanary) {
-    // Set `changelog: false` to avoid adding CHANGELOG.md for canary.
-    config.changelog = false
-    await fs.writeFile(configPath, JSON.stringify(config, null, 2))
-  }
-
-  await exec('pnpm changeset version')
-
-  if (isCanary) {
-    config.changelog = originalChangelog
-    await fs.writeFile(configPath, JSON.stringify(config, null, 2))
-  }
-}
 
 async function main() {
   const githubToken = process.env.RELEASE_BOT_GITHUB_TOKEN
@@ -30,13 +8,7 @@ async function main() {
     return
   }
 
-  const tag = process.env.RELEASE_TAG
-  if (!tag) {
-    console.log('Missing RELEASE_TAG')
-    return
-  }
-
-  await runChangesetVersion(tag)
+  await exec('pnpm changeset version')
 
   // Dry run the new process w/o triggering the legacy process.
   const isNewReleaseDryRun = process.env.__NEW_RELEASE_DRY_RUN === 'true'
