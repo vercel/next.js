@@ -93,6 +93,8 @@
     "@babel/preset-flow": "7.25.9",
     "@babel/preset-react": "7.26.3",
     "@changesets/cli": "2.29.2",
+    "@changesets/get-github-info": "0.6.0",
+    "@changesets/types": "6.1.0",
     "@edge-runtime/jest-environment": "4.0.0",
     "@emotion/cache": "11.11.0",
     "@emotion/react": "11.11.1",
