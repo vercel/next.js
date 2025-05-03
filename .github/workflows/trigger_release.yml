@@ -22,6 +22,11 @@ on:
           - minor
           - major
 
+      newRelease:
+        description: run the new release process
+        default: false
+        type: boolean
+
       newReleaseDryRun:
         description: run the new release process as a dry run
         default: false
@@ -118,8 +123,7 @@ jobs:
           # the legacy process will be in action and the new process will
           # run as a dry run. If set to `true`, the new process will be in
           # action and the legacy process will be skipped.
-          # NOTE: Marked it `false` to prevent running by accident.
-          __NEW_RELEASE: false
+          __NEW_RELEASE: ${{ github.event.inputs.newRelease || false }}
           # Feature flag for running the new release process in dry run.
           # When set to `true`, the new process will be in action but
           # will not trigger an actual publish. Instead, will push a commit

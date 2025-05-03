@@ -10,10 +10,12 @@ async function main() {
 
   await exec('pnpm changeset version')
 
+  const isNewRelease = process.env.__NEW_RELEASE === 'true'
+  const isLegacyRelease = !isNewRelease
   // Dry run the new process w/o triggering the legacy process.
-  const isNewReleaseDryRun = process.env.__NEW_RELEASE_DRY_RUN === 'true'
   // During the legacy process, run the new process as a dry run.
-  const isDryRun = isNewReleaseDryRun || process.env.__NEW_RELEASE !== 'true'
+  const isDryRun =
+    process.env.__NEW_RELEASE_DRY_RUN === 'true' || isLegacyRelease
   if (isDryRun) {
     // Create a .diff output and revert the `changeset version` result.
     await exec('git diff > .changeset/canary.diff')
@@ -21,7 +23,7 @@ async function main() {
     await exec('git checkout -- .')
 
     // In legacy process, Lerna will push including the change.
-    if (!isNewReleaseDryRun) {
+    if (isLegacyRelease) {
       return
     }
   }
@@ -32,10 +34,9 @@ async function main() {
   await exec(`git config user.name "vercel-release-bot"`)
   await exec(`git config user.email "infra+release@vercel.com"`)
 
-  const { version } = require(require.resolve('next/package.json'))
-  const commitMessage = isNewReleaseDryRun
-    ? `v${version} (dry) [skip ci]`
-    : `v${version}`
+  const commitMessage = isDryRun
+    ? `Version Package (dry)\n[skip ci]`
+    : `Version Package`
 
   await exec('git add .')
   await exec(`git commit -m "${commitMessage}"`)
