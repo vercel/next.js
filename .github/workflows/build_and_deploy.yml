@@ -18,6 +18,7 @@ env:
 
 jobs:
   deploy-target:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-latest
     outputs:
       value: ${{ steps.deploy-target.outputs.value }}
