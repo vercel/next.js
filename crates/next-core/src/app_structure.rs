@@ -1305,54 +1305,28 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                         "children".into() => AppPageLoaderTree {
                             page: app_page.clone(),
                             segment: "__PAGE__".into(),
-                            // if global-not-found.js is presented:
-                            //   we use it for the page and no layout, since layout is included in global-not-found.js;
-                            // if global-not-found.js is not presented:
-                            //   we search if we can compose root layout with the root not-found.js;
-                            parallel_routes: if has_global_not_found {
-                                fxindexmap! {
-                                    // pick global-not-found.js as the page
-                                    "children".into() => AppPageLoaderTree {
-                                        page: app_page.clone(),
-                                        segment: "__PAGE__".into(),
-                                        parallel_routes: FxIndexMap::default(),
-                                        modules: AppDirModules {
-                                            page: modules.global_not_found,
-                                            layout: None,
-                                            ..Default::default()
-                                        },
-                                        global_metadata: global_metadata.to_resolved().await?,
-                                    }
+                            parallel_routes: FxIndexMap::default(),
+                            modules: if has_global_not_found {
+                                // if global-not-found.js is presented:
+                                // we use it for the page and no layout, since layout is included in global-not-found.js;
+                                AppDirModules {
+                                    layout: None,
+                                    page: modules.global_not_found,
+                                    ..Default::default()
                                 }
                             } else {
-                                // Check if custom not-found.js is presented, otherwise fallback to the builtin one.
-                                // Keep the layout as we need to compose it with not-found.js.
-                                let not_found_slot = if modules.not_found.is_some() {
-                                    modules.not_found
-                                } else {
-                                    Some(
-                                        get_next_package(*app_dir)
+                                // if global-not-found.js is not presented:
+                                // we search if we can compose root layout with the root not-found.js;
+                                AppDirModules {
+                                    page: match modules.not_found {
+                                        Some(v) => Some(v),
+                                        None => Some(get_next_package(*app_dir)
                                             .join("dist/client/components/not-found-error.js".into())
                                             .to_resolved()
-                                            .await?,
-                                    )
-                                };
-                                fxindexmap! {
-                                    "children".into() => AppPageLoaderTree {
-                                        page: app_page.clone(),
-                                        segment: "__PAGE__".into(),
-                                        parallel_routes: FxIndexMap::default(),
-                                        modules: AppDirModules {
-                                            layout: modules.layout,
-                                            page: not_found_slot,
-                                            ..Default::default()
-                                        },
-                                        global_metadata: global_metadata.to_resolved().await?,
-                                    }
+                                            .await?),
+                                    },
+                                    ..Default::default()
                                 }
-                            },
-                            modules: AppDirModules {
-                                ..Default::default()
                             },
                             global_metadata: global_metadata.to_resolved().await?,
                         }

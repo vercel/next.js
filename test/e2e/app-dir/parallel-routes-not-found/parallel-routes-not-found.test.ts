@@ -30,7 +30,6 @@ describe('parallel-routes-and-interception', () => {
     const browser = await next.browser('/non-existed')
     const titles = await browser.elementsByCss('title')
 
-    // FIXME: (metadata), the title should only be rendered once and using the not-found title
-    expect(titles).toHaveLength(3)
+    expect(titles).toHaveLength(1)
   })
 })

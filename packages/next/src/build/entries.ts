@@ -304,8 +304,9 @@ export async function createPagesMapping({
         // If there's any app pages existed, add a default /_not-found route as 404.
         // If there's any custom /_not-found page, it will override the default one.
         ...(hasAppPages && {
-          [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]:
-            'next/dist/client/components/global-not-found',
+          [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]: require.resolve(
+            'next/dist/client/components/global-not-found'
+          ),
         }),
         ...pages,
       }
