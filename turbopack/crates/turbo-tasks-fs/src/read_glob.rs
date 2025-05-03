@@ -387,7 +387,6 @@ pub mod tests {
                 path,
                 Vec::new(),
             ));
-            // TODO: why does this get executed multiple times
             let read_dir = track_star_star_glob(fs.root().to_resolved().await?)
                 .read_strongly_consistent()
                 .await?;
