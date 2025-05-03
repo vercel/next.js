@@ -34,9 +34,7 @@ async function main() {
   await exec(`git config user.name "vercel-release-bot"`)
   await exec(`git config user.email "infra+release@vercel.com"`)
 
-  const commitMessage = isDryRun
-    ? `Version Package (dry)\n[skip ci]`
-    : `Version Package`
+  const commitMessage = isDryRun ? `Version Packages (dry)` : `Version Packages`
 
   await exec('git add .')
   await exec(`git commit -m "${commitMessage}"`)
