@@ -1,14 +1,7 @@
 // @ts-check
 const fs = require('fs/promises')
 const path = require('path')
-const execa = require('execa')
-
-function exec(command) {
-  return execa(command, {
-    stdio: 'inherit',
-    shell: true,
-  })
-}
+const { exec } = require('./utils')
 
 async function runChangesetVersion(tag) {
   const isCanary = tag === 'canary'
