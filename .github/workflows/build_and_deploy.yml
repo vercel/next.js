@@ -585,16 +585,6 @@ jobs:
       - run: ./scripts/publish-release.js
         env:
           RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
-          # Feature flag for the new release process. When set to `false`,
-          # the legacy process will be in action and the new process will
-          # run as a dry run. If set to `true`, the new process will be in
-          # action and the legacy process will be skipped.
-          # NOTE: Marked it `false` to prevent running by accident.
-          __NEW_RELEASE: false
-          # Feature flag for running the new release process in dry run.
-          # When set to `true`, the new process will be in action but
-          # will not trigger an actual publish. Instead, will generate
-          __NEW_RELEASE_DRY_RUN: ${{ github.event.inputs.newReleaseDryRun || false }}
 
       - name: Upload npm log artifact
         uses: actions/upload-artifact@v4
