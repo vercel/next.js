@@ -47,7 +47,7 @@ impl UpdateOutputOperation {
         output: Result<Result<RawVc>, Option<Cow<'static, str>>>,
         mut ctx: impl ExecuteContext,
     ) {
-        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+        let mut task = ctx.task(task_id, TaskDataCategory::All);
         let Some(InProgressState::InProgress(box InProgressStateInner {
             stale,
             new_children,
@@ -91,8 +91,8 @@ impl UpdateOutputOperation {
                     cell,
                 })
             }
-            Ok(Ok(RawVc::LocalOutput(_, _))) => {
-                panic!("LocalOutput must not be output of a task");
+            Ok(Ok(RawVc::LocalOutput(..))) => {
+                panic!("Non-local tasks must not return a local Vc");
             }
             Ok(Err(err)) => {
                 task.insert(CachedDataItem::Error {

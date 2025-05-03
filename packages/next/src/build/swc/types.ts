@@ -39,6 +39,10 @@ export interface Binding {
       transformStyleAttr(transformAttrOptions: any): Promise<any>
     }
   }
+
+  reactCompiler: {
+    isReactCompilerRequired(filename: string): Promise<boolean>
+  }
 }
 
 export type StyledString =

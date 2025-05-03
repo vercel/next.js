@@ -6,7 +6,7 @@ use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{rope::RopeBuilder, File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{Chunk, ChunkItem, ChunkItemExt, ChunkingContext, MinifyType},
+    chunk::{Chunk, ChunkItem, ChunkingContext, MinifyType},
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     introspect::Introspectable,
@@ -59,7 +59,7 @@ impl SingleItemCssChunk {
             &*this.chunking_context.minify_type().await?,
             MinifyType::NoMinify
         ) {
-            let id = this.item.id().await?;
+            let id = this.item.asset_ident().to_string().await?;
             writeln!(code, "/* {} */", id)?;
         }
         let content = this.item.content().await?;

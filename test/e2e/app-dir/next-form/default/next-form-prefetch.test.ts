@@ -4,7 +4,7 @@ import {
   NEXT_RSC_UNION_QUERY,
   RSC_HEADER,
 } from 'next/src/client/components/app-router-headers'
-import type { Route, Page, Request as PlaywrightRequest } from 'playwright'
+import type { Page, Request as PlaywrightRequest } from 'playwright'
 import { WebdriverOptions } from '../../../../lib/next-webdriver'
 import { retry } from '../../../../lib/next-test-utils'
 
@@ -20,7 +20,7 @@ _describe('app dir - form prefetching', () => {
   it("should prefetch a loading state for the form's target", async () => {
     const interceptor = new RequestInterceptor({
       pattern: '**/search*',
-      requestFilter: async (request: PlaywrightRequest) => {
+      requestFilter: async (request) => {
         // only capture RSC requests that *aren't* prefetches
         const headers = await request.allHeaders()
         const isRSC = headers[RSC_HEADER.toLowerCase()] === '1'
@@ -66,7 +66,7 @@ _describe('app dir - form prefetching', () => {
   it('should not prefetch when prefetch is set to false`', async () => {
     const interceptor = new RequestInterceptor({
       pattern: '**/search*',
-      requestFilter: async (request: PlaywrightRequest) => {
+      requestFilter: async (request) => {
         // capture all RSC requests, prefetch or not
         const headers = await request.allHeaders()
         const isRSC = headers[RSC_HEADER.toLowerCase()] === '1'
@@ -164,11 +164,11 @@ class RequestInterceptor {
     this.isEnabled = false
   }
 
-  beforePageLoad: BeforePageLoadFn = (page: Page) => {
+  beforePageLoad: BeforePageLoadFn = (page) => {
     const { opts } = this
     page.route(
       opts.pattern,
-      async (route: Route, request) => {
+      async (route, request) => {
         if (!this.isEnabled) {
           return route.continue()
         }

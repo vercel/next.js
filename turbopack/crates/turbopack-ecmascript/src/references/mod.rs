@@ -765,7 +765,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
                         ImportedSymbol::PartEvaluation(part_id) => {
                             should_add_evaluation = true;
-                            Some(ModulePart::internal_evaluation(*part_id))
+                            Some(ModulePart::internal(*part_id))
                         }
                         ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id)),
                         ImportedSymbol::Exports => Some(ModulePart::exports()),
@@ -1312,7 +1312,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     let func = analysis_state
                         .link_value(
                             JsValue::member(Box::new(obj.clone()), Box::new(prop)),
-                            ImportAttributes::empty_ref(),
+                            eval_context.imports.get_attributes(span),
                         )
                         .await?;
 
@@ -1641,14 +1641,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
 
                     return Ok(());
                 }
-                let (args, hints) = explain_args(&args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!("new Worker({args}) is not statically analyse-able{hints}",),
-                    DiagnosticId::Error(
-                        errors::failed_to_analyse::ecmascript::DYNAMIC_IMPORT.to_string(),
-                    ),
-                );
+                // Ignore (e.g. dynamic parameter or string literal), just as Webpack does
                 return Ok(());
             }
             _ => {}
@@ -1864,7 +1857,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     origin,
                     options.dir,
                     options.include_subdirs,
-                    Vc::cell(options.filter),
+                    options.filter.cell(),
                     Some(issue_source(source, span)),
                     in_try,
                 )
@@ -2882,7 +2875,7 @@ async fn value_visitor_inner(
             ),
             _,
         ) => {
-            // TODO: figure out how to do static analysis without invalidating the while
+            // TODO: figure out how to do static analysis without invalidating the whole
             // analysis when a new file gets added
             v.into_unknown(
                 true,
@@ -2908,6 +2901,20 @@ async fn value_visitor_inner(
                 }
             } else {
                 v.into_unknown(true, "new non constant")
+            }
+        }
+        JsValue::WellKnownFunction(
+            WellKnownFunctionKind::PathJoin
+            | WellKnownFunctionKind::PathResolve(_)
+            | WellKnownFunctionKind::FsReadMethod(_),
+        ) => {
+            if ignore {
+                return Ok((
+                    JsValue::unknown(v, true, "ignored well known function"),
+                    true,
+                ));
+            } else {
+                return Ok((v, false));
             }
         }
         JsValue::FreeVar(ref kind) => match &**kind {
@@ -3032,7 +3039,7 @@ async fn require_context_visitor(
         origin,
         dir,
         options.include_subdirs,
-        Vc::cell(options.filter),
+        options.filter.cell(),
         None,
         true,
     );

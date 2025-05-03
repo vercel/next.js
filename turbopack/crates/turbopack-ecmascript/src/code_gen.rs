@@ -153,6 +153,14 @@ impl CodeGen {
 #[turbo_tasks::value(transparent)]
 pub struct CodeGens(Vec<CodeGen>);
 
+#[turbo_tasks::value_impl]
+impl CodeGens {
+    #[turbo_tasks::function]
+    pub fn empty() -> Vc<Self> {
+        Vc::cell(Vec::new())
+    }
+}
+
 pub trait IntoCodeGenReference {
     fn into_code_gen_reference(
         self,

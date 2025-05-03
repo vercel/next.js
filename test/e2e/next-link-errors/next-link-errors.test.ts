@@ -16,8 +16,7 @@ describe('next-link', () => {
       // TODO(veil): https://linear.app/vercel/issue/NDX-554/hide-the-anonymous-frames-which-are-between-2-ignored-frames
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: Failed prop type: The prop \`href\` expects a \`string\` or \`object\` in \`<Link>\`, but got \`undefined\` instead.
+         "description": "Failed prop type: The prop \`href\` expects a \`string\` or \`object\` in \`<Link>\`, but got \`undefined\` instead.
        Open your browser's console to view the Component stack trace.",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -43,8 +42,7 @@ describe('next-link', () => {
       // TODO(veil): https://linear.app/vercel/issue/NDX-554/hide-the-anonymous-frames-which-are-between-2-ignored-frames
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: No children were passed to <Link> with \`href\` of \`/about\` but one child is required https://nextjs.org/docs/messages/link-no-children",
+         "description": "No children were passed to <Link> with \`href\` of \`/about\` but one child is required https://nextjs.org/docs/messages/link-no-children",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "app/no-children/page.js (7:10) @ Page
@@ -68,8 +66,7 @@ describe('next-link', () => {
       // TODO(veil): https://linear.app/vercel/issue/NDX-554/hide-the-anonymous-frames-which-are-between-2-ignored-frames
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: Multiple children were passed to <Link> with \`href\` of \`/\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children 
+         "description": "Multiple children were passed to <Link> with \`href\` of \`/\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children 
        Open your browser's console to view the Component stack trace.",
          "environmentLabel": null,
          "label": "Runtime Error",

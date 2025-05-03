@@ -88,7 +88,7 @@ pub async fn get_app_page_entry(
             "VAR_MODULE_GLOBAL_ERROR" => if inner_assets.contains_key(GLOBAL_ERROR) {
                 GLOBAL_ERROR.into()
              } else {
-                "next/dist/client/components/error-boundary".into()
+                "next/dist/client/components/global-error".into()
             },
         },
         fxindexmap! {

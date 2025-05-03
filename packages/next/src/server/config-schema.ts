@@ -41,6 +41,7 @@ const zExportMap: zod.ZodType<ExportPathMap> = z.record(
     _isDynamicError: z.boolean().optional(),
     _isRoutePPREnabled: z.boolean().optional(),
     _isProspectiveRender: z.boolean().optional(),
+    _doNotThrowOnEmptyStaticShell: z.boolean().optional(),
   })
 )
 
@@ -262,6 +263,10 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           }),
         ]),
         define: z.record(z.string(), z.string()).optional(),
+        runAfterProductionCompile: z
+          .function()
+          .returns(z.promise(z.void()))
+          .optional(),
       })
       .optional(),
     compress: z.boolean().optional(),
@@ -389,6 +394,8 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         taint: z.boolean().optional(),
         prerenderEarlyExit: z.boolean().optional(),
         proxyTimeout: z.number().gte(0).optional(),
+        routerBFCache: z.boolean().optional(),
+        removeUncaughtErrorAndRejectionListeners: z.boolean().optional(),
         scrollRestoration: z.boolean().optional(),
         sri: z
           .object({

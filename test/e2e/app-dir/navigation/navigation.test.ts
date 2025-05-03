@@ -1,6 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
-import type { Request, Response } from 'playwright'
 
 describe('app dir - navigation', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
@@ -44,7 +43,7 @@ describe('app dir - navigation', () => {
 
       const browser = await next.browser('/search-params?name=名', {
         beforePageLoad(page) {
-          page.on('response', async (res: Response) => {
+          page.on('response', async (res) => {
             requests.push({
               pathname: new URL(res.url()).pathname,
               ok: res.ok(),
@@ -497,7 +496,7 @@ describe('app dir - navigation', () => {
 
           const browser = await next.browser(path, {
             beforePageLoad(page) {
-              page.on('request', async (req: Request) => {
+              page.on('request', async (req) => {
                 requestedPathnames.push(new URL(req.url()).pathname)
               })
             },
@@ -893,7 +892,7 @@ describe('app dir - navigation', () => {
         .elementByCss("[href='/metadata-await-promise/nested']")
         .click()
 
-      await waitFor(resolveMetadataDuration)
+      await waitFor(resolveMetadataDuration + 500)
 
       expect(await browser.elementById('page-content').text()).toBe('Content')
       expect(await browser.elementByCss('title').text()).toBe('Async Title')
@@ -912,9 +911,11 @@ describe('app dir - navigation', () => {
         .click()
 
       if (!isNextDev) {
-        expect(await browser.elementByCss('title').text()).toBe('Async Title')
-
-        await waitFor(resolveMetadataDuration + 500)
+        expect(
+          await browser
+            .waitForElementByCss('title', resolveMetadataDuration + 500)
+            .text()
+        ).toBe('Async Title')
       }
 
       expect(await browser.elementById('page-content').text()).toBe('Content')

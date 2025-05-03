@@ -47,7 +47,7 @@ use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
     module_options::{transition_rule::TransitionRule, ModuleOptionsContext, RuleCondition},
     resolve_options_context::ResolveOptionsContext,
-    transition::{ContextTransition, FullContextTransition, Transition, TransitionOptions},
+    transition::{FullContextTransition, Transition, TransitionOptions},
     ModuleAssetContext,
 };
 use turbopack_core::{
@@ -115,6 +115,12 @@ fn styles_rule_condition() -> RuleCondition {
             RuleCondition::ResourcePathEndsWith(".sass".into()),
             RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.sass".into())),
         ]),
+        RuleCondition::all(vec![
+            RuleCondition::ContentTypeStartsWith("text/css".into()),
+            RuleCondition::not(RuleCondition::ContentTypeStartsWith(
+                "text/css+module".into(),
+            )),
+        ]),
     ])
 }
 fn module_styles_rule_condition() -> RuleCondition {
@@ -122,6 +128,7 @@ fn module_styles_rule_condition() -> RuleCondition {
         RuleCondition::ResourcePathEndsWith(".module.css".into()),
         RuleCondition::ResourcePathEndsWith(".module.scss".into()),
         RuleCondition::ResourcePathEndsWith(".module.sass".into()),
+        RuleCondition::ContentTypeStartsWith("text/css+module".into()),
     ])
 }
 
@@ -663,13 +670,22 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn shared_transition(self: Vc<Self>) -> Vc<ContextTransition> {
-        ContextTransition::new(
+    async fn shared_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+        Ok(ModuleAssetContext::new(
+            TransitionOptions {
+                ..Default::default()
+            }
+            .cell(),
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
             Vc::cell("app-shared".into()),
-        )
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn shared_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
+        Vc::upcast(FullContextTransition::new(self.shared_module_context()))
     }
 
     #[turbo_tasks::function]
@@ -714,13 +730,24 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn edge_shared_transition(self: Vc<Self>) -> Vc<ContextTransition> {
-        ContextTransition::new(
+    async fn edge_shared_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+        Ok(ModuleAssetContext::new(
+            TransitionOptions {
+                ..Default::default()
+            }
+            .cell(),
             self.project().edge_compile_time_info(),
             self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
             Vc::cell("app-edge-shared".into()),
-        )
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn edge_shared_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
+        Vc::upcast(FullContextTransition::new(
+            self.edge_shared_module_context(),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -823,6 +850,7 @@ impl AppProject {
             .map(|m| ResolvedVc::upcast(*m))
             .collect();
 
+        let should_trace = self.project.next_mode().await?.is_production();
         if *self.project.per_page_module_graph().await? {
             // Implements layout segment optimization to compute a graph "chain" for each layout
             // segment
@@ -835,7 +863,7 @@ impl AppProject {
                     let ServerEntries {
                         server_utils,
                         server_component_entries,
-                    } = &*find_server_entries(*rsc_entry).await?;
+                    } = &*find_server_entries(*rsc_entry, should_trace).await?;
 
                     let graph = SingleModuleGraph::new_with_entries_visited_intern(
                         vec![
@@ -851,6 +879,7 @@ impl AppProject {
                             ChunkGroupEntry::Entry(client_shared_entries),
                         ],
                         VisitedModules::empty(),
+                        should_trace,
                     );
                     graphs.push(graph);
                     let mut visited_modules = VisitedModules::from_graph(graph);
@@ -867,6 +896,7 @@ impl AppProject {
                             // but that breaks everything for some reason.
                             vec![ChunkGroupEntry::Entry(vec![ResolvedVc::upcast(*module)])],
                             visited_modules,
+                            should_trace,
                         );
                         graphs.push(graph);
                         let is_layout =
@@ -888,6 +918,7 @@ impl AppProject {
                     let graph = SingleModuleGraph::new_with_entries_visited_intern(
                         vec![ChunkGroupEntry::Entry(client_shared_entries)],
                         VisitedModules::empty(),
+                        should_trace,
                     );
                     graphs.push(graph);
                     VisitedModules::from_graph(graph)
@@ -896,6 +927,7 @@ impl AppProject {
                 let graph = SingleModuleGraph::new_with_entries_visited_intern(
                     vec![rsc_entry_chunk_group],
                     visited_modules,
+                    should_trace,
                 );
                 graphs.push(graph);
                 visited_modules = visited_modules.concatenate(graph);
@@ -905,6 +937,7 @@ impl AppProject {
                 let additional_module_graph = SingleModuleGraph::new_with_entries_visited_intern(
                     additional_entries.owned().await?,
                     visited_modules,
+                    should_trace,
                 );
                 graphs.push(additional_module_graph);
 
@@ -1222,6 +1255,7 @@ impl AppEndpoint {
             .get_client_references_for_endpoint(
                 *rsc_entry,
                 matches!(this.ty, AppEndpointType::Page { .. }),
+                project.next_mode().await?.is_production(),
             )
             .to_resolved()
             .await?;
@@ -1522,7 +1556,7 @@ impl AppEndpoint {
                     };
                     let edge_function_definition = EdgeFunctionDefinition {
                         files: file_paths_from_root.into_iter().collect(),
-                        wasm: wasm_paths_to_bindings(wasm_paths_from_root.into_iter().collect()),
+                        wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                         assets: paths_to_bindings(all_assets),
                         name: app_entry.pathname.clone(),
                         page: app_entry.original_name.clone(),

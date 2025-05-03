@@ -154,7 +154,10 @@ import { getRevalidateReason } from '../instrumentation/utils'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { FallbackRouteParams } from '../request/fallback-params'
 import { DynamicServerError } from '../../client/components/hooks-server-context'
-import { ServerPrerenderStreamResult } from './app-render-prerender-utils'
+import {
+  ServerPrerenderStreamResult,
+  processPrelude,
+} from './app-render-prerender-utils'
 import {
   type ReactServerPrerenderResult,
   ReactServerResult,
@@ -242,6 +245,8 @@ interface ParseRequestHeadersOptions {
 }
 
 const flightDataPathHeadKey = 'h'
+const getFlightViewportKey = (requestId: string) => requestId + 'v'
+const getFlightMetadataKey = (requestId: string) => requestId + 'm'
 
 interface ParsedRequestHeaders {
   /**
@@ -331,30 +336,6 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
     },
     components,
   ]
-}
-
-function createDivergedMetadataComponents(
-  Metadata: React.ComponentType,
-  serveStreamingMetadata: boolean
-): {
-  StaticMetadata: React.ComponentType<{}>
-  StreamingMetadata: React.ComponentType<{}> | null
-} {
-  function EmptyMetadata() {
-    return null
-  }
-  const StreamingMetadata: React.ComponentType | null = serveStreamingMetadata
-    ? Metadata
-    : null
-
-  const StaticMetadata: React.ComponentType<{}> = serveStreamingMetadata
-    ? EmptyMetadata
-    : Metadata
-
-  return {
-    StaticMetadata,
-    StreamingMetadata,
-  }
 }
 
 /**
@@ -524,14 +505,6 @@ async function generateDynamicRSCPayload(
       serveStreamingMetadata,
     })
 
-    const { StreamingMetadata, StaticMetadata } =
-      createDivergedMetadataComponents(() => {
-        return (
-          // Adding requestId as react key to make metadata remount for each render
-          <MetadataTree key={requestId} />
-        )
-      }, serveStreamingMetadata)
-
     flightData = (
       await walkTreeWithFlightRouterState({
         ctx,
@@ -548,9 +521,9 @@ async function generateDynamicRSCPayload(
               isPossibleServerAction={ctx.isPossibleServerAction}
             />
             {/* Adding requestId as react key to make metadata remount for each render */}
-            <ViewportTree key={requestId} />
-            {StreamingMetadata ? <StreamingMetadata /> : null}
-            <StaticMetadata />
+            <ViewportTree key={getFlightViewportKey(requestId)} />
+            {/* Not add requestId as react key to ensure segment prefetch could result consistently if nothing changed */}
+            <MetadataTree key={getFlightMetadataKey(requestId)} />
           </React.Fragment>
         ),
         injectedCSS: new Set(),
@@ -854,14 +827,6 @@ async function getRSCPayload(
 
   const preloadCallbacks: PreloadCallbacks = []
 
-  const { StreamingMetadata, StaticMetadata } =
-    createDivergedMetadataComponents(() => {
-      return (
-        // Not add requestId as react key to ensure segment prefetch could result consistently if nothing changed
-        <MetadataTree />
-      )
-    }, serveStreamingMetadata)
-
   const seedData = await createComponentTree({
     ctx,
     loaderTree: tree,
@@ -875,7 +840,6 @@ async function getRSCPayload(
     missingSlots,
     preloadCallbacks,
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
-    StreamingMetadata,
     StreamingMetadataOutlet,
   })
 
@@ -893,8 +857,9 @@ async function getRSCPayload(
         statusCode={ctx.res.statusCode}
         isPossibleServerAction={ctx.isPossibleServerAction}
       />
-      <ViewportTree key={ctx.requestId} />
-      <StaticMetadata />
+      <ViewportTree key={getFlightViewportKey(ctx.requestId)} />
+      {/* Not add requestId as react key to ensure segment prefetch could result consistently if nothing changed */}
+      <MetadataTree />
     </React.Fragment>
   )
 
@@ -981,16 +946,8 @@ async function getErrorRSCPayload(
     serveStreamingMetadata: serveStreamingMetadata,
   })
 
-  const { StreamingMetadata, StaticMetadata } =
-    createDivergedMetadataComponents(
-      () => (
-        <React.Fragment key={flightDataPathHeadKey}>
-          {/* Adding requestId as react key to make metadata remount for each render */}
-          <MetadataTree key={requestId} />
-        </React.Fragment>
-      ),
-      serveStreamingMetadata
-    )
+  // {/* Adding requestId as react key to make metadata remount for each render */}
+  const metadata = <MetadataTree key={getFlightMetadataKey(requestId)} />
 
   const initialHead = (
     <React.Fragment key={flightDataPathHeadKey}>
@@ -1000,12 +957,11 @@ async function getErrorRSCPayload(
         isPossibleServerAction={ctx.isPossibleServerAction}
       />
       {/* Adding requestId as react key to make metadata remount for each render */}
-      <ViewportTree key={requestId} />
+      <ViewportTree key={getFlightViewportKey(requestId)} />
       {process.env.NODE_ENV === 'development' && (
         <meta name="next-error" content="not-found" />
       )}
-      {StreamingMetadata ? <StreamingMetadata /> : null}
-      <StaticMetadata />
+      {metadata}
     </React.Fragment>
   )
 
@@ -1025,10 +981,7 @@ async function getErrorRSCPayload(
   const seedData: CacheNodeSeedData = [
     initialTree[0],
     <html id="__next_error__">
-      <head>
-        {StreamingMetadata ? <StreamingMetadata /> : null}
-        <StaticMetadata />
-      </head>
+      <head>{metadata}</head>
       <body>
         {process.env.NODE_ENV !== 'production' && err ? (
           <template
@@ -1075,15 +1028,17 @@ function App<T>({
   reactServerStream,
   preinitScripts,
   clientReferenceManifest,
-  nonce,
   ServerInsertedHTMLProvider,
   ServerInsertedMetadataProvider,
+  gracefullyDegrade,
+  nonce,
 }: {
   reactServerStream: BinaryStreamOf<T>
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   ServerInsertedHTMLProvider: React.ComponentType<{ children: JSX.Element }>
   ServerInsertedMetadataProvider: React.ComponentType<{ children: JSX.Element }>
+  gracefullyDegrade: boolean
   nonce?: string
 }): JSX.Element {
   preinitScripts()
@@ -1128,6 +1083,7 @@ function App<T>({
             actionQueue={actionQueue}
             globalErrorComponentAndStyles={response.G}
             assetPrefix={response.p}
+            gracefullyDegrade={gracefullyDegrade}
           />
         </ServerInsertedHTMLProvider>
       </ServerInsertedMetadataProvider>
@@ -1144,6 +1100,7 @@ function ErrorApp<T>({
   clientReferenceManifest,
   ServerInsertedMetadataProvider,
   ServerInsertedHTMLProvider,
+  gracefullyDegrade,
   nonce,
 }: {
   reactServerStream: BinaryStreamOf<T>
@@ -1151,6 +1108,7 @@ function ErrorApp<T>({
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   ServerInsertedMetadataProvider: React.ComponentType<{ children: JSX.Element }>
   ServerInsertedHTMLProvider: React.ComponentType<{ children: JSX.Element }>
+  gracefullyDegrade: boolean
   nonce?: string
 }): JSX.Element {
   preinitScripts()
@@ -1186,6 +1144,7 @@ function ErrorApp<T>({
           actionQueue={actionQueue}
           globalErrorComponentAndStyles={response.G}
           assetPrefix={response.p}
+          gracefullyDegrade={gracefullyDegrade}
         />
       </ServerInsertedHTMLProvider>
     </ServerInsertedMetadataProvider>
@@ -1311,7 +1270,7 @@ async function renderToHTMLOrFlightImpl(
 
   if (enableTainting) {
     taintObjectReference(
-      'Do not pass process.env to client components since it will leak sensitive data',
+      'Do not pass process.env to Client Components since it will leak sensitive data',
       process.env
     )
   }
@@ -1960,6 +1919,7 @@ async function renderToStream(
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
             ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
             nonce={ctx.nonce}
+            gracefullyDegrade={!!ctx.renderOpts.botType}
           />,
           postponed,
           {
@@ -2000,6 +1960,7 @@ async function renderToStream(
         clientReferenceManifest={clientReferenceManifest}
         ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
         ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
+        gracefullyDegrade={!!ctx.renderOpts.botType}
         nonce={ctx.nonce}
       />,
       {
@@ -2157,6 +2118,7 @@ async function renderToStream(
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               preinitScripts={errorPreinitScripts}
               clientReferenceManifest={clientReferenceManifest}
+              gracefullyDegrade={!!ctx.renderOpts.botType}
               nonce={ctx.nonce}
             />
           ),
@@ -2378,6 +2340,7 @@ async function spawnDynamicValidationInDev(
         clientReferenceManifest={clientReferenceManifest}
         ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
         ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
+        gracefullyDegrade={!!ctx.renderOpts.botType}
         nonce={nonce}
       />,
       {
@@ -2509,10 +2472,11 @@ async function spawnDynamicValidationInDev(
 
   let rootDidError = false
   const serverPhasedStream = serverPrerenderStreamResult.asPhasedStream()
+  let preludeIsEmpty = false
   try {
     const prerender = require('react-dom/static.edge')
       .prerender as (typeof import('react-dom/static.edge'))['prerender']
-    await prerenderClientWithPhases(
+    const { prelude: unprocessedPrelude } = await prerenderClientWithPhases(
       () =>
         workUnitAsyncStorage.run(
           finalClientPrerenderStore,
@@ -2523,6 +2487,7 @@ async function spawnDynamicValidationInDev(
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
             ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
+            gracefullyDegrade={!!ctx.renderOpts.botType}
             nonce={ctx.nonce}
           />,
           {
@@ -2550,9 +2515,7 @@ async function spawnDynamicValidationInDev(
                   trackAllowedDynamicAccess(
                     route,
                     componentStack,
-                    dynamicValidation,
-                    serverDynamicTracking,
-                    clientDynamicTracking
+                    dynamicValidation
                   )
                 }
                 return
@@ -2567,8 +2530,10 @@ async function spawnDynamicValidationInDev(
         serverPhasedStream.assertExhausted()
       }
     )
+    preludeIsEmpty = (await processPrelude(unprocessedPrelude)).preludeIsEmpty
   } catch (err) {
     rootDidError = true
+    preludeIsEmpty = true
     if (
       isPrerenderInterruptedError(err) ||
       finalClientController.signal.aborted
@@ -2585,8 +2550,12 @@ async function spawnDynamicValidationInDev(
 
   function LogDynamicValidation() {
     try {
+      // If we've disabled throwing on empty static shell, then we don't need to
+      // track any dynamic access that occurs above the suspense boundary because
+      // we'll do so in the route shell.
       throwIfDisallowedDynamic(
         route,
+        preludeIsEmpty,
         dynamicValidation,
         serverDynamicTracking,
         clientDynamicTracking
@@ -2912,6 +2881,7 @@ async function prerenderToStream(
                   ServerInsertedMetadataProvider={
                     ServerInsertedMetadataProvider
                   }
+                  gracefullyDegrade={!!ctx.renderOpts.botType}
                   nonce={nonce}
                 />,
                 {
@@ -3059,65 +3029,76 @@ async function prerenderToStream(
 
         const prerender = require('react-dom/static.edge')
           .prerender as (typeof import('react-dom/static.edge'))['prerender']
-        let { prelude, postponed } = await prerenderAndAbortInSequentialTasks(
-          () =>
-            workUnitAsyncStorage.run(
-              finalClientPrerenderStore,
-              prerender,
-              <App
-                reactServerStream={reactServerResult.asUnclosingStream()}
-                preinitScripts={preinitScripts}
-                clientReferenceManifest={clientReferenceManifest}
-                ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-                ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
-                nonce={nonce}
-              />,
-              {
-                signal: finalClientController.signal,
-                onError: (err: unknown, errorInfo: ErrorInfo) => {
-                  if (
-                    isPrerenderInterruptedError(err) ||
-                    finalClientController.signal.aborted
-                  ) {
-                    clientIsDynamic = true
-
-                    const componentStack: string | undefined = (
-                      errorInfo as any
-                    ).componentStack
-                    if (typeof componentStack === 'string') {
-                      trackAllowedDynamicAccess(
-                        workStore.route,
-                        componentStack,
-                        dynamicValidation,
-                        serverDynamicTracking,
-                        clientDynamicTracking
-                      )
-                    }
-                    return
+        let { prelude: unprocessedPrelude, postponed } =
+          await prerenderAndAbortInSequentialTasks(
+            () =>
+              workUnitAsyncStorage.run(
+                finalClientPrerenderStore,
+                prerender,
+                <App
+                  reactServerStream={reactServerResult.asUnclosingStream()}
+                  preinitScripts={preinitScripts}
+                  clientReferenceManifest={clientReferenceManifest}
+                  ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+                  ServerInsertedMetadataProvider={
+                    ServerInsertedMetadataProvider
                   }
+                  gracefullyDegrade={!!ctx.renderOpts.botType}
+                  nonce={nonce}
+                />,
+                {
+                  signal: finalClientController.signal,
+                  onError: (err: unknown, errorInfo: ErrorInfo) => {
+                    if (
+                      isPrerenderInterruptedError(err) ||
+                      finalClientController.signal.aborted
+                    ) {
+                      clientIsDynamic = true
 
-                  return htmlRendererErrorHandler(err, errorInfo)
-                },
-                onHeaders: (headers: Headers) => {
-                  headers.forEach((value, key) => {
-                    appendHeader(key, value)
-                  })
-                },
-                maxHeadersLength: renderOpts.reactMaxHeadersLength,
-                bootstrapScripts: [bootstrapScript],
-              }
-            ),
-          () => {
-            finalClientController.abort()
-          }
-        )
+                      const componentStack: string | undefined = (
+                        errorInfo as any
+                      ).componentStack
+                      if (typeof componentStack === 'string') {
+                        trackAllowedDynamicAccess(
+                          workStore.route,
+                          componentStack,
+                          dynamicValidation
+                        )
+                      }
+                      return
+                    }
 
-        throwIfDisallowedDynamic(
-          workStore.route,
-          dynamicValidation,
-          serverDynamicTracking,
-          clientDynamicTracking
-        )
+                    return htmlRendererErrorHandler(err, errorInfo)
+                  },
+                  onHeaders: (headers: Headers) => {
+                    headers.forEach((value, key) => {
+                      appendHeader(key, value)
+                    })
+                  },
+                  maxHeadersLength: renderOpts.reactMaxHeadersLength,
+                  bootstrapScripts: [bootstrapScript],
+                }
+              ),
+            () => {
+              finalClientController.abort()
+            }
+          )
+
+        const { prelude, preludeIsEmpty } =
+          await processPrelude(unprocessedPrelude)
+
+        // If we've disabled throwing on empty static shell, then we don't need to
+        // track any dynamic access that occurs above the suspense boundary because
+        // we'll do so in the route shell.
+        if (!ctx.renderOpts.doNotThrowOnEmptyStaticShell) {
+          throwIfDisallowedDynamic(
+            workStore.route,
+            preludeIsEmpty,
+            dynamicValidation,
+            serverDynamicTracking,
+            clientDynamicTracking
+          )
+        }
 
         const getServerInsertedHTML = makeGetServerInsertedHTML({
           polyfills,
@@ -3195,6 +3176,7 @@ async function prerenderToStream(
                 clientReferenceManifest={clientReferenceManifest}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
                 ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
+                gracefullyDegrade={!!ctx.renderOpts.botType}
                 nonce={nonce}
               />,
               JSON.parse(JSON.stringify(postponed)),
@@ -3386,6 +3368,7 @@ async function prerenderToStream(
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
+              gracefullyDegrade={!!ctx.renderOpts.botType}
               nonce={nonce}
             />,
             {
@@ -3523,7 +3506,7 @@ async function prerenderToStream(
             }
           ))
 
-        let htmlStream
+        let htmlStream, preludeIsEmpty
         const serverPhasedStream = serverPrerenderStreamResult.asPhasedStream()
         try {
           const prerender = require('react-dom/static.edge')
@@ -3541,6 +3524,7 @@ async function prerenderToStream(
                   ServerInsertedMetadataProvider={
                     ServerInsertedMetadataProvider
                   }
+                  gracefullyDegrade={!!ctx.renderOpts.botType}
                   nonce={nonce}
                 />,
                 {
@@ -3559,9 +3543,7 @@ async function prerenderToStream(
                         trackAllowedDynamicAccess(
                           workStore.route,
                           componentStack,
-                          dynamicValidation,
-                          serverDynamicTracking,
-                          clientDynamicTracking
+                          dynamicValidation
                         )
                       }
                       return
@@ -3577,25 +3559,34 @@ async function prerenderToStream(
               serverPhasedStream.assertExhausted()
             }
           )
-          htmlStream = result.prelude
+          const processed = await processPrelude(result.prelude)
+          htmlStream = processed.prelude
+          preludeIsEmpty = processed.preludeIsEmpty
         } catch (err) {
           if (
             isPrerenderInterruptedError(err) ||
             finalClientController.signal.aborted
           ) {
-            // we don't have a root because the abort errored in the root. We can just ignore this error
+            preludeIsEmpty = true
           } else {
             // This error is something else and should bubble up
             throw err
           }
         }
 
-        throwIfDisallowedDynamic(
-          workStore.route,
-          dynamicValidation,
-          serverDynamicTracking,
-          clientDynamicTracking
-        )
+        // If we've disabled throwing on empty static shell, then we don't need to
+        // track any dynamic access that occurs above the suspense boundary because
+        // we'll do so in the route shell.
+        if (!ctx.renderOpts.doNotThrowOnEmptyStaticShell) {
+          // We don't have a shell because the root errored when we aborted.
+          throwIfDisallowedDynamic(
+            workStore.route,
+            preludeIsEmpty,
+            dynamicValidation,
+            serverDynamicTracking,
+            clientDynamicTracking
+          )
+        }
 
         if (serverIsDynamic || clientIsDynamic) {
           const dynamicReason = serverIsDynamic
@@ -3720,6 +3711,7 @@ async function prerenderToStream(
           clientReferenceManifest={clientReferenceManifest}
           ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
           ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
+          gracefullyDegrade={!!ctx.renderOpts.botType}
           nonce={nonce}
         />,
         {
@@ -3852,6 +3844,7 @@ async function prerenderToStream(
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
+              gracefullyDegrade={!!ctx.renderOpts.botType}
               nonce={nonce}
             />,
             JSON.parse(JSON.stringify(postponed)),
@@ -3931,6 +3924,7 @@ async function prerenderToStream(
           clientReferenceManifest={clientReferenceManifest}
           ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
           ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
+          gracefullyDegrade={!!ctx.renderOpts.botType}
           nonce={nonce}
         />,
         {
@@ -4095,6 +4089,7 @@ async function prerenderToStream(
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
             preinitScripts={errorPreinitScripts}
             clientReferenceManifest={clientReferenceManifest}
+            gracefullyDegrade={!!ctx.renderOpts.botType}
             nonce={nonce}
           />
         ),

@@ -177,6 +177,7 @@ import {
 import { InvariantError } from '../shared/lib/invariant-error'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
 import { getCacheHandlers } from './use-cache/handlers'
+import { fixMojibake } from './lib/fix-mojibake'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1096,7 +1097,7 @@ export default abstract class Server<
           // x-matched-path is the source of truth, it tells what page
           // should be rendered because we don't process rewrites in minimalMode
           let { pathname: matchedPath } = new URL(
-            req.headers[MATCHED_PATH_HEADER] as string,
+            fixMojibake(req.headers[MATCHED_PATH_HEADER] as string),
             'http://localhost'
           )
 
@@ -1131,6 +1132,8 @@ export default abstract class Server<
           matchedPath = this.normalize(matchedPath)
           const normalizedUrlPath = this.stripNextDataPath(urlPathname)
 
+          matchedPath = denormalizePagePath(matchedPath)
+
           // Perform locale detection and normalization.
           const localeAnalysisResult = this.i18nProvider?.analyze(matchedPath, {
             defaultLocale,
@@ -1151,11 +1154,15 @@ export default abstract class Server<
             }
           }
 
-          // TODO: check if this is needed any more?
-          matchedPath = denormalizePagePath(matchedPath)
-
           let srcPathname = matchedPath
           let pageIsDynamic = isDynamicRoute(srcPathname)
+          let paramsResult: {
+            params: ParsedUrlQuery | false
+            hasValidParams: boolean
+          } = {
+            params: false,
+            hasValidParams: false,
+          }
 
           if (!pageIsDynamic) {
             const match = await this.matchers.match(srcPathname, {
@@ -1165,8 +1172,15 @@ export default abstract class Server<
             // Update the source pathname to the matched page's pathname.
             if (match) {
               srcPathname = match.definition.pathname
-              // The page is dynamic if the params are defined.
-              pageIsDynamic = typeof match.params !== 'undefined'
+
+              // The page is dynamic if the params are defined. We know at this
+              // stage that the matched path is not a static page if the params
+              // were parsed from the matched path header.
+              if (typeof match.params !== 'undefined') {
+                pageIsDynamic = true
+                paramsResult.params = match.params
+                paramsResult.hasValidParams = true
+              }
             }
           }
 
@@ -1196,21 +1210,26 @@ export default abstract class Server<
             parsedUrl.pathname = `/${defaultLocale}${parsedUrl.pathname}`
           }
 
+          // Store a copy of `parsedUrl.query` before calling handleRewrites.
+          // Since `handleRewrites` might add new queries to `parsedUrl.query`.
+          const originQueryParams = { ...parsedUrl.query }
+
           const pathnameBeforeRewrite = parsedUrl.pathname
           const rewriteParamKeys = Object.keys(
             utils.handleRewrites(req, parsedUrl)
           )
+
+          // Create a copy of the query params to avoid mutating the original
+          // object. This prevents any overlapping query params that have the
+          // same normalized key from causing issues.
+          const queryParams = { ...parsedUrl.query }
           const didRewrite = pathnameBeforeRewrite !== parsedUrl.pathname
 
           if (didRewrite && parsedUrl.pathname) {
             addRequestMeta(req, 'rewroteURL', parsedUrl.pathname)
           }
 
-          // Create a copy of the query params to avoid mutating the original
-          // object. This prevents any overlapping query params that have the
-          // same normalized key from causing issues.
-          const queryParams = { ...parsedUrl.query }
-
+          const routeParamKeys = new Set<string>()
           for (const [key, value] of Object.entries(parsedUrl.query)) {
             const normalizedKey = normalizeNextQueryParam(key)
             if (!normalizedKey) continue
@@ -1218,6 +1237,7 @@ export default abstract class Server<
             // Remove the prefixed key from the query params because we want
             // to consume it for the dynamic route matcher.
             delete parsedUrl.query[key]
+            routeParamKeys.add(normalizedKey)
 
             if (typeof value === 'undefined') continue
 
@@ -1230,10 +1250,14 @@ export default abstract class Server<
           if (pageIsDynamic) {
             let params: ParsedUrlQuery | false = {}
 
-            let paramsResult = utils.normalizeDynamicRouteParams(
-              queryParams,
-              false
-            )
+            // If we don't already have valid params, try to parse them from
+            // the query params.
+            if (!paramsResult.hasValidParams) {
+              paramsResult = utils.normalizeDynamicRouteParams(
+                queryParams,
+                false
+              )
+            }
 
             // for prerendered ISR paths we attempt parsing the route
             // params from the URL directly as route-matches may not
@@ -1366,10 +1390,18 @@ export default abstract class Server<
           }
 
           if (pageIsDynamic || didRewrite) {
-            utils.normalizeVercelUrl(req, [
+            utils.normalizeCdnUrl(req, [
               ...rewriteParamKeys,
               ...Object.keys(utils.defaultRouteRegex?.groups || {}),
             ])
+          }
+          // Remove the route `params` keys from `parsedUrl.query` if they are
+          // not in the original query params.
+          // If it's used in both route `params` and query `searchParams`, it should be kept.
+          for (const key of routeParamKeys) {
+            if (!(key in originQueryParams)) {
+              delete parsedUrl.query[key]
+            }
           }
           parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
@@ -1694,9 +1726,11 @@ export default abstract class Server<
   public async prepare(): Promise<void> {
     if (this.prepared) return
 
-    if (this.preparedPromise === null) {
-      // Get instrumentation module
+    // Get instrumentation module
+    if (!this.instrumentation) {
       this.instrumentation = await this.loadInstrumentationModule()
+    }
+    if (this.preparedPromise === null) {
       this.preparedPromise = this.prepareImpl().then(() => {
         this.prepared = true
         this.preparedPromise = null
@@ -1764,14 +1798,13 @@ export default abstract class Server<
     >
   ): Promise<void> {
     const ua = partialContext.req.headers['user-agent'] || ''
-    const isBotRequest = isBot(ua)
 
     const ctx: RequestContext<ServerRequest, ServerResponse> = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        supportsDynamicResponse: !isBotRequest,
-        botType: getBotType(ua),
+        // `renderOpts.botType` is accumulated in `this.renderImpl()`
+        supportsDynamicResponse: !this.renderOpts.botType,
         serveStreamingMetadata: shouldServeStreamingMetadata(
           ua,
           this.nextConfig.htmlLimitedBots
@@ -1901,6 +1934,9 @@ export default abstract class Server<
       // (see custom-server integration tests)
       pathname = '/'
     }
+
+    const ua = req.headers['user-agent'] || ''
+    this.renderOpts.botType = getBotType(ua)
 
     // we allow custom servers to call render for all URLs
     // so check if we need to serve a static _next file or not.

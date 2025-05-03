@@ -286,6 +286,7 @@ mod tests {
                     )
                 },
             )
+            .map_err(|e| e.to_pretty_error())
             .map(|p| (p, comments))
         })
     }

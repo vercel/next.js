@@ -1,9 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  assertNoRedbox,
-  assertHasRedbox,
-  getRedboxDescription,
-} from 'next-test-utils'
+import { assertNoRedbox } from 'next-test-utils'
 
 describe('serialize-circular-error', () => {
   const { next } = nextTestSetup({
@@ -12,13 +8,16 @@ describe('serialize-circular-error', () => {
 
   it('should serialize the object from server component in console correctly', async () => {
     const browser = await next.browser('/')
-    await assertHasRedbox(browser)
 
-    const description = await getRedboxDescription(browser)
-    expect(description).toBe(
-      `Error: An error occurred but serializing the error message failed.`
-    )
-
+    await expect(browser).toDisplayRedbox(`
+     {
+       "description": "An error occurred but serializing the error message failed.",
+       "environmentLabel": "Server",
+       "label": "Runtime Error",
+       "source": null,
+       "stack": [],
+     }
+    `)
     const output = next.cliOutput
     expect(output).toContain(
       'Error: {"objA":{"other":{"a":"[Circular]"}},"objB":"[Circular]"}'

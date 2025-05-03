@@ -190,6 +190,9 @@ export function getDefineEnv({
     'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
       config.experimental.dynamicOnHover
     ),
+    'process.env.__NEXT_ROUTER_BF_CACHE': Boolean(
+      config.experimental.routerBFCache
+    ),
     'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE':
       config.experimental.optimisticClientCache ?? true,
     'process.env.__NEXT_MIDDLEWARE_PREFETCH':
@@ -262,6 +265,21 @@ export function getDefineEnv({
             needsExperimentalReact(config),
         }
       : undefined),
+
+    'process.env.__NEXT_MULTI_ZONE_DRAFT_MODE': JSON.stringify(
+      config.experimental.multiZoneDraftMode
+    ),
+    'process.env.__NEXT_TRUST_HOST_HEADER': JSON.stringify(
+      config.experimental.trustHostHeader
+    ),
+    'process.env.__NEXT_ALLOWED_REVALIDATE_HEADERS': JSON.stringify(
+      config.experimental.allowedRevalidateHeaderKeys
+    ),
+    ...(isNodeServer
+      ? {
+          'process.env.__NEXT_RELATIVE_DIST_DIR': config.distDir,
+        }
+      : {}),
   }
 
   const userDefines = config.compiler?.define ?? {}

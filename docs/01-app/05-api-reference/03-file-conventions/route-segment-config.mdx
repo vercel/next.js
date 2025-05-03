@@ -65,7 +65,7 @@ export const dynamic = 'auto'
 
 > **Good to know**:
 >
-> - Instructions on [how to migrate](/docs/app/building-your-application/upgrading/app-router-migration#step-6-migrating-data-fetching-methods) from `getServerSideProps` and `getStaticProps` to `dynamic: 'force-dynamic'` and `dynamic: 'error'` can be found in the [upgrade guide](/docs/app/building-your-application/upgrading/app-router-migration#step-6-migrating-data-fetching-methods).
+> - Instructions on [how to migrate](/docs/app/guides/migrating/app-router-migration#step-6-migrating-data-fetching-methods) from `getServerSideProps` and `getStaticProps` to `dynamic: 'force-dynamic'` and `dynamic: 'error'` can be found in the [upgrade guide](/docs/app/guides/migrating/app-router-migration#step-6-migrating-data-fetching-methods).
 
 ### `dynamicParams`
 
@@ -201,7 +201,6 @@ Support for `preferredRegion`, and regions supported, is dependent on your deplo
 
 By default, Next.js does not limit the execution of server-side logic (rendering a page or handling an API).
 Deployment platforms can use `maxDuration` from the Next.js build output to add specific execution limits.
-For example, on [Vercel](https://vercel.com/docs/functions/serverless-functions/runtimes#max-duration).
 
 **Note**: This setting requires Next.js `13.4.10` or higher.
 
@@ -225,6 +224,6 @@ See the [API reference](/docs/app/api-reference/functions/generate-static-params
 
 ## Version History
 
-| Version      |                                                                                                                                                                                                                                   |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `v15.0.0-RC` | `export const runtime = "experimental-edge"` deprecated. A [codemod](/docs/app/building-your-application/upgrading/codemods#transform-app-router-route-segment-config-runtime-value-from-experimental-edge-to-edge) is available. |
+| Version      |                                                                                                                                                                                                                |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v15.0.0-RC` | `export const runtime = "experimental-edge"` deprecated. A [codemod](/docs/app/guides/upgrading/codemods#transform-app-router-route-segment-config-runtime-value-from-experimental-edge-to-edge) is available. |

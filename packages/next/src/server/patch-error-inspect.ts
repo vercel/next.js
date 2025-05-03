@@ -184,7 +184,6 @@ function getSourcemappedFrameIfPossible(
   inspectOptions: util.InspectOptions
 ): {
   stack: IgnoreableStackFrame
-  // DEV only
   code: string | null
 } {
   const sourceMapCacheEntry = sourceMapCache.get(frame.file)
@@ -322,14 +321,11 @@ function getSourcemappedFrameIfPossible(
     ignored,
   }
 
-  const codeFrame =
-    process.env.NODE_ENV !== 'production'
-      ? getOriginalCodeFrame(
-          originalFrame,
-          sourceContent,
-          inspectOptions.colors
-        )
-      : null
+  const codeFrame = getOriginalCodeFrame(
+    originalFrame,
+    sourceContent,
+    inspectOptions.colors
+  )
 
   return {
     stack: originalFrame,
@@ -363,7 +359,7 @@ function parseAndSourceMap(
   const sourceMapCache: SourceMapCache = new Map()
 
   let sourceMappedStack = ''
-  let sourceFrameDEV: null | string = null
+  let sourceFrame: null | string = null
   for (const frame of unsourcemappedStack) {
     if (frame.file === null) {
       sourceMappedStack += '\n' + frameToString(frame)
@@ -376,13 +372,12 @@ function parseAndSourceMap(
       )
 
       if (
-        process.env.NODE_ENV !== 'production' &&
         sourcemappedFrame.code !== null &&
-        sourceFrameDEV === null &&
+        sourceFrame === null &&
         // TODO: Is this the right choice?
         !sourcemappedFrame.stack.ignored
       ) {
-        sourceFrameDEV = sourcemappedFrame.code
+        sourceFrame = sourcemappedFrame.code
       }
       if (!sourcemappedFrame.stack.ignored) {
         // TODO: Consider what happens if every frame is ignore listed.
@@ -400,7 +395,7 @@ function parseAndSourceMap(
     ': ' +
     error.message +
     sourceMappedStack +
-    (sourceFrameDEV !== null ? '\n' + sourceFrameDEV : '')
+    (sourceFrame !== null ? '\n' + sourceFrame : '')
   )
 }
 

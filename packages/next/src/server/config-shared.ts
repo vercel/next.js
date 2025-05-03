@@ -504,6 +504,21 @@ export interface ExperimentalConfig {
    */
   taint?: boolean
 
+  /**
+   * Enables the Back/Forward Cache for the router.
+   */
+  routerBFCache?: boolean
+
+  /**
+   * Uninstalls all "unhandledRejection" and "uncaughtException" listeners from
+   * the global process so that we can override the behavior, which in some
+   * runtimes is to exit the process.
+   *
+   * This is experimental until we've considered the impact in various
+   * deployment environments.
+   */
+  removeUncaughtErrorAndRejectionListeners?: boolean
+
   serverActions?: {
     /**
      * Allows adjusting body parser size limit for server actions.
@@ -704,6 +719,15 @@ export type ExportPathMap = {
      * @internal
      */
     _isProspectiveRender?: boolean
+
+    /**
+     * When true, it indicates that the diagnostic render for this page is
+     * disabled. This is only used when the app has `experimental.ppr` and
+     * `experimental.dynamicIO` enabled.
+     *
+     * @internal
+     */
+    _doNotThrowOnEmptyStaticShell?: boolean
   }
 }
 
@@ -1031,6 +1055,22 @@ export interface NextConfig extends Record<string, any> {
      * replaced with the respective values.
      */
     define?: Record<string, string>
+
+    /**
+     * A hook function that executes after production build compilation finishes,
+     * but before running post-compilation tasks such as type checking and
+     * static page generation.
+     */
+    runAfterProductionCompile?: (metadata: {
+      /**
+       * The root directory of the project
+       */
+      projectDir: string
+      /**
+       * The build output directory (defaults to `.next`)
+       */
+      distDir: string
+    }) => Promise<void>
   }
 
   /**
@@ -1176,6 +1216,7 @@ export const defaultConfig: NextConfig = {
     keepAlive: true,
   },
   logging: {},
+  compiler: {},
   expireTime: process.env.NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL
     ? undefined
     : 31536000, // one year
@@ -1296,6 +1337,8 @@ export const defaultConfig: NextConfig = {
     optimizeServerReact: true,
     useEarlyImport: false,
     viewTransition: false,
+    routerBFCache: false,
+    removeUncaughtErrorAndRejectionListeners: false,
     staleTimes: {
       dynamic: 0,
       static: 300,

@@ -1,56 +1,56 @@
 // Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/src/client/dev/error-overlay/websocket.ts
 
-import type { WebSocketMessage } from "@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client";
+import type { WebSocketMessage } from '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client'
 
-let source: WebSocket;
-const eventCallbacks: ((msg: WebSocketMessage) => void)[] = [];
+let source: WebSocket
+const eventCallbacks: ((msg: WebSocketMessage) => void)[] = []
 
 // TODO: add timeout again
 // let lastActivity = Date.now()
 
 function getSocketProtocol(assetPrefix: string): string {
-  let protocol = location.protocol;
+  let protocol = location.protocol
 
   try {
     // assetPrefix is a url
-    protocol = new URL(assetPrefix).protocol;
+    protocol = new URL(assetPrefix).protocol
   } catch (_) {}
 
-  return protocol === "http:" ? "ws" : "wss";
+  return protocol === 'http:' ? 'ws' : 'wss'
 }
 
 export function addMessageListener(cb: (msg: WebSocketMessage) => void) {
-  eventCallbacks.push(cb);
+  eventCallbacks.push(cb)
 }
 
 export function sendMessage(data: any) {
-  if (!source || source.readyState !== source.OPEN) return;
-  return source.send(data);
+  if (!source || source.readyState !== source.OPEN) return
+  return source.send(data)
 }
 
 export type HMROptions = {
-  path: string;
-  assetPrefix: string;
-  timeout?: number;
-  log?: boolean;
-};
+  path: string
+  assetPrefix: string
+  timeout?: number
+  log?: boolean
+}
 
 // This is not used by Next.js, but it is used by the standalone turbopack-cli
 export function connectHMR(options: HMROptions) {
-  const { timeout = 5 * 1000 } = options;
+  const { timeout = 5 * 1000 } = options
 
   function init() {
-    if (source) source.close();
+    if (source) source.close()
 
-    console.log("[HMR] connecting...");
+    console.log('[HMR] connecting...')
 
     function handleOnline() {
-      const connected = { type: "turbopack-connected" as const };
+      const connected = { type: 'turbopack-connected' as const }
       eventCallbacks.forEach((cb) => {
-        cb(connected);
-      });
+        cb(connected)
+      })
 
-      if (options.log) console.log("[HMR] connected");
+      if (options.log) console.log('[HMR] connected')
       // lastActivity = Date.now()
     }
 
@@ -58,38 +58,38 @@ export function connectHMR(options: HMROptions) {
       // lastActivity = Date.now()
 
       const message = {
-        type: "turbopack-message" as const,
+        type: 'turbopack-message' as const,
         data: JSON.parse(event.data),
-      };
+      }
       eventCallbacks.forEach((cb) => {
-        cb(message);
-      });
+        cb(message)
+      })
     }
 
     // let timer: NodeJS.Timeout
 
     function handleDisconnect() {
-      source.close();
-      setTimeout(init, timeout);
+      source.close()
+      setTimeout(init, timeout)
     }
 
-    const { hostname, port } = location;
-    const protocol = getSocketProtocol(options.assetPrefix || "");
-    const assetPrefix = options.assetPrefix.replace(/^\/+/, "");
+    const { hostname, port } = location
+    const protocol = getSocketProtocol(options.assetPrefix || '')
+    const assetPrefix = options.assetPrefix.replace(/^\/+/, '')
 
     let url = `${protocol}://${hostname}:${port}${
-      assetPrefix ? `/${assetPrefix}` : ""
-    }`;
+      assetPrefix ? `/${assetPrefix}` : ''
+    }`
 
-    if (assetPrefix.startsWith("http")) {
-      url = `${protocol}://${assetPrefix.split("://")[1]}`;
+    if (assetPrefix.startsWith('http')) {
+      url = `${protocol}://${assetPrefix.split('://')[1]}`
     }
 
-    source = new window.WebSocket(`${url}${options.path}`);
-    source.onopen = handleOnline;
-    source.onerror = handleDisconnect;
-    source.onmessage = handleMessage;
+    source = new window.WebSocket(`${url}${options.path}`)
+    source.onopen = handleOnline
+    source.onerror = handleDisconnect
+    source.onmessage = handleMessage
   }
 
-  init();
+  init()
 }

@@ -75,7 +75,7 @@ export interface SWCLoaderOptions {
 // these are exact code conditions checked
 // for to force transpiling a `node_module`
 const FORCE_TRANSPILE_CONDITIONS =
-  /(next\/font|next\/dynamic|use server|use client)/
+  /next\/font|next\/dynamic|use server|use client|use cache/
 
 async function loaderTransform(
   this: LoaderContext<SWCLoaderOptions> & TelemetryLoaderContext,

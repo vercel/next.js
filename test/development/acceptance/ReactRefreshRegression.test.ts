@@ -284,8 +284,7 @@ describe('ReactRefreshRegression', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: boom",
+         "description": "boom",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "pages/index.js (1:36) @
@@ -300,8 +299,7 @@ describe('ReactRefreshRegression', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: boom",
+         "description": "boom",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "pages/index.js (1:36) @ default

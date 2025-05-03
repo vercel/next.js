@@ -1,5 +1,7 @@
 use std::cmp::Ordering;
 
+use smallvec::SmallVec;
+
 use crate::{
     key::StoreKey,
     static_sorted_file_builder::{Entry, EntryValue},
@@ -11,7 +13,7 @@ pub struct CollectorEntry<K: StoreKey> {
 }
 
 pub enum CollectorEntryValue {
-    Small { value: Vec<u8> },
+    Small { value: SmallVec<[u8; 16]> },
     Medium { value: Vec<u8> },
     Large { blob: u32 },
     Deleted,

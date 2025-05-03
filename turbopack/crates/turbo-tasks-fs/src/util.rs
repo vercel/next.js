@@ -138,6 +138,7 @@ pub fn extract_disk_access<T>(value: io::Result<T>, path: &Path) -> Result<Optio
     }
 }
 
+#[cfg(not(target_os = "windows"))]
 pub async fn uri_from_file(root: Vc<FileSystemPath>, path: Option<&str>) -> Result<String> {
     let root_fs = root.fs();
     let root_fs = &*Vc::try_resolve_downcast_type::<DiskFileSystem>(root_fs)
@@ -161,4 +162,35 @@ pub async fn uri_from_file(root: Vc<FileSystemPath>, path: Option<&str>) -> Resu
         .collect::<Vec<_>>()
         .join("/")
     ))
+}
+
+#[cfg(target_os = "windows")]
+pub async fn uri_from_file(root: Vc<FileSystemPath>, path: Option<&str>) -> Result<String> {
+    let root_fs = root.fs();
+    let root_fs = &*Vc::try_resolve_downcast_type::<DiskFileSystem>(root_fs)
+        .await?
+        .context("Expected root to have a DiskFileSystem")?
+        .await?;
+
+    let sys_path = root_fs
+        .to_sys_path(match path {
+            Some(path) => root.join(path.into()),
+            None => root,
+        })
+        .await?;
+
+    let raw_path = sys_path.to_string_lossy().to_string();
+    let normalized_path = raw_path.replace('\\', "/");
+
+    let mut segments = normalized_path.split('/');
+
+    let first = segments.next().unwrap_or_default(); // e.g., "C:"
+    let encoded_path = std::iter::once(first.to_string()) // keep "C:" intact
+        .chain(segments.map(|s| urlencoding::encode(s).into_owned()))
+        .collect::<Vec<_>>()
+        .join("/");
+
+    let uri = format!("file:///{}", encoded_path);
+
+    Ok(uri)
 }

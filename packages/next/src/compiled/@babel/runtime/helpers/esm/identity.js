@@ -1,3 +1,4 @@
-export default function _identity(x) {
-  return x;
+function _identity(t) {
+  return t;
 }
+export { _identity as default };
