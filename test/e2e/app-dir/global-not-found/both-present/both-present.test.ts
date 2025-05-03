@@ -1,15 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('global-not-found - both-present', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  // TODO(global-not-found): support deployment
-  if (skipped) {
-    return
-  }
 
   it('should render global-not-found for 404 routes', async () => {
     const $ = await next.render$('/does-not-exist')

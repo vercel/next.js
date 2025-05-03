@@ -2,15 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 import { assertNoRedbox } from 'next-test-utils'
 
 describe('global-not-found - multi root', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  // TODO(global-not-found): support deployment
-  if (skipped) {
-    return
-  }
 
   it('should render global-not-found for 404', async () => {
     const browser = await next.browser('/does-not-exist')
