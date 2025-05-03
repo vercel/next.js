@@ -439,7 +439,7 @@ pub mod tests {
             let foo = sub.join("foo.js");
             File::create_new(&foo).unwrap().write_all(b"foo").unwrap();
             // put a link in sub that points back at its parent director
-            symlink(&sub, sub.join("link")).unwrap();
+            symlink(sub, sub.join("link")).unwrap();
         }
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
@@ -455,6 +455,18 @@ pub mod tests {
             let err = fs
                 .root()
                 .read_glob(Glob::new("**".into()), false)
+                .await
+                .expect_err("Should have detected an infinite loop");
+
+            assert_eq!(
+                "'sub/link' is a symlink causes that causes an infinite loop!",
+                format!("{}", err.root_cause())
+            );
+
+            // Same when calling track glob
+            let err = fs
+                .root()
+                .track_glob(Glob::new("**".into()), false)
                 .await
                 .expect_err("Should have detected an infinite loop");
 
