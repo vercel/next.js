@@ -194,7 +194,12 @@ impl AppProject {
 
     #[turbo_tasks::function]
     fn app_entrypoints(&self) -> Vc<AppEntrypoints> {
-        get_entrypoints(*self.app_dir, self.project.next_config().page_extensions())
+        let conf = self.project.next_config();
+        get_entrypoints(
+            *self.app_dir,
+            conf.page_extensions(),
+            conf.is_global_not_found_enabled(),
+        )
     }
 
     #[turbo_tasks::function]

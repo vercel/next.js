@@ -734,11 +734,13 @@ fn add_app_metadata_route(
 pub fn get_entrypoints(
     app_dir: Vc<FileSystemPath>,
     page_extensions: Vc<Vec<RcStr>>,
+    is_global_not_found_enabled: Vc<bool>,
 ) -> Vc<Entrypoints> {
     directory_tree_to_entrypoints(
         app_dir,
         get_directory_tree(app_dir, page_extensions),
         get_global_metadata(app_dir, page_extensions),
+        is_global_not_found_enabled,
         Default::default(),
     )
 }
@@ -748,11 +750,13 @@ fn directory_tree_to_entrypoints(
     app_dir: Vc<FileSystemPath>,
     directory_tree: Vc<DirectoryTree>,
     global_metadata: Vc<GlobalMetadata>,
+    is_global_not_found_enabled: Vc<bool>,
     root_layouts: Vc<FileSystemPathVec>,
 ) -> Vc<Entrypoints> {
     directory_tree_to_entrypoints_internal(
         app_dir,
         global_metadata,
+        is_global_not_found_enabled,
         "".into(),
         directory_tree,
         AppPage::new(),
@@ -1128,6 +1132,7 @@ async fn default_route_tree(
 async fn directory_tree_to_entrypoints_internal(
     app_dir: ResolvedVc<FileSystemPath>,
     global_metadata: Vc<GlobalMetadata>,
+    is_global_not_found_enabled: Vc<bool>,
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
@@ -1137,6 +1142,7 @@ async fn directory_tree_to_entrypoints_internal(
     directory_tree_to_entrypoints_internal_untraced(
         app_dir,
         global_metadata,
+        is_global_not_found_enabled,
         directory_name,
         directory_tree,
         app_page,
@@ -1149,6 +1155,7 @@ async fn directory_tree_to_entrypoints_internal(
 async fn directory_tree_to_entrypoints_internal_untraced(
     app_dir: ResolvedVc<FileSystemPath>,
     global_metadata: Vc<GlobalMetadata>,
+    is_global_not_found_enabled: Vc<bool>,
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
@@ -1289,8 +1296,10 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         // Next.js has this logic in "collect-app-paths", where the root not-found page
         // is considered as its own entry point.
 
-        // Determine if global-not-found.js is presented in the app directory.
-        let has_global_not_found = modules.global_not_found.is_some();
+        // Determine if we enable the global not-found feature.
+        let is_global_not_found_enabled = *is_global_not_found_enabled.await?;
+        let use_global_not_found =
+            is_global_not_found_enabled || modules.global_not_found.is_some();
 
         // If global-not-found.js is not presented, we use it for the pageq
         let not_found_root_modules = modules.without_leafs();
@@ -1306,12 +1315,18 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                             page: app_page.clone(),
                             segment: "__PAGE__".into(),
                             parallel_routes: FxIndexMap::default(),
-                            modules: if has_global_not_found {
+                            modules: if use_global_not_found {
                                 // if global-not-found.js is presented:
                                 // we use it for the page and no layout, since layout is included in global-not-found.js;
                                 AppDirModules {
                                     layout: None,
-                                    page: modules.global_not_found,
+                                    page: match modules.global_not_found {
+                                        Some(v) => Some(v),
+                                        None => Some(get_next_package(*app_dir)
+                                            .join("dist/client/components/global-not-found.js".into())
+                                            .to_resolved()
+                                            .await?),
+                                    },
                                     ..Default::default()
                                 }
                             } else {
@@ -1341,7 +1356,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 // `global-not-found.js` does not need a layout since it's included.
                 // Skip it if it's presented.
                 // Otherwise, we need to compose it with the root layout to compose with not-found.js boundary.
-                layout: if has_global_not_found {
+                layout: if use_global_not_found {
                     None
                 } else {
                     modules.layout
@@ -1379,6 +1394,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             let map = directory_tree_to_entrypoints_internal(
                 *app_dir,
                 global_metadata,
+                is_global_not_found_enabled,
                 subdir_name.clone(),
                 *subdirectory,
                 child_app_page.clone(),
