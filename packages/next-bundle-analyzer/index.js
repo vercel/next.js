@@ -4,6 +4,12 @@ module.exports =
     return Object.assign({}, nextConfig, {
       webpack(config, options) {
         if (enabled) {
+          const nextRuntimeOutputPath = options.dev
+            ? `../analyze/${options.nextRuntime}.html`
+            : `../${options.nextRuntime === 'nodejs' ? '../' : ''}analyze/${
+                options.nextRuntime
+              }.html`
+
           const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
           config.plugins.push(
             new BundleAnalyzerPlugin({
@@ -12,9 +18,7 @@ module.exports =
               openAnalyzer,
               reportFilename: !options.nextRuntime
                 ? `./analyze/client.html`
-                : `../${options.nextRuntime === 'nodejs' ? '../' : ''}analyze/${
-                    options.nextRuntime
-                  }.html`,
+                : nextRuntimeOutputPath,
             })
           )
         }
