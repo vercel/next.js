@@ -15,7 +15,7 @@ import {
   StackFrame,
   parse as parseStackTrace,
 } from '../compiled/stacktrace-parser'
-import { type StructuredError } from 'src/ipc'
+import { structuredError, type StructuredError } from '../ipc'
 
 export type IpcInfoMessage =
   | {
@@ -32,10 +32,12 @@ export type IpcInfoMessage =
     }
   | {
       type: 'log'
-      time: number
-      logType: string
-      args: any[]
-      trace?: StackFrame[]
+      logs: Array<{
+        time: number
+        logType: string
+        args: any[]
+        trace?: StackFrame[]
+      }>
     }
 
 export type IpcRequestMessage = {
@@ -160,7 +162,7 @@ const originalEnv = process.env
 const readEnvVars = new Set<string>()
 process.env = new Proxy(originalEnv, {
   get(target, prop) {
-    if (typeof prop === 'string' && !readEnvVars.has(prop)) {
+    if (typeof prop === 'string') {
       // We register the env var as dependency on the
       // current transform and all future transforms
       // since the env var might be cached in module scope
@@ -186,6 +188,13 @@ const transform = (
     const loadersWithOptions = loaders.map((loader) =>
       typeof loader === 'string' ? { loader, options: {} } : loader
     )
+
+    const logs: Array<{
+      time: number
+      logType: string
+      args: unknown[]
+      trace: StackFrame[] | undefined
+    }> = []
 
     runLoaders(
       {
@@ -337,7 +346,7 @@ const transform = (
           emitError: makeErrorEmitter('error', ipc),
           getLogger(name: unknown) {
             const logFn = (logType: string, ...args: unknown[]) => {
-              let trace
+              let trace: StackFrame[] | undefined
               switch (logType) {
                 case LogType.warn:
                 case LogType.error:
@@ -354,10 +363,8 @@ const transform = (
                   // TODO: do we need to handle this?
                   break
               }
-              // TODO(lukesandberg): should we batch these and flush lazily?
-              // turbopack just collects these and reports them when finishing the task.
-              ipc.sendInfo({
-                type: 'log',
+              // Batch logs messages to be sent at the end
+              logs.push({
                 time: Date.now(),
                 logType,
                 args,
@@ -464,6 +471,10 @@ const transform = (
         },
       },
       (err, result) => {
+        if (logs.length) {
+          ipc.sendInfo({ type: 'log', logs: logs })
+          logs.length = 0
+        }
         ipc.sendInfo({
           type: 'dependencies',
           envVariables: Array.from(readEnvVars),
@@ -502,20 +513,7 @@ function makeErrorEmitter(
     ipc.sendInfo({
       type: 'emittedError',
       severity: severity,
-      error:
-        error instanceof Error
-          ? {
-              name: error.name,
-              message: error.message,
-              stack: error.stack ? parseStackTrace(error.stack) : [],
-              cause: undefined,
-            }
-          : {
-              name: 'Error',
-              message: error,
-              stack: [],
-              cause: undefined,
-            },
+      error: structuredError(error),
     })
   }
 }

@@ -26,6 +26,22 @@ function toPath(file: string) {
   return sep !== '/' ? relPath.replaceAll(sep, '/') : relPath
 }
 
+// Patch process.env to track which env vars are read
+const originalEnv = process.env
+const readEnvVars = new Set<string>()
+process.env = new Proxy(originalEnv, {
+  get(target, prop) {
+    if (typeof prop === 'string') {
+      // We register the env var as dependency on the
+      // current transform and all future transforms
+      // since the env var might be cached in module scope
+      // and influence them all
+      readEnvVars.add(prop)
+    }
+    return Reflect.get(target, prop)
+  },
+})
+
 let processor: Processor | undefined
 
 export const init = async (ipc: Ipc<IpcInfoMessage, IpcRequestMessage>) => {
@@ -134,6 +150,7 @@ export default async function transform(
     filePaths,
     directories,
     buildFilePaths,
+    envVariables: Array.from(readEnvVars),
   })
   return {
     css,
