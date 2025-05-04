@@ -2,7 +2,7 @@
 const { exec, getTag } = require('./utils')
 
 /** @param {boolean} isDryRun */
-async function main(isDryRun) {
+async function publishNpm(isDryRun) {
   const tag = getTag(process.cwd())
   console.log(`Publishing ${tag}`)
 
@@ -28,5 +28,5 @@ async function main(isDryRun) {
 }
 
 // TODO: Uncomment when replacing legacy release.
-// main()
-module.exports = main
+// publishNpm()
+module.exports = publishNpm

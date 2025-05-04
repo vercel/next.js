@@ -36,3 +36,25 @@ export function checkIsNewRelease() {
   const isDryRun = isNewRelease && commitMsg.includes('(dry)')
   return { isNewRelease, isDryRun }
 }
+
+export function getChangelogSection(markdown, version) {
+  const lines = markdown.split('\n')
+  const header = `## ${version}`
+  const section = []
+  let collecting = false
+
+  for (const line of lines) {
+    if (line.startsWith('## ')) {
+      if (line.trim() === header) {
+        collecting = true
+        continue // skip the header itself
+      } else if (collecting) {
+        break // reached the next version
+      }
+    }
+    if (collecting) {
+      section.push(line)
+    }
+  }
+  return section.join('\n').trim()
+}

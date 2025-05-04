@@ -18,8 +18,8 @@ async function main() {
     process.env.__NEW_RELEASE_DRY_RUN === 'true' || isLegacyRelease
   if (isDryRun) {
     // Create a .diff output and revert the `changeset version` result.
-    await exec('git diff > .changeset/canary.diff')
-    await exec('git add .changeset/canary.diff')
+    await exec('git diff > .changeset/dry-run-version.diff')
+    await exec('git add .changeset/dry-run-version.diff')
     await exec('git checkout -- .')
 
     // In legacy process, Lerna will push including the change.
