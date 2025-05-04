@@ -85,15 +85,15 @@ export function normalizeURL(url: string) {
  * Normalizes an app route so it represents the actual request path. Essentially
  * performing the following transformations:
  *
- * - `/(dashboard)/user/[id]/page` to `/user/[id]`
- * - `/(dashboard)/account/page` to `/account`
- * - `/user/[id]/page` to `/user/[id]`
- * - `/account/page` to `/account`
+ * - `/(dashboard)/user/[id]/page` to `/user/[id]/`
+ * - `/(dashboard)/account/page` to `/account/`
+ * - `/user/[id]/page` to `/user/[id]/`
+ * - `/account/page` to `/account/`
  * - `/page` to `/`
- * - `/(dashboard)/user/[id]/route` to `/user/[id]`
- * - `/(dashboard)/account/route` to `/account`
- * - `/user/[id]/route` to `/user/[id]`
- * - `/account/route` to `/account`
+ * - `/(dashboard)/user/[id]/route` to `/user/[id]/`
+ * - `/(dashboard)/account/route` to `/account/`
+ * - `/user/[id]/route` to `/user/[id]/`
+ * - `/account/route` to `/account/`
  * - `/route` to `/`
  * - `/` to `/`
  *
@@ -102,32 +102,34 @@ export function normalizeURL(url: string) {
  */
 export function normalizeAppPath(route: string) {
   return ensureLeadingSlash(
-    route.split('/').reduce((pathname, segment, index, segments) => {
-      // Empty segments are ignored.
-      if (!segment) {
-        return pathname
-      }
+    ensureTrailingSlash(
+      route.split('/').reduce((pathname, segment, index, segments) => {
+        // Empty segments are ignored.
+        if (!segment) {
+          return pathname
+        }
 
-      // Groups are ignored.
-      if (isGroupSegment(segment)) {
-        return pathname
-      }
+        // Groups are ignored.
+        if (isGroupSegment(segment)) {
+          return pathname
+        }
 
-      // Parallel segments are ignored.
-      if (segment[0] === '@') {
-        return pathname
-      }
+        // Parallel segments are ignored.
+        if (segment[0] === '@') {
+          return pathname
+        }
 
-      // The last segment (if it's a leaf) should be ignored.
-      if (
-        (segment === 'page' || segment === 'route') &&
-        index === segments.length - 1
-      ) {
-        return pathname
-      }
+        // The last segment (if it's a leaf) should be ignored.
+        if (
+          (segment === 'page' || segment === 'route') &&
+          index === segments.length - 1
+        ) {
+          return pathname
+        }
 
-      return `${pathname}/${segment}`
-    }, '')
+        return `${pathname}/${segment}`
+      }, '')
+    )
   )
 }
 
@@ -192,6 +194,10 @@ export function execOnce<TArgs extends any[], TResult>(
 
 function ensureLeadingSlash(route: string) {
   return route.startsWith('/') ? route : `/${route}`
+}
+
+function ensureTrailingSlash(route: string) {
+  return route.endsWith('/') ? route : `${route}/`
 }
 
 function isGroupSegment(segment: string) {
