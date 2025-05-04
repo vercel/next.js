@@ -16,7 +16,7 @@ describe('dynamic-io-disable-background-revalidation', () => {
     const headers = isISRRequest
       ? {
           'x-prerender-revalidate': previewModeId,
-          'x-next-isr': '1',
+          'x-next-stale-isr': '1',
         }
       : {
           'x-prerender-revalidate': previewModeId,

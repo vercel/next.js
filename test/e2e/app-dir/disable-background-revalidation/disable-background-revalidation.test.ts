@@ -51,7 +51,7 @@ describe('disable-background-revalidation', () => {
         method: 'HEAD',
         headers: {
           'x-prerender-revalidate': previewModeId,
-          'x-next-isr': '1',
+          'x-next-stale-isr': '1',
         },
       })
       return response

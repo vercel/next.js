@@ -2365,17 +2365,11 @@ export default abstract class Server<
       stripFlightHeaders(req.headers)
     }
 
-    let isOnDemandRevalidate = false
-    let revalidateOnlyGenerated = false
-    let isStaleRevalidationRequest = false
-
-    if (isSSG) {
-      ;({
-        isOnDemandRevalidate,
-        revalidateOnlyGenerated,
-        isStaleRevalidationRequest,
-      } = checkIsOnDemandRevalidate(req, this.renderOpts.previewProps))
-    }
+    let {
+      isOnDemandRevalidate,
+      revalidateOnlyGenerated,
+      isStaleRevalidationRequest,
+    } = checkIsOnDemandRevalidate(req, this.renderOpts.previewProps)
 
     if (isSSG && this.minimalMode && req.headers[MATCHED_PATH_HEADER]) {
       // the url value is already correct when the matched-path header is set

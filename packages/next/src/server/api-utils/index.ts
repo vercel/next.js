@@ -92,7 +92,7 @@ export function checkIsOnDemandRevalidate(
   const revalidateOnlyGenerated = headers.has(
     PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER
   )
-  const isStaleRevalidationRequest = headers.has('x-next-isr')
+  const isStaleRevalidationRequest = headers.has('x-next-stale-isr')
 
   return {
     isOnDemandRevalidate,
