@@ -1,6 +1,6 @@
 import React from 'react'
 
-export const revalidate = 1;
+export const revalidate = 1
 
 export default function Layout({ children }) {
   return (

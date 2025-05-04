@@ -1,10 +1,14 @@
 import React from 'react'
-import {unstable_cache} from 'next/cache'
+import { unstable_cache } from 'next/cache'
 
 export default async function Page() {
-  const cachedFn = unstable_cache(async () => {
-    return Date.now()
-  }, ['date'], {revalidate: false})
+  const cachedFn = unstable_cache(
+    async () => {
+      return Date.now()
+    },
+    ['date'],
+    { revalidate: false }
+  )
 
   const time = await cachedFn()
 

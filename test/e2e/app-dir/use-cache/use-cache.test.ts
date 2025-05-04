@@ -404,7 +404,7 @@ describe('use-cache', () => {
     const browser = await next.browser('/on-demand-revalidate')
     const initial = await browser.elementById('value').text()
 
-    if (!isNextDev) {
+    // if (!isNextDev) {
       // Bust the ISR cache first to populate the "use cache" in-memory cache
       // for the subsequent on-demand revalidation.
       await browser.elementById('revalidate-path').click()
@@ -412,7 +412,7 @@ describe('use-cache', () => {
       await retry(async () => {
         expect(await browser.elementById('value').text()).not.toBe(initial)
       })
-    }
+    // }
 
     const value = await browser.elementById('value').text()
 

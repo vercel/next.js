@@ -1,10 +1,13 @@
 import React from 'react'
 
 export default async function Page() {
-  const response = await fetch(`http://localhost:${process.env.TEST_SERVER_PORT}/api/time`, {
-    // @ts-ignore
-    next: {revalidate: false}
-  })
+  const response = await fetch(
+    `http://localhost:${process.env.TEST_SERVER_PORT}/api/time`,
+    {
+      // @ts-ignore
+      next: { revalidate: false },
+    }
+  )
   const body = await response.json()
 
   return (

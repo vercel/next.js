@@ -170,9 +170,10 @@ When deploying multiple instance of the same Next.js app it could be interesting
 module.exports = {
   experimental: {
     disableBackgroundRevalidation: true,
-  }
+  },
 }
 ```
+
 Setting this option to `true` will disable the background revalidation for ISR pages, meaning that you're responsible for revalidating the pages yourself.
 In order to revalidate the pages yourself you should send a HEAD request to the route you want to revalidate with the `x-prerender-revalidate` header set to `previewModeId` (this value is generated at build time and can be found in the `.next/prerender-manifest.json` file) and the `x-next-isr` header set to `1`.
 Not setting the `x-next-isr` header to `1` is equivalent to an On Demand revalidation with `res.revalidate()`
