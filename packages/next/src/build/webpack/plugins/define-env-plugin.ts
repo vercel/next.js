@@ -146,8 +146,8 @@ export function getDefineEnv({
     'process.env.NEXT_RUNTIME': isEdgeServer
       ? 'edge'
       : isNodeServer
-        ? 'nodejs'
-        : '',
+      ? 'nodejs'
+      : '',
     'process.env.NEXT_MINIMAL': '',
     'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
       config.experimental.appNavFailHandling
@@ -168,6 +168,8 @@ export function getDefineEnv({
         }),
     'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH':
       config.experimental.manualClientBasePath ?? false,
+    'process.env.__NEXT_HARD_NAVIGATE_404':
+      config.experimental.hardNavigate404 ?? false,
     'process.env.__NEXT_CLIENT_ROUTER_DYNAMIC_STALETIME': JSON.stringify(
       isNaN(Number(config.experimental.staleTimes?.dynamic))
         ? 0
