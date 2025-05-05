@@ -262,6 +262,7 @@ export interface LoggingConfig {
 }
 
 export interface ExperimentalConfig {
+  useSkewCookie?: boolean
   nodeMiddleware?: boolean
   cacheHandlers?: {
     default?: string
@@ -1226,6 +1227,7 @@ export const defaultConfig: NextConfig = {
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   allowedDevOrigins: undefined,
   experimental: {
+    useSkewCookie: false,
     nodeMiddleware: false,
     cacheLife: {
       default: {
