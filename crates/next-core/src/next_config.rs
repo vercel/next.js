@@ -10,7 +10,10 @@ use turbo_tasks::{
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
-    module_options_context::MdxTransformOptions, LoaderRuleItem, OptionWebpackRules,
+    module_options_context::{
+        ConditionItem, ConditionPath, MdxTransformOptions, OptionWebpackConditions,
+    },
+    LoaderRuleItem, OptionWebpackRules,
 };
 use turbopack_core::{
     issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString},
@@ -541,9 +544,55 @@ pub struct TurbopackConfig {
     /// This option has been replaced by `rules`.
     pub loaders: Option<JsonValue>,
     pub rules: Option<FxIndexMap<RcStr, RuleConfigItemOrShortcut>>,
+    #[turbo_tasks(trace_ignore)]
+    pub conditions: Option<FxIndexMap<RcStr, ConfigConditionItem>>,
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
     pub module_ids: Option<ModuleIds>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, TraceRawVcs, NonLocalValue)]
+pub struct ConfigConditionItem(ConditionItem);
+
+impl<'de> Deserialize<'de> for ConfigConditionItem {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct RegexComponents {
+            source: RcStr,
+            flags: RcStr,
+        }
+
+        #[derive(Deserialize)]
+        struct ConfigPath {
+            path: RegexOrGlob,
+        }
+
+        #[derive(Deserialize)]
+        #[serde(tag = "type", rename_all = "lowercase")]
+        enum RegexOrGlob {
+            Regexp { value: RegexComponents },
+            Glob { value: String },
+        }
+
+        let config_path = ConfigPath::deserialize(deserializer)?;
+        let condition_item = match config_path.path {
+            RegexOrGlob::Regexp { value } => {
+                let regex = turbo_esregex::EsRegex::new(&value.source, &value.flags)
+                    .map_err(serde::de::Error::custom)?;
+                ConditionItem {
+                    path: ConditionPath::Regex(regex.resolved_cell()),
+                }
+            }
+            RegexOrGlob::Glob { value } => ConditionItem {
+                path: ConditionPath::Glob(value.into()),
+            },
+        };
+
+        Ok(ConfigConditionItem(condition_item))
+    }
 }
 
 #[derive(
@@ -1065,7 +1114,8 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn from_string(string: Vc<RcStr>) -> Result<Vc<Self>> {
         let string = string.await?;
-        let config: NextConfig = serde_json::from_str(&string)
+        let mut jdeserializer = serde_json::Deserializer::from_str(&string);
+        let config: NextConfig = serde_path_to_error::deserialize(&mut jdeserializer)
             .with_context(|| format!("failed to parse next.config.js: {}", string))?;
         Ok(config.cell())
     }
@@ -1225,6 +1275,22 @@ impl NextConfig {
             }
         }
         Vc::cell(Some(ResolvedVc::cell(rules)))
+    }
+
+    #[turbo_tasks::function]
+    pub fn webpack_conditions(&self) -> Vc<OptionWebpackConditions> {
+        let Some(config_conditions) = self.turbopack.as_ref().and_then(|t| t.conditions.as_ref())
+        else {
+            return Vc::cell(None);
+        };
+
+        let conditions = FxIndexMap::from_iter(
+            config_conditions
+                .iter()
+                .map(|(k, v)| (k.clone(), v.0.clone())),
+        );
+
+        Vc::cell(Some(ResolvedVc::cell(conditions)))
     }
 
     #[turbo_tasks::function]
