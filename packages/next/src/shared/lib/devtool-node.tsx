@@ -38,19 +38,21 @@ const createRegisterNode =
             nodeInfo: nodeInfo,
           }
         }
+      } else {
+        // If parent not found, create a new node at the root level
+        prevTree.children[pagePath] = {
+          name,
+          pagePath,
+          children: {},
+          nodeInfo: nodeInfo,
+        }
       }
 
       return { ...prevTree }
     })
   }
 
-export const DevToolRootNode = ({
-  children,
-  pagePath,
-}: {
-  children: ReactNode
-  pagePath: string
-}) => {
+export const DevToolRootNode = ({ children }: { children: ReactNode }) => {
   const [tree, setTree] = React.useState<TreeNode>({
     name: 'root',
     nodeInfo: {
@@ -66,7 +68,7 @@ export const DevToolRootNode = ({
   }, [tree])
 
   return (
-    <DevToolContext value={{ tree, registerNode, pagePath }}>
+    <DevToolContext value={{ tree, registerNode, pagePath: '' }}>
       {children}
     </DevToolContext>
   )

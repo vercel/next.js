@@ -1,9 +1,10 @@
-import type { HTMLProps } from 'react'
+import { useRef, type HTMLProps } from 'react'
 import { css } from '../../../../../utils/css'
 import type { DevToolsInfoPropsCore } from './dev-tools-info'
 import { DevToolsInfo } from './dev-tools-info'
 import type { TreeNode } from '../../../../../../../../shared/lib/devtool-context.shared-runtime'
 import { cx } from '../../../../utils/cx'
+import { LeftArrow } from '../../../../icons/left-arrow'
 
 const IconLayout = (props: any) => {
   return (
@@ -42,29 +43,49 @@ const ICONS = {
   page: <IconPage width={16} />,
 }
 
-function TreePanel({ tree }: { tree: TreeNode }) {
+function SegmentTree({ tree }: { tree: TreeNode }) {
+  const renderedRef = useRef<Record<string, number>>({})
   return (
-    <div className="tree-panel">
-      <TreeNodeDisplay node={tree} level={0} />
-    </div>
+    <SegmentTreeLayerPresentation
+      node={tree}
+      level={0}
+      renderedRef={renderedRef}
+    />
   )
 }
 
-const TreeNodeDisplay = ({
+function SegmentTreeLayerPresentation({
   node,
   level,
+  renderedRef,
 }: {
   node: TreeNode
   level: number
-}) => {
+  renderedRef: React.RefObject<Record<string, number>>
+}) {
+  // has been rendered in this level
+  const renderedLevel = renderedRef.current[node.pagePath]
+  const hasRenderedBefore = typeof renderedLevel !== 'undefined'
+  if (hasRenderedBefore && renderedLevel !== level) {
+    return null
+  }
+
+  if (
+    // skip '' pagePath of root node
+    node.pagePath &&
+    !hasRenderedBefore
+  ) {
+    renderedRef.current[node.pagePath] = level
+  }
   const nodeName = node.name || 'root'
-  const pathSeg = node.pagePath.split('/').slice(level, -1).join('/')
+  const segments = node.pagePath.split('/')
+  const pathSeg = segments.slice(level, -1).join('/')
   const fileBaseName = node.nodeInfo.filePath.split('/').pop() || ''
 
   return (
     <div
       className="tree-node-display"
-      style={{ paddingLeft: `${level * 6}px` }}
+      style={{ paddingLeft: `${Math.max(segments.length - 1, 0) * 16}px` }}
     >
       {level === 0 ? null : (
         <div className="tree-node-display-row">
@@ -79,7 +100,7 @@ const TreeNodeDisplay = ({
                 {ICONS[(node.name as 'layout' | 'page') || 'layout']}
               </span>
               {pathSeg}
-              {' / '}
+              {'/'}
               <span className="tree-node-filename-path">{fileBaseName}</span>
             </div>
           </div>
@@ -87,9 +108,22 @@ const TreeNodeDisplay = ({
       )}
 
       <div className="tree-node-expanded-rendered-children">
-        {Object.entries(node.children).map(([key, child]) => (
-          <TreeNodeDisplay key={key} node={child} level={level + 1} />
-        ))}
+        {Object.entries(node.children)
+          .sort((keyA, keyB) => {
+            // compare the segments length
+            const segA = keyA[0].split('/').length
+            const segB = keyB[0].split('/').length
+
+            return segA - segB
+          })
+          .map(([key, child]) => (
+            <SegmentTreeLayerPresentation
+              key={key}
+              node={child}
+              level={level + 1}
+              renderedRef={renderedRef}
+            />
+          ))}
       </div>
     </div>
   )
@@ -104,21 +138,27 @@ export function PageSegmentsViewer(
       title={
         <>
           {/* back button */}
-          <button onClick={props.close}>{' < '}</button>
+          <button className="segment-viewer-back-button" onClick={props.close}>
+            <LeftArrow />
+          </button>
           {'Segments Viewer'}
         </>
       }
       closeButton={false}
       {...props}
     >
-      <TreePanel tree={(window as any).__NEXT_DEVTOOL_TREE} />
+      <SegmentTree tree={(window as any).__NEXT_DEVTOOL_TREE} />
     </DevToolsInfo>
   )
 }
 
 export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
-  .tree-panel {
-    padding: 6px;
+  .segment-viewer-back-button {
+    margin-right: 12px;
+  }
+  .segment-viewer-back-button svg {
+    width: 20px;
+    height: 20px;
   }
 
   .tree-node-display {
@@ -148,10 +188,7 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
   }
 
   .tree-node-filename-path {
-    color: var(--color-gray-800);
-    font-size: var(--size-14);
     display: inline-block;
-    padding: 0 2px;
     text-decoration-color: #b4b4b4;
 
     &:hover {

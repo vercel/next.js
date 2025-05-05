@@ -81,7 +81,7 @@ const OVERLAYS = {
   Turbo: 'turbo',
   Route: 'route',
   Preferences: 'preferences',
-  RenderedFiles: 'rendered-files',
+  SegmentViewer: 'segment-viewer',
 } as const
 
 export type Overlays = (typeof OVERLAYS)[keyof typeof OVERLAYS]
@@ -125,7 +125,7 @@ function DevToolsPopover({
   const isTurbopackInfoOpen = open === OVERLAYS.Turbo
   const isRouteInfoOpen = open === OVERLAYS.Route
   const isPreferencesOpen = open === OVERLAYS.Preferences
-  const isRenderedFilesOpen = open === OVERLAYS.RenderedFiles
+  const isRenderedFilesOpen = open === OVERLAYS.SegmentViewer
 
   const { mounted: menuMounted, rendered: menuRendered } = useDelayedRender(
     isMenuOpen,
@@ -405,7 +405,7 @@ function DevToolsPopover({
                 data-rendered-files
                 label="Page Segments Viewer"
                 value={<ChevronRight />}
-                onClick={() => setOpen(OVERLAYS.RenderedFiles)}
+                onClick={() => setOpen(OVERLAYS.SegmentViewer)}
                 index={isTurbopack ? 3 : 4}
               />
             </div>
