@@ -8,11 +8,7 @@ export default function Page() {
         prefetching strategy (the same as if no prefetch prop is given).
       </p>
 
-      <LinkAccordion
-        // @ts-expect-error: "auto" not yet part of public types
-        prefetch="auto"
-        href="/dynamic"
-      >
+      <LinkAccordion prefetch="auto" href="/dynamic">
         Dynamic page with loading boundary
       </LinkAccordion>
     </>
