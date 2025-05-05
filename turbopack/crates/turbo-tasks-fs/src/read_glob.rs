@@ -99,7 +99,7 @@ async fn resolve_symlink_safely(entry: &DirectoryEntry) -> Result<DirectoryEntry
         {
             bail!(
                 "'{}' is a symlink causes that causes an infinite loop!",
-                source_path.await?.path.to_string()
+                source_path.to_string().await?
             )
         }
     }
