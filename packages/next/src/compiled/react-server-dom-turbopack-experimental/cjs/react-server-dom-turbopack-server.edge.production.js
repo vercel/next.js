@@ -554,7 +554,13 @@ function useId() {
   if (null === currentRequest$1)
     throw Error("useId can only be used while React is rendering");
   var id = currentRequest$1.identifierCount++;
-  return ":" + currentRequest$1.identifierPrefix + "S" + id.toString(32) + ":";
+  return (
+    "\u00ab" +
+    currentRequest$1.identifierPrefix +
+    "S" +
+    id.toString(32) +
+    "\u00bb"
+  );
 }
 function use(usable) {
   if (
@@ -1083,6 +1089,18 @@ function renderFragment(request, task, children) {
       task.implicitSlot ? [request] : request)
     : children;
 }
+var serializedSize = 0;
+function deferTask(request, task) {
+  task = createTask(
+    request,
+    task.model,
+    task.keyPath,
+    task.implicitSlot,
+    request.abortableTasks
+  );
+  pingTask(request, task);
+  return serializeLazyID(task.id);
+}
 function renderElement(request, task, type, key, ref, props) {
   if (null !== ref && void 0 !== ref)
     throw Error(
@@ -1164,6 +1182,7 @@ function createTask(request, model, keyPath, implicitSlot, abortSet) {
       return pingTask(request, task);
     },
     toJSON: function (parentPropertyName, value) {
+      serializedSize += parentPropertyName.length;
       var prevKeyPath = task.keyPath,
         prevImplicitSlot = task.implicitSlot;
       try {
@@ -1188,12 +1207,12 @@ function createTask(request, model, keyPath, implicitSlot, abortSet) {
             21 === request.type
               ? ((prevKeyPath = request.nextChunkId++),
                 (prevKeyPath = parentPropertyName
-                  ? "$L" + prevKeyPath.toString(16)
+                  ? serializeLazyID(prevKeyPath)
                   : serializeByValueID(prevKeyPath)),
                 (JSCompiler_inline_result = prevKeyPath))
               : ((prevKeyPath = request.fatalError),
                 (JSCompiler_inline_result = parentPropertyName
-                  ? "$L" + prevKeyPath.toString(16)
+                  ? serializeLazyID(prevKeyPath)
                   : serializeByValueID(prevKeyPath)));
         else if (
           ((value =
@@ -1218,7 +1237,7 @@ function createTask(request, model, keyPath, implicitSlot, abortSet) {
           task.keyPath = prevKeyPath;
           task.implicitSlot = prevImplicitSlot;
           JSCompiler_inline_result = parentPropertyName
-            ? "$L" + JSCompiler_inline_result.id.toString(16)
+            ? serializeLazyID(JSCompiler_inline_result.id)
             : serializeByValueID(JSCompiler_inline_result.id);
         } else
           (task.keyPath = prevKeyPath),
@@ -1233,7 +1252,7 @@ function createTask(request, model, keyPath, implicitSlot, abortSet) {
               : ((prevImplicitSlot = logRecoverableError(request, value, task)),
                 emitErrorChunk(request, prevKeyPath, prevImplicitSlot)),
             (JSCompiler_inline_result = parentPropertyName
-              ? "$L" + prevKeyPath.toString(16)
+              ? serializeLazyID(prevKeyPath)
               : serializeByValueID(prevKeyPath));
       }
       return JSCompiler_inline_result;
@@ -1245,6 +1264,9 @@ function createTask(request, model, keyPath, implicitSlot, abortSet) {
 }
 function serializeByValueID(id) {
   return "$" + id.toString(16);
+}
+function serializeLazyID(id) {
+  return "$L" + id.toString(16);
 }
 function encodeReferenceChunk(request, id, reference) {
   request = stringify(reference);
@@ -1264,7 +1286,7 @@ function serializeClientReference(
     existingId = writtenClientReferences.get(clientReferenceKey);
   if (void 0 !== existingId)
     return parent[0] === REACT_ELEMENT_TYPE && "1" === parentPropertyName
-      ? "$L" + existingId.toString(16)
+      ? serializeLazyID(existingId)
       : serializeByValueID(existingId);
   try {
     var config = request.bundlerConfig,
@@ -1302,7 +1324,7 @@ function serializeClientReference(
     request.completedImportChunks.push(processedChunk);
     writtenClientReferences.set(clientReferenceKey, importId);
     return parent[0] === REACT_ELEMENT_TYPE && "1" === parentPropertyName
-      ? "$L" + importId.toString(16)
+      ? serializeLazyID(importId)
       : serializeByValueID(importId);
   } catch (x) {
     return (
@@ -1390,6 +1412,7 @@ function renderModelDestructive(
                 ((elementReference = parent + ":" + parentPropertyName),
                 writtenObjects.set(value, elementReference)));
         }
+        if (3200 < serializedSize) return deferTask(request, task);
         parentPropertyName = value.props;
         parent = parentPropertyName.ref;
         value = renderElement(
@@ -1407,6 +1430,7 @@ function renderModelDestructive(
             writtenObjects.set(value, elementReference));
         return value;
       case REACT_LAZY_TYPE:
+        if (3200 < serializedSize) return deferTask(request, task);
         task.thenableState = null;
         parentPropertyName = value._init;
         value = parentPropertyName(value._payload);
@@ -1560,6 +1584,7 @@ function renderModelDestructive(
   if ("string" === typeof value) {
     task = TaintRegistryValues.get(value);
     void 0 !== task && throwTaintViolation(task.message);
+    serializedSize += value.length;
     if (
       "Z" === value[value.length - 1] &&
       parent[parentPropertyName] instanceof Date
@@ -1767,38 +1792,45 @@ function emitTextChunk(request, id, text) {
 }
 function emitChunk(request, task, value) {
   var id = task.id;
-  "string" === typeof value && null !== byteLengthOfChunk
-    ? ((task = TaintRegistryValues.get(value)),
+  if ("string" === typeof value && null !== byteLengthOfChunk)
+    (task = TaintRegistryValues.get(value)),
       void 0 !== task && throwTaintViolation(task.message),
-      emitTextChunk(request, id, value))
-    : value instanceof ArrayBuffer
-      ? emitTypedArrayChunk(request, id, "A", new Uint8Array(value))
-      : value instanceof Int8Array
-        ? emitTypedArrayChunk(request, id, "O", value)
-        : value instanceof Uint8Array
-          ? emitTypedArrayChunk(request, id, "o", value)
-          : value instanceof Uint8ClampedArray
-            ? emitTypedArrayChunk(request, id, "U", value)
-            : value instanceof Int16Array
-              ? emitTypedArrayChunk(request, id, "S", value)
-              : value instanceof Uint16Array
-                ? emitTypedArrayChunk(request, id, "s", value)
-                : value instanceof Int32Array
-                  ? emitTypedArrayChunk(request, id, "L", value)
-                  : value instanceof Uint32Array
-                    ? emitTypedArrayChunk(request, id, "l", value)
-                    : value instanceof Float32Array
-                      ? emitTypedArrayChunk(request, id, "G", value)
-                      : value instanceof Float64Array
-                        ? emitTypedArrayChunk(request, id, "g", value)
-                        : value instanceof BigInt64Array
-                          ? emitTypedArrayChunk(request, id, "M", value)
-                          : value instanceof BigUint64Array
-                            ? emitTypedArrayChunk(request, id, "m", value)
-                            : value instanceof DataView
-                              ? emitTypedArrayChunk(request, id, "V", value)
-                              : ((value = stringify(value, task.toJSON)),
-                                emitModelChunk(request, task.id, value));
+      emitTextChunk(request, id, value);
+  else if (value instanceof ArrayBuffer)
+    emitTypedArrayChunk(request, id, "A", new Uint8Array(value));
+  else if (value instanceof Int8Array)
+    emitTypedArrayChunk(request, id, "O", value);
+  else if (value instanceof Uint8Array)
+    emitTypedArrayChunk(request, id, "o", value);
+  else if (value instanceof Uint8ClampedArray)
+    emitTypedArrayChunk(request, id, "U", value);
+  else if (value instanceof Int16Array)
+    emitTypedArrayChunk(request, id, "S", value);
+  else if (value instanceof Uint16Array)
+    emitTypedArrayChunk(request, id, "s", value);
+  else if (value instanceof Int32Array)
+    emitTypedArrayChunk(request, id, "L", value);
+  else if (value instanceof Uint32Array)
+    emitTypedArrayChunk(request, id, "l", value);
+  else if (value instanceof Float32Array)
+    emitTypedArrayChunk(request, id, "G", value);
+  else if (value instanceof Float64Array)
+    emitTypedArrayChunk(request, id, "g", value);
+  else if (value instanceof BigInt64Array)
+    emitTypedArrayChunk(request, id, "M", value);
+  else if (value instanceof BigUint64Array)
+    emitTypedArrayChunk(request, id, "m", value);
+  else if (value instanceof DataView)
+    emitTypedArrayChunk(request, id, "V", value);
+  else {
+    id = serializedSize;
+    try {
+      var json = stringify(value, task.toJSON);
+      emitModelChunk(request, task.id, json);
+    } finally {
+      serializedSize = id;
+    }
+  }
 }
 function erroredTask(request, task, error) {
   task.status = 4;
