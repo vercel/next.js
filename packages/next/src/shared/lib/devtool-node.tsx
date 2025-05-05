@@ -101,7 +101,9 @@ export function DevToolNode({
       pagePath,
       nodeInfo: { filePath },
     })
-  }, [devToolContext, filePath, name, pagePath])
+    // Skip adding `devToolContext` to the dependency array to avoid re-rendering
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filePath, name, pagePath])
 
   if (!devToolContext) {
     return children

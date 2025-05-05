@@ -741,7 +741,7 @@ async function createComponentTreeInternal({
     const SegmentComponent = (segmentProps: any) => {
       return (
         <DevToolNode
-          pagePath={devtoolPagePath}
+          pagePath={relativeLayoutOrPagePath}
           name={nodeName}
           filePath={normalizedFilePath}
         >

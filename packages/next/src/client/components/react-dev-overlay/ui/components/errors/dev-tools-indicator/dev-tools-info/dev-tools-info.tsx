@@ -9,9 +9,10 @@ export interface DevToolsInfoPropsCore {
 }
 
 export interface DevToolsInfoProps extends DevToolsInfoPropsCore {
-  title: string
+  title: React.ReactNode
   children: React.ReactNode
   learnMoreLink?: string
+  closeButton?: boolean
 }
 
 export function DevToolsInfo({
@@ -20,6 +21,7 @@ export function DevToolsInfo({
   learnMoreLink,
   isOpen,
   triggerRef,
+  closeButton,
   close,
   ...props
 }: DevToolsInfoProps) {
@@ -56,13 +58,15 @@ export function DevToolsInfo({
         <h1 className="dev-tools-info-title">{title}</h1>
         {children}
         <div className="dev-tools-info-button-container">
-          <button
-            ref={closeButtonRef}
-            className="dev-tools-info-close-button"
-            onClick={close}
-          >
-            Close
-          </button>
+          {closeButton ? (
+            <button
+              ref={closeButtonRef}
+              className="dev-tools-info-close-button"
+              onClick={close}
+            >
+              Close
+            </button>
+          ) : null}
           {learnMoreLink && (
             <a
               className="dev-tools-info-learn-more-button"

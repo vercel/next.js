@@ -22,7 +22,6 @@ import {
   PathnameContext,
   PathParamsContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
-import { DevToolRootNode } from '../../shared/lib/devtool-node'
 import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
 import { ErrorBoundary } from './error-boundary'
 import DefaultGlobalError, {
@@ -531,8 +530,14 @@ function Router({
     }
   }
 
+  const Root =
+    process.env.NODE_ENV === 'development'
+      ? (require('../../shared/lib/devtool-node')
+          .DevToolRootNode as typeof import('../../shared/lib/devtool-node').DevToolRootNode)
+      : React.Fragment
+
   return (
-    <DevToolRootNode pagePath=''>
+    <Root>
       <HistoryUpdater appRouterState={state} />
       <RuntimeStyles />
       <PathParamsContext.Provider value={pathParams}>
@@ -555,7 +560,7 @@ function Router({
           </SearchParamsContext.Provider>
         </PathnameContext.Provider>
       </PathParamsContext.Provider>
-    </DevToolRootNode>
+    </Root>
   )
 }
 
