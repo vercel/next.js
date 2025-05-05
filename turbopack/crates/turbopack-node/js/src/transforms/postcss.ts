@@ -10,41 +10,11 @@ import type { Processor } from 'postcss'
 import postcss from '@vercel/turbopack/postcss'
 // @ts-ignore
 import importedConfig from 'CONFIG'
-import { relative, isAbsolute, sep } from 'path'
-import type { Ipc } from '../ipc/evaluate'
-import type { IpcInfoMessage, IpcRequestMessage } from './webpack-loaders'
-
-const contextDir = process.cwd()
-
-function toPath(file: string) {
-  const relPath = relative(contextDir, file)
-  if (isAbsolute(relPath)) {
-    throw new Error(
-      `Cannot depend on path (${file}) outside of root directory (${contextDir})`
-    )
-  }
-  return sep !== '/' ? relPath.replaceAll(sep, '/') : relPath
-}
-
-// Patch process.env to track which env vars are read
-const originalEnv = process.env
-const readEnvVars = new Set<string>()
-process.env = new Proxy(originalEnv, {
-  get(target, prop) {
-    if (typeof prop === 'string') {
-      // We register the env var as dependency on the
-      // current transform and all future transforms
-      // since the env var might be cached in module scope
-      // and influence them all
-      readEnvVars.add(prop)
-    }
-    return Reflect.get(target, prop)
-  },
-})
+import { getReadEnvVariables, toPath, type TransformIpc } from './transforms'
 
 let processor: Processor | undefined
 
-export const init = async (ipc: Ipc<IpcInfoMessage, IpcRequestMessage>) => {
+export const init = async (ipc: TransformIpc) => {
   let config = importedConfig
   if (typeof config === 'function') {
     config = await config({ env: 'development' })
@@ -92,7 +62,7 @@ export const init = async (ipc: Ipc<IpcInfoMessage, IpcRequestMessage>) => {
 }
 
 export default async function transform(
-  ipc: Ipc<IpcInfoMessage, IpcRequestMessage>,
+  ipc: TransformIpc,
   cssContent: string,
   name: string,
   sourceMap: boolean
@@ -150,7 +120,7 @@ export default async function transform(
     filePaths,
     directories,
     buildFilePaths,
-    envVariables: Array.from(readEnvVars),
+    envVariables: getReadEnvVariables(),
   })
   return {
     css,

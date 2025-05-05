@@ -3,19 +3,18 @@ declare const __turbopack_external_require__: {
 } & ((id: string, thunk: () => any, esm?: boolean) => any)
 
 import type { Ipc } from '../ipc/evaluate'
-import {
-  relative,
-  isAbsolute,
-  join,
-  sep,
-  dirname,
-  resolve as pathResolve,
-} from 'path'
+import { dirname, resolve as pathResolve } from 'path'
 import {
   StackFrame,
   parse as parseStackTrace,
 } from '../compiled/stacktrace-parser'
 import { structuredError, type StructuredError } from '../ipc'
+import {
+  fromPath,
+  getReadEnvVariables,
+  toPath,
+  type TransformIpc,
+} from './transforms'
 
 export type IpcInfoMessage =
   | {
@@ -59,18 +58,6 @@ const {
 }: typeof import('loader-runner') = require('@vercel/turbopack/loader-runner')
 
 const contextDir = process.cwd()
-const toPath = (file: string) => {
-  const relPath = relative(contextDir, file)
-  if (isAbsolute(relPath)) {
-    throw new Error(
-      `Cannot depend on path (${file}) outside of root directory (${contextDir})`
-    )
-  }
-  return sep !== '/' ? relPath.replaceAll(sep, '/') : relPath
-}
-const fromPath = (path: string) => {
-  return join(contextDir, sep !== '/' ? path.replaceAll('/', sep) : path)
-}
 
 const LogType = Object.freeze({
   error: 'error',
@@ -157,24 +144,8 @@ type ResolveOptions = {
   importFields?: string[]
 }
 
-// Patch process.env to track which env vars are read
-const originalEnv = process.env
-const readEnvVars = new Set<string>()
-process.env = new Proxy(originalEnv, {
-  get(target, prop) {
-    if (typeof prop === 'string') {
-      // We register the env var as dependency on the
-      // current transform and all future transforms
-      // since the env var might be cached in module scope
-      // and influence them all
-      readEnvVars.add(prop)
-    }
-    return Reflect.get(target, prop)
-  },
-})
-
 const transform = (
-  ipc: Ipc<IpcInfoMessage, IpcRequestMessage>,
+  ipc: TransformIpc,
   content: string | { binary: string },
   name: string,
   query: string,
@@ -477,7 +448,7 @@ const transform = (
         }
         ipc.sendInfo({
           type: 'dependencies',
-          envVariables: Array.from(readEnvVars),
+          envVariables: getReadEnvVariables(),
           filePaths: result.fileDependencies.map(toPath),
           directories: result.contextDependencies.map((dep) => [
             toPath(dep),
