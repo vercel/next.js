@@ -37,6 +37,10 @@ type EsmImport = (
   allowExportDefault: boolean
 ) => EsmNamespaceObject | Promise<EsmNamespaceObject>
 type EsmExport = (exportGetters: Record<string, () => any>) => void
+type EsmExportOther = (
+  id: ModuleId,
+  exportGetters: Record<string, () => any>
+) => void
 type ExportValue = (value: any) => void
 type ExportNamespace = (namespace: any) => void
 type DynamicExport = (object: Record<string, any>) => void
@@ -97,6 +101,7 @@ interface TurbopackBaseContext<M> {
   f: ModuleContextFactory
   i: EsmImport
   s: EsmExport
+  o: EsmExportOther
   j: DynamicExport
   v: ExportValue
   n: ExportNamespace
