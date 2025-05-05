@@ -155,7 +155,7 @@ async function createTreeCodeFromPath(
   async function resolveAdjacentParallelSegments(
     segmentPath: string
   ): Promise<string[]> {
-    const absoluteSegmentPath = resolveDir(
+    const absoluteSegmentPath = await resolveDir(
       `${appDirPrefix}${segmentPath}`
     )
 
@@ -212,7 +212,7 @@ async function createTreeCodeFromPath(
     // For default not-found, don't traverse the directory to find metadata.
     const resolvedRouteDir = isDefaultNotFound
       ? ''
-      : resolveDir(routerDirPath)
+      : await resolveDir(routerDirPath)
 
     if (resolvedRouteDir) {
       metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
@@ -338,7 +338,7 @@ async function createTreeCodeFromPath(
 
         if (isDefaultNotFound && !layoutPath && !rootLayout) {
           rootLayout = defaultLayoutPath
-          definedFilePaths.push(['layout', rootLayout, ])
+          definedFilePaths.push(['layout', rootLayout])
         }
       }
 

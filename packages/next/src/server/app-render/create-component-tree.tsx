@@ -22,7 +22,6 @@ import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { OUTLET_BOUNDARY_NAME } from '../../lib/metadata/metadata-constants'
 import type { UseCachePageComponentProps } from '../use-cache/use-cache-wrapper'
-import path from 'path'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -176,7 +175,11 @@ async function createComponentTreeInternal({
 
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
-  const { mod: layoutOrPageMod, modType, filePath } = await getTracer().trace(
+  const {
+    mod: layoutOrPageMod,
+    modType,
+    filePath,
+  } = await getTracer().trace(
     NextNodeServerSpan.getLayoutOrPageModule,
     {
       hideSpan: !(isLayout || isPage),
@@ -624,29 +627,23 @@ async function createComponentTreeInternal({
   }
 
   const dir = ctx.renderOpts.dir || process.cwd()
-  const relativeLayoutOrPagePath = (layoutOrPagePath || '').replace(dir + '/app', '')
+  const relativeLayoutOrPagePath = (layoutOrPagePath || '').replace(
+    dir + '/app',
+    ''
+  )
   let normalizedFilePath = filePath || '<filepath-placeholder>'
   if (normalizedFilePath.startsWith('[project]')) {
     normalizedFilePath = normalizedFilePath.replace('[project]', dir)
   }
 
-  
   const nodeName = modType ?? '<name-placeholder>'
-
-  // // @ts-ignore
-  // if (!globalThis.rootAppDir) {
-  //   // @ts-ignore
-  //   globalThis.rootAppDir = path.dirname(path.dirname(relativeLayoutOrPagePath))
-  // }
-
-  const devtoolPagePath = relativeLayoutOrPagePath //.slice(process.cwd().length)
 
   if (isPage) {
     // const PageComponent = Component
     const PageComponent = (pageProps: any) => {
       return (
         <DevToolNode
-          pagePath={devtoolPagePath}
+          pagePath={relativeLayoutOrPagePath}
           name={nodeName}
           filePath={normalizedFilePath}
         >
