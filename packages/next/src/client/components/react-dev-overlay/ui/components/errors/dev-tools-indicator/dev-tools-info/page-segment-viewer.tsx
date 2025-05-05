@@ -28,11 +28,14 @@ const IconPage = (props: any) => {
       {...props}
       viewBox="0 0 16 16"
       fill="none"
+      strokeLinejoin="round"
       xmlns="http://www.w3.org/2000/svg"
     >
       <path
-        d="M9.18457 0.00488281C9.41351 0.0276021 9.62886 0.128861 9.79297 0.292969L14.207 4.70703C14.3945 4.89453 14.5 5.1489 14.5 5.41406V13.5L14.4873 13.7559C14.3677 14.9323 13.4323 15.8677 12.2559 15.9873L12 16H4L3.74414 15.9873C2.56772 15.8677 1.63227 14.9323 1.5127 13.7559L1.5 13.5V0H9.08594L9.18457 0.00488281ZM3 13.5C3 14.0523 3.44772 14.5 4 14.5H12C12.5523 14.5 13 14.0523 13 13.5V5.62109L8.87891 1.5H3V13.5Z"
-        fill="#666666"
+        fill-rule="evenodd"
+        clip-rule="evenodd"
+        d="M14.5 6.5V13.5C14.5 14.8807 13.3807 16 12 16H4C2.61929 16 1.5 14.8807 1.5 13.5V1.5V0H3H8H9.08579C9.351 0 9.60536 0.105357 9.79289 0.292893L14.2071 4.70711C14.3946 4.89464 14.5 5.149 14.5 5.41421V6.5ZM13 6.5V13.5C13 14.0523 12.5523 14.5 12 14.5H4C3.44772 14.5 3 14.0523 3 13.5V1.5H8V5V6.5H9.5H13ZM9.5 2.12132V5H12.3787L9.5 2.12132Z"
+        fill="currentColor"
       />
     </svg>
   )
@@ -97,10 +100,9 @@ function SegmentTreeLayerPresentation({
                   `tree-node-line-info-icon-${nodeName}`
                 )}
               >
-                {ICONS[(node.name as 'layout' | 'page') || 'layout']}
+                {nodeName === 'layout' ? ICONS.layout : ICONS.page}
               </span>
-              {pathSeg}
-              {'/'}
+              {pathSeg === '' ? '' : `${pathSeg}/`}
               <span className="tree-node-filename-path">{fileBaseName}</span>
             </div>
           </div>
@@ -206,17 +208,12 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     white-space: pre;
   }
 
-  .tree-node-line-info-text-page {
-    color: black;
-  }
-
   .tree-node-line-info-icon {
     margin-right: 4px;
   }
-  .tree-node-line-info-icon-layout {
-    color: var(--color-blue-600);
-  }
-  .tree-node-line-info-icon-page {
+
+  .tree-node-line-info-text-page .tree-node-filename-path,
+  .tree-node-line-info-text-page .tree-node-line-info-icon-page {
     color: var(--color-blue-700);
   }
 `
