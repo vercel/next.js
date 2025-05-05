@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { assertNoRedbox } from 'next-test-utils'
 
-describe('global-not-found - multi root', () => {
+describe('global-not-found - no-root-layout', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
