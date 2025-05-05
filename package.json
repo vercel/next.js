@@ -114,7 +114,7 @@
     "@rspack/core": "1.3.8",
     "@rspack/plugin-react-refresh": "1.2.0",
     "@swc/cli": "0.1.55",
-    "@swc/core": "1.9.3",
+    "@swc/core": "1.11.24",
     "@swc/helpers": "0.5.15",
     "@swc/types": "0.1.7",
     "@taskr/esnext": "1.1.0",

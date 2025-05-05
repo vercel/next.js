@@ -178,7 +178,7 @@
     "@storybook/react-webpack5": "8.6.0",
     "@storybook/test": "8.6.0",
     "@storybook/test-runner": "0.21.0",
-    "@swc/core": "1.9.3",
+    "@swc/core": "1.11.24",
     "@swc/types": "0.1.7",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
