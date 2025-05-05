@@ -105,6 +105,10 @@ export type TurbopackLoaderItem =
       options: Record<string, JSONValue>
     }
 
+export type TurbopackRuleCondition = {
+  path: string | RegExp
+}
+
 export type TurbopackRuleConfigItemOrShortcut =
   | TurbopackLoaderItem[]
   | TurbopackRuleConfigItem
@@ -143,6 +147,13 @@ export interface TurbopackOptions {
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
   rules?: Record<string, TurbopackRuleConfigItemOrShortcut>
+
+  /**
+   * (`next --turbopack` only) A list of conditions to apply when running webpack loaders with Turbopack.
+   *
+   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
+   */
+  conditions?: Record<string, TurbopackRuleCondition>
 
   /**
    * The module ID strategy to use for Turbopack.
