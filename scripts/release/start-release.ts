@@ -1,7 +1,6 @@
-// @ts-check
-const { exec } = require('./utils')
+import { exec } from './utils'
 
-async function main() {
+export default async function startRelease() {
   const githubToken = process.env.RELEASE_BOT_GITHUB_TOKEN
   if (!githubToken) {
     console.log('Missing RELEASE_BOT_GITHUB_TOKEN')
@@ -42,6 +41,4 @@ async function main() {
   await exec('git push --no-verify')
 }
 
-// TODO: Uncomment when replacing legacy release.
-// main()
-module.exports = main
+startRelease()

@@ -1,17 +1,16 @@
-// @ts-check
-const fs = require('fs')
-const path = require('path')
-const execa = require('execa')
-const cp = require('child_process')
+import fs from 'fs'
+import path from 'path'
+import execa from 'execa'
+import cp from 'child_process'
 
-export function exec(command) {
+export function exec(command: string) {
   return execa(command, {
     stdio: 'inherit',
     shell: true,
   })
 }
 
-export function getTag(cwd) {
+export function getTag(cwd: string): string {
   const preJsonPath = path.join(cwd, '.changeset', 'pre.json')
   if (fs.existsSync(preJsonPath)) {
     const preJson = require(preJsonPath)
@@ -23,8 +22,10 @@ export function getTag(cwd) {
   return 'latest'
 }
 
-/** @returns { { isNewRelease: boolean, isDryRun: boolean } } */
-export function checkIsNewRelease() {
+export function checkIsNewRelease(): {
+  isNewRelease: boolean
+  isDryRun: boolean
+} {
   const commitMsg = cp
     .execSync(`git log -n 1 --pretty='format:%B'`)
     .toString()
@@ -37,10 +38,10 @@ export function checkIsNewRelease() {
   return { isNewRelease, isDryRun }
 }
 
-export function getChangelogSection(markdown, version) {
+export function getChangelogSection(markdown: string, version: string): string {
   const lines = markdown.split('\n')
   const header = `## ${version}`
-  const section = []
+  const section: string[] = []
   let collecting = false
 
   for (const line of lines) {

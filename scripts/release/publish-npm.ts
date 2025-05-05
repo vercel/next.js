@@ -1,8 +1,7 @@
-// @ts-check
-const { exec, getTag } = require('./utils')
+import { checkIsNewRelease, exec, getTag } from './utils'
 
-/** @param {boolean} isDryRun */
-async function publishNpm(isDryRun) {
+export default async function publishNpm(): Promise<void> {
+  const { isDryRun } = checkIsNewRelease()
   const tag = getTag(process.cwd())
   console.log(`Publishing ${tag}`)
 
@@ -24,9 +23,8 @@ async function publishNpm(isDryRun) {
   } catch (err) {
     // TODO: Notify via Slack.
     console.error(err)
+    process.exit(1)
   }
 }
 
-// TODO: Uncomment when replacing legacy release.
-// publishNpm()
-module.exports = publishNpm
+publishNpm()

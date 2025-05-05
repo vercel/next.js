@@ -585,6 +585,9 @@ jobs:
       - run: ./scripts/publish-release.js
         env:
           RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+      - run: pnpm tsx ./scripts/release/publish-release.ts
+        env:
+          RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
 
       - name: Upload npm log artifact
         uses: actions/upload-artifact@v4

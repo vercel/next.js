@@ -6,19 +6,10 @@ const execa = require('execa')
 const { Sema } = require('async-sema')
 const { execSync } = require('child_process')
 const fs = require('fs')
-const publishNpm = require('./release/publish-npm')
-const { checkIsNewRelease } = require('./release/utils')
 
 const cwd = process.cwd()
 
 ;(async function () {
-  const { isNewRelease, isDryRun } = checkIsNewRelease()
-  if (isNewRelease) {
-    console.log('New release process is in action, skipping...')
-    await publishNpm(isDryRun)
-    return
-  }
-
   let isCanary = true
   let isReleaseCandidate = false
 

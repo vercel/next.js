@@ -1,12 +1,16 @@
-const { getChangelogSection } = require('./utils')
-const glob = require('glob')
-const fs = require('fs')
-const path = require('path')
+import glob from 'glob'
+import fs from 'fs'
+import path from 'path'
+import { getChangelogSection } from './utils'
 
-/** @returns {Record<string, { version: string, section: string }>} */
-function getPackageChangelogs() {
+interface Changelog {
+  version: string
+  section: string
+}
+
+function getPackageChangelogs(): Record<string, Changelog> {
   const packageDirs = glob.sync('packages/*')
-  const sections = {}
+  const sections: Record<string, Changelog> = {}
 
   for (const dir of packageDirs) {
     const packageJsonPath = path.join(dir, 'package.json')
@@ -38,14 +42,14 @@ function getPackageChangelogs() {
   return sections
 }
 
-function getCredits() {
-  /**@type Record<string, ''> */
-  const credits = require(path.join(process.cwd(), '.changeset/credits.json'))
+function getCredits(): string[] {
+  const credits: Record<string, ''> = require(
+    path.join(process.cwd(), '.changeset/credits.json')
+  )
   return Object.keys(credits)
 }
 
 /**
- * @param {Record<string, { version: string, section: string }>} changelogs
  * @example
  * ```markdown
  * ## `next@15.4.0`
@@ -69,7 +73,7 @@ function getCredits() {
  * Huge thanks to ... for helping!
  * ```
  */
-function writeReleaseNote(changelogs) {
+function writeReleaseNote(changelogs: Record<string, Changelog>): string {
   let releaseNote = ''
 
   for (const [packageName, { version, section }] of Object.entries(
@@ -85,7 +89,7 @@ function writeReleaseNote(changelogs) {
   return releaseNote
 }
 
-async function publishReleaseNote() {
+export default async function publishReleaseNote() {
   const changelogs = getPackageChangelogs()
   const releaseNote = writeReleaseNote(changelogs)
   const nextjsVersion = changelogs['next'].version
@@ -98,7 +102,7 @@ async function publishReleaseNote() {
         method: 'POST',
         headers: {
           Accept: 'application/vnd.github+json',
-          Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+          Authorization: `Bearer ${process.env.RELEASE_BOT_GITHUB_TOKEN}`,
           'X-GitHub-Api-Version': '2022-11-28',
         },
         body: JSON.stringify({
@@ -127,4 +131,3 @@ async function publishReleaseNote() {
 }
 
 publishReleaseNote()
-module.exports = publishReleaseNote

@@ -118,6 +118,15 @@ jobs:
       - run: node ./scripts/start-release.js --release-type ${{ github.event.inputs.releaseType || 'canary' }} --semver-type ${{ github.event.inputs.semverType }}
         env:
           RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+          # Feature flag for the new release process. When set to `false`,
+          # the legacy process will be in action and the new process will
+          # run as a dry run. If set to `true`, the new process will be in
+          # action and the legacy process will be skipped.
+          __NEW_RELEASE: ${{ github.event.inputs.newRelease || github.event.inputs.newReleaseDryRun || false }}
+
+      - run: pnpm tsx ./scripts/release/start-release.ts
+        env:
+          RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
           # Use the default GitHub token to get PR numbers for the Changelog
           # to avoid affecting the API usage limit of RELEASE_BOT_GITHUB_TOKEN.
           GITHUB_TOKEN: ${{ github.token }}
