@@ -1,97 +1,10 @@
-import glob from 'glob'
-import fs from 'fs'
-import path from 'path'
-import { getChangelogSection } from './utils'
-
-interface Changelog {
-  version: string
-  section: string
-}
-
-function getPackageChangelogs(): Record<string, Changelog> {
-  const packageDirs = glob.sync('packages/*')
-  const sections: Record<string, Changelog> = {}
-
-  for (const dir of packageDirs) {
-    const packageJsonPath = path.join(dir, 'package.json')
-    const changelogPath = path.join(dir, 'CHANGELOG.md')
-
-    if (!fs.existsSync(packageJsonPath) || !fs.existsSync(changelogPath)) {
-      continue
-    }
-
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
-    const packageName = packageJson.name
-    const version = packageJson.version
-
-    if (!packageName) {
-      throw new Error(`No package name found for ${dir}.`)
-    }
-    if (!version) {
-      throw new Error(`No version found for ${packageName}.`)
-    }
-
-    const content = fs.readFileSync(changelogPath, 'utf8')
-    const section = getChangelogSection(content, version)
-
-    if (section) {
-      sections[packageName] = { version, section }
-    }
-  }
-
-  return sections
-}
-
-function getCredits(): string[] {
-  const credits: Record<string, ''> = require(
-    path.join(process.cwd(), '.changeset/credits.json')
-  )
-  return Object.keys(credits)
-}
-
-/**
- * @example
- * ```markdown
- * ## `next@15.4.0`
- *
- * ### Minor Changes
- *
- * - ... #12345
- *
- * ### Patch Changes
- *
- * - ... #12345
- *
- * ## `create-next-app@15.0.0`
- *
- * ### Minor Changes
- *
- * - ... #12345
- *
- * ## Credits
- *
- * Huge thanks to ... for helping!
- * ```
- */
-function writeReleaseNote(changelogs: Record<string, Changelog>): string {
-  let releaseNote = ''
-
-  for (const [packageName, { version, section }] of Object.entries(
-    changelogs
-  )) {
-    releaseNote += `## \`${packageName}@${version}\`\n\n${section}\n\n`
-  }
-
-  const credits = getCredits()
-  const thanksTo = `Huge thanks to ${credits.join(', ')} for helping!`
-  releaseNote += `## Credits\n\n${thanksTo}`
-
-  return releaseNote
-}
+import { getCredits, getPackageChangelogs } from './utils'
+import { writeReleaseNote } from './utils/write-release-note'
 
 export default async function publishReleaseNote() {
   const changelogs = getPackageChangelogs()
-  const releaseNote = writeReleaseNote(changelogs)
+  const credits = getCredits(process.cwd())
+  const releaseNote = writeReleaseNote(changelogs, credits)
   const nextjsVersion = changelogs['next'].version
   const isCanary = nextjsVersion.includes('canary')
   try {
@@ -130,4 +43,6 @@ export default async function publishReleaseNote() {
   }
 }
 
-publishReleaseNote()
+if (!process.env.NEXT_TEST_MODE) {
+  publishReleaseNote()
+}

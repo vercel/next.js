@@ -1,7 +1,9 @@
-import fs from 'fs'
-import path from 'path'
+import fs from 'node:fs'
+import path from 'node:path'
+import cp from 'node:child_process'
 import execa from 'execa'
-import cp from 'child_process'
+import glob from 'glob'
+import { getChangelogByVersion } from './utils/get-changelog-by-version'
 
 export function exec(command: string) {
   return execa(command, {
@@ -38,24 +40,48 @@ export function checkIsNewRelease(): {
   return { isNewRelease, isDryRun }
 }
 
-export function getChangelogSection(markdown: string, version: string): string {
-  const lines = markdown.split('\n')
-  const header = `## ${version}`
-  const section: string[] = []
-  let collecting = false
+export type ChangelogInfo = {
+  version: string
+  changelog: string
+}
 
-  for (const line of lines) {
-    if (line.startsWith('## ')) {
-      if (line.trim() === header) {
-        collecting = true
-        continue // skip the header itself
-      } else if (collecting) {
-        break // reached the next version
-      }
+export function getPackageChangelogs(): Record<string, ChangelogInfo> {
+  const packageDirs = glob.sync('packages/*')
+  const changelogs: Record<string, ChangelogInfo> = {}
+
+  for (const dir of packageDirs) {
+    const packageJsonPath = path.join(dir, 'package.json')
+    const changelogPath = path.join(dir, 'CHANGELOG.md')
+
+    if (!fs.existsSync(packageJsonPath) || !fs.existsSync(changelogPath)) {
+      continue
     }
-    if (collecting) {
-      section.push(line)
+
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+    const packageName = packageJson.name
+    const version = packageJson.version
+
+    if (!packageName) {
+      throw new Error(`No package name found for ${dir}.`)
+    }
+    if (!version) {
+      throw new Error(`No version found for ${packageName}.`)
+    }
+
+    const content = fs.readFileSync(changelogPath, 'utf8')
+    const changelog = getChangelogByVersion(content, version)
+
+    if (changelog) {
+      changelogs[packageName] = { version, changelog }
     }
   }
-  return section.join('\n').trim()
+
+  return changelogs
+}
+
+export function getCredits(cwd: string): string[] {
+  const credits: Record<string, ''> = require(
+    path.join(cwd, '.changeset/credits.json')
+  )
+  return Object.keys(credits)
 }
