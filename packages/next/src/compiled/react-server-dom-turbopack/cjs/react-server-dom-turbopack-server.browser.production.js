@@ -1846,6 +1846,7 @@ function flushCompletedChunks(request, destination) {
     ((request.status = 14), destination.close(), (request.destination = null));
 }
 function startWork(request) {
+  serializedSize = 0;
   request.flushScheduled = null !== request.destination;
   scheduleMicrotask(function () {
     return performWork(request);

@@ -1990,6 +1990,7 @@ function flushCompletedChunks(request, destination) {
     (request.destination = null));
 }
 function startWork(request) {
+  serializedSize = 0;
   request.flushScheduled = null !== request.destination;
   scheduleMicrotask(function () {
     requestStorage.run(request, performWork, request);
