@@ -6,26 +6,13 @@ on:
   pull_request:
     types: [opened, synchronize]
 
+# NOTE: anything in `afterBuild` inherits environment variables defined in
+# `build_reusable.yml` (not these!) because that job executes within the context
+# of that workflow. Environment variables are not automatically passed to
+# reusable workflows.
 env:
-  NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 2.3.3
   NODE_MAINTENANCE_VERSION: 18
   NODE_LTS_VERSION: 20
-  # disable backtrace for test snapshots
-  RUST_BACKTRACE: 0
-
-  TURBO_TEAM: 'vercel'
-  TURBO_CACHE: 'remote:rw'
-  NEXT_TELEMETRY_DISABLED: 1
-  # we build a dev binary for use in CI so skip downloading
-  # canary next-swc binaries in the monorepo
-  NEXT_SKIP_NATIVE_POSTINSTALL: 1
-  DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
-  NEXT_JUNIT_TEST_REPORT: 'true'
-  DD_ENV: 'ci'
-  TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
-  NEXT_TEST_JOB: 1
-  NEXT_TEST_PREFER_OFFLINE: 1
 
 jobs:
   optimize-ci:
