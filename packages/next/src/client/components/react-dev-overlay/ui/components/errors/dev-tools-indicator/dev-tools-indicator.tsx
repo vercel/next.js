@@ -11,7 +11,7 @@ import { TurbopackInfo } from './dev-tools-info/turbopack-info'
 import { RouteInfo } from './dev-tools-info/route-info'
 import GearIcon from '../../../icons/gear-icon'
 import { UserPreferences } from './dev-tools-info/user-preferences'
-import { RenderedFiles } from './dev-tools-info/rendered-files'
+import { PageSegmentsViewer } from './dev-tools-info/page-segment-viewer'
 import {
   MENU_CURVE,
   MENU_DURATION_MS,
@@ -328,8 +328,8 @@ function DevToolsPopover({
         setScale={setScale}
       />
 
-      {/* Rendered Files */}
-      <RenderedFiles
+      {/* Page Segments Viewer */}
+      <PageSegmentsViewer
         isOpen={isRenderedFilesOpen}
         close={openRootMenu}
         triggerRef={triggerRef}
@@ -403,13 +403,12 @@ function DevToolsPopover({
               />
               <MenuItem
                 data-rendered-files
-                label="Rendered Files"
+                label="Page Segments Viewer"
                 value={<ChevronRight />}
                 onClick={() => setOpen(OVERLAYS.RenderedFiles)}
                 index={isTurbopack ? 3 : 4}
               />
             </div>
-            
           </Context.Provider>
         </div>
       )}
