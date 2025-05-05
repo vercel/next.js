@@ -1276,6 +1276,20 @@
       getAsyncIterator = getAsyncIterator.call(children);
       return serializeAsyncIterable(request, task, children, getAsyncIterator);
     }
+    function deferTask(request, task) {
+      task = createTask(
+        request,
+        task.model,
+        task.keyPath,
+        task.implicitSlot,
+        request.abortableTasks,
+        task.debugOwner,
+        task.debugStack,
+        task.debugTask
+      );
+      pingTask(request, task);
+      return serializeLazyID(task.id);
+    }
     function outlineTask(request, task) {
       task = createTask(
         request,
@@ -1290,7 +1304,7 @@
       retryTask(request, task);
       return task.status === COMPLETED
         ? serializeByValueID(task.id)
-        : "$L" + task.id.toString(16);
+        : serializeLazyID(task.id);
     }
     function renderElement(request, task, type, key, ref, props, validated) {
       if (null !== ref && void 0 !== ref)
@@ -1479,6 +1493,9 @@
     function serializeByValueID(id) {
       return "$" + id.toString(16);
     }
+    function serializeLazyID(id) {
+      return "$L" + id.toString(16);
+    }
     function serializeNumber(number) {
       return Number.isFinite(number)
         ? 0 === number && -Infinity === 1 / number
@@ -1507,7 +1524,7 @@
         existingId = writtenClientReferences.get(clientReferenceKey);
       if (void 0 !== existingId)
         return parent[0] === REACT_ELEMENT_TYPE && "1" === parentPropertyName
-          ? "$L" + existingId.toString(16)
+          ? serializeLazyID(existingId)
           : serializeByValueID(existingId);
       try {
         var config = request.bundlerConfig,
@@ -1544,7 +1561,7 @@
         request.completedImportChunks.push(processedChunk);
         writtenClientReferences.set(clientReferenceKey, importId);
         return parent[0] === REACT_ELEMENT_TYPE && "1" === parentPropertyName
-          ? "$L" + importId.toString(16)
+          ? serializeLazyID(importId)
           : serializeByValueID(importId);
       } catch (x) {
         return (
@@ -1669,6 +1686,7 @@
       return "$B" + newTask.id.toString(16);
     }
     function renderModel(request, task, parent, key, value) {
+      serializedSize += key.length;
       var prevKeyPath = task.keyPath,
         prevImplicitSlot = task.implicitSlot;
       try {
@@ -1684,7 +1702,7 @@
           return (
             (task.status = ABORTED),
             (task = request.fatalError),
-            parent ? "$L" + task.toString(16) : serializeByValueID(task)
+            parent ? serializeLazyID(task) : serializeByValueID(task)
           );
         key =
           thrownValue === SuspenseException
@@ -1712,7 +1730,7 @@
             (task.keyPath = prevKeyPath),
             (task.implicitSlot = prevImplicitSlot),
             parent
-              ? "$L" + request.id.toString(16)
+              ? serializeLazyID(request.id)
               : serializeByValueID(request.id)
           );
         task.keyPath = prevKeyPath;
@@ -1722,7 +1740,7 @@
         task = logRecoverableError(request, key, task);
         emitErrorChunk(request, prevKeyPath, task, key);
         return parent
-          ? "$L" + prevKeyPath.toString(16)
+          ? serializeLazyID(prevKeyPath)
           : serializeByValueID(prevKeyPath);
       }
     }
@@ -1754,6 +1772,7 @@
                       _existingReference + ":" + parentPropertyName),
                     _writtenObjects.set(value, elementReference)));
             }
+            if (serializedSize > MAX_ROW_SIZE) return deferTask(request, task);
             if ((_existingReference = value._debugInfo)) {
               if (null === debugID) return outlineTask(request, task);
               forwardDebugInfo(request, debugID, _existingReference);
@@ -1779,6 +1798,7 @@
                 _writtenObjects.set(request, elementReference));
             return request;
           case REACT_LAZY_TYPE:
+            if (serializedSize > MAX_ROW_SIZE) return deferTask(request, task);
             task.thenableState = null;
             elementReference = callLazyInitInDEV(value);
             if (request.status === ABORTING) throw null;
@@ -1944,14 +1964,17 @@
         return value;
       }
       if ("string" === typeof value)
-        return "Z" === value[value.length - 1] &&
+        return (
+          (serializedSize += value.length),
+          "Z" === value[value.length - 1] &&
           parent[parentPropertyName] instanceof Date
-          ? "$D" + value
-          : 1024 <= value.length && null !== byteLengthOfChunk
-            ? serializeLargeTextString(request, value)
-            : "$" === value[0]
-              ? "$" + value
-              : value;
+            ? "$D" + value
+            : 1024 <= value.length && null !== byteLengthOfChunk
+              ? serializeLargeTextString(request, value)
+              : "$" === value[0]
+                ? "$" + value
+                : value
+        );
       if ("boolean" === typeof value) return value;
       if ("number" === typeof value) return serializeNumber(value);
       if ("undefined" === typeof value) return "$undefined";
@@ -2488,6 +2511,7 @@
       if (task.status === PENDING$1) {
         var prevDebugID = debugID;
         task.status = RENDERING;
+        var parentSerializedSize = serializedSize;
         try {
           modelRoot = task.model;
           debugID = task.id;
@@ -2542,17 +2566,18 @@
             } else erroredTask(request, task, x);
           }
         } finally {
-          debugID = prevDebugID;
+          (debugID = prevDebugID), (serializedSize = parentSerializedSize);
         }
       }
     }
     function tryStreamTask(request, task) {
       var prevDebugID = debugID;
       debugID = null;
+      var parentSerializedSize = serializedSize;
       try {
         emitChunk(request, task, task.model);
       } finally {
-        debugID = prevDebugID;
+        (serializedSize = parentSerializedSize), (debugID = prevDebugID);
       }
     }
     function performWork(request) {
@@ -3824,11 +3849,11 @@
             throw Error("useId can only be used while React is rendering");
           var id = currentRequest$1.identifierCount++;
           return (
-            ":" +
+            "\u00ab" +
             currentRequest$1.identifierPrefix +
             "S" +
             id.toString(32) +
-            ":"
+            "\u00bb"
           );
         },
         useHostTransitionStatus: unsupportedHook,
@@ -3944,6 +3969,8 @@
       PRERENDER = 21,
       currentRequest = null,
       debugID = null,
+      serializedSize = 0,
+      MAX_ROW_SIZE = 3200,
       modelRoot = !1,
       emptyRoot = {},
       chunkCache = new Map(),
