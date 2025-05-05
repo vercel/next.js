@@ -129,6 +129,31 @@ function ensureDynamicExports(module: Module, exports: Exports) {
 }
 
 /**
+ * Makes the specified module an ESM with exports
+ */
+function esmExportOther(
+  moduleCache: ModuleCache<Module>,
+  id: ModuleId,
+  getters: Record<string, () => any>
+) {
+  let module = moduleCache[id]
+  if (!module) {
+    // This is invoked when a module is merged into another module, thus it wasn't invoced via
+    // instantiateModule and the cache entry wasn't created yet.
+    module = {
+      exports: {},
+      error: undefined,
+      loaded: false,
+      id,
+      namespaceObject: undefined,
+    }
+    moduleCache[id] = module
+  }
+  module.namespaceObject = module.exports
+  esm(module.exports, getters)
+}
+
+/**
  * Dynamically exports properties from an object
  */
 function dynamicExport(
