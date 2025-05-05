@@ -176,7 +176,7 @@ module.exports = {
 
 Setting this option to `true` will disable the background revalidation for ISR pages, meaning that you're responsible for revalidating the pages yourself.
 In order to revalidate the pages yourself you need to send a `HEAD` request to the route you want to revalidate with the `x-prerender-revalidate` header set to `previewModeId` (this value is generated at build time and can be found in the `.next/prerender-manifest.json` file) and the `x-next-stale-isr` header set to `1`.
-Not setting the `x-next-stale-isr` header to `1` is equivalent to an [on-demand revalidation](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration.mdx#on-demand-validation-with-resrevalidate) with `res.revalidate()`
+Not setting the `x-next-stale-isr` header to `1` is equivalent to an [on-demand revalidation](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration#on-demand-validation-with-resrevalidate) with `res.revalidate()`
 
 ## Build Cache
 
