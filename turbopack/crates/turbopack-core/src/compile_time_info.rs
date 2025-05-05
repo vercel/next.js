@@ -200,6 +200,14 @@ impl CompileTimeDefines {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+pub enum InputRelativeConstant {
+    // The project relative directory name of the source file
+    DirName,
+    // The project relative file name of the source file.
+    FileName,
+}
+
 #[turbo_tasks::value]
 #[derive(Debug, Clone)]
 pub enum FreeVarReference {
@@ -211,6 +219,7 @@ pub enum FreeVarReference {
     Ident(RcStr),
     Member(RcStr, RcStr),
     Value(CompileTimeDefineValue),
+    InputRelative(InputRelativeConstant),
     Error(RcStr),
 }
 

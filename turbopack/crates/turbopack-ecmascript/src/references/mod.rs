@@ -60,7 +60,7 @@ use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_core::{
     compile_time_info::{
         CompileTimeInfo, DefineableNameSegment, FreeVarReference, FreeVarReferences,
-        FreeVarReferencesIndividual,
+        FreeVarReferencesIndividual, InputRelativeConstant,
     },
     environment::Rendering,
     error::PrettyPrintError,
@@ -1505,6 +1505,32 @@ async fn compile_time_info_for_module_type(
         .entry(vec![DefineableNameSegment::Name("require".into())])
         .or_insert(require.into());
 
+    let dir_name: RcStr = "__dirname".into();
+    free_var_references
+        .entry(vec![
+            DefineableNameSegment::Name(dir_name.clone()),
+            DefineableNameSegment::TypeOf,
+        ])
+        .or_insert("string".into());
+    free_var_references
+        .entry(vec![DefineableNameSegment::Name(dir_name)])
+        .or_insert(FreeVarReference::InputRelative(
+            InputRelativeConstant::DirName,
+        ));
+    let file_name: RcStr = "__filename".into();
+
+    free_var_references
+        .entry(vec![
+            DefineableNameSegment::Name(file_name.clone()),
+            DefineableNameSegment::TypeOf,
+        ])
+        .or_insert("string".into());
+    free_var_references
+        .entry(vec![DefineableNameSegment::Name(file_name)])
+        .or_insert(FreeVarReference::InputRelative(
+            InputRelativeConstant::FileName,
+        ));
+
     free_var_references.extend(TUBROPACK_RUNTIME_FUNCTION_SHORTCUTS.into_iter().map(
         |(name, shortcut)| {
             (
@@ -2518,7 +2544,6 @@ async fn handle_free_var_reference(
                 errors::failed_to_analyse::ecmascript::FREE_VAR_REFERENCE.to_string(),
             ),
         ),
-
         FreeVarReference::Value(value) => {
             analysis.add_code_gen(ConstantValueCodeGen::new(
                 Value::new(value.clone()),
@@ -2583,6 +2608,17 @@ async fn handle_free_var_reference(
             analysis.add_code_gen(EsmBinding::new(
                 esm_reference,
                 export.clone(),
+                ast_path.to_vec().into(),
+            ));
+        }
+        FreeVarReference::InputRelative(kind) => {
+            let source_path = (*state.source).ident().path();
+            let source_path = match kind {
+                InputRelativeConstant::DirName => source_path.parent(),
+                InputRelativeConstant::FileName => source_path,
+            };
+            analysis.add_code_gen(ConstantValueCodeGen::new(
+                Value::new(as_abs_path(source_path).await?.into()),
                 ast_path.to_vec().into(),
             ));
         }
@@ -2784,7 +2820,7 @@ async fn analyze_amd_define_with_deps(
 
 /// Used to generate the "root" path to a __filename/__dirname/import.meta.url
 /// reference.
-pub async fn as_abs_path(path: Vc<FileSystemPath>) -> Result<JsValue> {
+pub async fn as_abs_path(path: Vc<FileSystemPath>) -> Result<String> {
     // TODO: This should be updated to generate a real system path on the fly
     // during runtime, so that the generated code is constant between systems
     // but the runtime evaluation can take into account the project's
@@ -2793,8 +2829,8 @@ pub async fn as_abs_path(path: Vc<FileSystemPath>) -> Result<JsValue> {
 }
 
 /// Generates an absolute path usable for `require.resolve()` calls.
-async fn require_resolve(path: Vc<FileSystemPath>) -> Result<JsValue> {
-    Ok(format!("/ROOT/{}", path.await?.path.as_str()).into())
+async fn require_resolve(path: Vc<FileSystemPath>) -> Result<String> {
+    Ok(format!("/ROOT/{}", path.await?.path.as_str()))
 }
 
 async fn early_value_visitor(mut v: JsValue) -> Result<(JsValue, bool)> {
@@ -2918,8 +2954,8 @@ async fn value_visitor_inner(
             }
         }
         JsValue::FreeVar(ref kind) => match &**kind {
-            "__dirname" => as_abs_path(origin.origin_path().parent()).await?,
-            "__filename" => as_abs_path(origin.origin_path()).await?,
+            "__dirname" => as_abs_path(origin.origin_path().parent()).await?.into(),
+            "__filename" => as_abs_path(origin.origin_path()).await?.into(),
 
             "require" => JsValue::unknown_if(
                 ignore,
@@ -2981,7 +3017,11 @@ async fn require_resolve_visitor(
             .primary_sources()
             .await?
             .iter()
-            .map(|&source| async move { require_resolve(source.ident().path()).await })
+            .map(|&source| async move {
+                require_resolve(source.ident().path())
+                    .await
+                    .map(JsValue::from)
+            })
             .try_join()
             .await?;
 
