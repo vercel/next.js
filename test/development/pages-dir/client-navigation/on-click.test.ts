@@ -2,6 +2,7 @@
 
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('Client navigation with onClick action', () => {
   const { next } = nextTestSetup({
@@ -20,14 +21,16 @@ describe('Client navigation with onClick action', () => {
 
     await browser.elementByCss('#on-click-link').click()
 
-    const countQueryAfterClicked = await browser
-      .elementByCss('#query-count')
-      .text()
-    const countStateAfterClicked = await browser
-      .elementByCss('#state-count')
-      .text()
-    expect(countQueryAfterClicked).toBe('QUERY COUNT: 1')
-    expect(countStateAfterClicked).toBe('STATE COUNT: 1')
+    await retry(async () => {
+      const countQueryAfterClicked = await browser
+        .elementByCss('#query-count')
+        .text()
+      const countStateAfterClicked = await browser
+        .elementByCss('#state-count')
+        .text()
+      expect(countQueryAfterClicked).toBe('QUERY COUNT: 1')
+      expect(countStateAfterClicked).toBe('STATE COUNT: 1')
+    })
   })
 
   it('should not reload if default was prevented', async () => {
@@ -39,47 +42,55 @@ describe('Client navigation with onClick action', () => {
 
     await browser.elementByCss('#on-click-link-prevent-default').click()
 
-    const countQueryAfterClicked = await browser
-      .elementByCss('#query-count')
-      .text()
-    const countStateAfterClicked = await browser
-      .elementByCss('#state-count')
-      .text()
-    expect(countQueryAfterClicked).toBe('QUERY COUNT: 0')
-    expect(countStateAfterClicked).toBe('STATE COUNT: 1')
+    await retry(async () => {
+      const countQueryAfterClicked = await browser
+        .elementByCss('#query-count')
+        .text()
+      const countStateAfterClicked = await browser
+        .elementByCss('#state-count')
+        .text()
+      expect(countQueryAfterClicked).toBe('QUERY COUNT: 0')
+      expect(countStateAfterClicked).toBe('STATE COUNT: 1')
+    })
 
     await browser.elementByCss('#on-click-link').click()
 
-    const countQueryAfterClickedAgain = await browser
-      .elementByCss('#query-count')
-      .text()
-    const countStateAfterClickedAgain = await browser
-      .elementByCss('#state-count')
-      .text()
-    expect(countQueryAfterClickedAgain).toBe('QUERY COUNT: 1')
-    expect(countStateAfterClickedAgain).toBe('STATE COUNT: 2')
+    await retry(async () => {
+      const countQueryAfterClickedAgain = await browser
+        .elementByCss('#query-count')
+        .text()
+      const countStateAfterClickedAgain = await browser
+        .elementByCss('#state-count')
+        .text()
+      expect(countQueryAfterClickedAgain).toBe('QUERY COUNT: 1')
+      expect(countStateAfterClickedAgain).toBe('STATE COUNT: 2')
+    })
   })
 
   it('should always replace the state and perform additional action', async () => {
     const browser = await next.browser('/nav')
 
-    await browser
-      .elementByCss('#on-click-link')
-      .click()
-      .waitForElementByCss('#on-click-page')
+    await browser.elementByCss('#on-click-link').click()
 
-    const defaultCountQuery = await browser.elementByCss('#query-count').text()
-    expect(defaultCountQuery).toBe('QUERY COUNT: 1')
+    await retry(async () => {
+      const defaultCountQuery = await browser
+        .elementByCss('#query-count')
+        .text()
+      expect(defaultCountQuery).toBe('QUERY COUNT: 1')
+    })
 
     await browser.elementByCss('#on-click-link').click()
-    const countQueryAfterClicked = await browser
-      .elementByCss('#query-count')
-      .text()
-    const countStateAfterClicked = await browser
-      .elementByCss('#state-count')
-      .text()
-    expect(countQueryAfterClicked).toBe('QUERY COUNT: 2')
-    expect(countStateAfterClicked).toBe('STATE COUNT: 1')
+
+    await retry(async () => {
+      const countQueryAfterClicked = await browser
+        .elementByCss('#query-count')
+        .text()
+      const countStateAfterClicked = await browser
+        .elementByCss('#state-count')
+        .text()
+      expect(countQueryAfterClicked).toBe('QUERY COUNT: 2')
+      expect(countStateAfterClicked).toBe('STATE COUNT: 1')
+    })
 
     // Since we replace the state, back button would simply go us back to /nav
     await browser.back().waitForElementByCss('.nav-home')
