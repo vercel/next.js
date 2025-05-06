@@ -43,9 +43,23 @@ export function groupCodeFrameLines(formattedFrame: string) {
 
   let line: typeof decoded = []
   for (const token of decoded) {
-    if (token.content === '\n') {
+    // If the token is a new line with only line break "\n",
+    // break here into a new line.
+    // The line could also contain spaces, it's still considered line break if "\n" line has spaces.
+    if (token.content.includes('\n')) {
+      const [left, right] = token.content.split('\n')
+      line.push({
+        ...token,
+        content: left,
+      })
       lines.push(line)
       line = []
+      if (right) {
+        line.push({
+          ...token,
+          content: right,
+        })
+      }
     } else {
       line.push(token)
     }
