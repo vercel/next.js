@@ -75,6 +75,8 @@ impl Visit for Finder {
         if let Pat::Ident(ident) = &node.name {
             self.is_interested = ident.sym.starts_with("use")
                 || ident.sym.starts_with(|c: char| c.is_ascii_uppercase());
+        } else {
+            self.is_interested = false;
         }
 
         node.visit_children_with(self);
