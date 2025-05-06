@@ -178,7 +178,7 @@ pub async fn apply_effects(source: impl CollectiblesSource) -> Result<()> {
         return Ok(());
     }
     let span = tracing::info_span!("apply effects", count = effects.len());
-    APPLY_EFFECT_CONTEXT
+    APPLY_EFFECTS_CONTEXT
         .scope(Default::default(), async move {
             // Limit the concurrency of effects
             futures::stream::iter(effects)
@@ -262,7 +262,7 @@ impl Effects {
     /// Applies all effects that have been captured by this struct.
     pub async fn apply(&self) -> Result<()> {
         let span = tracing::info_span!("apply effects", count = self.effects.len());
-        APPLY_EFFECT_CONTEXT
+        APPLY_EFFECTS_CONTEXT
             .scope(Default::default(), async move {
                 // Limit the concurrency of effects
                 futures::stream::iter(self.effects.iter())
@@ -279,7 +279,7 @@ impl Effects {
 
 task_local! {
     /// The context of the current effects application.
-    static APPLY_EFFECT_CONTEXT: Mutex<ApplyEffectContext>;
+    static APPLY_EFFECTS_CONTEXT: Mutex<ApplyEffectContext>;
 }
 
 #[derive(Default)]
@@ -289,21 +289,20 @@ pub struct ApplyEffectContext {
 
 impl ApplyEffectContext {
     fn with_context<T, F: FnOnce(&mut Self) -> T>(f: F) -> T {
-        APPLY_EFFECT_CONTEXT
-            .try_with(|context| f(&mut context.lock()))
+        APPLY_EFFECTS_CONTEXT
+            .try_with(|mutex| f(&mut mutex.lock()))
             .expect("No effect context found")
     }
 
     pub fn set<T: Any + Send + Sync>(value: T) {
-        Self::with_context(|context| {
-            context.data.insert(TypeId::of::<T>(), Box::new(value));
+        Self::with_context(|this| {
+            this.data.insert(TypeId::of::<T>(), Box::new(value));
         })
     }
 
     pub fn with<T: Any + Send + Sync, R>(f: impl FnOnce(&mut T) -> R) -> Option<R> {
-        Self::with_context(|context| {
-            context
-                .data
+        Self::with_context(|this| {
+            this.data
                 .get_mut(&TypeId::of::<T>())
                 .map(|value| {
                     // Safety: the map is keyed by TypeId
@@ -317,8 +316,8 @@ impl ApplyEffectContext {
         insert_with: impl FnOnce() -> T,
         f: impl FnOnce(&mut T) -> R,
     ) -> R {
-        Self::with_context(|context| {
-            let value = context.data.entry(TypeId::of::<T>()).or_insert_with(|| {
+        Self::with_context(|this| {
+            let value = this.data.entry(TypeId::of::<T>()).or_insert_with(|| {
                 let value = insert_with();
                 Box::new(value)
             });
