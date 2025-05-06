@@ -378,7 +378,9 @@ pub enum InfoMessage {
         severity: IssueSeverity,
         error: StructuredError,
     },
-    Log(LogInfo),
+    Log {
+        logs: Vec<LogInfo>,
+    },
 }
 
 #[derive(Debug, Clone, TaskInput, Hash, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
@@ -546,8 +548,8 @@ impl EvaluateContext for WebpackLoaderContext {
                 .resolved_cell()
                 .emit();
             }
-            InfoMessage::Log(log) => {
-                state.push(log);
+            InfoMessage::Log { logs } => {
+                state.extend(logs);
             }
         }
         Ok(())
