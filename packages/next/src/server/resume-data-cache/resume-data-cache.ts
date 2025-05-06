@@ -1,10 +1,10 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
+  type UseCacheCacheStore,
   type FetchCacheStore,
   type EncryptedBoundArgsCacheStore,
   serializeUseCacheCacheStore,
   parseUseCacheCacheStore,
-  UseCacheCacheStore,
   type DecryptedBoundArgsCacheStore,
   type UseCacheCacheStoreSerialized,
 } from './cache-store'
@@ -107,10 +107,7 @@ export async function stringifyResumeDataCache(
       '`stringifyResumeDataCache` should not be called in edge runtime.'
     )
   } else {
-    if (
-      resumeDataCache.fetch.size === 0 &&
-      (await resumeDataCache.cache.getSize()) === 0
-    ) {
+    if (resumeDataCache.fetch.size === 0 && resumeDataCache.cache.size === 0) {
       return 'null'
     }
 
@@ -148,7 +145,7 @@ export async function stringifyResumeDataCache(
  */
 export function createPrerenderResumeDataCache(): PrerenderResumeDataCache {
   return {
-    cache: new UseCacheCacheStore(),
+    cache: new Map(),
     fetch: new Map(),
     encryptedBoundArgs: new Map(),
     decryptedBoundArgs: new Map(),
@@ -186,7 +183,7 @@ export function createRenderResumeDataCache(
 
     if (prerenderResumeDataCacheOrPersistedCache === 'null') {
       return {
-        cache: new UseCacheCacheStore(),
+        cache: new Map(),
         fetch: new Map(),
         encryptedBoundArgs: new Map(),
         decryptedBoundArgs: new Map(),
@@ -205,7 +202,7 @@ export function createRenderResumeDataCache(
     )
 
     return {
-      cache: parseUseCacheCacheStore(Object.values(json.store.cache)),
+      cache: parseUseCacheCacheStore(Object.entries(json.store.cache)),
       fetch: new Map(Object.entries(json.store.fetch)),
       encryptedBoundArgs: new Map(
         Object.entries(json.store.encryptedBoundArgs)
