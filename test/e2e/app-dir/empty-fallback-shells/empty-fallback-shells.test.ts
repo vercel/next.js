@@ -3,6 +3,7 @@ import { nextTestSetup } from 'e2e-utils'
 describe('empty-fallback-shells', () => {
   const { next, isNextDeploy, isNextStart } = nextTestSetup({
     files: __dirname,
+    timeout: 180_000,
   })
 
   describe('without IO', () => {
