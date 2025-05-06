@@ -202,7 +202,17 @@ function createRequestStoreImpl(
     },
     get cookies() {
       if (!cache.cookies) {
-        cache.cookies = createRequestCookies(req)
+        // if middleware is setting cookie(s), then include those in
+        // the initial cached cookies so they can be read in render
+        const requestCookies = new RequestCookies(
+          HeadersAdapter.from(req.headers)
+        )
+
+        mergeMiddlewareCookies(req, requestCookies)
+
+        // Seal the cookies object that'll freeze out any methods that could
+        // mutate the underlying data.
+        cache.cookies = RequestCookiesAdapter.seal(requestCookies)
       }
 
       return cache.cookies
@@ -257,18 +267,4 @@ export function synchronizeMutableCookies(store: RequestStore) {
   store.cookies = RequestCookiesAdapter.seal(
     responseCookiesToRequestCookies(store.mutableCookies)
   )
-}
-
-export function createRequestCookies(
-  req: RequestContext['req']
-): ReadonlyRequestCookies {
-  const requestCookies = new RequestCookies(HeadersAdapter.from(req.headers))
-
-  // If middleware is setting cookies, then include those so that they can be
-  // read during render.
-  mergeMiddlewareCookies(req, requestCookies)
-
-  // Seal the cookies object to freeze out any methods that could mutate the
-  // underlying data.
-  return RequestCookiesAdapter.seal(requestCookies)
 }
