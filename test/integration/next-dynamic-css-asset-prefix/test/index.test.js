@@ -96,7 +96,7 @@ describe('next/dynamic with assetPrefix', () => {
           clientReq.pipe(proxyReq, { end: true })
         })
         await new Promise((resolve) => cdn.listen(cdnPort, resolve))
-        nextConfig.replace('__CDN_PORT__', cdnPort)
+        nextConfig.replace('__CDN_PORT__', cdnPort + '')
         appPort = await findPort()
         app = await launchApp(appDir, appPort)
       })
@@ -105,7 +105,7 @@ describe('next/dynamic with assetPrefix', () => {
       afterAll(() => cdn.close())
       afterAll(() => nextConfig.restore())
 
-      runTests(true)
+      runTests()
     }
   )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
@@ -153,7 +153,7 @@ describe('next/dynamic with assetPrefix', () => {
           clientReq.pipe(proxyReq, { end: true })
         })
         await new Promise((resolve) => cdn.listen(cdnPort, resolve))
-        nextConfig.replace('__CDN_PORT__', cdnPort)
+        nextConfig.replace('__CDN_PORT__', cdnPort + '')
         await nextBuild(appDir)
         appPort = await findPort()
         app = await nextStart(appDir, appPort)

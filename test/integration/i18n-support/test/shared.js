@@ -352,7 +352,8 @@ export function runTests(ctx) {
   // this test can not currently be tested in browser without modifying the
   // host resolution since it needs a domain to test locale domains behavior
   it.skip('should redirect to locale domain correctly client-side', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
+    const initUrl = `${ctx.basePath || '/'}`
+    const browser = await webdriver(ctx.appPort, initUrl)
 
     await browser.eval(`(function() {
       window.next.router.push(
@@ -369,7 +370,7 @@ export function runTests(ctx) {
       ctx.basePath || '/'
     )
 
-    await browser.get(browser.initUrl)
+    await browser.get(initUrl)
     await browser.waitForElementByCss('#index')
 
     await browser.eval(`(function() {
@@ -1891,13 +1892,15 @@ export function runTests(ctx) {
   })
 
   it('should apply trailingSlash redirect correctly', async () => {
-    for (const [testPath, path, hostname, query] of [
+    /** @type {[testPath: string, path: string, hostname: string, query: Record<string,string>][]} */
+    const cases = [
       ['/first/', '/first', 'localhost', {}],
       ['/en/', '/en', 'localhost', {}],
       ['/en/another/', '/en/another', 'localhost', {}],
       ['/fr/', '/fr', 'localhost', {}],
       ['/fr/another/', '/fr/another', 'localhost', {}],
-    ]) {
+    ]
+    for (const [testPath, path, hostname, query] of cases) {
       const res = await fetchViaHTTP(ctx.appPort, testPath, undefined, {
         redirect: 'manual',
       })
@@ -2998,8 +3001,8 @@ export function runTests(ctx) {
         const pagePath = join(ctx.buildPagesDir, locale, 'not-found.html')
         const dataPath = join(ctx.buildPagesDir, locale, 'not-found.json')
         console.log(pagePath)
-        expect(await fs.exists(pagePath)).toBe(!skippedLocales.includes(locale))
-        expect(await fs.exists(dataPath)).toBe(!skippedLocales.includes(locale))
+        expect(fs.existsSync(pagePath)).toBe(!skippedLocales.includes(locale))
+        expect(fs.existsSync(dataPath)).toBe(!skippedLocales.includes(locale))
       }
     })
   }

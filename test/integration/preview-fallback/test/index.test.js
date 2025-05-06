@@ -38,8 +38,8 @@ function runTests(isDev) {
     res.headers
       .get('set-cookie')
       .split(',')
-      .forEach((c) => {
-        c = cookie.parse(c)
+      .forEach((s) => {
+        const c = cookie.parse(s)
         const isBypass = c.__prerender_bypass
 
         if (isBypass || c.__next_preview_data) {
@@ -155,9 +155,7 @@ function runTests(isDev) {
     })
 
     if (!isDev) {
-      expect(await fs.exists(getCacheFile('no-fallback/second.html'))).toBe(
-        false
-      )
+      expect(fs.existsSync(getCacheFile('no-fallback/second.html'))).toBe(false)
     }
 
     const res2 = await fetchViaHTTP(appPort, '/no-fallback/second')

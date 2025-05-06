@@ -60,12 +60,8 @@ function runTests(isDev) {
       for (const path of prerenderedPaths) {
         for (const mode of modePaths) {
           console.log('checking output', { path, mode })
-          expect(await fs.exists(join(pagesDir, mode, path + '.html'))).toBe(
-            true
-          )
-          expect(await fs.exists(join(pagesDir, mode, path + '.json'))).toBe(
-            true
-          )
+          expect(fs.existsSync(join(pagesDir, mode, path + '.html'))).toBe(true)
+          expect(fs.existsSync(join(pagesDir, mode, path + '.json'))).toBe(true)
         }
       }
     })
@@ -113,16 +109,16 @@ function runTests(isDev) {
               // disk so use check
               await check(
                 () =>
-                  fs
-                    .exists(join(pagesDir, mode, path + '.html'))
-                    .then((res) => (res ? 'yes' : 'no')),
+                  fs.existsSync(join(pagesDir, mode, path + '.html'))
+                    ? 'yes'
+                    : 'no',
                 'yes'
               )
               await check(
                 () =>
-                  fs
-                    .exists(join(pagesDir, mode, path + '.json'))
-                    .then((res) => (res ? 'yes' : 'no')),
+                  fs.existsSync(join(pagesDir, mode, path + '.json'))
+                    ? 'yes'
+                    : 'no',
                 'yes'
               )
             }

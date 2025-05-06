@@ -26,7 +26,7 @@ describe('SSG Prerender', () => {
       await fs.remove(join(appDir, '.next'))
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
-        env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+        env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
       })
     })
     afterAll(async () => {

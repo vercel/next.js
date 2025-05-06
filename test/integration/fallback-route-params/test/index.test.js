@@ -27,7 +27,10 @@ const runTests = () => {
 
   it('should have correct fallback query (hydration)', async () => {
     const browser = await webdriver(appPort, '/second')
-    const initialSlug = await browser.eval(() => window.initialSlug)
+    const initialSlug = await browser.eval(
+      // @ts-expect-error untyped property on `window`
+      () => window.initialSlug
+    )
     expect(initialSlug).toBeFalsy()
 
     await browser.waitForElementByCss('#query')

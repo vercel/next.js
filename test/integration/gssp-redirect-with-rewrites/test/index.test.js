@@ -18,7 +18,7 @@ describe('getServerSideProps redirects', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
     context.server = await launchApp(join(__dirname, '../'), context.appPort, {
-      env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+      env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
     })
 
     // pre-build all pages at the start

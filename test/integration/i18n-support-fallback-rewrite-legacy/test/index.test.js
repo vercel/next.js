@@ -20,14 +20,16 @@ let app
 
 function runTests() {
   it('should not rewrite for index page', async () => {
-    for (const [pathname, query] of [
+    /** @type {[pathname: string, query: Record<string, string>][]} */
+    const cases = [
       ['/', {}],
       ['/en', {}],
       ['/fr', {}],
       ['/', { hello: 'world' }],
       ['/en', { hello: 'world' }],
       ['/fr', { hello: 'world' }],
-    ]) {
+    ]
+    for (const [pathname, query] of cases) {
       const asPath = url.format({ pathname, query })
       const browser = await webdriver(appPort, asPath)
 
@@ -49,14 +51,16 @@ function runTests() {
   })
 
   it('should not rewrite for dynamic page', async () => {
-    for (const [pathname, query] of [
+    /** @type {[pathname: string, query: Record<string, string>][]} */
+    const cases = [
       ['/dynamic/first', {}],
       ['/en/dynamic/first', {}],
       ['/fr/dynamic/first', {}],
       ['/dynamic/first', { hello: 'world' }],
       ['/en/dynamic/first', { hello: 'world' }],
       ['/fr/dynamic/first', { hello: 'world' }],
-    ]) {
+    ]
+    for (const [pathname, query] of cases) {
       const asPath = url.format({ pathname, query })
       const browser = await webdriver(appPort, asPath)
 

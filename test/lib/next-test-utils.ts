@@ -36,7 +36,10 @@ import './add-redbox-matchers'
 
 export { shouldRunTurboDevTest }
 
-export const nextServer = server
+// get rid of the `NextServerWrapper` type that we officially export
+export const nextServer = (...args: Parameters<typeof server>): NextServer =>
+  server(...args) as NextServer
+
 export const pkg = _pkg
 
 export function initNextServerScript(
@@ -346,8 +349,8 @@ export interface NextDevOptions {
   nextStart?: boolean
   turbo?: boolean
 
-  stderr?: false
-  stdout?: false
+  stderr?: boolean
+  stdout?: boolean
 
   onStdout?: (data: any) => void
   onStderr?: (data: any) => void

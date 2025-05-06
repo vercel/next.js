@@ -23,7 +23,8 @@ describe('Export Dynamic Pages', () => {
         await nextBuild(appDir)
 
         server = await startCleanStaticServer(outdir)
-        port = server.address().port
+        const address = server.address()
+        port = typeof address === 'string' ? address : address.port
       })
 
       afterAll(async () => {

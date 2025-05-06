@@ -39,8 +39,7 @@ function runDoubleMiddlewareTests() {
 }
 
 async function writeRootMiddleware() {
-  await fs.copy(join(appDir, 'src/pages'), join(appDir, 'pages'), {
-    force: true,
+  fs.copySync(join(appDir, 'src/pages'), join(appDir, 'pages'), {
     recursive: true,
   })
   await fs.writeFile(
@@ -68,9 +67,9 @@ return response
 }
 
 async function removeRootMiddleware() {
-  await fs.remove(rootMiddlewareJSFile, { force: true })
-  await fs.remove(rootMiddlewareTSFile, { force: true })
-  await fs.remove(join(appDir, 'pages'), { force: true, recursive: true })
+  fs.removeSync(rootMiddlewareJSFile)
+  fs.removeSync(rootMiddlewareTSFile)
+  fs.removeSync(join(appDir, 'pages'))
 }
 
 describe.each([

@@ -116,7 +116,7 @@ describe('Custom routes i18n custom error', () => {
         app = await launchApp(appDir, appPort)
       })
       afterAll(() => killApp(app))
-      runTests(true)
+      runTests()
     }
   )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(

@@ -15,7 +15,7 @@ describe('manual-client-base-path', () => {
 
   let next: NextInstance
   let server: http.Server
-  let appPort: string
+  let appPort: number
   const basePath = '/docs-proxy'
   const responses = new Set()
 
@@ -84,9 +84,7 @@ describe('manual-client-base-path', () => {
       proxy.on('error', (err) => console.error(err))
       proxy.ws(req, socket, head)
     })
-
-    // @ts-ignore type is incorrect
-    appPort = server.address().port
+    appPort = (server.address() as import('net').AddressInfo).port
   })
   afterAll(async () => {
     await next.destroy()

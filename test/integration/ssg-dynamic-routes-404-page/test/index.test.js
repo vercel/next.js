@@ -42,7 +42,7 @@ describe('Custom 404 Page for static site generation with dynamic routes', () =>
         app = await nextStart(appDir, appPort)
       })
 
-      runTests('server')
+      runTests()
     }
   )
   ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
@@ -54,7 +54,7 @@ describe('Custom 404 Page for static site generation with dynamic routes', () =>
       })
       afterAll(() => killApp(app))
 
-      runTests('dev')
+      runTests()
     }
   )
 })

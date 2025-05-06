@@ -412,7 +412,7 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
 describe('404 handling', () => {
   let nextOpts = {}
   beforeAll(async () => {
-    const hasLocalNext = await fs.exists(join(appDir, 'node_modules/next'))
+    const hasLocalNext = fs.existsSync(join(appDir, 'node_modules/next'))
 
     if (hasLocalNext) {
       nextOpts = {
@@ -461,7 +461,8 @@ describe('404 handling', () => {
             nextConfig.write(`module.exports = { output: 'export' }`)
             await nextBuild(appDir, [], nextOpts)
             app = await startStaticServer(outdir, join(outdir, '404.html'))
-            appPort = app.address().port
+            appPort = /** @type {import('net').AddressInfo} */ (app.address())
+              .port
           })
           afterAll(async () => {
             await stopApp(app)

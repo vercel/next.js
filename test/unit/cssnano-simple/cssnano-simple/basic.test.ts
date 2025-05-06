@@ -1,6 +1,6 @@
 import postcss from 'postcss'
 
-import mod from 'next/dist/compiled/cssnano-simple/index'
+import mod from 'next/dist/compiled/cssnano-simple'
 import css from '../noop-template'
 
 describe('basic test', () => {

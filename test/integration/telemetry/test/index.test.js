@@ -108,7 +108,7 @@ describe('Telemetry CLI', () => {
         const { stderr } = await runNextCommand(['build', appDir], {
           stderr: true,
           env: {
-            NEXT_TELEMETRY_DEBUG: 1,
+            NEXT_TELEMETRY_DEBUG: '1',
           },
         })
 
@@ -128,7 +128,7 @@ describe('Telemetry CLI', () => {
         const { stderr: stderr2 } = await runNextCommand(['build', appDir], {
           stderr: true,
           env: {
-            NEXT_TELEMETRY_DEBUG: 1,
+            NEXT_TELEMETRY_DEBUG: '1',
           },
         })
         await fs.move(
@@ -146,7 +146,7 @@ describe('Telemetry CLI', () => {
           env: {
             // block swc from loading
             NODE_OPTIONS: '--no-addons',
-            NEXT_TELEMETRY_DEBUG: 1,
+            NEXT_TELEMETRY_DEBUG: '1',
           },
         })
         expect(stderr).toMatch(/NEXT_SWC_LOAD_FAILURE/)
@@ -166,7 +166,7 @@ describe('Telemetry CLI', () => {
         const { stderr } = await runNextCommand(['build', appDir], {
           stderr: true,
           env: {
-            NEXT_TELEMETRY_DEBUG: 1,
+            NEXT_TELEMETRY_DEBUG: '1',
           },
         })
         await fs.rename(
@@ -189,7 +189,7 @@ describe('Telemetry CLI', () => {
         const { stderr } = await runNextCommand(['build', appDir], {
           stderr: true,
           env: {
-            NEXT_TELEMETRY_DEBUG: 1,
+            NEXT_TELEMETRY_DEBUG: '1',
           },
         })
         await fs.rename(
@@ -214,7 +214,7 @@ describe('Telemetry CLI', () => {
         const { stderr } = await runNextCommand(['build', appDir], {
           stderr: true,
           env: {
-            NEXT_TELEMETRY_DEBUG: 1,
+            NEXT_TELEMETRY_DEBUG: '1',
           },
         })
 
@@ -236,7 +236,7 @@ describe('Telemetry CLI', () => {
         const { stderr } = await runNextCommand(['build', appDir], {
           stderr: true,
           env: {
-            NEXT_TELEMETRY_DEBUG: 1,
+            NEXT_TELEMETRY_DEBUG: '1',
           },
         })
         await fs.rename(
@@ -262,7 +262,7 @@ describe('Telemetry CLI', () => {
         const { stderr } = await runNextCommand(['build', appDir], {
           stderr: true,
           env: {
-            NEXT_TELEMETRY_DEBUG: 1,
+            NEXT_TELEMETRY_DEBUG: '1',
           },
         })
         await fs.rename(
@@ -288,7 +288,7 @@ describe('Telemetry CLI', () => {
         const { stderr } = await runNextCommand(['build', appDir], {
           stderr: true,
           env: {
-            NEXT_TELEMETRY_DEBUG: 1,
+            NEXT_TELEMETRY_DEBUG: '1',
           },
         })
         await fs.rename(
@@ -314,7 +314,7 @@ describe('Telemetry CLI', () => {
         const { stderr } = await runNextCommand(['build', appDir], {
           stderr: true,
           env: {
-            NEXT_TELEMETRY_DEBUG: 1,
+            NEXT_TELEMETRY_DEBUG: '1',
           },
         })
         await fs.rename(
@@ -340,7 +340,7 @@ describe('Telemetry CLI', () => {
         const { stderr } = await runNextCommand(['build', appDir], {
           stderr: true,
           env: {
-            NEXT_TELEMETRY_DEBUG: 1,
+            NEXT_TELEMETRY_DEBUG: '1',
           },
         })
         await fs.rename(
@@ -378,7 +378,7 @@ describe('Telemetry CLI', () => {
       it('detect static 404 correctly for `next build`', async () => {
         const { stderr } = await nextBuild(appDir, [], {
           stderr: true,
-          env: { NEXT_TELEMETRY_DEBUG: 1 },
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
 
         const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
@@ -390,7 +390,7 @@ describe('Telemetry CLI', () => {
       it('detect page counts correctly for `next build`', async () => {
         const { stderr } = await nextBuild(appDir, [], {
           stderr: true,
-          env: { NEXT_TELEMETRY_DEBUG: 1 },
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
 
         const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
@@ -420,7 +420,7 @@ describe('Telemetry CLI', () => {
     let app = await launchApp(appDir, port, {
       onStderr: handleStderr,
       env: {
-        NEXT_TELEMETRY_DEBUG: 1,
+        NEXT_TELEMETRY_DEBUG: '1',
       },
     })
     await waitFor(1000)
@@ -434,7 +434,7 @@ describe('Telemetry CLI', () => {
     app = await launchApp(appDir, port, {
       onStderr: handleStderr,
       env: {
-        NEXT_TELEMETRY_DEBUG: 1,
+        NEXT_TELEMETRY_DEBUG: '1',
       },
     })
     await waitFor(1000)

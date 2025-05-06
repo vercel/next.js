@@ -103,7 +103,10 @@ const runTests = (isDev) => {
         post: 'first',
       },
     })
-    const initialHref = await browser.eval(() => window.initialHref)
+    const initialHref = await browser.eval(
+      // @ts-expect-error untyped property on `window`
+      () => window.initialHref
+    )
     const { pathname } = url.parse(initialHref)
     expect(pathname).toBe('/gsp-blog/redirect-dest-_gsp-blog_first')
   })
@@ -125,7 +128,10 @@ const runTests = (isDev) => {
         post: 'first',
       },
     })
-    const initialHref = await browser.eval(() => window.initialHref)
+    const initialHref = await browser.eval(
+      // @ts-expect-error untyped property on `window`
+      () => window.initialHref
+    )
     const { pathname } = url.parse(initialHref)
     expect(pathname).toBe('/gsp-blog/first')
   })
@@ -147,7 +153,10 @@ const runTests = (isDev) => {
         post: 'first',
       },
     })
-    const initialHref = await browser.eval(() => window.initialHref)
+    const initialHref = await browser.eval(
+      // @ts-expect-error untyped property on `window`
+      () => window.initialHref
+    )
     const { pathname } = url.parse(initialHref)
     expect(pathname).toBe('/gsp-blog/first')
   })
@@ -169,7 +178,10 @@ const runTests = (isDev) => {
         post: 'first',
       },
     })
-    const initialHref = await browser.eval(() => window.initialHref)
+    const initialHref = await browser.eval(
+      // @ts-expect-error untyped property on `window`
+      () => window.initialHref
+    )
     const { pathname } = url.parse(initialHref)
     expect(pathname).toBe('/gsp-blog/first')
   })
@@ -191,7 +203,10 @@ const runTests = (isDev) => {
         post: 'first',
       },
     })
-    const initialHref = await browser.eval(() => window.initialHref)
+    const initialHref = await browser.eval(
+      // @ts-expect-error untyped property on `window`
+      () => window.initialHref
+    )
     const { pathname } = url.parse(initialHref)
     expect(pathname).toBe('/gsp-blog/first')
   })
@@ -214,7 +229,10 @@ const runTests = (isDev) => {
           post: 'first',
         },
       })
-      const initialHref = await browser.eval(() => window.initialHref)
+      const initialHref = await browser.eval(
+        // @ts-expect-error untyped property on `window`
+        () => window.initialHref
+      )
       const { pathname } = url.parse(initialHref)
       // since it was cached the initial value is now the redirect
       // result
@@ -229,7 +247,10 @@ const runTests = (isDev) => {
 
     await browser.waitForElementByCss('#index')
 
-    const initialHref = await browser.eval(() => window.initialHref)
+    const initialHref = await browser.eval(
+      // @ts-expect-error untyped property on `window`
+      () => window.initialHref
+    )
     const { pathname } = url.parse(initialHref)
     expect(pathname).toBe('/gsp-blog/redirect-dest-_')
   })
@@ -242,7 +263,10 @@ const runTests = (isDev) => {
 
       await browser.waitForElementByCss('#index')
 
-      const initialHref = await browser.eval(() => window.initialHref)
+      const initialHref = await browser.eval(
+        // @ts-expect-error untyped property on `window`
+        () => window.initialHref
+      )
       const { pathname } = url.parse(initialHref)
       expect(pathname).toBe('/')
     })
@@ -262,7 +286,10 @@ const runTests = (isDev) => {
       /oops not found/
     )
 
-    const initialHref = await browser.eval(() => window.initialHref)
+    const initialHref = await browser.eval(
+      // @ts-expect-error untyped property on `window`
+      () => window.initialHref
+    )
     expect(initialHref).toBeFalsy()
 
     const curUrl = await browser.url()
@@ -284,7 +311,10 @@ const runTests = (isDev) => {
       'example.vercel.sh'
     )
 
-    const initialHref = await browser.eval(() => window.initialHref)
+    const initialHref = await browser.eval(
+      // @ts-expect-error untyped property on `window`
+      () => window.initialHref
+    )
     expect(initialHref).toBeFalsy()
   })
 
@@ -302,7 +332,10 @@ const runTests = (isDev) => {
       'example.vercel.sh'
     )
 
-    const initialHref = await browser.eval(() => window.initialHref)
+    const initialHref = await browser.eval(
+      // @ts-expect-error untyped property on `window`
+      () => window.initialHref
+    )
     expect(initialHref).toBeFalsy()
 
     const res = await fetchViaHTTP(

@@ -21,11 +21,11 @@ describe('TypeScript HMR', () => {
     appPort = await findPort()
     app = await launchApp(appDir, appPort, {
       env: {
-        __NEXT_TEST_WITH_DEVTOOL: 1,
+        __NEXT_TEST_WITH_DEVTOOL: '1',
         // Events can be finicky in CI. This switches to a more reliable
         // polling method.
         CHOKIDAR_USEPOLLING: 'true',
-        CHOKIDAR_INTERVAL: 500,
+        CHOKIDAR_INTERVAL: '500',
       },
     })
   })

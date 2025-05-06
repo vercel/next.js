@@ -13,10 +13,7 @@ describe('typeof window replace', () => {
     () => {
       beforeAll(async () => {
         await nextBuild(appDir)
-        buildManifest = require(path.join(
-          appDir,
-          '.next/build-manifest.json'
-        ), 'utf8')
+        buildManifest = require(path.join(appDir, '.next/build-manifest.json'))
       })
 
       it('Replaces `typeof window` with object for client code', async () => {
@@ -39,6 +36,7 @@ describe('typeof window replace', () => {
         const chunksFilesDir = path.join(appDir, '.next', 'server', 'chunks')
         const allFilesInDotNextServerChunks = await fs
           .readdirSync(chunksFilesDir, {
+            encoding: 'utf-8',
             recursive: true,
           })
           .filter((item) => item.endsWith('.js'))
@@ -53,6 +51,7 @@ describe('typeof window replace', () => {
         const pagesFilesDir = path.join(appDir, '.next', 'server', 'pages')
         const allFilesInDotNextServerPages = await fs
           .readdirSync(pagesFilesDir, {
+            encoding: 'utf-8',
             recursive: true,
           })
           .filter((item) => item.endsWith('.js'))

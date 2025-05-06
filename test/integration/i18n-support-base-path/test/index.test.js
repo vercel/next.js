@@ -43,6 +43,7 @@ describe('i18n Support basePath', () => {
   ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
     'development mode',
     () => {
+      /** @type {typeof ctx & {isDev: boolean, appPort?: number, app?: Awaited<ReturnType<typeof launchApp>>}} */
       const curCtx = {
         ...ctx,
         isDev: true,

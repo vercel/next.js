@@ -53,7 +53,8 @@ describe('Required Server Files', () => {
         })
 
         server = await startApp(nextApp)
-        appPort = server.address().port
+        appPort = /** @type {import('net').AddressInfo} */ (server.address())
+          .port
 
         console.log(`Listening at ::${appPort}`)
       })
@@ -77,10 +78,10 @@ describe('Required Server Files', () => {
 
         for (const file of requiredFilesManifest.files) {
           console.log('checking', file)
-          expect(await fs.exists(join(appDir, file))).toBe(true)
+          expect(fs.existsSync(join(appDir, file))).toBe(true)
         }
 
-        expect(await fs.exists(join(appDir, '.next/server'))).toBe(true)
+        expect(fs.existsSync(join(appDir, '.next/server'))).toBe(true)
       })
 
       it('should render SSR page correctly', async () => {

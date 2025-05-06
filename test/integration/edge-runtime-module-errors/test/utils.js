@@ -11,7 +11,7 @@ export const context = {
   page: new File(join(__dirname, '../pages/index.js')),
 }
 export const appOption = {
-  env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+  env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
   onStdout(msg) {
     context.logs.output += msg
     context.logs.stdout += msg

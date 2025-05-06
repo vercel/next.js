@@ -141,7 +141,9 @@ function runTests({ dev }) {
       })()`)
       const curFrames = [...(await browser.websocketFrames())]
       await check(async () => {
-        const frames = await browser.websocketFrames()
+        const frames = /** @type {{payload: string}[]} */ (
+          await browser.websocketFrames()
+        )
         const newFrames = frames.slice(curFrames.length)
         // console.error({newFrames, curFrames, frames});
 
@@ -313,7 +315,7 @@ function runTests({ dev }) {
       .back()
       .waitForElementByCss('#view-post-1-hash-1-interpolated')
       .elementByCss('#view-post-1-hash-1-interpolated')
-      .click('#view-post-1-hash-1-interpolated')
+      .click()
       .waitForElementByCss('#asdf')
 
     expect(await browser.eval('window.beforeNav')).toBe(1)
@@ -329,7 +331,7 @@ function runTests({ dev }) {
       .back()
       .waitForElementByCss('#view-post-1-hash-1-href-only')
       .elementByCss('#view-post-1-hash-1-href-only')
-      .click('#view-post-1-hash-1-href-only')
+      .click()
       .waitForElementByCss('#asdf')
 
     expect(await browser.eval('window.beforeNav')).toBe(1)
@@ -1160,10 +1162,7 @@ function runTests({ dev }) {
         const response = await fetchViaHTTP(
           appPort,
           '/_next/static/development/_devPagesManifest.json',
-          undefined,
-          {
-            credentials: 'same-origin',
-          }
+          undefined
         )
 
         // Check if the response was successful (status code in the range 200-299)

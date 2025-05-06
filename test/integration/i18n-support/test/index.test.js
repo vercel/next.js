@@ -41,6 +41,7 @@ describe('i18n Support', () => {
   ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
     'development mode',
     () => {
+      /** @type {typeof ctx & {isDev: boolean, appPort?: number, app?: Awaited<ReturnType<typeof launchApp>>, buildId?: string}} */
       const curCtx = {
         ...ctx,
         isDev: true,
@@ -426,6 +427,7 @@ describe('i18n Support', () => {
     ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
       'development mode',
       () => {
+        /** @type {typeof ctx & {isDev: boolean, appPort?: number, app?: Awaited<ReturnType<typeof launchApp>>}} */
         const curCtx = {
           ...ctx,
           isDev: true,
@@ -448,6 +450,7 @@ describe('i18n Support', () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
+        /** @type {typeof ctx & {appPort?: number, app?: Awaited<ReturnType<typeof launchApp>>}} */
         const curCtx = {
           ...ctx,
         }
@@ -496,6 +499,7 @@ describe('i18n Support', () => {
     ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
       'development mode',
       () => {
+        /** @type {typeof ctx & {isDev: boolean, appPort?: number, app?: Awaited<ReturnType<typeof launchApp>>}} */
         const curCtx = {
           ...ctx,
           isDev: true,
@@ -518,6 +522,7 @@ describe('i18n Support', () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
+        /** @type {typeof ctx & {appPort?: number, app?: Awaited<ReturnType<typeof launchApp>>}} */
         const curCtx = { ...ctx }
         beforeAll(async () => {
           await fs.remove(join(appDir, '.next'))
