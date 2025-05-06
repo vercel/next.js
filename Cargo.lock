@@ -9549,6 +9549,7 @@ dependencies = [
  "triomphe 0.1.12",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-build",
  "turbo-tasks-hash",
  "turbo-tasks-memory",
