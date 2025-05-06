@@ -184,6 +184,13 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                 {
                     let _span = tracing::trace_span!("update task data").entered();
                     process_task_data(snapshots, Some(batch))?;
+                    [KeySpace::TaskMeta, KeySpace::TaskData]
+                        .into_par_iter()
+                        .try_for_each(|key_space| {
+                            // Safety: We already finished all processing of the task data and task
+                            // meta
+                            unsafe { batch.flush(key_space) }
+                        })?;
                 }
 
                 let mut next_task_id = get_next_free_task_id::<
@@ -500,6 +507,7 @@ where
             )
             .with_context(|| anyhow!("Unable to write operations"))?;
     }
+    batch.flush(KeySpace::Infra)?;
     Ok(())
 }
 
