@@ -232,9 +232,9 @@ checksum = "70033777eb8b5124a81a1889416543dddef2de240019b674c81285a2635a7e1e"
 
 [[package]]
 name = "anyhow"
-version = "1.0.95"
+version = "1.0.98"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34ac096ce696dc2fcabef30516bb13c0a68a11d30131d3df6f04711467681b04"
+checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 dependencies = [
  "backtrace",
 ]
@@ -4508,6 +4508,7 @@ dependencies = [
  "turbopack-env",
  "turbopack-node",
  "turbopack-nodejs",
+ "turbopack-wasm",
  "vergen 9.0.5",
 ]
 
@@ -4582,10 +4583,12 @@ dependencies = [
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
+ "serde_path_to_error",
  "swc_core",
  "swc_relay",
  "thiserror 1.0.69",
  "tracing",
+ "turbo-esregex",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
@@ -9331,6 +9334,7 @@ dependencies = [
  "smallvec",
  "tempfile",
  "thread_local",
+ "tracing",
  "twox-hash 2.1.0",
  "zstd",
 ]
@@ -9546,6 +9550,7 @@ dependencies = [
  "triomphe 0.1.12",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-build",
  "turbo-tasks-hash",
  "turbo-tasks-memory",
@@ -9689,6 +9694,7 @@ dependencies = [
  "smallvec",
  "tokio",
  "tracing",
+ "turbo-esregex",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
@@ -10315,6 +10321,7 @@ dependencies = [
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",
+ "turbo-tasks-hash",
  "turbopack-core",
  "turbopack-ecmascript",
  "wasmparser 0.110.0",

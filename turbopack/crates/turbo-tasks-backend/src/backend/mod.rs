@@ -56,9 +56,8 @@ use crate::{
     backing_storage::BackingStorage,
     data::{
         ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
-        CachedDataItemValue, CachedDataItemValueRef, CellRef, CollectibleRef, CollectiblesRef,
-        DirtyState, InProgressCellState, InProgressState, InProgressStateInner, OutputValue,
-        RootType,
+        CachedDataItemValueRef, CellRef, CollectibleRef, CollectiblesRef, DirtyState,
+        InProgressCellState, InProgressState, InProgressStateInner, OutputValue, RootType,
     },
     utils::{
         bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc, sharded::Sharded, swap_retain,
@@ -422,7 +421,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         let mut ctx = self.execute_context(turbo_tasks);
-        let mut task = ctx.task(task_id, TaskDataCategory::All);
+        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
 
         fn listen_to_done_event<B: BackingStorage>(
             this: &TurboTasksBackendInner<B>,
@@ -493,7 +492,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         &mut ctx,
                     );
                 }
-                task = ctx.task(task_id, TaskDataCategory::All);
+                task = ctx.task(task_id, TaskDataCategory::Meta);
             }
 
             let is_dirty =
@@ -1501,7 +1500,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // handle stateful
         if stateful {
-            task.insert(CachedDataItem::Stateful { value: () });
+            let _ = task.add(CachedDataItem::Stateful { value: () });
         }
 
         // handle cell counters: update max index and remove cells that are no longer used
@@ -1552,10 +1551,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // Remove no longer existing cells and
         // find all outdated data items (removed cells, outdated edges)
-        removed_data.extend(task.extract_if(CachedDataItemType::CellData, |key, _| {
-            matches!(key, CachedDataItemKey::CellData { cell } if cell_counters
-                        .get(&cell.type_id).is_none_or(|start_index| cell.index >= *start_index))
-        }));
+        // Note: For persistent tasks we only want to call extract_if when there are actual cells to
+        // remove to avoid tracking that as modification.
+        if task_id.is_transient() || iter_many!(task, CellData { cell }
+            if cell_counters.get(&cell.type_id).is_none_or(|start_index| cell.index >= *start_index) => cell
+        ).count() > 0 {
+            removed_data.extend(task.extract_if(CachedDataItemType::CellData, |key, _| {
+                matches!(key, CachedDataItemKey::CellData { cell } if cell_counters
+                            .get(&cell.type_id).is_none_or(|start_index| cell.index >= *start_index))
+            }));
+        }
         if self.should_track_children() {
             old_edges.extend(
                 task.iter(CachedDataItemType::OutdatedCollectible)
@@ -1708,6 +1713,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         ));
 
         // Update the dirty state
+        let old_dirty_state = get!(task, Dirty).copied();
+
         let new_dirty_state = if session_dependent {
             Some(DirtyState {
                 clean_in_session: Some(self.session_id),
@@ -1716,48 +1723,48 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             None
         };
 
-        let old_dirty = if let Some(new_dirty_state) = new_dirty_state {
-            task.insert(CachedDataItem::Dirty {
-                value: new_dirty_state,
-            })
-        } else {
-            task.remove(&CachedDataItemKey::Dirty {})
-        };
-
-        let old_dirty_state = old_dirty.map(|old_dirty| match old_dirty {
-            CachedDataItemValue::Dirty { value } => value,
-            _ => unreachable!(),
-        });
-
-        let data_update = if self.should_track_children()
-            && (old_dirty_state.is_some() || new_dirty_state.is_some())
-        {
-            let mut dirty_containers = get!(task, AggregatedDirtyContainerCount)
-                .cloned()
-                .unwrap_or_default();
-            if let Some(old_dirty_state) = old_dirty_state {
-                dirty_containers.update_with_dirty_state(&old_dirty_state);
+        let data_update = if old_dirty_state != new_dirty_state {
+            if let Some(new_dirty_state) = new_dirty_state {
+                task.insert(CachedDataItem::Dirty {
+                    value: new_dirty_state,
+                });
+            } else {
+                task.remove(&CachedDataItemKey::Dirty {});
             }
-            let aggregated_update = match (old_dirty_state, new_dirty_state) {
-                (None, None) => unreachable!(),
-                (Some(old), None) => dirty_containers.undo_update_with_dirty_state(&old),
-                (None, Some(new)) => dirty_containers.update_with_dirty_state(&new),
-                (Some(old), Some(new)) => dirty_containers.replace_dirty_state(&old, &new),
-            };
-            if !aggregated_update.is_zero() {
-                if aggregated_update.get(self.session_id) < 0 {
-                    if let Some(root_state) = get_mut!(task, Activeness) {
-                        root_state.all_clean_event.notify(usize::MAX);
-                        root_state.unset_active_until_clean();
-                        if root_state.is_empty() {
-                            task.remove(&CachedDataItemKey::Activeness {});
+
+            if self.should_track_children()
+                && (old_dirty_state.is_some() || new_dirty_state.is_some())
+            {
+                let mut dirty_containers = get!(task, AggregatedDirtyContainerCount)
+                    .cloned()
+                    .unwrap_or_default();
+                if let Some(old_dirty_state) = old_dirty_state {
+                    dirty_containers.update_with_dirty_state(&old_dirty_state);
+                }
+                let aggregated_update = match (old_dirty_state, new_dirty_state) {
+                    (None, None) => unreachable!(),
+                    (Some(old), None) => dirty_containers.undo_update_with_dirty_state(&old),
+                    (None, Some(new)) => dirty_containers.update_with_dirty_state(&new),
+                    (Some(old), Some(new)) => dirty_containers.replace_dirty_state(&old, &new),
+                };
+                if !aggregated_update.is_zero() {
+                    if aggregated_update.get(self.session_id) < 0 {
+                        if let Some(root_state) = get_mut!(task, Activeness) {
+                            root_state.all_clean_event.notify(usize::MAX);
+                            root_state.unset_active_until_clean();
+                            if root_state.is_empty() {
+                                task.remove(&CachedDataItemKey::Activeness {});
+                            }
                         }
                     }
+                    AggregationUpdateJob::data_update(
+                        &mut task,
+                        AggregatedDataUpdate::new()
+                            .dirty_container_update(task_id, aggregated_update),
+                    )
+                } else {
+                    None
                 }
-                AggregationUpdateJob::data_update(
-                    &mut task,
-                    AggregatedDataUpdate::new().dirty_container_update(task_id, aggregated_update),
-                )
             } else {
                 None
             }
@@ -1938,7 +1945,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     .entry(RawVc::TaskCell(collectible.task, collectible.cell))
                     .or_insert(0) += count;
             }
-            task.insert(CachedDataItem::CollectiblesDependent {
+            let _ = task.add(CachedDataItem::CollectiblesDependent {
                 collectible_type,
                 task: reader_id,
                 value: (),

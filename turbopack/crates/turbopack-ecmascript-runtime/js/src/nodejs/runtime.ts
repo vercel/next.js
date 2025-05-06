@@ -190,13 +190,20 @@ async function loadChunkAsyncByUrl(source: SourceInfo, chunkUrl: string) {
   return loadChunkAsync(source, path)
 }
 
-function loadWebAssembly(chunkPath: ChunkPath, imports: WebAssembly.Imports) {
+function loadWebAssembly(
+  chunkPath: ChunkPath,
+  _edgeModule: () => WebAssembly.Module,
+  imports: WebAssembly.Imports
+) {
   const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
 
   return instantiateWebAssemblyFromPath(resolved, imports)
 }
 
-function loadWebAssemblyModule(chunkPath: ChunkPath) {
+function loadWebAssemblyModule(
+  chunkPath: ChunkPath,
+  _edgeModule: () => WebAssembly.Module
+) {
   const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
 
   return compileWebAssemblyFromPath(resolved)

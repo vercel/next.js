@@ -93,7 +93,7 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
     /// Sorts the entries and returns them along with the total key and value sizes. This doesn't
     /// clear the entries.
     pub fn sorted(&mut self) -> (&[CollectorEntry<K>], usize, usize) {
-        self.entries.sort_by(|a, b| a.key.cmp(&b.key));
+        self.entries.sort_unstable_by(|a, b| a.key.cmp(&b.key));
         (&self.entries, self.total_key_size, self.total_value_size)
     }
 

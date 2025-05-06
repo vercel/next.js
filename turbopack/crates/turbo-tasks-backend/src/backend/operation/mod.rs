@@ -14,7 +14,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{SessionId, TaskId, TurboTasksBackendApi};
+use turbo_tasks::{KeyValuePair, SessionId, TaskId, TurboTasksBackendApi};
 
 use crate::{
     backend::{
@@ -466,6 +466,9 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         let category = item.category();
         self.check_access(category);
         if !self.task_id.is_transient() && item.is_persistent() {
+            if self.task.contains_key(&item.key()) {
+                return false;
+            }
             self.task.track_modification(category.into_specific());
         }
         self.task.add(item)
