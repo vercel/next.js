@@ -43,9 +43,14 @@ import {
 import { preloadStyle, preloadFont, preconnect } from './rsc/preloads'
 import { Postpone } from './rsc/postpone'
 import { taintObjectReference } from './rsc/taint'
-import { DevToolNode } from '../../shared/lib/devtool-node'
 
 export { collectSegmentData } from './collect-segment-data'
+
+const SegmentViewNode =
+  process.env.NODE_ENV === 'development'
+    ? (require('../../shared/lib/devtool/segment-view')
+        .SegmentViewNode as typeof import('../../shared/lib/devtool/segment-view').SegmentViewNode)
+    : () => null
 
 // patchFetch makes use of APIs such as `React.unstable_postpone` which are only available
 // in the experimental channel of React, so export it from here so that it comes from the bundled runtime
@@ -80,6 +85,6 @@ export {
   HTTPAccessFallbackBoundary,
   patchFetch,
   createMetadataComponents,
-
-  DevToolNode,
+  // Development only
+  SegmentViewNode,
 }
