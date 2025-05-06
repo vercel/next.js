@@ -1,5 +1,5 @@
 use swc_core::ecma::{
-    ast::{Callee, Expr, FnDecl, FnExpr, Program, ReturnStmt},
+    ast::{Callee, Expr, FnDecl, FnExpr, Pat, Program, ReturnStmt, VarDeclarator},
     visit::{Visit, VisitWith},
 };
 
@@ -67,5 +67,20 @@ impl Visit for Finder {
         }
 
         node.visit_children_with(self);
+    }
+
+    fn visit_var_declarator(&mut self, node: &VarDeclarator) {
+        let old = self.is_interested;
+
+        if let Pat::Ident(ident) = &node.name {
+            self.is_interested = ident.sym.starts_with("use")
+                || ident.sym.starts_with(|c: char| c.is_ascii_uppercase());
+        } else {
+            self.is_interested = false;
+        }
+
+        node.visit_children_with(self);
+
+        self.is_interested = old;
     }
 }
