@@ -9334,6 +9334,7 @@ dependencies = [
  "smallvec",
  "tempfile",
  "thread_local",
+ "tracing",
  "twox-hash 2.1.0",
  "zstd",
 ]

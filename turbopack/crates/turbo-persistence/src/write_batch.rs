@@ -1,5 +1,5 @@
 use std::{
-    cell::UnsafeCell,
+    cell::SyncUnsafeCell,
     fs::File,
     io::Write,
     mem::{replace, take},
@@ -17,6 +17,7 @@ use rayon::{
 };
 use smallvec::SmallVec;
 use thread_local::ThreadLocal;
+use tracing::Span;
 
 use crate::{
     collector::Collector,
@@ -68,7 +69,7 @@ pub struct WriteBatch<K: StoreKey + Send, const FAMILIES: usize> {
     /// The current sequence number counter. Increased for every new SST file or blob file.
     current_sequence_number: AtomicU32,
     /// The thread local state.
-    thread_locals: ThreadLocal<UnsafeCell<ThreadLocalState<K, FAMILIES>>>,
+    thread_locals: ThreadLocal<SyncUnsafeCell<ThreadLocalState<K, FAMILIES>>>,
     /// Collectors in use. The thread local collectors flush into these when they are full.
     collectors: [Mutex<GlobalCollectorState<K>>; FAMILIES],
     /// The list of new SST files that have been created.
@@ -109,7 +110,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
     #[allow(clippy::mut_from_ref)]
     fn thread_local_state(&self) -> &mut ThreadLocalState<K, FAMILIES> {
         let cell = self.thread_locals.get_or(|| {
-            UnsafeCell::new(ThreadLocalState {
+            SyncUnsafeCell::new(ThreadLocalState {
                 collectors: [const { None }; FAMILIES],
                 new_blob_files: Vec::new(),
             })
@@ -185,7 +186,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
             let sst = self.create_sst_file(family, global_collector.sorted())?;
             global_collector.clear();
             self.new_sst_files.lock().push(sst);
-            self.idle_collectors.lock().push(global_collector);
+            self.dispose_collector(global_collector);
         }
         Ok(())
     }
@@ -195,6 +196,14 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
             .lock()
             .pop()
             .unwrap_or_else(|| Collector::new())
+    }
+
+    fn dispose_collector(&self, collector: Collector<K>) {
+        self.idle_collectors.lock().push(collector);
+    }
+
+    fn dispose_thread_local_collector(&self, collector: Collector<K, THREAD_LOCAL_SIZE_SHIFT>) {
+        self.idle_thread_local_collectors.lock().push(collector);
     }
 
     /// Puts a key-value pair into the write batch.
@@ -216,6 +225,66 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         let state = self.thread_local_state();
         let collector = self.thread_local_collector_mut(state, family)?;
         collector.delete(key);
+        Ok(())
+    }
+
+    /// Flushes a family of the write batch, reducing the amount of buffered memory used.
+    /// Does not commit any data persistently.
+    ///
+    /// # Safety
+    ///
+    /// Caller must ensure that no concurrent put or delete operation is happening on the flushed
+    /// family.
+    pub unsafe fn flush(&self, family: u32) -> Result<()> {
+        // Flush the thread local collectors to the global collector.
+        let mut collectors = Vec::new();
+        for cell in self.thread_locals.iter() {
+            let state = unsafe { &mut *cell.get() };
+            if let Some(collector) = state.collectors[usize_from_u32(family)].take() {
+                if !collector.is_empty() {
+                    collectors.push(collector);
+                }
+            }
+        }
+
+        let span = Span::current();
+        collectors.into_par_iter().try_for_each(|mut collector| {
+            let _span = span.clone().entered();
+            self.flush_thread_local_collector(family, &mut collector)?;
+            self.dispose_thread_local_collector(collector);
+            anyhow::Ok(())
+        })?;
+
+        // Now we flush the global collector(s).
+        let mut collector_state = self.collectors[usize_from_u32(family)].lock();
+        match &mut *collector_state {
+            GlobalCollectorState::Unsharded(collector) => {
+                if !collector.is_empty() {
+                    let sst = self.create_sst_file(family, collector.sorted())?;
+                    collector.clear();
+                    self.new_sst_files.lock().push(sst);
+                }
+            }
+            GlobalCollectorState::Sharded(_) => {
+                let GlobalCollectorState::Sharded(shards) = replace(
+                    &mut *collector_state,
+                    GlobalCollectorState::Unsharded(self.get_new_collector()),
+                ) else {
+                    unreachable!();
+                };
+                shards.into_par_iter().try_for_each(|mut collector| {
+                    let _span = span.clone().entered();
+                    if !collector.is_empty() {
+                        let sst = self.create_sst_file(family, collector.sorted())?;
+                        collector.clear();
+                        self.new_sst_files.lock().push(sst);
+                        self.dispose_collector(collector);
+                    }
+                    anyhow::Ok(())
+                })?;
+            }
+        }
+
         Ok(())
     }
 
@@ -249,7 +318,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                         {
                             *shared_error.lock() = Err(err);
                         }
-                        this.idle_thread_local_collectors.lock().push(collector);
+                        this.dispose_thread_local_collector(collector);
                     });
                 }
             }
@@ -283,7 +352,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                 if !collector.is_empty() {
                     let sst = self.create_sst_file(family, collector.sorted())?;
                     collector.clear();
-                    self.idle_collectors.lock().push(collector);
+                    self.dispose_collector(collector);
                     shared_new_sst_files.lock().push(sst);
                 }
                 anyhow::Ok(())
