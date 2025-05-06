@@ -421,7 +421,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         let mut ctx = self.execute_context(turbo_tasks);
-        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+        let mut task = ctx.task(task_id, TaskDataCategory::All);
 
         fn listen_to_done_event<B: BackingStorage>(
             this: &TurboTasksBackendInner<B>,
@@ -492,7 +492,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         &mut ctx,
                     );
                 }
-                task = ctx.task(task_id, TaskDataCategory::Meta);
+                task = ctx.task(task_id, TaskDataCategory::All);
             }
 
             let is_dirty =
