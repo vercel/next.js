@@ -16,6 +16,7 @@ export interface UseCacheRenderContextPrerender {
   readonly getUserspaceCookies: () => Promise<ReadonlyRequestCookies>
   readonly renderSignal: AbortSignal
   readonly dynamicAccessAbortController: AbortController
+  readonly allowEmptyStaticShell: boolean
 }
 
 export interface UseCacheRenderContextPrerenderPPR {
@@ -70,6 +71,7 @@ export function createUseCacheRenderContext(
       getUserspaceCookies: () => userspaceCookies,
       renderSignal: workUnitStore.renderSignal,
       dynamicAccessAbortController: new AbortController(),
+      allowEmptyStaticShell: workUnitStore.allowEmptyStaticShell,
     }
   }
 
