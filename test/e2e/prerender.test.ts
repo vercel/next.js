@@ -1666,6 +1666,7 @@ describe('Prerender', () => {
               fallback: '/api-docs/[...slug].html',
               routeRegex: normalizeRegEx(`^\\/api\\-docs\\/(.+?)(?:\\/)?$`),
               allowHeader,
+              allowEmptyStaticShell: false,
             },
             '/blocking-fallback-once/[slug]': {
               dataRoute: `/_next/data/${next.buildId}/blocking-fallback-once/[slug].json`,
@@ -1677,6 +1678,7 @@ describe('Prerender', () => {
                 '^\\/blocking\\-fallback\\-once\\/([^\\/]+?)(?:\\/)?$'
               ),
               allowHeader,
+              allowEmptyStaticShell: false,
             },
             '/blocking-fallback-some/[slug]': {
               dataRoute: `/_next/data/${next.buildId}/blocking-fallback-some/[slug].json`,
@@ -1688,6 +1690,7 @@ describe('Prerender', () => {
                 '^\\/blocking\\-fallback\\-some\\/([^\\/]+?)(?:\\/)?$'
               ),
               allowHeader,
+              allowEmptyStaticShell: false,
             },
             '/blocking-fallback/[slug]': {
               dataRoute: `/_next/data/${next.buildId}/blocking-fallback/[slug].json`,
@@ -1699,6 +1702,7 @@ describe('Prerender', () => {
                 '^\\/blocking\\-fallback\\/([^\\/]+?)(?:\\/)?$'
               ),
               allowHeader,
+              allowEmptyStaticShell: false,
             },
             '/blog/[post]': {
               fallback: '/blog/[post].html',
@@ -1708,6 +1712,7 @@ describe('Prerender', () => {
               ),
               routeRegex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
               allowHeader,
+              allowEmptyStaticShell: false,
             },
             '/blog/[post]/[comment]': {
               fallback: '/blog/[post]/[comment].html',
@@ -1719,6 +1724,7 @@ describe('Prerender', () => {
                 '^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
               ),
               allowHeader,
+              allowEmptyStaticShell: false,
             },
             '/dynamic/[slug]': {
               dataRoute: `/_next/data/${next.buildId}/dynamic/[slug].json`,
@@ -1728,6 +1734,7 @@ describe('Prerender', () => {
               fallback: false,
               routeRegex: normalizeRegEx(`^\\/dynamic\\/([^\\/]+?)(?:\\/)?$`),
               allowHeader,
+              allowEmptyStaticShell: false,
             },
             '/fallback-only/[slug]': {
               dataRoute: `/_next/data/${next.buildId}/fallback-only/[slug].json`,
@@ -1739,6 +1746,7 @@ describe('Prerender', () => {
                 '^\\/fallback\\-only\\/([^\\/]+?)(?:\\/)?$'
               ),
               allowHeader,
+              allowEmptyStaticShell: false,
             },
             '/lang/[lang]/about': {
               dataRoute: `/_next/data/${next.buildId}/lang/[lang]/about.json`,
@@ -1750,6 +1758,7 @@ describe('Prerender', () => {
                 '^\\/lang\\/([^\\/]+?)\\/about(?:\\/)?$'
               ),
               allowHeader,
+              allowEmptyStaticShell: false,
             },
             '/non-json-blocking/[p]': {
               dataRoute: `/_next/data/${next.buildId}/non-json-blocking/[p].json`,
@@ -1761,6 +1770,7 @@ describe('Prerender', () => {
                 '^\\/non\\-json\\-blocking\\/([^\\/]+?)(?:\\/)?$'
               ),
               allowHeader,
+              allowEmptyStaticShell: false,
             },
             '/non-json/[p]': {
               dataRoute: `/_next/data/${next.buildId}/non-json/[p].json`,
@@ -1772,6 +1782,7 @@ describe('Prerender', () => {
                 '^\\/non\\-json\\/([^\\/]+?)(?:\\/)?$'
               ),
               allowHeader,
+              allowEmptyStaticShell: false,
             },
             '/user/[user]/profile': {
               fallback: '/user/[user]/profile.html',
@@ -1783,6 +1794,7 @@ describe('Prerender', () => {
                 `^\\/user\\/([^\\/]+?)\\/profile(?:\\/)?$`
               ),
               allowHeader,
+              allowEmptyStaticShell: false,
             },
 
             '/catchall/[...slug]': {
@@ -1793,6 +1805,7 @@ describe('Prerender', () => {
                 `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\/(.+?)\\.json$`
               ),
               allowHeader,
+              allowEmptyStaticShell: false,
             },
             '/catchall-optional/[[...slug]]': {
               dataRoute: `/_next/data/${next.buildId}/catchall-optional/[[...slug]].json`,
@@ -1804,6 +1817,7 @@ describe('Prerender', () => {
                 '^\\/catchall\\-optional(?:\\/(.+?))?(?:\\/)?$'
               ),
               allowHeader,
+              allowEmptyStaticShell: false,
             },
             '/catchall-explicit/[...slug]': {
               dataRoute: `/_next/data/${next.buildId}/catchall-explicit/[...slug].json`,
@@ -1815,6 +1829,7 @@ describe('Prerender', () => {
                 '^\\/catchall\\-explicit\\/(.+?)(?:\\/)?$'
               ),
               allowHeader,
+              allowEmptyStaticShell: false,
             },
           })
         })
