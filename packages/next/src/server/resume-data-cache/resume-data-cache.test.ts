@@ -6,12 +6,11 @@ import { createPrerenderResumeDataCache } from './resume-data-cache'
 import { streamFromString } from '../stream-utils/node-web-streams-helper'
 import { inflateSync } from 'node:zlib'
 
-async function createCacheWithSingleEntry() {
+function createCacheWithSingleEntry() {
   const cache = createPrerenderResumeDataCache()
-  await cache.cache.set(
-    'original-key',
+  cache.cache.set(
+    'success',
     Promise.resolve({
-      key: 'final-key',
       value: streamFromString('value'),
       tags: [],
       stale: 0,
@@ -24,30 +23,9 @@ async function createCacheWithSingleEntry() {
   return cache
 }
 
-async function createCacheWithEntriesThatFail() {
-  const cache = await createCacheWithSingleEntry()
-
-  await cache.cache.set(
-    'fail-promise',
-    Promise.reject(new Error('Failed to serialize'))
-  )
-
-  await cache.cache.set(
-    'fail-stream',
-    Promise.resolve({
-      key: 'fail-stream',
-      value: new ReadableStream({
-        start(controller) {
-          controller.error(new Error('Failed to serialize'))
-        },
-      }),
-      tags: [],
-      stale: 0,
-      timestamp: 0,
-      expire: 0,
-      revalidate: 0,
-    })
-  )
+function createCacheWithSingleEntryThatFails() {
+  const cache = createCacheWithSingleEntry()
+  cache.cache.set('fail', Promise.reject(new Error('Failed to serialize')))
 
   return cache
 }
@@ -59,7 +37,7 @@ describe('stringifyResumeDataCache', () => {
   })
 
   it('serializes a cache with a single entry', async () => {
-    const cache = await createCacheWithSingleEntry()
+    const cache = createCacheWithSingleEntry()
     const compressed = await stringifyResumeDataCache(cache)
 
     // We have to decompress the output because the compressed string is not
@@ -70,12 +48,12 @@ describe('stringifyResumeDataCache', () => {
     ).toString('utf-8')
 
     expect(decompressed).toMatchInlineSnapshot(
-      `"{"store":{"fetch":{},"cache":{"final-key":{"key":"final-key","value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":0,"revalidate":0}},"encryptedBoundArgs":{}}}"`
+      `"{"store":{"fetch":{},"cache":{"success":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":0,"revalidate":0}},"encryptedBoundArgs":{}}}"`
     )
   })
 
-  it('serializes a cache with entries that fail', async () => {
-    const cache = await createCacheWithEntriesThatFail()
+  it('serializes a cache with a single entry that fails', async () => {
+    const cache = createCacheWithSingleEntryThatFails()
     const compressed = await stringifyResumeDataCache(cache)
 
     // We have to decompress the output because the compressed string is not
@@ -88,7 +66,7 @@ describe('stringifyResumeDataCache', () => {
     // We expect that the cache will still contain the successful entry but the
     // failed entry will be ignored and omitted from the output.
     expect(decompressed).toMatchInlineSnapshot(
-      `"{"store":{"fetch":{},"cache":{"final-key":{"key":"final-key","value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":0,"revalidate":0}},"encryptedBoundArgs":{}}}"`
+      `"{"store":{"fetch":{},"cache":{"success":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":0,"revalidate":0}},"encryptedBoundArgs":{}}}"`
     )
   })
 })
@@ -101,12 +79,12 @@ describe('parseResumeDataCache', () => {
   })
 
   it('parses a cache with a single entry', async () => {
-    const cache = await createCacheWithSingleEntry()
+    const cache = createCacheWithSingleEntry()
     const serialized = await stringifyResumeDataCache(cache)
 
     const parsed = createRenderResumeDataCache(serialized)
 
-    expect(await parsed.cache.getSize()).toBe(1)
+    expect(parsed.cache.size).toBe(1)
     expect(parsed.fetch.size).toBe(0)
   })
 })
