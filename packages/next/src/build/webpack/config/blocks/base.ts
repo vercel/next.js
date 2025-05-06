@@ -34,8 +34,6 @@ export const base = curry(function base(
   if (ctx.isDevelopment) {
     if (process.env.__NEXT_TEST_MODE && !process.env.__NEXT_TEST_WITH_DEVTOOL) {
       config.devtool = false
-    } else if (process.env.NEXT_RSPACK) {
-      config.devtool = 'source-map'
     } else {
       // `eval-source-map` provides full-fidelity source maps for the
       // original source, including columns and original variable names.
@@ -51,14 +49,6 @@ export const base = curry(function base(
       (ctx.productionBrowserSourceMaps && ctx.isClient)
     ) {
       config.devtool = 'source-map'
-      config.plugins ??= []
-      config.plugins.push(
-        new DevToolsIgnorePlugin({
-          // TODO: eval-source-map has different module paths than source-map.
-          // We're currently not actually ignore listing anything.
-          shouldIgnorePath,
-        })
-      )
     } else {
       config.devtool = false
     }
@@ -69,7 +59,7 @@ export const base = curry(function base(
   }
 
   config.plugins ??= []
-  if (config.devtool === 'source-map') {
+  if (config.devtool === 'source-map' && !process.env.NEXT_RSPACK) {
     config.plugins.push(
       new DevToolsIgnorePlugin({
         shouldIgnorePath,

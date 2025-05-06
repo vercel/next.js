@@ -1,10 +1,9 @@
 import { PureComponent } from 'react'
 import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
-import {
-  ErrorBoundary,
+import { ErrorBoundary } from '../../error-boundary'
+import DefaultGlobalError, {
   type GlobalErrorComponent,
-  GlobalError as DefaultGlobalError,
-} from '../../error-boundary'
+} from '../../global-error'
 
 type AppDevOverlayErrorBoundaryProps = {
   children: React.ReactNode

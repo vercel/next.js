@@ -1,11 +1,11 @@
 class X {
   get named() {
-    return "named";
+    return 'named'
   }
 
   get default() {
-    return "default";
+    return 'default'
   }
 }
 
-module.exports = new X();
+module.exports = new X()

@@ -54,16 +54,29 @@ pub async fn get_next_server_transforms_rules(
             // Ignore the internal ModuleCssAsset -> CssModuleAsset references
             // The CSS Module module itself is still needed for class names
             ModuleRule::new_internal(
-                RuleCondition::ResourcePathEndsWith(".module.css".into()),
+                RuleCondition::any(vec![
+                    RuleCondition::ResourcePathEndsWith(".module.css".into()),
+                    RuleCondition::ContentTypeStartsWith("text/css+module".into()),
+                ]),
                 vec![ModuleRuleEffect::Ignore],
             ),
         ]);
         rules.extend([
             // Ignore all non-module CSS references
             ModuleRule::new(
-                RuleCondition::all(vec![
-                    RuleCondition::ResourcePathEndsWith(".css".into()),
-                    RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.css".into())),
+                RuleCondition::any(vec![
+                    RuleCondition::all(vec![
+                        RuleCondition::ResourcePathEndsWith(".css".into()),
+                        RuleCondition::not(RuleCondition::ResourcePathEndsWith(
+                            ".module.css".into(),
+                        )),
+                    ]),
+                    RuleCondition::all(vec![
+                        RuleCondition::ContentTypeStartsWith("text/css".into()),
+                        RuleCondition::not(RuleCondition::ContentTypeStartsWith(
+                            "text/css+module".into(),
+                        )),
+                    ]),
                 ]),
                 vec![ModuleRuleEffect::Ignore],
             ),

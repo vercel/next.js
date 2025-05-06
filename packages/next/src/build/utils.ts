@@ -338,6 +338,7 @@ const filterAndSortList = (
 }
 
 export interface PageInfo {
+  originalAppPath: string | undefined
   isHybridAmp?: boolean
   size: number
   totalSize: number
@@ -352,7 +353,7 @@ export interface PageInfo {
   pageDuration: number | undefined
   ssgPageDurations: number[] | undefined
   runtime: ServerRuntime
-  hasEmptyPrelude?: boolean
+  hasEmptyStaticShell?: boolean
   hasPostponed?: boolean
   isDynamicAppRoute?: boolean
 }
@@ -527,8 +528,9 @@ export async function printTreeView(
         symbol = 'ƒ'
       } else if (pageInfo?.isRoutePPREnabled) {
         if (
-          // If the page has an empty prelude, then it's equivalent to a dynamic page
-          pageInfo?.hasEmptyPrelude ||
+          // If the page has an empty static shell, then it's equivalent to a
+          // dynamic page
+          pageInfo?.hasEmptyStaticShell ||
           // ensure we don't mark dynamic paths that postponed as being dynamic
           // since in this case we're able to partially prerender it
           (pageInfo.isDynamicAppRoute && !pageInfo.hasPostponed)
@@ -1544,8 +1546,19 @@ export async function copyTracedFiles(
   }
   try {
     const packageJsonPath = path.join(distDir, '../package.json')
-    const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'))
+    const packageJsonContent = await fs.readFile(packageJsonPath, 'utf8')
+    const packageJson = JSON.parse(packageJsonContent)
     moduleType = packageJson.type === 'module'
+
+    // we always copy the package.json to the standalone
+    // folder to ensure any resolving logic is maintained
+    const packageJsonOutputPath = path.join(
+      outputPath,
+      path.relative(tracingRoot, dir),
+      'package.json'
+    )
+    await fs.mkdir(path.dirname(packageJsonOutputPath), { recursive: true })
+    await fs.writeFile(packageJsonOutputPath, packageJsonContent)
   } catch {}
   const copiedFiles = new Set()
   await fs.rm(outputPath, { recursive: true, force: true })
@@ -1685,9 +1698,9 @@ export async function copyTracedFiles(
     `${
       moduleType
         ? `performance.mark('next-start');
-import path from 'path'
-import { fileURLToPath } from 'url'
-import module from 'module'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import module from 'node:module'
 const require = module.createRequire(import.meta.url)
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 `

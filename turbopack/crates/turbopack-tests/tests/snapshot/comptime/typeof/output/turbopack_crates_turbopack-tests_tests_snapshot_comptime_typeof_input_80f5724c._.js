@@ -9,11 +9,11 @@ const __TURBOPACK__import$2e$meta__ = {
         return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/cjs.js")}`;
     }
 };
-console.log("typeof require", ("TURBOPACK compile-time value", "function"));
-console.log("typeof import.meta", ("TURBOPACK compile-time value", "object"));
+console.log('typeof require', ("TURBOPACK compile-time value", "function"));
+console.log('typeof import.meta', ("TURBOPACK compile-time value", "object"));
 // CJS, should be `object`
-console.log("typeof module", ("TURBOPACK compile-time value", "object"));
-console.log("typeof exports", ("TURBOPACK compile-time value", "object"));
+console.log('typeof module', ("TURBOPACK compile-time value", "object"));
+console.log('typeof exports', ("TURBOPACK compile-time value", "object"));
 // CJS, should be real require
 console.log(("TURBOPACK member replacement", __turbopack_context__.t));
 }}),
@@ -35,11 +35,11 @@ const __TURBOPACK__import$2e$meta__ = {
     }
 };
 ;
-console.log("typeof require", ("TURBOPACK compile-time value", "function"));
-console.log("typeof import.meta", ("TURBOPACK compile-time value", "object"));
+console.log('typeof require', ("TURBOPACK compile-time value", "function"));
+console.log('typeof import.meta', ("TURBOPACK compile-time value", "object"));
 // ESM, should be `undefined`
-console.log("typeof module", ("TURBOPACK compile-time value", "undefined"));
-console.log("typeof exports", ("TURBOPACK compile-time value", "undefined"));
+console.log('typeof module', ("TURBOPACK compile-time value", "undefined"));
+console.log('typeof exports', ("TURBOPACK compile-time value", "undefined"));
 // ESM, should be require stub
 console.log(("TURBOPACK member replacement", __turbopack_context__.z));
 }}),
@@ -54,11 +54,11 @@ const __TURBOPACK__import$2e$meta__ = {
         return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-specified.mjs")}`;
     }
 };
-console.log("typeof require", ("TURBOPACK compile-time value", "function"));
-console.log("typeof import.meta", ("TURBOPACK compile-time value", "object"));
+console.log('typeof require', ("TURBOPACK compile-time value", "function"));
+console.log('typeof import.meta', ("TURBOPACK compile-time value", "object"));
 // ESM, should be `undefined`
-console.log("typeof module", ("TURBOPACK compile-time value", "undefined"));
-console.log("typeof exports", ("TURBOPACK compile-time value", "undefined"));
+console.log('typeof module', ("TURBOPACK compile-time value", "undefined"));
+console.log('typeof exports', ("TURBOPACK compile-time value", "undefined"));
 // ESM, should be require stub
 console.log(("TURBOPACK member replacement", __turbopack_context__.z));
 }}),

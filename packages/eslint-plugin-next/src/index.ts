@@ -66,8 +66,7 @@ const plugin = {
   },
 }
 
-module.exports = plugin
-module.exports.flatConfig = {
+const flatConfig = {
   recommended: {
     name: 'next/recommended',
     plugins: {
@@ -86,3 +85,7 @@ module.exports.flatConfig = {
     },
   },
 }
+
+export default plugin
+export const { rules, configs } = plugin
+export { flatConfig }

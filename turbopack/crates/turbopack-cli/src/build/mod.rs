@@ -21,13 +21,13 @@ use turbopack::{
     css::chunk::CssChunkType, ecmascript::chunk::EcmascriptChunkType,
     global_module_ids::get_global_module_id_strategy,
 };
-use turbopack_browser::BrowserChunkingContext;
+use turbopack_browser::{BrowserChunkingContext, ContentHashing, CurrentChunkMethod};
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
     chunk::{
         availability_info::AvailabilityInfo, ChunkingConfig, ChunkingContext, EvaluatableAsset,
-        EvaluatableAssets, MinifyType, SourceMapsType,
+        EvaluatableAssets, MangleType, MinifyType, SourceMapsType,
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::AssetIdent,
@@ -93,7 +93,9 @@ impl TurbopackBuildBuilder {
             show_all: false,
             log_detail: false,
             source_maps_type: SourceMapsType::Full,
-            minify_type: MinifyType::Minify { mangle: true },
+            minify_type: MinifyType::Minify {
+                mangle: Some(MangleType::OptimalSize),
+            },
             target: Target::Node,
         }
     }
@@ -301,8 +303,10 @@ async fn build_internal(
     .instrument(tracing::info_span!("resolve entries"))
     .await?;
 
-    let module_graph =
-        ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(entries.clone())]));
+    let module_graph = ModuleGraph::from_modules(
+        Vc::cell(vec![ChunkGroupEntry::Entry(entries.clone())]),
+        false,
+    );
     let module_id_strategy = ResolvedVc::upcast(
         get_global_module_id_strategy(module_graph)
             .to_resolved()
@@ -333,6 +337,7 @@ async fn build_internal(
             )
             .source_maps(source_maps_type)
             .module_id_strategy(module_id_strategy)
+            .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
             .minify_type(minify_type);
 
             match *node_env.await? {
@@ -354,6 +359,7 @@ async fn build_internal(
                             ..Default::default()
                         },
                     );
+                    builder = builder.use_content_hashing(ContentHashing::Direct { length: 16 })
                 }
             }
 
@@ -521,7 +527,9 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
         .minify_type(if args.no_minify {
             MinifyType::NoMinify
         } else {
-            MinifyType::Minify { mangle: true }
+            MinifyType::Minify {
+                mangle: Some(MangleType::OptimalSize),
+            }
         })
         .target(args.common.target.unwrap_or(Target::Node))
         .show_all(args.common.show_all);

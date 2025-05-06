@@ -1,4 +1,4 @@
-use std::{any::Any, fmt::Debug, future::Future, hash::Hash, time::Duration};
+use std::{any::Any, fmt::Debug, future::Future, hash::Hash, sync::Arc, time::Duration};
 
 use anyhow::Result;
 use either::Either;
@@ -12,8 +12,6 @@ use crate::{
 
 /// Trait to implement in order for a type to be accepted as a
 /// [`#[turbo_tasks::function]`][crate::function] argument.
-///
-/// See also [`ConcreteTaskInput`].
 pub trait TaskInput: Send + Sync + Clone + Debug + PartialEq + Eq + Hash + TraceRawVcs {
     fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
         async { Ok(self.clone()) }
@@ -89,6 +87,23 @@ where
     }
 }
 
+impl<T> TaskInput for Arc<T>
+where
+    T: TaskInput,
+{
+    fn is_resolved(&self) -> bool {
+        self.as_ref().is_resolved()
+    }
+
+    fn is_transient(&self) -> bool {
+        self.as_ref().is_transient()
+    }
+
+    async fn resolve_input(&self) -> Result<Self> {
+        Ok(Arc::new(Box::pin(self.as_ref().resolve_input()).await?))
+    }
+}
+
 impl<T> TaskInput for Option<T>
 where
     T: TaskInput,
@@ -124,7 +139,7 @@ where
     }
 
     fn is_transient(&self) -> bool {
-        self.node.get_task_id().is_transient()
+        self.node.is_transient()
     }
 
     async fn resolve_input(&self) -> Result<Self> {

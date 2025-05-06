@@ -173,6 +173,8 @@ impl DevServerBuilder {
                             uri: request.uri().clone(),
                         };
                         run_once_with_reason(tt.clone(), reason, async move {
+                            // TODO: `get_issue_reporter` should be an `OperationVc`, as there's a
+                            // risk it could be a task-local Vc, which is not safe for us to await.
                             let issue_reporter = get_issue_reporter();
 
                             if hyper_tungstenite::is_upgrade_request(&request) {

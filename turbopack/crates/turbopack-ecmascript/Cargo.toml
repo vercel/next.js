@@ -34,6 +34,7 @@ smallvec = { workspace = true }
 strsim = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+turbo-esregex = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
@@ -71,7 +72,7 @@ swc_core = { workspace = true, features = [
   "testing",
   "base",
 ] }
-swc_parallel = { workspace = true, default-features = false, features = ["rayon"] }
+par-core = { workspace = true, features = ["rayon"] }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

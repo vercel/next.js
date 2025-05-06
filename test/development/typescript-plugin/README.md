@@ -18,3 +18,9 @@ Ensure the current comments still describe the observed behavior.
 
 `app/error.tsx#Error` and `app/global-error.tsx#GlobalError` have a `reset` prop
 that should be excluded from the serialization check.
+
+### Metadata
+
+- `app/metadata/completion` has examples of metadata and generateMetadata completions.
+- `app/metadata/missing-type-warning` has examples of metadata and generateMetadata missing type warnings.
+- `app/metadata/client` has examples of metadata and generateMetadata not allowed in a client component.

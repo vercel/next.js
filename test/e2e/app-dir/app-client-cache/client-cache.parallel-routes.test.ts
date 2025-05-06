@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
-import { BrowserInterface } from 'next-webdriver'
+import { Playwright } from 'next-webdriver'
 import {
   browserConfigWithFixedTime,
   createRequestsListener,
@@ -21,13 +21,10 @@ describe('app dir client cache with parallel routes', () => {
   }
 
   describe('prefetch={true}', () => {
-    let browser: BrowserInterface
+    let browser: Playwright
 
     beforeEach(async () => {
-      browser = (await next.browser(
-        '/',
-        browserConfigWithFixedTime
-      )) as BrowserInterface
+      browser = await next.browser('/', browserConfigWithFixedTime)
     })
 
     it('should prefetch the full page', async () => {

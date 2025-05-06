@@ -78,6 +78,10 @@ interface NextWrapperServer {
 
   logError(...args: Parameters<NextNodeServer['logError']>): void
 
+  revalidate(
+    ...args: Parameters<NextNodeServer['revalidate']>
+  ): ReturnType<NextNodeServer['revalidate']>
+
   render(
     ...args: Parameters<NextNodeServer['render']>
   ): ReturnType<NextNodeServer['render']>
@@ -157,6 +161,11 @@ export class NextServer implements NextWrapperServer {
     }
   }
 
+  async revalidate(...args: Parameters<NextWrapperServer['revalidate']>) {
+    const server = await this.getServer()
+    return server.revalidate(...args)
+  }
+
   async render(...args: Parameters<NextWrapperServer['render']>) {
     const server = await this.getServer()
     return server.render(...args)
@@ -231,10 +240,10 @@ export class NextServer implements NextWrapperServer {
     )
 
     // check serialized build config when available
-    if (process.env.NODE_ENV === 'production') {
+    if (!this.options.dev) {
       try {
         const serializedConfig = require(
-          path.join(dir, '.next', SERVER_FILES_MANIFEST)
+          path.join(dir, config.distDir, SERVER_FILES_MANIFEST)
         ).config
 
         // @ts-expect-error internal field
@@ -424,6 +433,10 @@ class NextCustomServer implements NextWrapperServer {
     this.server.logError(...args)
   }
 
+  async revalidate(...args: Parameters<NextWrapperServer['revalidate']>) {
+    return this.server.revalidate(...args)
+  }
+
   async renderToHTML(...args: Parameters<NextWrapperServer['renderToHTML']>) {
     return this.server.renderToHTML(...args)
   }
@@ -457,7 +470,10 @@ function createServer(
     turbopack?: boolean
   }
 ): NextWrapperServer {
-  if (options && (options.turbo || options.turbopack)) {
+  if (
+    options &&
+    (options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST)
+  ) {
     process.env.TURBOPACK = '1'
   }
   // The package is used as a TypeScript plugin.

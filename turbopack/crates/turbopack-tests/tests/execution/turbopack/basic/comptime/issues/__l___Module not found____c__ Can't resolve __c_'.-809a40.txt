@@ -1,13 +1,13 @@
 error - [resolve] [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/comptime/input/index.js  /turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/comptime/input/index.js:4:4  Module not found: Can't resolve './not-existing-file'
   
-       1 | it("importing a not existing file should throw", () => {
+       1 | it('importing a not existing file should throw', () => {
        2 |   // This is a check to make sure that the following tests would fail if they require("fail")
        3 |   expect(() => {
          +     v----------------------------v
-       4 +     require("./not-existing-file");
+       4 +     require('./not-existing-file')
          +     ^----------------------------^
-       5 |   }).toThrow();
-       6 | });
+       5 |   }).toThrow()
+       6 | })
        7 | 
        8 | function maybeReturn(x) {
   

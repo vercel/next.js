@@ -17,8 +17,8 @@ const __TURBOPACK__import$2e$meta__ = {
 ;
 const unknown = Math.random();
 __TURBOPACK__url__external__node$3a$child_process__["default"].spawnSync(unknown);
-__TURBOPACK__url__external__node$3a$child_process__["default"].spawnSync("node", unknown);
-__TURBOPACK__url__external__node$3a$child_process__["default"].spawnSync("node", [
+__TURBOPACK__url__external__node$3a$child_process__["default"].spawnSync('node', unknown);
+__TURBOPACK__url__external__node$3a$child_process__["default"].spawnSync('node', [
     unknown,
     unknown
 ]);

@@ -23,7 +23,7 @@ export type NextConfigComplete = Required<NextConfig> & {
   // override NextConfigComplete.experimental.htmlLimitedBots to string
   // because it's not defined in NextConfigComplete.experimental
   htmlLimitedBots: string | undefined
-  experimental: ExperimentalConfig
+  experimental: Omit<ExperimentalConfig, 'turbo'>
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -94,7 +94,10 @@ type JSONValue =
   | JSONValue[]
   | { [k: string]: JSONValue }
 
-export type TurboLoaderItem =
+/**
+ * @deprecated Use `TurbopackRuleConfigItem` instead.
+ */
+export type TurbopackLoaderItem =
   | string
   | {
       loader: string
@@ -102,21 +105,25 @@ export type TurboLoaderItem =
       options: Record<string, JSONValue>
     }
 
-export type TurboRuleConfigItemOrShortcut =
-  | TurboLoaderItem[]
-  | TurboRuleConfigItem
+export type TurbopackRuleCondition = {
+  path: string | RegExp
+}
 
-export type TurboRuleConfigItemOptions = {
-  loaders: TurboLoaderItem[]
+export type TurbopackRuleConfigItemOrShortcut =
+  | TurbopackLoaderItem[]
+  | TurbopackRuleConfigItem
+
+export type TurbopackRuleConfigItemOptions = {
+  loaders: TurbopackLoaderItem[]
   as?: string
 }
 
-export type TurboRuleConfigItem =
-  | TurboRuleConfigItemOptions
-  | { [condition: string]: TurboRuleConfigItem }
+export type TurbopackRuleConfigItem =
+  | TurbopackRuleConfigItemOptions
+  | { [condition: string]: TurbopackRuleConfigItem }
   | false
 
-export interface ExperimentalTurboOptions {
+export interface TurbopackOptions {
   /**
    * (`next --turbopack` only) A mapping of aliased imports to modules to load in their place.
    *
@@ -139,50 +146,59 @@ export interface ExperimentalTurboOptions {
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
-  loaders?: Record<string, TurboLoaderItem[]>
+  rules?: Record<string, TurbopackRuleConfigItemOrShortcut>
 
   /**
-   * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
+   * (`next --turbopack` only) A list of conditions to apply when running webpack loaders with Turbopack.
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
-  rules?: Record<string, TurboRuleConfigItemOrShortcut>
-
-  /**
-   * A target memory limit for turbo, in bytes.
-   */
-  memoryLimit?: number
-
-  /**
-   * Enable persistent caching for the turbopack dev server and build.
-   */
-  unstablePersistentCaching?: boolean
-
-  /**
-   * Enable tree shaking for the turbopack dev server and build.
-   */
-  treeShaking?: boolean
+  conditions?: Record<string, TurbopackRuleCondition>
 
   /**
    * The module ID strategy to use for Turbopack.
    * If not set, the default is `'named'` for development and `'deterministic'`
    * for production.
    */
-  moduleIdStrategy?: 'named' | 'deterministic'
+  moduleIds?: 'named' | 'deterministic'
 
   /**
    * This is the repo root usually and only files above this
    * directory can be resolved by turbopack.
    */
   root?: string
+}
+
+export interface DeprecatedExperimentalTurboOptions extends TurbopackOptions {
+  /**
+   * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
+   *
+   * @deprecated Use `rules` instead.
+   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
+   */
+  loaders?: Record<string, TurbopackLoaderItem[]>
+
+  /**
+   * A target memory limit for turbo, in bytes.
+   * @deprecated Use `experimental.turbopackMemoryLimit` instead.
+   */
+  memoryLimit?: number
 
   /**
    * Enable minification. Defaults to true in build mode and false in dev mode.
+   * @deprecated Use `experimental.turbopackMinify` instead.
    */
   minify?: boolean
 
   /**
+   * Enable tree shaking for the turbopack dev server and build.
+   * @deprecated Use `experimental.turbopackTreeShaking` instead.
+   */
+  treeShaking?: boolean
+
+  /**
    * Enable source maps. Defaults to true.
+   * @deprecated Use `experimental.turbopackSourceMaps` instead.
    */
   sourceMaps?: boolean
 }
@@ -269,7 +285,8 @@ export interface ExperimentalConfig {
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
-  clientSegmentCache?: boolean
+  clientSegmentCache?: boolean | 'client-only'
+  dynamicOnHover?: boolean
   appDocumentPreloading?: boolean
   preloadEntriesOnStart?: boolean
   /** @default true */
@@ -376,7 +393,35 @@ export interface ExperimentalConfig {
    */
   optimizeServerReact?: boolean
 
-  turbo?: ExperimentalTurboOptions
+  /**
+   * @deprecated Use `config.turbopack` instead.
+   */
+  turbo?: DeprecatedExperimentalTurboOptions
+
+  /**
+   * A target memory limit for turbo, in bytes.
+   */
+  turbopackMemoryLimit?: number
+
+  /**
+   * Enable minification. Defaults to true in build mode and false in dev mode.
+   */
+  turbopackMinify?: boolean
+
+  /**
+   * Enable persistent caching for the turbopack dev server and build.
+   */
+  turbopackPersistentCaching?: boolean
+
+  /**
+   * Enable source maps. Defaults to true.
+   */
+  turbopackSourceMaps?: boolean
+
+  /**
+   * Enable tree shaking for the turbopack dev server and build.
+   */
+  turbopackTreeShaking?: boolean
 
   /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
@@ -469,6 +514,21 @@ export interface ExperimentalConfig {
    * Using this feature will enable the `react@experimental` for the `app` directory.
    */
   taint?: boolean
+
+  /**
+   * Enables the Back/Forward Cache for the router.
+   */
+  routerBFCache?: boolean
+
+  /**
+   * Uninstalls all "unhandledRejection" and "uncaughtException" listeners from
+   * the global process so that we can override the behavior, which in some
+   * runtimes is to exit the process.
+   *
+   * This is experimental until we've considered the impact in various
+   * deployment environments.
+   */
+  removeUncaughtErrorAndRejectionListeners?: boolean
 
   serverActions?: {
     /**
@@ -670,6 +730,15 @@ export type ExportPathMap = {
      * @internal
      */
     _isProspectiveRender?: boolean
+
+    /**
+     * When true, it indicates that the diagnostic render for this page is
+     * disabled. This is only used when the app has `experimental.ppr` and
+     * `experimental.dynamicIO` enabled.
+     *
+     * @internal
+     */
+    _doNotThrowOnEmptyStaticShell?: boolean
   }
 }
 
@@ -997,6 +1066,22 @@ export interface NextConfig extends Record<string, any> {
      * replaced with the respective values.
      */
     define?: Record<string, string>
+
+    /**
+     * A hook function that executes after production build compilation finishes,
+     * but before running post-compilation tasks such as type checking and
+     * static page generation.
+     */
+    runAfterProductionCompile?: (metadata: {
+      /**
+       * The root directory of the project
+       */
+      projectDir: string
+      /**
+       * The build output directory (defaults to `.next`)
+       */
+      distDir: string
+    }) => Promise<void>
   }
 
   /**
@@ -1015,6 +1100,11 @@ export interface NextConfig extends Record<string, any> {
    * @see [transpilePackages](https://nextjs.org/docs/advanced-features/compiler#module-transpilation)
    */
   transpilePackages?: string[]
+
+  /**
+   * Options for Turbopack. Temporarily also available as `experimental.turbo` for compatibility.
+   */
+  turbopack?: TurbopackOptions
 
   skipMiddlewareUrlNormalize?: boolean
 
@@ -1137,6 +1227,7 @@ export const defaultConfig: NextConfig = {
     keepAlive: true,
   },
   logging: {},
+  compiler: {},
   expireTime: process.env.NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL
     ? undefined
     : 31536000, // one year
@@ -1198,6 +1289,7 @@ export const defaultConfig: NextConfig = {
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
     clientSegmentCache: false,
+    dynamicOnHover: false,
     appDocumentPreloading: undefined,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
@@ -1256,6 +1348,8 @@ export const defaultConfig: NextConfig = {
     optimizeServerReact: true,
     useEarlyImport: false,
     viewTransition: false,
+    routerBFCache: false,
+    removeUncaughtErrorAndRejectionListeners: false,
     staleTimes: {
       dynamic: 0,
       static: 300,

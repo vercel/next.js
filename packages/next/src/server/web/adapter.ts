@@ -33,6 +33,7 @@ import { MiddlewareSpan } from '../lib/trace/constants'
 import { CloseController } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
+import { getImplicitTags } from '../lib/implicit-tags'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -251,18 +252,26 @@ export async function adapter(
               cookiesFromResponse = cookies
             }
             const previewProps = getEdgePreviewProps()
+            const page = '/' // Fake Work
+            const fallbackRouteParams = null
+
+            const implicitTags = await getImplicitTags(
+              page,
+              request.nextUrl,
+              fallbackRouteParams
+            )
 
             const requestStore = createRequestStoreForAPI(
               request,
               request.nextUrl,
-              undefined,
+              implicitTags,
               onUpdateCookies,
               previewProps
             )
 
             const workStore = createWorkStore({
-              page: '/', // Fake Work
-              fallbackRouteParams: null,
+              page,
+              fallbackRouteParams,
               renderOpts: {
                 cacheLifeProfiles:
                   params.request.nextConfig?.experimental?.cacheLife,

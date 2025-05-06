@@ -95,6 +95,8 @@ import {
 } from './next-dir-paths'
 import { getRspackCore, getRspackReactRefresh } from '../shared/lib/get-rspack'
 import { RspackProfilingPlugin } from './webpack/plugins/rspack-profiling-plugin'
+import getWebpackBundler from '../shared/lib/get-webpack-bundler'
+import type { NextBuildContext } from './build-context'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -171,11 +173,17 @@ let loggedIgnoredCompilerOptions = false
 const reactRefreshLoaderName =
   'next/dist/compiled/@next/react-refresh-utils/dist/loader'
 
+function getReactRefreshLoader() {
+  return process.env.NEXT_RSPACK
+    ? getRspackReactRefresh().loader
+    : require.resolve(reactRefreshLoaderName)
+}
+
 export function attachReactRefresh(
   webpackConfig: webpack.Configuration,
   targetLoader: webpack.RuleSetUseItem
 ) {
-  const reactRefreshLoader = require.resolve(reactRefreshLoaderName)
+  const reactRefreshLoader = getReactRefreshLoader()
   webpackConfig.module?.rules?.forEach((rule) => {
     if (rule && typeof rule === 'object' && 'use' in rule) {
       const curr = rule.use
@@ -305,9 +313,10 @@ export default async function getBaseWebpackConfig(
     supportedBrowsers,
     clientRouterFilters,
     fetchCacheKeyPrefix,
-    edgePreviewProps,
     isCompileMode,
+    previewProps,
   }: {
+    previewProps: NonNullable<(typeof NextBuildContext)['previewProps']>
     isCompileMode?: boolean
     buildId: string
     encryptionKey: string
@@ -329,7 +338,6 @@ export default async function getBaseWebpackConfig(
     jsConfigPath?: string
     resolvedBaseUrl: ResolvedBaseUrl
     supportedBrowsers: string[] | undefined
-    edgePreviewProps?: Record<string, string>
     clientRouterFilters?: {
       staticFilter: ReturnType<
         import('../shared/lib/bloom-filter').BloomFilter['export']
@@ -341,6 +349,7 @@ export default async function getBaseWebpackConfig(
     fetchCacheKeyPrefix?: string
   }
 ): Promise<webpack.Configuration> {
+  const bundler = getWebpackBundler()
   const isClient = compilerType === COMPILER_NAMES.client
   const isEdgeServer = compilerType === COMPILER_NAMES.edgeServer
   const isNodeServer = compilerType === COMPILER_NAMES.server
@@ -601,11 +610,7 @@ export default async function getBaseWebpackConfig(
     babelLoader,
   ].filter(Boolean)
 
-  // Rspack will inject their own React Refresh loader in @rspack/plugin-react-refresh
-  const reactRefreshLoaders =
-    !isRspack && dev && isClient
-      ? [require.resolve(reactRefreshLoaderName)]
-      : []
+  const reactRefreshLoaders = dev && isClient ? [getReactRefreshLoader()] : []
 
   // client components layers: SSR or browser
   const createClientLayerLoader = ({
@@ -667,15 +672,19 @@ export default async function getBaseWebpackConfig(
     '...',
   ]
 
+  const reactRefreshEntry = isRspack
+    ? getRspackReactRefresh().entry
+    : require.resolve(
+        `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
+      )
+
   const clientEntries = isClient
     ? ({
         // Backwards compatibility
         'main.js': [],
         ...(dev
           ? {
-              [CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]: require.resolve(
-                `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
-              ),
+              [CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]: reactRefreshEntry,
               [CLIENT_STATIC_FILES_RUNTIME_AMP]:
                 `./` +
                 path
@@ -701,9 +710,7 @@ export default async function getBaseWebpackConfig(
           ? {
               [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP]: dev
                 ? [
-                    require.resolve(
-                      `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
-                    ),
+                    reactRefreshEntry,
                     `./` +
                       path
                         .relative(
@@ -1181,7 +1188,10 @@ export default async function getBaseWebpackConfig(
                     'process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE': false,
                   },
                 },
-                mangle: !noMangling && { reserved: ['AbortSignal'] },
+                mangle: !noMangling && {
+                  reserved: ['AbortSignal'],
+                  disableCharFreq: !isClient,
+                },
               },
             }),
             new (getRspackCore().LightningCssMinimizerRspackPlugin)({
@@ -1197,7 +1207,10 @@ export default async function getBaseWebpackConfig(
               // @ts-ignore No typings yet
               const { MinifyPlugin } =
                 require('./webpack/plugins/minify-webpack-plugin/src/index.js') as typeof import('./webpack/plugins/minify-webpack-plugin/src')
-              new MinifyPlugin({ noMangling }).apply(compiler)
+              new MinifyPlugin({
+                noMangling,
+                disableCharFreq: !isClient,
+              }).apply(compiler)
             },
             // Minify CSS
             (compiler: webpack.Compiler) => {
@@ -1870,7 +1883,7 @@ export default async function getBaseWebpackConfig(
     },
     plugins: [
       isNodeServer &&
-        new webpack.NormalModuleReplacementPlugin(
+        new bundler.NormalModuleReplacementPlugin(
           /\.\/(.+)\.shared-runtime$/,
           function (resource) {
             const moduleName = path.basename(
@@ -1898,11 +1911,15 @@ export default async function getBaseWebpackConfig(
         isClient &&
         (isRspack
           ? // eslint-disable-next-line
-            new (getRspackReactRefresh() as any)()
+            new (getRspackReactRefresh() as any)({
+              injectLoader: false,
+              injectEntry: false,
+              overlay: false,
+            })
           : new ReactRefreshWebpackPlugin(webpack)),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       (isClient || isEdgeServer) &&
-        new webpack.ProvidePlugin({
+        new bundler.ProvidePlugin({
           // Buffer is used by getInlineScriptSource
           Buffer: [require.resolve('buffer'), 'Buffer'],
           // Avoid process being overridden when in web run time
@@ -1931,7 +1948,7 @@ export default async function getBaseWebpackConfig(
           dev,
         }),
       // rspack doesn't support the parser hooks used here
-      !isRspack && (isClient || isEdgeServer) && new DropClientPage(),
+      (isClient || isEdgeServer) && new DropClientPage(),
       isNodeServer &&
         !dev &&
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
@@ -1952,7 +1969,7 @@ export default async function getBaseWebpackConfig(
       // solution that requires the user to opt into importing specific locales.
       // https://github.com/jmblog/how-to-optimize-momentjs-with-webpack
       config.excludeDefaultMomentLocales &&
-        new webpack.IgnorePlugin({
+        new bundler.IgnorePlugin({
           resourceRegExp: /^\.\/locale$/,
           contextRegExp: /moment$/,
         }),
@@ -1969,14 +1986,14 @@ export default async function getBaseWebpackConfig(
             ]
 
             if (isClient || isEdgeServer) {
-              devPlugins.push(new webpack.HotModuleReplacementPlugin())
+              devPlugins.push(new bundler.HotModuleReplacementPlugin())
             }
 
             return devPlugins
           })()
         : []),
       !dev &&
-        new webpack.IgnorePlugin({
+        new bundler.IgnorePlugin({
           resourceRegExp: /react-is/,
           contextRegExp: /next[\\/]dist[\\/]/,
         }),
@@ -1997,7 +2014,10 @@ export default async function getBaseWebpackConfig(
           edgeEnvironments: {
             __NEXT_BUILD_ID: buildId,
             NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: encryptionKey,
-            ...edgePreviewProps,
+            __NEXT_PREVIEW_MODE_ID: previewProps.previewModeId,
+            __NEXT_PREVIEW_MODE_SIGNING_KEY: previewProps.previewModeSigningKey,
+            __NEXT_PREVIEW_MODE_ENCRYPTION_KEY:
+              previewProps.previewModeEncryptionKey,
           },
         }),
       isClient &&
@@ -2614,8 +2634,7 @@ export default async function getBaseWebpackConfig(
   }
 
   // Inject missing React Refresh loaders so that development mode is fast:
-  // Rspack will inject their own React Refresh loader in @rspack/plugin-react-refresh
-  if (!isRspack && dev && isClient) {
+  if (dev && isClient) {
     attachReactRefresh(webpackConfig, defaultLoaders.babel)
   }
 

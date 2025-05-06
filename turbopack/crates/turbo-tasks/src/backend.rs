@@ -68,6 +68,8 @@ pub struct CachedTaskType {
 }
 
 impl CachedTaskType {
+    /// Get the name of the function from the registry. Equivalent to the
+    /// [`Display`]/[`ToString::to_string`] implementation, but does not allocate a [`String`].
     pub fn get_name(&self) -> &'static str {
         &registry::get_function(self.fn_type).name
     }
@@ -92,7 +94,7 @@ impl Hash for CachedTaskType {
     }
 }
 
-impl fmt::Display for CachedTaskType {
+impl Display for CachedTaskType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.get_name())
     }
@@ -576,8 +578,8 @@ pub trait Backend: Sync + Send {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
 
-    /// For persistent tasks with associated [`NativeFunction`][turbo_tasks::NativeFunction]s,
-    /// return the [`FunctionId`].
+    /// For persistent tasks with associated
+    /// [`NativeFunction`][crate::native_function::NativeFunction]s, return the [`FunctionId`].
     fn try_get_function_id(&self, task_id: TaskId) -> Option<FunctionId>;
 
     fn connect_task(

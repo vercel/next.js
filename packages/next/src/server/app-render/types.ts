@@ -94,7 +94,23 @@ export type FlightRouterState = [
    */
   refresh?: 'refetch' | 'refresh' | 'inside-shared-layout' | null,
   isRootLayout?: boolean,
+  /**
+   * Only present when responding to a tree prefetch request. Indicates whether
+   * there is a loading boundary somewhere in the tree. The client cache uses
+   * this to determine if it can skip the data prefetch request.
+   */
+  hasLoadingBoundary?: HasLoadingBoundary,
 ]
+
+export const enum HasLoadingBoundary {
+  // There is a loading boundary in this particular segment
+  SegmentHasLoadingBoundary = 1,
+  // There is a loading boundary somewhere in the subtree (but not in
+  // this segment)
+  SubtreeHasLoadingBoundary = 2,
+  // There is no loading boundary in this segment or any of its descendants
+  SubtreeHasNoLoadingBoundary = 3,
+}
 
 /**
  * Individual Flight response path
@@ -213,7 +229,8 @@ export interface RenderOptsPartial {
     expireTime: number | undefined
     clientTraceMetadata: string[] | undefined
     dynamicIO: boolean
-    clientSegmentCache: boolean
+    clientSegmentCache: boolean | 'client-only'
+    dynamicOnHover: boolean
     inlineCss: boolean
     authInterrupts: boolean
   }
@@ -245,6 +262,13 @@ export interface RenderOptsPartial {
   reactMaxHeadersLength: number | undefined
 
   isStaticGeneration?: boolean
+
+  /**
+   * When true, the page will be rendered using the static rendering to detect
+   * any dynamic API's that would have stopped the page from being fully
+   * statically generated.
+   */
+  doNotThrowOnEmptyStaticShell?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &

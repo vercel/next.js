@@ -206,9 +206,11 @@ export function createMetadataComponents({
     const promise = resolveFinalMetadata()
     if (serveStreamingMetadata) {
       return (
-        <Suspense fallback={null}>
-          <AsyncMetadata promise={promise} />
-        </Suspense>
+        <div hidden>
+          <Suspense fallback={null}>
+            <AsyncMetadata promise={promise} />
+          </Suspense>
+        </div>
       )
     }
     const metadataState = await promise
@@ -355,7 +357,7 @@ async function renderViewport(
   workStore: WorkStore,
   errorConvention?: MetadataErrorType
 ) {
-  const notFoundResolvedViewport = await resolveViewport(
+  const resolvedViewport = await resolveViewport(
     tree,
     searchParams,
     errorConvention,
@@ -363,9 +365,8 @@ async function renderViewport(
     workStore
   )
 
-  const elements: Array<React.ReactNode> = createViewportElements(
-    notFoundResolvedViewport
-  )
+  const elements: Array<React.ReactNode> =
+    createViewportElements(resolvedViewport)
   return (
     <>
       {elements.map((el, index) => {

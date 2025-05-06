@@ -39,16 +39,18 @@ fn main() -> Result<()> {
     });
 
     let compiler = Compiler::new(sm.clone());
-    let res = GLOBALS.set(&Globals::new(), || {
-        try_with_handler(
-            sm,
-            HandlerOpts {
-                color: ColorConfig::Always,
-                skip_filename: false,
-            },
-            |handler| compiler.parse_js(file, handler, target, syntax, IsModule::Unknown, None),
-        )
-    });
+    let res = GLOBALS
+        .set(&Globals::new(), || {
+            try_with_handler(
+                sm,
+                HandlerOpts {
+                    color: ColorConfig::Always,
+                    skip_filename: false,
+                },
+                |handler| compiler.parse_js(file, handler, target, syntax, IsModule::Unknown, None),
+            )
+        })
+        .map_err(|e| e.to_pretty_error());
 
     let print = format!("{:#?}", res?);
 

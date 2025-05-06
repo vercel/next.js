@@ -10,7 +10,10 @@ use turbo_tasks::{
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
-    module_options_context::MdxTransformOptions, LoaderRuleItem, OptionWebpackRules,
+    module_options_context::{
+        ConditionItem, ConditionPath, MdxTransformOptions, OptionWebpackConditions,
+    },
+    LoaderRuleItem, OptionWebpackRules,
 };
 use turbopack_core::{
     issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString},
@@ -94,6 +97,8 @@ pub struct NextConfig {
     pub cross_origin: Option<CrossOriginConfig>,
     pub dev_indicators: Option<DevIndicatorsConfig>,
     pub output: Option<OutputType>,
+    pub turbopack: Option<TurbopackConfig>,
+    production_browser_source_maps: bool,
 
     /// Enables the bundling of node_modules packages (externals) for pages
     /// server-side bundles.
@@ -129,7 +134,6 @@ pub struct NextConfig {
     http_agent_options: HttpAgentConfig,
     on_demand_entries: OnDemandEntriesConfig,
     powered_by_header: bool,
-    production_browser_source_maps: bool,
     public_runtime_config: FxIndexMap<String, serde_json::Value>,
     server_runtime_config: FxIndexMap<String, serde_json::Value>,
     static_page_generation_timeout: f64,
@@ -417,7 +421,7 @@ pub struct Rewrites {
 #[serde(rename_all = "camelCase")]
 pub struct TypeScriptConfig {
     pub ignore_build_errors: Option<bool>,
-    pub ts_config_path: Option<String>,
+    pub tsconfig_path: Option<String>,
 }
 
 #[turbo_tasks::value(eq = "manual", operation)]
@@ -536,17 +540,59 @@ pub enum RemotePatternProtocal {
     OperationValue,
 )]
 #[serde(rename_all = "camelCase")]
-pub struct ExperimentalTurboConfig {
+pub struct TurbopackConfig {
     /// This option has been replaced by `rules`.
     pub loaders: Option<JsonValue>,
     pub rules: Option<FxIndexMap<RcStr, RuleConfigItemOrShortcut>>,
+    #[turbo_tasks(trace_ignore)]
+    pub conditions: Option<FxIndexMap<RcStr, ConfigConditionItem>>,
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
-    pub tree_shaking: Option<bool>,
-    pub module_id_strategy: Option<ModuleIdStrategy>,
-    pub minify: Option<bool>,
-    pub source_maps: Option<bool>,
-    pub unstable_persistent_caching: Option<bool>,
+    pub module_ids: Option<ModuleIds>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, TraceRawVcs, NonLocalValue)]
+pub struct ConfigConditionItem(ConditionItem);
+
+impl<'de> Deserialize<'de> for ConfigConditionItem {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct RegexComponents {
+            source: RcStr,
+            flags: RcStr,
+        }
+
+        #[derive(Deserialize)]
+        struct ConfigPath {
+            path: RegexOrGlob,
+        }
+
+        #[derive(Deserialize)]
+        #[serde(tag = "type", rename_all = "lowercase")]
+        enum RegexOrGlob {
+            Regexp { value: RegexComponents },
+            Glob { value: String },
+        }
+
+        let config_path = ConfigPath::deserialize(deserializer)?;
+        let condition_item = match config_path.path {
+            RegexOrGlob::Regexp { value } => {
+                let regex = turbo_esregex::EsRegex::new(&value.source, &value.flags)
+                    .map_err(serde::de::Error::custom)?;
+                ConditionItem {
+                    path: ConditionPath::Regex(regex.resolved_cell()),
+                }
+            }
+            RegexOrGlob::Glob { value } => ConditionItem {
+                path: ConditionPath::Glob(value.into()),
+            },
+        };
+
+        Ok(ConfigConditionItem(condition_item))
+    }
 }
 
 #[derive(
@@ -590,13 +636,13 @@ pub enum LoaderItem {
 #[turbo_tasks::value(operation)]
 #[derive(Copy, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-pub enum ModuleIdStrategy {
+pub enum ModuleIds {
     Named,
     Deterministic,
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionModuleIdStrategy(pub Option<ModuleIdStrategy>);
+pub struct OptionModuleIds(pub Option<ModuleIds>);
 
 #[derive(
     Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
@@ -668,7 +714,6 @@ pub struct ExperimentalConfig {
     mdx_rs: Option<MdxRsOptions>,
     strict_next_head: Option<bool>,
     swc_plugins: Option<Vec<(RcStr, serde_json::Value)>>,
-    turbo: Option<ExperimentalTurboConfig>,
     external_middleware_rewrites_resolve: Option<bool>,
     scroll_restoration: Option<bool>,
     manual_client_base_path: Option<bool>,
@@ -729,7 +774,8 @@ pub struct ExperimentalConfig {
     /// directory.
     ppr: Option<ExperimentalPartialPrerendering>,
     taint: Option<bool>,
-    react_owner_stack: Option<bool>,
+    #[serde(rename = "routerBFCache")]
+    router_bfcache: Option<bool>,
     proxy_timeout: Option<f64>,
     /// enables the minification of server code.
     server_minification: Option<bool>,
@@ -748,6 +794,11 @@ pub struct ExperimentalConfig {
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
+
+    turbopack_minify: Option<bool>,
+    turbopack_persistent_caching: Option<bool>,
+    turbopack_source_maps: Option<bool>,
+    turbopack_tree_shaking: Option<bool>,
 }
 
 #[derive(
@@ -1063,7 +1114,8 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn from_string(string: Vc<RcStr>) -> Result<Vc<Self>> {
         let string = string.await?;
-        let config: NextConfig = serde_json::from_str(&string)
+        let mut jdeserializer = serde_json::Deserializer::from_str(&string);
+        let config: NextConfig = serde_path_to_error::deserialize(&mut jdeserializer)
             .with_context(|| format!("failed to parse next.config.js: {}", string))?;
         Ok(config.cell())
     }
@@ -1144,12 +1196,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn webpack_rules(&self, active_conditions: Vec<RcStr>) -> Vc<OptionWebpackRules> {
-        let Some(turbo_rules) = self
-            .experimental
-            .turbo
-            .as_ref()
-            .and_then(|t| t.rules.as_ref())
-        else {
+        let Some(turbo_rules) = self.turbopack.as_ref().and_then(|t| t.rules.as_ref()) else {
             return Vc::cell(None);
         };
         if turbo_rules.is_empty() {
@@ -1231,12 +1278,26 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn webpack_conditions(&self) -> Vc<OptionWebpackConditions> {
+        let Some(config_conditions) = self.turbopack.as_ref().and_then(|t| t.conditions.as_ref())
+        else {
+            return Vc::cell(None);
+        };
+
+        let conditions = FxIndexMap::from_iter(
+            config_conditions
+                .iter()
+                .map(|(k, v)| (k.clone(), v.0.clone())),
+        );
+
+        Vc::cell(Some(ResolvedVc::cell(conditions)))
+    }
+
+    #[turbo_tasks::function]
     pub fn persistent_caching_enabled(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(
             self.experimental
-                .turbo
-                .as_ref()
-                .and_then(|t| t.unstable_persistent_caching)
+                .turbopack_persistent_caching
                 .unwrap_or_default(),
         ))
     }
@@ -1244,8 +1305,7 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn resolve_alias_options(&self) -> Result<Vc<ResolveAliasMap>> {
         let Some(resolve_alias) = self
-            .experimental
-            .turbo
+            .turbopack
             .as_ref()
             .and_then(|t| t.resolve_alias.as_ref())
         else {
@@ -1258,8 +1318,7 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn resolve_extension(&self) -> Vc<ResolveExtensions> {
         let Some(resolve_extensions) = self
-            .experimental
-            .turbo
+            .turbopack
             .as_ref()
             .and_then(|t| t.resolve_extensions.as_ref())
         else {
@@ -1424,8 +1483,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn enable_react_owner_stack(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.react_owner_stack.unwrap_or(false))
+    pub fn enable_router_bfcache(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.router_bfcache.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
@@ -1476,13 +1535,7 @@ impl NextConfig {
         &self,
         _is_development: bool,
     ) -> Vc<OptionTreeShaking> {
-        let tree_shaking = self
-            .experimental
-            .turbo
-            .as_ref()
-            .and_then(|v| v.tree_shaking);
-
-        OptionTreeShaking(match tree_shaking {
+        OptionTreeShaking(match self.experimental.turbopack_tree_shaking {
             Some(false) => Some(TreeShakingMode::ReexportsOnly),
             Some(true) => Some(TreeShakingMode::ModuleFragments),
             None => Some(TreeShakingMode::ReexportsOnly),
@@ -1492,13 +1545,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn tree_shaking_mode_for_user_code(&self, _is_development: bool) -> Vc<OptionTreeShaking> {
-        let tree_shaking = self
-            .experimental
-            .turbo
-            .as_ref()
-            .and_then(|v| v.tree_shaking);
-
-        OptionTreeShaking(match tree_shaking {
+        OptionTreeShaking(match self.experimental.turbopack_tree_shaking {
             Some(false) => Some(TreeShakingMode::ReexportsOnly),
             Some(true) => Some(TreeShakingMode::ModuleFragments),
             None => Some(TreeShakingMode::ReexportsOnly),
@@ -1507,32 +1554,44 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn module_id_strategy_config(&self) -> Vc<OptionModuleIdStrategy> {
-        let Some(module_id_strategy) = self
-            .experimental
-            .turbo
-            .as_ref()
-            .and_then(|t| t.module_id_strategy)
-        else {
+    pub fn module_ids(&self) -> Vc<OptionModuleIds> {
+        let Some(module_ids) = self.turbopack.as_ref().and_then(|t| t.module_ids) else {
             return Vc::cell(None);
         };
-        Vc::cell(Some(module_id_strategy))
+        Vc::cell(Some(module_ids))
     }
 
     #[turbo_tasks::function]
     pub async fn turbo_minify(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
-        let minify = self.experimental.turbo.as_ref().and_then(|t| t.minify);
-
+        let minify = self.experimental.turbopack_minify;
         Ok(Vc::cell(
             minify.unwrap_or(matches!(*mode.await?, NextMode::Build)),
         ))
     }
 
     #[turbo_tasks::function]
-    pub async fn turbo_source_maps(&self) -> Result<Vc<bool>> {
-        let source_maps = self.experimental.turbo.as_ref().and_then(|t| t.source_maps);
-
+    pub async fn client_source_maps(&self, _mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        // Temporarily always enable client source maps as tests regress.
+        // TODO: Respect both `self.experimental.turbopack_source_maps` and
+        //       `self.production_browser_source_maps`
+        let source_maps = self.experimental.turbopack_source_maps;
         Ok(Vc::cell(source_maps.unwrap_or(true)))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn server_source_maps(&self) -> Result<Vc<bool>> {
+        let source_maps = self.experimental.turbopack_source_maps;
+        Ok(Vc::cell(source_maps.unwrap_or(true)))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn typescript_tsconfig_path(&self) -> Result<Vc<Option<RcStr>>> {
+        Ok(Vc::cell(
+            self.typescript
+                .tsconfig_path
+                .as_ref()
+                .map(|path| path.to_owned().into()),
+        ))
     }
 }
 

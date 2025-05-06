@@ -9,7 +9,8 @@ use napi::{
 use next_api::{
     entrypoints::Entrypoints,
     operation::{
-        EntrypointsOperation, InstrumentationOperation, MiddlewareOperation, RouteOperation,
+        EntrypointsOperation, InstrumentationOperation, MiddlewareOperation, OptionEndpoint,
+        RouteOperation,
     },
     project::{
         DefineEnv, DraftModeOptions, PartialProjectOptions, Project, ProjectContainer,
@@ -373,7 +374,9 @@ pub async fn project_new(
         let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
         exit.on_exit(async move {
-            tokio::task::spawn_blocking(move || drop(trace_writer_guard));
+            tokio::task::spawn_blocking(move || drop(trace_writer_guard))
+                .await
+                .unwrap();
         });
 
         let trace_server = std::env::var("NEXT_TURBOPACK_TRACE_SERVER").ok();
@@ -381,7 +384,7 @@ pub async fn project_new(
             thread::spawn(move || {
                 turbopack_trace_server::start_turbopack_trace_server(trace_file);
             });
-            println!("Turbopack trace server started. View trace at https://turbo-trace-viewer.vercel.app/");
+            println!("Turbopack trace server started. View trace at https://trace.nextjs.org");
         }
 
         subscriber.init();
@@ -465,7 +468,7 @@ async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completio
     ));
 
     let mut random_buffer = [0u8; 512];
-    rand::thread_rng().fill(&mut random_buffer[..]);
+    rand::rng().fill(&mut random_buffer[..]);
 
     // perform IO directly with tokio (skipping `tokio_tasks_fs`) to avoid the
     // additional noise/overhead of tasks caching, invalidation, file locks,
@@ -580,7 +583,7 @@ pub struct NapiRoute {
 
 impl NapiRoute {
     fn from_route(pathname: String, value: RouteOperation, turbo_tasks: &NextTurboTasks) -> Self {
-        let convert_endpoint = |endpoint: OperationVc<Box<dyn Endpoint>>| {
+        let convert_endpoint = |endpoint: OperationVc<OptionEndpoint>| {
             Some(External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
                 endpoint,
