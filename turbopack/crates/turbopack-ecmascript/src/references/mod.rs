@@ -56,7 +56,7 @@ use turbo_tasks::{
     trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
     TryJoinIterExt, Upcast, Value, ValueToString, Vc,
 };
-use turbo_tasks_fs::{rope::Rope, FileSystemPath};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     compile_time_info::{
         CompileTimeInfo, DefineableNameSegment, FreeVarReference, FreeVarReferences,
@@ -701,16 +701,13 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     analysis.set_source_map(ResolvedVc::upcast(reference));
                     source_map_from_comment = true;
                 } else if JSON_DATA_URL_BASE64.is_match(path) {
-                    let source_map = maybe_decode_data_url(path.into());
-                    if let Some(source_map) = source_map {
-                        analysis.set_source_map(ResolvedVc::upcast(
-                            InlineSourceMap {
-                                origin_path: origin_path.to_resolved().await?,
-                                source_map,
-                            }
-                            .resolved_cell(),
-                        ));
-                    }
+                    analysis.set_source_map(ResolvedVc::upcast(
+                        InlineSourceMap {
+                            origin_path: origin_path.to_resolved().await?,
+                            source_map: path.into(),
+                        }
+                        .resolved_cell(),
+                    ));
                     source_map_from_comment = true;
                 }
             }
@@ -3657,17 +3654,4 @@ fn is_invoking_node_process_eval(args: &[JsValue]) -> bool {
     }
 
     false
-}
-
-fn maybe_decode_data_url(url: RcStr) -> Option<Rope> {
-    const DATA_PREAMBLE: &str = "data:application/json;base64,";
-
-    if !url.starts_with(DATA_PREAMBLE) {
-        return None;
-    }
-    let data_b64 = &url[DATA_PREAMBLE.len()..];
-    data_encoding::BASE64
-        .decode(data_b64.as_bytes())
-        .ok()
-        .map(Rope::from)
 }

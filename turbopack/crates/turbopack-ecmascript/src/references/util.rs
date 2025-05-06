@@ -49,15 +49,28 @@ pub struct InlineSourceMap {
     /// The file path of the module containing the sourcemap data URL
     pub origin_path: ResolvedVc<FileSystemPath>,
     /// The decoded JSON sourcemap string
-    pub source_map: Rope,
+    pub source_map: RcStr,
 }
 
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for InlineSourceMap {
     #[turbo_tasks::function]
     pub async fn generate_source_map(&self) -> Result<Vc<OptionStringifiedSourceMap>> {
-        let source_map =
-            resolve_source_map_sources(Some(&self.source_map), *self.origin_path).await?;
+        let source_map = maybe_decode_data_url(&self.source_map);
+        let source_map = resolve_source_map_sources(source_map.as_ref(), *self.origin_path).await?;
         Ok(Vc::cell(source_map))
     }
+}
+
+fn maybe_decode_data_url(url: &str) -> Option<Rope> {
+    const DATA_PREAMBLE: &str = "data:application/json;base64,";
+
+    if !url.starts_with(DATA_PREAMBLE) {
+        return None;
+    }
+    let data_b64 = &url[DATA_PREAMBLE.len()..];
+    data_encoding::BASE64
+        .decode(data_b64.as_bytes())
+        .ok()
+        .map(Rope::from)
 }
