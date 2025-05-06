@@ -291,7 +291,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
 
         shared_error.into_inner()?;
         let seq = self.current_sequence_number.load(Ordering::SeqCst);
-        new_sst_files.sort_by_key(|(seq, _)| *seq);
+        new_sst_files.sort_unstable_by_key(|(seq, _)| *seq);
         Ok(FinishResult {
             sequence_number: seq,
             new_sst_files,

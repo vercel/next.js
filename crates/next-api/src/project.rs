@@ -739,6 +739,11 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) async fn is_watch_enabled(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.watch.enable))
+    }
+
+    #[turbo_tasks::function]
     pub(super) async fn per_page_module_graph(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(*self.mode.await? == NextMode::Development))
     }
@@ -944,7 +949,7 @@ impl Project {
 
             // At this point all modules have been computed and we can get rid of the node.js
             // process pools
-            if self.await?.watch.enable {
+            if *self.is_watch_enabled().await? {
                 turbopack_node::evaluate::scale_down();
             } else {
                 turbopack_node::evaluate::scale_zero();
@@ -1412,7 +1417,6 @@ impl Project {
 
         Ok(Vc::upcast(MiddlewareEndpoint::new(
             self,
-            self.await?.build_id.clone(),
             middleware_asset_context,
             source,
             app_dir.as_deref().copied(),

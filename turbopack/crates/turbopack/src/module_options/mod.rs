@@ -627,16 +627,40 @@ impl ModuleOptions {
                     path.context("need_path in ModuleOptions::new is incorrect")?,
                 )
             };
-            for (glob, rule) in webpack_loaders_options.rules.await?.iter() {
+            for (key, rule) in webpack_loaders_options.rules.await?.iter() {
                 rules.push(ModuleRule::new(
                     RuleCondition::All(vec![
-                        if !glob.contains('/') {
-                            RuleCondition::ResourceBasePathGlob(Glob::new(glob.clone()).await?)
-                        } else {
+                        if key.starts_with("#") {
+                            // This is a custom marker requiring a corresponding condition entry
+                            let conditions = (*webpack_loaders_options.conditions.await?)
+                                .context(
+                                    "Expected a condition entry for the webpack loader rule \
+                                     matching {key}. Create a `conditions` mapping in your \
+                                     next.config.js",
+                                )?
+                                .await?;
+
+                            let condition = conditions.get(key).context(
+                                "Expected a condition entry for the webpack loader rule matching \
+                                 {key}.",
+                            )?;
+
+                            match &condition.path {
+                                ConditionPath::Glob(glob) => RuleCondition::ResourcePathGlob {
+                                    base: execution_context.project_path().await?,
+                                    glob: Glob::new(glob.clone()).await?,
+                                },
+                                ConditionPath::Regex(regex) => {
+                                    RuleCondition::ResourcePathEsRegex(regex.await?)
+                                }
+                            }
+                        } else if key.contains('/') {
                             RuleCondition::ResourcePathGlob {
                                 base: execution_context.project_path().await?,
-                                glob: Glob::new(glob.clone()).await?,
+                                glob: Glob::new(key.clone()).await?,
                             }
+                        } else {
+                            RuleCondition::ResourceBasePathGlob(Glob::new(key.clone()).await?)
                         },
                         RuleCondition::not(RuleCondition::ResourceIsVirtualSource),
                     ]),

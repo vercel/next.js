@@ -194,3 +194,34 @@ pub async fn uri_from_file(root: Vc<FileSystemPath>, path: Option<&str>) -> Resu
 
     Ok(uri)
 }
+
+#[cfg(test)]
+mod tests {
+
+    use rstest::*;
+
+    use crate::util::normalize_path;
+
+    #[rstest]
+    #[case("file.js")]
+    #[case("a/b/c/d/e/file.js")]
+    fn test_normalize_path_no_op(#[case] path: &str) {
+        assert_eq!(path, normalize_path(path).unwrap());
+    }
+
+    #[rstest]
+    #[case("/file.js", "file.js")]
+    #[case("./file.js", "file.js")]
+    #[case("././file.js", "file.js")]
+    #[case("a/../c/../file.js", "file.js")]
+    fn test_normalize_path(#[case] path: &str, #[case] normalized: &str) {
+        assert_eq!(normalized, normalize_path(path).unwrap());
+    }
+
+    #[rstest]
+    #[case("../file.js")]
+    #[case("a/../../file.js")]
+    fn test_normalize_path_invalid(#[case] path: &str) {
+        assert_eq!(None, normalize_path(path));
+    }
+}
