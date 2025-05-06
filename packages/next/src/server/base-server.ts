@@ -3545,7 +3545,6 @@ export default abstract class Server<
         res.statusCode = cachedData.status
       }
 
-      console.log('POSTPONED', didPostpone)
       // Mark that the request did postpone.
       if (didPostpone) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
