@@ -76,9 +76,7 @@ use turbopack_core::{
         resolve, FindContextFileResult, ModulePart,
     },
     source::Source,
-    source_map::{
-        utils::resolve_source_map_sources, GenerateSourceMap, OptionStringifiedSourceMap,
-    },
+    source_map::GenerateSourceMap,
 };
 use turbopack_resolve::{
     ecmascript::{apply_cjs_specific_options, cjs_resolve_source},
@@ -148,6 +146,7 @@ use crate::{
         node::PackageJsonReference,
         require_context::{RequireContextAssetReference, RequireContextMap},
         type_issue::SpecifiedModuleTypeIssue,
+        util::InlineSourceMap,
     },
     runtime_functions::{
         TUBROPACK_RUNTIME_FUNCTION_SHORTCUTS, TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE,
@@ -174,7 +173,7 @@ pub struct AnalyzeEcmascriptModuleResult {
     pub has_side_effect_free_directive: bool,
     /// `true` when the analysis was successful.
     pub successful: bool,
-    pub source_map: ResolvedVc<OptionStringifiedSourceMap>,
+    pub source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -223,7 +222,7 @@ pub struct AnalyzeEcmascriptModuleResultBuilder {
     exports: EcmascriptExports,
     async_module: ResolvedVc<OptionAsyncModule>,
     successful: bool,
-    source_map: Option<ResolvedVc<OptionStringifiedSourceMap>>,
+    source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     has_side_effect_free_directive: bool,
 }
 
@@ -289,7 +288,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Sets the analysis result ES export.
-    pub fn set_source_map(&mut self, source_map: ResolvedVc<OptionStringifiedSourceMap>) {
+    pub fn set_source_map(&mut self, source_map: ResolvedVc<Box<dyn GenerateSourceMap>>) {
         self.source_map = Some(source_map);
     }
 
@@ -401,12 +400,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
 
         let references: Vec<_> = self.references.into_iter().collect();
 
-        let source_map = if let Some(source_map) = self.source_map {
-            source_map
-        } else {
-            OptionStringifiedSourceMap::none().to_resolved().await?
-        };
-
         self.code_gens.shrink_to_fit();
         Ok(AnalyzeEcmascriptModuleResult::cell(
             AnalyzeEcmascriptModuleResult {
@@ -424,7 +417,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 async_module: self.async_module,
                 has_side_effect_free_directive: self.has_side_effect_free_directive,
                 successful: self.successful,
-                source_map,
+                source_map: self.source_map,
             },
         ))
     }
@@ -705,14 +698,19 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         .to_resolved()
                         .await?;
                     analysis.add_reference(reference);
-                    let source_map = reference.generate_source_map();
-                    analysis.set_source_map(source_map.to_resolved().await?);
+                    analysis.set_source_map(ResolvedVc::upcast(reference));
                     source_map_from_comment = true;
                 } else if JSON_DATA_URL_BASE64.is_match(path) {
                     let source_map = maybe_decode_data_url(path.into());
-                    let source_map =
-                        resolve_source_map_sources(source_map.as_ref(), origin_path).await?;
-                    analysis.set_source_map(ResolvedVc::cell(source_map));
+                    if let Some(source_map) = source_map {
+                        analysis.set_source_map(ResolvedVc::upcast(
+                            InlineSourceMap {
+                                origin_path: origin_path.to_resolved().await?,
+                                source_map,
+                            }
+                            .resolved_cell(),
+                        ));
+                    }
                     source_map_from_comment = true;
                 }
             }
@@ -720,12 +718,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 if let Some(generate_source_map) =
                     ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source)
                 {
-                    analysis.set_source_map(
-                        generate_source_map
-                            .generate_source_map()
-                            .to_resolved()
-                            .await?,
-                    );
+                    analysis.set_source_map(generate_source_map);
                 }
             }
             anyhow::Ok(())

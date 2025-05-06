@@ -1,8 +1,14 @@
 use anyhow::Result;
 use swc_core::{ecma::ast::Expr, quote};
 use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
-use turbopack_core::resolve::parse::Request;
+use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks_fs::{rope::Rope, FileSystemPath};
+use turbopack_core::{
+    resolve::parse::Request,
+    source_map::{
+        utils::resolve_source_map_sources, GenerateSourceMap, OptionStringifiedSourceMap,
+    },
+};
 
 /// Creates a IIFE expression that throws a "Cannot find module" error for the
 /// given request string
@@ -35,4 +41,23 @@ pub async fn request_to_string(request: Vc<Request>) -> Result<Vc<RcStr>> {
             // TODO: Handle Request::Dynamic, Request::Alternatives
             .unwrap_or_else(|| "unknown".into()),
     ))
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone)]
+pub struct InlineSourceMap {
+    /// The file path of the module containing the sourcemap data URL
+    pub origin_path: ResolvedVc<FileSystemPath>,
+    /// The decoded JSON sourcemap string
+    pub source_map: Rope,
+}
+
+#[turbo_tasks::value_impl]
+impl GenerateSourceMap for InlineSourceMap {
+    #[turbo_tasks::function]
+    pub async fn generate_source_map(&self) -> Result<Vc<OptionStringifiedSourceMap>> {
+        let source_map =
+            resolve_source_map_sources(Some(&self.source_map), *self.origin_path).await?;
+        Ok(Vc::cell(source_map))
+    }
 }
