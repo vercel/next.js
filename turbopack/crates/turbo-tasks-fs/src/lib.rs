@@ -39,7 +39,6 @@ use std::{
 use anyhow::{anyhow, bail, Context, Result};
 use auto_hash_map::{AutoMap, AutoSet};
 use bitflags::bitflags;
-use dashmap::DashSet;
 use dunce::simplified;
 use glob::Glob;
 use indexmap::IndexSet;
@@ -49,6 +48,7 @@ use mime::Mime;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 pub use read_glob::ReadGlobResult;
 use read_glob::{read_glob, track_glob};
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::{
@@ -60,8 +60,8 @@ use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat, effect, mark_session_dependent, mark_stateful, trace::TraceRawVcs,
-    Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef, ResolvedVc, ValueToString,
-    Vc,
+    ApplyEffectContext, Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef,
+    ResolvedVc, ValueToString, Vc,
 };
 use turbo_tasks_hash::{
     hash_xxh3_hash128, hash_xxh3_hash64, DeterministicHash, DeterministicHasher,
@@ -209,6 +209,12 @@ pub trait FileSystem: ValueToString {
     fn metadata(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<FileMeta>;
 }
 
+#[derive(Default)]
+struct DiskFileSystemApplyContext {
+    /// A cache of already created directories to avoid creating them multiple times.
+    created_directories: FxHashSet<PathBuf>,
+}
+
 #[derive(Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 struct DiskFileSystemInner {
     pub name: RcStr,
@@ -227,10 +233,6 @@ struct DiskFileSystemInner {
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[serde(skip)]
     invalidation_lock: RwLock<()>,
-    /// A cache of already created directories to avoid creating them multiple times.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[serde(skip)]
-    created_directories: DashSet<PathBuf>,
     /// Semaphore to limit the maximum number of concurrent file operations.
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[serde(skip, default = "create_semaphore")]
@@ -400,12 +402,18 @@ impl DiskFileSystemInner {
     }
 
     async fn create_directory(self: &Arc<Self>, directory: &Path) -> Result<()> {
-        if !self.created_directories.contains(directory) {
+        let already_created = ApplyEffectContext::with_or_insert_with(
+            DiskFileSystemApplyContext::default,
+            |fs_context| fs_context.created_directories.contains(directory),
+        );
+        if !already_created {
             let func = {
-                let inner = self.clone();
                 move |p: &Path| -> io::Result<()> {
                     std::fs::create_dir_all(p)?;
-                    inner.created_directories.insert(p.to_path_buf());
+                    let path_buf = p.to_path_buf();
+                    ApplyEffectContext::with(|fs_context: &mut DiskFileSystemApplyContext| {
+                        fs_context.created_directories.insert(path_buf)
+                    });
                     Ok(())
                 }
             };
@@ -525,7 +533,6 @@ impl DiskFileSystem {
                 invalidation_lock: Default::default(),
                 invalidator_map: InvalidatorMap::new(),
                 dir_invalidator_map: InvalidatorMap::new(),
-                created_directories: Default::default(),
                 semaphore: create_semaphore(),
                 watcher: DiskWatcher::new(
                     ignored_subpaths.into_iter().map(PathBuf::from).collect(),

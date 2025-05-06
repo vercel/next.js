@@ -1,10 +1,18 @@
-use std::{borrow::Cow, future::Future, mem::replace, panic, pin::Pin};
+use std::{
+    any::{Any, TypeId},
+    borrow::Cow,
+    future::Future,
+    mem::replace,
+    panic,
+    pin::Pin,
+};
 
 use anyhow::{anyhow, Result};
 use auto_hash_map::AutoSet;
 use futures::{StreamExt, TryStreamExt};
 use parking_lot::Mutex;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
+use tokio::task_local;
 use tracing::{Instrument, Span};
 
 use crate::{
@@ -170,20 +178,22 @@ pub async fn apply_effects(source: impl CollectiblesSource) -> Result<()> {
         return Ok(());
     }
     let span = tracing::info_span!("apply effects", count = effects.len());
-    async move {
-        // Limit the concurrency of effects
-        futures::stream::iter(effects)
-            .map(Ok)
-            .try_for_each_concurrent(APPLY_EFFECTS_CONCURRENCY_LIMIT, async |effect| {
-                let Some(effect) = ResolvedVc::try_downcast_type::<EffectInstance>(effect) else {
-                    panic!("Effect must only be implemented by EffectInstance");
-                };
-                effect.await?.apply().await
-            })
-            .await
-    }
-    .instrument(span)
-    .await
+    APPLY_EFFECT_CONTEXT
+        .scope(Mutex::new(ApplyEffectContext::new()), async move {
+            // Limit the concurrency of effects
+            futures::stream::iter(effects)
+                .map(Ok)
+                .try_for_each_concurrent(APPLY_EFFECTS_CONCURRENCY_LIMIT, async |effect| {
+                    let Some(effect) = ResolvedVc::try_downcast_type::<EffectInstance>(effect)
+                    else {
+                        panic!("Effect must only be implemented by EffectInstance");
+                    };
+                    effect.await?.apply().await
+                })
+                .await
+        })
+        .instrument(span)
+        .await
 }
 
 /// Capture effects from an turbo-tasks operation. Since this captures collectibles it might
@@ -252,17 +262,75 @@ impl Effects {
     /// Applies all effects that have been captured by this struct.
     pub async fn apply(&self) -> Result<()> {
         let span = tracing::info_span!("apply effects", count = self.effects.len());
-        async move {
-            // Limit the concurrency of effects
-            futures::stream::iter(self.effects.iter())
-                .map(Ok)
-                .try_for_each_concurrent(APPLY_EFFECTS_CONCURRENCY_LIMIT, async |effect| {
-                    effect.apply().await
-                })
-                .await
+        APPLY_EFFECT_CONTEXT
+            .scope(Mutex::new(ApplyEffectContext::new()), async move {
+                // Limit the concurrency of effects
+                futures::stream::iter(self.effects.iter())
+                    .map(Ok)
+                    .try_for_each_concurrent(APPLY_EFFECTS_CONCURRENCY_LIMIT, async |effect| {
+                        effect.apply().await
+                    })
+                    .await
+            })
+            .instrument(span)
+            .await
+    }
+}
+
+task_local! {
+    /// The context of the current effects application.
+    static APPLY_EFFECT_CONTEXT: Mutex<ApplyEffectContext>;
+}
+
+pub struct ApplyEffectContext {
+    data: FxHashMap<TypeId, Box<dyn Any + Send + Sync>>,
+}
+
+impl ApplyEffectContext {
+    pub fn new() -> Self {
+        Self {
+            data: FxHashMap::default(),
         }
-        .instrument(span)
-        .await
+    }
+
+    fn with_context<T, F: FnOnce(&mut Self) -> T>(f: F) -> T {
+        APPLY_EFFECT_CONTEXT
+            .try_with(|context| f(&mut *context.lock()))
+            .expect("No effect context found")
+    }
+
+    pub fn set<T: Any + Send + Sync>(value: T) {
+        Self::with_context(|context| {
+            context.data.insert(TypeId::of::<T>(), Box::new(value));
+        })
+    }
+
+    pub fn with<T: Any + Send + Sync, R>(f: impl FnOnce(&mut T) -> R) -> Option<R> {
+        Self::with_context(|context| {
+            context
+                .data
+                .get_mut(&TypeId::of::<T>())
+                .and_then(|value| value.downcast_mut())
+                .map(f)
+        })
+    }
+
+    pub fn with_or_insert_with<T: Any + Send + Sync, R>(
+        insert_with: impl FnOnce() -> T,
+        f: impl FnOnce(&mut T) -> R,
+    ) -> R {
+        Self::with_context(|context| {
+            f(context
+                .data
+                .entry(TypeId::of::<T>())
+                .or_insert_with(|| {
+                    let value = insert_with();
+                    let value = Box::new(value);
+                    value
+                })
+                .downcast_mut()
+                .unwrap())
+        })
     }
 }
 
