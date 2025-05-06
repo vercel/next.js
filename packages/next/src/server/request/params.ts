@@ -210,7 +210,30 @@ function makeAbortingExoticParams(
 
   const promise = makeHangingPromise<Params>(
     prerenderStore.renderSignal,
-    '`params`'
+    '`params`',
+    {
+      get: function get(target, prop, receiver) {
+        switch (prop) {
+          case 'then':
+          case 'status':
+            const workUnitStore = workUnitAsyncStorage.getStore()
+
+            if (
+              workUnitStore?.type === 'cache' &&
+              workUnitStore.renderContext?.type === 'prerender'
+            ) {
+              workUnitStore.renderContext.dynamicAccessAbortController.abort(
+                new Error(
+                  `Accessed fallback \`params\` in \`"use cache"\` during prerendering.`
+                )
+              )
+            }
+          // intentionally fallthrough
+          default:
+            return ReflectAdapter.get(target, prop, receiver)
+        }
+      },
+    }
   )
   CachedParams.set(underlyingParams, promise)
 
