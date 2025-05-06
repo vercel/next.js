@@ -3107,7 +3107,7 @@ async function prerenderToStream(
       // If we've disabled throwing on empty static shell, then we don't need to
       // track any dynamic access that occurs above the suspense boundary because
       // we'll do so in the route shell.
-      if (!ctx.renderOpts.doNotThrowOnEmptyStaticShell) {
+      if (!ctx.renderOpts.allowEmptyStaticShell) {
         throwIfDisallowedDynamic(
           workStore,
           preludeIsEmpty,
