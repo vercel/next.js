@@ -17,6 +17,7 @@ use rayon::{
 };
 use smallvec::SmallVec;
 use thread_local::ThreadLocal;
+use tracing::Span;
 
 use crate::{
     collector::Collector,
