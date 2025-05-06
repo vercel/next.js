@@ -1673,7 +1673,65 @@ export async function copy_vendor_react(task_) {
 
       // NOTE: we have to replace these before inserting the definition of `setTimeoutOrImmediate`,
       // otherwise we'd break it!
-      code = code.replaceAll(`setTimeout`, `setTimeoutOrImmediate`)
+      code = code.replaceAll('setTimeout', (match, offset, originalCode) => {
+        // parse the arguments to setTimeout ensuring nested () are handled.
+        // We only want to replace setTimeout calls with an immediate callback i.e. `0` or `undefined`.
+        // E.g. Fizz runtime calls setTimeout with the throttle timeout.
+        // Technically we don't want to replace anything in the Fizz runtime regardless of the arguments.
+        // But we also don't want to replace setTimeout(callback, 50) on the server
+        // since that would change semantics.
+        // And detecting Fizz runtime is harder.
+        const args = []
+        let depth = 0
+        let arg = ''
+        for (let i = offset + match.length; i < originalCode.length; i++) {
+          const char = code[i]
+          if (char === '(') {
+            depth++
+          } else if (char === ')') {
+            depth--
+          }
+          if (depth === 1 && char === ',') {
+            args.push(arg.trim())
+            arg = ''
+          } else {
+            arg += char
+          }
+          if (depth < 1) {
+            args.push(arg.trim())
+            break
+          }
+        }
+
+        if (depth !== 0) {
+          // unmatched parentheses
+          throw new Error(
+            `Unmatched parentheses (depth=${depth}) in setTimeout call in ${file} at ${offset}:\n` +
+              originalCode.slice(offset)
+          )
+        }
+        if (args.length < 1 || args.length > 2) {
+          throw new Error(
+            `Invalid number of arguments to setTimeout in ${file} at ${offset}:\n` +
+              'args: ' +
+              JSON.stringify(args, null, 2) +
+              '\n' +
+              originalCode.slice(offset)
+          )
+        }
+
+        // 1st arg as opening `(`. remove it
+        args[0] = args[0].slice(1)
+        // last arg as closing `)`. remove it
+        args[args.length - 1] = args[args.length - 1].slice(0, -1)
+
+        const [, timeoutMS] = args
+        if (timeoutMS === '0' || timeoutMS === undefined) {
+          return 'setTimeoutOrImmediate'
+        } else {
+          return match
+        }
+      })
 
       const insertionPoint = code.search(insertBeforePattern)
       if (insertionPoint === -1) {
