@@ -701,8 +701,11 @@ export function cache(
 
         cacheSignal?.beginRead()
 
-        // If we have a prerender resume data cache, we need to clone the
-        // entry and set it on the prerender resume data cache.
+        // If we have a prerender resume data cache, we need to clone the entry
+        // and set it on the prerender resume data cache. This is needed when
+        // the cache entry was used in a nested cache scope for the first
+        // invocation (nested caches are not put into the RDC), and is now used
+        // and deduped as a top-level cache scope in the subsequent invocation.
         if (prerenderResumeDataCache) {
           const clonedPendingEntries = clonePendingCacheEntry(pendingEntry)
           pendingEntry = getNthCacheEntry(clonedPendingEntries, 1)
