@@ -11,7 +11,7 @@ import { TurbopackInfo } from './dev-tools-info/turbopack-info'
 import { RouteInfo } from './dev-tools-info/route-info'
 import GearIcon from '../../../icons/gear-icon'
 import { UserPreferences } from './dev-tools-info/user-preferences'
-import { PageSegmentsViewer } from './dev-tools-info/page-segment-viewer'
+import { SegmentsExplorer } from './dev-tools-info/segment-explorer'
 import {
   MENU_CURVE,
   MENU_DURATION_MS,
@@ -81,7 +81,7 @@ const OVERLAYS = {
   Turbo: 'turbo',
   Route: 'route',
   Preferences: 'preferences',
-  SegmentViewer: 'segment-viewer',
+  SegmentExplorer: 'segment-explorer',
 } as const
 
 export type Overlays = (typeof OVERLAYS)[keyof typeof OVERLAYS]
@@ -125,7 +125,7 @@ function DevToolsPopover({
   const isTurbopackInfoOpen = open === OVERLAYS.Turbo
   const isRouteInfoOpen = open === OVERLAYS.Route
   const isPreferencesOpen = open === OVERLAYS.Preferences
-  const isRenderedFilesOpen = open === OVERLAYS.SegmentViewer
+  const isSegmentExplorerOpen = open === OVERLAYS.SegmentExplorer
 
   const { mounted: menuMounted, rendered: menuRendered } = useDelayedRender(
     isMenuOpen,
@@ -330,8 +330,8 @@ function DevToolsPopover({
 
       {/* Page Segment Explorer */}
       {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER ? (
-        <PageSegmentsViewer
-          isOpen={isRenderedFilesOpen}
+        <SegmentsExplorer
+          isOpen={isSegmentExplorerOpen}
           close={openRootMenu}
           triggerRef={triggerRef}
           style={popover}
@@ -408,7 +408,7 @@ function DevToolsPopover({
                   data-rendered-files
                   label="Segment Explorer"
                   value={<ChevronRight />}
-                  onClick={() => setOpen(OVERLAYS.SegmentViewer)}
+                  onClick={() => setOpen(OVERLAYS.SegmentExplorer)}
                   index={isTurbopack ? 3 : 4}
                 />
               ) : null}

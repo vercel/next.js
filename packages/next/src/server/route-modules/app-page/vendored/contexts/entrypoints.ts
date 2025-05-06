@@ -6,4 +6,4 @@ export * as HooksClientContext from '../../../../../shared/lib/hooks-client-cont
 export * as RouterContext from '../../../../../shared/lib/router-context.shared-runtime'
 export * as AmpContext from '../../../../../shared/lib/amp-context.shared-runtime'
 export * as ImageConfigContext from '../../../../../shared/lib/image-config-context.shared-runtime'
-export * as SegmentViewContext from '../../../../../shared/lib/devtool/segment-view-context.shared-runtime'
+export * as AppSegmentTreeContext from '../../../../../shared/lib/devtool/app-segment-tree-context.shared-runtime'

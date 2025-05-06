@@ -2,12 +2,18 @@
 
 import React, { type ReactNode, useEffect } from 'react'
 import {
-  SegmentViewContext,
-  type TreeNode,
-} from './segment-view-context.shared-runtime'
+  AppSegmentTreeContext,
+  type AppSegmentTreeNode,
+} from './app-segment-tree-context.shared-runtime'
 
 const createRegisterNode =
-  (setTree: (tree: TreeNode | ((prevTree: TreeNode) => TreeNode)) => void) =>
+  (
+    setTree: (
+      tree:
+        | AppSegmentTreeNode
+        | ((prevTree: AppSegmentTreeNode) => AppSegmentTreeNode)
+    ) => void
+  ) =>
   ({
     pagePath,
     name,
@@ -18,7 +24,9 @@ const createRegisterNode =
     parentPagePath: string
   }): void => {
     setTree((prevTree) => {
-      const findNode = (node: TreeNode): TreeNode | null => {
+      const findNode = (
+        node: AppSegmentTreeNode
+      ): AppSegmentTreeNode | null => {
         // Locate the parent node by comparing pagePath
         if (node.pagePath === parentPagePath) return node
         for (const childKey of Object.keys(node.children)) {
@@ -53,7 +61,7 @@ const createRegisterNode =
 
 export const SegmentViewRoot = ({ children }: { children: ReactNode }) => {
   const rootPagePath = ''
-  const [tree, setTree] = React.useState<TreeNode>(
+  const [tree, setTree] = React.useState<AppSegmentTreeNode>(
     // Root node with placeholder information
     {
       name: 'root',
@@ -65,14 +73,16 @@ export const SegmentViewRoot = ({ children }: { children: ReactNode }) => {
   const registerNode = createRegisterNode(setTree)
 
   return (
-    <SegmentViewContext value={{ tree, registerNode, pagePath: rootPagePath }}>
+    <AppSegmentTreeContext
+      value={{ tree, registerNode, pagePath: rootPagePath }}
+    >
       {children}
-    </SegmentViewContext>
+    </AppSegmentTreeContext>
   )
 }
 
-export const useSegmentViewContext = () => {
-  return React.useContext(SegmentViewContext)
+export const useSegmentTreeContext = () => {
+  return React.useContext(AppSegmentTreeContext)
 }
 
 export function SegmentViewNode({
@@ -84,7 +94,7 @@ export function SegmentViewNode({
   pagePath: string
   children: ReactNode
 }) {
-  const devToolContext = useSegmentViewContext()
+  const devToolContext = useSegmentTreeContext()
 
   useEffect(() => {
     if (!devToolContext) {
@@ -105,13 +115,13 @@ export function SegmentViewNode({
   }
 
   return (
-    <SegmentViewContext
+    <AppSegmentTreeContext
       value={{
         ...devToolContext,
         pagePath,
       }}
     >
       {children}
-    </SegmentViewContext>
+    </AppSegmentTreeContext>
   )
 }

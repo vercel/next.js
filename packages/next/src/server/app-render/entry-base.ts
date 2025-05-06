@@ -46,11 +46,11 @@ import { taintObjectReference } from './rsc/taint'
 
 export { collectSegmentData } from './collect-segment-data'
 
-const SegmentViewNode =
-  process.env.NODE_ENV === 'development'
-    ? (require('../../shared/lib/devtool/segment-view')
-        .SegmentViewNode as typeof import('../../shared/lib/devtool/segment-view').SegmentViewNode)
-    : () => null
+let SegmentViewNode: React.ComponentType<any> = () => null
+if (process.env.NODE_ENV === 'development') {
+  const appSegmentTree: typeof import('../../shared/lib/devtool/app-segment-tree') = require('../../shared/lib/devtool/app-segment-tree')
+  SegmentViewNode = appSegmentTree.SegmentViewNode
+}
 
 // patchFetch makes use of APIs such as `React.unstable_postpone` which are only available
 // in the experimental channel of React, so export it from here so that it comes from the bundled runtime

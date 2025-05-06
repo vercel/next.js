@@ -2,10 +2,10 @@ import { useRef, type HTMLProps } from 'react'
 import { css } from '../../../../../utils/css'
 import type { DevToolsInfoPropsCore } from './dev-tools-info'
 import { DevToolsInfo } from './dev-tools-info'
-import type { TreeNode } from '../../../../../../../../shared/lib/devtool/segment-view-context.shared-runtime'
+import type { AppSegmentTreeNode } from '../../../../../../../../shared/lib/devtool/app-segment-tree-context.shared-runtime'
 import { cx } from '../../../../utils/cx'
 import { LeftArrow } from '../../../../icons/left-arrow'
-import { useSegmentViewContext } from '../../../../../../../../shared/lib/devtool/segment-view'
+import { useSegmentTreeContext } from '../../../../../../../../shared/lib/devtool/app-segment-tree'
 
 const IconLayout = (props: React.SVGProps<SVGSVGElement>) => {
   return (
@@ -47,11 +47,11 @@ const ICONS = {
   page: <IconPage width={16} />,
 }
 
-function SegmentTree({ tree }: { tree: TreeNode }) {
+function PageSegmentTree({ tree }: { tree: AppSegmentTreeNode }) {
   const renderedRef = useRef<Record<string, number>>({})
   return (
-    <div className="segment-viewer-content">
-      <SegmentTreeLayerPresentation
+    <div className="segment-explorer-content">
+      <PageSegmentTreeLayerPresentation
         node={tree}
         level={0}
         renderedRef={renderedRef}
@@ -60,16 +60,17 @@ function SegmentTree({ tree }: { tree: TreeNode }) {
   )
 }
 
-function SegmentTreeLayerPresentation({
+function PageSegmentTreeLayerPresentation({
   node,
   level,
   renderedRef,
 }: {
-  node: TreeNode
+  node: AppSegmentTreeNode
   level: number
   renderedRef: React.RefObject<Record<string, number>>
 }) {
-  // has been rendered in this level
+  // Store the level number for each segment.
+  // Check if the node has been rendered before
   const renderedLevel = renderedRef.current[node.pagePath]
   const hasRenderedBefore = typeof renderedLevel !== 'undefined'
   if (hasRenderedBefore && renderedLevel !== level) {
@@ -77,7 +78,7 @@ function SegmentTreeLayerPresentation({
   }
 
   if (
-    // skip '' pagePath of root node
+    // Skip '' pagePath of root node
     node.pagePath &&
     !hasRenderedBefore
   ) {
@@ -89,21 +90,23 @@ function SegmentTreeLayerPresentation({
   const fileBaseName = segments[segments.length - 1]
 
   return (
-    <div className="segment-viewer-item">
+    <div className="segment-explorer-item">
       {level === 0 ? null : (
-        <div className="segment-viewer-item-row">
-          <div className="segment-viewer-line">
-            <div className={`segment-viewer-line-text-${nodeName}`}>
+        <div className="segment-explorer-item-row">
+          <div className="segment-explorer-line">
+            <div className={`segment-explorer-line-text-${nodeName}`}>
               <span
                 className={cx(
-                  'segment-viewer-line-icon',
-                  `segment-viewer-line-icon-${nodeName}`
+                  'segment-explorer-line-icon',
+                  `segment-explorer-line-icon-${nodeName}`
                 )}
               >
                 {nodeName === 'layout' ? ICONS.layout : ICONS.page}
               </span>
               {pagePath === '' ? '' : `${pagePath}/`}
-              <span className="tree-node-filename-path">{fileBaseName}</span>
+              <span className="segment-explorer-filename-path">
+                {fileBaseName}
+              </span>
             </div>
           </div>
         </div>
@@ -111,15 +114,16 @@ function SegmentTreeLayerPresentation({
 
       <div className="tree-node-expanded-rendered-children">
         {Object.entries(node.children)
+          // Sort the segments by the number of segments levels,
+          // prioritize the parental segments on the top.
           .sort((keyA, keyB) => {
-            // compare the segments length
             const segA = keyA[0].split('/').length
             const segB = keyB[0].split('/').length
 
             return segA - segB
           })
           .map(([key, child]) => (
-            <SegmentTreeLayerPresentation
+            <PageSegmentTreeLayerPresentation
               key={key}
               node={child}
               level={level + 1}
@@ -131,10 +135,10 @@ function SegmentTreeLayerPresentation({
   )
 }
 
-export function PageSegmentsViewer(
+export function SegmentsExplorer(
   props: DevToolsInfoPropsCore & HTMLProps<HTMLDivElement>
 ) {
-  const ctx = useSegmentViewContext()
+  const ctx = useSegmentTreeContext()
   if (!ctx) {
     return null
   }
@@ -144,8 +148,10 @@ export function PageSegmentsViewer(
     <DevToolsInfo
       title={
         <>
-          {/* back button */}
-          <button className="segment-viewer-back-button" onClick={props.close}>
+          <button
+            className="segment-explorer-back-button"
+            onClick={props.close}
+          >
             <LeftArrow />
           </button>
           {'Segment Explorer'}
@@ -154,48 +160,34 @@ export function PageSegmentsViewer(
       closeButton={false}
       {...props}
     >
-      <SegmentTree tree={ctx.tree} />
+      <PageSegmentTree tree={ctx.tree} />
     </DevToolsInfo>
   )
 }
 
 export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
-  .segment-viewer-back-button {
+  .segment-explorer-back-button {
     margin-right: 12px;
   }
-  .segment-viewer-back-button svg {
+  .segment-explorer-back-button svg {
     width: 20px;
     height: 20px;
   }
 
-  .segment-viewer-content {
+  .segment-explorer-content {
     overflow-y: auto;
     padding: 0 12px;
     font-size: var(--size-14);
   }
 
-  .segment-viewer-item-row {
+  .segment-explorer-item-row {
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 2px 0;
   }
 
-  .tree-node-select-button {
-    background: var(--color-background-100);
-    border-radius: var(--rounded-lg);
-    font-weight: 400;
-    font-size: var(--size-14);
-    color: var(--color-gray-1000);
-    margin-bottom: auto;
-    cursor: pointer;
-
-    &:hover {
-      background: var(--color-gray-100);
-    }
-  }
-
-  .tree-node-filename-path {
+  .segment-explorer-filename-path {
     display: inline-block;
     text-decoration-color: #b4b4b4;
 
@@ -205,20 +197,20 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     }
   }
 
-  .tree-node-filename-path a {
+  .segment-explorer-filename-path a {
     color: inherit;
     text-decoration: inherit;
   }
 
-  .segment-viewer-line {
+  .segment-explorer-line {
     white-space: pre;
   }
 
-  .segment-viewer-line-icon {
+  .segment-explorer-line-icon {
     margin-right: 4px;
   }
 
-  .segment-viewer-line-text-page {
+  .segment-explorer-line-text-page {
     color: var(--color-blue-900);
     font-weight: 500;
   }

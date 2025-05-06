@@ -8,3 +8,4 @@ export * as HeadManagerContext from '../../../../../shared/lib/head-manager-cont
 export * as AppRouterContext from '../../../../../shared/lib/app-router-context.shared-runtime'
 export * as AmpContext from '../../../../../shared/lib/amp-context.shared-runtime'
 export * as ServerInsertedHtml from '../../../../../shared/lib/server-inserted-html.shared-runtime'
+export * as AppSegmentTreeContext from '../../../../../shared/lib/devtool/app-segment-tree-context.shared-runtime'

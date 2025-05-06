@@ -297,8 +297,7 @@ function parseRequestHeaders(
   const isRouteTreePrefetchRequest =
     headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()] === '/_tree'
 
-  const isRenderedTreeRequest = 
-      headers['next_rendered_tree'] === '1'
+  const isRenderedTreeRequest = headers['next_rendered_tree'] === '1'
 
   const csp =
     headers['content-security-policy'] ||
