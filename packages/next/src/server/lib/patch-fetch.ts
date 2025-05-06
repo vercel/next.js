@@ -676,7 +676,7 @@ export function createPatchedFetcher(
                   // We are dynamically rendering including dev mode. We want to return
                   // the response to the caller as soon as possible because it might stream
                   // over a very long time.
-                  cloned1
+                  const cacheSetPromise = cloned1
                     .arrayBuffer()
                     .then(async (arrayBuffer) => {
                       const bodyBuffer = Buffer.from(arrayBuffer)
@@ -709,6 +709,26 @@ export function createPatchedFetcher(
                       console.warn(`Failed to set fetch cache`, input, error)
                     )
                     .finally(handleUnlock)
+
+                  const pendingRevalidateKey = `cache-set-${cacheKey}`
+                  workStore.pendingRevalidates ??= {}
+                  if (pendingRevalidateKey in workStore.pendingRevalidates) {
+                    // there is already a pending revalidate entry that
+                    // we need to await to avoid race conditions
+                    await workStore.pendingRevalidates[pendingRevalidateKey]
+                  }
+                  workStore.pendingRevalidates[pendingRevalidateKey] =
+                    cacheSetPromise.finally(() => {
+                      // If the pending revalidate is not present in the store, then
+                      // we have nothing to delete.
+                      if (
+                        !workStore.pendingRevalidates?.[pendingRevalidateKey]
+                      ) {
+                        return
+                      }
+
+                      delete workStore.pendingRevalidates[pendingRevalidateKey]
+                    })
 
                   return cloned2
                 }

@@ -43,9 +43,10 @@ function augmentContext(
 async function loadWebAssembly(
   source: SourceInfo,
   chunkPath: ChunkPath,
+  edgeModule: () => WebAssembly.Module,
   imports: WebAssembly.Imports
 ): Promise<Exports> {
-  const module = await loadWebAssemblyModule(source, chunkPath)
+  const module = await loadWebAssemblyModule(source, chunkPath, edgeModule)
 
   return await WebAssembly.instantiate(module, imports)
 }
@@ -62,26 +63,19 @@ function getFileStem(path: string): string {
   return stem
 }
 
-type GlobalWithInjectedWebAssembly = typeof globalThis & {
-  [key: `wasm_${string}`]: WebAssembly.Module
-}
-
 async function loadWebAssemblyModule(
   _source: SourceInfo,
-  chunkPath: ChunkPath
+  chunkPath: ChunkPath,
+  edgeModule: () => WebAssembly.Module
 ): Promise<WebAssembly.Module> {
-  const stem = getFileStem(chunkPath)
-
-  // very simple escaping just replacing unsupported characters with `_`
-  const escaped = stem.replace(/[^a-zA-Z0-9$_]/gi, '_')
-
-  const identifier: `wasm_${string}` = `wasm_${escaped}`
-
-  const module = (globalThis as GlobalWithInjectedWebAssembly)[identifier]
+  let module
+  try {
+    module = edgeModule()
+  } catch (_e) {}
 
   if (!module) {
     throw new Error(
-      `dynamically loading WebAssembly is not supported in this runtime and global \`${identifier}\` was not injected`
+      `dynamically loading WebAssembly is not supported in this runtime as global was not injected for chunk '${chunkPath}'`
     )
   }
 
