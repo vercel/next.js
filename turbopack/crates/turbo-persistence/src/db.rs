@@ -18,6 +18,7 @@ use lzzzz::lz4::decompress;
 use memmap2::Mmap;
 use parking_lot::{Mutex, RwLock};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+use tracing::Span;
 
 use crate::{
     arc_slice::ArcSlice,
@@ -548,6 +549,7 @@ impl TurboPersistence {
         max_merge_sequence: usize,
         max_merge_size: usize,
     ) -> Result<()> {
+        let _span = tracing::info_span!("compact database").entered();
         if self
             .active_write_operation
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
@@ -653,11 +655,13 @@ impl TurboPersistence {
         let path = &self.path;
 
         let log_mutex = Mutex::new(());
+        let span = Span::current();
         let result = sst_by_family
             .into_par_iter()
             .with_min_len(1)
             .enumerate()
             .map(|(family, ssts_with_ranges)| {
+                let _span = span.clone().entered();
                 let coverage = total_coverage(&ssts_with_ranges, (0, u64::MAX));
                 if coverage <= max_coverage {
                     return Ok((Vec::new(), Vec::new()));
@@ -710,10 +714,12 @@ impl TurboPersistence {
                     .collect::<Vec<_>>();
 
                 // Merge SST files
+                let span = tracing::trace_span!("merge files");
                 let merge_result = merge_jobs
                     .into_par_iter()
                     .with_min_len(1)
                     .map(|indicies| {
+                        let _span = span.clone().entered();
                         fn create_sst_file(
                             family: u32,
                             entries: &[LookupEntry],
@@ -722,6 +728,7 @@ impl TurboPersistence {
                             path: &Path,
                             seq: u32,
                         ) -> Result<(u32, File)> {
+                            let _span = tracing::trace_span!("write merged sst file").entered();
                             let builder = StaticSortedFileBuilder::new(
                                 family,
                                 entries,
@@ -865,10 +872,12 @@ impl TurboPersistence {
                     .collect::<Vec<_>>();
 
                 // Move SST files
+                let span = tracing::trace_span!("move files");
                 let mut new_sst_files = move_jobs
                     .into_par_iter()
                     .with_min_len(1)
                     .map(|(index, seq)| {
+                        let _span = span.clone().entered();
                         let index = ssts_with_ranges[index].index;
                         let sst = &static_sorted_files[index];
                         let src_path = self.path.join(format!("{:08}.sst", sst.sequence_number()));
