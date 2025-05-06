@@ -1,7 +1,10 @@
 'use client'
 
 import React, { type ReactNode, useEffect } from 'react'
-import { DevToolContext, type TreeNode } from './devtool-context.shared-runtime'
+import {
+  SegmentViewContext,
+  type TreeNode,
+} from './segment-view-context.shared-runtime'
 
 const createRegisterNode =
   (setTree: (tree: TreeNode | ((prevTree: TreeNode) => TreeNode)) => void) =>
@@ -9,12 +12,10 @@ const createRegisterNode =
     pagePath,
     name,
     parentPagePath,
-    nodeInfo,
   }: {
     pagePath: string
     name: string
     parentPagePath: string
-    nodeInfo: any
   }): void => {
     setTree((prevTree) => {
       const findNode = (node: TreeNode): TreeNode | null => {
@@ -35,7 +36,6 @@ const createRegisterNode =
             name,
             pagePath,
             children: {},
-            nodeInfo: nodeInfo,
           }
         }
       } else {
@@ -44,7 +44,6 @@ const createRegisterNode =
           name,
           pagePath,
           children: {},
-          nodeInfo: nodeInfo,
         }
       }
 
@@ -52,45 +51,40 @@ const createRegisterNode =
     })
   }
 
-export const DevToolRootNode = ({ children }: { children: ReactNode }) => {
-  const [tree, setTree] = React.useState<TreeNode>({
-    name: 'root',
-    nodeInfo: {
-      filePath: '<project>',
-    },
-    pagePath: '',
-    children: {},
-  })
+export const SegmentViewRoot = ({ children }: { children: ReactNode }) => {
+  const rootPagePath = ''
+  const [tree, setTree] = React.useState<TreeNode>(
+    // Root node with placeholder information
+    {
+      name: 'root',
+      pagePath: rootPagePath,
+      children: {},
+    }
+  )
 
   const registerNode = createRegisterNode(setTree)
-  useEffect(() => {
-    ;(window as any).__NEXT_DEVTOOL_TREE = tree
-  }, [tree])
 
   return (
-    <DevToolContext value={{ tree, registerNode, pagePath: '' }}>
+    <SegmentViewContext value={{ tree, registerNode, pagePath: rootPagePath }}>
       {children}
-    </DevToolContext>
+    </SegmentViewContext>
   )
 }
 
-const useDevTool = () => {
-  const context = React.useContext(DevToolContext)
-  return context
+export const useSegmentViewContext = () => {
+  return React.useContext(SegmentViewContext)
 }
 
-export function DevToolNode({
-  filePath,
+export function SegmentViewNode({
+  name,
   pagePath,
   children,
-  name,
 }: {
-  filePath: string
+  name: string
   pagePath: string
   children: ReactNode
-  name: string
 }) {
-  const devToolContext = useDevTool()
+  const devToolContext = useSegmentViewContext()
 
   useEffect(() => {
     if (!devToolContext) {
@@ -101,24 +95,23 @@ export function DevToolNode({
       parentPagePath,
       name,
       pagePath,
-      nodeInfo: { filePath },
     })
     // Skip adding `devToolContext` to the dependency array to avoid re-rendering
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filePath, name, pagePath])
+  }, [name, pagePath])
 
   if (!devToolContext) {
     return children
   }
 
   return (
-    <DevToolContext
+    <SegmentViewContext
       value={{
         ...devToolContext,
         pagePath,
       }}
     >
       {children}
-    </DevToolContext>
+    </SegmentViewContext>
   )
 }

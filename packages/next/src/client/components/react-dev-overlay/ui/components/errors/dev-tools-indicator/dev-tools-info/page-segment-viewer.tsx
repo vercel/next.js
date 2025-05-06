@@ -2,9 +2,10 @@ import { useRef, type HTMLProps } from 'react'
 import { css } from '../../../../../utils/css'
 import type { DevToolsInfoPropsCore } from './dev-tools-info'
 import { DevToolsInfo } from './dev-tools-info'
-import type { TreeNode } from '../../../../../../../../shared/lib/devtool-context.shared-runtime'
+import type { TreeNode } from '../../../../../../../../shared/lib/devtool/segment-view-context.shared-runtime'
 import { cx } from '../../../../utils/cx'
 import { LeftArrow } from '../../../../icons/left-arrow'
+import { useSegmentViewContext } from '../../../../../../../../shared/lib/devtool/segment-view'
 
 const IconLayout = (props: React.SVGProps<SVGSVGElement>) => {
   return (
@@ -92,7 +93,7 @@ function SegmentTreeLayerPresentation({
       {level === 0 ? null : (
         <div className="segment-viewer-item-row">
           <div className="segment-viewer-line">
-            <div className={cx(`segment-viewer-line-text-${nodeName}`)}>
+            <div className={`segment-viewer-line-text-${nodeName}`}>
               <span
                 className={cx(
                   'segment-viewer-line-icon',
@@ -133,6 +134,11 @@ function SegmentTreeLayerPresentation({
 export function PageSegmentsViewer(
   props: DevToolsInfoPropsCore & HTMLProps<HTMLDivElement>
 ) {
+  const ctx = useSegmentViewContext()
+  if (!ctx) {
+    return null
+  }
+
   // derive initial theme from system preference
   return (
     <DevToolsInfo
@@ -148,7 +154,7 @@ export function PageSegmentsViewer(
       closeButton={false}
       {...props}
     >
-      <SegmentTree tree={(window as any).__NEXT_DEVTOOL_TREE} />
+      <SegmentTree tree={ctx.tree} />
     </DevToolsInfo>
   )
 }

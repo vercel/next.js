@@ -95,7 +95,7 @@ async function createComponentTreeInternal({
     renderOpts: { nextConfigOutput, experimental },
     workStore,
     componentMod: {
-      DevToolNode,
+      SegmentViewNode,
       HTTPAccessFallbackBoundary,
       LayoutRouter,
       RenderFromTemplateContext,
@@ -627,10 +627,7 @@ async function createComponentTreeInternal({
   }
 
   const dir = ctx.renderOpts.dir || process.cwd()
-  const relativeLayoutOrPagePath = (layoutOrPagePath || '').replace(
-    dir + '/app',
-    ''
-  )
+
   let normalizedFilePath = filePath || '<filepath-placeholder>'
   if (normalizedFilePath.startsWith('[project]')) {
     normalizedFilePath = normalizedFilePath.replace('[project]', dir)
@@ -639,18 +636,22 @@ async function createComponentTreeInternal({
   const nodeName = modType ?? '<name-placeholder>'
 
   if (isPage) {
-    // const PageComponent = Component
-    const PageComponent = (pageProps: any) => {
-      return (
-        <DevToolNode
-          pagePath={relativeLayoutOrPagePath}
-          name={nodeName}
-          filePath={normalizedFilePath}
-        >
-          <Component {...pageProps} />
-        </DevToolNode>
-      )
-    }
+    const PageComponent =
+      process.env.NODE_ENV === 'development'
+        ? (pageProps: any) => {
+            return (
+              <SegmentViewNode
+                name={nodeName}
+                pagePath={normalizePageOrLayoutFilePath(
+                  ctx.renderOpts.dir || process.cwd(),
+                  layoutOrPagePath
+                )}
+              >
+                <Component {...pageProps} />
+              </SegmentViewNode>
+            )
+          }
+        : Component
 
     // Assign searchParams to props if this is a page
     let pageElement: React.ReactNode
@@ -737,18 +738,22 @@ async function createComponentTreeInternal({
       isPossiblyPartialResponse,
     ]
   } else {
-    // const SegmentComponent = Component
-    const SegmentComponent = (segmentProps: any) => {
-      return (
-        <DevToolNode
-          pagePath={relativeLayoutOrPagePath}
-          name={nodeName}
-          filePath={normalizedFilePath}
-        >
-          <Component {...segmentProps} />
-        </DevToolNode>
-      )
-    }
+    const SegmentComponent =
+      process.env.NODE_ENV === 'development'
+        ? (segmentProps: any) => {
+            return (
+              <SegmentViewNode
+                name={nodeName}
+                pagePath={normalizePageOrLayoutFilePath(
+                  ctx.renderOpts.dir || process.cwd(),
+                  layoutOrPagePath
+                )}
+              >
+                <Component {...segmentProps} />
+              </SegmentViewNode>
+            )
+          }
+        : Component
 
     const isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot =
       rootLayoutAtThisLevel &&
@@ -1003,4 +1008,20 @@ function getRootParamsImpl(
       getDynamicParamFromSegment
     )
   }
+}
+
+function normalizePageOrLayoutFilePath(
+  projectDir: string,
+  layoutOrPagePath: string | undefined
+) {
+  const dir = projectDir /*ctx.renderOpts.dir*/ || process.cwd()
+  const relativePath = (layoutOrPagePath || '')
+    // remove turbopack [project] prefix
+    .replace(/^\[project\][\\/]/, '')
+    // remove the project root from the path
+    .replace(dir, '')
+    // remove /(src/)?app/ dir prefix
+    .replace(/^[\\/](src[\\/])?app[\\/]/, '')
+
+  return relativePath
 }

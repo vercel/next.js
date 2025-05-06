@@ -532,8 +532,8 @@ function Router({
 
   const Root =
     process.env.NODE_ENV === 'development'
-      ? (require('../../shared/lib/devtool-node')
-          .DevToolRootNode as typeof import('../../shared/lib/devtool-node').DevToolRootNode)
+      ? (require('../../shared/lib/devtool/segment-view')
+          .SegmentViewRoot as typeof import('../../shared/lib/devtool/segment-view').SegmentViewRoot)
       : React.Fragment
 
   return (
