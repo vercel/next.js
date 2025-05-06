@@ -231,8 +231,10 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
     /// Flushes a family of the write batch, reducing the amount of buffered memory used.
     /// Does not commit any data persistently.
     ///
-    /// Safety: Caller must ensure that no concurrent put or delete operation is happening on the
-    /// flushed family.
+    /// # Safety
+    ///
+    /// Caller must ensure that no concurrent put or delete operation is happening on the flushed
+    /// family.
     pub unsafe fn flush(&self, family: u32) -> Result<()> {
         // Flush the thread local collectors to the global collector.
         let mut collectors = Vec::new();
