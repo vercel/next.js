@@ -14,14 +14,18 @@ import {
 export type CodeFrameProps = { stackFrame: StackFrame; codeFrame: string }
 
 export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
-  const formattedFrame = useMemo<string>(
-    () => formatCodeFrame(codeFrame),
+  const decodedLines = useMemo(
+    () => groupCodeFrameLines(formatCodeFrame(codeFrame)),
     [codeFrame]
   )
-  const decodedLines = useMemo(
-    () => groupCodeFrameLines(formattedFrame),
-    [formattedFrame]
-  )
+  const parsedLineStates = useMemo(() => {
+    return decodedLines.map((line) => {
+      return {
+        line,
+        parsedLine: parseLineNumberFromCodeFrameLine(line, stackFrame),
+      }
+    })
+  }, [decodedLines, stackFrame])
 
   const open = useOpenInEditor({
     file: stackFrame.file,
@@ -60,9 +64,8 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
         </p>
       </div>
       <pre className="code-frame-pre">
-        {decodedLines.map((line, lineIndex) => {
-          const { lineNumber, isErroredLine } =
-            parseLineNumberFromCodeFrameLine(line, stackFrame)
+        {parsedLineStates.map(({ line, parsedLine }, lineIndex) => {
+          const { lineNumber, isErroredLine } = parsedLine
 
           const lineNumberProps: Record<string, string | boolean> = {}
           if (lineNumber) {
