@@ -10,6 +10,7 @@ import {
   RSC_CONTENT_TYPE_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   ACTION_HEADER,
+  NEXT_ACTION_NOT_FOUND_HEADER,
 } from '../../client/components/app-router-headers'
 import {
   getAccessFallbackHTTPStatus,
@@ -366,7 +367,7 @@ async function createRedirectRenderResult(
     }
   }
 
-  return RenderResult.fromStatic('{}')
+  return RenderResult.fromStatic('')
 }
 
 // Used to compare Host header and Origin header.
@@ -616,6 +617,22 @@ export async function handleAction({
     }
   }
 
+  const handleUnrecognizedFetchAction = (err: unknown): HandleActionResult => {
+    console.error(err)
+
+    // Return an empty response with a header that the client router will interpret.
+    // We don't need to waste time encoding a flight response, and using a blank body + header
+    // means that unrecognized actions can also be handled at the infra level
+    // (i.e. without needing to invoke a lambda)
+    res.setHeader(NEXT_ACTION_NOT_FOUND_HEADER, '1')
+    res.setHeader('content-type', 'text/plain')
+    res.statusCode = 404
+    return {
+      type: 'done',
+      result: RenderResult.fromStatic('Server action not found.'),
+    }
+  }
+
   try {
     return await actionAsyncStorage.run(
       { isAction: true },
@@ -704,10 +721,7 @@ export async function handleAction({
             try {
               actionModId = getActionModIdOrError(actionId, serverModuleMap)
             } catch (err) {
-              console.error(err)
-              return {
-                type: 'not-found',
-              }
+              return handleUnrecognizedFetchAction(err)
             }
 
             // A fetch action with a non-multipart body.
@@ -900,10 +914,7 @@ export async function handleAction({
             try {
               actionModId = getActionModIdOrError(actionId, serverModuleMap)
             } catch (err) {
-              console.error(err)
-              return {
-                type: 'not-found',
-              }
+              return handleUnrecognizedFetchAction(err)
             }
 
             // A fetch action with a non-multipart body.
@@ -952,12 +963,7 @@ export async function handleAction({
           actionModId =
             actionModId ?? getActionModIdOrError(actionId, serverModuleMap)
         } catch (err) {
-          if (actionId !== null) {
-            console.error(err)
-          }
-          return {
-            type: 'not-found',
-          }
+          return handleUnrecognizedFetchAction(err)
         }
 
         const actionMod = (await ComponentMod.__next_app__.require(
