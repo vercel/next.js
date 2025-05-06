@@ -71,6 +71,10 @@ const styles = `
     transition: opacity var(--transition-duration) var(--timing-overlay);
   }
 
+  [data-nextjs-dialog-overlay] {
+    margin: 8px;
+  }
+
   [data-nextjs-dialog-overlay][data-rendered='true']
     [data-nextjs-dialog-backdrop] {
     opacity: 1;
