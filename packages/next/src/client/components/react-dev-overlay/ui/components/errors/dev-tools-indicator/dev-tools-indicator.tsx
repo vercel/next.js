@@ -403,7 +403,7 @@ function DevToolsPopover({
               />
               <MenuItem
                 data-rendered-files
-                label="Page Segments Viewer"
+                label="Segments Viewer"
                 value={<ChevronRight />}
                 onClick={() => setOpen(OVERLAYS.SegmentViewer)}
                 index={isTurbopack ? 3 : 4}
