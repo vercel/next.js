@@ -495,6 +495,7 @@ async function generateCacheEntryImpl(
     const abortSignal = dynamicAccessAbortSignal
       ? AbortSignal.any([
           dynamicAccessAbortSignal,
+          renderContext.renderSignal,
           timeoutAbortController.signal,
         ])
       : timeoutAbortController.signal
@@ -518,6 +519,24 @@ async function generateCacheEntryImpl(
 
     clearTimeout(timer)
 
+    // When the prerender is aborted for any reason (including the timeout), and
+    // we're prerendering a static shell that is allowed to be empty, we return
+    // a hanging promise. This essentially makes the "use cache" function
+    // dynamic in the context of the fallback shell. When there's no suspense
+    // boundary above, the shell will be empty, which is allowed.
+    if (abortSignal.aborted && renderContext.allowEmptyStaticShell) {
+      if (workUnitStore?.type === 'prerender') {
+        workUnitStore.cacheSignal?.endRead()
+      }
+
+      const hangingPromise = makeHangingPromise<never>(
+        renderContext.renderSignal,
+        abortSignal.reason
+      )
+
+      return { type: 'prerender-dynamic', hangingPromise }
+    }
+
     if (timeoutAbortController.signal.aborted) {
       stream = new ReadableStream({
         start(controller) {
@@ -526,19 +545,6 @@ async function generateCacheEntryImpl(
       })
     } else {
       stream = prelude
-    }
-
-    if (renderContext.dynamicAccessAbortController.signal?.aborted) {
-      if (workUnitStore?.type === 'prerender') {
-        workUnitStore.cacheSignal?.endRead()
-      }
-
-      const hangingPromise = makeHangingPromise<never>(
-        renderContext.renderSignal,
-        dynamicAccessAbortSignal.reason.message
-      )
-
-      return { type: 'prerender-dynamic', hangingPromise }
     }
   } else {
     stream = renderToReadableStream(
@@ -707,28 +713,40 @@ export function cache(
           ? createHangingInputAbortSignal(workUnitStore)
           : undefined
 
-      // When dynamicIO is not enabled, we can not encode searchParams as
-      // hanging promises. To still avoid unused search params from making a
-      // page dynamic, we overwrite them here with a promise that resolves to an
-      // empty object, while also overwriting the to-be-invoked function for
-      // generating a cache entry with a function that creates an erroring
-      // searchParams prop before invoking the original function. This ensures
-      // that used searchParams inside of cached functions would still yield an
-      // error.
-      if (!workStore.dynamicIOEnabled && isPageComponent(args)) {
+      if (isPageComponent(args)) {
+        // For page components, the cache function is overwritten, which allows
+        // us to apply special handling for params and searchParams (see below).
+
         const [{ params, searchParams }] = args
         // Overwrite the props to omit $$isPageComponent.
         args = [{ params, searchParams }]
 
         fn = {
           [name]: async ({
-            params: serializedParams,
+            params: _serializedParams,
+            searchParams: serializedSearchParams,
           }: Omit<UseCachePageComponentProps, '$$isPageComponent'>) =>
             originalFn.apply(null, [
               {
-                params: serializedParams,
-                searchParams:
-                  makeErroringExoticSearchParamsForUseCache(workStore),
+                // We're using the original params prop, and not the serialized
+                // one. While it's not generally true for "use cache" args, in
+                // the case of `params` the serialized and original object are
+                // essentially equivalent, so this is safe to do (including
+                // fallback params that are hanging promises). It allows us to
+                // avoid waiting for the timeout, when prerendering a fallback
+                // shell of a cached page that awaits params.
+                params,
+                searchParams: workStore.dynamicIOEnabled
+                  ? serializedSearchParams
+                  : // When dynamicIO is not enabled, we can not encode
+                    // searchParams as a hanging promise. To still avoid unused
+                    // search params from making a page dynamic, we define them
+                    // in `createComponentTree` as a promise that resolves to an
+                    // empty object. And here, we're creating an erroring
+                    // searchParams prop, when invoking the original function.
+                    // This ensures that used searchParams inside of cached
+                    // functions would still yield an error.
+                    makeErroringExoticSearchParamsForUseCache(workStore),
               },
             ]),
         }[name] as (...args: unknown[]) => Promise<unknown>
