@@ -1688,7 +1688,20 @@ export default class NextNodeServer extends BaseServer<
 
     parsedUrl.pathname = pathnameInfo.pathname
     const normalizedPathname = removeTrailingSlash(parsed.pathname || '')
-    if (!middleware.match(normalizedPathname, req, parsedUrl.query)) {
+    let maybeDecodedPathname = normalizedPathname
+
+    try {
+      maybeDecodedPathname = decodeURIComponent(normalizedPathname)
+    } catch {
+      /* non-fatal we can't decode so can't match it */
+    }
+
+    if (
+      !(
+        middleware.match(normalizedPathname, req, parsedUrl.query) ||
+        middleware.match(maybeDecodedPathname, req, parsedUrl.query)
+      )
+    ) {
       return handleFinished()
     }
 
