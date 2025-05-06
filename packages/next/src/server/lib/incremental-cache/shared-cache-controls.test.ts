@@ -48,6 +48,7 @@ describe('SharedCacheControls', () => {
           experimentalPPR: undefined,
           renderingMode: RenderingMode.PARTIALLY_STATIC,
           allowHeader: [],
+          allowEmptyStaticShell: false,
         } satisfies DynamicPrerenderManifestRoute,
       },
     }
