@@ -1244,6 +1244,20 @@
       getAsyncIterator = getAsyncIterator.call(children);
       return serializeAsyncIterable(request, task, children, getAsyncIterator);
     }
+    function deferTask(request, task) {
+      task = createTask(
+        request,
+        task.model,
+        task.keyPath,
+        task.implicitSlot,
+        request.abortableTasks,
+        task.debugOwner,
+        task.debugStack,
+        task.debugTask
+      );
+      pingTask(request, task);
+      return serializeLazyID(task.id);
+    }
     function outlineTask(request, task) {
       task = createTask(
         request,
@@ -1645,6 +1659,7 @@
       return "$B" + newTask.id.toString(16);
     }
     function renderModel(request, task, parent, key, value) {
+      serializedSize += key.length;
       var prevKeyPath = task.keyPath,
         prevImplicitSlot = task.implicitSlot;
       try {
@@ -1742,6 +1757,7 @@
                       _existingReference + ":" + parentPropertyName),
                     _writtenObjects.set(value, elementReference)));
             }
+            if (serializedSize > MAX_ROW_SIZE) return deferTask(request, task);
             if ((_existingReference = value._debugInfo)) {
               if (null === debugID) return outlineTask(request, task);
               forwardDebugInfo(request, debugID, _existingReference);
@@ -1767,6 +1783,7 @@
                 _writtenObjects.set(request, elementReference));
             return request;
           case REACT_LAZY_TYPE:
+            if (serializedSize > MAX_ROW_SIZE) return deferTask(request, task);
             task.thenableState = null;
             elementReference = callLazyInitInDEV(value);
             if (request.status === ABORTING) throw null;
@@ -1937,6 +1954,7 @@
         return (
           (task = TaintRegistryValues.get(value)),
           void 0 !== task && throwTaintViolation(task.message),
+          (serializedSize += value.length),
           "Z" === value[value.length - 1] &&
           parent[parentPropertyName] instanceof Date
             ? "$D" + value
@@ -2564,6 +2582,7 @@
       if (task.status === PENDING$1) {
         var prevDebugID = debugID;
         task.status = RENDERING;
+        var parentSerializedSize = serializedSize;
         try {
           modelRoot = task.model;
           debugID = task.id;
@@ -2625,17 +2644,18 @@
             } else erroredTask(request, task, x);
           }
         } finally {
-          debugID = prevDebugID;
+          (debugID = prevDebugID), (serializedSize = parentSerializedSize);
         }
       }
     }
     function tryStreamTask(request, task) {
       var prevDebugID = debugID;
       debugID = null;
+      var parentSerializedSize = serializedSize;
       try {
         emitChunk(request, task, task.model);
       } finally {
-        debugID = prevDebugID;
+        (serializedSize = parentSerializedSize), (debugID = prevDebugID);
       }
     }
     function performWork(request) {
@@ -3915,11 +3935,11 @@
             throw Error("useId can only be used while React is rendering");
           var id = currentRequest$1.identifierCount++;
           return (
-            ":" +
+            "\u00ab" +
             currentRequest$1.identifierPrefix +
             "S" +
             id.toString(32) +
-            ":"
+            "\u00bb"
           );
         },
         useHostTransitionStatus: unsupportedHook,
@@ -4044,6 +4064,8 @@
         ReactSharedInternalsServer.TaintRegistryPendingRequests,
       currentRequest = null,
       debugID = null,
+      serializedSize = 0,
+      MAX_ROW_SIZE = 3200,
       modelRoot = !1,
       emptyRoot = {},
       chunkCache = new Map(),

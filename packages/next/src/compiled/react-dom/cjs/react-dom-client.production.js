@@ -1018,13 +1018,11 @@ function isCheckable(elem) {
     ("checkbox" === type || "radio" === type)
   );
 }
-function trackValueOnNode(node) {
-  var valueField = isCheckable(node) ? "checked" : "value",
-    descriptor = Object.getOwnPropertyDescriptor(
-      node.constructor.prototype,
-      valueField
-    ),
-    currentValue = "" + node[valueField];
+function trackValueOnNode(node, valueField, currentValue) {
+  var descriptor = Object.getOwnPropertyDescriptor(
+    node.constructor.prototype,
+    valueField
+  );
   if (
     !node.hasOwnProperty(valueField) &&
     "undefined" !== typeof descriptor &&
@@ -1061,7 +1059,14 @@ function trackValueOnNode(node) {
   }
 }
 function track(node) {
-  node._valueTracker || (node._valueTracker = trackValueOnNode(node));
+  if (!node._valueTracker) {
+    var valueField = isCheckable(node) ? "checked" : "value";
+    node._valueTracker = trackValueOnNode(
+      node,
+      valueField,
+      "" + node[valueField]
+    );
+  }
 }
 function updateValueIfChanged(node) {
   if (!node) return !1;
@@ -1161,8 +1166,10 @@ function initInput(
         ("submit" !== type && "reset" !== type) ||
         (void 0 !== value && null !== value)
       )
-    )
+    ) {
+      track(element);
       return;
+    }
     defaultValue =
       null != defaultValue ? "" + getToStringValue(defaultValue) : "";
     value = null != value ? "" + getToStringValue(value) : defaultValue;
@@ -1179,6 +1186,7 @@ function initInput(
     "symbol" !== typeof name &&
     "boolean" !== typeof name &&
     (element.name = name);
+  track(element);
 }
 function setDefaultValue(node, type, value) {
   ("number" === type && getActiveElement(node.ownerDocument) === node) ||
@@ -1242,6 +1250,7 @@ function initTextarea(element, value, defaultValue, children) {
     "" !== children &&
     null !== children &&
     (element.value = children);
+  track(element);
 }
 function setTextContent(node, text) {
   if (text) {
@@ -2037,14 +2046,14 @@ var isInputEventSupported = !1;
 if (canUseDOM) {
   var JSCompiler_inline_result$jscomp$293;
   if (canUseDOM) {
-    var isSupported$jscomp$inline_433 = "oninput" in document;
-    if (!isSupported$jscomp$inline_433) {
-      var element$jscomp$inline_434 = document.createElement("div");
-      element$jscomp$inline_434.setAttribute("oninput", "return;");
-      isSupported$jscomp$inline_433 =
-        "function" === typeof element$jscomp$inline_434.oninput;
+    var isSupported$jscomp$inline_434 = "oninput" in document;
+    if (!isSupported$jscomp$inline_434) {
+      var element$jscomp$inline_435 = document.createElement("div");
+      element$jscomp$inline_435.setAttribute("oninput", "return;");
+      isSupported$jscomp$inline_434 =
+        "function" === typeof element$jscomp$inline_435.oninput;
     }
-    JSCompiler_inline_result$jscomp$293 = isSupported$jscomp$inline_433;
+    JSCompiler_inline_result$jscomp$293 = isSupported$jscomp$inline_434;
   } else JSCompiler_inline_result$jscomp$293 = !1;
   isInputEventSupported =
     JSCompiler_inline_result$jscomp$293 &&
@@ -2294,25 +2303,6 @@ simpleEventPluginEvents.push("scrollEnd");
 function registerSimpleEvent(domEventName, reactName) {
   topLevelEventsToReactNames.set(domEventName, reactName);
   registerTwoPhaseEvent(reactName, [domEventName]);
-}
-var CapturedStacks = new WeakMap();
-function createCapturedValueAtFiber(value, source) {
-  if ("object" === typeof value && null !== value) {
-    var existing = CapturedStacks.get(value);
-    if (void 0 !== existing) return existing;
-    source = {
-      value: value,
-      source: source,
-      stack: getStackByFiberInDevAndProd(source)
-    };
-    CapturedStacks.set(value, source);
-    return source;
-  }
-  return {
-    value: value,
-    source: source,
-    stack: getStackByFiberInDevAndProd(source)
-  };
 }
 var concurrentQueues = [],
   concurrentQueuesIndex = 0,
@@ -2619,6 +2609,25 @@ function createFiberFromPortal(portal, mode, lanes) {
   };
   return mode;
 }
+var CapturedStacks = new WeakMap();
+function createCapturedValueAtFiber(value, source) {
+  if ("object" === typeof value && null !== value) {
+    var existing = CapturedStacks.get(value);
+    if (void 0 !== existing) return existing;
+    source = {
+      value: value,
+      source: source,
+      stack: getStackByFiberInDevAndProd(source)
+    };
+    CapturedStacks.set(value, source);
+    return source;
+  }
+  return {
+    value: value,
+    source: source,
+    stack: getStackByFiberInDevAndProd(source)
+  };
+}
 var forkStack = [],
   forkStackIndex = 0,
   treeForkProvider = null,
@@ -2753,15 +2762,13 @@ function prepareToHydrateHostInstance(fiber) {
         props.name,
         !0
       );
-      track(instance);
       break;
     case "select":
       listenToNonDelegatedEvent("invalid", instance);
       break;
     case "textarea":
       listenToNonDelegatedEvent("invalid", instance),
-        initTextarea(instance, props.value, props.defaultValue, props.children),
-        track(instance);
+        initTextarea(instance, props.value, props.defaultValue, props.children);
   }
   type = props.children;
   ("string" !== typeof type &&
@@ -4242,7 +4249,7 @@ function findFirstSuspended(row) {
         null !== state &&
         ((state = state.dehydrated),
         null === state ||
-          "$?" === state.data ||
+          isSuspenseInstancePending(state) ||
           isSuspenseInstanceFallback(state))
       )
         return node;
@@ -5235,8 +5242,14 @@ function ensureFormComponentIsStateful(formFiber) {
   return existingStateHook;
 }
 function requestFormReset$1(formFiber) {
-  var resetStateQueue = ensureFormComponentIsStateful(formFiber).next.queue;
-  dispatchSetStateInternal(formFiber, resetStateQueue, {}, requestUpdateLane());
+  var stateHook = ensureFormComponentIsStateful(formFiber);
+  null === stateHook.next && (stateHook = formFiber.alternate.memoizedState);
+  dispatchSetStateInternal(
+    formFiber,
+    stateHook.next.queue,
+    {},
+    requestUpdateLane()
+  );
 }
 function useHostTransitionStatus() {
   return readContext(HostTransitionContext);
@@ -6806,14 +6819,15 @@ function updateSuspenseComponent(current, workInProgress, renderLanes) {
           scheduleUpdateOnFiber(JSCompiler_temp, current, nextProps),
           SelectiveHydrationException)
         );
-      "$?" === nextPrimaryChildren.data || renderDidSuspendDelayIfPossible();
+      isSuspenseInstancePending(nextPrimaryChildren) ||
+        renderDidSuspendDelayIfPossible();
       workInProgress = retrySuspenseComponentWithoutHydrating(
         current,
         workInProgress,
         renderLanes
       );
     } else
-      "$?" === nextPrimaryChildren.data
+      isSuspenseInstancePending(nextPrimaryChildren)
         ? ((workInProgress.flags |= 192),
           (workInProgress.child = current.child),
           (workInProgress = null))
@@ -12039,20 +12053,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1573 = 0;
-  i$jscomp$inline_1573 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1573++
+  var i$jscomp$inline_1590 = 0;
+  i$jscomp$inline_1590 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1590++
 ) {
-  var eventName$jscomp$inline_1574 =
-      simpleEventPluginEvents[i$jscomp$inline_1573],
-    domEventName$jscomp$inline_1575 =
-      eventName$jscomp$inline_1574.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1576 =
-      eventName$jscomp$inline_1574[0].toUpperCase() +
-      eventName$jscomp$inline_1574.slice(1);
+  var eventName$jscomp$inline_1591 =
+      simpleEventPluginEvents[i$jscomp$inline_1590],
+    domEventName$jscomp$inline_1592 =
+      eventName$jscomp$inline_1591.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1593 =
+      eventName$jscomp$inline_1591[0].toUpperCase() +
+      eventName$jscomp$inline_1591.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1575,
-    "on" + capitalizedEvent$jscomp$inline_1576
+    domEventName$jscomp$inline_1592,
+    "on" + capitalizedEvent$jscomp$inline_1593
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -13269,7 +13283,6 @@ function setInitialProperties(domElement, tag, props) {
         hasSrcSet,
         !1
       );
-      track(domElement);
       return;
     case "select":
       listenToNonDelegatedEvent("invalid", domElement);
@@ -13323,7 +13336,6 @@ function setInitialProperties(domElement, tag, props) {
               setProp(domElement, tag, propValue, defaultValue, props, null);
           }
       initTextarea(domElement, hasSrc, hasSrcSet, propKey);
-      track(domElement);
       return;
     case "option":
       for (checked in props)
@@ -13835,7 +13847,13 @@ function clearHydrationBoundary(parentInstance, hydrationInstance) {
           return;
         }
         depth--;
-      } else if ("$" === node || "$?" === node || "$!" === node || "&" === node)
+      } else if (
+        "$" === node ||
+        "$?" === node ||
+        "$~" === node ||
+        "$!" === node ||
+        "&" === node
+      )
         depth++;
       else if ("html" === node)
         releaseSingletonInstance(parentInstance.ownerDocument.documentElement);
@@ -13880,7 +13898,8 @@ function hideOrUnhideDehydratedBoundary(suspenseInstance, isHidden) {
         if (0 === suspenseInstance) break;
         else suspenseInstance--;
       else
-        ("$" !== node && "$?" !== node && "$!" !== node) || suspenseInstance++;
+        ("$" !== node && "$?" !== node && "$~" !== node && "$!" !== node) ||
+          suspenseInstance++;
     node = nextNode;
   } while (node);
 }
@@ -13994,15 +14013,19 @@ function canHydrateHydrationBoundary(instance, inRootOrSingleton) {
   }
   return instance;
 }
+function isSuspenseInstancePending(instance) {
+  return "$?" === instance.data || "$~" === instance.data;
+}
 function isSuspenseInstanceFallback(instance) {
   return (
     "$!" === instance.data ||
-    ("$?" === instance.data && "complete" === instance.ownerDocument.readyState)
+    ("$?" === instance.data && "loading" !== instance.ownerDocument.readyState)
   );
 }
 function registerSuspenseInstanceRetry(instance, callback) {
   var ownerDocument = instance.ownerDocument;
-  if ("$?" !== instance.data || "complete" === ownerDocument.readyState)
+  if ("$~" === instance.data) instance._reactRetry = callback;
+  else if ("$?" !== instance.data || "loading" !== ownerDocument.readyState)
     callback();
   else {
     var listener = function () {
@@ -14023,6 +14046,7 @@ function getNextHydratable(node) {
         "$" === nodeType ||
         "$!" === nodeType ||
         "$?" === nodeType ||
+        "$~" === nodeType ||
         "&" === nodeType ||
         "F!" === nodeType ||
         "F" === nodeType
@@ -14044,7 +14068,11 @@ function getNextHydratableInstanceAfterHydrationBoundary(hydrationInstance) {
           return getNextHydratable(hydrationInstance.nextSibling);
         depth--;
       } else
-        ("$" !== data && "$!" !== data && "$?" !== data && "&" !== data) ||
+        ("$" !== data &&
+          "$!" !== data &&
+          "$?" !== data &&
+          "$~" !== data &&
+          "&" !== data) ||
           depth++;
     }
     hydrationInstance = hydrationInstance.nextSibling;
@@ -14056,7 +14084,13 @@ function getParentHydrationBoundary(targetInstance) {
   for (var depth = 0; targetInstance; ) {
     if (8 === targetInstance.nodeType) {
       var data = targetInstance.data;
-      if ("$" === data || "$!" === data || "$?" === data || "&" === data) {
+      if (
+        "$" === data ||
+        "$!" === data ||
+        "$?" === data ||
+        "$~" === data ||
+        "&" === data
+      ) {
         if (0 === depth) return targetInstance;
         depth--;
       } else ("/$" !== data && "/&" !== data) || depth++;
@@ -15604,16 +15638,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_1829 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_1846 = React.version;
 if (
-  "19.2.0-canary-197d6a04-20250424" !==
-  isomorphicReactPackageVersion$jscomp$inline_1829
+  "19.2.0-canary-7a2c7045-20250506" !==
+  isomorphicReactPackageVersion$jscomp$inline_1846
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_1829,
-      "19.2.0-canary-197d6a04-20250424"
+      isomorphicReactPackageVersion$jscomp$inline_1846,
+      "19.2.0-canary-7a2c7045-20250506"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -15633,24 +15667,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2318 = {
+var internals$jscomp$inline_2339 = {
   bundleType: 0,
-  version: "19.2.0-canary-197d6a04-20250424",
+  version: "19.2.0-canary-7a2c7045-20250506",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-canary-197d6a04-20250424"
+  reconcilerVersion: "19.2.0-canary-7a2c7045-20250506"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2319 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2340 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2319.isDisabled &&
-    hook$jscomp$inline_2319.supportsFiber
+    !hook$jscomp$inline_2340.isDisabled &&
+    hook$jscomp$inline_2340.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2319.inject(
-        internals$jscomp$inline_2318
+      (rendererID = hook$jscomp$inline_2340.inject(
+        internals$jscomp$inline_2339
       )),
-        (injectedHook = hook$jscomp$inline_2319);
+        (injectedHook = hook$jscomp$inline_2340);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -15742,4 +15776,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.2.0-canary-197d6a04-20250424";
+exports.version = "19.2.0-canary-7a2c7045-20250506";
