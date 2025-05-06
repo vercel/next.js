@@ -4,6 +4,7 @@ import {
   decorateServerError,
   type ErrorSourceType,
 } from '../../../../shared/lib/error-source'
+import isError from '../../../../lib/is-error'
 
 export function getFilesystemFrame(frame: StackFrame): StackFrame {
   const f: StackFrame = { ...frame }
@@ -24,7 +25,35 @@ export function getFilesystemFrame(frame: StackFrame): StackFrame {
   return f
 }
 
-export function getServerError(error: Error, type: ErrorSourceType): Error {
+// If there's a cause of the error, will keep the new error message
+// but with the original stack trace.
+function decorateErrorWithCause(error: Error): Error {
+  let message = error.message
+  let stack = error.stack
+  let curr: any = error
+  while (curr && isError(curr) && curr.cause) {
+    const cause = curr.cause
+    if (isError(cause)) {
+      if (cause.stack) {
+        // Append the stack trace of the cause to the current error
+        stack = `${stack}\nCaused by: ${cause.stack}`
+      }
+    }
+    curr = cause
+  }
+  // Override the error message if there's new information
+  if (error.message !== message) {
+    error.message = message
+  }
+  if (error.stack !== stack) {
+    error.stack = stack
+  }
+  return error
+}
+
+export function getServerError(err: Error, type: ErrorSourceType): Error {
+  const error = decorateErrorWithCause(err)
+
   if (error.name === 'TurbopackInternalError') {
     // If this is an internal Turbopack error we shouldn't show internal details
     // to the user. These are written to a log file instead.
@@ -44,7 +73,7 @@ export function getServerError(error: Error, type: ErrorSourceType): Error {
 
   n.name = error.name
   try {
-    n.stack = `${n.toString()}\n${parse(error.stack!)
+    n.stack = `${n.toString()}\n${parse(error.stack || '')
       .map(getFilesystemFrame)
       .map((f) => {
         let str = `    at ${f.methodName}`

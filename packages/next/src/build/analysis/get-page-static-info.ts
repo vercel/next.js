@@ -299,10 +299,12 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
     return await fs.readFile(filePath, {
       encoding: 'utf8',
     })
-  } catch (error: any) {
+  } catch (error) {
     if (shouldThrow) {
-      error.message = `Next.js ERROR: Failed to read file ${filePath}:\n${error.message}`
-      throw error
+      throw new Error(
+        `Next.js failed to read file ${filePath} for getting static info`,
+        { cause: error }
+      )
     }
   }
 }

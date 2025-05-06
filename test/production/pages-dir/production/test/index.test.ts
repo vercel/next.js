@@ -642,8 +642,9 @@ describe('Production Usage', () => {
             'public, max-age=31536000, immutable'
           )
         } catch (err) {
-          err.message = res.url + ' ' + err.message
-          throw err
+          throw new Error(`header of request ${res.url} is not matched`, {
+            cause: err,
+          })
         }
       })
     })

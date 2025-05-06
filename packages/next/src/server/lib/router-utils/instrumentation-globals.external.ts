@@ -52,9 +52,10 @@ async function registerInstrumentation(projectDir: string, distDir: string) {
   if (instrumentation?.register) {
     try {
       await instrumentation.register()
-    } catch (err: any) {
-      err.message = `An error occurred while loading instrumentation hook: ${err.message}`
-      throw err
+    } catch (err: unknown) {
+      throw new Error(`An error occurred while loading instrumentation hook`, {
+        cause: err,
+      })
     }
   }
 }
