@@ -12425,23 +12425,3 @@ checksum = "ec866b44a2a1fd6133d363f073ca1b179f438f99e7e5bfb1e33f7181facfe448"
 dependencies = [
  "zune-core",
 ]
-
-[[patch.unused]]
-name = "wasmer"
-version = "5.0.5-rc1"
-source = "git+https://github.com/kdy1/wasmer?branch=build-deps#afedc9315eb1c7fefddff7a3c6ada0235e78678a"
-
-[[patch.unused]]
-name = "wasmer-cache"
-version = "5.0.5-rc1"
-source = "git+https://github.com/kdy1/wasmer?branch=build-deps#afedc9315eb1c7fefddff7a3c6ada0235e78678a"
-
-[[patch.unused]]
-name = "wasmer-compiler-cranelift"
-version = "5.0.5-rc1"
-source = "git+https://github.com/kdy1/wasmer?branch=build-deps#afedc9315eb1c7fefddff7a3c6ada0235e78678a"
-
-[[patch.unused]]
-name = "wasmer-wasix"
-version = "0.35.0"
-source = "git+https://github.com/kdy1/wasmer?branch=build-deps#afedc9315eb1c7fefddff7a3c6ada0235e78678a"
