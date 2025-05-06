@@ -1,0 +1,94 @@
+---
+title: How Next.js optimizes images
+nav_title: Image Optimization
+description: Learn how Next.js Image Optimization works.
+related:
+  title: API Reference
+  description: See the API Reference for the full feature set of Next.js Image
+  links:
+    - app/api-reference/components/image
+---
+
+Next.js provides automatic image optimization to improve the initial page load and user experience.
+
+In this deep dive, you'll learn how image optimization works in Next.js.
+
+## The Image Component
+
+The Next.js `<Image />` component extends the HTML `<img>` element with built-in best practices for optimizing images. It takes an unoptimized image and produces optimized outputs.
+
+```jsx filename="app/page.js"
+import Image from 'next/image'
+
+export default function Page() {
+  return <Image src="/profile.png" alt="Picture of the author" />
+}
+```
+
+> See the [Image Component API](/docs/app/api-reference/components/image) reference for all available props.
+
+### Image Sizing
+
+One of the most common image-related performance issues is [layout shift](https://web.dev/articles/cls). This happens when an image pushes other elements around the page as it loads in. It’s a UX problem that it has its own Core Web Vital: [Cumulative Layout Shift](https://web.dev/cls/). Layout shift can be prevented by defining the image dimensions. This allows the browser to reserve enough space for the image before it loads.
+
+The `<Image />` component is designed in a way that cannot contribute to layout shift, and **must** be sized in one of three ways:
+
+1. Automatically, using a local image as a static import.
+2. Manually, by including [`width`](/docs/app/api-reference/components/image#width-and-height) and [`height`](/docs/app/api-reference/components/image#width-and-height) props.
+3. Implicitly, by using [`fill`](/docs/app/api-reference/components/image#fill) to cause the image to expand to fill its parent element.
+
+### Supported image formats
+
+The built-in loader supports common web-friendly formats:
+
+- `jpeg`
+- `png`
+- `webp`
+- `avif`
+- `tiff`
+
+### Unsupported image formats
+
+- **Animated images** (e.g., GIF, APNG, ets) as served as-is, bypassing optimization.
+- **SVGs** are blocked by default unless [`unoptimized`](/docs/app/api-reference/components/image#unoptimized) or [`dangerouslyAllowSVG`](/docs/app/api-reference/components/image#dangerouslyallowsvg) is enabled.
+
+## The Image Loader
+
+Next.js comes with a built-in image loader that:
+
+- Generates multiple [image sizes](#image-sizing) for different screens using modern [image formats](#supported-image-formats).
+- Builds the URLs pointing to the optimized image version, and creates a `srcset` attribute.
+- [Caches](#caching-and-revalidating-images) the optimized image.
+- Serves the optimized images at runtime.
+
+> If you would like to serve the optimized images from a external image service, you can also [write your own loader](/docs/app/api-reference/components/image#loader) function.
+
+## Caching and revalidating images
+
+> The following describes the caching behavior for the default [Next.js Image Loader](#the-image-loader). For other loaders, please refer to your cloud provider's documentation.
+
+Image caching and revalidation is handled automatically by Next.js at request time.
+
+1. **First request (miss)**: The image is optimized and cached in the `<distDir>/cache/images` directory.
+2. **Subsequent requests (hit)**: The image is served from the cache.
+3. **Expired (stale)**: The stale cached image is served immediately, and revalidation is triggered in the background.
+4. **Revalidation**: The image is optimized again and saved to the cache with the new expiration date.
+
+TODO: Add a diagram
+
+### Duration
+
+TODO: What is the default duration with no configuration?
+
+The cache lifetime is the greater of:
+
+- The [`minimumCacheTTL`](/docs/app/api-reference/components/image#minimum-cache-ttl) configuration
+- The upstream image `Cache-Control` header. If both `s-maxage` and `max-age` are found, then `s-maxage` is preferred.
+
+### Status
+
+You can check the image cache status with the `x-nextjs-cache` response header:
+
+- `MISS` – Not in cache (first time)
+- `HIT` – Cached and fresh
+- `STALE` – Cached but expired, will be updated in the background
