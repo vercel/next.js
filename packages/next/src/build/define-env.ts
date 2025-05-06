@@ -279,6 +279,8 @@ export function getDefineEnv({
           'process.env.__NEXT_RELATIVE_DIST_DIR': config.distDir,
         }
       : {}),
+    'process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER':
+      config.experimental.devtoolSegmentExplorer ?? false,
   }
 
   const userDefines = config.compiler?.define ?? {}

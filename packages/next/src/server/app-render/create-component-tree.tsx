@@ -175,11 +175,7 @@ async function createComponentTreeInternal({
 
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
-  const {
-    mod: layoutOrPageMod,
-    modType,
-    filePath,
-  } = await getTracer().trace(
+  const { mod: layoutOrPageMod, modType } = await getTracer().trace(
     NextNodeServerSpan.getLayoutOrPageModule,
     {
       hideSpan: !(isLayout || isPage),
@@ -627,31 +623,24 @@ async function createComponentTreeInternal({
   }
 
   const dir = ctx.renderOpts.dir || process.cwd()
-
-  let normalizedFilePath = filePath || '<filepath-placeholder>'
-  if (normalizedFilePath.startsWith('[project]')) {
-    normalizedFilePath = normalizedFilePath.replace('[project]', dir)
-  }
-
-  const nodeName = modType ?? '<name-placeholder>'
+  const isSegmentViewEnabled =
+    process.env.NODE_ENV === 'development' &&
+    ctx.renderOpts.devtoolSegmentExplorer
+  const nodeName = modType ?? 'page'
 
   if (isPage) {
-    const PageComponent =
-      process.env.NODE_ENV === 'development'
-        ? (pageProps: any) => {
-            return (
-              <SegmentViewNode
-                name={nodeName}
-                pagePath={normalizePageOrLayoutFilePath(
-                  ctx.renderOpts.dir || process.cwd(),
-                  layoutOrPagePath
-                )}
-              >
-                <Component {...pageProps} />
-              </SegmentViewNode>
-            )
-          }
-        : Component
+    const PageComponent = isSegmentViewEnabled
+      ? (pageProps: any) => {
+          return (
+            <SegmentViewNode
+              name={nodeName}
+              pagePath={normalizePageOrLayoutFilePath(dir, layoutOrPagePath)}
+            >
+              <Component {...pageProps} />
+            </SegmentViewNode>
+          )
+        }
+      : Component
 
     // Assign searchParams to props if this is a page
     let pageElement: React.ReactNode
@@ -738,22 +727,18 @@ async function createComponentTreeInternal({
       isPossiblyPartialResponse,
     ]
   } else {
-    const SegmentComponent =
-      process.env.NODE_ENV === 'development'
-        ? (segmentProps: any) => {
-            return (
-              <SegmentViewNode
-                name={nodeName}
-                pagePath={normalizePageOrLayoutFilePath(
-                  ctx.renderOpts.dir || process.cwd(),
-                  layoutOrPagePath
-                )}
-              >
-                <Component {...segmentProps} />
-              </SegmentViewNode>
-            )
-          }
-        : Component
+    const SegmentComponent = isSegmentViewEnabled
+      ? (segmentProps: any) => {
+          return (
+            <SegmentViewNode
+              name={nodeName}
+              pagePath={normalizePageOrLayoutFilePath(dir, layoutOrPagePath)}
+            >
+              <Component {...segmentProps} />
+            </SegmentViewNode>
+          )
+        }
+      : Component
 
     const isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot =
       rootLayoutAtThisLevel &&

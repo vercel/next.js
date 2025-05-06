@@ -680,11 +680,16 @@ export interface ExperimentalConfig {
    */
   clientInstrumentationHook?: boolean
 
-  /**
+  /** 
    * Enables using the global-not-found.js file in the app directory
    *
    */
   globalNotFound?: boolean
+  
+  /**
+   * Enable segment viewer for the app directory in dev tool.
+   */
+  devtoolSegmentExplorer?: boolean
 }
 
 export type ExportPathMap = {
@@ -1382,6 +1387,7 @@ export const defaultConfig: NextConfig = {
     useCache: undefined,
     slowModuleDetection: undefined,
     globalNotFound: false,
+    devtoolSegmentExplorer: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

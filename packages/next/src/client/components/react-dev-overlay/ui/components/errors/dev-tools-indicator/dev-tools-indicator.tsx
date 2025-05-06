@@ -328,13 +328,15 @@ function DevToolsPopover({
         setScale={setScale}
       />
 
-      {/* Page Segments Viewer */}
-      <PageSegmentsViewer
-        isOpen={isRenderedFilesOpen}
-        close={openRootMenu}
-        triggerRef={triggerRef}
-        style={popover}
-      />
+      {/* Page Segment Explorer */}
+      {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER ? (
+        <PageSegmentsViewer
+          isOpen={isRenderedFilesOpen}
+          close={openRootMenu}
+          triggerRef={triggerRef}
+          style={popover}
+        />
+      ) : null}
 
       {/* Dropdown Menu */}
       {menuMounted && (
@@ -401,13 +403,15 @@ function DevToolsPopover({
                 onClick={() => setOpen(OVERLAYS.Preferences)}
                 index={isTurbopack ? 2 : 3}
               />
-              <MenuItem
-                data-rendered-files
-                label="Segments Viewer"
-                value={<ChevronRight />}
-                onClick={() => setOpen(OVERLAYS.SegmentViewer)}
-                index={isTurbopack ? 3 : 4}
-              />
+              {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER ? (
+                <MenuItem
+                  data-rendered-files
+                  label="Segment Explorer"
+                  value={<ChevronRight />}
+                  onClick={() => setOpen(OVERLAYS.SegmentViewer)}
+                  index={isTurbopack ? 3 : 4}
+                />
+              ) : null}
             </div>
           </Context.Provider>
         </div>
