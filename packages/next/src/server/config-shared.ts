@@ -752,13 +752,15 @@ export type ExportPathMap = {
     _isProspectiveRender?: boolean
 
     /**
-     * When true, it indicates that the diagnostic render for this page is
-     * disabled. This is only used when the app has `experimental.ppr` and
-     * `experimental.dynamicIO` enabled.
+     * When true, the page is prerendered as a fallback shell, while allowing
+     * any dynamic accesses to result in an empty shell. This is the case when
+     * the app has `experimental.ppr` and `experimental.dynamicIO` enabled, and
+     * there are also routes prerendered with a more complete set of params.
+     * Prerendering those routes would catch any invalid dynamic accesses.
      *
      * @internal
      */
-    _doNotThrowOnEmptyStaticShell?: boolean
+    _allowEmptyStaticShell?: boolean
   }
 }
 
