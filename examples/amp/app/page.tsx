@@ -1,3 +1,4 @@
+"use client"
 import Head from "next/head";
 import { useAmp } from "next/amp";
 import Layout from "../components/Layout";
@@ -18,22 +19,14 @@ export default function IndexPage() {
       <h1>The Cat (AMP-first Page)</h1>
       <Byline author="Dan Zajdband" />
       <p className="caption">Meowwwwwwww</p>
-      <amp-img
-        alt="Mountains"
-        width="550"
-        height="368"
-        layout="responsive"
-        src="https://amp.dev/static/inline-examples/images/mountains.webp"
-      >
-        <amp-img
+       {/* Static HTML fallback for AMP-like layout */}
+       <div style={{ position: 'relative', width: '100%', paddingBottom: '66.91%' }}>
+        <img
           alt="Mountains"
-          fallback=""
-          width="550"
-          height="368"
-          layout="responsive"
-          src="https://amp.dev/static/inline-examples/images/mountains.jpg"
-        ></amp-img>
-      </amp-img>
+          src="https://amp.dev/static/inline-examples/images/mountains.webp"
+          style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      </div>
       <p>
         Cat ipsum dolor <a href={isAmp ? "/dog?amp=1" : "/dog"}>sit amet</a>,
         eat grass, throw it back up but refuse to leave cardboard box or groom
