@@ -179,7 +179,7 @@ pub async fn apply_effects(source: impl CollectiblesSource) -> Result<()> {
     }
     let span = tracing::info_span!("apply effects", count = effects.len());
     APPLY_EFFECT_CONTEXT
-        .scope(Mutex::new(ApplyEffectContext::new()), async move {
+        .scope(Default::default(), async move {
             // Limit the concurrency of effects
             futures::stream::iter(effects)
                 .map(Ok)
@@ -263,7 +263,7 @@ impl Effects {
     pub async fn apply(&self) -> Result<()> {
         let span = tracing::info_span!("apply effects", count = self.effects.len());
         APPLY_EFFECT_CONTEXT
-            .scope(Mutex::new(ApplyEffectContext::new()), async move {
+            .scope(Default::default(), async move {
                 // Limit the concurrency of effects
                 futures::stream::iter(self.effects.iter())
                     .map(Ok)
@@ -282,20 +282,15 @@ task_local! {
     static APPLY_EFFECT_CONTEXT: Mutex<ApplyEffectContext>;
 }
 
+#[derive(Default)]
 pub struct ApplyEffectContext {
     data: FxHashMap<TypeId, Box<dyn Any + Send + Sync>>,
 }
 
 impl ApplyEffectContext {
-    pub fn new() -> Self {
-        Self {
-            data: FxHashMap::default(),
-        }
-    }
-
     fn with_context<T, F: FnOnce(&mut Self) -> T>(f: F) -> T {
         APPLY_EFFECT_CONTEXT
-            .try_with(|context| f(&mut *context.lock()))
+            .try_with(|context| f(&mut context.lock()))
             .expect("No effect context found")
     }
 
@@ -325,8 +320,7 @@ impl ApplyEffectContext {
         Self::with_context(|context| {
             let value = context.data.entry(TypeId::of::<T>()).or_insert_with(|| {
                 let value = insert_with();
-                let value = Box::new(value);
-                value
+                Box::new(value)
             });
             f(
                 // Safety: the map is keyed by TypeId
