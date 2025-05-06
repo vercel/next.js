@@ -2526,17 +2526,27 @@ export default abstract class Server<
       // When html bots request PPR page, perform the full dynamic rendering.
       const shouldWaitOnAllReady = isHtmlBot && isRoutePPREnabled
 
+      // This is a revalidation request if the request is for a static page, and
+      // it is not being resumed from a postponed render, and it is not a
+      // dynamic RSC request.
+      const isRevalidate = isSSG && !postponed && !isDynamicRSCRequest
+
+      // When we're revalidating a fallback shell, we need to set
+      // `allowEmptyStaticShell` to the same value that was used when the shell
+      // was prerendered at build time.
+      const allowEmptyStaticShell = Boolean(
+        isRevalidate &&
+          fallbackRouteParams &&
+          prerenderManifest.dynamicRoutes[pathname]?.allowEmptyStaticShell
+      )
+
       const renderOpts: LoadedRenderOpts = {
         ...components,
         ...opts,
         ...(isAppPath
           ? {
               incrementalCache,
-              // This is a revalidation request if the request is for a static
-              // page and it is not being resumed from a postponed render and
-              // it is not a dynamic RSC request then it is a revalidation
-              // request.
-              isRevalidate: isSSG && !postponed && !isDynamicRSCRequest,
+              isRevalidate,
               serverActions: this.nextConfig.experimental.serverActions,
             }
           : {}),
@@ -2573,6 +2583,7 @@ export default abstract class Server<
         onAfterTaskError: undefined,
         // only available in dev
         setIsrStatus: (this as any).setIsrStatus,
+        allowEmptyStaticShell,
       }
 
       if (isDebugStaticShell || isDebugDynamicAccesses) {
@@ -3534,6 +3545,7 @@ export default abstract class Server<
         res.statusCode = cachedData.status
       }
 
+      console.log('POSTPONED', didPostpone)
       // Mark that the request did postpone.
       if (didPostpone) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
