@@ -4,8 +4,6 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   type ValueOf,
 } from '../../../../shared/lib/constants'
-import type { ModuleTuple, CollectedMetadata } from '../metadata/types'
-
 import path from 'path'
 import { bold } from '../../../../lib/picocolors'
 import { getModuleBuildInfo } from '../get-module-build-info'
@@ -33,6 +31,7 @@ import type { PageExtensions } from '../../../page-extensions-type'
 import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../../../client/components/parallel-route-default'
 import type { Compilation } from 'webpack'
 import { createAppRouteCode } from './create-app-route-code'
+import { FILE_TYPES } from './shared'
 
 export type AppLoaderOptions = {
   name: string
@@ -53,27 +52,13 @@ export type AppLoaderOptions = {
 }
 type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
 
-const HTTP_ACCESS_FALLBACKS = {
-  'not-found': 'not-found',
-  forbidden: 'forbidden',
-  unauthorized: 'unauthorized',
-} as const
 const defaultHTTPAccessFallbackPaths = {
   'not-found': 'next/dist/client/components/not-found-error',
   forbidden: 'next/dist/client/components/forbidden-error',
   unauthorized: 'next/dist/client/components/unauthorized-error',
 } as const
 
-const FILE_TYPES = {
-  layout: 'layout',
-  template: 'template',
-  error: 'error',
-  loading: 'loading',
-  'global-error': 'global-error',
-  ...HTTP_ACCESS_FALLBACKS,
-} as const
-
-const GLOBAL_ERROR_FILE_TYPE = 'global-error'
+const GLOBAL_ERROR_FILE_TYPE = FILE_TYPES['global-error']
 const PAGE_SEGMENT = 'page$'
 const PARALLEL_CHILDREN_SEGMENT = 'children$'
 
@@ -89,16 +74,6 @@ export type MetadataResolver = (
   filename: string,
   extensions: readonly string[]
 ) => Promise<string | undefined>
-
-export type AppDirModules = {
-  readonly [moduleKey in ValueOf<typeof FILE_TYPES>]?: ModuleTuple
-} & {
-  readonly page?: ModuleTuple
-} & {
-  readonly metadata?: CollectedMetadata
-} & {
-  readonly defaultPage?: ModuleTuple
-}
 
 const normalizeParallelKey = (key: string) =>
   key.startsWith('@') ? key.slice(1) : key
