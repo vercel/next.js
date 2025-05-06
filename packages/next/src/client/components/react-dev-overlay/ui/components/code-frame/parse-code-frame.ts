@@ -46,24 +46,21 @@ export function groupCodeFrameLines(formattedFrame: string) {
     // If the token is a new line with only line break "\n",
     // break here into a new line.
     // The line could also contain spaces, it's still considered line break if "\n" line has spaces.
-    if (
-      token &&
-      typeof token.content === 'string' &&
-      token.content.includes('\n')
-    ) {
+    if (typeof token.content === 'string' && token.content.includes('\n')) {
       const segments = token.content.split('\n')
-      for (const segment of segments) {
-        lines.push(line)
-        line = []
+      for (let i = 0; i < segments.length; i++) {
+        const segment = segments[i]
         if (segment) {
           line.push({
             ...token,
             content: segment,
           })
         }
+        if (i < segments.length - 1) {
+          lines.push(line)
+          line = []
+        }
       }
-      lines.push(line)
-      line = []
     } else {
       line.push(token)
     }
