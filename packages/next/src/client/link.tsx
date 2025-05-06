@@ -419,13 +419,24 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           key === 'scroll' ||
           key === 'shallow' ||
           key === 'passHref' ||
-          key === 'prefetch' ||
           key === 'legacyBehavior'
         ) {
           if (props[key] != null && valType !== 'boolean') {
             throw createPropError({
               key,
               expected: '`boolean`',
+              actual: valType,
+            })
+          }
+        } else if (key === 'prefetch') {
+          if (
+            props[key] != null &&
+            valType !== 'boolean' &&
+            props[key] !== 'auto'
+          ) {
+            throw createPropError({
+              key,
+              expected: '`boolean | "auto"`',
               actual: valType,
             })
           }
