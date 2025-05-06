@@ -46,22 +46,24 @@ export function groupCodeFrameLines(formattedFrame: string) {
     // If the token is a new line with only line break "\n",
     // break here into a new line.
     // The line could also contain spaces, it's still considered line break if "\n" line has spaces.
-    if (token.content.includes('\n')) {
-      const [beforeBreak, afterBreak] = token.content.split('\n')
-      if (beforeBreak) {
-        line.push({
-          ...token,
-          content: beforeBreak,
-        })
+    if (
+      token &&
+      typeof token.content === 'string' &&
+      token.content.includes('\n')
+    ) {
+      const segments = token.content.split('\n')
+      for (const segment of segments) {
+        lines.push(line)
+        line = []
+        if (segment) {
+          line.push({
+            ...token,
+            content: segment,
+          })
+        }
       }
       lines.push(line)
       line = []
-      if (afterBreak) {
-        line.push({
-          ...token,
-          content: afterBreak,
-        })
-      }
     } else {
       line.push(token)
     }
@@ -82,7 +84,6 @@ export function parseLineNumberFromCodeFrameLine(
   // parse line number from line first 2 tokens
   // e.g. ` > 1 | const foo = 'bar'` => `1`, first token is `1 |`
   // e.g. `  2 | const foo = 'bar'` => `2`. first 2 tokens are ' ' and ' 2 |'
-  // console.log('line', line)
   if (line[0]?.content === '>' || line[0]?.content === ' ') {
     lineNumberToken = line[1]
     lineNumber = lineNumberToken?.content?.replace('|', '')?.trim()

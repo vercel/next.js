@@ -14,18 +14,16 @@ import {
 export type CodeFrameProps = { stackFrame: StackFrame; codeFrame: string }
 
 export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
-  const decodedLines = useMemo(
-    () => groupCodeFrameLines(formatCodeFrame(codeFrame)),
-    [codeFrame]
-  )
   const parsedLineStates = useMemo(() => {
+    const decodedLines = groupCodeFrameLines(formatCodeFrame(codeFrame))
+
     return decodedLines.map((line) => {
       return {
         line,
         parsedLine: parseLineNumberFromCodeFrameLine(line, stackFrame),
       }
     })
-  }, [decodedLines, stackFrame])
+  }, [codeFrame, stackFrame])
 
   const open = useOpenInEditor({
     file: stackFrame.file,
