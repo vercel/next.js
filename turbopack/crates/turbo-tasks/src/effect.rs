@@ -310,7 +310,10 @@ impl ApplyEffectContext {
             context
                 .data
                 .get_mut(&TypeId::of::<T>())
-                .and_then(|value| value.downcast_mut())
+                .map(|value| {
+                    // Safety: the map is keyed by TypeId
+                    unsafe { value.downcast_mut_unchecked() }
+                })
                 .map(f)
         })
     }
@@ -320,16 +323,15 @@ impl ApplyEffectContext {
         f: impl FnOnce(&mut T) -> R,
     ) -> R {
         Self::with_context(|context| {
-            f(context
-                .data
-                .entry(TypeId::of::<T>())
-                .or_insert_with(|| {
-                    let value = insert_with();
-                    let value = Box::new(value);
-                    value
-                })
-                .downcast_mut()
-                .unwrap())
+            let value = context.data.entry(TypeId::of::<T>()).or_insert_with(|| {
+                let value = insert_with();
+                let value = Box::new(value);
+                value
+            });
+            f(
+                // Safety: the map is keyed by TypeId
+                unsafe { value.downcast_mut_unchecked() },
+            )
         })
     }
 }

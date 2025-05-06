@@ -36,6 +36,7 @@
 #![feature(arbitrary_self_types_pointers)]
 #![feature(new_zeroed_alloc)]
 #![feature(never_type)]
+#![feature(downcast_unchecked)]
 
 pub mod backend;
 mod capture_future;
