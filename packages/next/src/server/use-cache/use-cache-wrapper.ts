@@ -754,10 +754,15 @@ export function cache(
               if (cacheSignal) {
                 cacheSignal.endRead()
               }
-              return makeHangingPromise(
+
+              const result = makeHangingPromise(
                 workUnitStore.renderSignal,
                 'dynamic "use cache"'
               )
+
+              pendingInvocation.resolve({ pendingEntry: cachedEntry, result })
+
+              return result
             }
             const [streamA, streamB] = existingEntry.value.tee()
             existingEntry.value = streamB
@@ -851,10 +856,17 @@ export function cache(
               cacheSignal.endRead()
             }
 
-            return makeHangingPromise(
+            const result = makeHangingPromise(
               workUnitStore.renderSignal,
               'dynamic "use cache"'
             )
+
+            pendingInvocation.resolve({
+              pendingEntry: Promise.resolve(entry),
+              result,
+            })
+
+            return result
           }
 
           if (
