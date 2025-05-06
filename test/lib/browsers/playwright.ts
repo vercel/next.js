@@ -229,10 +229,6 @@ export class Playwright<TCurrent = undefined> {
       cpuThrottleRate?: number
       pushErrorAsConsoleLog?: boolean
       beforePageLoad?: (page: Page) => void
-      /**
-       * @default "load"
-       */
-      waitUntil?: 'domcontentloaded' | 'load' | 'networkidle' | 'commit'
     }
   ) {
     await this.close()
@@ -316,7 +312,7 @@ export class Playwright<TCurrent = undefined> {
 
     opts?.beforePageLoad?.(page)
 
-    await page.goto(url, { waitUntil: opts?.waitUntil ?? 'load' })
+    await page.goto(url, { waitUntil: 'load' })
   }
 
   back(options?: Parameters<Page['goBack']>[0]) {
@@ -331,14 +327,10 @@ export class Playwright<TCurrent = undefined> {
       await page.goForward(options)
     })
   }
-  refresh({
-    waitUntil,
-  }: {
-    waitUntil?: 'domcontentloaded' | 'load' | 'networkidle' | 'commit'
-  } = {}) {
+  refresh() {
     // do not preserve the previous chained value, it's likely to be invalid after a reload.
     return this.startChain(async () => {
-      await page.reload({ waitUntil })
+      await page.reload()
     })
   }
   setDimensions({ width, height }: { height: number; width: number }) {
