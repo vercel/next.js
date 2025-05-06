@@ -126,6 +126,10 @@ export const CODE_FRAME_STYLES = `
     padding: var(--code-frame-padding);
   }
 
+  .code-frame-pre {
+    display: grid;
+  }
+
   .code-frame-link svg {
     flex-shrink: 0;
   }
