@@ -6,7 +6,7 @@ import type { TreeNode } from '../../../../../../../../shared/lib/devtool-contex
 import { cx } from '../../../../utils/cx'
 import { LeftArrow } from '../../../../icons/left-arrow'
 
-const IconLayout = (props: any) => {
+const IconLayout = (props: React.SVGProps<SVGSVGElement>) => {
   return (
     <svg
       {...props}
@@ -22,7 +22,7 @@ const IconLayout = (props: any) => {
   )
 }
 
-const IconPage = (props: any) => {
+const IconPage = (props: React.SVGProps<SVGSVGElement>) => {
   return (
     <svg
       {...props}
@@ -32,8 +32,8 @@ const IconPage = (props: any) => {
       xmlns="http://www.w3.org/2000/svg"
     >
       <path
-        fill-rule="evenodd"
-        clip-rule="evenodd"
+        fillRule="evenodd"
+        clipRule="evenodd"
         d="M14.5 6.5V13.5C14.5 14.8807 13.3807 16 12 16H4C2.61929 16 1.5 14.8807 1.5 13.5V1.5V0H3H8H9.08579C9.351 0 9.60536 0.105357 9.79289 0.292893L14.2071 4.70711C14.3946 4.89464 14.5 5.149 14.5 5.41421V6.5ZM13 6.5V13.5C13 14.0523 12.5523 14.5 12 14.5H4C3.44772 14.5 3 14.0523 3 13.5V1.5H8V5V6.5H9.5H13ZM9.5 2.12132V5H12.3787L9.5 2.12132Z"
         fill="currentColor"
       />
@@ -49,11 +49,13 @@ const ICONS = {
 function SegmentTree({ tree }: { tree: TreeNode }) {
   const renderedRef = useRef<Record<string, number>>({})
   return (
-    <SegmentTreeLayerPresentation
-      node={tree}
-      level={0}
-      renderedRef={renderedRef}
-    />
+    <div className="segment-viewer-content">
+      <SegmentTreeLayerPresentation
+        node={tree}
+        level={0}
+        renderedRef={renderedRef}
+      />
+    </div>
   )
 }
 
@@ -82,27 +84,24 @@ function SegmentTreeLayerPresentation({
   }
   const nodeName = node.name || 'root'
   const segments = node.pagePath.split('/')
-  const pathSeg = segments.slice(level, -1).join('/')
-  const fileBaseName = node.nodeInfo.filePath.split('/').pop() || ''
+  const pagePath = segments.slice(0, -1).join('/')
+  const fileBaseName = segments[segments.length - 1]
 
   return (
-    <div
-      className="tree-node-display"
-      style={{ paddingLeft: `${Math.max(segments.length - 1, 0) * 16}px` }}
-    >
+    <div className="segment-viewer-item">
       {level === 0 ? null : (
-        <div className="tree-node-display-row">
-          <div className="tree-node-line-info">
-            <div className={cx(`tree-node-line-info-text-${nodeName}`)}>
+        <div className="segment-viewer-item-row">
+          <div className="segment-viewer-line">
+            <div className={cx(`segment-viewer-line-text-${nodeName}`)}>
               <span
                 className={cx(
-                  'tree-node-line-info-icon',
-                  `tree-node-line-info-icon-${nodeName}`
+                  'segment-viewer-line-icon',
+                  `segment-viewer-line-icon-${nodeName}`
                 )}
               >
                 {nodeName === 'layout' ? ICONS.layout : ICONS.page}
               </span>
-              {pathSeg === '' ? '' : `${pathSeg}/`}
+              {pagePath === '' ? '' : `${pagePath}/`}
               <span className="tree-node-filename-path">{fileBaseName}</span>
             </div>
           </div>
@@ -163,12 +162,13 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     height: 20px;
   }
 
-  .tree-node-display {
-    max-height: 300px;
+  .segment-viewer-content {
     overflow-y: auto;
+    padding: 0 12px;
+    font-size: var(--size-14);
   }
 
-  .tree-node-display-row {
+  .segment-viewer-item-row {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -204,16 +204,16 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
     text-decoration: inherit;
   }
 
-  .tree-node-line-info {
+  .segment-viewer-line {
     white-space: pre;
   }
 
-  .tree-node-line-info-icon {
+  .segment-viewer-line-icon {
     margin-right: 4px;
   }
 
-  .tree-node-line-info-text-page .tree-node-filename-path,
-  .tree-node-line-info-text-page .tree-node-line-info-icon-page {
-    color: var(--color-blue-700);
+  .segment-viewer-line-text-page {
+    color: var(--color-blue-900);
+    font-weight: 500;
   }
 `
