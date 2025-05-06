@@ -148,7 +148,7 @@ export function PageSegmentsViewer(
           <button className="segment-viewer-back-button" onClick={props.close}>
             <LeftArrow />
           </button>
-          {'Segments Viewer'}
+          {'Segment Explorer'}
         </>
       }
       closeButton={false}

@@ -670,6 +670,11 @@ export interface ExperimentalConfig {
    * Note: Use with caution as this can negatively impact page loading performance.
    */
   clientInstrumentationHook?: boolean
+
+  /**
+   * Enable segment viewer for the app directory in dev tool.
+   */
+  devtoolSegmentExplorer?: boolean
 }
 
 export type ExportPathMap = {
@@ -1364,6 +1369,7 @@ export const defaultConfig: NextConfig = {
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,
+    devtoolSegmentExplorer: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

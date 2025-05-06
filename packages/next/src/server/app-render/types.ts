@@ -270,6 +270,11 @@ export interface RenderOptsPartial {
    * statically generated.
    */
   doNotThrowOnEmptyStaticShell?: boolean
+
+  /**
+   * next config experimental.devtoolSegmentExplorer
+   */
+  devtoolSegmentExplorer?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
