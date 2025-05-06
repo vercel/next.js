@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 
 use crate::{FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent};
 
@@ -131,11 +131,6 @@ impl FileSystem for AttachedFileSystem {
     #[turbo_tasks::function(fs)]
     fn raw_read_dir(self: Vc<Self>, path: Vc<FileSystemPath>) -> Vc<RawDirectoryContent> {
         self.get_inner_fs_path(path).raw_read_dir()
-    }
-
-    #[turbo_tasks::function(fs)]
-    fn track(self: Vc<Self>, path: Vc<FileSystemPath>) -> Vc<Completion> {
-        self.get_inner_fs_path(path).track()
     }
 
     #[turbo_tasks::function(fs)]
