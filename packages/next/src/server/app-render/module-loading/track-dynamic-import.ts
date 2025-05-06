@@ -46,3 +46,22 @@ export function trackDynamicImport<TExports extends Record<string, any>>(
 
   return modulePromise
 }
+
+export function trackAsyncFunction<TFn extends (...args: any[]) => any>(
+  name: string,
+  func: TFn
+): TFn {
+  // it'd be confusing to see `__turbopack_require__` in a callstack twice, so disambiguate
+  const wrapperName = 'tracked' + name
+
+  return {
+    [wrapperName]: function (this: unknown) {
+      const result = func.call(this, arguments)
+      if (isThenable(result)) {
+        return trackDynamicImport(result)
+      } else {
+        return result
+      }
+    },
+  }[wrapperName] as TFn
+}
