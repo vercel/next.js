@@ -81,7 +81,7 @@ struct HasPath {
 }
 
 pub(crate) async fn can_use_next_font(
-    project_path: Vc<FileSystemPath>,
+    project_path: FileSystemPath,
     query: Vc<RcStr>,
 ) -> Result<bool> {
     let query_map = qstring::QString::from(&**query.await?);
@@ -94,11 +94,11 @@ pub(crate) async fn can_use_next_font(
     )?;
 
     let document_re = lazy_regex::regex!("^(src/)?_document\\.[^/]+$");
-    let path = project_path.join(request.path.clone());
+    let path = project_path.join(&request.path)?;
     let can_use = !document_re.is_match(&request.path);
     if !can_use {
         NextFontIssue {
-            path: path.to_resolved().await?,
+            path,
             title: StyledString::Line(vec![
                 StyledString::Code("next/font:".into()),
                 StyledString::Text(" error:".into()),

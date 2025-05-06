@@ -6,7 +6,7 @@ use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use similar::TextDiff;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, File, FileContent, FileSystemEntryType, FileSystemPath,
 };
@@ -25,10 +25,10 @@ static ANSI_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\x1b\[\d+m").unwrap()
 
 pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
     captured_issues: I,
-    issues_path: Vc<FileSystemPath>,
+    issues_path: FileSystemPath,
     workspace_root: &str,
 ) -> Result<()> {
-    let expected_issues = expected(issues_path).await?;
+    let expected_issues = expected(issues_path.clone()).await?;
     let mut seen = FxHashSet::default();
     for plain_issue in captured_issues.into_iter() {
         let title = styled_string_to_file_safe_string(&plain_issue.title)
@@ -45,8 +45,8 @@ pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
         };
         let hash = encode_hex(plain_issue.internal_hash_ref(true));
 
-        let path = issues_path.join(format!("{title}-{}.txt", &hash[0..6]).into());
-        if !seen.insert(path) {
+        let path = issues_path.join(&format!("{title}-{}.txt", &hash[0..6]))?;
+        if !seen.insert(path.clone()) {
             continue;
         }
 
@@ -81,14 +81,14 @@ pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
     matches_expected(expected_issues, seen).await
 }
 
-pub async fn expected(dir: Vc<FileSystemPath>) -> Result<FxHashSet<Vc<FileSystemPath>>> {
+pub async fn expected(dir: FileSystemPath) -> Result<FxHashSet<FileSystemPath>> {
     let mut expected = FxHashSet::default();
     let entries = dir.read_dir().await?;
     if let DirectoryContent::Entries(entries) = &*entries {
         for (file, entry) in entries {
             match entry {
                 DirectoryEntry::File(file) => {
-                    expected.insert(**file);
+                    expected.insert(file.clone());
                 }
                 _ => bail!(
                     "expected file at {}, found {:?}",
@@ -102,13 +102,13 @@ pub async fn expected(dir: Vc<FileSystemPath>) -> Result<FxHashSet<Vc<FileSystem
 }
 
 pub async fn matches_expected(
-    expected: FxHashSet<Vc<FileSystemPath>>,
-    seen: FxHashSet<Vc<FileSystemPath>>,
+    expected: FxHashSet<FileSystemPath>,
+    seen: FxHashSet<FileSystemPath>,
 ) -> Result<()> {
     for path in diff_paths(&expected, &seen).await? {
-        let p = &path.await?.path;
+        let p = &path.path;
         if *UPDATE {
-            remove_file(path).await?;
+            remove_file(path.clone()).await?;
             println!("removed file {p}");
         } else {
             bail!("expected file {}, but it was not emitted", p);
@@ -117,12 +117,12 @@ pub async fn matches_expected(
     Ok(())
 }
 
-pub async fn diff(path: Vc<FileSystemPath>, actual: Vc<AssetContent>) -> Result<()> {
-    let path_str = &path.await?.path;
+pub async fn diff(path: FileSystemPath, actual: Vc<AssetContent>) -> Result<()> {
+    let path_str = &path.path;
     let expected = AssetContent::file(path.read());
 
-    let actual = get_contents(actual, path).await?;
-    let expected = get_contents(expected, path).await?;
+    let actual = get_contents(actual, path.clone()).await?;
+    let expected = get_contents(expected, path.clone()).await?;
 
     if actual != expected {
         if let Some(actual) = actual {
@@ -154,15 +154,15 @@ pub async fn diff(path: Vc<FileSystemPath>, actual: Vc<AssetContent>) -> Result<
     Ok(())
 }
 
-async fn get_contents(file: Vc<AssetContent>, path: Vc<FileSystemPath>) -> Result<Option<String>> {
+async fn get_contents(file: Vc<AssetContent>, path: FileSystemPath) -> Result<Option<String>> {
     Ok(
         match &*file.await.context(format!(
             "Unable to read AssetContent of {}",
-            path.to_string().await?
+            path.value_to_string().await?
         ))? {
             AssetContent::File(file) => match &*file.await.context(format!(
                 "Unable to read FileContent of {}",
-                path.to_string().await?
+                path.value_to_string().await?
             ))? {
                 FileContent::NotFound => None,
                 FileContent::Content(expected) => {
@@ -184,30 +184,30 @@ async fn get_contents(file: Vc<AssetContent>, path: Vc<FileSystemPath>) -> Resul
     )
 }
 
-async fn remove_file(path: Vc<FileSystemPath>) -> Result<()> {
+async fn remove_file(path: FileSystemPath) -> Result<()> {
     path.write(FileContent::NotFound.cell()).await?;
     Ok(())
 }
 
 /// Values in left that are not in right.
-/// Vc<FileSystemPath> hashes as a Vc, not as the file path, so we need to get
+/// FileSystemPath hashes as a Vc, not as the file path, so we need to get
 /// the path to properly diff.
 async fn diff_paths(
-    left: &FxHashSet<Vc<FileSystemPath>>,
-    right: &FxHashSet<Vc<FileSystemPath>>,
-) -> Result<FxHashSet<Vc<FileSystemPath>>> {
+    left: &FxHashSet<FileSystemPath>,
+    right: &FxHashSet<FileSystemPath>,
+) -> Result<FxHashSet<FileSystemPath>> {
     let mut map = left
         .iter()
-        .map(|p| async move { Ok((p.await?.path.clone(), *p)) })
+        .map(|p| async move { Ok((p.path.clone(), p.clone())) })
         .try_join()
         .await?
         .iter()
         .cloned()
         .collect::<FxHashMap<_, _>>();
     for p in right {
-        map.remove(&p.await?.path);
+        map.remove(&p.path);
     }
-    Ok(map.values().copied().collect())
+    Ok(map.values().cloned().collect())
 }
 
 fn styled_string_to_file_safe_string(styled_string: &StyledString) -> String {

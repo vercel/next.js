@@ -18,13 +18,13 @@ use turbopack_core::{
 #[turbo_tasks::value]
 #[derive(Hash, Clone, Debug)]
 pub struct PackageJsonReference {
-    pub package_json: ResolvedVc<FileSystemPath>,
+    pub package_json: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl PackageJsonReference {
     #[turbo_tasks::function]
-    pub fn new(package_json: ResolvedVc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(package_json: FileSystemPath) -> Vc<Self> {
         Self::cell(PackageJsonReference { package_json })
     }
 }
@@ -34,7 +34,7 @@ impl ModuleReference for PackageJsonReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
-            RawModule::new(Vc::upcast(FileSource::new(*self.package_json)))
+            RawModule::new(Vc::upcast(FileSource::new(self.package_json.clone())))
                 .to_resolved()
                 .await?,
         )))
@@ -46,7 +46,7 @@ impl ValueToString for PackageJsonReference {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         Ok(Vc::cell(
-            format!("package.json {}", self.package_json.to_string().await?,).into(),
+            format!("package.json {}", self.package_json).into(),
         ))
     }
 }
@@ -68,7 +68,7 @@ impl DirAssetReference {
 
 #[turbo_tasks::function]
 async fn resolve_reference_from_dir(
-    parent_path: Vc<FileSystemPath>,
+    parent_path: FileSystemPath,
     path: Vc<Pattern>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let path_ref = path.await?;
@@ -76,7 +76,7 @@ async fn resolve_reference_from_dir(
     let matches = match (abs_path, rel_path) {
         (Some(abs_path), Some(rel_path)) => Either::Right(
             read_matches(
-                parent_path.root().resolve().await?,
+                (*parent_path.root().await?).clone(),
                 "/ROOT/".into(),
                 true,
                 Pattern::new(abs_path.or_any_nested_file()),
@@ -97,7 +97,7 @@ async fn resolve_reference_from_dir(
         (Some(abs_path), None) => Either::Left(
             // absolute path only
             read_matches(
-                parent_path.root().resolve().await?,
+                (*parent_path.root().await?).clone(),
                 "/ROOT/".into(),
                 true,
                 Pattern::new(abs_path.or_any_nested_file()),
@@ -124,15 +124,15 @@ async fn resolve_reference_from_dir(
         match pat_match {
             PatternMatch::File(matched_path, file) => {
                 let realpath = file.realpath_with_links().await?;
-                for &symlink in &realpath.symlinks {
+                for symlink in realpath.symlinks.iter() {
                     affecting_sources.push(ResolvedVc::upcast(
-                        FileSource::new(*symlink).to_resolved().await?,
+                        FileSource::new(symlink.clone()).to_resolved().await?,
                     ));
                 }
                 results.push((
                     RequestKey::new(matched_path.clone()),
                     ResolvedVc::upcast(
-                        RawModule::new(Vc::upcast(FileSource::new(*realpath.path)))
+                        RawModule::new(Vc::upcast(FileSource::new((realpath.path).clone())))
                             .to_resolved()
                             .await?,
                     ),
@@ -151,11 +151,8 @@ async fn resolve_reference_from_dir(
 impl ModuleReference for DirAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let parent_path = self.source.ident().path().parent();
-        Ok(resolve_reference_from_dir(
-            parent_path.resolve().await?,
-            *self.path,
-        ))
+        let parent_path = self.source.ident().path().await?.parent();
+        Ok(resolve_reference_from_dir(parent_path, *self.path))
     }
 }
 

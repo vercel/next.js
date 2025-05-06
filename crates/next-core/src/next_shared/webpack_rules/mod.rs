@@ -12,7 +12,7 @@ pub(crate) mod babel;
 pub(crate) mod sass;
 
 pub async fn webpack_loader_options(
-    project_path: ResolvedVc<FileSystemPath>,
+    project_path: FileSystemPath,
     next_config: Vc<NextConfig>,
     foreign: bool,
     condition_strs: Vec<RcStr>,
@@ -22,7 +22,7 @@ pub async fn webpack_loader_options(
     let rules = if foreign {
         rules
     } else {
-        *maybe_add_babel_loader(*project_path, rules.map(|v| *v)).await?
+        *maybe_add_babel_loader(project_path.clone(), rules.map(|v| *v)).await?
     };
 
     let conditions = next_config.webpack_conditions().to_resolved().await?;

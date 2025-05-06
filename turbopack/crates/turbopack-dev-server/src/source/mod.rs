@@ -422,7 +422,7 @@ pub trait ContentSource {
 pub trait ContentSourceExt {
     fn issue_file_path(
         self: Vc<Self>,
-        file_path: Vc<FileSystemPath>,
+        file_path: FileSystemPath,
         description: RcStr,
     ) -> Vc<Box<dyn ContentSource>>;
 }
@@ -433,7 +433,7 @@ where
 {
     fn issue_file_path(
         self: Vc<Self>,
-        file_path: Vc<FileSystemPath>,
+        file_path: FileSystemPath,
         description: RcStr,
     ) -> Vc<Box<dyn ContentSource>> {
         Vc::upcast(IssueFilePathContentSource::new_file_path(

@@ -34,7 +34,7 @@ pub async fn create_page_loader_entry_module(
         StringifyJs(&*pathname.await?)
     )?;
 
-    let page_loader_path = next_js_file_path("entry/page-loader.ts".into());
+    let page_loader_path = (*next_js_file_path("entry/page-loader.ts".into()).await?).clone();
     let base_code = page_loader_path.read();
     if let FileContent::Content(base_file) = &*base_code.await? {
         result += base_file.content()
@@ -45,7 +45,7 @@ pub async fn create_page_loader_entry_module(
     let file = File::from(result.build());
 
     let virtual_source = Vc::upcast(VirtualSource::new(
-        page_loader_path,
+        page_loader_path.cell(),
         AssetContent::file(file.into()),
     ));
 
@@ -71,7 +71,7 @@ pub async fn create_page_loader_entry_module(
 
 #[turbo_tasks::value(shared)]
 pub struct PageLoaderAsset {
-    pub server_root: ResolvedVc<FileSystemPath>,
+    pub server_root: FileSystemPath,
     pub pathname: ResolvedVc<RcStr>,
     pub rebase_prefix_path: ResolvedVc<FileSystemPathOption>,
     pub page_chunks: ResolvedVc<OutputAssets>,
@@ -81,7 +81,7 @@ pub struct PageLoaderAsset {
 impl PageLoaderAsset {
     #[turbo_tasks::function]
     pub fn new(
-        server_root: ResolvedVc<FileSystemPath>,
+        server_root: FileSystemPath,
         pathname: ResolvedVc<RcStr>,
         rebase_prefix_path: ResolvedVc<FileSystemPathOption>,
         page_chunks: ResolvedVc<OutputAssets>,
@@ -105,23 +105,31 @@ impl PageLoaderAsset {
         // If we are provided a prefix path, we need to rewrite our chunk paths to
         // remove that prefix.
         if let Some(rebase_path) = &*rebase_prefix_path.await? {
-            let root_path = rebase_path.root();
+            let root_path = (*rebase_path.root().await?).clone();
+
             let rebased = chunks
                 .await?
                 .iter()
                 .map(|&chunk| {
-                    Vc::upcast::<Box<dyn OutputAsset>>(ProxiedAsset::new(
-                        *chunk,
-                        FileSystemPath::rebase(chunk.path(), **rebase_path, root_path),
-                    ))
-                    .to_resolved()
+                    let rebase_path = rebase_path.clone();
+                    let root_path = root_path.clone();
+
+                    async move {
+                        Vc::upcast::<Box<dyn OutputAsset>>(ProxiedAsset::new(
+                            *chunk,
+                            FileSystemPath::rebase(&*chunk.path().await?, rebase_path, root_path)
+                                .await?,
+                        ))
+                        .to_resolved()
+                        .await
+                    }
                 })
                 .try_join()
                 .await?;
             chunks = ResolvedVc::cell(rebased);
         };
 
-        Ok(ChunkData::from_assets(*self.server_root, *chunks))
+        Ok(ChunkData::from_assets(self.server_root.clone(), *chunks))
     }
 }
 
@@ -137,14 +145,14 @@ impl OutputAsset for PageLoaderAsset {
         let root = self
             .rebase_prefix_path
             .await?
-            .map_or(*self.server_root, |path| *path);
-        Ok(root.join(
-            format!(
+            .as_ref()
+            .map_or(self.server_root.clone(), |path| path.clone());
+        Ok(root
+            .join(&format!(
                 "static/chunks/pages{}",
                 get_asset_path_from_pathname(&self.pathname.await?, ".js")
-            )
-            .into(),
-        ))
+            ))?
+            .cell())
     }
 
     #[turbo_tasks::function]

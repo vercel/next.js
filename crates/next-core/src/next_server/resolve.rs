@@ -37,8 +37,8 @@ pub enum ExternalPredicate {
 /// possible to resolve them at runtime.
 #[turbo_tasks::value]
 pub(crate) struct ExternalCjsModulesResolvePlugin {
-    project_path: ResolvedVc<FileSystemPath>,
-    root: ResolvedVc<FileSystemPath>,
+    project_path: FileSystemPath,
+    root: FileSystemPath,
     predicate: ResolvedVc<ExternalPredicate>,
     import_externals: bool,
 }
@@ -47,8 +47,8 @@ pub(crate) struct ExternalCjsModulesResolvePlugin {
 impl ExternalCjsModulesResolvePlugin {
     #[turbo_tasks::function]
     pub fn new(
-        project_path: ResolvedVc<FileSystemPath>,
-        root: ResolvedVc<FileSystemPath>,
+        project_path: FileSystemPath,
+        root: FileSystemPath,
         predicate: ResolvedVc<ExternalPredicate>,
         import_externals: bool,
     ) -> Vc<Self> {
@@ -63,7 +63,7 @@ impl ExternalCjsModulesResolvePlugin {
 }
 
 #[turbo_tasks::function]
-fn condition(root: Vc<FileSystemPath>) -> Vc<AfterResolvePluginCondition> {
+fn condition(root: FileSystemPath) -> Vc<AfterResolvePluginCondition> {
     AfterResolvePluginCondition::new(root, Glob::new("**/node_modules/**".into()))
 }
 
@@ -71,14 +71,14 @@ fn condition(root: Vc<FileSystemPath>) -> Vc<AfterResolvePluginCondition> {
 impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
     #[turbo_tasks::function]
     fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
-        condition(*self.root)
+        condition(self.root.clone())
     }
 
     #[turbo_tasks::function]
     async fn after_resolve(
         &self,
-        fs_path: ResolvedVc<FileSystemPath>,
-        lookup_path: ResolvedVc<FileSystemPath>,
+        fs_path: FileSystemPath,
+        lookup_path: FileSystemPath,
         reference_type: Value<ReferenceType>,
         request: ResolvedVc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
@@ -103,12 +103,15 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             return Ok(ResolveResultOption::none());
         }
 
-        let raw_fs_path = &*fs_path.await?;
+        let raw_fs_path = fs_path.clone();
 
         let predicate = self.predicate.await?;
         let must_be_external = match &*predicate {
             ExternalPredicate::AllExcept(exceptions) => {
-                if *condition(*self.root).matches(*lookup_path).await? {
+                if *condition(self.root.clone())
+                    .matches(lookup_path.clone())
+                    .await?
+                {
                     return Ok(ResolveResultOption::none());
                 }
 
@@ -161,7 +164,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         }
 
         async fn get_file_type(
-            fs_path: Vc<FileSystemPath>,
+            fs_path: FileSystemPath,
             raw_fs_path: &FileSystemPath,
         ) -> Result<FileType> {
             // node.js only supports these file extensions
@@ -177,7 +180,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // for .js extension in cjs context, we need to check the actual module type via
                 // package.json
                 let FindContextFileResult::Found(package_json, _) =
-                    *find_context_file(fs_path.parent(), package_json()).await?
+                    &*find_context_file(fs_path.parent(), package_json()).await?
                 else {
                     // can't find package.json
                     return Ok(FileType::CommonJs);
@@ -200,7 +203,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         let unable_to_externalize = |reason: Vec<StyledString>| {
             if must_be_external {
                 ExternalizeIssue {
-                    file_path: lookup_path,
+                    file_path: lookup_path.clone(),
                     package: package.clone(),
                     request_str: request_str.clone(),
                     reason,
@@ -215,13 +218,13 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         let mut request_str = request_str.to_string();
 
         let node_resolve_options = if is_esm {
-            node_esm_resolve_options(lookup_path.root())
+            node_esm_resolve_options((*lookup_path.root().await?).clone())
         } else {
-            node_cjs_resolve_options(lookup_path.root())
+            node_cjs_resolve_options((*lookup_path.root().await?).clone())
         };
         let result_from_original_location = loop {
             let node_resolved_from_original_location = resolve(
-                *lookup_path,
+                lookup_path.clone(),
                 reference_type.clone(),
                 request,
                 node_resolve_options,
@@ -254,7 +257,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             break result_from_original_location;
         };
         let node_resolved = resolve(
-            *self.project_path,
+            self.project_path.clone(),
             reference_type.clone(),
             request,
             node_resolve_options,
@@ -276,20 +279,13 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         };
 
         if result_from_original_location != result {
-            let package_json_file = find_context_file(
-                result.ident().path().parent().resolve().await?,
-                package_json(),
-            );
+            let package_json_file =
+                find_context_file(result.ident().path().await?.parent(), package_json());
             let package_json_from_original_location = find_context_file(
-                result_from_original_location
-                    .ident()
-                    .path()
-                    .parent()
-                    .resolve()
-                    .await?,
+                result_from_original_location.ident().path().await?.parent(),
                 package_json(),
             );
-            let FindContextFileResult::Found(package_json_file, _) = *package_json_file.await?
+            let FindContextFileResult::Found(package_json_file, _) = &*package_json_file.await?
             else {
                 return unable_to_externalize(vec![StyledString::Text(
                     "The package.json of the package resolved from the project directory can't be \
@@ -298,7 +294,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 )]);
             };
             let FindContextFileResult::Found(package_json_from_original_location, _) =
-                *package_json_from_original_location.await?
+                &*package_json_from_original_location.await?
             else {
                 return unable_to_externalize(vec![StyledString::Text(
                     "The package.json of the package can't be found.".into(),
@@ -355,8 +351,8 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 )]);
             }
         }
-        let path = result.ident().path().resolve().await?;
-        let file_type = get_file_type(path, &*path.await?).await?;
+        let path = (*result.ident().path().await?).clone();
+        let file_type = get_file_type(path.clone(), &path).await?;
 
         let external_type = match (file_type, is_esm) {
             (FileType::UnsupportedExtension, _) => {
@@ -376,16 +372,17 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             (FileType::CommonJs, true) => {
                 // It would be more efficient to use an CJS external instead of an ESM external,
                 // but we need to verify if that would be correct (as in resolves to the same file).
-                let node_resolve_options = node_cjs_resolve_options(lookup_path.root());
+                let node_resolve_options =
+                    node_cjs_resolve_options((*lookup_path.root().await?).clone());
                 let node_resolved = resolve(
-                    *self.project_path,
+                    self.project_path.clone(),
                     reference_type.clone(),
                     request,
                     node_resolve_options,
                 );
                 let resolves_equal = if let Some(result) = *node_resolved.first_source().await? {
                     let cjs_path = result.ident().path();
-                    cjs_path.resolve().await? == path
+                    (*cjs_path.await?) == path
                 } else {
                     false
                 };
@@ -451,7 +448,7 @@ async fn packages_glob(packages: Vc<Vec<RcStr>>) -> Result<Vc<OptionPackagesGlob
 
 #[turbo_tasks::value]
 struct ExternalizeIssue {
-    file_path: ResolvedVc<FileSystemPath>,
+    file_path: FileSystemPath,
     package: RcStr,
     request_str: RcStr,
     reason: Vec<StyledString>,
@@ -481,7 +478,7 @@ impl Issue for ExternalizeIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.file_path
+        self.file_path.clone().cell()
     }
 
     #[turbo_tasks::function]

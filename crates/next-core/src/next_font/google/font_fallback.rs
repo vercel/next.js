@@ -44,7 +44,7 @@ struct Fallback {
 
 #[turbo_tasks::function]
 pub(super) async fn get_font_fallback(
-    lookup_path: ResolvedVc<FileSystemPath>,
+    lookup_path: FileSystemPath,
     options_vc: Vc<NextFontGoogleOptions>,
 ) -> Result<Vc<FontFallback>> {
     let options = options_vc.await?;
@@ -52,8 +52,8 @@ pub(super) async fn get_font_fallback(
         Some(fallback) => FontFallback::Manual(fallback.clone()).cell(),
         None => {
             let metrics_json = load_next_js_templateon(
-                lookup_path,
-                "dist/server/capsize-font-metrics.json".into(),
+                lookup_path.clone(),
+                "dist/server/capsize-font-metrics.json",
             )
             .await?;
             let fallback = lookup_fallback(
@@ -76,7 +76,7 @@ pub(super) async fn get_font_fallback(
                 .cell(),
                 Err(_) => {
                     NextFontIssue {
-                        path: lookup_path,
+                        path: lookup_path.clone(),
                         title: StyledString::Text(
                             format!(
                                 "Failed to find font override values for font `{}`",

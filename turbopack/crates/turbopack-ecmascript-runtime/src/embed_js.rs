@@ -1,3 +1,4 @@
+use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{FileContent, FileSystem, FileSystemPath, embed_directory};
@@ -10,20 +11,25 @@ pub fn embed_fs() -> Vc<Box<dyn FileSystem>> {
 }
 
 #[turbo_tasks::function]
-pub fn embed_file(path: RcStr) -> Vc<FileContent> {
-    embed_fs().root().join(path).read()
+pub async fn embed_file(path: RcStr) -> Result<Vc<FileContent>> {
+    Ok(embed_fs().root().await?.join(&path)?.read())
 }
 
 #[turbo_tasks::function]
-pub fn embed_file_path(path: RcStr) -> Vc<FileSystemPath> {
-    embed_fs().root().join(path)
+pub async fn embed_file_path(path: RcStr) -> Result<Vc<FileSystemPath>> {
+    Ok(embed_fs().root().await?.join(&path)?.cell())
 }
 
 #[turbo_tasks::function]
-pub fn embed_static_code(
+pub async fn embed_static_code(
     asset_context: Vc<Box<dyn AssetContext>>,
     path: RcStr,
     generate_source_map: bool,
-) -> Vc<Code> {
-    StaticEcmascriptCode::new(asset_context, embed_file_path(path), generate_source_map).code()
+) -> Result<Vc<Code>> {
+    Ok(StaticEcmascriptCode::new(
+        asset_context,
+        (*embed_file_path(path).await?).clone(),
+        generate_source_map,
+    )
+    .code())
 }

@@ -27,12 +27,12 @@ impl StaticEcmascriptCode {
     #[turbo_tasks::function]
     pub async fn new(
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
-        asset_path: ResolvedVc<FileSystemPath>,
+        asset_path: FileSystemPath,
         generate_source_map: bool,
     ) -> Result<Vc<Self>> {
         let module = asset_context
             .process(
-                Vc::upcast(FileSource::new(*asset_path)),
+                Vc::upcast(FileSource::new(asset_path.clone())),
                 Value::new(ReferenceType::Runtime),
             )
             .module()

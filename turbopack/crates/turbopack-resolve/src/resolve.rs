@@ -84,17 +84,17 @@ const EDGE_NODE_EXTERNALS: [&str; 5] = ["buffer", "events", "assert", "util", "a
 
 #[turbo_tasks::function]
 async fn base_resolve_options(
-    resolve_path: Vc<FileSystemPath>,
+    resolve_path: FileSystemPath,
     options_context: Vc<ResolveOptionsContext>,
 ) -> Result<Vc<ResolveOptions>> {
-    let parent = resolve_path.parent().resolve().await?;
+    let parent = resolve_path.parent();
     if parent != resolve_path {
         return Ok(base_resolve_options(parent, options_context));
     }
-    let resolve_path_value = resolve_path.await?;
+    let resolve_path_value = resolve_path.clone();
     let opt = options_context.await?;
     let emulating = opt.emulate_environment;
-    let root = resolve_path_value.fs.root();
+    let root = (*resolve_path_value.fs.root().await?).clone();
     let mut direct_mappings = AliasMap::new();
     let node_externals = if let Some(environment) = emulating {
         environment.node_externals().owned().await?
@@ -218,7 +218,7 @@ async fn base_resolve_options(
         modules: if let Some(environment) = emulating {
             if *environment.resolve_node_modules().await? {
                 vec![ResolveModules::Nested(
-                    root.to_resolved().await?,
+                    root.clone(),
                     vec!["node_modules".into()],
                 )]
             } else {
@@ -226,7 +226,7 @@ async fn base_resolve_options(
             }
         } else {
             let mut mods = Vec::new();
-            if let Some(dir) = opt.enable_node_modules {
+            if let Some(dir) = opt.enable_node_modules.clone() {
                 mods.push(ResolveModules::Nested(dir, vec!["node_modules".into()]));
             }
             mods
@@ -274,42 +274,43 @@ async fn base_resolve_options(
 
 #[turbo_tasks::function]
 pub async fn resolve_options(
-    resolve_path: Vc<FileSystemPath>,
+    resolve_path: FileSystemPath,
     options_context: Vc<ResolveOptionsContext>,
 ) -> Result<Vc<ResolveOptions>> {
     let options_context_value = options_context.await?;
     if !options_context_value.rules.is_empty() {
-        let context_value = &*resolve_path.await?;
+        let context_value = resolve_path.clone();
         for (condition, new_options_context) in options_context_value.rules.iter() {
-            if condition.matches(context_value).await? {
+            if condition.matches(&context_value).await? {
                 return Ok(resolve_options(resolve_path, **new_options_context));
             }
         }
     }
 
-    let resolve_options = base_resolve_options(resolve_path, options_context);
+    let resolve_options = base_resolve_options(resolve_path.clone(), options_context);
 
     let resolve_options = if options_context_value.enable_typescript {
         let find_tsconfig = async || {
             // Otherwise, attempt to find a tsconfig up the file tree
-            let tsconfig = find_context_file(resolve_path, tsconfig()).await?;
-            anyhow::Ok::<Vc<ResolveOptions>>(match *tsconfig {
-                FindContextFileResult::Found(path, _) => {
-                    apply_tsconfig_resolve_options(resolve_options, tsconfig_resolve_options(*path))
-                }
+            let tsconfig = find_context_file(resolve_path.clone(), tsconfig()).await?;
+            anyhow::Ok::<Vc<ResolveOptions>>(match &*tsconfig {
+                FindContextFileResult::Found(path, _) => apply_tsconfig_resolve_options(
+                    resolve_options,
+                    tsconfig_resolve_options(path.clone()),
+                ),
                 FindContextFileResult::NotFound(_) => resolve_options,
             })
         };
 
         // Use a specified tsconfig path if provided. In Next.js, this is always provided by the
         // default config, at the very least.
-        if let Some(tsconfig_path) = options_context_value.tsconfig_path {
+        if let Some(tsconfig_path) = options_context_value.tsconfig_path.clone() {
             let meta = tsconfig_path.metadata().await;
             if meta.is_ok() {
                 // If the file exists, use it.
                 apply_tsconfig_resolve_options(
                     resolve_options,
-                    tsconfig_resolve_options(*tsconfig_path),
+                    tsconfig_resolve_options(tsconfig_path.clone()),
                 )
             } else {
                 // Otherwise, try and find one.

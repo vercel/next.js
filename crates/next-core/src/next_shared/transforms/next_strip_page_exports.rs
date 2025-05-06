@@ -4,7 +4,7 @@ use next_custom_transforms::transforms::strip_page_exports::{
     ExportFilter, next_transform_strip_page_exports,
 };
 use swc_core::ecma::ast::Program;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::ResolvedVc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
@@ -13,7 +13,7 @@ use super::module_rule_match_js_no_url;
 
 /// Returns a rule which applies the Next.js page export stripping transform.
 pub async fn get_next_pages_transforms_rule(
-    pages_dir: Vc<FileSystemPath>,
+    pages_dir: FileSystemPath,
     export_filter: ExportFilter,
     enable_mdx_rs: bool,
 ) -> Result<ModuleRule> {
@@ -25,20 +25,16 @@ pub async fn get_next_pages_transforms_rule(
     Ok(ModuleRule::new(
         RuleCondition::all(vec![
             RuleCondition::all(vec![
-                RuleCondition::ResourcePathInExactDirectory(pages_dir.await?),
+                RuleCondition::ResourcePathInExactDirectory(pages_dir.clone()),
                 RuleCondition::not(RuleCondition::ResourcePathInExactDirectory(
-                    pages_dir.join("api".into()).await?,
+                    pages_dir.join("api")?,
                 )),
                 RuleCondition::not(RuleCondition::any(vec![
                     // TODO(alexkirsz): Possibly ignore _app as well?
-                    RuleCondition::ResourcePathEquals(pages_dir.join("_document.js".into()).await?),
-                    RuleCondition::ResourcePathEquals(
-                        pages_dir.join("_document.jsx".into()).await?,
-                    ),
-                    RuleCondition::ResourcePathEquals(pages_dir.join("_document.ts".into()).await?),
-                    RuleCondition::ResourcePathEquals(
-                        pages_dir.join("_document.tsx".into()).await?,
-                    ),
+                    RuleCondition::ResourcePathEquals(pages_dir.join("_document.js")?),
+                    RuleCondition::ResourcePathEquals(pages_dir.join("_document.jsx")?),
+                    RuleCondition::ResourcePathEquals(pages_dir.join("_document.ts")?),
+                    RuleCondition::ResourcePathEquals(pages_dir.join("_document.tsx")?),
                 ])),
             ]),
             module_rule_match_js_no_url(enable_mdx_rs),

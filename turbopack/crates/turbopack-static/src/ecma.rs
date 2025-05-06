@@ -140,8 +140,7 @@ impl EcmascriptChunkItem for StaticUrlJsChunkItem {
                 path = StringifyJs(
                     &self
                         .chunking_context
-                        .asset_url(self.static_asset.path())
-                        .await?
+                        .asset_url((*self.static_asset.path().await?).clone())
                 )
             )
             .into(),

@@ -95,12 +95,13 @@ impl EcmascriptBuildNodeRuntimeChunk {
     }
 
     #[turbo_tasks::function]
-    fn ident_for_path(self: Vc<Self>) -> Vc<AssetIdent> {
-        AssetIdent::from_path(
+    async fn ident_for_path(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
+        Ok(AssetIdent::from_path(
             turbopack_ecmascript_runtime::embed_fs()
                 .root()
-                .join("runtime.js".into()),
-        )
+                .await?
+                .join("runtime.js")?,
+        ))
     }
 
     #[turbo_tasks::function]

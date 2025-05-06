@@ -26,7 +26,7 @@ pub async fn content_from_relative_path(
     );
     disk_fs.await?.start_watching(None).await?;
 
-    let fs_path = disk_fs.root().join(path.into());
+    let fs_path = disk_fs.root().await?.join(path)?;
     Ok(fs_path.read())
 }
 

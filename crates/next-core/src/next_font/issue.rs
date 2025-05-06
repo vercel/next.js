@@ -4,7 +4,7 @@ use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString
 
 #[turbo_tasks::value(shared)]
 pub(crate) struct NextFontIssue {
-    pub(crate) path: ResolvedVc<FileSystemPath>,
+    pub(crate) path: FileSystemPath,
     pub(crate) title: ResolvedVc<StyledString>,
     pub(crate) description: ResolvedVc<StyledString>,
     pub(crate) severity: ResolvedVc<IssueSeverity>,
@@ -24,7 +24,7 @@ impl Issue for NextFontIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.path
+        self.path.clone().cell()
     }
 
     #[turbo_tasks::function]

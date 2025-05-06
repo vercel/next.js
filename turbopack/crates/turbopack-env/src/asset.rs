@@ -16,7 +16,7 @@ use turbopack_ecmascript::utils::StringifyJs;
 #[turbo_tasks::value]
 pub struct ProcessEnvAsset {
     /// The root path which we can construct our env asset path.
-    root: ResolvedVc<FileSystemPath>,
+    root: FileSystemPath,
 
     /// A HashMap filled with the env key/values.
     env: ResolvedVc<Box<dyn ProcessEnv>>,
@@ -26,7 +26,7 @@ pub struct ProcessEnvAsset {
 impl ProcessEnvAsset {
     #[turbo_tasks::function]
     pub async fn new(
-        root: ResolvedVc<FileSystemPath>,
+        root: FileSystemPath,
         env: ResolvedVc<Box<dyn ProcessEnv>>,
     ) -> Result<Vc<Self>> {
         Ok(ProcessEnvAsset { root, env }.cell())
@@ -36,8 +36,8 @@ impl ProcessEnvAsset {
 #[turbo_tasks::value_impl]
 impl Source for ProcessEnvAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(self.root.join(".env.js".into()))
+    fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(AssetIdent::from_path(self.root.join(".env.js")?))
     }
 }
 

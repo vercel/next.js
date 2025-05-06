@@ -4,8 +4,7 @@ use anyhow::Result;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Completion, FxIndexMap, FxIndexSet, ResolvedVc, State, TryJoinIterExt, Value, ValueToString,
-    Vc, fxindexset,
+    Completion, FxIndexMap, FxIndexSet, ResolvedVc, State, TryJoinIterExt, Value, Vc, fxindexset,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -27,7 +26,7 @@ type ExpandedState = State<FxHashSet<RcStr>>;
 
 #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new")]
 pub struct AssetGraphContentSource {
-    root_path: ResolvedVc<FileSystemPath>,
+    root_path: FileSystemPath,
     root_assets: ResolvedVc<OutputAssetsSet>,
     expanded: Option<ExpandedState>,
 }
@@ -37,7 +36,7 @@ impl AssetGraphContentSource {
     /// Serves all assets references by root_asset.
     #[turbo_tasks::function]
     pub fn new_eager(
-        root_path: ResolvedVc<FileSystemPath>,
+        root_path: FileSystemPath,
         root_asset: ResolvedVc<Box<dyn OutputAsset>>,
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
@@ -51,7 +50,7 @@ impl AssetGraphContentSource {
     /// asset when it has served its content before.
     #[turbo_tasks::function]
     pub fn new_lazy(
-        root_path: ResolvedVc<FileSystemPath>,
+        root_path: FileSystemPath,
         root_asset: ResolvedVc<Box<dyn OutputAsset>>,
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
@@ -64,7 +63,7 @@ impl AssetGraphContentSource {
     /// Serves all assets references by all root_assets.
     #[turbo_tasks::function]
     pub fn new_eager_multiple(
-        root_path: ResolvedVc<FileSystemPath>,
+        root_path: FileSystemPath,
         root_assets: ResolvedVc<OutputAssetsSet>,
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
@@ -78,7 +77,7 @@ impl AssetGraphContentSource {
     /// of an asset when it has served its content before.
     #[turbo_tasks::function]
     pub fn new_lazy_multiple(
-        root_path: ResolvedVc<FileSystemPath>,
+        root_path: FileSystemPath,
         root_assets: ResolvedVc<OutputAssetsSet>,
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
@@ -93,7 +92,7 @@ impl AssetGraphContentSource {
         Ok(Vc::cell(
             expand(
                 &*self.root_assets.await?,
-                &*self.root_path.await?,
+                &self.root_path,
                 self.expanded.as_ref(),
             )
             .await?,
@@ -307,7 +306,7 @@ impl Introspectable for AssetGraphContentSource {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<RcStr> {
-        self.root_path.to_string()
+        Vc::cell(self.root_path.path.clone())
     }
 
     #[turbo_tasks::function]
@@ -385,7 +384,7 @@ impl Introspectable for FullyExpanded {
 
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<RcStr>> {
-        Ok(self.0.await?.root_path.to_string())
+        Ok(Vc::cell(self.0.await?.root_path.path.clone()))
     }
 
     #[turbo_tasks::function]
@@ -393,8 +392,7 @@ impl Introspectable for FullyExpanded {
         let source = self.0.await?;
         let key = ResolvedVc::cell("asset".into());
 
-        let expanded_assets =
-            expand(&*source.root_assets.await?, &*source.root_path.await?, None).await?;
+        let expanded_assets = expand(&*source.root_assets.await?, &source.root_path, None).await?;
         let children = expanded_assets
             .iter()
             .map(|(_k, &v)| async move {

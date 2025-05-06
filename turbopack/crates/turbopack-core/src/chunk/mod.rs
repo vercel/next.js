@@ -125,7 +125,7 @@ impl Chunks {
 pub trait Chunk {
     fn ident(self: Vc<Self>) -> Vc<AssetIdent>;
     fn chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>>;
-    // fn path(self: Vc<Self>) -> Vc<FileSystemPath> {
+    // fn path(self: Vc<Self>) -> FileSystemPath {
     //     self.ident().path()
     // }
 

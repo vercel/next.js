@@ -20,7 +20,7 @@ pub struct ResolvingIssue {
     pub severity: ResolvedVc<IssueSeverity>,
     pub request_type: String,
     pub request: ResolvedVc<Request>,
-    pub file_path: ResolvedVc<FileSystemPath>,
+    pub file_path: FileSystemPath,
     pub resolve_options: ResolvedVc<ResolveOptions>,
     pub error_message: Option<String>,
     pub source: Option<IssueSource>,
@@ -51,7 +51,7 @@ impl Issue for ResolvingIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.file_path
+        self.file_path.clone().cell()
     }
 
     #[turbo_tasks::function]
@@ -68,7 +68,7 @@ impl Issue for ResolvingIssue {
 
         if let Some(import_map) = &self.resolve_options.await?.import_map {
             for request in request_parts {
-                match lookup_import_map(**import_map, *self.file_path, **request).await {
+                match lookup_import_map(**import_map, self.file_path.clone(), **request).await {
                     Ok(None) => {}
                     Ok(Some(str)) => writeln!(description, "Import map: {str}")?,
                     Err(err) => {
@@ -103,7 +103,7 @@ impl Issue for ResolvingIssue {
         writeln!(
             detail,
             "Path where resolving has started: {context}",
-            context = self.file_path.to_string().await?
+            context = self.file_path
         )?;
         writeln!(
             detail,
@@ -129,7 +129,7 @@ impl Issue for ResolvingIssue {
 
 async fn lookup_import_map(
     import_map: Vc<ImportMap>,
-    file_path: Vc<FileSystemPath>,
+    file_path: FileSystemPath,
     request: Vc<Request>,
 ) -> Result<Option<ReadRef<RcStr>>> {
     let result = import_map.await?.lookup(file_path, request).await?;

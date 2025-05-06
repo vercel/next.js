@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc, fxindexmap};
+use turbo_tasks::{ResolvedVc, Value, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
@@ -32,7 +32,7 @@ pub async fn get_app_route_entry(
     edge_context: Vc<ModuleAssetContext>,
     source: Vc<Box<dyn Source>>,
     page: AppPage,
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     original_segment_config: Option<Vc<NextSegmentConfig>>,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<AppEntry>> {
@@ -55,7 +55,7 @@ pub async fn get_app_route_entry(
     let original_name: RcStr = page.to_string().into();
     let pathname: RcStr = AppPath::from(page.clone()).to_string().into();
 
-    let path = source.ident().path();
+    let path = source.ident().path().await?;
 
     const INNER: &str = "INNER_APP_ROUTE";
 
@@ -73,14 +73,14 @@ pub async fn get_app_route_entry(
     // Load the file from the next.js codebase.
     let virtual_source = load_next_js_template(
         "app-route.js",
-        project_root,
+        project_root.clone(),
         fxindexmap! {
             "VAR_DEFINITION_PAGE" => page.to_string().into(),
             "VAR_DEFINITION_PATHNAME" => pathname.clone(),
-            "VAR_DEFINITION_FILENAME" => path.file_stem().await?.as_ref().unwrap().as_str().into(),
+            "VAR_DEFINITION_FILENAME" => path.file_stem().unwrap().into(),
             // TODO(alexkirsz) Is this necessary?
             "VAR_DEFINITION_BUNDLE_PATH" => "".to_string().into(),
-            "VAR_RESOLVED_PAGE_PATH" => path.to_string().owned().await?,
+            "VAR_RESOLVED_PAGE_PATH" => path.value_to_string().await?,
             "VAR_USERLAND" => INNER.into(),
         },
         fxindexmap! {
@@ -132,7 +132,7 @@ pub async fn get_app_route_entry(
 #[turbo_tasks::function]
 async fn wrap_edge_route(
     asset_context: Vc<Box<dyn AssetContext>>,
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     entry: ResolvedVc<Box<dyn Module>>,
     page: AppPage,
     next_config: Vc<NextConfig>,
@@ -143,7 +143,7 @@ async fn wrap_edge_route(
 
     let source = load_next_js_template(
         "edge-app-route.js",
-        project_root,
+        project_root.clone(),
         fxindexmap! {
             "VAR_USERLAND" => INNER.into(),
             "VAR_PAGE" => page.to_string().into(),
@@ -168,7 +168,7 @@ async fn wrap_edge_route(
 
     Ok(wrap_edge_entry(
         asset_context,
-        project_root,
+        project_root.clone(),
         wrapped,
         AppPath::from(page).to_string().into(),
     ))

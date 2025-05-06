@@ -520,7 +520,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let origin = ResolvedVc::upcast::<Box<dyn ResolveOrigin>>(module);
 
     let mut analysis = AnalyzeEcmascriptModuleResultBuilder::new();
-    let path = origin.origin_path();
+    let path = (*origin.origin_path().await?).clone();
 
     // Is this a typescript file that requires analzying type references?
     let analyze_types = match &*ty {
@@ -540,13 +540,13 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let ModuleTypeResult {
         module_type: specified_type,
         referenced_package_json,
-    } = *module.determine_module_type().await?;
+    } = &*module.determine_module_type().await?;
 
-    if let Some(package_json) = referenced_package_json {
+    if let Some(package_json) = referenced_package_json.clone() {
         let span = tracing::info_span!("package.json reference");
         async {
             analysis.add_reference(
-                PackageJsonReference::new(*package_json)
+                PackageJsonReference::new(package_json)
                     .to_resolved()
                     .await?,
             );
@@ -562,7 +562,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             match &*find_context_file(path.parent(), tsconfig()).await? {
                 FindContextFileResult::Found(tsconfig, _) => {
                     analysis.add_reference(
-                        TsConfigReference::new(*origin, **tsconfig)
+                        TsConfigReference::new(*origin, tsconfig.clone())
                             .to_resolved()
                             .await?,
                     );
@@ -575,7 +575,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         .await?;
     }
 
-    special_cases(&path.await?.path, &mut analysis);
+    special_cases(&path.path, &mut analysis);
 
     let parsed = parsed.await?;
 
@@ -620,7 +620,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
     let compile_time_info = compile_time_info_for_module_type(
         *raw_module.compile_time_info,
-        eval_context.is_esm(specified_type),
+        eval_context.is_esm(*specified_type),
     )
     .to_resolved()
     .await?;
@@ -691,9 +691,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     static ref JSON_DATA_URL_BASE64: Regex =
                         Regex::new(r"^data:application\/json;(?:charset=utf-8;)?base64").unwrap();
                 }
-                let origin_path = origin.origin_path();
+                let origin_path = (*origin.origin_path().await?).clone();
                 if path.ends_with(".map") {
-                    let source_map_origin = origin_path.parent().join(path.into());
+                    let source_map_origin = origin_path.parent().join(path)?;
                     let reference = SourceMapReference::new(origin_path, source_map_origin)
                         .to_resolved()
                         .await?;
@@ -703,7 +703,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 } else if JSON_DATA_URL_BASE64.is_match(path) {
                     analysis.set_source_map(ResolvedVc::upcast(
                         InlineSourceMap {
-                            origin_path: origin_path.to_resolved().await?,
+                            origin_path: origin_path.clone(),
                             source_map: path.into(),
                         }
                         .resolved_cell(),
@@ -843,10 +843,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         }
 
         let exports = if !esm_exports.is_empty() || !esm_star_exports.is_empty() {
-            if specified_type == SpecifiedModuleType::CommonJs {
+            if *specified_type == SpecifiedModuleType::CommonJs {
                 SpecifiedModuleTypeIssue {
-                    path: source.ident().path().to_resolved().await?,
-                    specified_type,
+                    path: (*source.ident().path().await?).clone(),
+                    specified_type: *specified_type,
                 }
                 .resolved_cell()
                 .emit();
@@ -859,12 +859,12 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             .cell();
 
             EcmascriptExports::EsmExports(esm_exports.to_resolved().await?)
-        } else if specified_type == SpecifiedModuleType::EcmaScript {
+        } else if *specified_type == SpecifiedModuleType::EcmaScript {
             match detect_dynamic_export(program) {
                 DetectedDynamicExportType::CommonJs => {
                     SpecifiedModuleTypeIssue {
-                        path: source.ident().path().to_resolved().await?,
-                        specified_type,
+                        path: (*source.ident().path().await?).clone(),
+                        specified_type: *specified_type,
                     }
                     .resolved_cell()
                     .emit();
@@ -968,7 +968,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             set_handler_and_globals(&handler, globals, || has_top_level_await(program));
         let has_top_level_await = top_level_await_span.is_some();
 
-        if eval_context.is_esm(specified_type) {
+        if eval_context.is_esm(*specified_type) {
             let async_module = AsyncModule {
                 has_top_level_await,
                 import_externals,
@@ -1424,7 +1424,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     if analysis_state.first_import_meta {
                         analysis_state.first_import_meta = false;
                         analysis.add_code_gen(ImportMetaBinding::new(
-                            source.ident().path().to_resolved().await?,
+                            (*source.ident().path().await?).clone(),
                         ));
                     }
 
@@ -1930,7 +1930,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         }
 
         JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(..)) => {
-            let parent_path = origin.origin_path().parent().await?;
+            let parent_path = origin.origin_path().await?.parent();
             let args = linked_args(args).await?;
 
             let linked_func_call = state
@@ -2133,7 +2133,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 }
                 analysis.add_reference(
                     NodePreGypConfigReference::new(
-                        origin.origin_path().parent(),
+                        origin.origin_path().await?.parent(),
                         Pattern::new(pat),
                         compile_time_info.environment().compile_target(),
                     )
@@ -2166,8 +2166,10 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     // TODO this resolving should happen within Vc<NodeGypBuildReference>
                     let current_context = origin
                         .origin_path()
+                        .await?
                         .root()
-                        .join(s.trim_start_matches("/ROOT/").into());
+                        .await?
+                        .join(s.trim_start_matches("/ROOT/"))?;
                     analysis.add_reference(
                         NodeGypBuildReference::new(
                             current_context,
@@ -2200,9 +2202,12 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     .await?;
                 if let Some(s) = first_arg.as_str() {
                     analysis.add_reference(
-                        NodeBindingsReference::new(origin.origin_path(), s.into())
-                            .to_resolved()
-                            .await?,
+                        NodeBindingsReference::new(
+                            (*origin.origin_path().await?).clone(),
+                            s.into(),
+                        )
+                        .to_resolved()
+                        .await?,
                     );
                     return Ok(());
                 }
@@ -2580,7 +2585,7 @@ async fn handle_free_var_reference(
                             ResolvedVc::upcast(
                                 PlainResolveOrigin::new(
                                     state.origin.asset_context(),
-                                    **lookup_path,
+                                    lookup_path.clone(),
                                 )
                                 .to_resolved()
                                 .await?,
@@ -2617,13 +2622,13 @@ async fn handle_free_var_reference(
             ));
         }
         FreeVarReference::InputRelative(kind) => {
-            let source_path = (*state.source).ident().path();
+            let source_path = (*(*state.source).ident().path().await?).clone();
             let source_path = match kind {
                 InputRelativeConstant::DirName => source_path.parent(),
                 InputRelativeConstant::FileName => source_path,
             };
             analysis.add_code_gen(ConstantValueCodeGen::new(
-                Value::new(as_abs_path(source_path).await?.into()),
+                Value::new(as_abs_path(source_path)?.into()),
                 ast_path.to_vec().into(),
             ));
         }
@@ -2825,17 +2830,17 @@ async fn analyze_amd_define_with_deps(
 
 /// Used to generate the "root" path to a __filename/__dirname/import.meta.url
 /// reference.
-pub async fn as_abs_path(path: Vc<FileSystemPath>) -> Result<String> {
+pub fn as_abs_path(path: FileSystemPath) -> Result<String> {
     // TODO: This should be updated to generate a real system path on the fly
     // during runtime, so that the generated code is constant between systems
     // but the runtime evaluation can take into account the project's
     // actual root directory.
-    require_resolve(path).await
+    require_resolve(path)
 }
 
 /// Generates an absolute path usable for `require.resolve()` calls.
-async fn require_resolve(path: Vc<FileSystemPath>) -> Result<String> {
-    Ok(format!("/ROOT/{}", path.await?.path.as_str()))
+fn require_resolve(path: FileSystemPath) -> Result<String> {
+    Ok(format!("/ROOT/{}", path.path.as_str()))
 }
 
 async fn early_value_visitor(mut v: JsValue) -> Result<(JsValue, bool)> {
@@ -2962,8 +2967,8 @@ async fn value_visitor_inner(
             }
         }
         JsValue::FreeVar(ref kind) => match &**kind {
-            "__dirname" => as_abs_path(origin.origin_path().parent()).await?.into(),
-            "__filename" => as_abs_path(origin.origin_path()).await?.into(),
+            "__dirname" => as_abs_path(origin.origin_path().await?.parent())?.into(),
+            "__filename" => as_abs_path((*origin.origin_path().await?).clone())?.into(),
 
             "require" => JsValue::unknown_if(
                 ignore,
@@ -3026,9 +3031,7 @@ async fn require_resolve_visitor(
             .await?
             .iter()
             .map(|&source| async move {
-                require_resolve(source.ident().path())
-                    .await
-                    .map(JsValue::from)
+                require_resolve((*source.ident().path().await?).clone()).map(JsValue::from)
             })
             .try_join()
             .await?;
@@ -3081,7 +3084,7 @@ async fn require_context_visitor(
         }
     };
 
-    let dir = origin.origin_path().parent().join(options.dir.clone());
+    let dir = origin.origin_path().await?.parent().join(&options.dir)?;
 
     let map = RequireContextMap::generate(
         origin,
@@ -3508,12 +3511,12 @@ async fn resolve_as_webpack_runtime(
     transforms: Vc<EcmascriptInputTransforms>,
 ) -> Result<Vc<WebpackRuntime>> {
     let ty = Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined));
-    let options = origin.resolve_options(ty.clone());
+    let options = origin.resolve_options(ty.clone()).await?;
 
     let options = apply_cjs_specific_options(options);
 
     let resolved = resolve(
-        origin.origin_path().parent().resolve().await?,
+        origin.origin_path().await?.parent(),
         Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
         request,
         options,

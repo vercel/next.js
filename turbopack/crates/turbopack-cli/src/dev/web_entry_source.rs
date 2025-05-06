@@ -34,19 +34,19 @@ use crate::{
 
 #[turbo_tasks::function]
 pub async fn get_client_chunking_context(
-    root_path: ResolvedVc<FileSystemPath>,
-    server_root: ResolvedVc<FileSystemPath>,
+    root_path: FileSystemPath,
+    server_root: FileSystemPath,
     server_root_to_root_path: ResolvedVc<RcStr>,
     environment: ResolvedVc<Environment>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     Ok(Vc::upcast(
         BrowserChunkingContext::builder(
             root_path,
-            server_root,
+            server_root.clone(),
             server_root_to_root_path,
-            server_root,
-            server_root.join("/_chunks".into()).to_resolved().await?,
-            server_root.join("/_assets".into()).to_resolved().await?,
+            server_root.clone(),
+            server_root.join("/_chunks")?,
+            server_root.join("/_assets")?,
             environment,
             RuntimeType::Development,
         )
@@ -58,15 +58,16 @@ pub async fn get_client_chunking_context(
 
 #[turbo_tasks::function]
 pub async fn get_client_runtime_entries(
-    project_path: ResolvedVc<FileSystemPath>,
+    project_path: FileSystemPath,
     node_env: Vc<NodeEnv>,
 ) -> Result<Vc<RuntimeEntries>> {
-    let resolve_options_context = get_client_resolve_options_context(*project_path, node_env);
+    let resolve_options_context =
+        get_client_resolve_options_context(project_path.clone(), node_env);
 
     let mut runtime_entries = Vec::new();
 
     let enable_react_refresh =
-        assert_can_resolve_react_refresh(*project_path, resolve_options_context)
+        assert_can_resolve_react_refresh(project_path.clone(), resolve_options_context)
             .await?
             .as_request();
     // It's important that React Refresh come before the regular bootstrap file,
@@ -74,17 +75,14 @@ pub async fn get_client_runtime_entries(
     // functions to be available.
     if let Some(request) = enable_react_refresh {
         runtime_entries.push(
-            RuntimeEntry::Request(
-                request.to_resolved().await?,
-                project_path.join("_".into()).to_resolved().await?,
-            )
-            .resolved_cell(),
+            RuntimeEntry::Request(request.to_resolved().await?, project_path.join("_")?)
+                .resolved_cell(),
         )
     };
 
     runtime_entries.push(
         RuntimeEntry::Source(ResolvedVc::upcast(
-            FileSource::new(embed_file_path("entry/bootstrap.ts".into()))
+            FileSource::new((*embed_file_path("entry/bootstrap.ts".into()).await?).clone())
                 .to_resolved()
                 .await?,
         ))
@@ -96,10 +94,10 @@ pub async fn get_client_runtime_entries(
 
 #[turbo_tasks::function]
 pub async fn create_web_entry_source(
-    root_path: Vc<FileSystemPath>,
+    root_path: FileSystemPath,
     execution_context: Vc<ExecutionContext>,
     entry_requests: Vec<Vc<Request>>,
-    server_root: Vc<FileSystemPath>,
+    server_root: FileSystemPath,
     server_root_to_root_path: ResolvedVc<RcStr>,
     _env: Vc<Box<dyn ProcessEnv>>,
     eager_compile: bool,
@@ -109,31 +107,31 @@ pub async fn create_web_entry_source(
 ) -> Result<Vc<Box<dyn ContentSource>>> {
     let compile_time_info = get_client_compile_time_info(browserslist_query, node_env);
     let asset_context = get_client_asset_context(
-        root_path,
+        root_path.clone(),
         execution_context,
         compile_time_info,
         node_env,
         source_maps_type,
     );
     let chunking_context = get_client_chunking_context(
-        root_path,
-        server_root,
+        root_path.clone(),
+        server_root.clone(),
         *server_root_to_root_path,
         compile_time_info.environment(),
     )
     .to_resolved()
     .await?;
-    let entries = get_client_runtime_entries(root_path, node_env);
+    let entries = get_client_runtime_entries(root_path.clone(), node_env);
 
     let runtime_entries = entries.resolve_entries(asset_context);
 
-    let origin = PlainResolveOrigin::new(asset_context, root_path.join("_".into()));
+    let origin = PlainResolveOrigin::new(asset_context, root_path.join("_")?);
     let entries = entry_requests
         .into_iter()
         .map(|request| async move {
             let ty = Value::new(ReferenceType::Entry(EntryReferenceSubType::Web));
             Ok(origin
-                .resolve_asset(request, origin.resolve_options(ty.clone()), ty)
+                .resolve_asset(request, origin.resolve_options(ty.clone()).await?, ty)
                 .await?
                 .resolve()
                 .await?
@@ -195,10 +193,7 @@ pub async fn create_web_entry_source(
         .try_join()
         .await?;
 
-    let entry_asset = Vc::upcast(DevHtmlAsset::new(
-        server_root.join("index.html".into()).to_resolved().await?,
-        entries,
-    ));
+    let entry_asset = Vc::upcast(DevHtmlAsset::new(server_root.join("index.html")?, entries));
 
     let graph = Vc::upcast(if eager_compile {
         AssetGraphContentSource::new_eager(server_root, entry_asset)

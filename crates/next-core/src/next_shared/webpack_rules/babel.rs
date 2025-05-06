@@ -26,13 +26,13 @@ const BABEL_CONFIG_FILES: &[&str] = &[
 /// webpack loader for each eligible file type if it doesn't already exist.
 #[turbo_tasks::function]
 pub async fn maybe_add_babel_loader(
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     webpack_rules: Option<ResolvedVc<WebpackRules>>,
 ) -> Result<Vc<OptionWebpackRules>> {
     let has_babel_config = {
         let mut has_babel_config = false;
         for &filename in BABEL_CONFIG_FILES {
-            let filetype = *project_root.join(filename.into()).get_type().await?;
+            let filetype = *project_root.join(filename)?.get_type().await?;
             if matches!(filetype, FileSystemEntryType::File) {
                 has_babel_config = true;
                 break;
@@ -62,10 +62,10 @@ pub async fn maybe_add_babel_loader(
 
             if !has_babel_loader {
                 if !has_emitted_babel_resolve_issue
-                    && !*is_babel_loader_available(project_root).await?
+                    && !*is_babel_loader_available(project_root.clone()).await?
                 {
                     BabelIssue {
-                        path: project_root.to_resolved().await?,
+                        path: project_root.clone(),
                         title: StyledString::Text(
                             "Unable to resolve babel-loader, but a babel config is present".into(),
                         )
@@ -111,14 +111,14 @@ pub async fn maybe_add_babel_loader(
 }
 
 #[turbo_tasks::function]
-pub async fn is_babel_loader_available(project_path: Vc<FileSystemPath>) -> Result<Vc<bool>> {
+pub async fn is_babel_loader_available(project_path: FileSystemPath) -> Result<Vc<bool>> {
     let result = resolve(
-        project_path,
+        project_path.clone(),
         Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
         Request::parse(Value::new(Pattern::Constant(
             "babel-loader/package.json".into(),
         ))),
-        node_cjs_resolve_options(project_path),
+        node_cjs_resolve_options(project_path.clone()),
     );
     let assets = result.primary_sources().await?;
     Ok(Vc::cell(!assets.is_empty()))
@@ -126,7 +126,7 @@ pub async fn is_babel_loader_available(project_path: Vc<FileSystemPath>) -> Resu
 
 #[turbo_tasks::value]
 struct BabelIssue {
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
     title: ResolvedVc<StyledString>,
     description: ResolvedVc<StyledString>,
     severity: ResolvedVc<IssueSeverity>,
@@ -146,7 +146,7 @@ impl Issue for BabelIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.path
+        self.path.clone().cell()
     }
 
     #[turbo_tasks::function]

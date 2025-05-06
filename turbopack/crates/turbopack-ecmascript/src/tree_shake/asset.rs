@@ -91,7 +91,7 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
         let analyze = self.analyze();
         let analyze_ref = analyze.await?;
 
-        let module_type_result = *module.full_module.determine_module_type().await?;
+        let module_type_result = module.full_module.determine_module_type().await?;
         let generate_source_map = *chunking_context
             .reference_module_source_maps(Vc::upcast(self))
             .await?;

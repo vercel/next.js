@@ -87,8 +87,8 @@ impl EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
     pub(crate) async fn own_version(&self) -> Result<Vc<EcmascriptBuildNodeChunkVersion>> {
         Ok(EcmascriptBuildNodeChunkVersion::new(
-            self.chunking_context.output_root(),
-            self.chunk.path(),
+            (*self.chunking_context.output_root().await?).clone(),
+            (*self.chunk.path().await?).clone(),
             *self.content,
             self.chunking_context.await?.minify_type(),
         ))

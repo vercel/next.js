@@ -28,7 +28,7 @@ pub async fn get_app_route_favicon_entry(
     nodejs_context: Vc<ModuleAssetContext>,
     edge_context: Vc<ModuleAssetContext>,
     favicon: MetadataItem,
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
 ) -> Result<Vc<AppEntry>> {
     let path = match favicon {
         // TODO(alexkirsz) Is there a difference here?

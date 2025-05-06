@@ -20,11 +20,11 @@ use crate::{get_intermediate_asset, node_entry::NodeEntry, route_matcher::RouteM
 /// Creates a [NodeApiContentSource].
 #[turbo_tasks::function]
 pub fn create_node_api_source(
-    cwd: ResolvedVc<FileSystemPath>,
+    cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     base_segments: Vec<BaseSegment>,
     route_type: RouteType,
-    server_root: ResolvedVc<FileSystemPath>,
+    server_root: FileSystemPath,
     route_match: ResolvedVc<Box<dyn RouteMatcher>>,
     pathname: ResolvedVc<RcStr>,
     entry: ResolvedVc<Box<dyn NodeEntry>>,
@@ -56,11 +56,11 @@ pub fn create_node_api_source(
 /// to this directory.
 #[turbo_tasks::value]
 pub struct NodeApiContentSource {
-    cwd: ResolvedVc<FileSystemPath>,
+    cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     base_segments: Vec<BaseSegment>,
     route_type: RouteType,
-    server_root: ResolvedVc<FileSystemPath>,
+    server_root: FileSystemPath,
     pathname: ResolvedVc<RcStr>,
     route_match: ResolvedVc<Box<dyn RouteMatcher>>,
     entry: ResolvedVc<Box<dyn NodeEntry>>,
@@ -129,15 +129,15 @@ impl GetContentSourceContent for NodeApiContentSource {
         };
         let entry = (*self.entry).entry(data.clone()).await?;
         Ok(ContentSourceContent::HttpProxy(render_proxy_operation(
-            self.cwd,
+            self.cwd.clone(),
             self.env,
-            self.server_root.join(path.clone()).to_resolved().await?,
+            self.server_root.join(&path)?,
             ResolvedVc::upcast(entry.module),
             entry.runtime_entries,
             entry.chunking_context,
-            entry.intermediate_output_path,
-            entry.output_root,
-            entry.project_dir,
+            entry.intermediate_output_path.clone(),
+            entry.output_root.clone(),
+            entry.project_dir.clone(),
             RenderData {
                 params: params.clone(),
                 method: method.clone(),

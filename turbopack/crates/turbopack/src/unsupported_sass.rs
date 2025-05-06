@@ -16,13 +16,13 @@ use turbopack_core::{
 /// Resolve plugins that warns when importing a sass file.
 #[turbo_tasks::value]
 pub(crate) struct UnsupportedSassResolvePlugin {
-    root: ResolvedVc<FileSystemPath>,
+    root: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl UnsupportedSassResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: ResolvedVc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(root: FileSystemPath) -> Vc<Self> {
         UnsupportedSassResolvePlugin { root }.cell()
     }
 }
@@ -30,20 +30,23 @@ impl UnsupportedSassResolvePlugin {
 #[turbo_tasks::value_impl]
 impl AfterResolvePlugin for UnsupportedSassResolvePlugin {
     #[turbo_tasks::function]
-    fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
-        AfterResolvePluginCondition::new(self.root.root(), Glob::new("**/*.{sass,scss}".into()))
+    async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
+        Ok(AfterResolvePluginCondition::new(
+            (*self.root.root().await?).clone(),
+            Glob::new("**/*.{sass,scss}".into()),
+        ))
     }
 
     #[turbo_tasks::function]
     async fn after_resolve(
         &self,
-        fs_path: ResolvedVc<FileSystemPath>,
-        lookup_path: ResolvedVc<FileSystemPath>,
+        fs_path: FileSystemPath,
+        lookup_path: FileSystemPath,
         _reference_type: Value<ReferenceType>,
         request: ResolvedVc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
-        let extension = fs_path.extension().await?;
-        if ["sass", "scss"].iter().any(|ext| *ext == &**extension) {
+        let extension = fs_path.extension();
+        if ["sass", "scss"].iter().any(|ext| *ext == &*extension) {
             UnsupportedSassModuleIssue {
                 file_path: lookup_path,
                 request,
@@ -58,7 +61,7 @@ impl AfterResolvePlugin for UnsupportedSassResolvePlugin {
 
 #[turbo_tasks::value(shared)]
 struct UnsupportedSassModuleIssue {
-    file_path: ResolvedVc<FileSystemPath>,
+    file_path: FileSystemPath,
     request: ResolvedVc<Request>,
 }
 
@@ -83,7 +86,7 @@ impl Issue for UnsupportedSassModuleIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.file_path
+        self.file_path.clone().cell()
     }
 
     #[turbo_tasks::function]

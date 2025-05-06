@@ -82,9 +82,11 @@ impl SingleItemCssChunk {
 #[turbo_tasks::value_impl]
 impl Chunk for SingleItemCssChunk {
     #[turbo_tasks::function]
-    fn ident(self: Vc<Self>) -> Vc<AssetIdent> {
+    async fn ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
         let self_as_output_asset: Vc<Box<dyn OutputAsset>> = Vc::upcast(self);
-        AssetIdent::from_path(self_as_output_asset.path())
+        Ok(AssetIdent::from_path(
+            (*self_as_output_asset.path().await?).clone(),
+        ))
     }
 
     #[turbo_tasks::function]

@@ -23,11 +23,9 @@ impl AttachedFileSystem {
     /// an invisible subdirectory of the `child_path`
     #[turbo_tasks::function]
     pub async fn new(
-        child_path: Vc<FileSystemPath>,
+        child_path: FileSystemPath,
         child_fs: ResolvedVc<Box<dyn FileSystem>>,
     ) -> Result<Vc<Self>> {
-        let child_path = child_path.await?;
-
         Ok(AttachedFileSystem {
             root_fs: child_path.fs,
             child_path: child_path.path.clone(),
@@ -36,42 +34,41 @@ impl AttachedFileSystem {
         .cell())
     }
 
-    /// Converts the given [Vc<FileSystemPath>] to a path in this [FileSystem].
+    /// Converts the given [FileSystemPath] to a path in this [FileSystem].
     ///
     /// The given path has to be inside of the root [FileSystem], the child
     /// [FileSystem] or this [AttachedFileSystem].
     #[turbo_tasks::function]
     pub async fn convert_path(
         self: ResolvedVc<Self>,
-        contained_path_vc: Vc<FileSystemPath>,
+        contained_path: FileSystemPath,
     ) -> Result<Vc<FileSystemPath>> {
-        let contained_path = contained_path_vc.await?;
         let self_fs: ResolvedVc<Box<dyn FileSystem>> = ResolvedVc::upcast(self);
         let this = self.await?;
 
         match contained_path.fs {
             // already on this filesystem
-            fs if fs == self_fs => Ok(contained_path_vc),
+            fs if fs == self_fs => Ok(contained_path.cell()),
             // in the root filesystem, just need to rebase on this filesystem
             fs if fs == this.root_fs => Ok(self
                 .root()
                 .resolve()
                 .await?
-                .join(contained_path.path.clone())),
-            // in the child filesystem, so we expand to the full path by appending to child_path
-            fs if fs == this.child_fs => Ok(self
-                .child_path()
-                .resolve()
                 .await?
-                .join(contained_path.path.clone())),
+                .join(&contained_path.path)?
+                .cell()),
+            // in the child filesystem, so we expand to the full path by appending to child_path
+            fs if fs == this.child_fs => {
+                Ok(self.child_path().await?.join(&contained_path.path)?.cell())
+            }
             _ => bail!(
                 "path {} not part of self, the root fs or the child fs",
-                contained_path_vc.to_string().await?
+                contained_path.value_to_string().await?
             ),
         }
     }
 
-    /// Constructs a [Vc<FileSystemPath>] of the attachment point referencing
+    /// Constructs a [FileSystemPath] of the attachment point referencing
     /// this [AttachedFileSystem]
     #[turbo_tasks::function]
     async fn child_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
@@ -79,7 +76,9 @@ impl AttachedFileSystem {
             .root()
             .resolve()
             .await?
-            .join(self.await?.child_path.clone()))
+            .await?
+            .join(&self.await?.child_path)?
+            .cell())
     }
 
     /// Resolves the local path of the root or child filesystem from a path
@@ -87,10 +86,9 @@ impl AttachedFileSystem {
     #[turbo_tasks::function]
     pub async fn get_inner_fs_path(
         self: ResolvedVc<Self>,
-        path: Vc<FileSystemPath>,
+        path: FileSystemPath,
     ) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
-        let path = path.await?;
         let self_fs: ResolvedVc<Box<dyn FileSystem>> = ResolvedVc::upcast(self);
 
         if path.fs != self_fs {
@@ -103,49 +101,66 @@ impl AttachedFileSystem {
             )
         }
 
-        let child_path = self.child_path().await?;
-        Ok(if let Some(inner_path) = child_path.get_path_to(&path) {
-            this.child_fs
-                .root()
-                .resolve()
-                .await?
-                .join(inner_path.into())
-        } else {
-            this.root_fs.root().resolve().await?.join(path.path.clone())
-        })
+        let child_path = self.child_path();
+        Ok(
+            if let Some(inner_path) = child_path.await?.get_path_to(&path) {
+                this.child_fs
+                    .root()
+                    .resolve()
+                    .await?
+                    .await?
+                    .join(inner_path)?
+            } else {
+                this.root_fs
+                    .root()
+                    .resolve()
+                    .await?
+                    .await?
+                    .join(&path.path)?
+            }
+            .cell(),
+        )
     }
 }
 
 #[turbo_tasks::value_impl]
 impl FileSystem for AttachedFileSystem {
     #[turbo_tasks::function(fs)]
-    fn read(self: Vc<Self>, path: Vc<FileSystemPath>) -> Vc<FileContent> {
-        self.get_inner_fs_path(path).read()
+    async fn read(self: Vc<Self>, path: FileSystemPath) -> Result<Vc<FileContent>> {
+        Ok(self.get_inner_fs_path(path).await?.read())
     }
 
     #[turbo_tasks::function(fs)]
-    fn read_link(self: Vc<Self>, path: Vc<FileSystemPath>) -> Vc<LinkContent> {
-        self.get_inner_fs_path(path).read_link()
+    async fn read_link(self: Vc<Self>, path: FileSystemPath) -> Result<Vc<LinkContent>> {
+        Ok(self.get_inner_fs_path(path).await?.read_link())
     }
 
     #[turbo_tasks::function(fs)]
-    fn raw_read_dir(self: Vc<Self>, path: Vc<FileSystemPath>) -> Vc<RawDirectoryContent> {
-        self.get_inner_fs_path(path).raw_read_dir()
+    async fn raw_read_dir(self: Vc<Self>, path: FileSystemPath) -> Result<Vc<RawDirectoryContent>> {
+        Ok(self.get_inner_fs_path(path).await?.raw_read_dir())
     }
 
     #[turbo_tasks::function(fs)]
-    fn write(self: Vc<Self>, path: Vc<FileSystemPath>, content: Vc<FileContent>) -> Vc<()> {
-        self.get_inner_fs_path(path).write(content)
+    async fn write(
+        self: Vc<Self>,
+        path: FileSystemPath,
+        content: Vc<FileContent>,
+    ) -> Result<Vc<()>> {
+        Ok(self.get_inner_fs_path(path).await?.write(content))
     }
 
     #[turbo_tasks::function(fs)]
-    fn write_link(self: Vc<Self>, path: Vc<FileSystemPath>, target: Vc<LinkContent>) -> Vc<()> {
-        self.get_inner_fs_path(path).write_link(target)
+    async fn write_link(
+        self: Vc<Self>,
+        path: FileSystemPath,
+        target: Vc<LinkContent>,
+    ) -> Result<Vc<()>> {
+        Ok(self.get_inner_fs_path(path).await?.write_link(target))
     }
 
     #[turbo_tasks::function]
-    fn metadata(self: Vc<Self>, path: Vc<FileSystemPath>) -> Vc<FileMeta> {
-        self.get_inner_fs_path(path).metadata()
+    async fn metadata(self: Vc<Self>, path: FileSystemPath) -> Result<Vc<FileMeta>> {
+        Ok(self.get_inner_fs_path(path).await?.metadata())
     }
 }
 

@@ -105,7 +105,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
         let analyze = original_module.analyze();
         let analyze_result = analyze.await?;
 
-        let module_type_result = *original_module.determine_module_type().await?;
+        let module_type_result = &*original_module.determine_module_type().await?;
         let generate_source_map = *chunking_context
             .reference_module_source_maps(Vc::upcast(self))
             .await?;

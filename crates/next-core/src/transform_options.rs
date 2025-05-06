@@ -18,14 +18,14 @@ use turbopack_ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconf
 use crate::{mode::NextMode, next_config::NextConfig};
 
 async fn get_typescript_options(
-    project_path: Vc<FileSystemPath>,
+    project_path: FileSystemPath,
 ) -> Result<Option<Vec<(Vc<FileJsonContent>, ResolvedVc<Box<dyn Source>>)>>> {
     let tsconfig = find_context_file(project_path, tsconfig());
     Ok(match tsconfig.await.ok().as_deref() {
         Some(FindContextFileResult::Found(path, _)) => read_tsconfigs(
             path.read(),
-            ResolvedVc::upcast(FileSource::new(**path).to_resolved().await?),
-            node_cjs_resolve_options(path.root()),
+            ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?),
+            node_cjs_resolve_options((*path.root().await?).clone()),
         )
         .await
         .ok(),
@@ -37,7 +37,7 @@ async fn get_typescript_options(
 /// outputs
 #[turbo_tasks::function]
 pub async fn get_typescript_transform_options(
-    project_path: Vc<FileSystemPath>,
+    project_path: FileSystemPath,
 ) -> Result<Vc<TypescriptTransformOptions>> {
     let tsconfig = get_typescript_options(project_path).await?;
 
@@ -62,7 +62,7 @@ pub async fn get_typescript_transform_options(
 /// **TODO** Currnently only typescript's legacy decorators are supported
 #[turbo_tasks::function]
 pub async fn get_decorators_transform_options(
-    project_path: Vc<FileSystemPath>,
+    project_path: FileSystemPath,
 ) -> Result<Vc<DecoratorsOptions>> {
     let tsconfig = get_typescript_options(project_path).await?;
 
@@ -118,13 +118,13 @@ pub async fn get_decorators_transform_options(
 
 #[turbo_tasks::function]
 pub async fn get_jsx_transform_options(
-    project_path: Vc<FileSystemPath>,
+    project_path: FileSystemPath,
     mode: Vc<NextMode>,
     resolve_options_context: Option<Vc<ResolveOptionsContext>>,
     is_rsc_context: bool,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<JsxTransformOptions>> {
-    let tsconfig = get_typescript_options(project_path).await?;
+    let tsconfig = get_typescript_options(project_path.clone()).await?;
 
     let is_react_development = mode.await?.is_react_development();
     let enable_react_refresh = if is_react_development {

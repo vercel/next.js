@@ -214,7 +214,7 @@ pub enum InputRelativeConstant {
 pub enum FreeVarReference {
     EcmaScriptModule {
         request: RcStr,
-        lookup_path: Option<ResolvedVc<FileSystemPath>>,
+        lookup_path: Option<FileSystemPath>,
         export: Option<RcStr>,
     },
     Ident(RcStr),

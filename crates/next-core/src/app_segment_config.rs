@@ -583,11 +583,15 @@ pub async fn parse_segment_config_from_loader_tree_internal(
     }
 
     let modules = &loader_tree.modules;
-    for path in [modules.page, modules.default, modules.layout]
-        .into_iter()
-        .flatten()
+    for path in [
+        modules.page.clone(),
+        modules.default.clone(),
+        modules.layout.clone(),
+    ]
+    .into_iter()
+    .flatten()
     {
-        let source = Vc::upcast(FileSource::new(*path));
+        let source = Vc::upcast(FileSource::new(path));
         config.apply_parent_config(&*parse_segment_config_from_source(source).await?);
     }
 

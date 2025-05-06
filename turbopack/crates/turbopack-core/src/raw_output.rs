@@ -11,7 +11,7 @@ use crate::{
 /// This module has no references to other modules.
 #[turbo_tasks::value]
 pub struct RawOutput {
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
     source: ResolvedVc<Box<dyn Source>>,
 }
 
@@ -19,7 +19,7 @@ pub struct RawOutput {
 impl OutputAsset for RawOutput {
     #[turbo_tasks::function]
     fn path(&self) -> Vc<FileSystemPath> {
-        *self.path
+        self.path.clone().cell()
     }
 }
 
@@ -34,10 +34,7 @@ impl Asset for RawOutput {
 #[turbo_tasks::value_impl]
 impl RawOutput {
     #[turbo_tasks::function]
-    pub fn new(
-        path: ResolvedVc<FileSystemPath>,
-        source: ResolvedVc<Box<dyn Source>>,
-    ) -> Vc<RawOutput> {
+    pub fn new(path: FileSystemPath, source: ResolvedVc<Box<dyn Source>>) -> Vc<RawOutput> {
         RawOutput { path, source }.cell()
     }
 }

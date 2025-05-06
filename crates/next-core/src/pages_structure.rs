@@ -1,7 +1,7 @@
 use anyhow::Result;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{OptionVcExt, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{OptionVcExt, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, FileSystemPathOption,
 };
@@ -11,28 +11,28 @@ use crate::next_import_map::get_next_package;
 /// A final route in the pages directory.
 #[turbo_tasks::value]
 pub struct PagesStructureItem {
-    pub base_path: ResolvedVc<FileSystemPath>,
+    pub base_path: FileSystemPath,
     pub extensions: ResolvedVc<Vec<RcStr>>,
-    pub fallback_path: Option<ResolvedVc<FileSystemPath>>,
+    pub fallback_path: Option<FileSystemPath>,
 
     /// Pathname of this item in the Next.js router.
-    pub next_router_path: ResolvedVc<FileSystemPath>,
+    pub next_router_path: FileSystemPath,
     /// Unique path corresponding to this item. This differs from
     /// `next_router_path` in that it will include the trailing /index for index
     /// routes, which allows for differentiating with potential /index
     /// directories.
-    pub original_path: ResolvedVc<FileSystemPath>,
+    pub original_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl PagesStructureItem {
     #[turbo_tasks::function]
     fn new(
-        base_path: ResolvedVc<FileSystemPath>,
+        base_path: FileSystemPath,
         extensions: ResolvedVc<Vec<RcStr>>,
-        fallback_path: Option<ResolvedVc<FileSystemPath>>,
-        next_router_path: ResolvedVc<FileSystemPath>,
-        original_path: ResolvedVc<FileSystemPath>,
+        fallback_path: Option<FileSystemPath>,
+        next_router_path: FileSystemPath,
+        original_path: FileSystemPath,
     ) -> Vc<Self> {
         PagesStructureItem {
             base_path,
@@ -49,19 +49,19 @@ impl PagesStructureItem {
         // Check if the file path + extension exists in the filesystem, if so use that. If not fall
         // back to the base path.
         for ext in self.extensions.await?.into_iter() {
-            let file_path: Vc<FileSystemPath> = self.base_path.append(format!(".{ext}").into());
+            let file_path: FileSystemPath = self.base_path.append(&format!(".{ext}"))?;
             let ty = *file_path.get_type().await?;
             if matches!(ty, FileSystemEntryType::File | FileSystemEntryType::Symlink) {
-                return Ok(file_path);
+                return Ok(file_path.cell());
             }
         }
-        if let Some(fallback_path) = self.fallback_path {
-            Ok(*fallback_path)
+        if let Some(fallback_path) = &self.fallback_path {
+            Ok(fallback_path.clone().cell())
         } else {
             // If the file path that was passed in already has an extension, for example
             // `pages/index.js` it won't match the extensions list above because it already had an
             // extension and for example `.js.js` obviously won't match
-            Ok(*self.base_path)
+            Ok(self.base_path.clone().cell())
         }
     }
 }
@@ -80,8 +80,8 @@ pub struct PagesStructure {
 
 #[turbo_tasks::value]
 pub struct PagesDirectoryStructure {
-    pub project_path: ResolvedVc<FileSystemPath>,
-    pub next_router_path: ResolvedVc<FileSystemPath>,
+    pub project_path: FileSystemPath,
+    pub next_router_path: FileSystemPath,
     pub items: Vec<ResolvedVc<PagesStructureItem>>,
     pub children: Vec<ResolvedVc<PagesDirectoryStructure>>,
 }
@@ -92,30 +92,22 @@ impl PagesDirectoryStructure {
     /// system.
     #[turbo_tasks::function]
     pub fn project_path(&self) -> Vc<FileSystemPath> {
-        *self.project_path
+        self.project_path.clone().cell()
     }
 }
 
 /// Finds and returns the [PagesStructure] of the pages directory if existing.
 #[turbo_tasks::function]
 pub async fn find_pages_structure(
-    project_root: Vc<FileSystemPath>,
-    next_router_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
+    next_router_root: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<PagesStructure>> {
-    let pages_root = project_root
-        .join("pages".into())
-        .realpath()
-        .to_resolved()
-        .await?;
+    let pages_root = project_root.join("pages")?.realpath().await?;
     let pages_root = if *pages_root.get_type().await? == FileSystemEntryType::Directory {
         Some(pages_root)
     } else {
-        let src_pages_root = project_root
-            .join("src/pages".into())
-            .realpath()
-            .to_resolved()
-            .await?;
+        let src_pages_root = project_root.join("src/pages")?.realpath().await?;
         if *src_pages_root.get_type().await? == FileSystemEntryType::Directory {
             Some(src_pages_root)
         } else {
@@ -137,9 +129,9 @@ pub async fn find_pages_structure(
 /// Handles the root pages directory.
 #[turbo_tasks::function]
 async fn get_pages_structure_for_root_directory(
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     project_path: Vc<FileSystemPathOption>,
-    next_router_path: Vc<FileSystemPath>,
+    next_router_path: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<PagesStructure>> {
     let page_extensions_raw = &*page_extensions.await?;
@@ -155,7 +147,7 @@ async fn get_pages_structure_for_root_directory(
         let dir_content = project_path.read_dir().await?;
         if let DirectoryContent::Entries(entries) = &*dir_content {
             for (name, entry) in entries.iter() {
-                let entry = entry.resolve_symlink().await?;
+                let entry = entry.clone().resolve_symlink().await?;
                 match entry {
                     DirectoryEntry::File(_) => {
                         // Do not process .d.ts files as routes
@@ -165,13 +157,15 @@ async fn get_pages_structure_for_root_directory(
                         let Some(basename) = page_basename(name, page_extensions_raw) else {
                             continue;
                         };
-                        let base_path = project_path.join(basename.into());
+                        let base_path = project_path.join(basename)?;
                         match basename {
                             "_app" | "_document" | "_error" => {}
                             "500" => {
-                                let item_next_router_path =
-                                    next_router_path_for_basename(next_router_path, basename);
-                                let item_original_path = next_router_path.join(basename.into());
+                                let item_next_router_path = next_router_path_for_basename(
+                                    next_router_path.clone(),
+                                    basename,
+                                )?;
+                                let item_original_path = next_router_path.join(basename)?;
                                 let item = PagesStructureItem::new(
                                     base_path,
                                     page_extensions,
@@ -186,9 +180,11 @@ async fn get_pages_structure_for_root_directory(
                             }
 
                             basename => {
-                                let item_next_router_path =
-                                    next_router_path_for_basename(next_router_path, basename);
-                                let item_original_path = next_router_path.join(basename.into());
+                                let item_next_router_path = next_router_path_for_basename(
+                                    next_router_path.clone(),
+                                    basename,
+                                )?;
+                                let item_original_path = next_router_path.join(basename)?;
                                 items.push((
                                     basename,
                                     PagesStructureItem::new(
@@ -206,8 +202,8 @@ async fn get_pages_structure_for_root_directory(
                         "api" => {
                             api_directory = Some(
                                 get_pages_structure_for_directory(
-                                    *dir_project_path,
-                                    next_router_path.join(name.clone()),
+                                    dir_project_path.clone(),
+                                    next_router_path.join(name)?,
                                     1,
                                     page_extensions,
                                 )
@@ -219,8 +215,8 @@ async fn get_pages_structure_for_root_directory(
                             children.push((
                                 name,
                                 get_pages_structure_for_directory(
-                                    *dir_project_path,
-                                    next_router_path.join(name.clone()),
+                                    dir_project_path.clone(),
+                                    next_router_path.join(name)?,
                                     1,
                                     page_extensions,
                                 ),
@@ -238,8 +234,8 @@ async fn get_pages_structure_for_root_directory(
 
         Some(
             PagesDirectoryStructure {
-                project_path: *project_path,
-                next_router_path: next_router_path.to_resolved().await?,
+                project_path: project_path.clone(),
+                next_router_path: next_router_path.clone(),
                 items: items
                     .into_iter()
                     .map(|(_, v)| async move { v.to_resolved().await })
@@ -257,41 +253,53 @@ async fn get_pages_structure_for_root_directory(
         None
     };
 
-    let pages_path = if let Some(project_path) = *project_path {
-        *project_path
+    let pages_path = if let Some(project_path) = &*project_path {
+        project_path.clone()
     } else {
-        project_root.join("pages".into())
+        project_root.join("pages")?
     };
 
     let app_item = {
-        let app_router_path = next_router_path.join("_app".into());
+        let app_router_path = next_router_path.join("_app")?;
         PagesStructureItem::new(
-            pages_path.join("_app".into()),
+            pages_path.join("_app")?,
             page_extensions,
-            Some(get_next_package(project_root).join("app.js".into())),
-            app_router_path,
+            Some(
+                get_next_package(project_root.clone())
+                    .await?
+                    .join("app.js")?,
+            ),
+            app_router_path.clone(),
             app_router_path,
         )
     };
 
     let document_item = {
-        let document_router_path = next_router_path.join("_document".into());
+        let document_router_path = next_router_path.join("_document")?;
         PagesStructureItem::new(
-            pages_path.join("_document".into()),
+            pages_path.join("_document")?,
             page_extensions,
-            Some(get_next_package(project_root).join("document.js".into())),
-            document_router_path,
+            Some(
+                get_next_package(project_root.clone())
+                    .await?
+                    .join("document.js")?,
+            ),
+            document_router_path.clone(),
             document_router_path,
         )
     };
 
     let error_item = {
-        let error_router_path = next_router_path.join("_error".into());
+        let error_router_path = next_router_path.join("_error")?;
         PagesStructureItem::new(
-            pages_path.join("_error".into()),
+            pages_path.join("_error")?,
             page_extensions,
-            Some(get_next_package(project_root).join("error.js".into())),
-            error_router_path,
+            Some(
+                get_next_package(project_root.clone())
+                    .await?
+                    .join("error.js")?,
+            ),
+            error_router_path.clone(),
             error_router_path,
         )
     };
@@ -311,14 +319,14 @@ async fn get_pages_structure_for_root_directory(
 /// Calls itself recursively for sub directories.
 #[turbo_tasks::function]
 async fn get_pages_structure_for_directory(
-    project_path: Vc<FileSystemPath>,
-    next_router_path: Vc<FileSystemPath>,
+    project_path: FileSystemPath,
+    next_router_path: FileSystemPath,
     position: u32,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<PagesDirectoryStructure>> {
     let span = {
-        let path = project_path.to_string().await?.to_string();
-        tracing::info_span!("analyse pages structure", name = path)
+        let path = project_path.value_to_string().await?;
+        tracing::info_span!("analyse pages structure", name = %path)
     };
     async move {
         let page_extensions_raw = &*page_extensions.await?;
@@ -334,11 +342,11 @@ async fn get_pages_structure_for_directory(
                             continue;
                         };
                         let item_next_router_path = match basename {
-                            "index" => next_router_path,
-                            _ => next_router_path.join(basename.into()),
+                            "index" => next_router_path.clone(),
+                            _ => next_router_path.join(basename)?,
                         };
-                        let base_path = project_path.join(name.clone());
-                        let item_original_name = next_router_path.join(basename.into());
+                        let base_path = project_path.join(name)?;
+                        let item_original_name = next_router_path.join(name)?;
                         items.push((
                             basename,
                             PagesStructureItem::new(
@@ -354,8 +362,8 @@ async fn get_pages_structure_for_directory(
                         children.push((
                             name,
                             get_pages_structure_for_directory(
-                                **dir_project_path,
-                                next_router_path.join(name.clone()),
+                                dir_project_path.clone(),
+                                next_router_path.join(name)?,
                                 position + 1,
                                 page_extensions,
                             ),
@@ -373,8 +381,8 @@ async fn get_pages_structure_for_directory(
         children.sort_by_key(|(k, _)| *k);
 
         Ok(PagesDirectoryStructure {
-            project_path: project_path.to_resolved().await?,
-            next_router_path: next_router_path.to_resolved().await?,
+            project_path: project_path.clone(),
+            next_router_path: next_router_path.clone(),
             items: items
                 .into_iter()
                 .map(|(_, v)| v)
@@ -401,12 +409,12 @@ fn page_basename<'a>(name: &'a str, page_extensions: &'a [RcStr]) -> Option<&'a 
 }
 
 fn next_router_path_for_basename(
-    next_router_path: Vc<FileSystemPath>,
+    next_router_path: FileSystemPath,
     basename: &str,
-) -> Vc<FileSystemPath> {
+) -> Result<FileSystemPath> {
     if basename == "index" {
-        next_router_path
+        Ok(next_router_path)
     } else {
-        next_router_path.join(basename.into())
+        next_router_path.join(basename)
     }
 }
