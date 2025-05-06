@@ -1,5 +1,5 @@
 import type { CSSProperties, Dispatch, SetStateAction } from 'react'
-import type { OverlayState } from '../../../../shared'
+import { STORAGE_KEY_POSITION, type OverlayState } from '../../../../shared'
 
 import { useState, useEffect, useRef, createContext, useContext } from 'react'
 import { Toast } from '../../toast'
@@ -21,6 +21,7 @@ import {
   getInitialPosition,
   type DevToolsScale,
 } from './dev-tools-info/preferences'
+import { Draggable } from './draggable'
 
 // TODO: add E2E tests to cover different scenarios
 
@@ -82,6 +83,8 @@ const OVERLAYS = {
 } as const
 
 export type Overlays = (typeof OVERLAYS)[keyof typeof OVERLAYS]
+
+const INDICATOR_PADDING = 20
 
 function DevToolsPopover({
   routerType,
@@ -258,31 +261,38 @@ function DevToolsPopover({
           '--animate-out-timing-function': MENU_CURVE,
           boxShadow: 'none',
           zIndex: 2147483647,
-          // Reset the toast component's default positions.
-          bottom: 'initial',
-          left: 'initial',
-          [vertical]: '20px',
-          [horizontal]: '20px',
+          [vertical]: `${INDICATOR_PADDING}px`,
+          [horizontal]: `${INDICATOR_PADDING}px`,
         } as CSSProperties
       }
     >
-      {/* Trigger */}
-      <NextLogo
-        ref={triggerRef}
-        aria-haspopup="menu"
-        aria-expanded={isMenuOpen}
-        aria-controls="nextjs-dev-tools-menu"
-        aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
-        data-nextjs-dev-tools-button
-        disabled={disabled}
-        issueCount={issueCount}
-        onTriggerClick={onTriggerClick}
-        toggleErrorOverlay={toggleErrorOverlay}
-        isDevBuilding={useIsDevBuilding()}
-        isDevRendering={useIsDevRendering()}
-        isBuildError={isBuildError}
-        scale={scale}
-      />
+      <Draggable
+        padding={INDICATOR_PADDING}
+        onDragStart={() => setOpen(null)}
+        position={position}
+        setPosition={(p) => {
+          localStorage.setItem(STORAGE_KEY_POSITION, p)
+          setPosition(p)
+        }}
+      >
+        {/* Trigger */}
+        <NextLogo
+          ref={triggerRef}
+          aria-haspopup="menu"
+          aria-expanded={isMenuOpen}
+          aria-controls="nextjs-dev-tools-menu"
+          aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
+          data-nextjs-dev-tools-button
+          disabled={disabled}
+          issueCount={issueCount}
+          onTriggerClick={onTriggerClick}
+          toggleErrorOverlay={toggleErrorOverlay}
+          isDevBuilding={useIsDevBuilding()}
+          isDevRendering={useIsDevRendering()}
+          isBuildError={isBuildError}
+          scale={scale}
+        />
+      </Draggable>
 
       {/* Route Info */}
       <RouteInfo
@@ -610,6 +620,14 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
       text-align: center;
       font-size: var(--size-12);
       line-height: var(--size-16);
+    }
+  }
+
+  .dev-tools-grabbing {
+    cursor: grabbing;
+
+    > * {
+      pointer-events: none;
     }
   }
 `

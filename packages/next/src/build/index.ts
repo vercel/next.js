@@ -1516,6 +1516,7 @@ export default async function build(
                     hasSsrAmpPages: false,
                     buildTraceContext,
                     outputFileTracingRoot,
+                    isTurbopack: false,
                   })
                   .catch((err) => {
                     console.error(err)
@@ -2441,6 +2442,7 @@ export default async function build(
           hasSsrAmpPages,
           buildTraceContext,
           outputFileTracingRoot,
+          isTurbopack: true,
         }).catch((err) => {
           console.error(err)
           process.exit(1)

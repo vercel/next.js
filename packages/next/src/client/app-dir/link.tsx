@@ -457,7 +457,6 @@ export default function LinkComponent(
         key === 'scroll' ||
         key === 'shallow' ||
         key === 'passHref' ||
-        key === 'prefetch' ||
         key === 'legacyBehavior' ||
         key === 'unstable_dynamicOnHover'
       ) {
@@ -465,6 +464,18 @@ export default function LinkComponent(
           throw createPropError({
             key,
             expected: '`boolean`',
+            actual: valType,
+          })
+        }
+      } else if (key === 'prefetch') {
+        if (
+          props[key] != null &&
+          valType !== 'boolean' &&
+          props[key] !== 'auto'
+        ) {
+          throw createPropError({
+            key,
+            expected: '`boolean | "auto"`',
             actual: valType,
           })
         }
