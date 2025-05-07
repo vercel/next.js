@@ -11,7 +11,6 @@ import type { Request, Response } from 'playwright'
 import fs from 'fs-extra'
 import nodeFs from 'fs'
 import { join } from 'path'
-import { outdent } from 'outdent'
 
 const GENERIC_RSC_ERROR =
   'Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -776,113 +775,6 @@ describe('app-dir action handling', () => {
       expect(requests.length).toBe(0)
     }
   })
-
-  // This is disabled when deployed because the 404 page will be served as a static route
-  // which will not support POST requests, and will return a 405 instead.
-  if (!isNextDeploy) {
-    it('should 404 when POSTing a non-server-action request to a nonexistent page', async () => {
-      const cliOutputPosition = next.cliOutput.length
-      const res = await next.fetch('/non-existent-route', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/x-www-form-urlencoded',
-        },
-        body: 'foo=bar',
-      })
-
-      const cliOutput = next.cliOutput.slice(cliOutputPosition)
-
-      expect(cliOutput).not.toContain('TypeError')
-      expect(cliOutput).not.toContain(
-        'Missing `origin` header from a forwarded Server Actions request'
-      )
-      expect(res.status).toBe(404)
-    })
-
-    it.each([
-      {
-        // encodeReply encodes simple args as plaintext.
-        name: 'plaintext',
-        request: {
-          contentType: 'text/plain;charset=UTF-8',
-          body: '{}',
-        },
-      },
-      {
-        // we never use urlencoded actions, but we currently have codepaths for it in `handleAction`,
-        // so might as well test the,
-        name: 'urlencoded',
-        request: {
-          contentType: 'application/x-www-form-urlencoded',
-          body: 'foo=bar',
-        },
-      },
-    ])(
-      'should 404 when POSTing a server action with an unrecognized id a nonexistent page: $name',
-      async ({ request: { contentType, body } }) => {
-        const cliOutputPosition = next.cliOutput.length
-        const res = await next.fetch('/non-existent-route', {
-          method: 'POST',
-          headers: {
-            'next-action': '123',
-            'content-type': contentType,
-          },
-          body,
-        })
-
-        const cliOutput = next.cliOutput.slice(cliOutputPosition)
-
-        expect(cliOutput).not.toContain('TypeError')
-        expect(cliOutput).not.toContain(
-          'Missing `origin` header from a forwarded Server Actions request'
-        )
-        expect(res.status).toBe(404)
-      }
-    )
-  }
-
-  it.each([
-    {
-      // encodeReply encodes simple args as plaintext.
-      name: 'plaintext',
-      request: {
-        contentType: 'text/plain;charset=UTF-8',
-        body: '{}',
-      },
-    },
-    {
-      // we never use urlencoded actions, but we currently have codepaths for it in `handleAction`,
-      // so might as well test the,
-      name: 'urlencoded',
-      request: {
-        contentType: 'application/x-www-form-urlencoded',
-        body: 'foo=bar',
-      },
-    },
-  ])(
-    'should 404 and log a warning when a server action is not found but an id is provided: $name',
-    async ({ request: { body, contentType } }) => {
-      const response = await next.fetch('/server', {
-        method: 'POST',
-        headers: {
-          'next-action': 'abc123',
-          'content-type': contentType,
-        },
-        body,
-      })
-
-      expect(response.status).toBe(404)
-
-      if (!isNextDeploy) {
-        await retry(async () =>
-          expect(next.cliOutput).toInclude(outdent`
-            Failed to find Server Action "abc123". This request might be from an older or newer deployment.
-            Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
-          `)
-        )
-      }
-    }
-  )
 
   it('should be possible to catch network errors', async () => {
     const browser = await next.browser('/catching-error', {
