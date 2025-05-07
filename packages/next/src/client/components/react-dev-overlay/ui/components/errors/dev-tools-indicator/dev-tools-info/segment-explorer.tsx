@@ -6,6 +6,10 @@ import type { AppSegmentTreeNode } from '../../../../../../../../shared/lib/devt
 import { cx } from '../../../../utils/cx'
 import { LeftArrow } from '../../../../icons/left-arrow'
 import { useSegmentTreeClientState } from '../../../../../../../../shared/lib/devtool/app-segment-tree'
+import type {
+  Trie,
+  TrieNode,
+} from '../../../../../../../../shared/lib/devtool/trie'
 
 const IconLayout = (props: React.SVGProps<SVGSVGElement>) => {
   return (
@@ -47,7 +51,7 @@ const ICONS = {
   page: <IconPage width={16} />,
 }
 
-function PageSegmentTree({ tree }: { tree: AppSegmentTreeNode | undefined }) {
+function PageSegmentTree({ tree }: { tree: Trie | undefined }) {
   const renderedRef = useRef<Record<string, number>>({})
   if (!tree) {
     return null
@@ -55,7 +59,7 @@ function PageSegmentTree({ tree }: { tree: AppSegmentTreeNode | undefined }) {
   return (
     <div className="segment-explorer-content">
       <PageSegmentTreeLayerPresentation
-        node={tree}
+        node={tree.getRoot()}
         level={0}
         renderedRef={renderedRef}
       />
@@ -68,13 +72,13 @@ function PageSegmentTreeLayerPresentation({
   level,
   renderedRef,
 }: {
-  node: AppSegmentTreeNode
+  node: TrieNode
   level: number
   renderedRef: React.RefObject<Record<string, number>>
 }) {
   // Store the level number for each segment.
   // Check if the node has been rendered before
-  const renderedLevel = renderedRef.current[node.pagePath]
+  const renderedLevel = renderedRef.current[node.value || '']
   const hasRenderedBefore = typeof renderedLevel !== 'undefined'
   if (hasRenderedBefore && renderedLevel !== level) {
     return null
@@ -82,13 +86,15 @@ function PageSegmentTreeLayerPresentation({
 
   if (
     // Skip '' pagePath of root node
-    node.pagePath &&
+    node.value &&
     !hasRenderedBefore
   ) {
-    renderedRef.current[node.pagePath] = level
+    renderedRef.current[node.value] = level
   }
-  const nodeName = node.name || 'root'
-  const segments = node.pagePath.split('/')
+  const segments = node.value?.split('/') || []
+  const fileName = segments[segments.length - 1]
+  const nodeName = fileName.split('.')[0] === 'layout' ? 'layout' : 'page'
+
   const pagePath = segments.slice(0, -1).join('/')
   const fileBaseName = segments[segments.length - 1]
 
@@ -125,14 +131,16 @@ function PageSegmentTreeLayerPresentation({
 
             return segA - segB
           })
-          .map(([key, child]) => (
-            <PageSegmentTreeLayerPresentation
-              key={key}
-              node={child}
-              level={level + 1}
-              renderedRef={renderedRef}
-            />
-          ))}
+          .map(([key, child]) =>
+            !!(child && child?.value) ? (
+              <PageSegmentTreeLayerPresentation
+                key={key}
+                node={child}
+                level={level + 1}
+                renderedRef={renderedRef}
+              />
+            ) : null
+          )}
       </div>
     </div>
   )

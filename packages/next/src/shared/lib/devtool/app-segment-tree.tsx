@@ -10,19 +10,16 @@ import {
   AppSegmentTreeContext,
   type AppSegmentTreeNode,
 } from './app-segment-tree-context.shared-runtime'
+import { createTrie, type Trie } from './trie'
 
 type DevtoolClientState = {
-  tree?: AppSegmentTreeNode
+  tree?: Trie
 }
 
 const DEFAULT_CLIENT_STATE =
   typeof window === 'undefined'
     ? undefined
-    : {
-        name: 'root',
-        pagePath: '',
-        children: {},
-      }
+    : createTrie()
 
 declare global {
   interface Window {
@@ -121,11 +118,12 @@ const createRegisterNode =
 
 const { subscribe, getSnapshot, getServerSnapshot } = createSegmentTreeStore()
 
-const setTree = (newTree: AppSegmentTreeNode) => {
+const setTree = (node: AppSegmentTreeNode) => {
   if (typeof window === 'undefined') return
 
   const clientState = getSegmentTreeClientState()
-  clientState.tree = newTree
+  // clientState.tree = newTree
+  clientState.tree?.insert(node.pagePath)
   listeners?.forEach((listener) => listener())
 }
 
@@ -134,11 +132,12 @@ function getStateTree() {
   return clientState.tree!
 }
 
-const setStateTree = (newTree: AppSegmentTreeNode) => {
-  setTree(newTree)
+const setStateTree = (node: AppSegmentTreeNode) => {
+  setTree(node)
   subscribe(() => {
-    const clientState = getSegmentTreeClientState()
-    clientState.tree = newTree
+    // const clientState = getSegmentTreeClientState()
+    // clientState.tree = node
+
   })
   return () => {
     if (window.__NEXT_DEVTOOLS_CLIENT_STATE) {
@@ -149,7 +148,7 @@ const setStateTree = (newTree: AppSegmentTreeNode) => {
   }
 }
 
-const registerNode = createRegisterNode(setStateTree, getStateTree)
+// const registerNode = createRegisterNode(setStateTree, getStateTree)
 
 export function SegmentViewNode({
   name,
@@ -160,36 +159,41 @@ export function SegmentViewNode({
   pagePath: string
   children: ReactNode
 }) {
-  const segmentTreeCtx = useContext(AppSegmentTreeContext)
-
+  // const segmentTreeCtx = useContext(AppSegmentTreeContext)
+  const clientState = getSegmentTreeClientState()
+  const tree = clientState.tree
+  
   useEffect(() => {
-    if (!segmentTreeCtx) {
+    if (!tree) {
       return
     }
-    const { pagePath: parentPagePath } = segmentTreeCtx
-    registerNode({
-      parentPagePath,
-      name,
-      pagePath,
-    })
+    // if (!segmentTreeCtx) {
+    //   return
+    // }
+
+    tree.insert(pagePath)
+
+  
+
     // Skip adding `context` to the dependency array to avoid re-rendering
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name, pagePath])
 
-  if (!segmentTreeCtx) {
-    return children
-  }
+  // if (!segmentTreeCtx) {
+  //   return children
+  // }
 
-  return (
-    <AppSegmentTreeContext
-      value={{
-        ...segmentTreeCtx,
-        pagePath,
-      }}
-    >
-      {children}
-    </AppSegmentTreeContext>
-  )
+  return children
+  // return (
+  //   <AppSegmentTreeContext
+  //     value={{
+  //       ...segmentTreeCtx,
+  //       pagePath,
+  //     }}
+  //   >
+  //     {children}
+  //   </AppSegmentTreeContext>
+  // )
 }
 
 export function useSegmentTreeClientState() {
