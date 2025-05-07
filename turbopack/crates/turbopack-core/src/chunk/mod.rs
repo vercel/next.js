@@ -178,8 +178,8 @@ pub enum ChunkingType {
     Parallel {
         /// Whether the parent module becomes an async module when the referenced module is async.
         inherit_async: bool,
-        /// Whether the referenced module is executed always immediately before the parent modules
-        /// (corresponding to ESM import semantics)
+        /// Whether the referenced module is executed always immediately before the parent module
+        /// (corresponding to ESM import semantics).
         hoisted: bool,
     },
     /// An async loader is placed into the referencing chunk and loads the
