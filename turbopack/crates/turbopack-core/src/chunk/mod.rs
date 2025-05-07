@@ -173,8 +173,7 @@ pub trait OutputChunk: Asset {
     NonLocalValue,
 )]
 pub enum ChunkingType {
-    /// Module is placed in the same chunk group and is loaded in parallel. It
-    /// doesn't become an async module when the referenced module is async.
+    /// The referenced module is placed in the same chunk group and is loaded in parallel.
     Parallel {
         /// Whether the parent module becomes an async module when the referenced module is async.
         inherit_async: bool,
