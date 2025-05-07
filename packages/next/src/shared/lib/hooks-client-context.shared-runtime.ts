@@ -2,8 +2,10 @@
 
 import { createContext } from 'react'
 import type { Params } from '../../server/request/params'
+import type { ReadonlyURLSearchParams } from '../../api/navigation'
 
-export const SearchParamsContext = createContext<URLSearchParams | null>(null)
+export const SearchParamsContext =
+  createContext<ReadonlyURLSearchParams | null>(null)
 export const PathnameContext = createContext<string | null>(null)
 export const PathParamsContext = createContext<Params | null>(null)
 

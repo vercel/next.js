@@ -48,6 +48,7 @@ import {
 import { onRecoverableError } from './react-client-callbacks/on-recoverable-error'
 import tracer from './tracing/tracer'
 import { isNextRouterError } from './components/is-next-router-error'
+import { ReadonlyURLSearchParams } from './components/navigation'
 
 /// <reference types="react-dom/experimental" />
 
@@ -316,7 +317,9 @@ function AppContainer({
       }
     >
       <AppRouterContext.Provider value={adaptedForAppRouter}>
-        <SearchParamsContext.Provider value={adaptForSearchParams(router)}>
+        <SearchParamsContext.Provider
+          value={new ReadonlyURLSearchParams(adaptForSearchParams(router))}
+        >
           <PathnameContextProviderAdapter
             router={router}
             isAutoExport={self.__NEXT_DATA__.autoExport ?? false}

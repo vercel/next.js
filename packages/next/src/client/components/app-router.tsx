@@ -47,6 +47,7 @@ import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { isRedirectError, RedirectType } from './redirect-error'
 import { pingVisibleLinks } from './links'
 import GracefulDegradeBoundary from './errors/graceful-degrade-boundary'
+import { ReadonlyURLSearchParams } from './navigation'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -536,7 +537,9 @@ function Router({
       <RuntimeStyles />
       <PathParamsContext.Provider value={pathParams}>
         <PathnameContext.Provider value={pathname}>
-          <SearchParamsContext.Provider value={searchParams}>
+          <SearchParamsContext.Provider
+            value={new ReadonlyURLSearchParams(searchParams)}
+          >
             <GlobalLayoutRouterContext.Provider
               value={globalLayoutRouterContext}
             >
