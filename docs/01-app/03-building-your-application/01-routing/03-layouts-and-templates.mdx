@@ -87,9 +87,32 @@ export default function RootLayout({ children }) {
 }
 ```
 
+**Rules for the Root Layout**
+
+- **Location**: Must be placed **directly in the `app` directory** (e.g., `app/layout.js|tsx`).
+- **No nesting**: Subfolders (e.g., `app/dashboard/layout.js|tsx`) **do not** count as root layouts.
+- **Only one root layout**: Your app can only have **one root layout**.
+- **HTML structure**: Must include `<html>` and `<body>` tags (unlike nested layouts).
+
+**Example folder structure**:
+
+```bash
+app/
+├── layout.js          # ← Root layout (required)
+├── page.js
+└── dashboard/
+    ├── layout.js      # ← Nested layout (extends root)
+    └── page.js
+```
+
 ### Nesting Layouts
 
 By default, layouts in the folder hierarchy are **nested**, which means they wrap child layouts via their `children` prop. You can nest layouts by adding `layout.js` inside specific route segments (folders).
+
+### How Nested Layouts Interact with the Root Layout
+
+- Nested layouts (e.g., `app/dashboard/layout.js|tsx`) **automatically inherit** the root layout.
+- They **do not replace** the root layout unless you explicitly redefine `<html>` or `<body>` tags.
 
 For example, to create a layout for the `/dashboard` route, add a new `layout.js` file inside the `dashboard` folder:
 
