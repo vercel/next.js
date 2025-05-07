@@ -530,11 +530,18 @@ function Router({
     }
   }
 
-  const Root =
-    process.env.NODE_ENV === 'development'
-      ? (require('../../shared/lib/devtool/app-segment-tree')
-          .SegmentViewRoot as typeof import('../../shared/lib/devtool/app-segment-tree').SegmentViewRoot)
-      : React.Fragment
+  let Root: React.ComponentType<{ children: React.ReactNode }> = React.Fragment
+  if (process.env.NODE_ENV === 'development') {
+    const mod: typeof import('../../shared/lib/devtool/app-segment-tree') = require('../../shared/lib/devtool/app-segment-tree')
+    Root = ({ children }: { children: React.ReactNode }) => {
+      const SegmentNode = mod.SegmentViewNode
+      return (
+        <SegmentNode name="root" pagePath={''}>
+          {children}
+        </SegmentNode>
+      )
+    }
+  }
 
   return (
     <Root>

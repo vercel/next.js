@@ -9,17 +9,7 @@ export type AppSegmentTreeNode = {
 }
 
 type AppSegmentTreeValue = {
-  tree: AppSegmentTreeNode
   pagePath: string // pagePath of the current segment
-  registerNode: ({
-    pagePath,
-    name,
-    parentPagePath,
-  }: {
-    pagePath: string
-    name: string
-    parentPagePath: string
-  }) => void
 }
 
 export const AppSegmentTreeContext = createContext<AppSegmentTreeValue | null>(

@@ -5,7 +5,7 @@ import { DevToolsInfo } from './dev-tools-info'
 import type { AppSegmentTreeNode } from '../../../../../../../../shared/lib/devtool/app-segment-tree-context.shared-runtime'
 import { cx } from '../../../../utils/cx'
 import { LeftArrow } from '../../../../icons/left-arrow'
-import { useSegmentTreeContext } from '../../../../../../../../shared/lib/devtool/app-segment-tree'
+import { useSegmentTreeClientState } from '../../../../../../../../shared/lib/devtool/app-segment-tree'
 
 const IconLayout = (props: React.SVGProps<SVGSVGElement>) => {
   return (
@@ -47,8 +47,11 @@ const ICONS = {
   page: <IconPage width={16} />,
 }
 
-function PageSegmentTree({ tree }: { tree: AppSegmentTreeNode }) {
+function PageSegmentTree({ tree }: { tree: AppSegmentTreeNode | undefined }) {
   const renderedRef = useRef<Record<string, number>>({})
+  if (!tree) {
+    return null
+  }
   return (
     <div className="segment-explorer-content">
       <PageSegmentTreeLayerPresentation
@@ -138,7 +141,7 @@ function PageSegmentTreeLayerPresentation({
 export function SegmentsExplorer(
   props: DevToolsInfoPropsCore & HTMLProps<HTMLDivElement>
 ) {
-  const ctx = useSegmentTreeContext()
+  const ctx = useSegmentTreeClientState()
   if (!ctx) {
     return null
   }

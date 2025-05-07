@@ -1,18 +1,82 @@
 'use client'
 
-import React, { type ReactNode, useEffect } from 'react'
+import {
+  type ReactNode,
+  useContext,
+  useEffect,
+  useSyncExternalStore,
+} from 'react'
 import {
   AppSegmentTreeContext,
   type AppSegmentTreeNode,
 } from './app-segment-tree-context.shared-runtime'
 
+type DevtoolClientState = {
+  tree?: AppSegmentTreeNode
+}
+
+const DEFAULT_CLIENT_STATE =
+  typeof window === 'undefined'
+    ? undefined
+    : {
+        name: 'root',
+        pagePath: '',
+        children: {},
+      }
+
+declare global {
+  interface Window {
+    __NEXT_DEVTOOLS_CLIENT_STATE?: DevtoolClientState
+  }
+}
+
+function getSegmentTreeClientState(): DevtoolClientState {
+  if (typeof window === 'undefined') {
+    return {}
+  }
+  if (!window.__NEXT_DEVTOOLS_CLIENT_STATE) {
+    window.__NEXT_DEVTOOLS_CLIENT_STATE = {
+      // Initial state
+      tree: DEFAULT_CLIENT_STATE,
+    }
+  }
+  return window.__NEXT_DEVTOOLS_CLIENT_STATE!
+}
+
+const listeners = typeof window === 'undefined' ? null : new Set<() => void>()
+
+const createSegmentTreeStore = (): {
+  subscribe: (callback: () => void) => () => void
+  getSnapshot: () => DevtoolClientState
+  getServerSnapshot: () => undefined
+} => {
+  if (typeof window === 'undefined') {
+    return {
+      subscribe: () => () => void 0,
+      getSnapshot: () => ({}),
+      getServerSnapshot: () => undefined,
+    }
+  }
+
+  // return a store that can be used by useSyncExternalStore
+  return {
+    subscribe: (callback) => {
+      listeners?.add(callback)
+      return () => listeners?.delete(callback)
+    },
+    getSnapshot: () => {
+      return getSegmentTreeClientState()
+    },
+    getServerSnapshot: () => {
+      return undefined
+    },
+  }
+}
+
 const createRegisterNode =
   (
-    setTree: (
-      tree:
-        | AppSegmentTreeNode
-        | ((prevTree: AppSegmentTreeNode) => AppSegmentTreeNode)
-    ) => void
+    setTree: (tree: AppSegmentTreeNode) => void,
+    getTree: () => AppSegmentTreeNode
   ) =>
   ({
     pagePath,
@@ -23,66 +87,76 @@ const createRegisterNode =
     name: string
     parentPagePath: string
   }): void => {
-    setTree((prevTree) => {
-      const findNode = (
-        node: AppSegmentTreeNode
-      ): AppSegmentTreeNode | null => {
-        // Locate the parent node by comparing pagePath
-        if (node.pagePath === parentPagePath) return node
-        for (const childKey of Object.keys(node.children)) {
-          const child = node.children[childKey]
-          const found = findNode(child)
-          if (found) return found
-        }
-        return null
+    const currentTree = getTree()
+    const findNode = (node: AppSegmentTreeNode): AppSegmentTreeNode | null => {
+      // Locate the parent node by comparing pagePath
+      if (node.pagePath === parentPagePath) return node
+      for (const childKey of Object.keys(node.children)) {
+        const child = node.children[childKey]
+        const found = findNode(child)
+        if (found) return found
       }
+      return null
+    }
 
-      const parent = findNode(prevTree)
-      if (parent) {
-        if (!parent.children[pagePath]) {
-          parent.children[pagePath] = {
-            name,
-            pagePath,
-            children: {},
-          }
-        }
-      } else {
-        // If parent not found, create a new node at the root level
-        prevTree.children[pagePath] = {
+    const parent = findNode(currentTree)
+    if (parent) {
+      if (!parent.children[pagePath]) {
+        parent.children[pagePath] = {
           name,
           pagePath,
           children: {},
         }
       }
-
-      return { ...prevTree }
-    })
+    } else {
+      // If parent not found, create a new node at the root level
+      currentTree.children[pagePath] = {
+        name,
+        pagePath,
+        children: {},
+      }
+    }
+    setTree(currentTree)
   }
 
-export const SegmentViewRoot = ({ children }: { children: ReactNode }) => {
-  const rootPagePath = ''
-  const [tree, setTree] = React.useState<AppSegmentTreeNode>(
-    // Root node with placeholder information
-    {
-      name: 'root',
-      pagePath: rootPagePath,
-      children: {},
+const { subscribe, getSnapshot, getServerSnapshot } = createSegmentTreeStore()
+
+const setTree = (newTree: AppSegmentTreeNode) => {
+  if (typeof window === 'undefined') return
+
+  const clientState = getSegmentTreeClientState()
+  clientState.tree = newTree
+  listeners?.forEach((listener) => listener())
+}
+
+function getStateTree() {
+  const clientState = getSegmentTreeClientState()
+  return clientState.tree!
+}
+
+const setStateTree = (newTree: AppSegmentTreeNode) => {
+  setTree(newTree)
+  subscribe(() => {
+    const clientState = getSegmentTreeClientState()
+    clientState.tree = newTree
+  })
+  return () => {
+    if (window.__NEXT_DEVTOOLS_CLIENT_STATE) {
+      window.__NEXT_DEVTOOLS_CLIENT_STATE = {
+        tree: DEFAULT_CLIENT_STATE,
+      }
     }
-  )
+  }
+}
 
-  const registerNode = createRegisterNode(setTree)
+const registerNode = createRegisterNode(setStateTree, getStateTree)
 
+export const SegmentViewRoot = ({ children }: { children: ReactNode }) => {
   return (
-    <AppSegmentTreeContext
-      value={{ tree, registerNode, pagePath: rootPagePath }}
-    >
+    <AppSegmentTreeContext value={{ pagePath: '' }}>
       {children}
     </AppSegmentTreeContext>
   )
-}
-
-export const useSegmentTreeContext = () => {
-  return React.useContext(AppSegmentTreeContext)
 }
 
 export function SegmentViewNode({
@@ -94,34 +168,39 @@ export function SegmentViewNode({
   pagePath: string
   children: ReactNode
 }) {
-  const devToolContext = useSegmentTreeContext()
+  const segmentTreeCtx = useContext(AppSegmentTreeContext)
 
   useEffect(() => {
-    if (!devToolContext) {
+    if (!segmentTreeCtx) {
       return
     }
-    const { registerNode, pagePath: parentPagePath } = devToolContext
+    const { pagePath: parentPagePath } = segmentTreeCtx
     registerNode({
       parentPagePath,
       name,
       pagePath,
     })
-    // Skip adding `devToolContext` to the dependency array to avoid re-rendering
+    // Skip adding `context` to the dependency array to avoid re-rendering
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name, pagePath])
 
-  if (!devToolContext) {
+  if (!segmentTreeCtx) {
     return children
   }
 
   return (
     <AppSegmentTreeContext
       value={{
-        ...devToolContext,
+        ...segmentTreeCtx,
         pagePath,
       }}
     >
       {children}
     </AppSegmentTreeContext>
   )
+}
+
+export function useSegmentTreeClientState() {
+  const state = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
+  return state
 }
