@@ -99,7 +99,7 @@ pub async fn compute_style_groups(
             &mut (),
             |parent_info, module, _| {
                 if let Some((_, ModuleBatchesGraphEdge { ty, .. })) = parent_info {
-                    if ty.is_parallel() {
+                    if !ty.is_parallel() {
                         return Ok(GraphTraversalAction::Exclude);
                     }
                 }
@@ -111,7 +111,7 @@ pub async fn compute_style_groups(
             },
             |parent_info, item, _| {
                 if let Some((_, ModuleBatchesGraphEdge { ty, .. })) = parent_info {
-                    if ty.is_parallel() {
+                    if !ty.is_parallel() {
                         return;
                     }
                 }
