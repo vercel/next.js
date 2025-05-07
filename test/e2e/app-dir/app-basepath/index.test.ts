@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
 import type { Request, Response } from 'playwright'
+import { debug } from 'console'
 
 describe('app dir - basepath', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -16,9 +17,8 @@ describe('app dir - basepath', () => {
     try {
       await browser.waitForElementByCss('#page-2')
     } catch (error) {
-      console.error('Error waiting for element:', error)
-      console.log(await browser.url())
-      console.log(await browser.eval('document.body.innerHTML'))
+      debug(await browser.url())
+      debug(await browser.eval('document.body.innerHTML'))
       throw error
     }
   })
