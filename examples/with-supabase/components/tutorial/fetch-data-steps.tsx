@@ -44,7 +44,7 @@ export default function Page() {
 }
 `.trim();
 
-export default function FetchDataSteps() {
+export function FetchDataSteps() {
   return (
     <ol className="flex flex-col gap-6">
       <TutorialStep title="Create some tables and insert some data">

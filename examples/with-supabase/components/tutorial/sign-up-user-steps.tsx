@@ -2,7 +2,7 @@ import Link from "next/link";
 import { TutorialStep } from "./tutorial-step";
 import { ArrowUpRight } from "lucide-react";
 
-export default function SignUpUserSteps() {
+export function SignUpUserSteps() {
   return (
     <ol className="flex flex-col gap-6">
       {process.env.VERCEL_ENV === "preview" ||
