@@ -1200,10 +1200,10 @@ export default class Document<P = {}> extends React.Component<
   render() {
     return (
       <Html>
-        <Head {...this.props} />
+        <Head nonce={this.props.nonce} />
         <body>
           <Main />
-          <NextScript {...this.props} />
+          <NextScript nonce={this.props.nonce} />
         </body>
       </Html>
     )
