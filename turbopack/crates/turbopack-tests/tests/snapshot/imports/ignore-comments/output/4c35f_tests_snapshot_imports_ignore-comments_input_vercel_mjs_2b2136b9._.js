@@ -2,7 +2,7 @@
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.mjs [test] (ecmascript, async loader)": ((__turbopack_context__) => {
 
-var { g: global } = __turbopack_context__;
+var global = globalThis;
 {
 __turbopack_context__.v((parentImport) => {
     return Promise.all([

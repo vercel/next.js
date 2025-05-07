@@ -3,7 +3,7 @@
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/relative-uri-import/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
 
-var { g: global } = __turbopack_context__;
+var global = globalThis;
 {
 __turbopack_context__.s({});
 ;

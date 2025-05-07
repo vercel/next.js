@@ -3,7 +3,7 @@
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
 
-var { g: global } = __turbopack_context__;
+var global = globalThis;
 {
 __turbopack_context__.s({});
 var __TURBOPACK__url__external__node$3a$child_process__ = __turbopack_context__.x("node:child_process", ()=>require("node:child_process"), true);

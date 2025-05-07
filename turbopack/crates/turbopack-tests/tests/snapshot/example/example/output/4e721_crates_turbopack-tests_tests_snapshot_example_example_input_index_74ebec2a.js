@@ -2,7 +2,8 @@
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/example/example/input/index.js [test] (ecmascript)": (function(__turbopack_context__) {
 
-var { g: global, m: module, e: exports } = __turbopack_context__;
+var global = globalThis;
+var { m: module, e: exports } = __turbopack_context__;
 {
 console.log('hello world');
 }}),
