@@ -176,6 +176,7 @@ pub enum ChunkingType {
     /// The referenced module is placed in the same chunk group and is loaded in parallel.
     Parallel {
         /// Whether the parent module becomes an async module when the referenced module is async.
+        /// This should happen for e.g. ESM imports, but not for CommonJS requires.
         inherit_async: bool,
         /// Whether the referenced module is executed always immediately before the parent module
         /// (corresponding to ESM import semantics).
