@@ -4,14 +4,14 @@ use anyhow::{bail, Result};
 use indoc::writedoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{File, FileSystem};
+use turbo_tasks_fs::{File, FileSystem, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     output::{OutputAsset, OutputAssets},
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
 };
 use turbopack_ecmascript::utils::StringifyJs;
 use turbopack_ecmascript_runtime::RuntimeType;
@@ -38,7 +38,11 @@ impl EcmascriptBuildNodeRuntimeChunk {
 
         let output_root_to_root_path = this.chunking_context.output_root_to_root_path().await?;
         let output_root = this.chunking_context.output_root().await?;
-        let runtime_path = self.ident().path().await?;
+        let generate_source_map = *this
+            .chunking_context
+            .reference_chunk_source_maps(Vc::upcast(self))
+            .await?;
+        let runtime_path = self.path().await?;
         let runtime_public_path = if let Some(path) = output_root.get_path_to(&runtime_path) {
             path
         } else {
@@ -69,12 +73,14 @@ impl EcmascriptBuildNodeRuntimeChunk {
             RuntimeType::Development => {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
                     this.chunking_context.environment(),
+                    generate_source_map,
                 );
                 code.push_code(&*runtime_code.await?);
             }
             RuntimeType::Production => {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
                     this.chunking_context.environment(),
+                    generate_source_map,
                 );
                 code.push_code(&*runtime_code.await?);
             }
@@ -86,6 +92,25 @@ impl EcmascriptBuildNodeRuntimeChunk {
         }
 
         Ok(Code::cell(code.build()))
+    }
+
+    #[turbo_tasks::function]
+    fn ident_for_path(self: Vc<Self>) -> Vc<AssetIdent> {
+        AssetIdent::from_path(
+            turbopack_ecmascript_runtime::embed_fs()
+                .root()
+                .join("runtime.js".into()),
+        )
+    }
+
+    #[turbo_tasks::function]
+    async fn source_map(self: Vc<Self>) -> Result<Vc<SourceMapAsset>> {
+        let this = self.await?;
+        Ok(SourceMapAsset::new(
+            Vc::upcast(*this.chunking_context),
+            self.ident_for_path(),
+            Vc::upcast(self),
+        ))
     }
 }
 
@@ -100,14 +125,13 @@ impl ValueToString for EcmascriptBuildNodeRuntimeChunk {
 #[turbo_tasks::value_impl]
 impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        let ident = AssetIdent::from_path(
-            turbopack_ecmascript_runtime::embed_fs()
-                .root()
-                .join("runtime.js".into()),
-        );
+    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
+        let ident = self.ident_for_path();
 
-        AssetIdent::from_path(self.chunking_context.chunk_path(ident, ".js".into()))
+        Ok(this
+            .chunking_context
+            .chunk_path(Some(Vc::upcast(self)), ident, ".js".into()))
     }
 
     #[turbo_tasks::function]
@@ -120,9 +144,7 @@ impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?
         {
-            references.push(ResolvedVc::upcast(
-                SourceMapAsset::new(Vc::upcast(self)).to_resolved().await?,
-            ))
+            references.push(ResolvedVc::upcast(self.source_map().to_resolved().await?))
         }
 
         Ok(Vc::cell(references))
@@ -143,7 +165,7 @@ impl Asset for EcmascriptBuildNodeRuntimeChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBuildNodeRuntimeChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap> {
+    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
         self.code().generate_source_map()
     }
 }

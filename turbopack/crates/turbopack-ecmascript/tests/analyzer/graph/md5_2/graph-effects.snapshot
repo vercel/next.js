@@ -85,7 +85,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "crypt",
                         ),
                     ),
@@ -167,7 +167,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "charenc",
                         ),
                     ),
@@ -338,7 +338,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "charenc",
                         ),
                     ),
@@ -503,7 +503,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "is-buffer",
                         ),
                     ),
@@ -585,7 +585,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "charenc",
                         ),
                     ),
@@ -756,7 +756,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "charenc",
                         ),
                     ),
@@ -1211,7 +1211,7 @@
                                     StrictEqual,
                                     Constant(
                                         Str(
-                                            Word(
+                                            Atom(
                                                 "binary",
                                             ),
                                         ),
@@ -29023,7 +29023,7 @@
                                     [
                                         Constant(
                                             Str(
-                                                Word(
+                                                Atom(
                                                     "Illegal argument ",
                                                 ),
                                             ),

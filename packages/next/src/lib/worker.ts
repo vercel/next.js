@@ -2,7 +2,7 @@ import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Transform } from 'stream'
 
-type FarmOptions = ConstructorParameters<typeof JestWorker>[1]
+type FarmOptions = NonNullable<ConstructorParameters<typeof JestWorker>[1]>
 
 const RESTARTED = Symbol('restarted')
 
@@ -19,7 +19,12 @@ export class Worker {
 
   constructor(
     workerPath: string,
-    options: FarmOptions & {
+    options: Omit<FarmOptions, 'forkOptions'> & {
+      forkOptions?:
+        | (Omit<NonNullable<FarmOptions['forkOptions']>, 'env'> & {
+            env?: Partial<NodeJS.ProcessEnv> | undefined
+          })
+        | undefined
       timeout?: number
       onActivity?: () => void
       onActivityAbort?: () => void
@@ -48,8 +53,9 @@ export class Worker {
         forkOptions: {
           ...farmOptions.forkOptions,
           env: {
-            ...((farmOptions.forkOptions?.env || {}) as any),
             ...process.env,
+            ...((farmOptions.forkOptions?.env || {}) as any),
+            IS_NEXT_WORKER: 'true',
           } as any,
         },
         maxRetries: 0,
@@ -75,7 +81,7 @@ export class Worker {
           worker._child?.on('exit', (code, signal) => {
             if ((code || (signal && signal !== 'SIGINT')) && this._worker) {
               logger.error(
-                `Static worker exited with code: ${code} and signal: ${signal}`
+                `Next.js build worker exited with code: ${code} and signal: ${signal}`
               )
 
               // if a child process doesn't exit gracefully, we want to bubble up the exit code to the parent process

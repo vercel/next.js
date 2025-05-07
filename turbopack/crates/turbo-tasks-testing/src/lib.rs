@@ -5,7 +5,6 @@ mod run;
 
 use std::{
     borrow::Cow,
-    collections::HashMap,
     future::Future,
     mem::replace,
     panic::AssertUnwindSafe,
@@ -14,14 +13,15 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use futures::FutureExt;
+use rustc_hash::FxHashMap;
 use turbo_tasks::{
     backend::{CellContent, TaskCollectiblesMap, TypedCellContent},
     event::{Event, EventListener},
     registry,
     test_helpers::with_turbo_tasks_for_testing,
     util::{SharedError, StaticOrArc},
-    CellId, ExecutionId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadConsistency, TaskId,
-    TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
+    CellId, ExecutionId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadCellOptions,
+    ReadConsistency, TaskId, TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
 };
 
 pub use crate::run::{run, run_with_tt, run_without_cache_check, Registration};
@@ -34,7 +34,7 @@ enum Task {
 #[derive(Default)]
 pub struct VcStorage {
     this: Weak<Self>,
-    cells: Mutex<HashMap<(TaskId, CellId), CellContent>>,
+    cells: Mutex<FxHashMap<(TaskId, CellId), CellContent>>,
     tasks: Mutex<Vec<Task>>,
 }
 
@@ -56,8 +56,8 @@ impl VcStorage {
             })));
             i
         };
-        let task_id = TaskId::from(i as u32 + 1);
-        let execution_id = ExecutionId::from(i as u64 + 1);
+        let task_id = TaskId::try_from(u32::try_from(i + 1).unwrap()).unwrap();
+        let execution_id = ExecutionId::try_from(u16::try_from(i + 1).unwrap()).unwrap();
         handle.spawn(with_turbo_tasks_for_testing(
             this.clone(),
             task_id,
@@ -91,35 +91,16 @@ impl TurboTasksCallApi for VcStorage {
     fn dynamic_call(
         &self,
         func: turbo_tasks::FunctionId,
+        this: Option<RawVc>,
         arg: Box<dyn MagicAny>,
         _persistence: TaskPersistence,
     ) -> RawVc {
-        self.dynamic_call(func, None, arg)
+        self.dynamic_call(func, this, arg)
     }
-
-    fn dynamic_this_call(
-        &self,
-        func: turbo_tasks::FunctionId,
-        this_arg: RawVc,
-        arg: Box<dyn MagicAny>,
-        _persistence: TaskPersistence,
-    ) -> RawVc {
-        self.dynamic_call(func, Some(this_arg), arg)
-    }
-
     fn native_call(
         &self,
         _func: turbo_tasks::FunctionId,
-        _arg: Box<dyn MagicAny>,
-        _persistence: TaskPersistence,
-    ) -> RawVc {
-        unreachable!()
-    }
-
-    fn this_call(
-        &self,
-        _func: turbo_tasks::FunctionId,
-        _this: RawVc,
+        _this: Option<RawVc>,
         _arg: Box<dyn MagicAny>,
         _persistence: TaskPersistence,
     ) -> RawVc {
@@ -214,6 +195,7 @@ impl TurboTasksApi for VcStorage {
         &self,
         task: TaskId,
         index: CellId,
+        _options: ReadCellOptions,
     ) -> Result<Result<TypedCellContent, EventListener>> {
         let map = self.cells.lock().unwrap();
         Ok(Ok(if let Some(cell) = map.get(&(task, index)) {
@@ -228,6 +210,7 @@ impl TurboTasksApi for VcStorage {
         &self,
         task: TaskId,
         index: CellId,
+        _options: ReadCellOptions,
     ) -> Result<Result<TypedCellContent, EventListener>> {
         let map = self.cells.lock().unwrap();
         Ok(Ok(if let Some(cell) = map.get(&(task, index)) {
@@ -242,24 +225,15 @@ impl TurboTasksApi for VcStorage {
         &self,
         current_task: TaskId,
         index: CellId,
+        options: ReadCellOptions,
     ) -> Result<TypedCellContent> {
-        self.read_own_task_cell(current_task, index)
+        self.read_own_task_cell(current_task, index, options)
     }
 
     fn try_read_local_output(
         &self,
-        parent_task_id: TaskId,
-        local_task_id: LocalTaskId,
-        consistency: ReadConsistency,
-    ) -> Result<Result<RawVc, EventListener>> {
-        self.try_read_local_output_untracked(parent_task_id, local_task_id, consistency)
-    }
-
-    fn try_read_local_output_untracked(
-        &self,
-        _parent_task_id: TaskId,
+        _execution_id: ExecutionId,
         _local_task_id: LocalTaskId,
-        _consistency: ReadConsistency,
     ) -> Result<Result<RawVc, EventListener>> {
         unimplemented!()
     }
@@ -289,7 +263,12 @@ impl TurboTasksApi for VcStorage {
         unimplemented!()
     }
 
-    fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent> {
+    fn read_own_task_cell(
+        &self,
+        task: TaskId,
+        index: CellId,
+        _options: ReadCellOptions,
+    ) -> Result<TypedCellContent> {
         let map = self.cells.lock().unwrap();
         Ok(if let Some(cell) = map.get(&(task, index)) {
             cell.to_owned()
@@ -317,10 +296,18 @@ impl TurboTasksApi for VcStorage {
         // no-op
     }
 
+    fn set_own_task_aggregation_number(&self, _task: TaskId, _aggregation_number: u32) {
+        // no-op
+    }
+
     fn detached_for_testing(
         &self,
         _f: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
     ) -> std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>> {
+        unimplemented!()
+    }
+
+    fn task_statistics(&self) -> &turbo_tasks::task_statistics::TaskStatisticsApi {
         unimplemented!()
     }
 
@@ -336,8 +323,8 @@ impl VcStorage {
                 this: weak.clone(),
                 ..Default::default()
             }),
-            TaskId::from(u32::MAX),
-            ExecutionId::from(u64::MAX),
+            TaskId::MAX,
+            ExecutionId::MIN,
             f,
         )
     }

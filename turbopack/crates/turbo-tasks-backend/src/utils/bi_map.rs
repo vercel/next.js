@@ -1,18 +1,15 @@
-use std::{
-    borrow::Borrow,
-    hash::{BuildHasherDefault, Hash},
-};
+use std::{borrow::Borrow, hash::Hash};
 
-use dashmap::{mapref::entry::Entry, DashMap};
-use rustc_hash::FxHasher;
+use dashmap::mapref::entry::Entry;
+use turbo_tasks::FxDashMap;
 
-/// A bidirectional [`DashMap`] that allows lookup by key or value.
+/// A bidirectional [`FxDashMap`] that allows lookup by key or value.
 ///
 /// As keys and values are stored twice, they should be small types, such as
 /// [`Arc`][`std::sync::Arc`].
 pub struct BiMap<K, V> {
-    forward: DashMap<K, V, BuildHasherDefault<FxHasher>>,
-    reverse: DashMap<V, K, BuildHasherDefault<FxHasher>>,
+    forward: FxDashMap<K, V>,
+    reverse: FxDashMap<V, K>,
 }
 
 impl<K, V> BiMap<K, V>
@@ -22,8 +19,8 @@ where
 {
     pub fn new() -> Self {
         Self {
-            forward: DashMap::default(),
-            reverse: DashMap::default(),
+            forward: FxDashMap::default(),
+            reverse: FxDashMap::default(),
         }
     }
 

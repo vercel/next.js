@@ -53,6 +53,7 @@ impl Task for ParseTask {
                     )
                 },
             )
+            .map_err(|e| e.to_pretty_error())
             .convert_err()?;
 
             let ast_json = serde_json::to_string(&program)

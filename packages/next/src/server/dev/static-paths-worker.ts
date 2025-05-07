@@ -18,6 +18,7 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 import { collectRootParamKeys } from '../../build/segment-config/app/collect-root-param-keys'
 import { buildAppStaticPaths } from '../../build/static-paths/app'
 import { buildPagesStaticPaths } from '../../build/static-paths/pages'
+import { createIncrementalCache } from '../../export/helpers/create-incremental-cache'
 
 type RuntimeConfig = {
   pprConfig: ExperimentalPPRConfig | undefined
@@ -45,6 +46,7 @@ export async function loadStaticPaths({
   maxMemoryCacheSize,
   requestHeaders,
   cacheHandler,
+  cacheHandlers,
   cacheLifeProfiles,
   nextConfigOutput,
   buildId,
@@ -65,6 +67,7 @@ export async function loadStaticPaths({
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
   cacheHandler?: string
+  cacheHandlers?: NextConfigComplete['experimental']['cacheHandlers']
   cacheLifeProfiles?: {
     [profile: string]: import('../../server/use-cache/cache-life').CacheLife
   }
@@ -73,6 +76,19 @@ export async function loadStaticPaths({
   authInterrupts: boolean
   sriEnabled: boolean
 }): Promise<Partial<StaticPathsResult>> {
+  // this needs to be initialized before loadComponents otherwise
+  // "use cache" could be missing it's cache handlers
+  await createIncrementalCache({
+    dir,
+    distDir,
+    cacheHandler,
+    cacheHandlers,
+    requestHeaders,
+    fetchCacheKeyPrefix,
+    flushToDisk: isrFlushToDisk,
+    cacheMaxMemorySize: maxMemoryCacheSize,
+  })
+
   // update work memory runtime-config
   require('../../shared/lib/runtime-config.external').setConfig(config)
   setHttpClientAndAgentOptions({

@@ -24,7 +24,7 @@
   ],
   "keywords": [],
   "author": "Tobias Koppers",
-  "license": "MPL-2.0",
+  "license": "MIT",
   "exports": {
     ".": "./dist/index.js",
     "./browser": "./dist/browser.js",

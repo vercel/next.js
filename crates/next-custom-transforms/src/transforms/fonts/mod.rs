@@ -1,10 +1,10 @@
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use swc_core::{
-    common::{collections::AHashMap, BytePos, Spanned},
+    common::{BytePos, Spanned},
     ecma::{
         ast::{Id, ModuleItem, Pass},
-        atoms::JsWord,
+        atoms::Atom,
         visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitWith},
     },
 };
@@ -16,8 +16,8 @@ mod font_imports_generator;
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Config {
-    pub font_loaders: Vec<JsWord>,
-    pub relative_file_path_from_root: JsWord,
+    pub font_loaders: Vec<Atom>,
+    pub relative_file_path_from_root: Atom,
 }
 
 pub fn next_font_loaders(config: Config) -> impl Pass + VisitMut {
@@ -31,12 +31,12 @@ pub fn next_font_loaders(config: Config) -> impl Pass + VisitMut {
 
 #[derive(Debug)]
 pub struct FontFunction {
-    loader: JsWord,
-    function_name: Option<JsWord>,
+    loader: Atom,
+    function_name: Option<Atom>,
 }
 #[derive(Debug, Default)]
 pub struct State {
-    font_functions: AHashMap<Id, FontFunction>,
+    font_functions: FxHashMap<Id, FontFunction>,
     removeable_module_items: FxHashSet<BytePos>,
     font_imports: Vec<ModuleItem>,
     font_exports: Vec<ModuleItem>,

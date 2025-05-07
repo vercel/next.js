@@ -4,31 +4,13 @@ import React, { type JSX } from 'react'
 import { useUntrackedPathname } from './navigation-untracked'
 import { isNextRouterError } from './is-next-router-error'
 import { handleHardNavError } from './nav-failure-handler'
-import { workAsyncStorage } from '../../server/app-render/work-async-storage.external'
-
-const styles = {
-  error: {
-    // https://github.com/sindresorhus/modern-normalize/blob/main/modern-normalize.css#L38-L52
-    fontFamily:
-      'system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
-    height: '100vh',
-    textAlign: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  text: {
-    fontSize: '14px',
-    fontWeight: 400,
-    lineHeight: '28px',
-    margin: '0 8px',
-  },
-} as const
+import { HandleISRError } from './handle-isr-error'
 
 export type ErrorComponent = React.ComponentType<{
   error: Error
-  reset: () => void
+  // global-error, there's no `reset` function;
+  // regular error boundary, there's a `reset` function.
+  reset?: () => void
 }>
 
 export interface ErrorBoundaryProps {
@@ -46,19 +28,6 @@ interface ErrorBoundaryHandlerProps extends ErrorBoundaryProps {
 interface ErrorBoundaryHandlerState {
   error: Error | null
   previousPathname: string | null
-}
-
-// if we are revalidating we want to re-throw the error so the
-// function crashes so we can maintain our previous cache
-// instead of caching the error page
-function HandleISRError({ error }: { error: any }) {
-  const store = workAsyncStorage.getStore()
-  if (store?.isRevalidate || store?.isStaticGeneration) {
-    console.error(error)
-    throw error
-  }
-
-  return null
 }
 
 export class ErrorBoundaryHandler extends React.Component<
@@ -141,34 +110,6 @@ export class ErrorBoundaryHandler extends React.Component<
     return this.props.children
   }
 }
-
-export function GlobalError({ error }: { error: any }) {
-  const digest: string | undefined = error?.digest
-  return (
-    <html id="__next_error__">
-      <head></head>
-      <body>
-        <HandleISRError error={error} />
-        <div style={styles.error}>
-          <div>
-            <h2 style={styles.text}>
-              {`Application error: a ${
-                digest ? 'server' : 'client'
-              }-side exception has occurred (see the ${
-                digest ? 'server logs' : 'browser console'
-              } for more information).`}
-            </h2>
-            {digest ? <p style={styles.text}>{`Digest: ${digest}`}</p> : null}
-          </div>
-        </div>
-      </body>
-    </html>
-  )
-}
-
-// Exported so that the import signature in the loaders can be identical to user
-// supplied custom global error signatures.
-export default GlobalError
 
 /**
  * Handles errors through `getDerivedStateFromError`.

@@ -13,7 +13,10 @@ use turbopack_core::{
     source::Source,
     virtual_source::VirtualSource,
 };
-use turbopack_ecmascript::utils::StringifyJs;
+use turbopack_ecmascript::{
+    runtime_functions::{TURBOPACK_LOAD, TURBOPACK_REQUIRE},
+    utils::StringifyJs,
+};
 
 use super::app_entry::AppEntry;
 use crate::{
@@ -30,8 +33,8 @@ use crate::{
 /// Computes the entry for a Next.js app page.
 #[turbo_tasks::function]
 pub async fn get_app_page_entry(
-    nodejs_context: Vc<ModuleAssetContext>,
-    edge_context: Vc<ModuleAssetContext>,
+    nodejs_context: ResolvedVc<ModuleAssetContext>,
+    edge_context: ResolvedVc<ModuleAssetContext>,
     loader_tree: Vc<AppPageLoaderTree>,
     page: AppPage,
     project_root: Vc<FileSystemPath>,
@@ -45,7 +48,8 @@ pub async fn get_app_page_entry(
         nodejs_context
     };
 
-    let server_component_transition = Vc::upcast(NextServerComponentTransition::new());
+    let server_component_transition =
+        ResolvedVc::upcast(NextServerComponentTransition::new().to_resolved().await?);
 
     let base_path = next_config.await?.base_path.clone();
     let loader_tree = AppPageLoaderTreeModule::build(
@@ -84,14 +88,14 @@ pub async fn get_app_page_entry(
             "VAR_MODULE_GLOBAL_ERROR" => if inner_assets.contains_key(GLOBAL_ERROR) {
                 GLOBAL_ERROR.into()
              } else {
-                "next/dist/client/components/error-boundary".into()
+                "next/dist/client/components/global-error".into()
             },
         },
         fxindexmap! {
             "tree" => loader_tree_code,
             "pages" => StringifyJs(&pages).to_string().into(),
-            "__next_app_require__" => "__turbopack_require__".into(),
-            "__next_app_load_chunk__" => " __turbopack_load__".into(),
+            "__next_app_require__" => TURBOPACK_REQUIRE.full.into(),
+            "__next_app_load_chunk__" => TURBOPACK_LOAD.full.into(),
         },
         fxindexmap! {},
     )
@@ -120,7 +124,7 @@ pub async fn get_app_page_entry(
 
     if is_edge {
         rsc_entry = wrap_edge_page(
-            Vc::upcast(module_asset_context),
+            *ResolvedVc::upcast(module_asset_context),
             project_root,
             rsc_entry,
             page,

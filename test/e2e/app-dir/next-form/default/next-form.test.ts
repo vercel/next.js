@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { BrowserInterface } from '../../../../lib/next-webdriver'
+import { Playwright } from '../../../../lib/next-webdriver'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
@@ -273,7 +273,7 @@ describe.each(['app', 'pages'])('%s dir - form', (type) => {
   })
 })
 
-async function trackMpaNavs(session: BrowserInterface) {
+async function trackMpaNavs(session: Playwright) {
   const id = Date.now()
   await session.eval(`window.__MPA_NAV_ID = ${id}`)
   return {

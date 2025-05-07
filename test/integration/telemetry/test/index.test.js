@@ -9,6 +9,7 @@ import {
   killApp,
   waitFor,
   nextBuild,
+  findAllTelemetryEvents,
 } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
@@ -114,7 +115,7 @@ describe('Telemetry CLI', () => {
         expect(stderr).toMatch(/isSrcDir.*?false/)
 
         // Turbopack intentionally does not support these events
-        if (!process.env.TURBOPACK) {
+        if (!process.env.IS_TURBOPACK_TEST) {
           expect(stderr).toMatch(/package.*?"fs"/)
           expect(stderr).toMatch(/package.*?"path"/)
           expect(stderr).toMatch(/package.*?"http"/)
@@ -174,7 +175,7 @@ describe('Telemetry CLI', () => {
         )
 
         // Turbopack does not have this specific log line.
-        if (!process.env.TURBOPACK) {
+        if (!process.env.IS_TURBOPACK_TEST) {
           expect(stderr).toMatch(/Compiled with warnings/)
         }
         expect(stderr).toMatch(/NEXT_BUILD_COMPLETED/)
@@ -355,6 +356,24 @@ describe('Telemetry CLI', () => {
         expect(event).toMatch(/"buildTarget": "default"/)
         expect(event).toMatch(/"hasWebpackConfig": true/)
         expect(event).toMatch(/"hasBabelConfig": false/)
+
+        // This event doesn't get recorded for Turbopack as the webpack config is not executed.
+        if (!process.env.IS_TURBOPACK_TEST) {
+          // Check if features are detected correctly when custom webpack config exists
+          const featureUsageEvents = findAllTelemetryEvents(
+            stderr,
+            'NEXT_BUILD_FEATURE_USAGE'
+          )
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'swcStyledComponents',
+            invocationCount: 0,
+          })
+
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'webpackPlugins',
+            invocationCount: 1,
+          })
+        }
       })
       it('detect static 404 correctly for `next build`', async () => {
         const { stderr } = await nextBuild(appDir, [], {
@@ -382,8 +401,8 @@ describe('Telemetry CLI', () => {
         expect(event1).toMatch(/"ssrPageCount": 3/)
         expect(event1).toMatch(/"staticPageCount": 5/)
         expect(event1).toMatch(/"totalPageCount": 12/)
-        expect(event1).toMatch(/"totalAppPagesCount": 0/)
-        expect(event1).toMatch(/"staticAppPagesCount": 0/)
+        expect(event1).toMatch(/"totalAppPagesCount": 3/)
+        expect(event1).toMatch(/"staticAppPagesCount": 3/)
         expect(event1).toMatch(/"serverAppPagesCount": 0/)
         expect(event1).toMatch(/"edgeRuntimeAppCount": 0/)
         expect(event1).toMatch(/"edgeRuntimePagesCount": 2/)

@@ -1,14 +1,12 @@
 # With Polyfills
 
-Next.js supports IE11 and all modern browsers (Edge, Firefox, Chrome, Safari, Opera, et al) with no required configuration. It also adds [some polyfills](https://nextjs.org/docs/architecture/supported-browsers#polyfills) by default.
+Next.js supports [modern browsers](https://nextjs.org/docs/architecture/supported-browsers) with no required configuration. It also adds [some polyfills](https://nextjs.org/docs/architecture/supported-browsers#polyfills) by default.
 
 If your own code or any external npm dependencies require features not supported by your target browsers, you need to add polyfills yourself.
 
 In this case, you should add a top-level import for the specific polyfill you need in your [root layout](https://nextjs.org/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required) or the individual component.
 
 ## Deploy your own
-
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-polyfills)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-polyfills&project-name=with-polyfills&repository-name=with-polyfills)
 

@@ -1,6 +1,7 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use anyhow::{Context, Result};
+use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{fxindexmap, FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
@@ -119,7 +120,8 @@ pub async fn get_next_client_import_map(
         ClientContextType::App { app_dir } => {
             let react_flavor = if *next_config.enable_ppr().await?
                 || *next_config.enable_taint().await?
-                || *next_config.enable_react_owner_stack().await?
+                || *next_config.enable_view_transition().await?
+                || *next_config.enable_router_bfcache().await?
             {
                 "-experimental"
             } else {
@@ -194,17 +196,25 @@ pub async fn get_next_client_import_map(
                     &format!("next/dist/compiled/react-server-dom-turbopack{react_flavor}/*"),
                 ),
             );
-            import_map.insert_exact_alias(
+            insert_exact_alias_or_js(
+                &mut import_map,
                 "next/head",
                 request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
             );
-            import_map.insert_exact_alias(
+            insert_exact_alias_or_js(
+                &mut import_map,
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
-            import_map.insert_exact_alias(
+            insert_exact_alias_or_js(
+                &mut import_map,
                 "next/link",
                 request_to_import_mapping(project_path, "next/dist/client/app-dir/link"),
+            );
+            insert_exact_alias_or_js(
+                &mut import_map,
+                "next/form",
+                request_to_import_mapping(project_path, "next/dist/client/app-dir/form"),
             );
         }
         ClientContextType::Fallback => {}
@@ -238,37 +248,7 @@ pub async fn get_next_client_import_map(
     }
 
     insert_turbopack_dev_alias(&mut import_map).await?;
-
-    Ok(import_map.cell())
-}
-
-/// Computes the Next-specific client import map.
-#[turbo_tasks::function]
-pub async fn get_next_build_import_map() -> Result<Vc<ImportMap>> {
-    let mut import_map = ImportMap::empty();
-
-    insert_package_alias(
-        &mut import_map,
-        &format!("{VIRTUAL_PACKAGE_NAME}/"),
-        next_js_fs().root().to_resolved().await?,
-    );
-
-    let external = ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Traced)
-        .resolved_cell();
-
-    import_map.insert_exact_alias("next", external);
-    import_map.insert_wildcard_alias("next/", external);
-    import_map.insert_exact_alias("styled-jsx", external);
-    import_map.insert_exact_alias(
-        "styled-jsx/style",
-        ImportMapping::External(
-            Some("styled-jsx/style.js".into()),
-            ExternalType::CommonJs,
-            ExternalTraced::Traced,
-        )
-        .resolved_cell(),
-    );
-    import_map.insert_wildcard_alias("styled-jsx/", external);
+    insert_instrumentation_client_alias(&mut import_map, project_path).await?;
 
     Ok(import_map.cell())
 }
@@ -361,18 +341,26 @@ pub async fn get_next_server_import_map(
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
-            import_map.insert_exact_alias(
+            insert_exact_alias_or_js(
+                &mut import_map,
                 "next/head",
                 request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
             );
-            import_map.insert_exact_alias(
+            insert_exact_alias_or_js(
+                &mut import_map,
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
-            import_map.insert_exact_alias(
+            insert_exact_alias_or_js(
+                &mut import_map,
                 "next/link",
                 request_to_import_mapping(project_path, "next/dist/client/app-dir/link"),
-            )
+            );
+            insert_exact_alias_or_js(
+                &mut import_map,
+                "next/form",
+                request_to_import_mapping(project_path, "next/dist/client/app-dir/form"),
+            );
         }
         ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {}
     }
@@ -429,6 +417,7 @@ pub async fn get_next_edge_import_map(
             "next/headers" => "next/dist/api/headers".to_string(),
             "next/image" => "next/dist/api/image".to_string(),
             "next/link" => "next/dist/api/link".to_string(),
+            "next/form" => "next/dist/api/form".to_string(),
             "next/navigation" => "next/dist/api/navigation".to_string(),
             "next/router" => "next/dist/api/router".to_string(),
             "next/script" => "next/dist/api/script".to_string(),
@@ -469,18 +458,21 @@ pub async fn get_next_edge_import_map(
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
-            import_map.insert_exact_alias(
+            insert_exact_alias_or_js(
+                &mut import_map,
                 "next/head",
                 request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
             );
-            import_map.insert_exact_alias(
+            insert_exact_alias_or_js(
+                &mut import_map,
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
-            import_map.insert_exact_alias(
+            insert_exact_alias_or_js(
+                &mut import_map,
                 "next/link",
                 request_to_import_mapping(project_path, "next/dist/client/app-dir/link"),
-            )
+            );
         }
     }
 
@@ -504,12 +496,7 @@ pub async fn get_next_edge_import_map(
         | ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. } => {
-            insert_unsupported_node_internal_aliases(
-                &mut import_map,
-                *project_path,
-                execution_context,
-            )
-            .await?;
+            insert_unsupported_node_internal_aliases(&mut import_map).await?;
         }
     }
 
@@ -519,13 +506,9 @@ pub async fn get_next_edge_import_map(
 /// Insert default aliases for the node.js's internal to raise unsupported
 /// runtime errors. User may provide polyfills for their own by setting user
 /// config's alias.
-async fn insert_unsupported_node_internal_aliases(
-    import_map: &mut ImportMap,
-    project_path: Vc<FileSystemPath>,
-    execution_context: Vc<ExecutionContext>,
-) -> Result<()> {
+async fn insert_unsupported_node_internal_aliases(import_map: &mut ImportMap) -> Result<()> {
     let unsupported_replacer = ImportMapping::Dynamic(ResolvedVc::upcast(
-        NextEdgeUnsupportedModuleReplacer::new(project_path, execution_context)
+        NextEdgeUnsupportedModuleReplacer::new()
             .to_resolved()
             .await?,
     ))
@@ -718,8 +701,9 @@ async fn rsc_aliases(
 ) -> Result<()> {
     let ppr = *next_config.enable_ppr().await?;
     let taint = *next_config.enable_taint().await?;
-    let react_owner_stack = *next_config.enable_react_owner_stack().await?;
-    let react_channel = if ppr || taint || react_owner_stack {
+    let router_bfcache = *next_config.enable_router_bfcache().await?;
+    let view_transition = *next_config.enable_view_transition().await?;
+    let react_channel = if ppr || taint || view_transition || router_bfcache {
         "-experimental"
     } else {
         ""
@@ -981,6 +965,13 @@ async fn insert_next_shared_aliases(
             "next/dist/build/webpack/loaders/next-flight-loader/cache-wrapper",
         ),
     );
+    import_map.insert_exact_alias(
+        "private-next-rsc-track-dynamic-import",
+        request_to_import_mapping(
+            project_path,
+            "next/dist/build/webpack/loaders/next-flight-loader/track-dynamic-import",
+        ),
+    );
 
     insert_turbopack_dev_alias(import_map).await?;
     insert_package_alias(
@@ -1049,7 +1040,7 @@ fn export_value_to_import_mapping(
     value.add_results(
         conditions,
         &ConditionValue::Unset,
-        &mut HashMap::new(),
+        &mut FxHashMap::default(),
         &mut result,
     );
     if result.is_empty() {
@@ -1129,6 +1120,36 @@ async fn insert_turbopack_dev_alias(import_map: &mut ImportMap) -> Result<()> {
             .await?,
     );
     Ok(())
+}
+
+/// Handles instrumentation-client.ts bundling logic
+async fn insert_instrumentation_client_alias(
+    import_map: &mut ImportMap,
+    project_path: ResolvedVc<FileSystemPath>,
+) -> Result<()> {
+    insert_alias_to_alternatives(
+        import_map,
+        "private-next-instrumentation-client",
+        vec![
+            request_to_import_mapping(project_path, "./src/instrumentation-client"),
+            request_to_import_mapping(project_path, "./src/instrumentation-client.ts"),
+            request_to_import_mapping(project_path, "./instrumentation-client"),
+            request_to_import_mapping(project_path, "./instrumentation-client.ts"),
+            ImportMapping::Ignore.resolved_cell(),
+        ],
+    );
+
+    Ok(())
+}
+
+// To alias e.g. both `import "next/link"` and `import "next/link.js"`
+fn insert_exact_alias_or_js(
+    import_map: &mut ImportMap,
+    pattern: &str,
+    mapping: ResolvedVc<ImportMapping>,
+) {
+    import_map.insert_exact_alias(pattern, mapping);
+    import_map.insert_exact_alias(format!("{pattern}.js"), mapping);
 }
 
 /// Creates a direct import mapping to the result of resolving a request

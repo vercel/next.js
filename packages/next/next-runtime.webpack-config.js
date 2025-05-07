@@ -40,7 +40,9 @@ const appExternals = [
   'next/dist/compiled/react-dom-experimental/cjs/react-dom-server-legacy.browser.production.js',
 ]
 
-function makeAppAliases(reactChannel = '') {
+function makeAppAliases({ experimental, bundler }) {
+  const reactChannel = experimental ? '-experimental' : ''
+
   return {
     react$: `next/dist/compiled/react${reactChannel}`,
     'react/react.react-server$': `next/dist/compiled/react${reactChannel}/react.react-server`,
@@ -61,18 +63,15 @@ function makeAppAliases(reactChannel = '') {
     'react-server-dom-turbopack/server.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.edge`,
     'react-server-dom-turbopack/server.node$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.node`,
     'react-server-dom-turbopack/static.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/static.edge`,
-    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/client`,
-    'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/client.edge`,
-    'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/server.edge`,
-    'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/server.node`,
-    'react-server-dom-webpack/static.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/static.edge`,
+    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/client`,
+    'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/client.edge`,
+    'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/server.edge`,
+    'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/server.node`,
+    'react-server-dom-webpack/static.edge$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/static.edge`,
     '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts':
       'next/dist/client/dev/noop-turbopack-hmr',
   }
 }
-
-const appAliases = makeAppAliases()
-const appExperimentalAliases = makeAppAliases('-experimental')
 
 const sharedExternals = [
   'styled-jsx',
@@ -127,9 +126,32 @@ const bundleTypes = {
   },
 }
 
-module.exports = ({ dev, turbo, bundleType, experimental }) => {
+/**
+ * @param {Object} options
+ * @param {boolean} options.dev
+ * @param {boolean} options.turbo
+ * @param {keyof typeof bundleTypes} options.bundleType
+ * @param {boolean} options.experimental
+ * @param {Partial<webpack.Configuration>} options.rest
+ * @returns {webpack.Configuration}
+ */
+module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
   const externalHandler = ({ context, request, getResolve }, callback) => {
     ;(async () => {
+      if (
+        request.match(
+          /next[/\\]dist[/\\]compiled[/\\](babel|webpack|source-map|semver|jest-worker|stacktrace-parser|@ampproject\/toolbox-optimizer)/
+        )
+      ) {
+        callback(null, 'commonjs ' + request)
+        return
+      }
+
+      if (request.match(/(server\/image-optimizer|experimental\/testmode)/)) {
+        callback(null, 'commonjs ' + request)
+        return
+      }
+
       if (request.endsWith('.external')) {
         const resolve = getResolve()
         const resolved = await resolve(context, request)
@@ -152,11 +174,10 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
 
   const bundledReactChannel = experimental ? '-experimental' : ''
 
-  /** @type {webpack.Configuration} */
   return {
     entry: bundleTypes[bundleType],
     target: 'node',
-    mode: 'production',
+    mode: dev ? 'development' : 'production',
     output: {
       path: path.join(__dirname, 'dist/compiled/next-server'),
       filename: `[name]${turbo ? '-turbo' : ''}${
@@ -208,7 +229,8 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
           experimental ? true : false
         ),
         'process.env.NEXT_RUNTIME': JSON.stringify('nodejs'),
-        ...(!dev ? { 'process.env.TURBOPACK': JSON.stringify(turbo) } : {}),
+        'process.turbopack': JSON.stringify(turbo),
+        'process.env.TURBOPACK': JSON.stringify(turbo),
       }),
       !!process.env.ANALYZE &&
         new BundleAnalyzerPlugin({
@@ -240,9 +262,10 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
     resolve: {
       alias:
         bundleType === 'app'
-          ? experimental
-            ? appExperimentalAliases
-            : appAliases
+          ? makeAppAliases({
+              experimental,
+              bundler: turbo ? 'turbopack' : 'webpack',
+            })
           : {},
     },
     module: {
@@ -294,6 +317,7 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
     experiments: {
       layers: true,
     },
+    ...rest,
   }
 }
 

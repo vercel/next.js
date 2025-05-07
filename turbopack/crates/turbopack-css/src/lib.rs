@@ -11,7 +11,6 @@ mod code_gen;
 pub mod embed;
 mod lifetime_util;
 mod module_asset;
-pub(crate) mod parse;
 pub(crate) mod process;
 pub(crate) mod references;
 pub(crate) mod util;

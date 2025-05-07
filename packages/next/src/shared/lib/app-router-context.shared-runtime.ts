@@ -4,7 +4,6 @@ import type { FetchServerResponseResult } from '../../client/components/router-r
 import type {
   FocusAndScrollRef,
   PrefetchKind,
-  RouterChangeByServerResponse,
 } from '../../client/components/router-reducer/router-reducer-types'
 import type {
   FlightRouterState,
@@ -23,8 +22,8 @@ export type LoadingModuleData =
   | [React.JSX.Element, React.ReactNode, React.ReactNode]
   | null
 
-/** metadata cache nodes: [viewport, metadata] */
-export type HeadData = [React.ReactNode, React.ReactNode]
+/** viewport metadata node */
+export type HeadData = React.ReactNode
 
 export type LazyCacheNode = {
   /**
@@ -66,6 +65,13 @@ export type LazyCacheNode = {
    * Child parallel routes.
    */
   parallelRoutes: Map<string, ChildSegmentMap>
+
+  /**
+   * The timestamp of the navigation that last updated the CacheNode's data. If
+   * a CacheNode is reused from a previous navigation, this value is not
+   * updated. Used to track the staleness of the data.
+   */
+  navigatedAt: number
 }
 
 export type ReadyCacheNode = {
@@ -106,6 +112,8 @@ export type ReadyCacheNode = {
   loading: LoadingModuleData | Promise<LoadingModuleData>
 
   parallelRoutes: Map<string, ChildSegmentMap>
+
+  navigatedAt: number
 }
 
 export interface NavigateOptions {
@@ -114,6 +122,7 @@ export interface NavigateOptions {
 
 export interface PrefetchOptions {
   kind: PrefetchKind
+  onInvalidate?: () => void
 }
 
 export interface AppRouterInstance {
@@ -162,7 +171,6 @@ export const LayoutRouterContext = React.createContext<{
 
 export const GlobalLayoutRouterContext = React.createContext<{
   tree: FlightRouterState
-  changeByServerResponse: RouterChangeByServerResponse
   focusAndScrollRef: FocusAndScrollRef
   nextUrl: string | null
 }>(null as any)

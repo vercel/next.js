@@ -5,6 +5,8 @@ import {
   type EncryptedBoundArgsCacheStore,
   serializeUseCacheCacheStore,
   parseUseCacheCacheStore,
+  type DecryptedBoundArgsCacheStore,
+  type UseCacheCacheStoreSerialized,
 } from './cache-store'
 
 /**
@@ -29,6 +31,14 @@ export interface RenderResumeDataCache {
    * The 'set' operation is omitted to enforce immutability.
    */
   readonly encryptedBoundArgs: Omit<EncryptedBoundArgsCacheStore, 'set'>
+
+  /**
+   * A read-only Map store for decrypted bound args of inline server functions.
+   * This is only intended for in-memory usage during pre-rendering, and must
+   * not be persisted in the resume store. The 'set' operation is omitted to
+   * enforce immutability.
+   */
+  readonly decryptedBoundArgs: Omit<DecryptedBoundArgsCacheStore, 'set'>
 }
 
 /**
@@ -56,6 +66,14 @@ export interface PrerenderResumeDataCache {
    * pre-rendering.
    */
   readonly encryptedBoundArgs: EncryptedBoundArgsCacheStore
+
+  /**
+   * A mutable Map store for decrypted bound args of inline server functions.
+   * This is only intended for in-memory usage during pre-rendering, and must
+   * not be persisted in the resume store. Supports both 'get' and 'set'
+   * operations to build the cache during pre-rendering.
+   */
+  readonly decryptedBoundArgs: DecryptedBoundArgsCacheStore
 }
 
 type ResumeStoreSerialized = {
@@ -97,7 +115,12 @@ export async function stringifyResumeDataCache(
       store: {
         fetch: Object.fromEntries(Array.from(resumeDataCache.fetch.entries())),
         cache: Object.fromEntries(
-          await serializeUseCacheCacheStore(resumeDataCache.cache.entries())
+          (
+            await serializeUseCacheCacheStore(resumeDataCache.cache.entries())
+          ).filter(
+            (entry): entry is [string, UseCacheCacheStoreSerialized] =>
+              entry !== null
+          )
         ),
         encryptedBoundArgs: Object.fromEntries(
           Array.from(resumeDataCache.encryptedBoundArgs.entries())
@@ -125,6 +148,7 @@ export function createPrerenderResumeDataCache(): PrerenderResumeDataCache {
     cache: new Map(),
     fetch: new Map(),
     encryptedBoundArgs: new Map(),
+    decryptedBoundArgs: new Map(),
   }
 }
 
@@ -162,6 +186,7 @@ export function createRenderResumeDataCache(
         cache: new Map(),
         fetch: new Map(),
         encryptedBoundArgs: new Map(),
+        decryptedBoundArgs: new Map(),
       }
     }
 
@@ -182,6 +207,7 @@ export function createRenderResumeDataCache(
       encryptedBoundArgs: new Map(
         Object.entries(json.store.encryptedBoundArgs)
       ),
+      decryptedBoundArgs: new Map(),
     }
   }
 }

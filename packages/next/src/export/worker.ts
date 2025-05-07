@@ -3,8 +3,6 @@ import type {
   ExportPageInput,
   ExportPageResult,
   ExportRouteResult,
-  ExportedPageFile,
-  FileWriter,
   WorkerRenderOpts,
   ExportPagesResult,
 } from './types'
@@ -21,7 +19,6 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
-import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
@@ -50,6 +47,7 @@ import type { AppRouteRouteModule } from '../server/route-modules/app-route/modu
 import { isStaticGenBailoutError } from '../client/components/static-generation-bailout'
 import type { PagesRenderContext, PagesSharedContext } from '../server/render'
 import type { AppSharedContext } from '../server/app-render/app-render'
+import { MultiFileWriter } from '../lib/multi-file-writer'
 
 const envConfig = require('../shared/lib/runtime-config.external')
 
@@ -67,7 +65,7 @@ class ExportPageError extends Error {
 
 async function exportPageImpl(
   input: ExportPageInput,
-  fileWriter: FileWriter
+  fileWriter: MultiFileWriter
 ): Promise<ExportRouteResult | undefined> {
   const {
     path,
@@ -109,6 +107,10 @@ async function exportPageImpl(
     // If this is a prospective render, we don't actually want to persist the
     // result, we just want to use it to error the build if there's a problem.
     _isProspectiveRender: isProspectiveRender = false,
+
+    // Configure the rendering of the page not to throw if an empty static shell
+    // is generated while rendering using PPR.
+    _doNotThrowOnEmptyStaticShell: doNotThrowOnEmptyStaticShell = false,
 
     // Pull the original query out.
     query: originalQuery = {},
@@ -263,6 +265,12 @@ async function exportPageImpl(
     disableOptimizedLoading,
     locale,
     supportsDynamicResponse: false,
+    // During the export phase in next build, we always enable the streaming metadata since if there's
+    // any dynamic access in metadata we can determine it in the build phase.
+    // If it's static, then it won't affect anything.
+    // If it's dynamic, then it can be handled when request hits the route.
+    serveStreamingMetadata: true,
+    doNotThrowOnEmptyStaticShell,
     experimental: {
       ...input.renderOpts.experimental,
       isRoutePPREnabled,
@@ -374,7 +382,6 @@ export async function exportPages(
     fetchCacheKeyPrefix,
     distDir,
     dir,
-    dynamicIO: Boolean(nextConfig.experimental.dynamicIO),
     // skip writing to disk in minimal mode for now, pending some
     // changes to better support it
     flushToDisk: !hasNextSupport,
@@ -477,7 +484,13 @@ export async function exportPages(
               `Failed to build ${pageKey} (attempt ${attempt + 1} of ${maxAttempts}). Retrying again shortly.`
             )
           }
-          await new Promise((r) => setTimeout(r, Math.random() * 500))
+
+          // Exponential backoff with random jitter to avoid thundering herd on retries
+          const baseDelay = 500 // 500ms
+          const maxDelay = 2000 // 2 seconds
+          const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay)
+          const jitter = Math.random() * 0.3 * delay // Add up to 30% random jitter
+          await new Promise((r) => setTimeout(r, delay + jitter))
         }
       }
 
@@ -515,17 +528,10 @@ async function exportPage(
     httpAgentOptions: input.httpAgentOptions,
   })
 
-  const files: ExportedPageFile[] = []
-  const baseFileWriter: FileWriter = async (
-    type,
-    path,
-    content,
-    encodingOptions = 'utf-8'
-  ) => {
-    await fs.mkdir(dirname(path), { recursive: true })
-    await fs.writeFile(path, content, encodingOptions)
-    files.push({ type, path })
-  }
+  const fileWriter = new MultiFileWriter({
+    writeFile: (filePath, data) => fs.writeFile(filePath, data),
+    mkdir: (dir) => fs.mkdir(dir, { recursive: true }),
+  })
 
   const exportPageSpan = trace('export-page-worker', input.parentSpanId)
 
@@ -538,17 +544,20 @@ async function exportPage(
   try {
     result = await exportPageSpan.traceAsyncFn(() =>
       turborepoTraceAccess(
-        () => exportPageImpl(input, baseFileWriter),
+        () => exportPageImpl(input, fileWriter),
         turborepoAccessTraceResult
       )
     )
+
+    // Wait for all the files to flush to disk.
+    await fileWriter.wait()
 
     // If there was no result, then we can exit early.
     if (!result) return
 
     // If there was an error, then we can exit early.
     if ('error' in result) {
-      return { error: result.error, duration: Date.now() - start, files: [] }
+      return { error: result.error, duration: Date.now() - start }
     }
   } catch (err) {
     console.error(
@@ -561,18 +570,17 @@ async function exportPage(
       // A static generation bailout error is a framework signal to fail static generation but
       // and will encode a reason in the error message. If there is a message, we'll print it.
       // Otherwise there's nothing to show as we don't want to leak an error internal error stack to the user.
+      // TODO: Always log the full error. ignore-listing will take care of hiding internal stacks.
       if (isStaticGenBailoutError(err)) {
         if (err.message) {
           console.error(`Error: ${err.message}`)
         }
-      } else if (isError(err) && err.stack) {
-        console.error(err.stack)
       } else {
         console.error(err)
       }
     }
 
-    return { error: true, duration: Date.now() - start, files: [] }
+    return { error: true, duration: Date.now() - start }
   }
 
   // Notify the parent process that we processed a page (used by the progress activity indicator)
@@ -581,12 +589,11 @@ async function exportPage(
   // Otherwise we can return the result.
   return {
     duration: Date.now() - start,
-    files,
     ampValidations: result.ampValidations,
-    revalidate: result.revalidate,
+    cacheControl: result.cacheControl,
     metadata: result.metadata,
     ssgNotFound: result.ssgNotFound,
-    hasEmptyPrelude: result.hasEmptyPrelude,
+    hasEmptyStaticShell: result.hasEmptyStaticShell,
     hasPostponed: result.hasPostponed,
     turborepoAccessTraceResult: turborepoAccessTraceResult.serialize(),
     fetchMetrics: result.fetchMetrics,

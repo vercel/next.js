@@ -1,5 +1,4 @@
 use std::{
-    collections::HashSet,
     fmt::Debug,
     hash::Hash,
     iter::once,
@@ -15,6 +14,7 @@ use parking_lot::{Mutex, MutexGuard};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use ref_cast::RefCast;
 use rstest::*;
+use rustc_hash::FxHashSet;
 use turbo_tasks::FxIndexSet;
 
 use self::aggregation_data::prepare_aggregation_data;
@@ -42,7 +42,7 @@ fn check_invariants(ctx: &NodeAggregationContext<'_>, node_ids: impl IntoIterato
     let mut queue = node_ids.into_iter().collect::<Vec<_>>();
     // print(ctx, &queue[0], true);
     #[allow(clippy::mutable_key_type, reason = "this is a test")]
-    let mut visited = HashSet::new();
+    let mut visited = FxHashSet::default();
     while let Some(node_id) = queue.pop() {
         assert_eq!(node_id.0.atomic.load(Ordering::SeqCst), 0);
         let node = ctx.node(&node_id);
@@ -165,7 +165,7 @@ fn print_graph<C: AggregationContext>(
     name_fn: impl Fn(&C::NodeRef) -> String,
 ) {
     let mut queue = entries.into_iter().collect::<Vec<_>>();
-    let mut visited = queue.iter().cloned().collect::<HashSet<_>>();
+    let mut visited = queue.iter().cloned().collect::<FxHashSet<_>>();
     while let Some(node_id) = queue.pop() {
         let name = name_fn(&node_id);
         let node = ctx.node(&node_id);
@@ -1035,14 +1035,14 @@ fn fuzzy(#[case] seed: u32, #[case] count: u32) {
     let mut edges = FxIndexSet::default();
 
     for _ in 0..1000 {
-        match r.gen_range(0..=2) {
+        match r.random_range(0..=2) {
             0 | 1 => {
                 // if x == 47 {
                 //     print_all(&ctx, nodes.iter().cloned().map(NodeRef), true);
                 // }
                 // add edge
-                let parent = r.gen_range(0..nodes.len() - 1);
-                let child = r.gen_range(parent + 1..nodes.len());
+                let parent = r.random_range(0..nodes.len() - 1);
+                let child = r.random_range(parent + 1..nodes.len());
                 // println!("add edge {} -> {}", parent, child);
                 if edges.insert((parent, child)) {
                     nodes[parent].add_child(&ctx, nodes[child].clone());
@@ -1053,7 +1053,7 @@ fn fuzzy(#[case] seed: u32, #[case] count: u32) {
                 if edges.is_empty() {
                     continue;
                 }
-                let i = r.gen_range(0..edges.len());
+                let i = r.random_range(0..edges.len());
                 let (parent, child) = edges.swap_remove_index(i).unwrap();
                 // println!("remove edge {} -> {}", parent, child);
                 nodes[parent].remove_child(&ctx, &nodes[child]);

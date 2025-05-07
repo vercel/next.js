@@ -77,7 +77,7 @@ const GLOBAL_ERROR_FILE_TYPE = 'global-error'
 const PAGE_SEGMENT = 'page$'
 const PARALLEL_CHILDREN_SEGMENT = 'children$'
 
-const defaultGlobalErrorPath = 'next/dist/client/components/error-boundary'
+const defaultGlobalErrorPath = 'next/dist/client/components/global-error'
 const defaultLayoutPath = 'next/dist/client/components/default-layout'
 
 type DirResolver = (pathToResolve: string) => string
@@ -666,6 +666,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
   if (isAppRouteRoute(name)) {
     return createAppRouteCode({
+      appDir,
       // TODO: investigate if the local `page` is the same as the loaderOptions.page
       page: loaderOptions.page,
       name,
@@ -754,6 +755,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       tree: treeCodeResult.treeCode,
       pages: treeCodeResult.pages,
       __next_app_require__: '__webpack_require__',
+      // all modules are in the entry chunk, so we never actually need to load chunks in webpack
       __next_app_load_chunk__: '() => Promise.resolve()',
     }
   )

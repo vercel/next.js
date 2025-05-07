@@ -8,31 +8,35 @@ type Params = {
 };
 
 const title = "View this video created with Mux + Next.js";
-export const generateMetadata = ({ params }: { params: Params }) => ({
-  title,
-  description: undefined,
-  openGraph: {
+export const generateMetadata = async (props: { params: Promise<Params> }) => {
+  const params = await props.params;
+
+  return {
     title,
-    images: [
-      {
-        url: `https://image.mux.com/${params.playbackId}/thumbnail.png?width=1200&height=630&fit_mode=pad`,
-        width: 1200,
-        height: 630,
-      },
-    ],
-  },
-  twitter: {
-    title,
-    card: "summary_large_image",
-    images: [
-      {
-        url: `https://image.mux.com/${params.playbackId}/thumbnail.png?width=1200&height=600&fit_mode=pad`,
-        width: 1200,
-        height: 600,
-      },
-    ],
-  },
-});
+    description: undefined,
+    openGraph: {
+      title,
+      images: [
+        {
+          url: `https://image.mux.com/${params.playbackId}/thumbnail.png?width=1200&height=630&fit_mode=pad`,
+          width: 1200,
+          height: 630,
+        },
+      ],
+    },
+    twitter: {
+      title,
+      card: "summary_large_image",
+      images: [
+        {
+          url: `https://image.mux.com/${params.playbackId}/thumbnail.png?width=1200&height=600&fit_mode=pad`,
+          width: 1200,
+          height: 600,
+        },
+      ],
+    },
+  };
+};
 
 const Code = ({ children }: { children: React.ReactNode }) => (
   <code className="text-mono text-sm bg-red-500/10 px-1 py-0.5 rounded-sm">
@@ -40,11 +44,11 @@ const Code = ({ children }: { children: React.ReactNode }) => (
   </code>
 );
 
-// this function communicates with no external services and relies on no Node APIs
-// it's perfect for the edge
-export const runtime = "edge";
+export default async function Page(props: { params: Promise<Params> }) {
+  const params = await props.params;
 
-export default function Page({ params: { playbackId } }: { params: Params }) {
+  const { playbackId } = params;
+
   return (
     <>
       <div className="px-8 py-4 mb-8 text-center bg-green-500/30 rounded-full">

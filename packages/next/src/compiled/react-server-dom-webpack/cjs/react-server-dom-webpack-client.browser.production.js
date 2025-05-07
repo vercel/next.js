@@ -438,7 +438,10 @@ function processReply(
       parentReference = knownServerReferences.get(value);
       if (void 0 !== parentReference)
         return (
-          (key = JSON.stringify(parentReference, resolveToJSON)),
+          (key = JSON.stringify(
+            { id: parentReference.id, bound: parentReference.bound },
+            resolveToJSON
+          )),
           null === formData && (formData = new FormData()),
           (parentReference = nextPartId++),
           formData.set(formFieldPrefix + parentReference, key),
@@ -503,8 +506,13 @@ function processReply(
       null === formData ? resolve(json) : resolve(formData));
   };
 }
-function registerServerReference(proxy, reference) {
-  knownServerReferences.set(proxy, reference);
+function registerBoundServerReference(reference, id, bound) {
+  knownServerReferences.has(reference) ||
+    knownServerReferences.set(reference, {
+      id: id,
+      originalBind: reference.bind,
+      bound: bound
+    });
 }
 function createBoundServerReference(metaData, callServer) {
   function action() {
@@ -519,7 +527,7 @@ function createBoundServerReference(metaData, callServer) {
   }
   var id = metaData.id,
     bound = metaData.bound;
-  registerServerReference(action, { id: id, bound: bound });
+  registerBoundServerReference(action, id, bound);
   return action;
 }
 function ReactPromise(status, value, reason, response) {
@@ -786,7 +794,12 @@ function loadServerReference(response, metaData, parentObject, key) {
   if ((response = preloadModule(serverReference)))
     metaData.bound && (response = Promise.all([response, metaData.bound]));
   else if (metaData.bound) response = Promise.resolve(metaData.bound);
-  else return requireModule(serverReference);
+  else
+    return (
+      (response = requireModule(serverReference)),
+      registerBoundServerReference(response, metaData.id, metaData.bound),
+      response
+    );
   if (initializingHandler) {
     var handler = initializingHandler;
     handler.deps++;
@@ -806,6 +819,7 @@ function loadServerReference(response, metaData, parentObject, key) {
         boundArgs.unshift(null);
         resolvedValue = resolvedValue.bind.apply(resolvedValue, boundArgs);
       }
+      registerBoundServerReference(resolvedValue, metaData.id, metaData.bound);
       parentObject[key] = resolvedValue;
       "" === key && null === handler.value && (handler.value = resolvedValue);
       if (
@@ -1614,7 +1628,7 @@ exports.createServerReference = function (id, callServer) {
     var args = Array.prototype.slice.call(arguments);
     return callServer(id, args);
   }
-  registerServerReference(action, { id: id, bound: null });
+  registerBoundServerReference(action, id, null);
   return action;
 };
 exports.createTemporaryReferenceSet = function () {
@@ -1643,4 +1657,8 @@ exports.encodeReply = function (value, options) {
       }
     }
   });
+};
+exports.registerServerReference = function (reference, id) {
+  registerBoundServerReference(reference, id, null);
+  return reference;
 };

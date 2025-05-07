@@ -20,7 +20,7 @@ jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '../')
 
 for (const dev of [false, true]) {
-  ;(process.env.TURBOPACK && !dev ? describe.skip : describe)(
+  ;(process.env.IS_TURBOPACK_TEST && !dev ? describe.skip : describe)(
     `Handle new URL asset references in next ${dev ? 'dev' : 'build'}`,
     () => {
       let appPort
