@@ -544,6 +544,7 @@ export interface ExperimentalConfig {
      * ["my-app.com", "*.my-app.com"]
      */
     allowedOrigins?: string[]
+    errorOnUnrecognized?: boolean
   }
 
   /**

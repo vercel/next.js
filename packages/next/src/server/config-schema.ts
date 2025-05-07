@@ -366,6 +366,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .object({
             bodySizeLimit: zSizeLimit.optional(),
             allowedOrigins: z.array(z.string()).optional(),
+            errorOnUnrecognized: z.boolean().optional(),
           })
           .optional(),
         // The original type was Record<string, any>

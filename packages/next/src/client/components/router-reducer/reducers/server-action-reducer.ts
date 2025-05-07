@@ -115,15 +115,21 @@ async function fetchServerAction(
   // Handle server actions that the server didn't recognize.
   const unrecognizedActionHeader = res.headers.get(NEXT_ACTION_NOT_FOUND_HEADER)
   if (unrecognizedActionHeader === '1') {
-    return {
-      // Legacy behavior until we provide a way to handle unrecognized actions client-side --
-      // Due to a bug, unrecognized actions would previously resolve with `undefined` instead of throwing.
-      actionResult: undefined,
-      actionFlightData: undefined,
-      isPrerender,
-      redirectLocation: undefined,
-      redirectType: undefined,
-      revalidatedParts: NO_REVALIDATED_PARTS,
+    if (process.env.__NEXT_ERROR_FOR_UNRECOGNIZED_ACTIONS) {
+      throw new Error(
+        `Server Action "${actionId}" was not found on the server. \nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
+      )
+    } else {
+      return {
+        // Legacy behavior until we provide a way to handle unrecognized actions client-side --
+        // Due to a bug, unrecognized actions would previously resolve with `undefined` instead of throwing.
+        actionResult: undefined,
+        actionFlightData: undefined,
+        isPrerender,
+        redirectLocation: undefined,
+        redirectType: undefined,
+        revalidatedParts: NO_REVALIDATED_PARTS,
+      }
     }
   }
 
