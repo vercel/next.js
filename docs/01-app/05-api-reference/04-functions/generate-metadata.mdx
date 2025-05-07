@@ -148,9 +148,9 @@ The following fields are supported:
 
 #### `title`
 
-The `title` attribute is used to set the title of the document. It can be defined as a simple [string](#string) or an optional [template object](#template-object).
+The `title` attribute is used to set the title of the document. It can be defined as a simple [string](#string) or an optional [template object](#template).
 
-#### String
+##### String
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
@@ -162,7 +162,7 @@ export const metadata = {
 <title>Next.js</title>
 ```
 
-#### `default`
+##### `default`
 
 `title.default` can be used to provide a **fallback title** to child route segments that don't define a `title`.
 
@@ -236,7 +236,7 @@ export const metadata = {
 >
 > - `title.template` has **no effect** if a route has not defined a `title` or `title.default`.
 
-#### `absolute`
+##### `absolute`
 
 `title.absolute` can be used to provide a title that **ignores** `title.template` set in parent segments.
 
