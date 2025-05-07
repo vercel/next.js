@@ -43,7 +43,7 @@ Depending on your needs, Next.js allows you to choose your data fetching strateg
 
 ### Built-in Optimizations
 
-[Images](/docs/app/building-your-application/optimizing/images), [fonts](/docs/app/building-your-application/optimizing/fonts), and [third-party scripts](/docs/app/guides/scripts) often have a large impact on an application’s performance. Next.js includes specialized components and APIs that automatically optimize them for you.
+[Images](/docs/app/building-your-application/optimizing/images), [fonts](/docs/app/api-reference/components/font), and [third-party scripts](/docs/app/guides/scripts) often have a large impact on an application’s performance. Next.js includes specialized components and APIs that automatically optimize them for you.
 
 ## Migration Steps
 
@@ -145,7 +145,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-> **Good to know**: Next.js ignores CRA’s `public/manifest.json`, additional iconography, and [testing configuration](/docs/app/guides/testing) by default. If you need these, Next.js has support with its [Metadata API](/docs/app/building-your-application/optimizing/metadata) and [Testing](/docs/app/guides/testing) setup.
+> **Good to know**: Next.js ignores CRA’s `public/manifest.json`, additional iconography, and [testing configuration](/docs/app/guides/testing) by default. If you need these, Next.js has support with its [Metadata API](/docs/app/getting-started/metadata-and-og-images) and [Testing](/docs/app/guides/testing) setup.
 
 ### Step 4: Metadata
 
@@ -189,7 +189,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Any [metadata files](/docs/app/building-your-application/optimizing/metadata#file-based-metadata) such as `favicon.ico`, `icon.png`, `robots.txt` are automatically added to the application `<head>` tag as long as you have them placed into the top level of the `app` directory. After moving [all supported files](/docs/app/building-your-application/optimizing/metadata#file-based-metadata) into the `app` directory you can safely delete their `<link>` tags:
+Any [metadata files](/docs/app/getting-started/metadata-and-og-images#file-based-metadata) such as `favicon.ico`, `icon.png`, `robots.txt` are automatically added to the application `<head>` tag as long as you have them placed into the top level of the `app` directory. After moving [all supported files](/docs/app/getting-started/metadata-and-og-images#file-based-metadata) into the `app` directory you can safely delete their `<link>` tags:
 
 ```tsx filename="app/layout.tsx" switcher
 export default function RootLayout({
@@ -227,7 +227,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Finally, Next.js can manage your last `<head>` tags with the [Metadata API](/docs/app/building-your-application/optimizing/metadata). Move your final metadata info into an exported [`metadata` object](/docs/app/api-reference/functions/generate-metadata#metadata-object):
+Finally, Next.js can manage your last `<head>` tags with the [Metadata API](/docs/app/getting-started/metadata-and-og-images). Move your final metadata info into an exported [`metadata` object](/docs/app/api-reference/functions/generate-metadata#metadata-object):
 
 ```tsx filename="app/layout.tsx" switcher
 import type { Metadata } from 'next'
@@ -269,7 +269,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-With the above changes, you shifted from declaring everything in your `index.html` to using Next.js' convention-based approach built into the framework ([Metadata API](/docs/app/building-your-application/optimizing/metadata)). This approach enables you to more easily improve your SEO and web shareability of your pages.
+With the above changes, you shifted from declaring everything in your `index.html` to using Next.js' convention-based approach built into the framework ([Metadata API](/docs/app/getting-started/metadata-and-og-images)). This approach enables you to more easily improve your SEO and web shareability of your pages.
 
 ### Step 5: Styles
 
@@ -574,7 +574,7 @@ If everything worked, you now have a functioning Next.js application running as 
   - [Streaming server rendering](/docs/app/building-your-application/routing/loading-ui-and-streaming)
   - [React Server Components](/docs/app/building-your-application/rendering/server-components)
 - **Optimize images** with the [`<Image>` component](/docs/app/building-your-application/optimizing/images)
-- **Optimize fonts** with [`next/font`](/docs/app/building-your-application/optimizing/fonts)
+- **Optimize fonts** with [`next/font`](/docs/app/api-reference/components/font)
 - **Optimize third-party scripts** with the [`<Script>` component](/docs/app/guides/scripts)
 - **Enable ESLint** with Next.js recommended rules by running `npx next lint` and configuring it to match your project’s needs
 
