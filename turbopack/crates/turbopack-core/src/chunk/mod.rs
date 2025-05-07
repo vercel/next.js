@@ -203,15 +203,6 @@ pub enum ChunkingType {
     Traced,
 }
 
-impl Default for ChunkingType {
-    fn default() -> Self {
-        ChunkingType::Parallel {
-            inherit_async: false,
-            hoisted: false,
-        }
-    }
-}
-
 impl ChunkingType {
     pub fn is_inherit_async(&self) -> bool {
         matches!(
@@ -278,7 +269,10 @@ pub struct ChunkingTypeOption(Option<ChunkingType>);
 #[turbo_tasks::value_trait]
 pub trait ChunkableModuleReference: ModuleReference + ValueToString {
     fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::default()))
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        }))
     }
 }
 
