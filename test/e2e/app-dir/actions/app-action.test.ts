@@ -1,5 +1,5 @@
 /* eslint-disable jest/no-standalone-expect */
-import { nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
   assertHasRedbox,
   retry,
@@ -20,6 +20,11 @@ describe('app-dir action handling', () => {
   const { next, isNextDev, isNextStart, isNextDeploy, isTurbopack } =
     nextTestSetup({
       files: __dirname,
+      overrideFiles: process.env.TEST_NODE_MIDDLEWARE
+        ? {
+            'middleware.js': new FileRef(join(__dirname, 'middleware-node.js')),
+          }
+        : {},
       dependencies: {
         nanoid: '4.0.1',
         'server-only': 'latest',
@@ -1526,8 +1531,11 @@ describe('app-dir action handling', () => {
           .elementByCss('#thankyounext')
           .text()
 
-        // Should be the same number
-        expect(thankYouNext).toEqual(newThankYouNext)
+        // Should be the same number although in serverless
+        // it might be eventually consistent
+        if (!isNextDeploy) {
+          expect(thankYouNext).toEqual(newThankYouNext)
+        }
 
         await browser.elementByCss('#back').click()
 

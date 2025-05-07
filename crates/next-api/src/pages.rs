@@ -30,8 +30,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, Completion, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput,
-    Value, ValueToString, Vc,
+    fxindexmap, fxindexset, trace::TraceRawVcs, Completion, FxIndexMap, NonLocalValue, ResolvedVc,
+    TaskInput, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
@@ -795,6 +795,7 @@ impl PageEndpoint {
         let this = self.await?;
         let project = this.pages_project.project();
 
+        let should_trace = project.next_mode().await?.is_production();
         if *project.per_page_module_graph().await? {
             let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
             // Implements layout segment optimization to compute a graph "chain" for document, app,
@@ -811,6 +812,7 @@ impl PageEndpoint {
                 let graph = SingleModuleGraph::new_with_entries_visited_intern(
                     vec![ChunkGroupEntry::Shared(module)],
                     visited_modules,
+                    should_trace,
                 );
                 graphs.push(graph);
                 visited_modules = visited_modules.concatenate(graph);
@@ -819,6 +821,7 @@ impl PageEndpoint {
             let graph = SingleModuleGraph::new_with_entries_visited_intern(
                 vec![ChunkGroupEntry::Entry(vec![ssr_chunk_module.ssr_module])],
                 visited_modules,
+                should_trace,
             );
             graphs.push(graph);
 
@@ -1372,7 +1375,7 @@ impl PageEndpoint {
                         "server/middleware-build-manifest.js".into(),
                         "server/next-font-manifest.js".into(),
                     ];
-                    let mut wasm_paths_from_root = vec![];
+                    let mut wasm_paths_from_root = fxindexset![];
 
                     let node_root_value = node_root.await?;
 
@@ -1401,7 +1404,7 @@ impl PageEndpoint {
                     let original_name = this.original_name.owned().await?;
                     let edge_function_definition = EdgeFunctionDefinition {
                         files: file_paths_from_root,
-                        wasm: wasm_paths_to_bindings(wasm_paths_from_root),
+                        wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                         assets: paths_to_bindings(all_assets),
                         name: pathname.clone(),
                         page: original_name.clone(),

@@ -214,6 +214,7 @@ import { populateStaticEnv } from '../lib/static-env'
 import { durationToString } from './duration-to-string'
 import { traceGlobals } from '../trace/shared'
 import { extractNextErrorCode } from '../lib/error-telemetry-utils'
+import { runAfterProductionCompile } from './after-production-compile'
 
 type Fallback = null | boolean | string
 
@@ -763,7 +764,9 @@ export function createStaticWorker(
       progress?.clear()
     },
     forkOptions: {
-      env: { ...process.env, NODE_OPTIONS: formatNodeOptions(nodeOptions) },
+      env: {
+        NODE_OPTIONS: formatNodeOptions(nodeOptions),
+      },
     },
     enableWorkerThreads: config.experimental.workerThreads,
     exposedMethods: staticWorkerExposedMethods,
@@ -1321,6 +1324,11 @@ export default async function build(
               buildCustomRoute('redirect', r, restrictedRedirectPaths)
             ),
             headers: headers.map((r) => buildCustomRoute('header', r)),
+            rewrites: {
+              beforeFiles: [],
+              afterFiles: [],
+              fallback: [],
+            },
             dynamicRoutes,
             staticRoutes,
             dataRoutes: [],
@@ -1342,11 +1350,6 @@ export default async function build(
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,
               queryHeader: NEXT_REWRITTEN_QUERY_HEADER,
-            },
-            rewrites: {
-              beforeFiles: [],
-              afterFiles: [],
-              fallback: [],
             },
             skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
             ppr: isAppPPREnabled
@@ -1515,6 +1518,7 @@ export default async function build(
                     hasSsrAmpPages: false,
                     buildTraceContext,
                     outputFileTracingRoot,
+                    isTurbopack: false,
                   })
                   .catch((err) => {
                     console.error(err)
@@ -1583,6 +1587,15 @@ export default async function build(
             )
           }
         }
+        await runAfterProductionCompile({
+          config,
+          buildSpan: nextBuildSpan,
+          telemetry,
+          metadata: {
+            projectDir: dir,
+            distDir,
+          },
+        })
       }
 
       // For app directory, we run type checking after build.
@@ -2431,6 +2444,7 @@ export default async function build(
           hasSsrAmpPages,
           buildTraceContext,
           outputFileTracingRoot,
+          isTurbopack: true,
         }).catch((err) => {
           console.error(err)
           process.exit(1)
@@ -3539,13 +3553,14 @@ export default async function build(
           await writeManifest(pagesManifestPath, pagesManifest)
 
           if (config.experimental.clientSegmentCache) {
-            for (const dynamicRoute of routesManifest.dynamicRoutes) {
+            for (const route of [
+              ...routesManifest.staticRoutes,
+              ...routesManifest.dynamicRoutes,
+            ]) {
               // We only want to handle pages that are using the app router. We
               // need this path in order to determine if it's an app route or an
               // app page.
-              const originalAppPath = pageInfos.get(
-                dynamicRoute.page
-              )?.originalAppPath
+              const originalAppPath = pageInfos.get(route.page)?.originalAppPath
               if (!originalAppPath) {
                 continue
               }
@@ -3558,7 +3573,7 @@ export default async function build(
               // We don't need to add the prefetch segment data routes if it was
               // added due to a page that was already generated. This would have
               // happened if the page was static or partially static.
-              if (dynamicRoute.prefetchSegmentDataRoutes) {
+              if (route.prefetchSegmentDataRoutes) {
                 continue
               }
 
@@ -3567,9 +3582,9 @@ export default async function build(
               // with other dynamic routes for the prefetch segment
               // routes. This is only an issue for pages that do not have
               // partial prerendering enabled.
-              dynamicRoute.prefetchSegmentDataRoutes = [
+              route.prefetchSegmentDataRoutes = [
                 buildInversePrefetchSegmentDataRoute(
-                  dynamicRoute.page,
+                  route.page,
                   // We use the special segment path of `/_tree` because it's
                   // the first one sent by the client router so it's the only
                   // one we need to rewrite to the regular prefetch RSC route.

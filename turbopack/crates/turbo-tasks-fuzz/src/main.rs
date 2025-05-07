@@ -157,7 +157,7 @@ async fn read_path(
 ) -> anyhow::Result<()> {
     let path_str = path.await?.path.clone();
     invalidations.0.lock().unwrap().insert(path_str);
-    let _ = path.track().await?;
+    let _ = path.read().await?;
     Ok(())
 }
 

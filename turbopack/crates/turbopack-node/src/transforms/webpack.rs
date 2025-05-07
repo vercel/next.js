@@ -2,10 +2,11 @@ use std::mem::take;
 
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
+use base64::Engine;
 use either::Either;
 use futures::try_join;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value as JsonValue};
+use serde_json::{json, Map as JsonMap, Value as JsonValue};
 use serde_with::serde_as;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -15,8 +16,7 @@ use turbo_tasks::{
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
-    glob::Glob, json::parse_json_with_source_context, rope::Rope, DirectoryEntry, File,
-    FileContent, FileSystemPath, ReadGlobResult,
+    glob::Glob, json::parse_json_with_source_context, rope::Rope, File, FileContent, FileSystemPath,
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -213,7 +213,7 @@ impl WebpackLoadersProcessedAsset {
         let AssetContent::File(file) = *source_content.await? else {
             bail!("Webpack Loaders transform only support transforming files");
         };
-        let FileContent::Content(content) = &*file.await? else {
+        let FileContent::Content(file_content) = &*file.await? else {
             return Ok(ProcessWebpackLoadersResult {
                 content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
                 assets: Vec::new(),
@@ -221,7 +221,19 @@ impl WebpackLoadersProcessedAsset {
             }
             .cell());
         };
-        let content = content.content().to_str()?;
+
+        // If the content is not a valid string (e.g. binary file), handle the error and pass a
+        // Buffer to Webpack instead of a Base64 string so the build process doesn't crash.
+        let content: JsonValue = match file_content.content().to_str() {
+            Ok(utf8_str) => utf8_str.to_string().into(),
+            Err(_) => JsonValue::Object(JsonMap::from_iter(std::iter::once((
+                "binary".to_string(),
+                JsonValue::from(
+                    base64::engine::general_purpose::STANDARD
+                        .encode(file_content.content().to_bytes().unwrap()),
+                ),
+            )))),
+        };
         let evaluate_context = transform.evaluate_context;
 
         let webpack_loaders_executor = webpack_loaders_executor(*evaluate_context)
@@ -251,7 +263,7 @@ impl WebpackLoadersProcessedAsset {
             chunking_context,
             resolve_options_context: Some(transform.resolve_options_context),
             args: vec![
-                ResolvedVc::cell(content.into()),
+                ResolvedVc::cell(content),
                 // We need to pass the query string to the loader
                 ResolvedVc::cell(resource_path.to_string().into()),
                 ResolvedVc::cell(this.source.ident().query().await?.to_string().into()),
@@ -366,7 +378,9 @@ pub enum InfoMessage {
         severity: IssueSeverity,
         error: StructuredError,
     },
-    Log(LogInfo),
+    Log {
+        logs: Vec<LogInfo>,
+    },
 }
 
 #[derive(Debug, Clone, TaskInput, Hash, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
@@ -497,15 +511,9 @@ impl EvaluateContext for WebpackLoaderContext {
                 let directory_subscriptions = directories
                     .iter()
                     .map(|(dir, glob)| {
-                        // TODO: there is some redundancy between `dir_dependency` and what
-                        // `read_glob` does, Introduce a new read_glob
-                        // option that will track all files the way
-                        // `dir_dependency` does but in a single traversal.
-                        dir_dependency(
-                            self.cwd
-                                .join(dir.clone())
-                                .read_glob(Glob::new(glob.clone()), false),
-                        )
+                        self.cwd
+                            .join(dir.clone())
+                            .track_glob(Glob::new(glob.clone()), false)
                     })
                     .try_join();
                 let build_paths = build_file_paths
@@ -540,8 +548,8 @@ impl EvaluateContext for WebpackLoaderContext {
                 .resolved_cell()
                 .emit();
             }
-            InfoMessage::Log(log) => {
-                state.push(log);
+            InfoMessage::Log { logs } => {
+                state.extend(logs);
             }
         }
         Ok(())
@@ -763,45 +771,6 @@ impl Issue for BuildDependencyIssue {
             .resolved_cell(),
         )))
     }
-}
-
-/// A hack to invalidate when any file in a directory changes. Need to be
-/// awaited before files are accessed.
-#[turbo_tasks::function]
-async fn dir_dependency(glob: Vc<ReadGlobResult>) -> Result<Vc<Completion>> {
-    let shallow = dir_dependency_shallow(glob);
-    let glob = glob.await?;
-    glob.inner
-        .values()
-        .map(|&inner| dir_dependency(*inner))
-        .try_join()
-        .await?;
-    shallow.await?;
-    Ok(Completion::new())
-}
-
-#[turbo_tasks::function]
-async fn dir_dependency_shallow(glob: Vc<ReadGlobResult>) -> Result<Vc<Completion>> {
-    let glob = glob.await?;
-    for item in glob.results.values() {
-        // Reading all files to add itself as dependency
-        match *item {
-            DirectoryEntry::File(file) => {
-                file.read().await?;
-            }
-            DirectoryEntry::Directory(dir) => {
-                dir_dependency(dir.read_glob(Glob::new("**".into()), false)).await?;
-            }
-            DirectoryEntry::Symlink(symlink) => {
-                symlink.read_link().await?;
-            }
-            DirectoryEntry::Other(other) => {
-                other.get_type().await?;
-            }
-            DirectoryEntry::Error => {}
-        }
-    }
-    Ok(Completion::new())
 }
 
 #[turbo_tasks::value(shared)]

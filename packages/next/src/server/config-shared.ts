@@ -105,6 +105,10 @@ export type TurbopackLoaderItem =
       options: Record<string, JSONValue>
     }
 
+export type TurbopackRuleCondition = {
+  path: string | RegExp
+}
+
 export type TurbopackRuleConfigItemOrShortcut =
   | TurbopackLoaderItem[]
   | TurbopackRuleConfigItem
@@ -143,6 +147,13 @@ export interface TurbopackOptions {
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
   rules?: Record<string, TurbopackRuleConfigItemOrShortcut>
+
+  /**
+   * (`next --turbopack` only) A list of conditions to apply when running webpack loaders with Turbopack.
+   *
+   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
+   */
+  conditions?: Record<string, TurbopackRuleCondition>
 
   /**
    * The module ID strategy to use for Turbopack.
@@ -262,6 +273,7 @@ export interface LoggingConfig {
 }
 
 export interface ExperimentalConfig {
+  useSkewCookie?: boolean
   nodeMiddleware?: boolean
   cacheHandlers?: {
     default?: string
@@ -1055,6 +1067,22 @@ export interface NextConfig extends Record<string, any> {
      * replaced with the respective values.
      */
     define?: Record<string, string>
+
+    /**
+     * A hook function that executes after production build compilation finishes,
+     * but before running post-compilation tasks such as type checking and
+     * static page generation.
+     */
+    runAfterProductionCompile?: (metadata: {
+      /**
+       * The root directory of the project
+       */
+      projectDir: string
+      /**
+       * The build output directory (defaults to `.next`)
+       */
+      distDir: string
+    }) => Promise<void>
   }
 
   /**
@@ -1200,6 +1228,7 @@ export const defaultConfig: NextConfig = {
     keepAlive: true,
   },
   logging: {},
+  compiler: {},
   expireTime: process.env.NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL
     ? undefined
     : 31536000, // one year
@@ -1209,6 +1238,7 @@ export const defaultConfig: NextConfig = {
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   allowedDevOrigins: undefined,
   experimental: {
+    useSkewCookie: false,
     nodeMiddleware: false,
     cacheLife: {
       default: {

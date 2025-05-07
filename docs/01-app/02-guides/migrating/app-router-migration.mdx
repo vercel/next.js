@@ -90,11 +90,11 @@ The behavior of [`next/script`](/docs/app/api-reference/components/script) has b
 
 ### Font Optimization
 
-Previously, Next.js helped you optimize fonts by [inlining font CSS](/docs/app/building-your-application/optimizing/fonts). Version 13 introduces the new [`next/font`](/docs/app/building-your-application/optimizing/fonts) module which gives you the ability to customize your font loading experience while still ensuring great performance and privacy. `next/font` is supported in both the `pages` and `app` directories.
+Previously, Next.js helped you optimize fonts by [inlining font CSS](/docs/app/api-reference/components/font). Version 13 introduces the new [`next/font`](/docs/app/api-reference/components/font) module which gives you the ability to customize your font loading experience while still ensuring great performance and privacy. `next/font` is supported in both the `pages` and `app` directories.
 
-While [inlining CSS](/docs/app/building-your-application/optimizing/fonts) still works in `pages`, it does not work in `app`. You should use [`next/font`](/docs/app/building-your-application/optimizing/fonts) instead.
+While [inlining CSS](/docs/app/api-reference/components/font) still works in `pages`, it does not work in `app`. You should use [`next/font`](/docs/app/api-reference/components/font) instead.
 
-See the [Font Optimization](/docs/app/building-your-application/optimizing/fonts) page to learn how to use `next/font`.
+See the [Font Optimization](/docs/app/api-reference/components/font) page to learn how to use `next/font`.
 
 ## Migrating from `pages` to `app`
 
@@ -166,7 +166,7 @@ export default function RootLayout({
 - The root layout replaces the `pages/_app.tsx` and `pages/_document.tsx` files.
 - `.js`, `.jsx`, or `.tsx` extensions can be used for layout files.
 
-To manage `<head>` HTML elements, you can use the [built-in SEO support](/docs/app/building-your-application/optimizing/metadata):
+To manage `<head>` HTML elements, you can use the [built-in SEO support](/docs/app/getting-started/metadata-and-og-images):
 
 ```tsx filename="app/layout.tsx" switcher
 import type { Metadata } from 'next'
@@ -265,7 +265,7 @@ Page.getLayout = function getLayout(page) {
 
 ### Step 3: Migrating `next/head`
 
-In the `pages` directory, the `next/head` React component is used to manage `<head>` HTML elements such as `title` and `meta` . In the `app` directory, `next/head` is replaced with the new [built-in SEO support](/docs/app/building-your-application/optimizing/metadata).
+In the `pages` directory, the `next/head` React component is used to manage `<head>` HTML elements such as `title` and `meta` . In the `app` directory, `next/head` is replaced with the new [built-in SEO support](/docs/app/getting-started/metadata-and-og-images).
 
 **Before:**
 
@@ -887,7 +887,7 @@ If you are also migrating to Next.js from a Single-Page Application (SPA) at the
 In the `pages` directory, global stylesheets are restricted to only `pages/_app.js`. With the `app` directory, this restriction has been lifted. Global styles can be added to any layout, page, or component.
 
 - [CSS Modules](/docs/app/building-your-application/styling/css#css-modules)
-- [Tailwind CSS](/docs/app/building-your-application/styling/tailwind-css)
+- [Tailwind CSS](/docs/app/guides/tailwind-css)
 - [Global Styles](/docs/app/building-your-application/styling/css#global-styles)
 - [CSS-in-JS](/docs/app/guides/css-in-js)
 - [External Stylesheets](/docs/app/building-your-application/styling/css#external-stylesheets)
@@ -921,7 +921,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Learn more about [styling with Tailwind CSS](/docs/app/building-your-application/styling/tailwind-css)
+Learn more about [styling with Tailwind CSS](/docs/app/guides/tailwind-css)
 
 ## Using App Router together with Pages Router
 

@@ -739,6 +739,11 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) async fn is_watch_enabled(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.watch.enable))
+    }
+
+    #[turbo_tasks::function]
     pub(super) async fn per_page_module_graph(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(*self.mode.await? == NextMode::Development))
     }
@@ -896,7 +901,7 @@ impl Project {
         entry: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(if *self.per_page_module_graph().await? {
-            ModuleGraph::from_entry_module(*entry)
+            ModuleGraph::from_entry_module(*entry, self.next_mode().await?.is_production())
         } else {
             *self.whole_app_module_graphs().await?.full
         })
@@ -914,7 +919,10 @@ impl Project {
                 .copied()
                 .map(ResolvedVc::upcast)
                 .collect();
-            ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(entries)]))
+            ModuleGraph::from_modules(
+                Vc::cell(vec![ChunkGroupEntry::Entry(entries)]),
+                self.next_mode().await?.is_production(),
+            )
         } else {
             *self.whole_app_module_graphs().await?.full
         })
@@ -926,7 +934,7 @@ impl Project {
         entries: Vc<GraphEntries>,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(if *self.per_page_module_graph().await? {
-            ModuleGraph::from_modules(entries)
+            ModuleGraph::from_modules(entries, self.next_mode().await?.is_production())
         } else {
             *self.whole_app_module_graphs().await?.full
         })
@@ -941,7 +949,7 @@ impl Project {
 
             // At this point all modules have been computed and we can get rid of the node.js
             // process pools
-            if self.await?.watch.enable {
+            if *self.is_watch_enabled().await? {
                 turbopack_node::evaluate::scale_down();
             } else {
                 turbopack_node::evaluate::scale_zero();
@@ -1409,7 +1417,6 @@ impl Project {
 
         Ok(Vc::upcast(MiddlewareEndpoint::new(
             self,
-            self.await?.build_id.clone(),
             middleware_asset_context,
             source,
             app_dir.as_deref().copied(),
@@ -1747,14 +1754,20 @@ async fn whole_app_module_graph_operation(
     project: ResolvedVc<Project>,
 ) -> Result<Vc<ModuleGraphs>> {
     mark_root();
-    let base_single_module_graph = SingleModuleGraph::new_with_entries(project.get_all_entries());
+
+    let should_trace = project.next_mode().await?.is_production();
+    let base_single_module_graph =
+        SingleModuleGraph::new_with_entries(project.get_all_entries(), should_trace);
     let base_visited_modules = VisitedModules::from_graph(base_single_module_graph);
 
     let base = ModuleGraph::from_single_graph(base_single_module_graph);
     let additional_entries = project.get_all_additional_entries(base);
 
-    let additional_module_graph =
-        SingleModuleGraph::new_with_entries_visited(additional_entries, base_visited_modules);
+    let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
+        additional_entries,
+        base_visited_modules,
+        should_trace,
+    );
 
     let full = ModuleGraph::from_graphs(vec![base_single_module_graph, additional_module_graph]);
     Ok(ModuleGraphs {

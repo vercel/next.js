@@ -19,7 +19,6 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
-import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
@@ -571,12 +570,11 @@ async function exportPage(
       // A static generation bailout error is a framework signal to fail static generation but
       // and will encode a reason in the error message. If there is a message, we'll print it.
       // Otherwise there's nothing to show as we don't want to leak an error internal error stack to the user.
+      // TODO: Always log the full error. ignore-listing will take care of hiding internal stacks.
       if (isStaticGenBailoutError(err)) {
         if (err.message) {
           console.error(`Error: ${err.message}`)
         }
-      } else if (isError(err) && err.stack) {
-        console.error(err.stack)
       } else {
         console.error(err)
       }

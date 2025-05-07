@@ -5,20 +5,16 @@
  * and should only be used in codepaths gated with this feature.
  */
 
-export class CacheSignal {
-  private count: number
-  private earlyListeners: Array<() => void>
-  private listeners: Array<() => void>
-  private tickPending: boolean
-  private taskPending: boolean
+import { InvariantError } from '../../shared/lib/invariant-error'
 
-  constructor() {
-    this.count = 0
-    this.earlyListeners = []
-    this.listeners = []
-    this.tickPending = false
-    this.taskPending = false
-  }
+export class CacheSignal {
+  private count = 0
+  private earlyListeners: Array<() => void> = []
+  private listeners: Array<() => void> = []
+  private tickPending = false
+  private taskPending = false
+
+  private subscribedSignals: Set<CacheSignal> | null = null
 
   private noMorePendingCaches() {
     if (!this.tickPending) {
@@ -76,9 +72,21 @@ export class CacheSignal {
 
   beginRead() {
     this.count++
+
+    if (this.subscribedSignals !== null) {
+      for (const subscriber of this.subscribedSignals) {
+        subscriber.beginRead()
+      }
+    }
   }
 
   endRead() {
+    if (this.count === 0) {
+      throw new InvariantError(
+        'CacheSignal got more endRead() calls than beginRead() calls'
+      )
+    }
+
     // If this is the last read we need to wait a task before we can claim the cache is settled.
     // The cache read will likely ping a Server Component which can read from the cache again and this
     // will play out in a microtask so we need to only resolve pending listeners if we're still at 0
@@ -89,5 +97,46 @@ export class CacheSignal {
     if (this.count === 0) {
       this.noMorePendingCaches()
     }
+
+    if (this.subscribedSignals !== null) {
+      for (const subscriber of this.subscribedSignals) {
+        subscriber.endRead()
+      }
+    }
+  }
+
+  trackRead<T>(promise: Promise<T>) {
+    this.beginRead()
+    promise.finally(this.endRead.bind(this))
+    return promise
+  }
+
+  subscribeToReads(subscriber: CacheSignal): () => void {
+    if (subscriber === this) {
+      throw new InvariantError('A CacheSignal cannot subscribe to itself')
+    }
+    if (this.subscribedSignals === null) {
+      this.subscribedSignals = new Set()
+    }
+    this.subscribedSignals.add(subscriber)
+
+    // we'll notify the subscriber of each endRead() on this signal,
+    // so we need to give it a corresponding beginRead() for each read we have in flight now.
+    for (let i = 0; i < this.count; i++) {
+      subscriber.beginRead()
+    }
+
+    return this.unsubscribeFromReads.bind(this, subscriber)
+  }
+
+  unsubscribeFromReads(subscriber: CacheSignal) {
+    if (!this.subscribedSignals) {
+      return
+    }
+    this.subscribedSignals.delete(subscriber)
+
+    // we don't need to set the set back to `null` if it's empty --
+    // if other signals are subscribing to this one, it'll likely get more subscriptions later,
+    // so we'd have to allocate a fresh set again when that happens.
   }
 }

@@ -187,7 +187,7 @@ impl InstrumentationEndpoint {
 
             let instrumentation_definition = InstrumentationDefinition {
                 files: file_paths_from_root,
-                wasm: wasm_paths_to_bindings(wasm_paths_from_root),
+                wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                 name: "instrumentation".into(),
                 ..Default::default()
             };

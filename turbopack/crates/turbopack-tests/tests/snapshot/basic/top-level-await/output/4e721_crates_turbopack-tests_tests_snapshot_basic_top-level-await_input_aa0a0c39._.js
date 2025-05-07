@@ -10,19 +10,19 @@ __turbopack_context__.s({
     "dbCall": (()=>dbCall)
 });
 const connectToDB = async (url)=>{
-    console.log("connecting to db", url);
+    console.log('connecting to db', url);
     await new Promise((r)=>setTimeout(r, 1000));
 };
 // This is a top-level-await
-await connectToDB("my-sql://example.com");
+await connectToDB('my-sql://example.com');
 const dbCall = async (data)=>{
-    console.log("dbCall", data);
+    console.log('dbCall', data);
     // This is a normal await, because it's in an async function
     await new Promise((r)=>setTimeout(r, 100));
-    return "fake data";
+    return 'fake data';
 };
 const close = ()=>{
-    console.log("closes the DB connection");
+    console.log('closes the DB connection');
 };
 __turbopack_async_result__();
 } catch(e) { __turbopack_async_result__(e); } }, true);}),

@@ -71,20 +71,18 @@ function runTests(options: { withMinification: boolean }) {
 
       // This test used to assert the opposite but now that metadata is streaming during prerenders
       // we don't have to error the build when it is dynamic
-      it('should not error the build if generateMetadata is dynamic', async () => {
+      it('should error the build if generateMetadata is dynamic when the rest of the route is prerenderable', async () => {
         try {
           await next.start()
         } catch {
-          throw new Error('expected build not to fail')
+          // we expect the build to fail
         }
+        const expectError = createExpectError(next.cliOutput)
 
-        if (WITH_PPR) {
-          expect(next.cliOutput).toContain('◐ / ')
-        } else {
-          expect(next.cliOutput).toContain('ƒ / ')
-        }
-        const $ = await next.render$('/')
-        expect($('#sentinel').text()).toBe('sentinel')
+        expectError(
+          'Route "/" has a `generateMetadata` that depends on Request data (`cookies()`, etc...) or uncached external data (`fetch(...)`, etc...) when the rest of the route does not'
+        )
+        expectError('Error occurred prerendering page "/"')
       })
     })
     describe('Dynamic Metadata - Error Route', () => {
@@ -162,16 +160,14 @@ function runTests(options: { withMinification: boolean }) {
         try {
           await next.start()
         } catch {
-          throw new Error('expected build not to fail')
+          // we expect the build to fail
         }
+        const expectError = createExpectError(next.cliOutput)
 
-        if (WITH_PPR) {
-          expect(next.cliOutput).toContain('◐ / ')
-        } else {
-          expect(next.cliOutput).toContain('ƒ / ')
-        }
-        const $ = await next.render$('/')
-        expect($('#sentinel').text()).toBe('sentinel')
+        expectError(
+          'Route "/" has a `generateMetadata` that depends on Request data (`cookies()`, etc...) or uncached external data (`fetch(...)`, etc...) when the rest of the route does not'
+        )
+        expectError('Error occurred prerendering page "/"')
       })
     })
 

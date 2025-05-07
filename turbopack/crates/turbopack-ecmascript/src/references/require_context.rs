@@ -13,6 +13,7 @@ use swc_core::{
     },
     quote, quote_expr,
 };
+use turbo_esregex::EsRegex;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc, Value,
@@ -36,7 +37,6 @@ use turbopack_core::{
 use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
-    analyzer::es_regex::EsRegex,
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports,
     },

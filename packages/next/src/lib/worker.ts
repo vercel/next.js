@@ -2,7 +2,7 @@ import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Transform } from 'stream'
 
-type FarmOptions = ConstructorParameters<typeof JestWorker>[1]
+type FarmOptions = NonNullable<ConstructorParameters<typeof JestWorker>[1]>
 
 const RESTARTED = Symbol('restarted')
 
@@ -19,7 +19,12 @@ export class Worker {
 
   constructor(
     workerPath: string,
-    options: FarmOptions & {
+    options: Omit<FarmOptions, 'forkOptions'> & {
+      forkOptions?:
+        | (Omit<NonNullable<FarmOptions['forkOptions']>, 'env'> & {
+            env?: Partial<NodeJS.ProcessEnv> | undefined
+          })
+        | undefined
       timeout?: number
       onActivity?: () => void
       onActivityAbort?: () => void
@@ -48,8 +53,8 @@ export class Worker {
         forkOptions: {
           ...farmOptions.forkOptions,
           env: {
-            ...((farmOptions.forkOptions?.env || {}) as any),
             ...process.env,
+            ...((farmOptions.forkOptions?.env || {}) as any),
             IS_NEXT_WORKER: 'true',
           } as any,
         },

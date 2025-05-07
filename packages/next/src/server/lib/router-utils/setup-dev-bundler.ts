@@ -101,6 +101,17 @@ export type SetupOpts = {
   resetFetch: () => void
 }
 
+export interface DevRoutesManifest {
+  version: number
+  caseSensitive: RoutesManifest['caseSensitive']
+  basePath: RoutesManifest['basePath']
+  rewrites: RoutesManifest['rewrites']
+  redirects: RoutesManifest['redirects']
+  headers: RoutesManifest['headers']
+  i18n: RoutesManifest['i18n']
+  skipMiddlewareUrlNormalize: RoutesManifest['skipMiddlewareUrlNormalize']
+}
+
 export type ServerFields = {
   actualMiddlewareFile?: string | undefined
   actualInstrumentationHookFile?: string | undefined
@@ -200,14 +211,13 @@ async function startWatcher(opts: SetupOpts) {
   // have to write this after starting hot-reloader since that
   // cleans the dist dir
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
-  const routesManifest: Partial<RoutesManifest> = {
+  const routesManifest: DevRoutesManifest = {
     version: 3,
     caseSensitive: !!nextConfig.experimental.caseSensitiveRoutes,
     basePath: nextConfig.basePath,
     rewrites: opts.fsChecker.rewrites,
     redirects: opts.fsChecker.redirects,
     headers: opts.fsChecker.headers,
-    dataRoutes: [],
     i18n: nextConfig.i18n || undefined,
     skipMiddlewareUrlNormalize: nextConfig.skipMiddlewareUrlNormalize,
   }

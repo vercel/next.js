@@ -4,7 +4,7 @@
 
 var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
 {
-module.exports = "turbopack";
+module.exports = 'turbopack';
 }}),
 }]);
 

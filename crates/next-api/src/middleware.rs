@@ -44,7 +44,6 @@ use crate::{
 #[turbo_tasks::value]
 pub struct MiddlewareEndpoint {
     project: ResolvedVc<Project>,
-    build_id: RcStr,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     source: ResolvedVc<Box<dyn Source>>,
     app_dir: Option<ResolvedVc<FileSystemPath>>,
@@ -56,7 +55,6 @@ impl MiddlewareEndpoint {
     #[turbo_tasks::function]
     pub fn new(
         project: ResolvedVc<Project>,
-        build_id: RcStr,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         source: ResolvedVc<Box<dyn Source>>,
         app_dir: Option<ResolvedVc<FileSystemPath>>,
@@ -64,7 +62,6 @@ impl MiddlewareEndpoint {
     ) -> Vc<Self> {
         Self {
             project,
-            build_id,
             asset_context,
             source,
             app_dir,
@@ -304,7 +301,7 @@ impl MiddlewareEndpoint {
 
             let edge_function_definition = EdgeFunctionDefinition {
                 files: file_paths_from_root,
-                wasm: wasm_paths_to_bindings(wasm_paths_from_root),
+                wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                 assets: paths_to_bindings(all_assets),
                 name: "middleware".into(),
                 page: "/".into(),

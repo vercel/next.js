@@ -8,7 +8,7 @@ var { g: global, __dirname } = __turbopack_context__;
 __turbopack_context__.s({
     "default": (()=>__TURBOPACK__default__export__)
 });
-const __TURBOPACK__default__export__ = "foo";
+const __TURBOPACK__default__export__ = 'foo';
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/subpath-imports-nested/input/nested/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
