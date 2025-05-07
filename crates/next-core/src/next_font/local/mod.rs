@@ -1,4 +1,5 @@
 use anyhow::{bail, Context, Result};
+use font_fallback::FontFallbackResult;
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
@@ -31,12 +32,12 @@ use super::{
 use crate::{
     next_app::metadata::split_extension,
     next_font::{
-        local::{errors::FontError, options::FontWeight},
+        local::options::FontWeight,
         util::{get_request_hash, get_request_id},
     },
 };
 
-mod errors;
+pub mod errors;
 pub mod font_fallback;
 pub mod options;
 pub mod request;
@@ -106,33 +107,26 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                 let request_hash = get_request_hash(&query).await?;
                 let qstr = qstring::QString::from(query.as_str());
                 let options_vc = font_options_from_query_map(**query_vc);
-                let font_fallbacks = get_font_fallbacks(lookup_path, options_vc);
-                let properties = get_font_css_properties(options_vc, font_fallbacks).await;
 
+                let font_fallbacks = &*get_font_fallbacks(lookup_path, options_vc).await?;
                 let lookup_path = lookup_path.to_resolved().await?;
-                if let Err(e) = &properties {
-                    for source_error in e.chain() {
-                        if let Some(FontError::FontFileNotFound(font_path)) =
-                            source_error.downcast_ref::<FontError>()
-                        {
-                            FontResolvingIssue {
-                                origin_path: lookup_path,
-                                font_path: ResolvedVc::cell(font_path.clone()),
-                            }
-                            .resolved_cell()
-                            .emit();
-
-                            return Ok(ResolveResultOption::some(*ResolveResult::primary(
-                                ResolveResultItem::Error(ResolvedVc::cell(
-                                    format!("Font file not found: Can't resolve {}'", font_path)
-                                        .into(),
-                                )),
-                            )));
+                let font_fallbacks = match font_fallbacks {
+                    FontFallbackResult::FontFileNotFound(err) => {
+                        FontResolvingIssue {
+                            origin_path: lookup_path,
+                            font_path: ResolvedVc::cell(err.0.clone()),
                         }
-                    }
-                }
+                        .resolved_cell()
+                        .emit();
 
-                let properties = properties?;
+                        return Ok(ResolveResultOption::some(*ResolveResult::primary(
+                            ResolveResultItem::Error(ResolvedVc::cell(err.to_string().into())),
+                        )));
+                    }
+                    FontFallbackResult::Ok(font_fallbacks) => *font_fallbacks,
+                };
+
+                let properties = get_font_css_properties(options_vc, *font_fallbacks).await?;
                 let file_content = formatdoc!(
                     r#"
                     import cssModule from "@vercel/turbopack-next/internal/font/local/cssmodule.module.css?{}";
@@ -194,7 +188,22 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                     )
                     .into(),
                 );
-                let fallback = get_font_fallbacks(lookup_path, options);
+                let fallback = &*get_font_fallbacks(lookup_path, options).await?;
+                let fallback = match fallback {
+                    FontFallbackResult::FontFileNotFound(err) => {
+                        FontResolvingIssue {
+                            origin_path: lookup_path.to_resolved().await?,
+                            font_path: ResolvedVc::cell(err.0.clone()),
+                        }
+                        .resolved_cell()
+                        .emit();
+
+                        return Ok(ResolveResultOption::some(*ResolveResult::primary(
+                            ResolveResultItem::Error(ResolvedVc::cell(err.to_string().into())),
+                        )));
+                    }
+                    FontFallbackResult::Ok(font_fallbacks) => **font_fallbacks,
+                };
 
                 let stylesheet = build_stylesheet(
                     font_options_from_query_map(**query_vc),
