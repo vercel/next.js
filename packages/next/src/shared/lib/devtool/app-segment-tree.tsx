@@ -151,14 +151,6 @@ const setStateTree = (newTree: AppSegmentTreeNode) => {
 
 const registerNode = createRegisterNode(setStateTree, getStateTree)
 
-export const SegmentViewRoot = ({ children }: { children: ReactNode }) => {
-  return (
-    <AppSegmentTreeContext value={{ pagePath: '' }}>
-      {children}
-    </AppSegmentTreeContext>
-  )
-}
-
 export function SegmentViewNode({
   name,
   pagePath,
