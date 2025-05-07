@@ -3557,23 +3557,11 @@ export default async function build(
               ...routesManifest.staticRoutes,
               ...routesManifest.dynamicRoutes,
             ]) {
-              // We only want to handle pages that are using the app router. We
-              // need this path in order to determine if it's an app route or an
-              // app page.
-              const originalAppPath = pageInfos.get(route.page)?.originalAppPath
-              if (!originalAppPath) {
-                continue
-              }
-
-              // We only want to handle app pages, not app routes.
-              if (isAppRouteRoute(originalAppPath)) {
-                continue
-              }
-
               // We don't need to add the prefetch segment data routes if it was
               // added due to a page that was already generated. This would have
               // happened if the page was static or partially static.
-              if (route.prefetchSegmentDataRoutes) {
+              const originalAppPath = pageInfos.get(route.page)?.originalAppPath
+              if (originalAppPath && route.prefetchSegmentDataRoutes) {
                 continue
               }
 
