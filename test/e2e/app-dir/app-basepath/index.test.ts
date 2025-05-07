@@ -13,7 +13,14 @@ describe('app dir - basepath', () => {
   it('should successfully hard navigate from pages -> app', async () => {
     const browser = await next.browser('/base/pages-path')
     await browser.elementByCss('#to-another').click()
-    await browser.waitForElementByCss('#page-2')
+    try {
+      await browser.waitForElementByCss('#page-2')
+    } catch (error) {
+      console.error('Error waiting for element:', error)
+      console.log(await browser.url())
+      console.log(await browser.eval('document.body.innerHTML'))
+      throw error
+    }
   })
 
   it('should support `basePath`', async () => {
