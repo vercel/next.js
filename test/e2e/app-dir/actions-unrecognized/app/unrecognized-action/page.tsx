@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { ClientForm, ServerForm, ErrorBoundary } from './client'
+import { ClientForm, ServerForm, UnrecognizedActionBoundary } from './client'
 
 const action = async (...args: any[]) => {
   'use server'
@@ -14,12 +14,12 @@ export default function Page() {
   return (
     <div>
       <div>
-        <ErrorBoundary>
+        <UnrecognizedActionBoundary>
           <ServerForm action={action} />
-        </ErrorBoundary>
+        </UnrecognizedActionBoundary>
       </div>
       <div>
-        <ErrorBoundary>
+        <UnrecognizedActionBoundary>
           <ClientForm
             action={action}
             id="client-form-simple-argument"
@@ -27,10 +27,10 @@ export default function Page() {
           >
             Submit client form with simple argument
           </ClientForm>
-        </ErrorBoundary>
+        </UnrecognizedActionBoundary>
       </div>
       <div>
-        <ErrorBoundary>
+        <UnrecognizedActionBoundary>
           <ClientForm
             action={action}
             id="client-form-complex-argument"
@@ -38,7 +38,7 @@ export default function Page() {
           >
             Submit client form with complex argument
           </ClientForm>
-        </ErrorBoundary>
+        </UnrecognizedActionBoundary>
       </div>
     </div>
   )

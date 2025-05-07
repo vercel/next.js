@@ -1,6 +1,7 @@
 'use client'
 import * as React from 'react'
 import { useActionState } from 'react'
+import { unstable_isUnrecognizedActionError as isUnrecognizedActionError } from 'next/navigation'
 
 export function ClientForm<T>({
   action,
@@ -41,12 +42,16 @@ export function ServerForm({
   )
 }
 
-export class ErrorBoundary extends React.Component<{
+export class UnrecognizedActionBoundary extends React.Component<{
   children: React.ReactNode
 }> {
   state = { error: null }
   static getDerivedStateFromError(error) {
-    return { error }
+    if (isUnrecognizedActionError(error)) {
+      return { error }
+    } else {
+      throw error
+    }
   }
   render() {
     if (this.state.error) {

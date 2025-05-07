@@ -624,6 +624,7 @@ impl ReactServerComponentValidator {
                         "useRouter",
                         "useServerInsertedHTML",
                         "ServerInsertedHTMLContext",
+                        "unstable_isUnrecognizedActionError",
                     ],
                 ),
                 ("next/link", vec!["useLinkStatus"]),
