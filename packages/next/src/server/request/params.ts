@@ -220,7 +220,10 @@ function makeAbortingExoticParams(
 
             if (
               workUnitStore?.type === 'cache' &&
-              workUnitStore.renderContext?.type === 'prerender'
+              workUnitStore.renderContext?.type === 'prerender' &&
+              // TODO: We could consider aborting for any kind of fallback shell
+              // prerendering, including when allowEmptyStaticShell is false.
+              workUnitStore.renderContext.allowEmptyStaticShell
             ) {
               workUnitStore.renderContext.dynamicAccessAbortController.abort(
                 new Error(
