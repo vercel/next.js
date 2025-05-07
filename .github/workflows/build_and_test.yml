@@ -238,7 +238,6 @@ jobs:
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json"
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_DEV=1
-        export NEXT_E2E_TEST_TIMEOUT=240000
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
