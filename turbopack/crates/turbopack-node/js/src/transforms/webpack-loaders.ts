@@ -3,19 +3,18 @@ declare const __turbopack_external_require__: {
 } & ((id: string, thunk: () => any, esm?: boolean) => any)
 
 import type { Ipc } from '../ipc/evaluate'
-import {
-  relative,
-  isAbsolute,
-  join,
-  sep,
-  dirname,
-  resolve as pathResolve,
-} from 'path'
+import { dirname, resolve as pathResolve } from 'path'
 import {
   StackFrame,
   parse as parseStackTrace,
 } from '../compiled/stacktrace-parser'
-import { type StructuredError } from 'src/ipc'
+import { structuredError, type StructuredError } from '../ipc'
+import {
+  fromPath,
+  getReadEnvVariables,
+  toPath,
+  type TransformIpc,
+} from './transforms'
 
 export type IpcInfoMessage =
   | {
@@ -32,10 +31,12 @@ export type IpcInfoMessage =
     }
   | {
       type: 'log'
-      time: number
-      logType: string
-      args: any[]
-      trace?: StackFrame[]
+      logs: Array<{
+        time: number
+        logType: string
+        args: any[]
+        trace?: StackFrame[]
+      }>
     }
 
 export type IpcRequestMessage = {
@@ -57,18 +58,6 @@ const {
 }: typeof import('loader-runner') = require('@vercel/turbopack/loader-runner')
 
 const contextDir = process.cwd()
-const toPath = (file: string) => {
-  const relPath = relative(contextDir, file)
-  if (isAbsolute(relPath)) {
-    throw new Error(
-      `Cannot depend on path (${file}) outside of root directory (${contextDir})`
-    )
-  }
-  return sep !== '/' ? relPath.replaceAll(sep, '/') : relPath
-}
-const fromPath = (path: string) => {
-  return join(contextDir, sep !== '/' ? path.replaceAll('/', sep) : path)
-}
 
 const LogType = Object.freeze({
   error: 'error',
@@ -155,24 +144,8 @@ type ResolveOptions = {
   importFields?: string[]
 }
 
-// Patch process.env to track which env vars are read
-const originalEnv = process.env
-const readEnvVars = new Set<string>()
-process.env = new Proxy(originalEnv, {
-  get(target, prop) {
-    if (typeof prop === 'string' && !readEnvVars.has(prop)) {
-      // We register the env var as dependency on the
-      // current transform and all future transforms
-      // since the env var might be cached in module scope
-      // and influence them all
-      readEnvVars.add(prop)
-    }
-    return Reflect.get(target, prop)
-  },
-})
-
 const transform = (
-  ipc: Ipc<IpcInfoMessage, IpcRequestMessage>,
+  ipc: TransformIpc,
   content: string | { binary: string },
   name: string,
   query: string,
@@ -186,6 +159,13 @@ const transform = (
     const loadersWithOptions = loaders.map((loader) =>
       typeof loader === 'string' ? { loader, options: {} } : loader
     )
+
+    const logs: Array<{
+      time: number
+      logType: string
+      args: unknown[]
+      trace: StackFrame[] | undefined
+    }> = []
 
     runLoaders(
       {
@@ -337,7 +317,7 @@ const transform = (
           emitError: makeErrorEmitter('error', ipc),
           getLogger(name: unknown) {
             const logFn = (logType: string, ...args: unknown[]) => {
-              let trace
+              let trace: StackFrame[] | undefined
               switch (logType) {
                 case LogType.warn:
                 case LogType.error:
@@ -354,10 +334,8 @@ const transform = (
                   // TODO: do we need to handle this?
                   break
               }
-              // TODO(lukesandberg): should we batch these and flush lazily?
-              // turbopack just collects these and reports them when finishing the task.
-              ipc.sendInfo({
-                type: 'log',
+              // Batch logs messages to be sent at the end
+              logs.push({
                 time: Date.now(),
                 logType,
                 args,
@@ -464,9 +442,13 @@ const transform = (
         },
       },
       (err, result) => {
+        if (logs.length) {
+          ipc.sendInfo({ type: 'log', logs: logs })
+          logs.length = 0
+        }
         ipc.sendInfo({
           type: 'dependencies',
-          envVariables: Array.from(readEnvVars),
+          envVariables: getReadEnvVariables(),
           filePaths: result.fileDependencies.map(toPath),
           directories: result.contextDependencies.map((dep) => [
             toPath(dep),
@@ -502,20 +484,7 @@ function makeErrorEmitter(
     ipc.sendInfo({
       type: 'emittedError',
       severity: severity,
-      error:
-        error instanceof Error
-          ? {
-              name: error.name,
-              message: error.message,
-              stack: error.stack ? parseStackTrace(error.stack) : [],
-              cause: undefined,
-            }
-          : {
-              name: 'Error',
-              message: error,
-              stack: [],
-              cause: undefined,
-            },
+      error: structuredError(error),
     })
   }
 }

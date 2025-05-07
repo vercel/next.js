@@ -11,6 +11,7 @@ import {
   RSC_ACTION_ENCRYPTION_ALIAS,
   RSC_CACHE_WRAPPER_ALIAS,
   type WebpackLayerName,
+  RSC_DYNAMIC_IMPORT_WRAPPER_ALIAS,
 } from '../lib/constants'
 import type { NextConfigComplete } from '../server/config-shared'
 import { defaultOverrides } from '../server/require-hook'
@@ -177,6 +178,8 @@ export function createWebpackAliases({
 
     [RSC_CACHE_WRAPPER_ALIAS]:
       'next/dist/build/webpack/loaders/next-flight-loader/cache-wrapper',
+    [RSC_DYNAMIC_IMPORT_WRAPPER_ALIAS]:
+      'next/dist/build/webpack/loaders/next-flight-loader/track-dynamic-import',
 
     ...(isClient || isEdgeServer
       ? {
