@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('empty-fallback-shells', () => {
-  const { next, isNextDeploy, isNextStart } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy, isNextStart } = nextTestSetup({
     files: __dirname,
     timeout: 180_000,
   })
@@ -33,10 +33,10 @@ describe('empty-fallback-shells', () => {
           const html = await res.text()
           expect(html).toContain('page-bar')
 
-          if (isNextStart) {
-            expect(html).toContain('layout-buildtime')
-          } else {
+          if (isNextDev) {
             expect(html).toContain('layout-runtime')
+          } else {
+            expect(html).toContain('layout-buildtime')
           }
 
           if (isNextDeploy) {
@@ -58,10 +58,10 @@ describe('empty-fallback-shells', () => {
           const html = await res.text()
           expect(html).toContain('page-bar')
 
-          if (isNextStart) {
-            expect(html).toContain('layout-buildtime')
-          } else {
+          if (isNextDev) {
             expect(html).toContain('layout-runtime')
+          } else {
+            expect(html).toContain('layout-buildtime')
           }
 
           if (isNextDeploy) {
