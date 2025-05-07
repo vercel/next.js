@@ -27,7 +27,6 @@ import {
   workUnitAsyncStorage,
   getDraftModeProviderForCacheScope,
 } from '../app-render/work-unit-async-storage.external'
-import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'
 
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 
@@ -83,7 +82,7 @@ function generateCacheEntry(
   // might include request specific things like cookies() inside a React.cache().
   // Note: It is important that we await at least once before this because it lets us
   // pop out of any stack specific contexts as well - aka "Sync" Local Storage.
-  return runInCleanSnapshot(
+  return workStore.runInCleanSnapshot(
     generateCacheEntryWithRestoredWorkStore,
     workStore,
     outerWorkUnitStore,

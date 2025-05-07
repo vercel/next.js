@@ -98,6 +98,18 @@ export interface WorkStore {
 
   dynamicIOEnabled: boolean
   dev: boolean
+
+  /**
+   * Run the given function inside a clean AsyncLocalStorage snapshot. This is
+   * useful when generating cache entries, to ensure that the cache generation
+   * cannot read anything from the context we're currently executing in, which
+   * might include request-specific things like `cookies()` inside a
+   * `React.cache()`.
+   */
+  runInCleanSnapshot: <R, TArgs extends any[]>(
+    fn: (...args: TArgs) => R,
+    ...args: TArgs
+  ) => R
 }
 
 export type WorkAsyncStorage = AsyncLocalStorage<WorkStore>
