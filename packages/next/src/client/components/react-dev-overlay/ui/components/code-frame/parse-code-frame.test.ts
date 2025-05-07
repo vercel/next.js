@@ -49,4 +49,45 @@ describe('parse line numbers', () => {
       isErroredLine: false,
     })
   })
+
+  it('parse line numbers when a token contains both break and spaces', () => {
+    //   4 |   return (
+    //   5 |     <p>
+    // > 6 |       <p>nest</p>
+    //     |       ^
+    //   7 |     </p>
+    //   8 |   )
+    //   9 | }
+    const input = {
+      stackFrame: {
+        file: 'app/page.tsx',
+        lineNumber: 6,
+        column: 7,
+        methodName: 'Page',
+        arguments: [],
+      },
+      codeFrame: `"\u001b[0m \u001b[90m 4 |\u001b[39m   \u001b[36mreturn\u001b[39m (\n \u001b[90m 5 |\u001b[39m     \u001b[33m<\u001b[39m\u001b[33mp\u001b[39m\u001b[33m>\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 6 |\u001b[39m       \u001b[33m<\u001b[39m\u001b[33mp\u001b[39m\u001b[33m>\u001b[39mnest\u001b[33m<\u001b[39m\u001b[33m/\u001b[39m\u001b[33mp\u001b[39m\u001b[33m>\u001b[39m\n \u001b[90m   |\u001b[39m       \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 7 |\u001b[39m     \u001b[33m<\u001b[39m\u001b[33m/\u001b[39m\u001b[33mp\u001b[39m\u001b[33m>\u001b[39m\n \u001b[90m 8 |\u001b[39m   )\n \u001b[90m 9 |\u001b[39m }\u001b[0m"`,
+    }
+    const formattedFrame = formatCodeFrame(input.codeFrame)
+    const decodedLines = groupCodeFrameLines(formattedFrame)
+
+    expect(
+      parseLineNumberFromCodeFrameLine(decodedLines[1], input.stackFrame)
+    ).toEqual({
+      lineNumber: '5',
+      isErroredLine: false,
+    })
+    expect(
+      parseLineNumberFromCodeFrameLine(decodedLines[2], input.stackFrame)
+    ).toEqual({
+      lineNumber: '6',
+      isErroredLine: true,
+    })
+    expect(
+      parseLineNumberFromCodeFrameLine(decodedLines[4], input.stackFrame)
+    ).toEqual({
+      lineNumber: '7',
+      isErroredLine: false,
+    })
+  })
 })
