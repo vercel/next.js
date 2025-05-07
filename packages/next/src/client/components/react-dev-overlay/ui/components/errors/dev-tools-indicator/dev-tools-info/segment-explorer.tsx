@@ -2,7 +2,6 @@ import { useRef, type HTMLProps } from 'react'
 import { css } from '../../../../../utils/css'
 import type { DevToolsInfoPropsCore } from './dev-tools-info'
 import { DevToolsInfo } from './dev-tools-info'
-import type { AppSegmentTreeNode } from '../../../../../../../../shared/lib/devtool/app-segment-tree-context.shared-runtime'
 import { cx } from '../../../../utils/cx'
 import { LeftArrow } from '../../../../icons/left-arrow'
 import { useSegmentTreeClientState } from '../../../../../../../../shared/lib/devtool/app-segment-tree'
@@ -59,6 +58,7 @@ function PageSegmentTree({ tree }: { tree: Trie | undefined }) {
   return (
     <div className="segment-explorer-content">
       <PageSegmentTreeLayerPresentation
+        tree={tree}
         node={tree.getRoot()}
         level={0}
         renderedRef={renderedRef}
@@ -68,10 +68,12 @@ function PageSegmentTree({ tree }: { tree: Trie | undefined }) {
 }
 
 function PageSegmentTreeLayerPresentation({
+  tree,
   node,
   level,
   renderedRef,
 }: {
+  tree: Trie
   node: TrieNode
   level: number
   renderedRef: React.RefObject<Record<string, number>>
@@ -92,15 +94,13 @@ function PageSegmentTreeLayerPresentation({
     renderedRef.current[node.value] = level
   }
   const segments = node.value?.split('/') || []
-  const fileName = segments[segments.length - 1]
+  const fileName = segments[segments.length - 1] || ''
   const nodeName = fileName.split('.')[0] === 'layout' ? 'layout' : 'page'
-
   const pagePath = segments.slice(0, -1).join('/')
-  const fileBaseName = segments[segments.length - 1]
 
   return (
     <div className="segment-explorer-item">
-      {level === 0 ? null : (
+      {!fileName || level === 0 ? null : (
         <div className="segment-explorer-item-row">
           <div className="segment-explorer-line">
             <div className={`segment-explorer-line-text-${nodeName}`}>
@@ -113,34 +113,25 @@ function PageSegmentTreeLayerPresentation({
                 {nodeName === 'layout' ? ICONS.layout : ICONS.page}
               </span>
               {pagePath === '' ? '' : `${pagePath}/`}
-              <span className="segment-explorer-filename-path">
-                {fileBaseName}
-              </span>
+              <span className="segment-explorer-filename-path">{fileName}</span>
             </div>
           </div>
         </div>
       )}
 
       <div className="tree-node-expanded-rendered-children">
-        {Object.entries(node.children)
-          // Sort the segments by the number of segments levels,
-          // prioritize the parental segments on the top.
-          .sort((keyA, keyB) => {
-            const segA = keyA[0].split('/').length
-            const segB = keyB[0].split('/').length
-
-            return segA - segB
-          })
-          .map(([key, child]) =>
-            !!(child && child?.value) ? (
+        {Object.entries(node.children).map(
+          ([key, child]) =>
+            child && (
               <PageSegmentTreeLayerPresentation
                 key={key}
+                tree={tree}
                 node={child}
                 level={level + 1}
                 renderedRef={renderedRef}
               />
-            ) : null
-          )}
+            )
+        )}
       </div>
     </div>
   )
