@@ -764,7 +764,9 @@ export function createStaticWorker(
       progress?.clear()
     },
     forkOptions: {
-      env: { ...process.env, NODE_OPTIONS: formatNodeOptions(nodeOptions) },
+      env: {
+        NODE_OPTIONS: formatNodeOptions(nodeOptions),
+      },
     },
     enableWorkerThreads: config.experimental.workerThreads,
     exposedMethods: staticWorkerExposedMethods,

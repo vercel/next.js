@@ -965,6 +965,13 @@ async fn insert_next_shared_aliases(
             "next/dist/build/webpack/loaders/next-flight-loader/cache-wrapper",
         ),
     );
+    import_map.insert_exact_alias(
+        "private-next-rsc-track-dynamic-import",
+        request_to_import_mapping(
+            project_path,
+            "next/dist/build/webpack/loaders/next-flight-loader/track-dynamic-import",
+        ),
+    );
 
     insert_turbopack_dev_alias(import_map).await?;
     insert_package_alias(

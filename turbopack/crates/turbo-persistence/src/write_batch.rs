@@ -138,6 +138,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         Ok(collector)
     }
 
+    #[tracing::instrument(level = "trace", skip(self, collector))]
     fn flush_thread_local_collector(
         &self,
         family: u32,
@@ -235,6 +236,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
     ///
     /// Caller must ensure that no concurrent put or delete operation is happening on the flushed
     /// family.
+    #[tracing::instrument(level = "trace", skip(self))]
     pub unsafe fn flush(&self, family: u32) -> Result<()> {
         // Flush the thread local collectors to the global collector.
         let mut collectors = Vec::new();
@@ -290,12 +292,14 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
 
     /// Finishes the write batch by returning the new sequence number and the new SST files. This
     /// writes all outstanding thread local data to disk.
+    #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn finish(&mut self) -> Result<FinishResult> {
         let mut new_blob_files = Vec::new();
         let shared_error = Mutex::new(Ok(()));
 
         // First, we flush all thread local collectors to the global collectors.
         scope(|scope| {
+            let _span = tracing::trace_span!("flush thread local collectors").entered();
             let mut collectors = [const { Vec::new() }; FAMILIES];
             for cell in self.thread_locals.iter_mut() {
                 let state = cell.get_mut();
@@ -312,7 +316,9 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                 for mut collector in thread_local_collectors {
                     let this = &self;
                     let shared_error = &shared_error;
+                    let span = Span::current();
                     scope.spawn(move |_| {
+                        let _span = span.entered();
                         if let Err(err) =
                             this.flush_thread_local_collector(family as u32, &mut collector)
                         {
@@ -324,6 +330,8 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
             }
         });
 
+        let _span = tracing::trace_span!("flush collectors").entered();
+
         // Now we reduce the global collectors in parallel
         let mut new_sst_files = take(self.new_sst_files.get_mut());
         let shared_new_sst_files = Mutex::new(&mut new_sst_files);
@@ -331,6 +339,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         let new_collectors = [(); FAMILIES]
             .map(|_| Mutex::new(GlobalCollectorState::Unsharded(self.get_new_collector())));
         let collectors = replace(&mut self.collectors, new_collectors);
+        let span = Span::current();
         collectors
             .into_par_iter()
             .enumerate()
@@ -348,6 +357,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
                 }
             })
             .try_for_each(|(family, mut collector)| {
+                let _span = span.clone().entered();
                 let family = family as u32;
                 if !collector.is_empty() {
                     let sst = self.create_sst_file(family, collector.sorted())?;
@@ -370,6 +380,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
 
     /// Creates a new blob file with the given value.
     /// Returns a tuple of (sequence number, file).
+    #[tracing::instrument(level = "trace", skip(self, value), fields(value_len = value.len()))]
     fn create_blob(&self, value: &[u8]) -> Result<(u32, File)> {
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
         let mut buffer = Vec::new();
@@ -387,6 +398,7 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
 
     /// Creates a new SST file with the given collector data.
     /// Returns a tuple of (sequence number, file).
+    #[tracing::instrument(level = "trace", skip(self, collector_data))]
     fn create_sst_file(
         &self,
         family: u32,

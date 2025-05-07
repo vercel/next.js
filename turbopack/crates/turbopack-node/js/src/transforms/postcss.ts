@@ -10,25 +10,11 @@ import type { Processor } from 'postcss'
 import postcss from '@vercel/turbopack/postcss'
 // @ts-ignore
 import importedConfig from 'CONFIG'
-import { relative, isAbsolute, sep } from 'path'
-import type { Ipc } from '../ipc/evaluate'
-import type { IpcInfoMessage, IpcRequestMessage } from './webpack-loaders'
-
-const contextDir = process.cwd()
-
-function toPath(file: string) {
-  const relPath = relative(contextDir, file)
-  if (isAbsolute(relPath)) {
-    throw new Error(
-      `Cannot depend on path (${file}) outside of root directory (${contextDir})`
-    )
-  }
-  return sep !== '/' ? relPath.replaceAll(sep, '/') : relPath
-}
+import { getReadEnvVariables, toPath, type TransformIpc } from './transforms'
 
 let processor: Processor | undefined
 
-export const init = async (ipc: Ipc<IpcInfoMessage, IpcRequestMessage>) => {
+export const init = async (ipc: TransformIpc) => {
   let config = importedConfig
   if (typeof config === 'function') {
     config = await config({ env: 'development' })
@@ -76,7 +62,7 @@ export const init = async (ipc: Ipc<IpcInfoMessage, IpcRequestMessage>) => {
 }
 
 export default async function transform(
-  ipc: Ipc<IpcInfoMessage, IpcRequestMessage>,
+  ipc: TransformIpc,
   cssContent: string,
   name: string,
   sourceMap: boolean
@@ -134,6 +120,7 @@ export default async function transform(
     filePaths,
     directories,
     buildFilePaths,
+    envVariables: getReadEnvVariables(),
   })
   return {
     css,
