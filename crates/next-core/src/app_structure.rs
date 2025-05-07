@@ -1301,7 +1301,6 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         let use_global_not_found =
             is_global_not_found_enabled || modules.global_not_found.is_some();
 
-        // If global-not-found.js is not presented, we use it for the pageq
         let not_found_root_modules = modules.without_leafs();
         let not_found_tree = AppPageLoaderTree {
             page: app_page.clone(),
@@ -1316,7 +1315,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                             segment: "__PAGE__".into(),
                             parallel_routes: FxIndexMap::default(),
                             modules: if use_global_not_found {
-                                // if global-not-found.js is presented:
+                                // if global-not-found.js is present:
                                 // we use it for the page and no layout, since layout is included in global-not-found.js;
                                 AppDirModules {
                                     layout: None,
@@ -1330,7 +1329,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                                     ..Default::default()
                                 }
                             } else {
-                                // if global-not-found.js is not presented:
+                                // if global-not-found.js is not present:
                                 // we search if we can compose root layout with the root not-found.js;
                                 AppDirModules {
                                     page: match modules.not_found {

@@ -20,7 +20,7 @@ describe('global-not-found - both-present', () => {
   })
 
   it('should render not-found boundary when calling notFound() in a page', async () => {
-    const browser = await next.browser('/')
+    const browser = await next.browser('/call-not-found')
     expect(await browser.elementByCss('#not-found-boundary').text()).toBe(
       'not-found.js'
     )

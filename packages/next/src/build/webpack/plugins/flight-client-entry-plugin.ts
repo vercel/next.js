@@ -410,7 +410,7 @@ export class FlightClientEntryPlugin {
             compilation,
             entryName: name,
             clientComponentImports,
-            bundlePath: `app/_not-found/page`,
+            bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
             absolutePagePath: entryRequest,
           })
         }

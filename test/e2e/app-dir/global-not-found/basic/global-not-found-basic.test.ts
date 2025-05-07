@@ -27,4 +27,18 @@ describe('global-not-found - basic', () => {
     const notFoundHtmlProp = $('html').attr('data-global-not-found')
     expect(notFoundHtmlProp).toBe('true')
   })
+
+  it('should render not-found boundary when calling notFound() in a page', async () => {
+    const browser = await next.browser('/call-not-found')
+    // Still using the root layout
+    expect(
+      await browser.elementByCss('html').getAttribute('data-global-not-found')
+    ).toBeNull()
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
+
+    // There's no not-found boundary in the root layout, show the default not-found.js
+    expect(await browser.elementByCss('body').text()).toBe(
+      '404\nThis page could not be found.'
+    )
+  })
 })

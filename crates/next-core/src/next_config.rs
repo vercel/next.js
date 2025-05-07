@@ -750,7 +750,7 @@ pub struct ExperimentalConfig {
     turbopack_persistent_caching: Option<bool>,
     turbopack_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
-    // Weather to enable the global-not-found convention
+    // Whether to enable the global-not-found convention
     global_not_found: Option<bool>,
 }
 
