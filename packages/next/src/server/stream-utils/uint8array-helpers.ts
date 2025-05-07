@@ -74,7 +74,7 @@ export function replaceInUint8Array(
   replaced.set(target.slice(0, tagIndex))
   replaced.set(replacement, tagIndex)
   replaced.set(
-    target.slice(tagIndex + search.length),
+    target.subarray(tagIndex + search.length),
     tagIndex + replacement.length
   )
 

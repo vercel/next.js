@@ -220,7 +220,7 @@ function createMetadataTransformStream(
         const replacedChunk = replaceInUint8Array(
           chunk,
           ENCODED_TAGS.META.ICON_MARK,
-          encoder.encode(''),
+          new Uint8Array(),
           iconMarkIndex
         )
         chunk = replacedChunk
@@ -230,9 +230,10 @@ function createMetadataTransformStream(
         closedBodyIndex = indexOfUint8Array(chunk, ENCODED_TAGS.CLOSED.BODY)
       }
       // Insert the re-insertion script tag at the end.
-      // There're be few cases:
+      // There're a few cases:
       // - When metadata is blocking, we don't have this transform and metadata stays in head.
-      // - When head is prerendered, metadata will be in the body.
+      // - When metadata is suspenseful, metadata will be in the body no matter if it's static or dynamic,
+      //   like other normal suspended content.
       // Hence we determine if we *need* to insert the script which is when the mark is present.
       // Then we only insert the tag at end of the body when needed.
       if (isMarkReplaced && !isScriptInserted && closedBodyIndex !== -1) {

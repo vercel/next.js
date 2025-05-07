@@ -1,9 +1,9 @@
 'use client'
 
 // This is a client component that only renders during SSR,
-// but will be replaced by stream rendering and replaced with icon insertion script tag.
+// but will be replaced during streaming with an icon insertion script tag.
 // We don't want it to be presented anywhere so it's only visible during streaming,
-// right after the icon meta tags so that browser can pick it up asap it's rendered.
+// right after the icon meta tags so that browser can pick it up as soon as it's rendered.
 export const IconMark = () => {
   if (typeof window !== 'undefined') {
     return null
