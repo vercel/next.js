@@ -47,9 +47,11 @@ export default function Layout({ children }) {
 }
 ```
 
+Fonts are scoped to the component they're used in. To apply a font to your entire application, add it to the [Root Layout](/docs/app/api-reference/file-conventions/layout#root-layouts).
+
 ### Google fonts
 
-You can automatically self-host any Google Font. Fonts are included in the deployment and served from the same domain as your deployment, meaning no requests are sent to Google by the browser when the user visits your site.
+You can automatically self-host any Google Font. Fonts are included stored as static assets and served from the same domain as your deployment, meaning no requests are sent to Google by the browser when the user visits your site.
 
 To start using a Google Font, import your chosen font from `next/font/google`:
 
@@ -131,7 +133,7 @@ export default function RootLayout({ children }) {
 
 ### Local fonts
 
-To use a local font, import your font from `next/font/local` and specify the [`src`](/docs/app/api-reference/components/font#src) of your local font file.
+To use a local font, import your font from `next/font/local` and specify the [`src`](/docs/app/api-reference/components/font#src) of your local font file. Fonts can be stored in the [`public`](/docs/app/api-reference/file-conventions/public-folder) folder. For example:
 
 ```tsx filename="app/layout.tsx" switcher
 import localFont from 'next/font/local'
