@@ -592,6 +592,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/app-esm-js/standalone.test.ts": {
+    "passed": [
+      "output: standalone with ESM app dir should work correctly with output standalone"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/app-external/app-external.test.ts": {
     "passed": [
       "app dir - external dependency app route should resolve next/server api from external esm package",
@@ -1940,6 +1949,29 @@
   "test/e2e/app-dir/dynamic-interception-route-revalidate/dynamic-interception-route-revalidate.test.ts": {
     "passed": [
       "dynamic-interception-route-revalidate should refresh the dynamic intercepted route when the interception route is revalidated"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/dynamic-io-dynamic-imports/dynamic-io-dynamic-imports.test.ts": {
+    "passed": [
+      "async imports in dynamicIO - external packages does not instrument import() in external packages",
+      "async imports in dynamicIO does not cause any routes to become (partially) dynamic",
+      "async imports in dynamicIO inside a GET route handler import of a sync module",
+      "async imports in dynamicIO inside a GET route handler import of module with top-level-await",
+      "async imports in dynamicIO inside a client component import of a sync module",
+      "async imports in dynamicIO inside a client component import of module with top-level-await",
+      "async imports in dynamicIO inside a server component dynamic import in node_modules in a CJS package import of a sync module",
+      "async imports in dynamicIO inside a server component dynamic import in node_modules in an ESM package import of a sync module",
+      "async imports in dynamicIO inside a server component dynamic import in node_modules in an ESM package import of module with top-level-await",
+      "async imports in dynamicIO inside a server component import of a sync module",
+      "async imports in dynamicIO inside a server component import of module with top-level-await",
+      "async imports in dynamicIO outside of render client import of a sync module",
+      "async imports in dynamicIO outside of render client import of module with top-level-await",
+      "async imports in dynamicIO outside of render server import of a sync module",
+      "async imports in dynamicIO outside of render server import of module with top-level-await"
     ],
     "failed": [],
     "pending": [],
@@ -7722,6 +7754,7 @@
   "test/e2e/next-link-errors/next-link-errors.test.ts": {
     "passed": [
       "next-link errors on invalid href",
+      "next-link invalid `prefetch` causes runtime error (dev-only)",
       "next-link multiple children",
       "next-link no children"
     ],
@@ -18659,6 +18692,19 @@
     "passed": [
       "dependencies can use env vars in middlewares does not error from patching lockfile",
       "dependencies can use env vars in middlewares uses the environment variables"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/deployment-id-handling/deployment-id-cookie-handling.test.ts": {
+    "passed": [
+      "deployment-id-handling disabled should not append dpl query to all assets for /",
+      "deployment-id-handling disabled should not append dpl query to all assets for /from-app",
+      "deployment-id-handling disabled should not append dpl query to all assets for /from-app/edge",
+      "deployment-id-handling disabled should not append dpl query to all assets for /pages-edge",
+      "deployment-id-handling disabled should set set-cookie header correctly"
     ],
     "failed": [],
     "pending": [],
