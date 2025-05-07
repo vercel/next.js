@@ -86,7 +86,7 @@ use turbopack_core::{
         FindContextFileResult,
     },
     source::Source,
-    source_map::OptionStringifiedSourceMap,
+    source_map::GenerateSourceMap,
 };
 // TODO remove this
 pub use turbopack_resolve::ecmascript as resolve;
@@ -819,7 +819,7 @@ pub struct EcmascriptModuleContentOptions {
     code_generation: ResolvedVc<CodeGens>,
     async_module: ResolvedVc<OptionAsyncModule>,
     generate_source_map: bool,
-    original_source_map: ResolvedVc<OptionStringifiedSourceMap>,
+    original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     exports: ResolvedVc<EcmascriptExports>,
     async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
 }
@@ -945,7 +945,7 @@ impl EcmascriptModuleContent {
             specified_module_type,
             vec![],
             generate_source_map,
-            OptionStringifiedSourceMap::none().to_resolved().await?,
+            None,
         )
         .await?;
         emit_content(content).await
@@ -958,7 +958,7 @@ struct CodeGenResult {
     comments: Either<ImmutableComments, Arc<ImmutableComments>>,
     is_esm: bool,
     generate_source_map: bool,
-    original_source_map: Option<ResolvedVc<OptionStringifiedSourceMap>>,
+    original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
 }
 
 async fn process_parse_result(
@@ -967,7 +967,7 @@ async fn process_parse_result(
     specified_module_type: SpecifiedModuleType,
     code_gens: Vec<CodeGeneration>,
     generate_source_map: bool,
-    original_source_map: ResolvedVc<OptionStringifiedSourceMap>,
+    original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
 ) -> Result<CodeGenResult> {
     let parsed = parsed.final_read_hint().await?;
 
@@ -1025,7 +1025,7 @@ async fn process_parse_result(
                 comments,
                 is_esm,
                 generate_source_map,
-                original_source_map: Some(original_source_map),
+                original_source_map,
             }
         }
         ParseResult::Unparseable { messages } => {
@@ -1130,7 +1130,7 @@ async fn emit_content(content: CodeGenResult) -> Result<Vc<EcmascriptModuleConte
             Some(generate_js_source_map(
                 source_map.clone(),
                 mappings,
-                original_source_map.await?.as_ref(),
+                original_source_map.generate_source_map().await?.as_ref(),
             )?)
         } else {
             Some(generate_js_source_map(source_map.clone(), mappings, None)?)

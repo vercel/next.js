@@ -11,7 +11,6 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     reference::ModuleReferences,
     resolve::ModulePart,
-    source_map::OptionStringifiedSourceMap,
 };
 
 use super::chunk_item::EcmascriptModuleFacadeChunkItem;
@@ -224,7 +223,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleFacadeModule {
             code_generation: CodeGens::empty().to_resolved().await?,
             async_module: ResolvedVc::cell(Some(self.async_module().to_resolved().await?)),
             generate_source_map: false,
-            original_source_map: OptionStringifiedSourceMap::none().to_resolved().await?,
+            original_source_map: None,
             exports: self.get_exports().to_resolved().await?,
             async_module_info,
         }
