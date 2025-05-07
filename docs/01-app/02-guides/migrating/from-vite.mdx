@@ -43,7 +43,7 @@ Depending on your needs, Next.js allows you to choose your data fetching strateg
 
 ### Built-in Optimizations
 
-[Images](/docs/app/building-your-application/optimizing/images), [fonts](/docs/app/building-your-application/optimizing/fonts), and [third-party scripts](/docs/app/guides/scripts) often have significant impact on an application's performance. Next.js comes with built-in components that automatically optimize those for you.
+[Images](/docs/app/building-your-application/optimizing/images), [fonts](/docs/app/api-reference/components/font), and [third-party scripts](/docs/app/guides/scripts) often have significant impact on an application's performance. Next.js comes with built-in components that automatically optimize those for you.
 
 ## Migration Steps
 
@@ -249,11 +249,11 @@ export default function RootLayout({ children }) {
 }
 ```
 
-5. Any [metadata files](/docs/app/building-your-application/optimizing/metadata#file-based-metadata)
+5. Any [metadata files](/docs/app/getting-started/metadata-and-og-images#file-based-metadata)
    such as `favicon.ico`, `icon.png`, `robots.txt` are automatically added to the application
    `<head>` tag as long as you have them placed into the top level of the `app` directory. After
    moving
-   [all supported files](/docs/app/building-your-application/optimizing/metadata#file-based-metadata)
+   [all supported files](/docs/app/getting-started/metadata-and-og-images#file-based-metadata)
    into the `app` directory you can safely delete their `<link>` tags:
 
 ```tsx filename="app/layout.tsx" switcher
@@ -293,7 +293,7 @@ export default function RootLayout({ children }) {
 ```
 
 6. Finally, Next.js can manage your last `<head>` tags with the
-   [Metadata API](/docs/app/building-your-application/optimizing/metadata). Move your final metadata
+   [Metadata API](/docs/app/getting-started/metadata-and-og-images). Move your final metadata
    info into an exported
    [`metadata` object](/docs/app/api-reference/functions/generate-metadata#metadata-object):
 
@@ -339,7 +339,7 @@ export default function RootLayout({ children }) {
 
 With the above changes, you shifted from declaring everything in your `index.html` to using Next.js'
 convention-based approach built into the framework
-([Metadata API](/docs/app/building-your-application/optimizing/metadata)). This approach enables you
+([Metadata API](/docs/app/getting-started/metadata-and-og-images)). This approach enables you
 to more easily improve your SEO and web shareability of your pages.
 
 ### Step 5: Create the Entrypoint Page
@@ -597,6 +597,6 @@ do next:
   - [Streaming Server-Rendering](/docs/app/building-your-application/routing/loading-ui-and-streaming)
   - [React Server Components](/docs/app/building-your-application/rendering/server-components)
 - [Optimize images with the `<Image>` component](/docs/app/building-your-application/optimizing/images)
-- [Optimize fonts with `next/font`](/docs/app/building-your-application/optimizing/fonts)
+- [Optimize fonts with `next/font`](/docs/app/api-reference/components/font)
 - [Optimize third-party scripts with the `<Script>` component](/docs/app/guides/scripts)
 - [Update your ESLint configuration to support Next.js rules](/docs/app/api-reference/config/eslint)

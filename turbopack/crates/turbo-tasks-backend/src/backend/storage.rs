@@ -26,6 +26,22 @@ pub enum TaskDataCategory {
     All,
 }
 
+impl TaskDataCategory {
+    pub fn into_specific(self) -> SpecificTaskDataCategory {
+        match self {
+            TaskDataCategory::Meta => SpecificTaskDataCategory::Meta,
+            TaskDataCategory::Data => SpecificTaskDataCategory::Data,
+            TaskDataCategory::All => unreachable!(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SpecificTaskDataCategory {
+    Meta,
+    Data,
+}
+
 impl IntoIterator for TaskDataCategory {
     type Item = TaskDataCategory;
 
@@ -77,9 +93,11 @@ bitfield! {
     pub meta_restored, set_meta_restored: 0;
     pub data_restored, set_data_restored: 1;
     /// Item was modified before snapshot mode was entered.
-    pub modified, set_modified: 2;
+    pub meta_modified, set_meta_modified: 2;
+    pub data_modified, set_data_modified: 3;
     /// Item was modified after snapshot mode was entered. A snapshot was taken.
-    pub snapshot, set_snapshot: 3;
+    pub meta_snapshot, set_meta_snapshot: 4;
+    pub data_snapshot, set_data_snapshot: 4;
 }
 
 impl InnerStorageState {
@@ -105,6 +123,14 @@ impl InnerStorageState {
             TaskDataCategory::All => self.meta_restored() && self.data_restored(),
         }
     }
+
+    pub fn any_snapshot(&self) -> bool {
+        self.meta_snapshot() || self.data_snapshot()
+    }
+
+    pub fn any_modified(&self) -> bool {
+        self.meta_modified() || self.data_modified()
+    }
 }
 
 pub struct InnerStorageSnapshot {
@@ -113,8 +139,8 @@ pub struct InnerStorageSnapshot {
     output: OptionStorage<OutputValue>,
     upper: AutoMapStorage<TaskId, i32>,
     dynamic: DynamicStorage,
-    pub meta_restored: bool,
-    pub data_restored: bool,
+    pub meta_modified: bool,
+    pub data_modified: bool,
 }
 
 impl From<&InnerStorage> for InnerStorageSnapshot {
@@ -125,8 +151,8 @@ impl From<&InnerStorage> for InnerStorageSnapshot {
             output: inner.output.clone(),
             upper: inner.upper.clone(),
             dynamic: inner.dynamic.snapshot_for_persisting(),
-            meta_restored: inner.state.meta_restored(),
-            data_restored: inner.state.data_restored(),
+            meta_modified: inner.state.meta_modified(),
+            data_modified: inner.state.data_modified(),
         }
     }
 }
@@ -701,7 +727,9 @@ impl Storage {
         // We also need to unset all the modified flags.
         for key in removed_modified {
             if let Some(mut inner) = self.map.get_mut(&key) {
-                inner.state_mut().set_modified(false);
+                let state = inner.state_mut();
+                state.set_data_modified(false);
+                state.set_meta_modified(false);
             }
         }
 
@@ -728,8 +756,15 @@ impl Storage {
         // And update the flags
         for key in removed_snapshots {
             if let Some(mut inner) = self.map.get_mut(&key) {
-                inner.state_mut().set_snapshot(false);
-                inner.state_mut().set_modified(true);
+                let state = inner.state_mut();
+                if state.meta_snapshot() {
+                    state.set_meta_snapshot(false);
+                    state.set_meta_modified(true);
+                }
+                if state.data_snapshot() {
+                    state.set_data_snapshot(false);
+                    state.set_data_modified(true);
+                }
             }
         }
 
@@ -779,15 +814,30 @@ pub struct StorageWriteGuard<'a> {
 
 impl StorageWriteGuard<'_> {
     /// Tracks mutation of this task
-    pub fn track_modification(&mut self) {
-        if !self.inner.state().snapshot() {
-            match (self.storage.snapshot_mode(), self.inner.state().modified()) {
+    pub fn track_modification(&mut self, category: SpecificTaskDataCategory) {
+        let state = self.inner.state();
+        let snapshot = match category {
+            SpecificTaskDataCategory::Meta => state.meta_snapshot(),
+            SpecificTaskDataCategory::Data => state.data_snapshot(),
+        };
+        if !snapshot {
+            let modified = match category {
+                SpecificTaskDataCategory::Meta => state.meta_modified(),
+                SpecificTaskDataCategory::Data => state.data_modified(),
+            };
+            match (self.storage.snapshot_mode(), modified) {
                 (false, false) => {
                     // Not in snapshot mode and item is unmodified
-                    self.storage
-                        .modified
-                        .insert(*self.inner.key(), ModifiedState::Modified);
-                    self.inner.state_mut().set_modified(true);
+                    if !state.any_snapshot() && !state.any_modified() {
+                        self.storage
+                            .modified
+                            .insert(*self.inner.key(), ModifiedState::Modified);
+                    }
+                    let state = self.inner.state_mut();
+                    match category {
+                        SpecificTaskDataCategory::Meta => state.set_meta_modified(true),
+                        SpecificTaskDataCategory::Data => state.set_data_modified(true),
+                    }
                 }
                 (false, true) => {
                     // Not in snapshot mode and item is already modfied
@@ -795,19 +845,31 @@ impl StorageWriteGuard<'_> {
                 }
                 (true, false) => {
                     // In snapshot mode and item is unmodified (so it's not part of the snapshot)
-                    self.storage
-                        .modified
-                        .insert(*self.inner.key(), ModifiedState::Snapshot(None));
-                    self.inner.state_mut().set_snapshot(true);
+                    if !state.any_snapshot() {
+                        self.storage
+                            .modified
+                            .insert(*self.inner.key(), ModifiedState::Snapshot(None));
+                    }
+                    let state = self.inner.state_mut();
+                    match category {
+                        SpecificTaskDataCategory::Meta => state.set_meta_snapshot(true),
+                        SpecificTaskDataCategory::Data => state.set_data_snapshot(true),
+                    }
                 }
                 (true, true) => {
                     // In snapshot mode and item is modified (so it's part of the snapshot)
                     // We need to store the original version that is part of the snapshot
-                    self.storage.modified.insert(
-                        *self.inner.key(),
-                        ModifiedState::Snapshot(Some(Box::new((&**self.inner).into()))),
-                    );
-                    self.inner.state_mut().set_snapshot(true);
+                    if !state.any_snapshot() {
+                        self.storage.modified.insert(
+                            *self.inner.key(),
+                            ModifiedState::Snapshot(Some(Box::new((&**self.inner).into()))),
+                        );
+                    }
+                    let state = self.inner.state_mut();
+                    match category {
+                        SpecificTaskDataCategory::Meta => state.set_meta_snapshot(true),
+                        SpecificTaskDataCategory::Data => state.set_data_snapshot(true),
+                    }
                 }
             }
         }
@@ -1055,7 +1117,8 @@ where
         }
         while let Some(task_id) = self.modified.pop() {
             let inner = self.storage.map.get(&task_id).unwrap();
-            if !inner.state().snapshot() {
+            let state = inner.state();
+            if !state.any_snapshot() {
                 let preprocessed = (self.preprocess)(task_id, &inner);
                 drop(inner);
                 return Some((self.process)(task_id, preprocessed));

@@ -21,6 +21,7 @@ use next_custom_transforms::transforms::{
     server_actions::{self, server_actions, ServerActionsMode},
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
     strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
+    track_dynamic_imports::track_dynamic_imports,
     warn_for_edge_runtime::warn_for_edge_runtime,
 };
 use rustc_hash::FxHashSet;
@@ -925,6 +926,29 @@ fn test_source_maps(input: PathBuf) {
         FixtureTestConfig {
             module: Some(true),
             sourcemap: true,
+            ..Default::default()
+        },
+    );
+}
+
+#[fixture("tests/fixture/track-dynamic-imports/**/input.js")]
+fn track_dynamic_imports_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+            (
+                resolver(unresolved_mark, top_level_mark, false),
+                track_dynamic_imports(unresolved_mark),
+            )
+        },
+        &input,
+        &output,
+        FixtureTestConfig {
+            // auto detect script/module to test CJS handling
+            module: None,
             ..Default::default()
         },
     );

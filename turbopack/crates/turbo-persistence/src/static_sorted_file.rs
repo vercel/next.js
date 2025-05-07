@@ -138,6 +138,11 @@ impl StaticSortedFile {
         self.sequence_number
     }
 
+    /// The size of this file in bytes.
+    pub fn size(&self) -> usize {
+        self.mmap.len()
+    }
+
     /// Opens an SST file at the given path. This memory maps the file, but does not read it yet.
     /// It's lazy read on demand.
     pub fn open(sequence_number: u32, path: PathBuf) -> Result<Self> {

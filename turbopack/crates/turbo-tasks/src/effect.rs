@@ -2,6 +2,7 @@ use std::{borrow::Cow, future::Future, mem::replace, panic, pin::Pin};
 
 use anyhow::{anyhow, Result};
 use auto_hash_map::AutoSet;
+use futures::{StreamExt, TryStreamExt};
 use parking_lot::Mutex;
 use rustc_hash::FxHashSet;
 use tracing::{Instrument, Span};
@@ -16,6 +17,8 @@ use crate::{
     util::SharedError,
     CollectiblesSource, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt,
 };
+
+const APPLY_EFFECTS_CONCURRENCY_LIMIT: usize = 1024;
 
 /// A trait to emit a task effect as collectible. This trait only has one
 /// implementation, `EffectInstance` and no other implementation is allowed.
@@ -168,17 +171,16 @@ pub async fn apply_effects(source: impl CollectiblesSource) -> Result<()> {
     }
     let span = tracing::info_span!("apply effects", count = effects.len());
     async move {
-        effects
-            .into_iter()
-            .map(async |effect| {
+        // Limit the concurrency of effects
+        futures::stream::iter(effects)
+            .map(Ok)
+            .try_for_each_concurrent(APPLY_EFFECTS_CONCURRENCY_LIMIT, async |effect| {
                 let Some(effect) = ResolvedVc::try_downcast_type::<EffectInstance>(effect) else {
                     panic!("Effect must only be implemented by EffectInstance");
                 };
                 effect.await?.apply().await
             })
-            .try_join()
-            .await?;
-        Ok(())
+            .await
     }
     .instrument(span)
     .await
@@ -251,12 +253,13 @@ impl Effects {
     pub async fn apply(&self) -> Result<()> {
         let span = tracing::info_span!("apply effects", count = self.effects.len());
         async move {
-            self.effects
-                .iter()
-                .map(async |effect| effect.apply().await)
-                .try_join()
-                .await?;
-            Ok(())
+            // Limit the concurrency of effects
+            futures::stream::iter(self.effects.iter())
+                .map(Ok)
+                .try_for_each_concurrent(APPLY_EFFECTS_CONCURRENCY_LIMIT, async |effect| {
+                    effect.apply().await
+                })
+                .await
         }
         .instrument(span)
         .await

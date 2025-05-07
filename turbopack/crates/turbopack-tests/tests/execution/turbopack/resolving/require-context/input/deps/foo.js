@@ -1,1 +1,1 @@
-exports.foo = "You found me";
+exports.foo = 'You found me'

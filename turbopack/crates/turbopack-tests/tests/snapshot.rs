@@ -400,8 +400,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .copied()
             .map(ResolvedVc::upcast)
             .collect::<Vec<_>>();
-        let module_graph =
-            ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(all_modules.clone())]));
+        let module_graph = ModuleGraph::from_modules(
+            Vc::cell(vec![ChunkGroupEntry::Entry(all_modules.clone())]),
+            false,
+        );
         // TODO: Load runtime entries from snapshots
         match options.runtime {
             Runtime::Browser => chunking_context.evaluated_chunk_group_assets(

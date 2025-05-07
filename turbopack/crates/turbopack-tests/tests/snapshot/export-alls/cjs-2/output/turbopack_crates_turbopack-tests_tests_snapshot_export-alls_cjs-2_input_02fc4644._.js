@@ -5,7 +5,7 @@
 var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
 {
 // commonjs.js
-exports.hello = "World";
+exports.hello = 'World';
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/c.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";

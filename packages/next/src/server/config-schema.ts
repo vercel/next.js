@@ -13,6 +13,7 @@ import type {
   TurbopackRuleConfigItem,
   TurbopackRuleConfigItemOptions,
   TurbopackRuleConfigItemOrShortcut,
+  TurbopackRuleCondition,
 } from './config-shared'
 import type {
   Header,
@@ -129,8 +130,13 @@ const zTurboRuleConfigItem: zod.ZodType<TurbopackRuleConfigItem> = z.union([
 const zTurboRuleConfigItemOrShortcut: zod.ZodType<TurbopackRuleConfigItemOrShortcut> =
   z.union([z.array(zTurboLoaderItem), zTurboRuleConfigItem])
 
+const zTurboCondition: zod.ZodType<TurbopackRuleCondition> = z.object({
+  path: z.union([z.string(), z.instanceof(RegExp)]),
+})
+
 const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
   rules: z.record(z.string(), zTurboRuleConfigItemOrShortcut).optional(),
+  conditions: z.record(z.string(), zTurboCondition).optional(),
   resolveAlias: z
     .record(
       z.string(),
@@ -264,6 +270,10 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           }),
         ]),
         define: z.record(z.string(), z.string()).optional(),
+        runAfterProductionCompile: z
+          .function()
+          .returns(z.promise(z.void()))
+          .optional(),
       })
       .optional(),
     compress: z.boolean().optional(),
@@ -306,6 +316,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     excludeDefaultMomentLocales: z.boolean().optional(),
     experimental: z
       .strictObject({
+        useSkewCookie: z.boolean().optional(),
         nodeMiddleware: z.boolean().optional(),
         after: z.boolean().optional(),
         appDocumentPreloading: z.boolean().optional(),

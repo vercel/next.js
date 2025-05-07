@@ -1,9 +1,13 @@
 import type { NextApiResponse } from '../../types'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { PrerenderManifest } from '..'
+import type { DevRoutesManifest } from '../../server/lib/router-utils/setup-dev-bundler'
+import type { InstrumentationOnRequestError } from '../../server/instrumentation/types'
 
 import { parse } from 'node:url'
-import { RouteKind } from '../../server/route-kind'
 import { sendError } from '../../server/api-utils'
+import { RouteKind } from '../../server/route-kind'
+import type { Span } from '../../server/lib/trace/tracer'
 import { PagesAPIRouteModule } from '../../server/route-modules/pages-api/module.compiled'
 
 import { hoist } from './helpers'
@@ -11,25 +15,26 @@ import { hoist } from './helpers'
 // Import the userland code.
 import * as userland from 'VAR_USERLAND'
 import { getTracer, SpanKind } from '../../server/lib/trace/tracer'
-import type { Span } from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import {
   ensureInstrumentationRegistered,
   instrumentationOnRequestError,
 } from '../../server/lib/router-utils/instrumentation-globals.external'
-import type { InstrumentationOnRequestError } from '../../server/instrumentation/types'
 import { getUtils } from '../../server/server-utils'
 import { PRERENDER_MANIFEST, ROUTES_MANIFEST } from '../../api/constants'
 import { isDynamicRoute } from '../../shared/lib/router/utils'
-import type { BaseNextRequest } from '../../server/base-http'
 import {
   RouterServerContextSymbol,
   routerServerGlobal,
 } from '../../server/lib/router-utils/router-server-context'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
-import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
-import type { PrerenderManifest, RoutesManifest } from '..'
+import {
+  normalizeLocalePath,
+  type PathLocale,
+} from '../../shared/lib/i18n/normalize-locale-path'
 import { loadManifestFromRelativePath } from '../../server/load-manifest.external'
+import { getHostname } from '../../shared/lib/get-hostname'
+import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 
 // Re-export the handler (should be the default export).
 export default hoist(userland, 'default')
@@ -62,17 +67,18 @@ export async function handler(
   const distDir = process.env.__NEXT_RELATIVE_DIST_DIR || ''
   const isDev = process.env.NODE_ENV === 'development'
 
-  const routesManifest = await loadManifestFromRelativePath<RoutesManifest>(
-    projectDir,
-    distDir,
-    ROUTES_MANIFEST
-  )
-  const prerenderManifest =
-    await loadManifestFromRelativePath<PrerenderManifest>(
+  const [routesManifest, prerenderManifest] = await Promise.all([
+    loadManifestFromRelativePath<DevRoutesManifest>(
+      projectDir,
+      distDir,
+      ROUTES_MANIFEST
+    ),
+    loadManifestFromRelativePath<PrerenderManifest>(
       projectDir,
       distDir,
       PRERENDER_MANIFEST
-    )
+    ),
+  ])
   let srcPage = 'VAR_DEFINITION_PAGE'
 
   // turbopack doesn't normalize `/index` in the page name
@@ -90,9 +96,11 @@ export async function handler(
     req.url = removePathPrefix(req.url || '/', basePath)
   }
 
+  let localeResult: PathLocale | undefined
+
   if (i18n) {
     const urlParts = (req.url || '/').split('?')
-    const localeResult = normalizeLocalePath(urlParts[0] || '/', i18n.locales)
+    localeResult = normalizeLocalePath(urlParts[0] || '/', i18n.locales)
 
     if (localeResult.detectedLocale) {
       req.url = `${localeResult.pathname}${
@@ -113,17 +121,34 @@ export async function handler(
     trailingSlash: process.env.__NEXT_TRAILING_SLASH as any as boolean,
     caseSensitive: Boolean(routesManifest.caseSensitive),
   })
-  const rewriteParamKeys = Object.keys(
-    serverUtils.handleRewrites(req as any as BaseNextRequest, parsedUrl)
+
+  const domainLocale = detectDomainLocale(
+    i18n?.domains,
+    getHostname(parsedUrl, req.headers),
+    localeResult?.detectedLocale
   )
-  serverUtils.normalizeCdnUrl(req as any as BaseNextRequest, [
+
+  const defaultLocale = domainLocale?.defaultLocale || i18n?.defaultLocale
+
+  // Ensure parsedUrl.pathname includes locale before processing
+  // rewrites or they won't match correctly.
+  if (defaultLocale && !localeResult?.detectedLocale) {
+    parsedUrl.pathname = `/${defaultLocale}${parsedUrl.pathname}`
+  }
+
+  const rewriteParamKeys = Object.keys(
+    serverUtils.handleRewrites(req, parsedUrl)
+  )
+  serverUtils.normalizeCdnUrl(req, [
     ...rewriteParamKeys,
     ...Object.keys(serverUtils.defaultRouteRegex?.groups || {}),
   ])
 
   const params: Record<string, undefined | string | string[]> =
     serverUtils.dynamicRouteMatcher
-      ? serverUtils.dynamicRouteMatcher(parsedUrl.pathname || '') || {}
+      ? serverUtils.dynamicRouteMatcher(
+          localeResult?.pathname || parsedUrl.pathname || ''
+        ) || {}
       : {}
 
   const query = {
@@ -150,8 +175,8 @@ export async function handler(
 
     const activeSpan = tracer.getActiveScopeSpan()
 
-    const invokeRouteModule = async (span?: Span) => {
-      await routeModule
+    const invokeRouteModule = async (span?: Span) =>
+      routeModule
         .render(req, res, {
           query,
           params,
@@ -210,7 +235,6 @@ export async function handler(
             span.updateName(`${method} ${req.url}`)
           }
         })
-    }
 
     // TODO: activeSpan code path is for when wrapped by
     // next-server can be removed when this is no longer used
