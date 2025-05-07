@@ -12,7 +12,7 @@ async function importPlugin(plugin, projectRoot) {
       // "use pathToFileUrl to make esm import()s work with absolute windows paths":
       // on windows import("C:\\path\\to\\file") is not valid, so we need to use file:// URLs
       // https://github.com/vercel/next.js/commit/fbf9e12de095e0237d4ba4aa6139d9757bd20be9
-      await import((process.platform === 'win32') ? pathToFileURL(path) : path)
+      await import(process.platform === 'win32' ? pathToFileURL(path) : path)
     )
   }
   return plugin
