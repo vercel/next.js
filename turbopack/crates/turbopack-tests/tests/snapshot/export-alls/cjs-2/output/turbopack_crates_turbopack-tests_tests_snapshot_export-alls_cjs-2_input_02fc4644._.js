@@ -2,7 +2,6 @@
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/commonjs.js [test] (ecmascript)": (function(__turbopack_context__) {
 
-var global = globalThis;
 var { m: module, e: exports } = __turbopack_context__;
 {
 // commonjs.js
@@ -11,7 +10,6 @@ exports.hello = 'World';
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/c.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
 
-var global = globalThis;
 {
 // c.js
 __turbopack_context__.s({});
@@ -22,7 +20,6 @@ __turbopack_context__.j(__TURBOPACK__imported__module__$5b$project$5d2f$turbopac
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/b.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
 
-var global = globalThis;
 {
 // b.js
 __turbopack_context__.s({});
@@ -34,7 +31,6 @@ __turbopack_context__.j(__TURBOPACK__imported__module__$5b$project$5d2f$turbopac
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
 
-var global = globalThis;
 {
 // a.js
 __turbopack_context__.s({});

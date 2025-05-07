@@ -2,7 +2,6 @@
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css-modules/input/style.module.css [test] (css module, async loader)": ((__turbopack_context__) => {
 
-var global = globalThis;
 {
 __turbopack_context__.v((parentImport) => {
     return Promise.resolve().then(() => {

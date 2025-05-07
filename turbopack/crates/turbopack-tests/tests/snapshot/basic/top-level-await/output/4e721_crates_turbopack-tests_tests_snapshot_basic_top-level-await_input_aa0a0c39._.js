@@ -3,7 +3,6 @@
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/top-level-await/input/db-connection.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
 
-var global = globalThis;
 var { a: __turbopack_async_module__ } = __turbopack_context__;
 __turbopack_async_module__(async (__turbopack_handle_async_dependencies__, __turbopack_async_result__) => { try {
 __turbopack_context__.s({
@@ -30,7 +29,6 @@ __turbopack_async_result__();
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/top-level-await/input/UserAPI.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
 
-var global = globalThis;
 var { a: __turbopack_async_module__ } = __turbopack_context__;
 __turbopack_async_module__(async (__turbopack_handle_async_dependencies__, __turbopack_async_result__) => { try {
 __turbopack_context__.s({

@@ -115,9 +115,6 @@ impl EcmascriptChunkItemContent {
         } else {
             code += "\n";
         }
-        // bind `global` to `globalThis` in this scope
-        // Ideally we would only do this if there is a _use_ of this key in the module.
-        code += "var global = globalThis;\n";
         if !args.is_empty() {
             let args = FormatIter(|| args.iter().copied().intersperse(", "));
             writeln!(code, "var {{ {} }} = __turbopack_context__;", args)?;

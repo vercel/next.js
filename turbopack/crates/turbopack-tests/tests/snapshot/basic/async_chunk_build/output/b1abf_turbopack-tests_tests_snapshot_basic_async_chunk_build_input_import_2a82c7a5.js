@@ -2,7 +2,6 @@ module.exports = {
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk_build/input/import.js [test] (ecmascript, async loader)": ((__turbopack_context__) => {
 
-var global = globalThis;
 {
 __turbopack_context__.v((parentImport) => {
     return Promise.all([

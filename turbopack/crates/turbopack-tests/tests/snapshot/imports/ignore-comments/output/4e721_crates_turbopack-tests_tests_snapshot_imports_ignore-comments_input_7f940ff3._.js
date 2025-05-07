@@ -2,19 +2,16 @@
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript)": (function(__turbopack_context__) {
 
-var global = globalThis;
 var { m: module, e: exports } = __turbopack_context__;
 {
 module.exports = 'turbopack';
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs (static in ecmascript)": ((__turbopack_context__) => {
 
-var global = globalThis;
 {
 __turbopack_context__.v("/static/vercel.30936e72.cjs");}}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript, worker loader)": ((__turbopack_context__) => {
 
-var global = globalThis;
 {
 __turbopack_context__.v(__turbopack_context__.b([
   "output/4c35f_tests_snapshot_imports_ignore-comments_input_vercel_cjs_1ec8d7d5._.js",
@@ -23,13 +20,11 @@ __turbopack_context__.v(__turbopack_context__.b([
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/ignore-worker.cjs (static in ecmascript)": ((__turbopack_context__) => {
 
-var global = globalThis;
 {
 __turbopack_context__.v("/static/ignore-worker.c7cb9893.cjs");}}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
 
-var global = globalThis;
 {
 __turbopack_context__.s({
     "foo": (()=>foo)

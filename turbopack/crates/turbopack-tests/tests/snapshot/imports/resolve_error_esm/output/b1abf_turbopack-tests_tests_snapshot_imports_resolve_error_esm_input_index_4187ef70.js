@@ -3,7 +3,6 @@
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/resolve_error_esm/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
 
-var global = globalThis;
 {
 __turbopack_context__.s({});
 (()=>{

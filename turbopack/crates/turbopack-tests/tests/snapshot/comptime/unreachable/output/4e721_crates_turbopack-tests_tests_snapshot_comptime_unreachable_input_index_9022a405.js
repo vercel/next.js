@@ -2,7 +2,6 @@
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/unreachable/input/index.js [test] (ecmascript)": (function(__turbopack_context__) {
 
-var global = globalThis;
 var { m: module, e: exports } = __turbopack_context__;
 {
 const e = new Error("Could not parse module '[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/unreachable/input/index.js'");

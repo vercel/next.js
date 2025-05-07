@@ -3,7 +3,6 @@
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.mjs [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
 
-var global = globalThis;
 {
 __turbopack_context__.s({
     "default": (()=>__TURBOPACK__default__export__)

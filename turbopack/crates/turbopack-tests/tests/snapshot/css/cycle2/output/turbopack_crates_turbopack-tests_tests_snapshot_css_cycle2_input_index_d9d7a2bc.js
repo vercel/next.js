@@ -2,7 +2,6 @@
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/index.js [test] (ecmascript)": (function(__turbopack_context__) {
 
-var global = globalThis;
 var { m: module, e: exports } = __turbopack_context__;
 {
 __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle2/input/1.css [test] (css, async loader)")(__turbopack_context__.i);

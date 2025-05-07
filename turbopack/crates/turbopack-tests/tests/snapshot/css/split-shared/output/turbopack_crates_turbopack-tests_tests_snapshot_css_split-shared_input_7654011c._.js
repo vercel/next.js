@@ -2,7 +2,6 @@
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/entry.css [test] (css, async loader)": ((__turbopack_context__) => {
 
-var global = globalThis;
 {
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
@@ -71,7 +70,6 @@ __turbopack_context__.v((parentImport) => {
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b1.css [test] (css, async loader)": ((__turbopack_context__) => {
 
-var global = globalThis;
 {
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
@@ -95,7 +93,6 @@ __turbopack_context__.v((parentImport) => {
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/entry2.css [test] (css, async loader)": ((__turbopack_context__) => {
 
-var global = globalThis;
 {
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
