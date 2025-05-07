@@ -66,16 +66,16 @@ export function replaceInUint8Array(
   target: Uint8Array,
   search: Uint8Array,
   replacement: Uint8Array,
-  tagIndex: number
+  indexOfTarget: number
 ): Uint8Array {
   const replaced = new Uint8Array(
     target.length - search.length + replacement.length
   )
-  replaced.set(target.slice(0, tagIndex))
-  replaced.set(replacement, tagIndex)
+  replaced.set(target.slice(0, indexOfTarget))
+  replaced.set(replacement, indexOfTarget)
   replaced.set(
-    target.subarray(tagIndex + search.length),
-    tagIndex + replacement.length
+    target.subarray(indexOfTarget + search.length),
+    indexOfTarget + replacement.length
   )
 
   return replaced
