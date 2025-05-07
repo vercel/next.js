@@ -105,6 +105,8 @@ export default function Page({ params, searchParams }) {}
 > - `fetch` requests inside `generateMetadata` are automatically [memoized](/docs/app/deep-dive/caching#request-memoization) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components.
 > - React [`cache` can be used](/docs/app/deep-dive/caching#react-cache-function) if `fetch` is unavailable. -[ File-based metadat](/docs/app/api-reference/file-conventions/metadata) has the higher priority and will override the `metadata` object and `generateMetadata` function.
 
+## Reference
+
 ### Parameters
 
 `generateMetadata` function accepts the following parameters:
@@ -140,9 +142,11 @@ export default function Page({ params, searchParams }) {}
 > - `searchParams` are only available in `page.js` segments.
 > - The [`redirect()`](/docs/app/api-reference/functions/redirect) and [`notFound()`](/docs/app/api-reference/functions/not-found) Next.js methods can also be used inside `generateMetadata`.
 
-## Metadata Fields
+### Metadata Fields
 
-### `title`
+The following fields are supported:
+
+#### `title`
 
 The `title` attribute is used to set the title of the document. It can be defined as a simple [string](#string) or an optional [template object](#template-object).
 
@@ -158,31 +162,7 @@ export const metadata = {
 <title>Next.js</title>
 ```
 
-#### Template object
-
-```tsx filename="app/layout.tsx" switcher
-import type { Metadata } from 'next'
-
-export const metadata: Metadata = {
-  title: {
-    template: '...',
-    default: '...',
-    absolute: '...',
-  },
-}
-```
-
-```jsx filename="app/layout.js" switcher
-export const metadata = {
-  title: {
-    default: '...',
-    template: '...',
-    absolute: '...',
-  },
-}
-```
-
-##### Default
+#### `default`
 
 `title.default` can be used to provide a **fallback title** to child route segments that don't define a `title`.
 
@@ -204,7 +184,7 @@ export const metadata: Metadata = {}
 // Output: <title>Acme</title>
 ```
 
-##### Template
+##### `template`
 
 `title.template` can be used to add a prefix or a suffix to `titles` defined in **child** route segments.
 
@@ -256,7 +236,7 @@ export const metadata = {
 >
 > - `title.template` has **no effect** if a route has not defined a `title` or `title.default`.
 
-##### Absolute
+#### `absolute`
 
 `title.absolute` can be used to provide a title that **ignores** `title.template` set in parent segments.
 
@@ -326,7 +306,7 @@ export const metadata = {
 <meta name="description" content="The React Framework for the Web" />
 ```
 
-### Basic Fields
+### Other fields
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
@@ -359,7 +339,7 @@ export const metadata = {
 <meta name="format-detection" content="telephone=no, address=no, email=no" />
 ```
 
-### `metadataBase`
+#### `metadataBase`
 
 `metadataBase` is a convenience option to set a base URL prefix for `metadata` fields that require a fully qualified URL.
 
@@ -997,9 +977,94 @@ export const metadata = {
 <meta name="custom" content="meta1" /> <meta name="custom" content="meta2" />
 ```
 
-## Unsupported Metadata
+### Unsupported Metadata
 
 The following metadata types do not currently have built-in support. However, they can still be rendered in the layout or page itself.
+
+### Types
+
+You can add type safety to your metadata by using the `Metadata` type. If you are using the [built-in TypeScript plugin](/docs/app/api-reference/config/typescript) in your IDE, you do not need to manually add the type, but you can still explicitly add it if you want.
+
+#### `metadata` object
+
+```tsx filename="layout.tsx | page.tsx"
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Next.js',
+}
+```
+
+#### `generateMetadata` function
+
+##### Regular function
+
+```tsx filename="layout.tsx | page.tsx"
+import type { Metadata } from 'next'
+
+export function generateMetadata(): Metadata {
+  return {
+    title: 'Next.js',
+  }
+}
+```
+
+##### Async function
+
+```tsx filename="layout.tsx | page.tsx"
+import type { Metadata } from 'next'
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: 'Next.js',
+  }
+}
+```
+
+##### With segment props
+
+```tsx filename="layout.tsx | page.tsx"
+import type { Metadata } from 'next'
+
+type Props = {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}
+
+export function generateMetadata({ params, searchParams }: Props): Metadata {
+  return {
+    title: 'Next.js',
+  }
+}
+
+export default function Page({ params, searchParams }: Props) {}
+```
+
+##### With parent metadata
+
+```tsx filename="layout.tsx | page.tsx"
+import type { Metadata, ResolvingMetadata } from 'next'
+
+export async function generateMetadata(
+  { params, searchParams }: Props,
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  return {
+    title: 'Next.js',
+  }
+}
+```
+
+##### JavaScript Projects
+
+For JavaScript projects, you can use JSDoc to add type safety.
+
+```js filename="layout.js | page.js"
+/** @type {import("next").Metadata} */
+export const metadata = {
+  title: 'Next.js',
+}
+```
 
 | Metadata                      | Recommendation                                                                                                                                                                                                                                            |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1047,7 +1112,7 @@ export function PreloadResources() {
 }
 ```
 
-##### `<link rel="preload">`
+#### `<link rel="preload">`
 
 Start loading a resource early in the page rendering (browser) lifecycle. [MDN Docs](https://developer.mozilla.org/docs/Web/HTML/Attributes/rel/preload).
 
@@ -1071,7 +1136,7 @@ ReactDOM.preconnect(href: string, options?: { crossOrigin?: string })
 <link rel="preconnect" href="..." crossorigin />
 ```
 
-##### `<link rel="dns-prefetch">`
+#### `<link rel="dns-prefetch">`
 
 Attempt to resolve a domain name before resources get requested. [MDN Docs](https://developer.mozilla.org/docs/Web/HTML/Attributes/rel/dns-prefetch).
 
