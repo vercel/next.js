@@ -212,6 +212,7 @@ function Script(props: ScriptProps): JSX.Element | null {
   let { updateScripts, scripts, getIsSsr, appDir, nonce } =
     useContext(HeadManagerContext)
 
+  // if a nonce is explicitly passed to the script tag, favor that over the automatic handling
   nonce = restProps.nonce || nonce
 
   /**
