@@ -102,7 +102,10 @@ impl SingleChunkableModuleReference {
 impl ChunkableModuleReference for SingleChunkableModuleReference {
     #[turbo_tasks::function]
     fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::ParallelInheritAsync))
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: true,
+            hoisted: false,
+        }))
     }
 }
 
