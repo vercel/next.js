@@ -15,7 +15,10 @@ use shrink_to_fit::ShrinkToFit;
 use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
-use crate::{dynamic::new_atom, tagged_value::TaggedValue};
+use crate::{
+    dynamic::{deref_from, new_atom},
+    tagged_value::TaggedValue,
+};
 
 mod dynamic;
 mod tagged_value;
@@ -80,7 +83,7 @@ impl RcStr {
     #[inline(never)]
     pub fn as_str(&self) -> &str {
         match self.tag() {
-            DYNAMIC_TAG => unsafe { dynamic::deref_from(self.unsafe_data) },
+            DYNAMIC_TAG => unsafe { dynamic::deref_from(self.unsafe_data).value.as_str() },
             INLINE_TAG => {
                 let len = (self.unsafe_data.tag() & LEN_MASK) >> LEN_OFFSET;
                 let src = self.unsafe_data.data();
@@ -103,8 +106,8 @@ impl RcStr {
                 // convert `self` into `arc`
                 let arc = unsafe { dynamic::restore_arc(ManuallyDrop::new(self).unsafe_data) };
                 match Arc::try_unwrap(arc) {
-                    Ok(v) => v,
-                    Err(arc) => arc.to_string(),
+                    Ok(v) => v.value,
+                    Err(arc) => arc.value.to_string(),
                 }
             }
             INLINE_TAG => self.as_str().to_string(),
@@ -256,7 +259,15 @@ impl Default for RcStr {
 
 impl PartialEq for RcStr {
     fn eq(&self, other: &Self) -> bool {
-        self.as_str() == other.as_str()
+        match (self.tag(), other.tag()) {
+            (DYNAMIC_TAG, DYNAMIC_TAG) => {
+                let l = unsafe { deref_from(self.unsafe_data) };
+                let r = unsafe { deref_from(other.unsafe_data) };
+                l.hash == r.hash && l.value == r.value
+            }
+            (INLINE_TAG, INLINE_TAG) => self.as_str() == other.as_str(),
+            _ => false,
+        }
     }
 }
 
@@ -276,7 +287,16 @@ impl Ord for RcStr {
 
 impl Hash for RcStr {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.as_str().hash(state);
+        match self.tag() {
+            DYNAMIC_TAG => {
+                let l = unsafe { deref_from(self.unsafe_data) };
+                l.value.as_str().hash(state);
+            }
+            INLINE_TAG => {
+                self.as_str().hash(state);
+            }
+            _ => unsafe { debug_unreachable!() },
+        }
     }
 }
 

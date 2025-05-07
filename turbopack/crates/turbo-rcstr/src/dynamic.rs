@@ -1,5 +1,10 @@
-use std::{num::NonZeroU8, ptr::NonNull};
+use std::{
+    hash::{Hash, Hasher},
+    num::NonZeroU8,
+    ptr::NonNull,
+};
 
+use rustc_hash::FxHasher;
 use triomphe::Arc;
 
 use crate::{
@@ -7,17 +12,22 @@ use crate::{
     tagged_value::{MAX_INLINE_LEN, TaggedValue},
 };
 
-pub unsafe fn cast(ptr: TaggedValue) -> *const String {
+pub(crate) struct PrehashedString {
+    pub value: String,
+    pub hash: u64,
+}
+
+pub unsafe fn cast(ptr: TaggedValue) -> *const PrehashedString {
     ptr.get_ptr().cast()
 }
 
-pub unsafe fn deref_from<'i>(ptr: TaggedValue) -> &'i String {
+pub(crate) unsafe fn deref_from<'i>(ptr: TaggedValue) -> &'i PrehashedString {
     unsafe { &*cast(ptr) }
 }
 
 /// Caller should call `forget` (or `clone`) on the returned `Arc`
-pub unsafe fn restore_arc(v: TaggedValue) -> Arc<String> {
-    let ptr = v.get_ptr() as *const String;
+pub unsafe fn restore_arc(v: TaggedValue) -> Arc<PrehashedString> {
+    let ptr = v.get_ptr() as *const PrehashedString;
     unsafe { Arc::from_raw(ptr) }
 }
 
@@ -36,12 +46,17 @@ pub(crate) fn new_atom<T: AsRef<str> + Into<String>>(text: T) -> RcStr {
         return RcStr { unsafe_data };
     }
 
-    let entry = Arc::new(text.into());
+    let hash = compute_fxhash(text.as_ref());
+
+    let entry: Arc<PrehashedString> = Arc::new(PrehashedString {
+        value: text.into(),
+        hash,
+    });
     let entry = Arc::into_raw(entry);
 
-    let ptr: NonNull<String> = unsafe {
+    let ptr: NonNull<PrehashedString> = unsafe {
         // Safety: Arc::into_raw returns a non-null pointer
-        NonNull::new_unchecked(entry as *mut String)
+        NonNull::new_unchecked(entry as *mut _)
     };
     debug_assert!(0 == ptr.as_ptr() as u8 & TAG_MASK);
     RcStr {
@@ -70,4 +85,10 @@ pub(crate) const fn inline_atom(text: &str) -> Option<RcStr> {
         return Some(RcStr { unsafe_data });
     }
     None
+}
+
+fn compute_fxhash(s: &str) -> u64 {
+    let mut hasher = FxHasher::default();
+    s.hash(&mut hasher);
+    hasher.finish()
 }
