@@ -457,6 +457,8 @@ async function generateCacheEntryImpl(
     // a hanging promise. This essentially makes the "use cache" function
     // dynamic in the context of the fallback shell. When there's no suspense
     // boundary above, the shell will be empty, which is allowed.
+    // TODO: We could consider doing this for any kind of fallback shell
+    // prerendering, including when allowEmptyStaticShell is false.
     if (abortSignal.aborted && renderContext.allowEmptyStaticShell) {
       if (outerWorkUnitStore?.type === 'prerender') {
         outerWorkUnitStore.cacheSignal?.endRead()
