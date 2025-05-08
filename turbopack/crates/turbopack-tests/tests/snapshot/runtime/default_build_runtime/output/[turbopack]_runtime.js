@@ -629,8 +629,7 @@ function instantiateModule(id, source) {
             U: relativeURL,
             R: createResolvePathFromModule(r),
             b: getWorkerBlobURL,
-            z: requireStub,
-            __dirname: typeof module1.id === 'string' ? module1.id.replace(/(^|\/)\/+$/, '') : module1.id
+            z: requireStub
         });
     } catch (error) {
         module1.error = error;
