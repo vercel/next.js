@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { Playwright } from '../../../../lib/next-webdriver'
+import { Playwright } from 'next-webdriver'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
