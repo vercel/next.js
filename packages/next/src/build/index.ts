@@ -3566,8 +3566,7 @@ export default async function build(
               // We don't need to add the prefetch segment data routes if it was
               // added due to a page that was already generated. This would have
               // happened if the page was static or partially static.
-              const originalAppPath = pageInfos.get(route.page)?.originalAppPath
-              if (originalAppPath && route.prefetchSegmentDataRoutes) {
+              if (route.prefetchSegmentDataRoutes) {
                 continue
               }
 
