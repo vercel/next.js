@@ -218,8 +218,7 @@ async function createTreeCodeFromPath(
     let metadata: Awaited<ReturnType<typeof createStaticMetadataFromRoute>> =
       null
     const routerDirPath = `${appDirPrefix}${segmentPath}`
-    // For default not-found, don't traverse the directory to find metadata.
-    const resolvedRouteDir = isDefaultNotFound ? '' : resolveDir(routerDirPath)
+    const resolvedRouteDir = resolveDir(routerDirPath)
 
     if (resolvedRouteDir) {
       metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
