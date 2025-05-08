@@ -10,6 +10,7 @@ import {
   RSC_CONTENT_TYPE_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   ACTION_HEADER,
+  NEXT_ACTION_NOT_FOUND_HEADER,
 } from '../../client/components/app-router-headers'
 import {
   getAccessFallbackHTTPStatus,
@@ -366,7 +367,7 @@ async function createRedirectRenderResult(
     }
   }
 
-  return RenderResult.fromStatic('{}')
+  return RenderResult.fromStatic('')
 }
 
 // Used to compare Host header and Origin header.
@@ -444,6 +445,19 @@ type ServerActionsConfig = {
   allowedOrigins?: string[]
 }
 
+type HandleActionResult =
+  | {
+      /** We either didn't find the actionId, or we did but it threw notFound(). */
+      type: 'not-found'
+    }
+  | {
+      type: 'done'
+      result: RenderResult | undefined
+      formState?: any
+    }
+  /** The request turned out not to be a server action. */
+  | null
+
 export async function handleAction({
   req,
   res,
@@ -464,17 +478,7 @@ export async function handleAction({
   requestStore: RequestStore
   serverActions?: ServerActionsConfig
   ctx: AppRenderContext
-}): Promise<
-  | undefined
-  | {
-      type: 'not-found'
-    }
-  | {
-      type: 'done'
-      result: RenderResult | undefined
-      formState?: any
-    }
-> {
+}): Promise<HandleActionResult> {
   const contentType = req.headers['content-type']
   const { serverActionsManifest, page } = ctx.renderOpts
 
@@ -490,7 +494,7 @@ export async function handleAction({
   // Note that this can be a false positive -- any multipart/urlencoded POST can get us here,
   // But won't know if it's an MPA action or not until we call `decodeAction` below.
   if (!isPossibleServerAction) {
-    return
+    return null
   }
 
   if (workStore.isStaticGeneration) {
@@ -585,13 +589,8 @@ export async function handleAction({
     'no-cache, no-store, max-age=0, must-revalidate'
   )
 
-  let boundActionArguments: unknown[] = []
-
   const { actionAsyncStorage } = ComponentMod
 
-  let actionResult: RenderResult | undefined
-  let formState: any | undefined
-  let actionModId: string | undefined
   const actionWasForwarded = Boolean(req.headers['x-action-forwarded'])
 
   if (actionId) {
@@ -618,330 +617,393 @@ export async function handleAction({
     }
   }
 
-  try {
-    await actionAsyncStorage.run({ isAction: true }, async () => {
-      if (
-        // The type check here ensures that `req` is correctly typed, and the
-        // environment variable check provides dead code elimination.
-        process.env.NEXT_RUNTIME === 'edge' &&
-        isWebNextRequest(req)
-      ) {
-        if (!req.body) {
-          throw new Error('invariant: Missing request body.')
-        }
+  const handleUnrecognizedFetchAction = (err: unknown): HandleActionResult => {
+    console.error(err)
 
-        // TODO: add body limit
-
-        // Use react-server-dom-webpack/server.edge
-        const {
-          createTemporaryReferenceSet,
-          decodeReply,
-          decodeAction,
-          decodeFormState,
-        } = ComponentMod
-
-        temporaryReferences = createTemporaryReferenceSet()
-
-        if (isMultipartAction) {
-          // TODO-APP: Add streaming support
-          const formData = await req.request.formData()
-          if (isFetchAction) {
-            boundActionArguments = await decodeReply(
-              formData,
-              serverModuleMap,
-              { temporaryReferences }
-            )
-          } else {
-            const action = await decodeAction(formData, serverModuleMap)
-            if (typeof action === 'function') {
-              // Only warn if it's a server action, otherwise skip for other post requests
-              warnBadServerActionRequest()
-
-              const actionReturnedState =
-                await executeActionAndPrepareForRender(
-                  action as () => Promise<unknown>,
-                  [],
-                  workStore,
-                  requestStore
-                )
-
-              formState = await decodeFormState(
-                actionReturnedState,
-                formData,
-                serverModuleMap
-              )
-            }
-
-            // Skip the fetch path
-            return
-          }
-        } else {
-          try {
-            actionModId = getActionModIdOrError(actionId, serverModuleMap)
-          } catch (err) {
-            if (actionId !== null) {
-              console.error(err)
-            }
-            return {
-              type: 'not-found',
-            }
-          }
-
-          const chunks: Buffer[] = []
-          const reader = req.body.getReader()
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done) {
-              break
-            }
-
-            chunks.push(value)
-          }
-
-          const actionData = Buffer.concat(chunks).toString('utf-8')
-
-          if (isURLEncodedAction) {
-            const formData = formDataFromSearchQueryString(actionData)
-            boundActionArguments = await decodeReply(
-              formData,
-              serverModuleMap,
-              { temporaryReferences }
-            )
-          } else {
-            boundActionArguments = await decodeReply(
-              actionData,
-              serverModuleMap,
-              { temporaryReferences }
-            )
-          }
-        }
-      } else if (
-        // The type check here ensures that `req` is correctly typed, and the
-        // environment variable check provides dead code elimination.
-        process.env.NEXT_RUNTIME !== 'edge' &&
-        isNodeNextRequest(req)
-      ) {
-        // Use react-server-dom-webpack/server.node which supports streaming
-        const {
-          createTemporaryReferenceSet,
-          decodeReply,
-          decodeReplyFromBusboy,
-          decodeAction,
-          decodeFormState,
-        } = require(
-          `./react-server.node`
-        ) as typeof import('./react-server.node')
-
-        temporaryReferences = createTemporaryReferenceSet()
-
-        const { Transform, pipeline } =
-          require('node:stream') as typeof import('node:stream')
-
-        const defaultBodySizeLimit = '1 MB'
-        const bodySizeLimit =
-          serverActions?.bodySizeLimit ?? defaultBodySizeLimit
-        const bodySizeLimitBytes =
-          bodySizeLimit !== defaultBodySizeLimit
-            ? (
-                require('next/dist/compiled/bytes') as typeof import('bytes')
-              ).parse(bodySizeLimit)
-            : 1024 * 1024 // 1 MB
-
-        let size = 0
-        const sizeLimitTransform = new Transform({
-          transform(chunk, encoding, callback) {
-            size += Buffer.byteLength(chunk, encoding)
-            if (size > bodySizeLimitBytes) {
-              const { ApiError } = require('../api-utils')
-
-              callback(
-                new ApiError(
-                  413,
-                  `Body exceeded ${bodySizeLimit} limit.\n` +
-                    `To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
-                )
-              )
-              return
-            }
-
-            callback(null, chunk)
-          },
-        })
-
-        const sizeLimitedBody = pipeline(
-          req.body,
-          sizeLimitTransform,
-          // Avoid unhandled errors from `pipeline()` by passing an empty completion callback.
-          // We'll propagate the errors properly when consuming the stream.
-          () => {}
-        )
-
-        if (isMultipartAction) {
-          if (isFetchAction) {
-            const busboy = (
-              require('next/dist/compiled/busboy') as typeof import('next/dist/compiled/busboy')
-            )({
-              defParamCharset: 'utf8',
-              headers: req.headers,
-              limits: { fieldSize: bodySizeLimitBytes },
-            })
-
-            // We need to use `pipeline(one, two)` instead of `one.pipe(two)` to propagate size limit errors correctly.
-            pipeline(
-              sizeLimitedBody,
-              busboy,
-              // Avoid unhandled errors from `pipeline()` by passing an empty completion callback.
-              // We'll propagate the errors properly when consuming the stream.
-              () => {}
-            )
-
-            boundActionArguments = await decodeReplyFromBusboy(
-              busboy,
-              serverModuleMap,
-              { temporaryReferences }
-            )
-          } else {
-            // React doesn't yet publish a busboy version of decodeAction
-            // so we polyfill the parsing of FormData.
-            const fakeRequest = new Request('http://localhost', {
-              method: 'POST',
-              // @ts-expect-error
-              headers: { 'Content-Type': contentType },
-              body: new ReadableStream({
-                start: (controller) => {
-                  sizeLimitedBody.on('data', (chunk) => {
-                    controller.enqueue(new Uint8Array(chunk))
-                  })
-                  sizeLimitedBody.on('end', () => {
-                    controller.close()
-                  })
-                  sizeLimitedBody.on('error', (err) => {
-                    controller.error(err)
-                  })
-                },
-              }),
-              duplex: 'half',
-            })
-            const formData = await fakeRequest.formData()
-            const action = await decodeAction(formData, serverModuleMap)
-            if (typeof action === 'function') {
-              // Only warn if it's a server action, otherwise skip for other post requests
-              warnBadServerActionRequest()
-
-              const actionReturnedState =
-                await executeActionAndPrepareForRender(
-                  action as () => Promise<unknown>,
-                  [],
-                  workStore,
-                  requestStore
-                )
-
-              formState = await decodeFormState(
-                actionReturnedState,
-                formData,
-                serverModuleMap
-              )
-            }
-
-            // Skip the fetch path
-            return
-          }
-        } else {
-          try {
-            actionModId = getActionModIdOrError(actionId, serverModuleMap)
-          } catch (err) {
-            if (actionId !== null) {
-              console.error(err)
-            }
-            return {
-              type: 'not-found',
-            }
-          }
-
-          const chunks: Buffer[] = []
-          for await (const chunk of sizeLimitedBody) {
-            chunks.push(Buffer.from(chunk))
-          }
-
-          const actionData = Buffer.concat(chunks).toString('utf-8')
-
-          if (isURLEncodedAction) {
-            const formData = formDataFromSearchQueryString(actionData)
-            boundActionArguments = await decodeReply(
-              formData,
-              serverModuleMap,
-              { temporaryReferences }
-            )
-          } else {
-            boundActionArguments = await decodeReply(
-              actionData,
-              serverModuleMap,
-              { temporaryReferences }
-            )
-          }
-        }
-      } else {
-        throw new Error('Invariant: Unknown request type.')
-      }
-
-      // actions.js
-      // app/page.js
-      //   action worker1
-      //     appRender1
-
-      // app/foo/page.js
-      //   action worker2
-      //     appRender
-
-      // / -> fire action -> POST / -> appRender1 -> modId for the action file
-      // /foo -> fire action -> POST /foo -> appRender2 -> modId for the action file
-
-      try {
-        actionModId =
-          actionModId ?? getActionModIdOrError(actionId, serverModuleMap)
-      } catch (err) {
-        if (actionId !== null) {
-          console.error(err)
-        }
-        return {
-          type: 'not-found',
-        }
-      }
-
-      const actionMod = (await ComponentMod.__next_app__.require(
-        actionModId
-      )) as Record<string, (...args: unknown[]) => Promise<unknown>>
-      const actionHandler =
-        actionMod[
-          // `actionId` must exist if we got here, as otherwise we would have thrown an error above
-          actionId!
-        ]
-
-      const returnVal = await executeActionAndPrepareForRender(
-        actionHandler,
-        boundActionArguments,
-        workStore,
-        requestStore
-      ).finally(() => {
-        addRevalidationHeader(res, { workStore, requestStore })
-      })
-
-      // For form actions, we need to continue rendering the page.
-      if (isFetchAction) {
-        actionResult = await generateFlight(req, ctx, requestStore, {
-          actionResult: Promise.resolve(returnVal),
-          // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
-          skipFlight: !workStore.pathWasRevalidated || actionWasForwarded,
-          temporaryReferences,
-        })
-      }
-    })
-
+    // Return an empty response with a header that the client router will interpret.
+    // We don't need to waste time encoding a flight response, and using a blank body + header
+    // means that unrecognized actions can also be handled at the infra level
+    // (i.e. without needing to invoke a lambda)
+    res.setHeader(NEXT_ACTION_NOT_FOUND_HEADER, '1')
+    res.setHeader('content-type', 'text/plain')
+    res.statusCode = 404
     return {
       type: 'done',
-      result: actionResult,
-      formState,
+      result: RenderResult.fromStatic('Server action not found.'),
     }
+  }
+
+  try {
+    return await actionAsyncStorage.run(
+      { isAction: true },
+      async (): Promise<HandleActionResult> => {
+        // We only use these for fetch actions -- MPA actions handle them inside `decodeAction`.
+        let actionModId: string | undefined
+        let boundActionArguments: unknown[] = []
+
+        if (
+          // The type check here ensures that `req` is correctly typed, and the
+          // environment variable check provides dead code elimination.
+          process.env.NEXT_RUNTIME === 'edge' &&
+          isWebNextRequest(req)
+        ) {
+          if (!req.body) {
+            throw new Error('invariant: Missing request body.')
+          }
+
+          // TODO: add body limit
+
+          // Use react-server-dom-webpack/server.edge
+          const {
+            createTemporaryReferenceSet,
+            decodeReply,
+            decodeAction,
+            decodeFormState,
+          } = ComponentMod
+
+          temporaryReferences = createTemporaryReferenceSet()
+
+          if (isMultipartAction) {
+            // TODO-APP: Add streaming support
+            const formData = await req.request.formData()
+            if (isFetchAction) {
+              // A fetch action with a multipart body.
+              boundActionArguments = await decodeReply(
+                formData,
+                serverModuleMap,
+                { temporaryReferences }
+              )
+            } else {
+              // Multipart POST, but not a fetch action.
+              // Potentially an MPA action, we have to try decoding it to check.
+              const action = await decodeAction(formData, serverModuleMap)
+              if (typeof action === 'function') {
+                // an MPA action.
+
+                // Only warn if it's a server action, otherwise skip for other post requests
+                warnBadServerActionRequest()
+
+                const actionReturnedState =
+                  await executeActionAndPrepareForRender(
+                    action as () => Promise<unknown>,
+                    [],
+                    workStore,
+                    requestStore
+                  )
+
+                const formState = await decodeFormState(
+                  actionReturnedState,
+                  formData,
+                  serverModuleMap
+                )
+
+                // Skip the fetch path.
+                // We need to render a full HTML version of the page for the response, we'll handle that in app-render.
+                return {
+                  type: 'done',
+                  result: undefined,
+                  formState,
+                }
+              } else {
+                // We couldn't decode an action, so this POST request turned out not to be a server action request.
+                return null
+              }
+            }
+          } else {
+            // POST with non-multipart body.
+
+            // If it's not multipart AND not a fetch action,
+            // then it can't be an action request.
+            if (!isFetchAction) {
+              return null
+            }
+
+            try {
+              actionModId = getActionModIdOrError(actionId, serverModuleMap)
+            } catch (err) {
+              return handleUnrecognizedFetchAction(err)
+            }
+
+            // A fetch action with a non-multipart body.
+            // In practice, this happens if `encodeReply` returned a string instead of FormData,
+            // which can happen for very simple JSON-like values that don't need multiple flight rows.
+
+            const chunks: Buffer[] = []
+            const reader = req.body.getReader()
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) {
+                break
+              }
+
+              chunks.push(value)
+            }
+
+            const actionData = Buffer.concat(chunks).toString('utf-8')
+
+            if (isURLEncodedAction) {
+              const formData = formDataFromSearchQueryString(actionData)
+              boundActionArguments = await decodeReply(
+                formData,
+                serverModuleMap,
+                { temporaryReferences }
+              )
+            } else {
+              boundActionArguments = await decodeReply(
+                actionData,
+                serverModuleMap,
+                { temporaryReferences }
+              )
+            }
+          }
+        } else if (
+          // The type check here ensures that `req` is correctly typed, and the
+          // environment variable check provides dead code elimination.
+          process.env.NEXT_RUNTIME !== 'edge' &&
+          isNodeNextRequest(req)
+        ) {
+          // Use react-server-dom-webpack/server.node which supports streaming
+          const {
+            createTemporaryReferenceSet,
+            decodeReply,
+            decodeReplyFromBusboy,
+            decodeAction,
+            decodeFormState,
+          } = require(
+            `./react-server.node`
+          ) as typeof import('./react-server.node')
+
+          temporaryReferences = createTemporaryReferenceSet()
+
+          const { Transform, pipeline } =
+            require('node:stream') as typeof import('node:stream')
+
+          const defaultBodySizeLimit = '1 MB'
+          const bodySizeLimit =
+            serverActions?.bodySizeLimit ?? defaultBodySizeLimit
+          const bodySizeLimitBytes =
+            bodySizeLimit !== defaultBodySizeLimit
+              ? (
+                  require('next/dist/compiled/bytes') as typeof import('bytes')
+                ).parse(bodySizeLimit)
+              : 1024 * 1024 // 1 MB
+
+          let size = 0
+          const sizeLimitTransform = new Transform({
+            transform(chunk, encoding, callback) {
+              size += Buffer.byteLength(chunk, encoding)
+              if (size > bodySizeLimitBytes) {
+                const { ApiError } = require('../api-utils')
+
+                callback(
+                  new ApiError(
+                    413,
+                    `Body exceeded ${bodySizeLimit} limit.\n` +
+                      `To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
+                  )
+                )
+                return
+              }
+
+              callback(null, chunk)
+            },
+          })
+
+          const sizeLimitedBody = pipeline(
+            req.body,
+            sizeLimitTransform,
+            // Avoid unhandled errors from `pipeline()` by passing an empty completion callback.
+            // We'll propagate the errors properly when consuming the stream.
+            () => {}
+          )
+
+          if (isMultipartAction) {
+            if (isFetchAction) {
+              // A fetch action with a multipart body.
+
+              const busboy = (
+                require('next/dist/compiled/busboy') as typeof import('next/dist/compiled/busboy')
+              )({
+                defParamCharset: 'utf8',
+                headers: req.headers,
+                limits: { fieldSize: bodySizeLimitBytes },
+              })
+
+              // We need to use `pipeline(one, two)` instead of `one.pipe(two)` to propagate size limit errors correctly.
+              pipeline(
+                sizeLimitedBody,
+                busboy,
+                // Avoid unhandled errors from `pipeline()` by passing an empty completion callback.
+                // We'll propagate the errors properly when consuming the stream.
+                () => {}
+              )
+
+              boundActionArguments = await decodeReplyFromBusboy(
+                busboy,
+                serverModuleMap,
+                { temporaryReferences }
+              )
+            } else {
+              // Multipart POST, but not a fetch action.
+              // Potentially an MPA action, we have to try decoding it to check.
+
+              // React doesn't yet publish a busboy version of decodeAction
+              // so we polyfill the parsing of FormData.
+              const fakeRequest = new Request('http://localhost', {
+                method: 'POST',
+                // @ts-expect-error
+                headers: { 'Content-Type': contentType },
+                body: new ReadableStream({
+                  start: (controller) => {
+                    sizeLimitedBody.on('data', (chunk) => {
+                      controller.enqueue(new Uint8Array(chunk))
+                    })
+                    sizeLimitedBody.on('end', () => {
+                      controller.close()
+                    })
+                    sizeLimitedBody.on('error', (err) => {
+                      controller.error(err)
+                    })
+                  },
+                }),
+                duplex: 'half',
+              })
+              const formData = await fakeRequest.formData()
+              const action = await decodeAction(formData, serverModuleMap)
+              if (typeof action === 'function') {
+                // an MPA action.
+
+                // Only warn if it's a server action, otherwise skip for other post requests
+                warnBadServerActionRequest()
+
+                const actionReturnedState =
+                  await executeActionAndPrepareForRender(
+                    action as () => Promise<unknown>,
+                    [],
+                    workStore,
+                    requestStore
+                  )
+
+                const formState = await decodeFormState(
+                  actionReturnedState,
+                  formData,
+                  serverModuleMap
+                )
+
+                // Skip the fetch path.
+                // We need to render a full HTML version of the page for the response, we'll handle that in app-render.
+                return {
+                  type: 'done',
+                  result: undefined,
+                  formState,
+                }
+              } else {
+                // We couldn't decode an action, so this POST request turned out not to be a server action request.
+                return null
+              }
+            }
+          } else {
+            // POST with non-multipart body.
+
+            // If it's not multipart AND not a fetch action,
+            // then it can't be an action request.
+            if (!isFetchAction) {
+              return null
+            }
+
+            try {
+              actionModId = getActionModIdOrError(actionId, serverModuleMap)
+            } catch (err) {
+              return handleUnrecognizedFetchAction(err)
+            }
+
+            // A fetch action with a non-multipart body.
+            // In practice, this happens if `encodeReply` returned a string instead of FormData,
+            // which can happen for very simple JSON-like values that don't need multiple flight rows.
+
+            const chunks: Buffer[] = []
+            for await (const chunk of sizeLimitedBody) {
+              chunks.push(Buffer.from(chunk))
+            }
+
+            const actionData = Buffer.concat(chunks).toString('utf-8')
+
+            if (isURLEncodedAction) {
+              const formData = formDataFromSearchQueryString(actionData)
+              boundActionArguments = await decodeReply(
+                formData,
+                serverModuleMap,
+                { temporaryReferences }
+              )
+            } else {
+              boundActionArguments = await decodeReply(
+                actionData,
+                serverModuleMap,
+                { temporaryReferences }
+              )
+            }
+          }
+        } else {
+          throw new Error('Invariant: Unknown request type.')
+        }
+
+        // actions.js
+        // app/page.js
+        //   action worker1
+        //     appRender1
+
+        // app/foo/page.js
+        //   action worker2
+        //     appRender
+
+        // / -> fire action -> POST / -> appRender1 -> modId for the action file
+        // /foo -> fire action -> POST /foo -> appRender2 -> modId for the action file
+
+        try {
+          actionModId =
+            actionModId ?? getActionModIdOrError(actionId, serverModuleMap)
+        } catch (err) {
+          return handleUnrecognizedFetchAction(err)
+        }
+
+        const actionMod = (await ComponentMod.__next_app__.require(
+          actionModId
+        )) as Record<string, (...args: unknown[]) => Promise<unknown>>
+        const actionHandler =
+          actionMod[
+            // `actionId` must exist if we got here, as otherwise we would have thrown an error above
+            actionId!
+          ]
+
+        const returnVal = await executeActionAndPrepareForRender(
+          actionHandler,
+          boundActionArguments,
+          workStore,
+          requestStore
+        ).finally(() => {
+          addRevalidationHeader(res, { workStore, requestStore })
+        })
+
+        // For form actions, we need to continue rendering the page.
+        if (isFetchAction) {
+          const actionResult = await generateFlight(req, ctx, requestStore, {
+            actionResult: Promise.resolve(returnVal),
+            // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
+            skipFlight: !workStore.pathWasRevalidated || actionWasForwarded,
+            temporaryReferences,
+          })
+
+          return {
+            type: 'done',
+            result: actionResult,
+          }
+        } else {
+          // TODO: this shouldn't be reachable, because all non-fetch codepaths return early.
+          // this will be handled in a follow-up refactor PR.
+          return null
+        }
+      }
+    )
   } catch (err) {
     if (isRedirectError(err)) {
       const redirectUrl = getURLFromRedirectError(err)
@@ -966,6 +1028,7 @@ export async function handleAction({
         }
       }
 
+      // For an MPA action, the redirect doesn't need a body, just a Location header.
       res.setHeader('Location', redirectUrl)
       return {
         type: 'done',
@@ -994,10 +1057,15 @@ export async function handleAction({
           }),
         }
       }
+
+      // For an MPA action, we need to render a HTML response. We'll handle that in app-render.
       return {
         type: 'not-found',
       }
     }
+
+    // An arror that didn't come from `redirect()` or `notFound()`, likely thrown from user code
+    // (but it could also be a bug in our code!)
 
     if (isFetchAction) {
       // TODO: consider checking if the error is an `ApiError` and change status code
@@ -1026,6 +1094,7 @@ export async function handleAction({
       }
     }
 
+    // For an MPA action, we need to render a HTML response. We'll rethrow the error and let it be handled above.
     throw err
   }
 }

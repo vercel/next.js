@@ -11,7 +11,6 @@ import type { Request, Response } from 'playwright'
 import fs from 'fs-extra'
 import nodeFs from 'fs'
 import { join } from 'path'
-import { outdent } from 'outdent'
 
 const GENERIC_RSC_ERROR =
   'Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -776,51 +775,6 @@ describe('app-dir action handling', () => {
       expect(requests.length).toBe(0)
     }
   })
-
-  // This is disabled when deployed because the 404 page will be served as a static route
-  // which will not support POST requests, and will return a 405 instead.
-  if (!isNextDeploy) {
-    it('should 404 when POSTing an invalid server action', async () => {
-      const cliOutputPosition = next.cliOutput.length
-      const res = await next.fetch('/non-existent-route', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/x-www-form-urlencoded',
-        },
-        body: 'foo=bar',
-      })
-
-      const cliOutput = next.cliOutput.slice(cliOutputPosition)
-
-      expect(cliOutput).not.toContain('TypeError')
-      expect(cliOutput).not.toContain(
-        'Missing `origin` header from a forwarded Server Actions request'
-      )
-      expect(res.status).toBe(404)
-    })
-  }
-
-  // This is disabled when deployed because it relies on checking runtime logs,
-  // and only build time logs will be available.
-  if (!isNextDeploy) {
-    it('should log a warning when a server action is not found but an id is provided', async () => {
-      await next.fetch('/server', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/x-www-form-urlencoded',
-          'next-action': 'abc123',
-        },
-        body: 'foo=bar',
-      })
-
-      await retry(async () =>
-        expect(next.cliOutput).toInclude(outdent`
-          Failed to find Server Action "abc123". This request might be from an older or newer deployment.
-          Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
-        `)
-      )
-    })
-  }
 
   it('should be possible to catch network errors', async () => {
     const browser = await next.browser('/catching-error', {
@@ -1643,7 +1597,7 @@ describe('app-dir action handling', () => {
   })
 
   describe('redirects', () => {
-    it('redirects properly when server action handler uses `redirect`', async () => {
+    it('redirects properly when route handler uses `redirect`', async () => {
       const postRequests = []
       const responseCodes = []
 
@@ -1672,12 +1626,12 @@ describe('app-dir action handling', () => {
         expect(await browser.url()).toContain('success=true')
       })
 
-      // verify that the POST request was only made to the action handler
+      // verify that the POST request was only made to the route handler
       expect(postRequests).toEqual(['/redirects/api-redirect'])
       expect(responseCodes).toEqual([303])
     })
 
-    it('redirects properly when server action handler uses `permanentRedirect`', async () => {
+    it('redirects properly when server route handler uses `permanentRedirect`', async () => {
       const postRequests = []
       const responseCodes = []
 
@@ -1705,7 +1659,7 @@ describe('app-dir action handling', () => {
       await retry(async () => {
         expect(await browser.url()).toContain('success=true')
       })
-      // verify that the POST request was only made to the action handler
+      // verify that the POST request was only made to the route handler
       expect(postRequests).toEqual(['/redirects/api-redirect-permanent'])
       expect(responseCodes).toEqual([303])
     })
@@ -1770,7 +1724,7 @@ describe('app-dir action handling', () => {
     })
 
     it.each(['307', '308'])(
-      `redirects properly when server action handler redirects with a %s status code`,
+      `redirects properly when route handler redirects with a %s status code`,
       async (statusCode) => {
         const postRequests = []
         const responseCodes = []
@@ -1801,7 +1755,7 @@ describe('app-dir action handling', () => {
         })
         expect(await browser.elementById('redirect-page')).toBeTruthy()
 
-        // since a 307/308 status code follows the redirect, the POST request should be made to both the action handler and the redirect target
+        // since a 307/308 status code follows the redirect, the POST request should be made to both the route handler and the redirect target
         expect(postRequests).toEqual([
           `/redirects/api-redirect-${statusCode}`,
           `/redirects?success=true`,

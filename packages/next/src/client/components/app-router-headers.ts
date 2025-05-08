@@ -31,3 +31,4 @@ export const NEXT_DID_POSTPONE_HEADER = 'x-nextjs-postponed' as const
 export const NEXT_REWRITTEN_PATH_HEADER = 'x-nextjs-rewritten-path' as const
 export const NEXT_REWRITTEN_QUERY_HEADER = 'x-nextjs-rewritten-query' as const
 export const NEXT_IS_PRERENDER_HEADER = 'x-nextjs-prerender' as const
+export const NEXT_ACTION_NOT_FOUND_HEADER = 'x-nextjs-action-not-found' as const

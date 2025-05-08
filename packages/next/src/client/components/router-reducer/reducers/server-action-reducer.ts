@@ -6,6 +6,7 @@ import { callServer } from '../../../app-call-server'
 import { findSourceMapURL } from '../../../app-find-source-map-url'
 import {
   ACTION_HEADER,
+  NEXT_ACTION_NOT_FOUND_HEADER,
   NEXT_IS_PRERENDER_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
@@ -61,7 +62,7 @@ import { revalidateEntireCache } from '../../segment-cache'
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
   redirectType: RedirectType | undefined
-  actionResult?: ActionResult
+  actionResult: ActionResult | undefined
   actionFlightData?: NormalizedFlightData[] | string
   isPrerender: boolean
   revalidatedParts: {
@@ -109,6 +110,23 @@ async function fetchServerAction(
     body,
   })
 
+  const isPrerender = !!res.headers.get(NEXT_IS_PRERENDER_HEADER)
+
+  // Handle server actions that the server didn't recognize.
+  const unrecognizedActionHeader = res.headers.get(NEXT_ACTION_NOT_FOUND_HEADER)
+  if (unrecognizedActionHeader === '1') {
+    return {
+      // Legacy behavior until we provide a way to handle unrecognized actions client-side --
+      // Due to a bug, unrecognized actions would previously resolve with `undefined` instead of throwing.
+      actionResult: undefined,
+      actionFlightData: undefined,
+      isPrerender,
+      redirectLocation: undefined,
+      redirectType: undefined,
+      revalidatedParts: NO_REVALIDATED_PARTS,
+    }
+  }
+
   const redirectHeader = res.headers.get('x-action-redirect')
   const [location, _redirectType] = redirectHeader?.split(';') || []
   let redirectType: RedirectType | undefined
@@ -123,7 +141,6 @@ async function fetchServerAction(
       redirectType = undefined
   }
 
-  const isPrerender = !!res.headers.get(NEXT_IS_PRERENDER_HEADER)
   let revalidatedParts: FetchServerActionResult['revalidatedParts']
   try {
     const revalidatedHeader = JSON.parse(
@@ -135,11 +152,7 @@ async function fetchServerAction(
       cookie: revalidatedHeader[2],
     }
   } catch (e) {
-    revalidatedParts = {
-      paths: [],
-      tag: false,
-      cookie: false,
-    }
+    revalidatedParts = NO_REVALIDATED_PARTS
   }
 
   const redirectLocation = location
@@ -150,52 +163,53 @@ async function fetchServerAction(
     : undefined
 
   const contentType = res.headers.get('content-type')
+  const isRscResponse = !!(
+    contentType && contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
+  )
 
-  if (contentType?.startsWith(RSC_CONTENT_TYPE_HEADER)) {
+  // Handle invalid server action responses.
+  // A valid response must have `content-type: text/x-component`, unless it's an external redirect.
+  if (!isRscResponse && !redirectLocation) {
+    // The server can respond with a text/plain error message, but we'll fallback to something generic
+    // if there isn't one.
+    const message =
+      res.status >= 400 && contentType === 'text/plain'
+        ? await res.text()
+        : 'An unexpected response was received from the server.'
+
+    throw new Error(message)
+  }
+
+  let actionResult: FetchServerActionResult['actionResult']
+  let actionFlightData: FetchServerActionResult['actionFlightData']
+  if (isRscResponse) {
     const response: ActionFlightResponse = await createFromFetch(
       Promise.resolve(res),
       { callServer, findSourceMapURL, temporaryReferences }
     )
-
-    if (location) {
-      // if it was a redirection, then result is just a regular RSC payload
-      return {
-        actionFlightData: normalizeFlightData(response.f),
-        redirectLocation,
-        redirectType,
-        revalidatedParts,
-        isPrerender,
-      }
-    }
-
-    return {
-      actionResult: response.a,
-      actionFlightData: normalizeFlightData(response.f),
-      redirectLocation,
-      redirectType,
-      revalidatedParts,
-      isPrerender,
-    }
-  }
-
-  // Handle invalid server action responses
-  if (res.status >= 400) {
-    // The server can respond with a text/plain error message, but we'll fallback to something generic
-    // if there isn't one.
-    const error =
-      contentType === 'text/plain'
-        ? await res.text()
-        : 'An unexpected response was received from the server.'
-
-    throw new Error(error)
+    // An internal redirect can send an RSC response, but does not have a useful `actionResult`.
+    actionResult = redirectLocation ? undefined : response.a
+    actionFlightData = normalizeFlightData(response.f)
+  } else {
+    // An external redirect doesn't contain RSC data.
+    actionResult = undefined
+    actionFlightData = undefined
   }
 
   return {
+    actionResult,
+    actionFlightData,
     redirectLocation,
     redirectType,
     revalidatedParts,
     isPrerender,
   }
+}
+
+const NO_REVALIDATED_PARTS = {
+  paths: [],
+  tag: false,
+  cookie: false,
 }
 
 /*
