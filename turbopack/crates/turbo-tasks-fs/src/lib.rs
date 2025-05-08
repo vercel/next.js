@@ -407,16 +407,7 @@ impl DiskFileSystemInner {
             |fs_context| fs_context.created_directories.contains(directory),
         );
         if !already_created {
-            let func = {
-                move |p: &Path| -> io::Result<()> {
-                    std::fs::create_dir_all(p)?;
-                    let path_buf = p.to_path_buf();
-                    ApplyEffectContext::with(|fs_context: &mut DiskFileSystemApplyContext| {
-                        fs_context.created_directories.insert(path_buf)
-                    });
-                    Ok(())
-                }
-            };
+            let func = |p: &Path| std::fs::create_dir_all(p);
             retry_blocking(directory, func)
                 .concurrency_limited(&self.semaphore)
                 .instrument(tracing::info_span!(
@@ -424,6 +415,11 @@ impl DiskFileSystemInner {
                     path = display(directory.display())
                 ))
                 .await?;
+            ApplyEffectContext::with(|fs_context: &mut DiskFileSystemApplyContext| {
+                fs_context
+                    .created_directories
+                    .insert(directory.to_path_buf())
+            });
         }
         Ok(())
     }
