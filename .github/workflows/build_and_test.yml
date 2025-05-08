@@ -388,7 +388,7 @@ jobs:
 
   test-unit:
     name: test unit
-    needs: ['changes', 'build-next']
+    needs: ['changes', 'build-next', 'build-native']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
@@ -398,8 +398,6 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      skipNativeBuild: 'yes'
-      skipNativeInstall: 'yes'
       nodeVersion: ${{ matrix.node }}
       afterBuild: node run-tests.js --type unit
       stepName: 'test-unit-${{ matrix.node }}'
