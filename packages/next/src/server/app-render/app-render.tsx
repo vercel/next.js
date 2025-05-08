@@ -178,7 +178,6 @@ import { CacheSignal } from './cache-signal'
 import { getTracedMetadata } from '../lib/trace/utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
-import './clean-async-snapshot.external'
 import { INFINITE_CACHE } from '../../lib/constants'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { parseLoaderTree } from './parse-loader-tree'

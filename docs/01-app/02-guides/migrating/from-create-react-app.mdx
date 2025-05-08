@@ -145,7 +145,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-> **Good to know**: Next.js ignores CRA’s `public/manifest.json`, additional iconography, and [testing configuration](/docs/app/guides/testing) by default. If you need these, Next.js has support with its [Metadata API](/docs/app/building-your-application/optimizing/metadata) and [Testing](/docs/app/guides/testing) setup.
+> **Good to know**: Next.js ignores CRA’s `public/manifest.json`, additional iconography, and [testing configuration](/docs/app/guides/testing) by default. If you need these, Next.js has support with its [Metadata API](/docs/app/getting-started/metadata-and-og-images) and [Testing](/docs/app/guides/testing) setup.
 
 ### Step 4: Metadata
 
@@ -189,7 +189,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Any [metadata files](/docs/app/building-your-application/optimizing/metadata#file-based-metadata) such as `favicon.ico`, `icon.png`, `robots.txt` are automatically added to the application `<head>` tag as long as you have them placed into the top level of the `app` directory. After moving [all supported files](/docs/app/building-your-application/optimizing/metadata#file-based-metadata) into the `app` directory you can safely delete their `<link>` tags:
+Any [metadata files](/docs/app/getting-started/metadata-and-og-images#file-based-metadata) such as `favicon.ico`, `icon.png`, `robots.txt` are automatically added to the application `<head>` tag as long as you have them placed into the top level of the `app` directory. After moving [all supported files](/docs/app/getting-started/metadata-and-og-images#file-based-metadata) into the `app` directory you can safely delete their `<link>` tags:
 
 ```tsx filename="app/layout.tsx" switcher
 export default function RootLayout({
@@ -227,7 +227,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Finally, Next.js can manage your last `<head>` tags with the [Metadata API](/docs/app/building-your-application/optimizing/metadata). Move your final metadata info into an exported [`metadata` object](/docs/app/api-reference/functions/generate-metadata#metadata-object):
+Finally, Next.js can manage your last `<head>` tags with the [Metadata API](/docs/app/getting-started/metadata-and-og-images). Move your final metadata info into an exported [`metadata` object](/docs/app/api-reference/functions/generate-metadata#metadata-object):
 
 ```tsx filename="app/layout.tsx" switcher
 import type { Metadata } from 'next'
@@ -269,7 +269,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-With the above changes, you shifted from declaring everything in your `index.html` to using Next.js' convention-based approach built into the framework ([Metadata API](/docs/app/building-your-application/optimizing/metadata)). This approach enables you to more easily improve your SEO and web shareability of your pages.
+With the above changes, you shifted from declaring everything in your `index.html` to using Next.js' convention-based approach built into the framework ([Metadata API](/docs/app/getting-started/metadata-and-og-images)). This approach enables you to more easily improve your SEO and web shareability of your pages.
 
 ### Step 5: Styles
 
@@ -300,7 +300,7 @@ export default function RootLayout({
 }
 ```
 
-If you’re using Tailwind CSS, see our [installation docs](/docs/app/building-your-application/styling/tailwind-css).
+If you’re using Tailwind CSS, see our [installation docs](/docs/app/guides/tailwind-css).
 
 ### Step 6: Create the Entrypoint Page
 

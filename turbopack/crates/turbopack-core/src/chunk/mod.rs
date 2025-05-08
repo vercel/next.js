@@ -162,7 +162,6 @@ pub trait OutputChunk: Asset {
 /// group
 #[derive(
     Debug,
-    Default,
     Clone,
     Hash,
     TraceRawVcs,
@@ -174,14 +173,15 @@ pub trait OutputChunk: Asset {
     NonLocalValue,
 )]
 pub enum ChunkingType {
-    /// Module is placed in the same chunk group and is loaded in parallel. It
-    /// doesn't become an async module when the referenced module is async.
-    #[default]
-    Parallel,
-    /// Module is placed in the same chunk group and is loaded in parallel. It
-    /// becomes an async module when the referenced module is async.
-    // TODO make inherit_async a separate field
-    ParallelInheritAsync,
+    /// The referenced module is placed in the same chunk group and is loaded in parallel.
+    Parallel {
+        /// Whether the parent module becomes an async module when the referenced module is async.
+        /// This should happen for e.g. ESM imports, but not for CommonJS requires.
+        inherit_async: bool,
+        /// Whether the referenced module is executed always immediately before the parent module
+        /// (corresponding to ESM import semantics).
+        hoisted: bool,
+    },
     /// An async loader is placed into the referencing chunk and loads the
     /// separate chunk group in which the module is placed.
     Async,
@@ -207,19 +207,18 @@ impl ChunkingType {
     pub fn is_inherit_async(&self) -> bool {
         matches!(
             self,
-            ChunkingType::ParallelInheritAsync
-                | ChunkingType::Shared {
-                    inherit_async: true,
-                    ..
-                }
+            ChunkingType::Parallel {
+                inherit_async: true,
+                ..
+            } | ChunkingType::Shared {
+                inherit_async: true,
+                ..
+            }
         )
     }
 
     pub fn is_parallel(&self) -> bool {
-        matches!(
-            self,
-            ChunkingType::Parallel | ChunkingType::ParallelInheritAsync
-        )
+        matches!(self, ChunkingType::Parallel { .. })
     }
 
     pub fn is_merged(&self) -> bool {
@@ -237,7 +236,10 @@ impl ChunkingType {
 
     pub fn without_inherit_async(&self) -> Self {
         match self {
-            ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => ChunkingType::Parallel,
+            ChunkingType::Parallel { hoisted, .. } => ChunkingType::Parallel {
+                hoisted: *hoisted,
+                inherit_async: false,
+            },
             ChunkingType::Async => ChunkingType::Async,
             ChunkingType::Isolated { _ty, merge_tag } => ChunkingType::Isolated {
                 _ty: *_ty,
@@ -267,7 +269,10 @@ pub struct ChunkingTypeOption(Option<ChunkingType>);
 #[turbo_tasks::value_trait]
 pub trait ChunkableModuleReference: ModuleReference + ValueToString {
     fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::default()))
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        }))
     }
 }
 
