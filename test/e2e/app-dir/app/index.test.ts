@@ -1749,17 +1749,12 @@ describe('app dir - basic', () => {
       expect(scripts.length).toBeGreaterThan(0)
 
       scripts.each((_, element) => {
-        require('console').log({
-          src: element.attribs.src || element.attribs.href,
-          nonce: element.attribs.nonce,
-        })
         expect(element.attribs.nonce).toBeTruthy()
       })
 
       if (!isNextDev) {
-        const browser = await next.browser('/pages-script-manual-nonce')
-
         await retry(async () => {
+          const browser = await next.browser('/pages-script-manual-nonce')
           await browser.elementByCss('#get-order').click()
           const order = JSON.parse(await browser.elementByCss('#order').text())
           expect(order?.length).toBe(2)
