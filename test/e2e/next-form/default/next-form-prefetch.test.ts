@@ -15,6 +15,11 @@ const _describe =
 _describe('app dir - form prefetching', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    nextConfig: {
+      typescript: {
+        ignoreBuildErrors: true,
+      },
+    },
   })
 
   it("should prefetch a loading state for the form's target", async () => {
