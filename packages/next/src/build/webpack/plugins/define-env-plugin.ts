@@ -190,6 +190,9 @@ export function getDefineEnv({
     'process.env.__NEXT_CLIENT_SEGMENT_CACHE': Boolean(
       config.experimental.clientSegmentCache
     ),
+    'process.env.__NEXT_ERROR_FOR_UNRECOGNIZED_ACTIONS': Boolean(
+      config.experimental.serverActions?.errorOnUnrecognized
+    ),
     'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
       config.experimental.dynamicOnHover
     ),

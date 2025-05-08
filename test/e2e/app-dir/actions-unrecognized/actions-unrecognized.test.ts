@@ -4,9 +4,21 @@ import { createRequestTracker } from 'e2e-utils/request-tracker'
 import { retry } from 'next-test-utils'
 import { outdent } from 'outdent'
 
-describe('unrecognized server actions', () => {
+describe.each([
+  {
+    description: 'legacy behavior (no error)',
+    errorOnUnrecognized: false,
+  },
+  {
+    description: 'modern behavior',
+    errorOnUnrecognized: true,
+  },
+])('unrecognized server actions - $description', ({ errorOnUnrecognized }) => {
   const { next, isNextDeploy, isNextDev } = nextTestSetup({
     files: __dirname,
+    env: {
+      ENABLE_ERROR_ON_UNRECOGNIZED_ACTION: JSON.stringify(errorOnUnrecognized),
+    },
   })
 
   let cliOutputPosition: number = 0
@@ -119,15 +131,24 @@ describe('unrecognized server actions', () => {
         // NOTE: we cannot validate the response text, because playwright hangs on `response.text()` for some reason.
         expect(response.headers()['content-type']).toStartWith('text/plain')
 
-        // calls to unrecognized actions are currently resolved with `undefined` instead of erroring,
-        // so that's what the form state should be.
-        // (this is a bug, but we're rolling out the fix behind a flag)
-        expect(
-          await browser.elementByCss(`form#${formId} .form-state`).text()
-        ).toBe('undefined')
-        expect(await browser.hasElementByCssSelector(`#error-boundary`)).toBe(
-          false
-        )
+        if (errorOnUnrecognized) {
+          // When `experimental.serverActions.errorOnUnrecognized` is enabled,
+          // the submission should throw and trigger our error boundary.
+          expect(
+            await browser.elementByCss(`#error-boundary`).text()
+          ).toContain('Error boundary')
+        } else {
+          // Without `experimental.serverActions.errorOnUnrecognized`,
+          // calls to unrecognized actions are resolved with `undefined` instead of erroring,
+          // so that's what the form state should be.
+          // (this is a bug, but we're rolling out the fix behind a flag)
+          expect(
+            await browser.elementByCss(`form#${formId} .form-state`).text()
+          ).toBe('undefined')
+          expect(await browser.hasElementByCssSelector(`#error-boundary`)).toBe(
+            false
+          )
+        }
 
         // We responded with a 404, but we shouldn't trigger a not-found (either a custom or a default one)
         expect(await browser.elementByCss('body').text()).not.toContain(
