@@ -69,39 +69,24 @@ impl ChunkItemOrBatchWithAsyncModuleInfo {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Option<Self>> {
         Ok(match chunkable_module_or_batch {
-            ChunkableModuleOrBatch::Module(module) => {
-                if *module_graph
-                    .merged_modules()
-                    .should_create_chunk_item_for(*ResolvedVc::upcast(module))
-                    .await?
-                {
-                    Some(Self::ChunkItem(
-                        attach_async_info_to_chunkable_module(
-                            module,
-                            async_module_info,
-                            module_graph,
-                            chunking_context,
-                        )
-                        .await?,
-                    ))
-                } else {
-                    None
-                }
-            }
-            ChunkableModuleOrBatch::Batch(batch) => {
-                let batch = ChunkItemBatchWithAsyncModuleInfo::from_module_batch(
+            ChunkableModuleOrBatch::Module(module) => Some(Self::ChunkItem(
+                attach_async_info_to_chunkable_module(
+                    module,
+                    async_module_info,
+                    module_graph,
+                    chunking_context,
+                )
+                .await?,
+            )),
+            ChunkableModuleOrBatch::Batch(batch) => Some(Self::Batch(
+                ChunkItemBatchWithAsyncModuleInfo::from_module_batch(
                     *batch,
                     module_graph,
                     chunking_context,
                 )
                 .to_resolved()
-                .await?;
-                if !batch.await?.chunk_items.is_empty() {
-                    Some(Self::Batch(batch))
-                } else {
-                    None
-                }
-            }
+                .await?,
+            )),
             ChunkableModuleOrBatch::None(_) => None,
         })
     }
@@ -143,34 +128,20 @@ impl ChunkItemBatchWithAsyncModuleInfo {
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Self>> {
-        let module_sequences = module_graph.merged_modules();
-
         let async_module_info = module_graph.async_module_info().await?;
         let batch = batch.await?;
         let chunk_items = batch
             .modules
             .iter()
-            .map(async |module| {
-                Ok(
-                    if *module_sequences
-                        .should_create_chunk_item_for(Vc::upcast(**module))
-                        .await?
-                    {
-                        Some(
-                            attach_async_info_to_chunkable_module(
-                                *module,
-                                &async_module_info,
-                                module_graph,
-                                chunking_context,
-                            )
-                            .await?,
-                        )
-                    } else {
-                        None
-                    },
+            .map(|module| {
+                attach_async_info_to_chunkable_module(
+                    *module,
+                    &async_module_info,
+                    module_graph,
+                    chunking_context,
                 )
             })
-            .try_flat_join()
+            .try_join()
             .await?;
         Ok(Self {
             chunk_items,
