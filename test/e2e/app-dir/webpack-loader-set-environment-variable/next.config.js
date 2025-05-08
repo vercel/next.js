@@ -11,6 +11,14 @@ const nextConfig = {
       },
     },
   },
+  webpack(config) {
+    config.module.rules.push({
+      test: /\.svg$/,
+      use: [join(__dirname, './custom-loader.js')],
+    })
+
+    return config
+  },
 }
 
 module.exports = nextConfig
