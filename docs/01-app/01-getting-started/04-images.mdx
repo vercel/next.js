@@ -4,7 +4,7 @@ nav_title: Images
 description: Learn how to optimize images in Next.js
 related:
   title: API Reference
-  description: See the API Reference for the full feature set of Next.js Image
+  description: See the API Reference for the full feature set of Next.js Image.
   links:
     - app/api-reference/components/image
 ---
@@ -38,7 +38,7 @@ The `src` property can be a [local](#local-images) or [remote](#remote-images) i
 
 > **🎥 Watch:** Learn more about how to use `next/image` → [YouTube (9 minutes)](https://youtu.be/IU_qq_c_lKA).
 
-### Local images
+## Local images
 
 You can store static files, like images and fonts, under a folder called [`public`](/docs/app/api-reference/file-conventions/public-folder) in the root directory. Files inside `public` can then be referenced by your code starting from the base URL (`/`).
 
@@ -86,7 +86,7 @@ export default function Page() {
 
 When using local images, Next.js will automatically determine the intrinsic [`width`](/docs/app/api-reference/components/image#width-and-height) and [`height`](/docs/app/api-reference/components/image#width-and-height) of your image based on the imported file. These values are used to determine the image ratio and prevent [Cumulative Layout Shift](https://web.dev/articles/cls) while your image is loading.
 
-### Remote images
+## Remote images
 
 To use a remote image, you can provide a URL string for the `src` property.
 
