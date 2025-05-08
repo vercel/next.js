@@ -60,7 +60,7 @@ use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat, effect, mark_session_dependent, mark_stateful, trace::TraceRawVcs,
-    ApplyEffectContext, Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef,
+    ApplyEffectsContext, Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef,
     ResolvedVc, ValueToString, Vc,
 };
 use turbo_tasks_hash::{
@@ -402,7 +402,7 @@ impl DiskFileSystemInner {
     }
 
     async fn create_directory(self: &Arc<Self>, directory: &Path) -> Result<()> {
-        let already_created = ApplyEffectContext::with_or_insert_with(
+        let already_created = ApplyEffectsContext::with_or_insert_with(
             DiskFileSystemApplyContext::default,
             |fs_context| fs_context.created_directories.contains(directory),
         );
@@ -415,7 +415,7 @@ impl DiskFileSystemInner {
                     path = display(directory.display())
                 ))
                 .await?;
-            ApplyEffectContext::with(|fs_context: &mut DiskFileSystemApplyContext| {
+            ApplyEffectsContext::with(|fs_context: &mut DiskFileSystemApplyContext| {
                 fs_context
                     .created_directories
                     .insert(directory.to_path_buf())

@@ -90,7 +90,7 @@ use auto_hash_map::AutoSet;
 pub use collectibles::CollectiblesSource;
 pub use completion::{Completion, Completions};
 pub use display::ValueToString;
-pub use effect::{apply_effects, effect, get_effects, ApplyEffectContext, Effects};
+pub use effect::{apply_effects, effect, get_effects, ApplyEffectsContext, Effects};
 pub use id::{
     ExecutionId, FunctionId, LocalTaskId, SessionId, TaskId, TraitTypeId, ValueTypeId,
     TRANSIENT_TASK_BIT,

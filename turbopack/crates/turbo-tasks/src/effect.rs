@@ -5,6 +5,7 @@ use std::{
     mem::replace,
     panic,
     pin::Pin,
+    sync::Arc,
 };
 
 use anyhow::{anyhow, Result};
@@ -98,10 +99,10 @@ impl EffectInstance {
                     listener.await;
                 }
                 State::NotStarted(EffectInner { future }) => {
-                    let join_handle = tokio::spawn(
+                    let join_handle = tokio::spawn(ApplyEffectsContext::in_current_scope(
                         turbo_tasks_future_scope(turbo_tasks::turbo_tasks(), future)
                             .instrument(Span::current()),
-                    );
+                    ));
                     let result = match join_handle.await {
                         Ok(Err(err)) => Err(SharedError::new(err)),
                         Err(err) => {
@@ -279,15 +280,26 @@ impl Effects {
 
 task_local! {
     /// The context of the current effects application.
-    static APPLY_EFFECTS_CONTEXT: Mutex<ApplyEffectContext>;
+    static APPLY_EFFECTS_CONTEXT: Arc<Mutex<ApplyEffectsContext>>;
 }
 
 #[derive(Default)]
-pub struct ApplyEffectContext {
+pub struct ApplyEffectsContext {
     data: FxHashMap<TypeId, Box<dyn Any + Send + Sync>>,
 }
 
-impl ApplyEffectContext {
+impl ApplyEffectsContext {
+    fn in_current_scope<F: Future>(f: F) -> impl Future<Output = F::Output> {
+        let current = Self::current();
+        APPLY_EFFECTS_CONTEXT.scope(current, f)
+    }
+
+    fn current() -> Arc<Mutex<Self>> {
+        APPLY_EFFECTS_CONTEXT
+            .try_with(|mutex| mutex.clone())
+            .expect("No effect context found")
+    }
+
     fn with_context<T, F: FnOnce(&mut Self) -> T>(f: F) -> T {
         APPLY_EFFECTS_CONTEXT
             .try_with(|mutex| f(&mut mutex.lock()))
