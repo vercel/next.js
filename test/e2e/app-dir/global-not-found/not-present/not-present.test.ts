@@ -11,4 +11,10 @@ describe('global-not-found - not-present', () => {
     const bodyText = await browser.elementByCss('body').text()
     expect(bodyText).toBe('404\nThis page could not be found.')
   })
+
+  it('should render custom not-found.js boundary when global-not-found is not defined but enabled', async () => {
+    const browser = await next.browser('/call-not-found')
+    const bodyText = await browser.elementByCss('body').text()
+    expect(bodyText).toBe('not-found.js')
+  })
 })

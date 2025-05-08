@@ -1353,7 +1353,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             },
             modules: AppDirModules {
                 // `global-not-found.js` does not need a layout since it's included.
-                // Skip it if it's presented.
+                // Skip it if it's present.
                 // Otherwise, we need to compose it with the root layout to compose with not-found.js boundary.
                 layout: if use_global_not_found {
                     None

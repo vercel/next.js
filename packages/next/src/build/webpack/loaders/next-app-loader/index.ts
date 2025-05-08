@@ -561,7 +561,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
   // Update FILE_TYPES on the very top-level of the loader
   if (!isGlobalNotFoundEnabled) {
-    // @ts-expect-error
+    // @ts-expect-error this delete is only necessary while experimental
     delete FILE_TYPES['global-not-found']
   }
 
