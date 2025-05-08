@@ -575,7 +575,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   }
 
   apply(compiler: webpack.Compiler) {
-    compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
+    compiler.hooks.thisCompilation.tap(PLUGIN_NAME, (compilation) => {
       const compilationSpan =
         getCompilationSpan(compilation) || getCompilationSpan(compiler)!
       const traceEntrypointsPluginSpan = compilationSpan.traceChild(
