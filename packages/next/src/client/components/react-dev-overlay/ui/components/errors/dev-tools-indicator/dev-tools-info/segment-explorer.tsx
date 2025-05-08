@@ -1,4 +1,4 @@
-import { useRef, type HTMLProps } from 'react'
+import type { HTMLProps } from 'react'
 import { css } from '../../../../../utils/css'
 import type { DevToolsInfoPropsCore } from './dev-tools-info'
 import { DevToolsInfo } from './dev-tools-info'
@@ -51,7 +51,6 @@ const ICONS = {
 }
 
 function PageSegmentTree({ tree }: { tree: Trie | undefined }) {
-  const renderedRef = useRef<Record<string, number>>({})
   if (!tree) {
     return null
   }
@@ -61,7 +60,6 @@ function PageSegmentTree({ tree }: { tree: Trie | undefined }) {
         tree={tree}
         node={tree.getRoot()}
         level={0}
-        renderedRef={renderedRef}
       />
     </div>
   )
@@ -71,28 +69,11 @@ function PageSegmentTreeLayerPresentation({
   tree,
   node,
   level,
-  renderedRef,
 }: {
   tree: Trie
   node: TrieNode
   level: number
-  renderedRef: React.RefObject<Record<string, number>>
 }) {
-  // Store the level number for each segment.
-  // Check if the node has been rendered before
-  const renderedLevel = renderedRef.current[node.value || '']
-  const hasRenderedBefore = typeof renderedLevel !== 'undefined'
-  if (hasRenderedBefore && renderedLevel !== level) {
-    return null
-  }
-
-  if (
-    // Skip '' pagePath of root node
-    node.value &&
-    !hasRenderedBefore
-  ) {
-    renderedRef.current[node.value] = level
-  }
   const segments = node.value?.split('/') || []
   const fileName = segments[segments.length - 1] || ''
   const nodeName = fileName.split('.')[0] === 'layout' ? 'layout' : 'page'
@@ -128,7 +109,6 @@ function PageSegmentTreeLayerPresentation({
                 tree={tree}
                 node={child}
                 level={level + 1}
-                renderedRef={renderedRef}
               />
             )
         )}
