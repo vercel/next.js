@@ -108,6 +108,38 @@ impl ChunkableModules {
     }
 }
 
+#[turbo_tasks::value(shared)]
+pub enum MergeableModuleResult {
+    Merged {
+        merged_module: ResolvedVc<Box<dyn ChunkableModule>>,
+        consumed: u32,
+        skipped: u32,
+    },
+    NotMerged,
+}
+#[turbo_tasks::value_impl]
+impl MergeableModuleResult {
+    #[turbo_tasks::function]
+    pub fn not_merged() -> Vc<Self> {
+        MergeableModuleResult::NotMerged.cell()
+    }
+}
+
+#[turbo_tasks::value_trait]
+pub trait MergeableModule: Module + Asset {
+    fn merge(self: Vc<Self>, modules: Vc<MergeableModules>) -> Vc<MergeableModuleResult>;
+}
+#[turbo_tasks::value(transparent)]
+pub struct MergeableModules(Vec<ResolvedVc<Box<dyn MergeableModule>>>);
+
+#[turbo_tasks::value_impl]
+impl MergeableModules {
+    #[turbo_tasks::function]
+    pub fn interned(modules: Vec<ResolvedVc<Box<dyn MergeableModule>>>) -> Vc<Self> {
+        Vc::cell(modules)
+    }
+}
+
 #[turbo_tasks::value(transparent)]
 pub struct Chunks(Vec<ResolvedVc<Box<dyn Chunk>>>);
 

@@ -79,7 +79,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext, EvaluatableAsset,
-        MinifyType,
+        MergeableModule, MergeableModuleResult, MergeableModules, MinifyType,
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
@@ -713,6 +713,63 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
         } else {
             Vc::cell(self.analyze().await?.has_side_effect_free_directive)
         })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl MergeableModule for EcmascriptModuleAsset {
+    // Clippy is wrong here, they are not equivalent (the for-loop restarts the iterator)
+    #[allow(clippy::while_let_on_iterator)]
+    #[turbo_tasks::function]
+    async fn merge(
+        self: ResolvedVc<Self>,
+        modules: Vc<MergeableModules>,
+    ) -> Result<Vc<MergeableModuleResult>> {
+        let modules = modules.await?;
+        let mut modules = modules.iter();
+
+        let mut skipped = 0;
+        let mut consumed_modules = vec![];
+
+        while let Some(m) = modules.next() {
+            // Skip some modules, try to find the first eligible module
+            if let Some(m) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(*m) {
+                consumed_modules.push(m);
+                // Consume as many as possible to merge together
+                while let Some(m) = modules.next() {
+                    if let Some(m) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(*m) {
+                        consumed_modules.push(m);
+                    } else {
+                        break;
+                    }
+                }
+                if consumed_modules.len() > 1 {
+                    // Successfully found something to
+                    break;
+                } else {
+                    // Only a single module, ignore this one and try to find a bigger sequence in
+                    // the remaining list.
+                    consumed_modules.clear();
+                    skipped += 1;
+                }
+            } else {
+                skipped += 1;
+            }
+        }
+
+        if !consumed_modules.is_empty() {
+            #[allow(unreachable_code)]
+            Ok(MergeableModuleResult::Merged {
+                consumed: consumed_modules.len() as u32,
+                skipped,
+                merged_module: todo!(),
+                // TODO
+                // merged_module: MergedEcmascriptModule::new(consumed_modules)
+            }
+            .cell())
+        } else {
+            Ok(MergeableModuleResult::not_merged())
+        }
     }
 }
 
