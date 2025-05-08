@@ -130,7 +130,6 @@ jobs:
     with:
       needsRust: 'yes'
       needsNextest: 'yes'
-      skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
       afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit
       mold: 'yes'
