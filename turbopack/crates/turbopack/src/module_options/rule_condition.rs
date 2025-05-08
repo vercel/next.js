@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
+use turbo_esregex::EsRegex;
 use turbo_tasks::{primitives::Regex, trace::TraceRawVcs, NonLocalValue, ReadRef, ResolvedVc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
@@ -21,6 +22,7 @@ pub enum RuleCondition {
     ContentTypeStartsWith(String),
     ContentTypeEmpty,
     ResourcePathRegex(#[turbo_tasks(trace_ignore)] Regex),
+    ResourcePathEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
     /// For paths that are within the same filesystem as the `base`, it need to
     /// match the relative path from base to resource. This includes `./` or
     /// `../` prefix. For paths in a different filesystem, it need to match
@@ -125,6 +127,7 @@ impl RuleCondition {
             RuleCondition::ResourcePathRegex(_) => {
                 bail!("ResourcePathRegex not implemented yet")
             }
+            RuleCondition::ResourcePathEsRegex(regex) => regex.is_match(&path.path),
         })
     }
 }

@@ -764,7 +764,9 @@ export function createStaticWorker(
       progress?.clear()
     },
     forkOptions: {
-      env: { ...process.env, NODE_OPTIONS: formatNodeOptions(nodeOptions) },
+      env: {
+        NODE_OPTIONS: formatNodeOptions(nodeOptions),
+      },
     },
     enableWorkerThreads: config.experimental.workerThreads,
     exposedMethods: staticWorkerExposedMethods,
@@ -1516,6 +1518,7 @@ export default async function build(
                     hasSsrAmpPages: false,
                     buildTraceContext,
                     outputFileTracingRoot,
+                    isTurbopack: false,
                   })
                   .catch((err) => {
                     console.error(err)
@@ -2441,6 +2444,7 @@ export default async function build(
           hasSsrAmpPages,
           buildTraceContext,
           outputFileTracingRoot,
+          isTurbopack: true,
         }).catch((err) => {
           console.error(err)
           process.exit(1)

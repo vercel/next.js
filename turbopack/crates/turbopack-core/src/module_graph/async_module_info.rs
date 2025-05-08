@@ -3,7 +3,6 @@ use rustc_hash::FxHashSet;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
-    chunk::ChunkingType,
     module::{Module, Modules},
     module_graph::{GraphTraversalAction, ModuleGraph, SingleModuleGraph},
 };
@@ -86,27 +85,8 @@ async fn compute_async_module_info_single(
             let module = module.module();
             let parent_module = parent_module.module;
 
-            // edges.push((parent_module, module, async_modules.contains(&module)));
-            match chunking_type {
-                ChunkingType::ParallelInheritAsync
-                | ChunkingType::Shared {
-                    inherit_async: true,
-                    ..
-                } => {
-                    if async_modules.contains(&module) {
-                        async_modules.insert(parent_module);
-                    }
-                }
-                ChunkingType::Parallel
-                | ChunkingType::Async
-                | ChunkingType::Isolated { .. }
-                | ChunkingType::Traced
-                | ChunkingType::Shared {
-                    inherit_async: false,
-                    ..
-                } => {
-                    // Nothing to propagate
-                }
+            if chunking_type.is_inherit_async() && async_modules.contains(&module) {
+                async_modules.insert(parent_module);
             }
         },
     )?;

@@ -46,8 +46,8 @@ use invalidator_map::InvalidatorMap;
 use jsonc_parser::{parse_to_serde_value, ParseOptions};
 use mime::Mime;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use read_glob::read_glob;
 pub use read_glob::ReadGlobResult;
+use read_glob::{read_glob, track_glob};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::{
@@ -203,7 +203,6 @@ pub trait FileSystem: ValueToString {
     fn read(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<FileContent>;
     fn read_link(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<LinkContent>;
     fn raw_read_dir(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<RawDirectoryContent>;
-    fn track(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<Completion>;
     fn write(self: Vc<Self>, fs_path: Vc<FileSystemPath>, content: Vc<FileContent>) -> Vc<()>;
     fn write_link(self: Vc<Self>, fs_path: Vc<FileSystemPath>, target: Vc<LinkContent>) -> Vc<()>;
     fn metadata(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<FileMeta>;
@@ -684,14 +683,6 @@ impl FileSystem for DiskFileSystem {
             },
         }
         .cell())
-    }
-
-    #[turbo_tasks::function(fs)]
-    async fn track(&self, fs_path: Vc<FileSystemPath>) -> Result<Vc<Completion>> {
-        mark_session_dependent();
-        let full_path = self.to_sys_path(fs_path).await?;
-        self.inner.register_read_invalidator(&full_path)?;
-        Ok(Completion::new())
     }
 
     #[turbo_tasks::function(fs)]
@@ -1328,6 +1319,13 @@ impl FileSystemPath {
         read_glob(self, glob, include_dot_files)
     }
 
+    // Tracks all files and directories matching the glob
+    // Follows symlinks as though they were part of the original hierarchy.
+    #[turbo_tasks::function]
+    pub fn track_glob(self: Vc<Self>, glob: Vc<Glob>, include_dot_files: bool) -> Vc<Completion> {
+        track_glob(self, glob, include_dot_files)
+    }
+
     #[turbo_tasks::function]
     pub fn root(self: Vc<Self>) -> Vc<Self> {
         self.fs().root()
@@ -1466,10 +1464,6 @@ impl FileSystemPath {
         self.fs().raw_read_dir(self)
     }
 
-    pub fn track(self: Vc<Self>) -> Vc<Completion> {
-        self.fs().track(self)
-    }
-
     pub fn write(self: Vc<Self>, content: Vc<FileContent>) -> Vc<()> {
         self.fs().write(self, content)
     }
@@ -1503,24 +1497,29 @@ impl FileSystemPath {
     /// depend on the order.
     #[turbo_tasks::function]
     pub async fn read_dir(self: Vc<Self>) -> Result<Vc<DirectoryContent>> {
-        match &*self.await?.fs.raw_read_dir(self).await? {
+        let this = self.await?;
+        let fs = this.fs;
+        match &*fs.raw_read_dir(self).await? {
             RawDirectoryContent::NotFound => Ok(DirectoryContent::not_found()),
             RawDirectoryContent::Entries(entries) => {
                 let mut normalized_entries = AutoMap::new();
+                let dir_path = &this.path;
                 for (name, entry) in entries {
+                    // Construct the path directly instead of going through `join`.
+                    // We do not need to normalize since the `name` is guaranteed to be a simple
+                    // path segment.
+                    let path = if dir_path.is_empty() {
+                        name.clone()
+                    } else {
+                        RcStr::from(format!("{dir_path}/{name}"))
+                    };
+
+                    let entry_path = Self::new_normalized(*fs, path).to_resolved().await?;
                     let entry = match entry {
-                        RawDirectoryEntry::File => {
-                            DirectoryEntry::File(self.join(name.clone()).to_resolved().await?)
-                        }
-                        RawDirectoryEntry::Directory => {
-                            DirectoryEntry::Directory(self.join(name.clone()).to_resolved().await?)
-                        }
-                        RawDirectoryEntry::Symlink => {
-                            DirectoryEntry::Symlink(self.join(name.clone()).to_resolved().await?)
-                        }
-                        RawDirectoryEntry::Other => {
-                            DirectoryEntry::Other(self.join(name.clone()).to_resolved().await?)
-                        }
+                        RawDirectoryEntry::File => DirectoryEntry::File(entry_path),
+                        RawDirectoryEntry::Directory => DirectoryEntry::Directory(entry_path),
+                        RawDirectoryEntry::Symlink => DirectoryEntry::Symlink(entry_path),
+                        RawDirectoryEntry::Other => DirectoryEntry::Other(entry_path),
                         RawDirectoryEntry::Error => DirectoryEntry::Error,
                     };
                     normalized_entries.insert(name.clone(), entry);
@@ -2305,10 +2304,10 @@ pub enum DirectoryEntry {
     Error,
 }
 
-/// Handles the `DirectoryEntry::Symlink` variant by checking the symlink target
-/// type and replacing it with `DirectoryEntry::File` or
-/// `DirectoryEntry::Directory`.
 impl DirectoryEntry {
+    /// Handles the `DirectoryEntry::Symlink` variant by checking the symlink target
+    /// type and replacing it with `DirectoryEntry::File` or
+    /// `DirectoryEntry::Directory`.
     pub async fn resolve_symlink(self) -> Result<Self> {
         if let DirectoryEntry::Symlink(symlink) = self {
             let real_path = symlink.realpath().to_resolved().await?;
@@ -2319,6 +2318,16 @@ impl DirectoryEntry {
             }
         } else {
             Ok(self)
+        }
+    }
+
+    pub fn path(self) -> Option<ResolvedVc<FileSystemPath>> {
+        match self {
+            DirectoryEntry::File(path)
+            | DirectoryEntry::Directory(path)
+            | DirectoryEntry::Symlink(path)
+            | DirectoryEntry::Other(path) => Some(path),
+            DirectoryEntry::Error => None,
         }
     }
 }
@@ -2384,6 +2393,8 @@ impl From<&RawDirectoryEntry> for FileSystemEntryType {
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub enum RawDirectoryContent {
+    // The entry keys are the directory relative file names
+    // e.g. for `/bar/foo`, it will be `foo`
     Entries(AutoMap<RcStr, RawDirectoryEntry>),
     NotFound,
 }
@@ -2433,11 +2444,6 @@ impl FileSystem for NullFileSystem {
     #[turbo_tasks::function]
     fn raw_read_dir(&self, _fs_path: Vc<FileSystemPath>) -> Vc<RawDirectoryContent> {
         RawDirectoryContent::not_found()
-    }
-
-    #[turbo_tasks::function]
-    fn track(&self, _fs_path: Vc<FileSystemPath>) -> Vc<Completion> {
-        Completion::immutable()
     }
 
     #[turbo_tasks::function]

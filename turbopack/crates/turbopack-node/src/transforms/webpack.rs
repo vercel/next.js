@@ -16,8 +16,7 @@ use turbo_tasks::{
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
-    glob::Glob, json::parse_json_with_source_context, rope::Rope, DirectoryEntry, File,
-    FileContent, FileSystemPath, ReadGlobResult,
+    glob::Glob, json::parse_json_with_source_context, rope::Rope, File, FileContent, FileSystemPath,
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -379,7 +378,9 @@ pub enum InfoMessage {
         severity: IssueSeverity,
         error: StructuredError,
     },
-    Log(LogInfo),
+    Log {
+        logs: Vec<LogInfo>,
+    },
 }
 
 #[derive(Debug, Clone, TaskInput, Hash, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
@@ -510,15 +511,9 @@ impl EvaluateContext for WebpackLoaderContext {
                 let directory_subscriptions = directories
                     .iter()
                     .map(|(dir, glob)| {
-                        // TODO: there is some redundancy between `dir_dependency` and what
-                        // `read_glob` does, Introduce a new read_glob
-                        // option that will track all files the way
-                        // `dir_dependency` does but in a single traversal.
-                        dir_dependency(
-                            self.cwd
-                                .join(dir.clone())
-                                .read_glob(Glob::new(glob.clone()), false),
-                        )
+                        self.cwd
+                            .join(dir.clone())
+                            .track_glob(Glob::new(glob.clone()), false)
                     })
                     .try_join();
                 let build_paths = build_file_paths
@@ -553,8 +548,8 @@ impl EvaluateContext for WebpackLoaderContext {
                 .resolved_cell()
                 .emit();
             }
-            InfoMessage::Log(log) => {
-                state.push(log);
+            InfoMessage::Log { logs } => {
+                state.extend(logs);
             }
         }
         Ok(())
@@ -776,45 +771,6 @@ impl Issue for BuildDependencyIssue {
             .resolved_cell(),
         )))
     }
-}
-
-/// A hack to invalidate when any file in a directory changes. Need to be
-/// awaited before files are accessed.
-#[turbo_tasks::function]
-async fn dir_dependency(glob: Vc<ReadGlobResult>) -> Result<Vc<Completion>> {
-    let shallow = dir_dependency_shallow(glob);
-    let glob = glob.await?;
-    glob.inner
-        .values()
-        .map(|&inner| dir_dependency(*inner))
-        .try_join()
-        .await?;
-    shallow.await?;
-    Ok(Completion::new())
-}
-
-#[turbo_tasks::function]
-async fn dir_dependency_shallow(glob: Vc<ReadGlobResult>) -> Result<Vc<Completion>> {
-    let glob = glob.await?;
-    for item in glob.results.values() {
-        // Reading all files to add itself as dependency
-        match *item {
-            DirectoryEntry::File(file) => {
-                file.read().await?;
-            }
-            DirectoryEntry::Directory(dir) => {
-                dir_dependency(dir.read_glob(Glob::new("**".into()), false)).await?;
-            }
-            DirectoryEntry::Symlink(symlink) => {
-                symlink.read_link().await?;
-            }
-            DirectoryEntry::Other(other) => {
-                other.get_type().await?;
-            }
-            DirectoryEntry::Error => {}
-        }
-    }
-    Ok(Completion::new())
 }
 
 #[turbo_tasks::value(shared)]

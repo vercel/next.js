@@ -1317,7 +1317,10 @@ struct SingleModuleGraphBuilderEdge {
 
 /// The chunking type that occurs most often, is handled more efficiently by not creating
 /// intermediate SingleModuleGraphBuilderNode::ChunkableReference nodes.
-const COMMON_CHUNKING_TYPE: ChunkingType = ChunkingType::ParallelInheritAsync;
+const COMMON_CHUNKING_TYPE: ChunkingType = ChunkingType::Parallel {
+    inherit_async: true,
+    hoisted: true,
+};
 
 struct SingleModuleGraphBuilder<'a> {
     visited_modules: &'a FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
@@ -1425,7 +1428,10 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
                 target_ident,
                 ..
             } => match chunking_type {
-                ChunkingType::Parallel => Span::current(),
+                ChunkingType::Parallel {
+                    inherit_async: false,
+                    ..
+                } => Span::current(),
                 _ => {
                     tracing::info_span!(
                         "chunkable reference",

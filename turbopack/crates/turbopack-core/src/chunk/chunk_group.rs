@@ -264,9 +264,7 @@ pub async fn chunk_group_content(
             };
 
             Ok(match edge.ty {
-                ChunkingType::Parallel
-                | ChunkingType::ParallelInheritAsync
-                | ChunkingType::Shared { .. } => {
+                ChunkingType::Parallel { .. } | ChunkingType::Shared { .. } => {
                     if is_available {
                         GraphTraversalAction::Exclude
                     } else if state

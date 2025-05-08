@@ -37,6 +37,7 @@ remove_console = "0.37.0"
 itertools = { workspace = true }
 auto-hash-map = { workspace = true }
 percent-encoding = "2.3.1"
+serde_path_to_error = { workspace = true }
 
 swc_core = { workspace = true, features = [
   "base",
@@ -60,6 +61,7 @@ modularize_imports = { workspace = true }
 swc_relay = { workspace = true }
 
 turbo-rcstr = { workspace = true }
+turbo-esregex = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-bytes = { workspace = true }
 turbo-tasks-env = { workspace = true }

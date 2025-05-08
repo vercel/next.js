@@ -89,7 +89,7 @@ describe('app-dir - server source maps', () => {
 
   it('stack frames are ignore-listed in ssr', async () => {
     const outputIndex = next.cliOutput.length
-    await next.render('/ssr-error-log-ignore-listed')
+    const browser = await next.browser('/ssr-error-log-ignore-listed')
 
     if (isNextDev) {
       await retry(() => {
@@ -115,7 +115,7 @@ describe('app-dir - server source maps', () => {
           : '\nError: Boom' +
               '\n    at logError (app/ssr-error-log-ignore-listed/page.js:9:16)' +
               '\n    at runWithInternalIgnored (app/ssr-error-log-ignore-listed/page.js:19:12)' +
-              // TODO(veil): Webpacks's sourcemap loader drops `ignoreList`
+              // TODO(veil-NDX-910): Webpacks's sourcemap loader drops `ignoreList`
               // TODO(veil): Webpack's sourcemap loader creates an incorrect `sources` entry.
               // Can be worked around by using `./sourcemapped.ts` instead of `sourcemapped.ts`.
               '\n    at runInternalIgnored (webpack-internal:/(ssr)/internal-pkg/ignored.ts:6:9)' +
@@ -133,6 +133,58 @@ describe('app-dir - server source maps', () => {
               '\n   7 |' +
               '\n'
       )
+      if (isTurbopack) {
+        // TODO(veil): Turbopack errors because it thinks the sources are not part of the project.
+        // TODO(veil-NDX-910): Turbopack's sourcemap loader drops `ignoreList` in browser sourcemaps.
+        await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "description": "Boom",
+           "environmentLabel": null,
+           "label": "Console Error",
+           "source": "app/ssr-error-log-ignore-listed/page.js (9:17) @ logError
+         >  9 |   const error = new Error('Boom')
+              |                 ^",
+           "stack": [
+             "logError app/ssr-error-log-ignore-listed/page.js (9:17)",
+             "runWithInternalIgnored app/ssr-error-log-ignore-listed/page.js (19:13)",
+             "<FIXME-file-protocol>",
+             "runWithExternalSourceMapped app/ssr-error-log-ignore-listed/page.js (18:28)",
+             "<FIXME-file-protocol>",
+             "runWithExternal app/ssr-error-log-ignore-listed/page.js (17:31)",
+             "runWithInternalSourceMapped app/ssr-error-log-ignore-listed/page.js (16:17)",
+             "<FIXME-file-protocol>",
+             "runWithInternal app/ssr-error-log-ignore-listed/page.js (15:27)",
+             "runInternal internal-pkg/index.js (2:10)",
+             "Page app/ssr-error-log-ignore-listed/page.js (14:13)",
+           ],
+         }
+        `)
+      } else {
+        // TODO(veil-NDX-910): Webpacks's sourcemap loader drops `ignoreList`
+        // TODO(veil): Webpack's sourcemap loader creates an incorrect `sources` entry.
+        await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "description": "Boom",
+           "environmentLabel": null,
+           "label": "Console Error",
+           "source": "app/ssr-error-log-ignore-listed/page.js (9:17) @ logError
+         >  9 |   const error = new Error('Boom')
+              |                 ^",
+           "stack": [
+             "logError app/ssr-error-log-ignore-listed/page.js (9:17)",
+             "runWithInternalIgnored app/ssr-error-log-ignore-listed/page.js (19:13)",
+             "runInternalIgnored ignored.ts (6:10)",
+             "runWithExternalSourceMapped app/ssr-error-log-ignore-listed/page.js (18:29)",
+             "runWithExternal app/ssr-error-log-ignore-listed/page.js (17:32)",
+             "runWithInternalSourceMapped app/ssr-error-log-ignore-listed/page.js (16:18)",
+             "runInternalSourceMapped sourcemapped.ts (5:10)",
+             "runWithInternal app/ssr-error-log-ignore-listed/page.js (15:28)",
+             "runInternal internal-pkg/index.js (2:10)",
+             "Page app/ssr-error-log-ignore-listed/page.js (14:14)",
+           ],
+         }
+        `)
+      }
     } else {
       // TODO: Test `next build` with `--enable-source-maps`.
     }
