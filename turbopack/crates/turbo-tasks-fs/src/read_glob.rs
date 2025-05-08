@@ -321,7 +321,7 @@ pub mod tests {
                 path,
                 Vec::new(),
             ));
-            let read_dir = fs
+            let read_dir = &*fs
                 .root()
                 .read_glob(Glob::new("*.js".into()), false)
                 .await
