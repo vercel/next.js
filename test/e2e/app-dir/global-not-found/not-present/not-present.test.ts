@@ -15,6 +15,10 @@ describe('global-not-found - not-present', () => {
   it('should render custom not-found.js boundary when global-not-found is not defined but enabled', async () => {
     const browser = await next.browser('/call-not-found')
     const bodyText = await browser.elementByCss('body').text()
+    const htmlLang = await browser.elementByCss('html').getAttribute('lang')
+    // Render the root layout
+    expect(htmlLang).toBe('en')
+    // Render the not-found.js boundary
     expect(bodyText).toBe('not-found.js')
   })
 })
