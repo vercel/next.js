@@ -86,6 +86,8 @@ jobs:
     needs: ['build-next']
     uses: ./.github/workflows/build_reusable.yml
     with:
+      skipNativeBuild: 'yes'
+      skipNativeInstall: 'yes'
       afterBuild: |
         pnpm lint-no-typescript
         pnpm check-examples
@@ -128,6 +130,7 @@ jobs:
     with:
       needsRust: 'yes'
       needsNextest: 'yes'
+      skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
       afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit
       mold: 'yes'
@@ -213,6 +216,7 @@ jobs:
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
     uses: ./.github/workflows/build_reusable.yml
     with:
+      skipNativeBuild: 'yes'
       stepName: 'test-devlow'
       afterBuild: |
         pnpm run --filter=devlow-bench test
@@ -343,6 +347,8 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
+      skipNativeBuild: 'yes'
+      skipNativeInstall: 'yes'
       afterBuild: |
         rustup target add wasm32-unknown-unknown
         curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
@@ -372,6 +378,8 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
+      skipNativeBuild: 'yes'
+      skipNativeInstall: 'yes'
       afterBuild: |
         rustup target add wasm32-wasip1-threads
         pnpm dlx turbo@${TURBO_VERSION} run build-native-wasi
@@ -380,7 +388,7 @@ jobs:
 
   test-unit:
     name: test unit
-    needs: ['changes']
+    needs: ['changes', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
@@ -390,6 +398,8 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
+      skipNativeBuild: 'yes'
+      skipNativeInstall: 'yes'
       nodeVersion: ${{ matrix.node }}
       afterBuild: node run-tests.js --type unit
       stepName: 'test-unit-${{ matrix.node }}'
