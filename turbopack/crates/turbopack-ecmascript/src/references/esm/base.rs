@@ -273,12 +273,18 @@ impl ChunkableModuleReference for EsmAssetReference {
         Ok(Vc::cell(
             if let Some(chunking_type) = self.annotations.chunking_type() {
                 match chunking_type {
-                    "parallel" => Some(ChunkingType::ParallelInheritAsync),
+                    "parallel" => Some(ChunkingType::Parallel {
+                        inherit_async: true,
+                        hoisted: true,
+                    }),
                     "none" => None,
                     _ => return Err(anyhow!("unknown chunking_type: {}", chunking_type)),
                 }
             } else {
-                Some(ChunkingType::ParallelInheritAsync)
+                Some(ChunkingType::Parallel {
+                    inherit_async: true,
+                    hoisted: true,
+                })
             },
         ))
     }

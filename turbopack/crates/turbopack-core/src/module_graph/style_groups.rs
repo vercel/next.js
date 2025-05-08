@@ -14,7 +14,7 @@ use crate::{
     chunk::{
         chunk_item_batch::attach_async_info_to_chunkable_module, ChunkItem,
         ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
-        ChunkableModule, ChunkingContext, ChunkingType,
+        ChunkableModule, ChunkingContext,
     },
     module::{Module, StyleType},
     module_graph::{
@@ -99,10 +99,7 @@ pub async fn compute_style_groups(
             &mut (),
             |parent_info, module, _| {
                 if let Some((_, ModuleBatchesGraphEdge { ty, .. })) = parent_info {
-                    if !matches!(
-                        ty,
-                        ChunkingType::Parallel | ChunkingType::ParallelInheritAsync
-                    ) {
+                    if !ty.is_parallel() {
                         return Ok(GraphTraversalAction::Exclude);
                     }
                 }
@@ -114,10 +111,7 @@ pub async fn compute_style_groups(
             },
             |parent_info, item, _| {
                 if let Some((_, ModuleBatchesGraphEdge { ty, .. })) = parent_info {
-                    if !matches!(
-                        ty,
-                        ChunkingType::Parallel | ChunkingType::ParallelInheritAsync
-                    ) {
+                    if !ty.is_parallel() {
                         return;
                     }
                 }

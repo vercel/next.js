@@ -102,7 +102,10 @@ impl ModuleReference for EcmascriptModulePartReference {
 impl ChunkableModuleReference for EcmascriptModulePartReference {
     #[turbo_tasks::function]
     fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::ParallelInheritAsync))
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: true,
+            hoisted: true,
+        }))
     }
 }
 

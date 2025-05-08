@@ -129,7 +129,7 @@ const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<
   })
 }
 
-function getDevWorkerBlobURL(chunks) {
+function getDevWorkerBlobURL(chunks: ChunkPath[]) {
   return getWorkerBlobURL(
     chunks,
     `// noop fns to prevent runtime errors during initialization
@@ -232,10 +232,6 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
           R: createResolvePathFromModule(r),
           b: getDevWorkerBlobURL,
           z: requireStub,
-          d:
-            typeof module.id === 'string'
-              ? module.id.replace(/(^|\/)\/+$/, '')
-              : module.id,
         })
       )
     })

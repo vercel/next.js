@@ -1271,6 +1271,8 @@
       "app dir - basic next/script should insert preload tags for beforeInteractive and afterInteractive scripts",
       "app dir - basic next/script should load stylesheets for next/scripts",
       "app dir - basic next/script should pass `nonce`",
+      "app dir - basic next/script should pass manual `nonce`",
+      "app dir - basic next/script should pass manual `nonce` pages",
       "app dir - basic next/script should pass nonce when using next/font",
       "app dir - basic next/script should pass on extra props for beforeInteractive scripts with a src prop",
       "app dir - basic next/script should pass on extra props for beforeInteractive scripts without a src prop",
@@ -1388,6 +1390,8 @@
       "app dir - basic next/script should insert preload tags for beforeInteractive and afterInteractive scripts",
       "app dir - basic next/script should load stylesheets for next/scripts",
       "app dir - basic next/script should pass `nonce`",
+      "app dir - basic next/script should pass manual `nonce`",
+      "app dir - basic next/script should pass manual `nonce` pages",
       "app dir - basic next/script should pass nonce when using next/font",
       "app dir - basic next/script should pass on extra props for beforeInteractive scripts with a src prop",
       "app dir - basic next/script should pass on extra props for beforeInteractive scripts without a src prop",
@@ -18574,7 +18578,13 @@
       "Subresource Integrity with node runtime includes a nonce value with inline scripts when Content-Security-Policy header is defined",
       "Subresource Integrity with node runtime includes a nonce value with inline scripts when Content-Security-Policy-Report-Only header is defined",
       "Subresource Integrity with node runtime includes an integrity attribute on scripts",
-      "Subresource Integrity with node runtime throws when escape characters are included in nonce"
+      "Subresource Integrity with node runtime throws when escape characters are included in nonce",
+      "Subresource Integrity with pages runtime does not include nonce when not enabled",
+      "Subresource Integrity with pages runtime includes a nonce value with bootstrap scripts when Content-Security-Policy header is defined",
+      "Subresource Integrity with pages runtime includes a nonce value with inline scripts when Content-Security-Policy header is defined",
+      "Subresource Integrity with pages runtime includes a nonce value with inline scripts when Content-Security-Policy-Report-Only header is defined",
+      "Subresource Integrity with pages runtime includes an integrity attribute on scripts",
+      "Subresource Integrity with pages runtime throws when escape characters are included in nonce"
     ],
     "flakey": [],
     "runtimeError": false
@@ -18681,6 +18691,7 @@
       "custom server should log any error messages when server is started without \"quiet\" setting",
       "custom server with app dir should render app with react canary",
       "custom server with app dir should render pages with installed react",
+      "custom server with app dir when using \"use cache\" with a custom cache handler should not unset the custom server's ALS context",
       "custom server with quiet setting should not log any error messages when server is started with \"quiet\" setting"
     ],
     "failed": [],

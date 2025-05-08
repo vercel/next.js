@@ -297,7 +297,13 @@ impl PreBatches {
                 std::iter::once(ResolvedVc::upcast(entry)),
                 &mut state,
                 |parent_info, node, state| {
-                    let ty = parent_info.map_or(&ChunkingType::Parallel, |(_, ty)| ty);
+                    let ty = parent_info.map_or(
+                        &ChunkingType::Parallel {
+                            inherit_async: false,
+                            hoisted: false,
+                        },
+                        |(_, ty)| ty,
+                    );
                     let module = node.module;
                     if !ty.is_parallel() {
                         state.items.push(PreBatchItem::NonParallelEdge(
@@ -688,7 +694,13 @@ pub async fn compute_module_batches(
                         PreBatchItem::ParallelModule(module)
                     } else {
                         pre_batches.single_module_entries.insert(module);
-                        PreBatchItem::NonParallelEdge(ChunkingType::Parallel, module)
+                        PreBatchItem::NonParallelEdge(
+                            ChunkingType::Parallel {
+                                inherit_async: false,
+                                hoisted: false,
+                            },
+                            module,
+                        )
                     }
                 } else {
                     item
@@ -846,7 +858,10 @@ pub async fn compute_module_batches(
                             index,
                             batch_indicies[idx],
                             ModuleBatchesGraphEdge {
-                                ty: ChunkingType::Parallel,
+                                ty: ChunkingType::Parallel {
+                                    inherit_async: false,
+                                    hoisted: false,
+                                },
                                 module: None,
                             },
                         );

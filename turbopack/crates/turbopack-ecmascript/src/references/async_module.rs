@@ -87,7 +87,13 @@ async fn get_inherit_async_referenced_asset(
     let Some(ty) = &*r.chunking_type().await? else {
         return Ok(None);
     };
-    if !matches!(ty, ChunkingType::ParallelInheritAsync) {
+    if !matches!(
+        ty,
+        ChunkingType::Parallel {
+            inherit_async: true,
+            ..
+        }
+    ) {
         return Ok(None);
     };
     let referenced_asset: turbo_tasks::ReadRef<ReferencedAsset> =
