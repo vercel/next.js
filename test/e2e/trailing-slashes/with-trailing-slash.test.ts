@@ -11,7 +11,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 
 describe('Trailing slashes with trailingSlash: true', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextStart } = nextTestSetup({
     files: __dirname,
     nextConfig: {
       trailingSlash: true,
@@ -58,7 +58,7 @@ describe('Trailing slashes with trailingSlash: true', () => {
   ])
 
   // only prod builds have a manifest
-  ;(isNextDev ? it.skip : it)(
+  ;(isNextStart ? it : it.skip)(
     'should have a trailing redirect in the routesmanifest',
     async () => {
       const manifest = await next.readJSON(
