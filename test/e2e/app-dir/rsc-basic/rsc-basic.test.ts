@@ -2,7 +2,6 @@ import path from 'path'
 import { check } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
-import { Page } from 'playwright'
 
 // TODO: We should decide on an established pattern for gating test assertions
 // on experimental flags. For example, as a first step we could all the common
@@ -18,10 +17,6 @@ async function resolveStreamResponse(response: any, onData?: any) {
     onData(chunk.toString(), result)
   }
   return result
-}
-
-function stripHTMLComments(html: string): string {
-  return html.replace(/<!--[\s\S]*?-->/g, '')
 }
 
 describe('app dir - rsc basics', () => {
@@ -75,39 +70,39 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should correctly render page returning null', async () => {
-    const homeHTML = await next.render('/return-null/page')
-    const $ = cheerio.load(homeHTML)
-    expect(stripHTMLComments($('#return-null-layout').html())).toBeEmpty()
+    const browser = await next.browser('/return-null/page')
+    expect(await browser.elementByCss('#return-null-layout').text()).toBeEmpty()
   })
 
   it('should correctly render component returning null', async () => {
-    const homeHTML = await next.render('/return-null/component')
-    const $ = cheerio.load(homeHTML)
-    expect(stripHTMLComments($('#return-null-layout').html())).toBeEmpty()
+    const browser = await next.browser('/return-null/component')
+    expect(await browser.elementByCss('#return-null-layout').text()).toBeEmpty()
   })
 
   it('should correctly render layout returning null', async () => {
-    const homeHTML = await next.render('/return-null/layout')
-    const $ = cheerio.load(homeHTML)
-    expect($('#return-null-layout').html()).toBeEmpty()
+    const browser = await next.browser('/return-null/layout')
+    expect(await browser.elementByCss('#return-null-layout').text()).toBeEmpty()
   })
 
   it('should correctly render page returning undefined', async () => {
-    const homeHTML = await next.render('/return-undefined/page')
-    const $ = cheerio.load(homeHTML)
-    expect(stripHTMLComments($('#return-undefined-layout').html())).toBeEmpty()
+    const browser = await next.browser('/return-undefined/page')
+    expect(
+      await browser.elementByCss('#return-undefined-layout').text()
+    ).toBeEmpty()
   })
 
   it('should correctly render component returning undefined', async () => {
-    const homeHTML = await next.render('/return-undefined/component')
-    const $ = cheerio.load(homeHTML)
-    expect(stripHTMLComments($('#return-undefined-layout').html())).toBeEmpty()
+    const browser = await next.browser('/return-undefined/component')
+    expect(
+      await browser.elementByCss('#return-undefined-layout').text()
+    ).toBeEmpty()
   })
 
   it('should correctly render layout returning undefined', async () => {
-    const homeHTML = await next.render('/return-undefined/layout')
-    const $ = cheerio.load(homeHTML)
-    expect($('#return-undefined-layout').html()).toBeEmpty()
+    const browser = await next.browser('/return-undefined/layout')
+    expect(
+      await browser.elementByCss('#return-undefined-layout').text()
+    ).toBeEmpty()
   })
 
   it('should handle named client components imported as page', async () => {
@@ -165,7 +160,7 @@ describe('app dir - rsc basics', () => {
     const flightRequests: string[] = []
     let requestsCount = 0
     const browser = await next.browser('/root', {
-      beforePageLoad(page: Page) {
+      beforePageLoad(page) {
         page.on('request', (request) => {
           requestsCount++
           const headers = request.headers()
@@ -376,7 +371,6 @@ describe('app dir - rsc basics', () => {
 
     await browser.loadPage(`${next.url}/edge/dynamic/123`, {
       disableCache: false,
-      beforePageLoad: null,
     })
 
     const dynamicRouteUrl = await browser.url()
@@ -621,84 +615,4 @@ describe('app dir - rsc basics', () => {
       await Promise.all(promises)
     })
   }
-
-  describe('react@experimental', () => {
-    it.each([{ flag: 'ppr' }, { flag: 'taint' }])(
-      'should opt into the react@experimental when enabling $flag',
-      async ({ flag }) => {
-        await next.stop()
-        await next.patchFile(
-          'next.config.js',
-          `
-          module.exports = {
-            experimental: {
-              ${flag}: true
-            }
-          }
-          `,
-          async () => {
-            await next.start()
-            const resPages$ = await next.render$('/app-react')
-            const [
-              ssrReact,
-              ssrReactDOM,
-              ssrClientReact,
-              ssrClientReactDOM,
-              ssrClientReactDOMServer,
-            ] = [
-              resPages$('#react').text(),
-              resPages$('#react-dom').text(),
-              resPages$('#client-react').text(),
-              resPages$('#client-react-dom').text(),
-              resPages$('#client-react-dom-server').text(),
-            ]
-            expect({
-              ssrReact,
-              ssrReactDOM,
-              ssrClientReact,
-              ssrClientReactDOM,
-              ssrClientReactDOMServer,
-            }).toEqual({
-              ssrReact: expect.stringMatching('-experimental-'),
-              ssrReactDOM: expect.stringMatching('-experimental-'),
-              ssrClientReact: expect.stringMatching('-experimental-'),
-              ssrClientReactDOM: expect.stringMatching('-experimental-'),
-              ssrClientReactDOMServer: expect.stringMatching('-experimental-'),
-            })
-
-            const browser = await next.browser('/app-react')
-            const [
-              browserReact,
-              browserReactDOM,
-              browserClientReact,
-              browserClientReactDOM,
-              browserClientReactDOMServer,
-            ] = await browser.eval(`
-              [
-                document.querySelector('#react').innerText,
-                document.querySelector('#react-dom').innerText,
-                document.querySelector('#client-react').innerText,
-                document.querySelector('#client-react-dom').innerText,
-                document.querySelector('#client-react-dom-server').innerText,
-              ]
-            `)
-            expect({
-              browserReact,
-              browserReactDOM,
-              browserClientReact,
-              browserClientReactDOM,
-              browserClientReactDOMServer,
-            }).toEqual({
-              browserReact: expect.stringMatching('-experimental-'),
-              browserReactDOM: expect.stringMatching('-experimental-'),
-              browserClientReact: expect.stringMatching('-experimental-'),
-              browserClientReactDOM: expect.stringMatching('-experimental-'),
-              browserClientReactDOMServer:
-                expect.stringMatching('-experimental-'),
-            })
-          }
-        )
-      }
-    )
-  })
 })

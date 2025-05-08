@@ -30,8 +30,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, Completion, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput,
-    Value, ValueToString, Vc,
+    fxindexmap, fxindexset, trace::TraceRawVcs, Completion, FxIndexMap, NonLocalValue, ResolvedVc,
+    TaskInput, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
@@ -39,7 +39,7 @@ use turbo_tasks_fs::{
 use turbopack::{
     module_options::ModuleOptionsContext,
     resolve_options_context::ResolveOptionsContext,
-    transition::{ContextTransition, TransitionOptions},
+    transition::{FullContextTransition, Transition, TransitionOptions},
     ModuleAssetContext,
 };
 use turbopack_core::{
@@ -290,7 +290,27 @@ impl PagesProject {
     }
 
     #[turbo_tasks::function]
-    async fn transitions(self: Vc<Self>) -> Result<Vc<TransitionOptions>> {
+    async fn client_transitions(self: Vc<Self>) -> Result<Vc<TransitionOptions>> {
+        Ok(TransitionOptions {
+            named_transitions: [
+                (
+                    "next-dynamic".into(),
+                    ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
+                ),
+                (
+                    "next-dynamic-client".into(),
+                    ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
+                ),
+            ]
+            .into_iter()
+            .collect(),
+            ..Default::default()
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    async fn server_transitions(self: Vc<Self>) -> Result<Vc<TransitionOptions>> {
         Ok(TransitionOptions {
             named_transitions: [
                 (
@@ -314,13 +334,8 @@ impl PagesProject {
     }
 
     #[turbo_tasks::function]
-    fn client_transition(self: Vc<Self>) -> Vc<ContextTransition> {
-        ContextTransition::new(
-            self.project().client_compile_time_info(),
-            self.client_module_options_context(),
-            self.client_resolve_options_context(),
-            client_layer(),
-        )
+    fn client_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
+        Vc::upcast(FullContextTransition::new(self.client_module_context()))
     }
 
     #[turbo_tasks::function]
@@ -353,20 +368,20 @@ impl PagesProject {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn client_module_context(self: Vc<Self>) -> Vc<Box<dyn AssetContext>> {
-        Vc::upcast(ModuleAssetContext::new(
-            self.transitions(),
+    pub(super) fn client_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
+        ModuleAssetContext::new(
+            self.client_transitions(),
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
             client_layer(),
-        ))
+        )
     }
 
     #[turbo_tasks::function]
     pub(super) fn ssr_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
         ModuleAssetContext::new(
-            self.transitions(),
+            self.server_transitions(),
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
@@ -379,7 +394,7 @@ impl PagesProject {
     #[turbo_tasks::function]
     pub(super) fn api_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
         ModuleAssetContext::new(
-            self.transitions(),
+            self.server_transitions(),
             self.project().server_compile_time_info(),
             self.api_module_options_context(),
             self.ssr_resolve_options_context(),
@@ -390,7 +405,7 @@ impl PagesProject {
     #[turbo_tasks::function]
     pub(super) fn ssr_data_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
         ModuleAssetContext::new(
-            self.transitions(),
+            self.server_transitions(),
             self.project().server_compile_time_info(),
             self.ssr_data_module_options_context(),
             self.ssr_resolve_options_context(),
@@ -566,7 +581,7 @@ impl PagesProject {
             self.project().next_config(),
             self.project().execution_context(),
         );
-        Ok(client_runtime_entries.resolve_entries(self.client_module_context()))
+        Ok(client_runtime_entries.resolve_entries(Vc::upcast(self.client_module_context())))
     }
 
     #[turbo_tasks::function]
@@ -615,7 +630,7 @@ impl PagesProject {
 
     #[turbo_tasks::function]
     pub async fn client_main_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
-        let client_module_context = self.client_module_context();
+        let client_module_context = Vc::upcast(self.client_module_context());
 
         let client_main_module = esm_resolve(
             Vc::upcast(PlainResolveOrigin::new(
@@ -722,7 +737,7 @@ impl PageEndpoint {
     async fn client_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
         let this = self.await?;
         let page_loader = create_page_loader_entry_module(
-            this.pages_project.client_module_context(),
+            Vc::upcast(this.pages_project.client_module_context()),
             self.source(),
             *this.pathname,
         );
@@ -780,6 +795,7 @@ impl PageEndpoint {
         let this = self.await?;
         let project = this.pages_project.project();
 
+        let should_trace = project.next_mode().await?.is_production();
         if *project.per_page_module_graph().await? {
             let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
             // Implements layout segment optimization to compute a graph "chain" for document, app,
@@ -796,6 +812,7 @@ impl PageEndpoint {
                 let graph = SingleModuleGraph::new_with_entries_visited_intern(
                     vec![ChunkGroupEntry::Shared(module)],
                     visited_modules,
+                    should_trace,
                 );
                 graphs.push(graph);
                 visited_modules = visited_modules.concatenate(graph);
@@ -804,6 +821,7 @@ impl PageEndpoint {
             let graph = SingleModuleGraph::new_with_entries_visited_intern(
                 vec![ChunkGroupEntry::Entry(vec![ssr_chunk_module.ssr_module])],
                 visited_modules,
+                should_trace,
             );
             graphs.push(graph);
 
@@ -1357,7 +1375,7 @@ impl PageEndpoint {
                         "server/middleware-build-manifest.js".into(),
                         "server/next-font-manifest.js".into(),
                     ];
-                    let mut wasm_paths_from_root = vec![];
+                    let mut wasm_paths_from_root = fxindexset![];
 
                     let node_root_value = node_root.await?;
 
@@ -1386,7 +1404,7 @@ impl PageEndpoint {
                     let original_name = this.original_name.owned().await?;
                     let edge_function_definition = EdgeFunctionDefinition {
                         files: file_paths_from_root,
-                        wasm: wasm_paths_to_bindings(wasm_paths_from_root),
+                        wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                         assets: paths_to_bindings(all_assets),
                         name: pathname.clone(),
                         page: original_name.clone(),

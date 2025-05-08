@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import type * as Playwright from 'playwright'
 import { createRouterAct } from '../router-act'
 
 describe('segment cache (basic tests)', () => {
@@ -15,7 +14,7 @@ describe('segment cache (basic tests)', () => {
   it('navigate before any data has loaded into the prefetch cache', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -58,7 +57,7 @@ describe('segment cache (basic tests)', () => {
   it('navigate with prefetched data', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -97,7 +96,7 @@ describe('segment cache (basic tests)', () => {
   it('navigate to page with lazily-generated (not at build time) static param', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/lazily-generated-params', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -134,7 +133,7 @@ describe('segment cache (basic tests)', () => {
   it('prefetch interception route', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/interception/feed', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -166,7 +165,7 @@ describe('segment cache (basic tests)', () => {
   it('skips dynamic request if prefetched data is fully static', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/fully-static', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -197,7 +196,7 @@ describe('segment cache (basic tests)', () => {
   it('skips static layouts during partially static navigation', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/partially-static', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -245,7 +244,7 @@ describe('segment cache (basic tests)', () => {
   it('refreshes page segments when navigating to the exact same URL as the current location', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/same-page-nav', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })

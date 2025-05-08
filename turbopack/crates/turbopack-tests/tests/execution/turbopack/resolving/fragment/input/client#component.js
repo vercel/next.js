@@ -1,1 +1,1 @@
-export default "client#component";
+export default 'client#component'

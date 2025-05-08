@@ -266,6 +266,9 @@ impl<T> ReadRef<T>
 where
     T: VcValueType,
 {
+    /// Returns the inner value, if this [`ReadRef`] has exactly one strong reference.
+    ///
+    /// Otherwise, an [`Err`] is returned with the same [`ReadRef`] that was passed in.
     pub fn try_unwrap(this: Self) -> Result<VcReadTarget<T>, Self> {
         match triomphe::Arc::try_unwrap(this.0) {
             Ok(value) => Ok(T::Read::value_to_target(value)),

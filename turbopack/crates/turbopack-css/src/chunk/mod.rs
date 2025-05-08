@@ -89,7 +89,7 @@ impl CssChunk {
                 &*this.chunking_context.minify_type().await?,
                 MinifyType::NoMinify
             ) {
-                let id = &*css_item.id().await?;
+                let id = css_item.asset_ident().to_string().await?;
                 writeln!(body, "/* {} */", id)?;
             }
 

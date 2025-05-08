@@ -1,12 +1,12 @@
 import { createNext, FileRef } from 'e2e-utils'
-import webdriver, { BrowserInterface } from 'next-webdriver'
+import webdriver, { Playwright } from 'next-webdriver'
 import { NextInstance } from 'e2e-utils'
 import { join } from 'path'
 import { retry } from 'next-test-utils'
 
 describe('client-dev-overlay', () => {
   let next: NextInstance
-  let browser: BrowserInterface
+  let browser: Playwright
 
   beforeAll(async () => {
     next = await createNext({
@@ -25,7 +25,7 @@ describe('client-dev-overlay', () => {
   })
   afterAll(() => next.destroy())
 
-  // The `BrowserInterface.hasElementByCssSelector` cannot be used for elements inside a shadow DOM.
+  // The `Playwright.hasElementByCssSelector` cannot be used for elements inside a shadow DOM.
   function elementExistsInNextJSPortalShadowDOM(selector: string) {
     return browser.eval(
       `!!document.querySelector('nextjs-portal').shadowRoot.querySelector('${selector}')`

@@ -1,3 +1,3 @@
-export const Table = ()=>{
+export const Table = () => {
   return 'table'
 }

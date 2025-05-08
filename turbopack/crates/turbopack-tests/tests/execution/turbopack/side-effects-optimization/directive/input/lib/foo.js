@@ -1,3 +1,3 @@
-"use turbopack no side effects"
+'use turbopack no side effects'
 
-export const foo = 789;
+export const foo = 789

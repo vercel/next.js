@@ -25,8 +25,7 @@ describe('app-dir - missing required html tags', () => {
     await assertHasRedbox(browser)
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 1,
-       "description": "Error: Missing <html> and <body> tags in the root layout.
+       "description": "Missing <html> and <body> tags in the root layout.
      Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
        "environmentLabel": null,
        "label": "Runtime Error",
@@ -47,8 +46,7 @@ describe('app-dir - missing required html tags', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 1,
-       "description": "Error: Missing <html> tags in the root layout.
+       "description": "Missing <html> tags in the root layout.
      Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
        "environmentLabel": null,
        "label": "Runtime Error",

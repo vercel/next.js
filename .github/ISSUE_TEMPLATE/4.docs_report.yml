@@ -9,9 +9,8 @@ body:
         Before opening a new documentation issue, is this something you can help us with? Your contributions are welcomed and appreciated. See our [Docs Contribution Guide](https://nextjs.org/docs/community/contribution-guide) to learn how to edit the Next.js docs.
 
         If you are reporting about an documentation request, please open it in our [discussions](https://github.com/vercel/next.js/discussions/new?category=ideas) instead.
-  - type: markdown
-    attributes:
-      value: Thank you for helping us update our docs!
+
+        Thank you for helping us update our docs!
   - type: textarea
     attributes:
       label: What is the documentation issue?

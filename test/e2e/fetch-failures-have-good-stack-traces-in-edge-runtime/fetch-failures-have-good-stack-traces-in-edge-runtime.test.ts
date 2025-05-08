@@ -1,15 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 import webdriver from 'next-webdriver'
-import {
-  assertHasRedbox,
-  getRedboxSource,
-  getRedboxDescription,
-  check,
-} from 'next-test-utils'
+import { check } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('fetch failures have good stack traces in edge runtime', () => {
-  const { next, isNextStart, isNextDev, skipped } = nextTestSetup({
+  const { isTurbopack, next, isNextStart, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     // don't have access to runtime logs on deploy
     skipDeployment: true,
@@ -20,22 +15,46 @@ describe('fetch failures have good stack traces in edge runtime', () => {
   }
 
   it('when awaiting `fetch` using an unknown domain, stack traces are preserved', async () => {
+    const outputIndex = next.cliOutput.length
     const browser = await webdriver(next.url, '/api/unknown-domain')
 
     if (isNextStart) {
-      expect(next.cliOutput).toMatch(/at.+\/pages\/api\/unknown-domain.js/)
+      expect(next.cliOutput.slice(outputIndex)).toMatch(
+        /at.+\/pages\/api\/unknown-domain.js/
+      )
     } else if (isNextDev) {
-      // TODO(veil): Apply sourcemap
-      expect(next.cliOutput).toContain('\n    at anotherFetcher (')
+      expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
+        '' +
+          '\n ⨯ Error [TypeError]: fetch failed' +
+          '\n    at anotherFetcher (src/fetcher.js:6:15)' +
+          '\n    at fetcher (src/fetcher.js:2:15)' +
+          '\n    at UnknownDomainEndpoint (pages/api/unknown-domain.js:6:16)' +
+          '\n  4 |' +
+          '\n  5 | async function anotherFetcher(...args) {' +
+          '\n> 6 |   return await fetch(...args)' +
+          '\n    |               ^' +
+          '\n  7 | }' +
+          '\n  8 |' +
+          // TODO(veil): Why double error?
+          '\n ⨯ Error [TypeError]: fetch failed'
+      )
 
-      await assertHasRedbox(browser)
-      const source = await getRedboxSource(browser)
-
-      expect(source).toContain('async function anotherFetcher(...args)')
-      expect(source).toContain(`fetch(...args)`)
-
-      const description = await getRedboxDescription(browser)
-      expect(description).toEqual('TypeError: fetch failed')
+      // TODO(veil): Why column off by one?
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "fetch failed",
+         "environmentLabel": null,
+         "label": "Runtime TypeError",
+         "source": "src/fetcher.js (6:16) @ anotherFetcher
+       > 6 |   return await fetch(...args)
+           |                ^",
+         "stack": [
+           "anotherFetcher src/fetcher.js (6:16)",
+           "fetcher src/fetcher.js (2:16)",
+           "UnknownDomainEndpoint pages/api/unknown-domain.js (6:${isTurbopack ? 15 : 16})",
+         ],
+       }
+      `)
     }
   })
 

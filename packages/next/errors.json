@@ -42,7 +42,7 @@
   "41": "Method not implemented.",
   "42": "Page \"%s\" cannot use both \\`export const runtime = 'edge'\\` and export \\`generateStaticParams\\`.",
   "43": "Specified pageExtensions is an empty array. Please update it with the relevant extensions or remove it.",
-  "44": "Using client components is not allowed in this environment.",
+  "44": "Using Client Components is not allowed in this environment.",
   "45": "The default export is not a React Component in \"%s/%s\"",
   "46": "It's currently unsupported to use \"export *\" in a client boundary. Please use named exports instead.",
   "47": "Module `sharp` not found. Please run `npm install --cpu=wasm32 sharp` to install it.",
@@ -670,5 +670,12 @@
   "669": "Invariant: --turbopack is set but the build used Webpack",
   "670": "Invariant: --turbopack is not set but the build used Turbopack. Add --turbopack to \"next start\".",
   "671": "Specified images.remotePatterns must have protocol \"http\" or \"https\" received \"%s\".",
-  "672": "Expected `telemetry` to be set in globals"
+  "672": "Expected `telemetry` to be set in globals",
+  "673": "Thrown value was ignored. This is a bug in Next.js.",
+  "674": "Route \"%s\" has a \\`generateViewport\\` that depends on Request data (\\`cookies()\\`, etc...) or uncached external data (\\`fetch(...)\\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
+  "675": "Expected `generateMetadata` not to block the application shell but it did.",
+  "676": "Invariant: missing internal router-server-methods this is an internal bug",
+  "677": "`trackDynamicImport` should always receive a promise. Something went wrong in the dynamic imports transform.",
+  "678": "CacheSignal got more endRead() calls than beginRead() calls",
+  "679": "A CacheSignal cannot subscribe to itself"
 }

@@ -1,1 +1,2 @@
-export default function _temporalUndefined() {}
+function _temporalUndefined() {}
+export { _temporalUndefined as default };

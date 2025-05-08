@@ -1,6 +1,5 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![feature(trivial_bounds)]
-#![feature(hash_extract_if)]
 #![feature(min_specialization)]
 #![feature(iter_advance_by)]
 #![feature(io_error_more)]
@@ -12,7 +11,7 @@
 pub mod attach;
 pub mod embed;
 pub mod glob;
-mod invalidation;
+pub mod invalidation;
 mod invalidator_map;
 pub mod json;
 mod mutex_map;
@@ -38,17 +37,17 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, Context, Result};
-use auto_hash_map::AutoMap;
+use auto_hash_map::{AutoMap, AutoSet};
 use bitflags::bitflags;
 use dunce::simplified;
 use glob::Glob;
-use invalidation::InvalidateFilesystem;
+use indexmap::IndexSet;
 use invalidator_map::InvalidatorMap;
 use jsonc_parser::{parse_to_serde_value, ParseOptions};
 use mime::Mime;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use read_glob::read_glob;
 pub use read_glob::ReadGlobResult;
+use read_glob::{read_glob, track_glob};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::{
@@ -60,7 +59,8 @@ use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat, effect, mark_session_dependent, mark_stateful, trace::TraceRawVcs,
-    Completion, Invalidator, NonLocalValue, ReadRef, ResolvedVc, ValueToString, Vc,
+    Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef, ResolvedVc, ValueToString,
+    Vc,
 };
 use turbo_tasks_hash::{
     hash_xxh3_hash128, hash_xxh3_hash64, DeterministicHash, DeterministicHasher,
@@ -203,7 +203,6 @@ pub trait FileSystem: ValueToString {
     fn read(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<FileContent>;
     fn read_link(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<LinkContent>;
     fn raw_read_dir(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<RawDirectoryContent>;
-    fn track(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<Completion>;
     fn write(self: Vc<Self>, fs_path: Vc<FileSystemPath>, content: Vc<FileContent>) -> Vc<()>;
     fn write_link(self: Vc<Self>, fs_path: Vc<FileSystemPath>, target: Vc<LinkContent>) -> Vc<()>;
     fn metadata(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<FileMeta>;
@@ -318,7 +317,13 @@ impl DiskFileSystemInner {
         });
     }
 
-    fn invalidate_with_reason(&self) {
+    /// Invalidates every tracked file in the filesystem.
+    ///
+    /// Calls the given
+    fn invalidate_with_reason<R: InvalidationReason + Clone>(
+        &self,
+        reason: impl Fn(String) -> R + Sync,
+    ) {
         let _span = tracing::info_span!("invalidate filesystem", path = &*self.root).entered();
         let span = tracing::Span::current();
         let handle = tokio::runtime::Handle::current();
@@ -329,10 +334,10 @@ impl DiskFileSystemInner {
             .chain(dir_invalidator_map.into_par_iter())
             .flat_map(|(path, invalidators)| {
                 let _span = span.clone().entered();
-                let reason = InvalidateFilesystem { path: path.into() };
+                let reason_for_path = reason(path);
                 invalidators
                     .into_par_iter()
-                    .map(move |i| (reason.clone(), i))
+                    .map(move |i| (reason_for_path.clone(), i))
             });
         iter.for_each(|(reason, (invalidator, _))| {
             let _span = span.clone().entered();
@@ -408,8 +413,11 @@ impl DiskFileSystem {
         self.inner.invalidate();
     }
 
-    pub fn invalidate_with_reason(&self) {
-        self.inner.invalidate_with_reason();
+    pub fn invalidate_with_reason<R: InvalidationReason + Clone>(
+        &self,
+        reason: impl Fn(String) -> R + Sync,
+    ) {
+        self.inner.invalidate_with_reason(reason);
     }
 
     pub async fn start_watching(&self, poll_interval: Option<Duration>) -> Result<()> {
@@ -474,7 +482,8 @@ impl DiskFileSystem {
     /// # Arguments
     ///
     /// * `name` - Name of the filesystem.
-    /// * `root` - Path to the given filesystem's root.
+    /// * `root` - Path to the given filesystem's root. Should be
+    ///   [canonicalized][std::fs::canonicalize].
     /// * `ignored_subpaths` - A list of subpaths that should not trigger invalidation. This should
     ///   be a full path, since it is possible that root & project dir is different and requires to
     ///   ignore specific subpaths from each.
@@ -674,14 +683,6 @@ impl FileSystem for DiskFileSystem {
             },
         }
         .cell())
-    }
-
-    #[turbo_tasks::function(fs)]
-    async fn track(&self, fs_path: Vc<FileSystemPath>) -> Result<Vc<Completion>> {
-        mark_session_dependent();
-        let full_path = self.to_sys_path(fs_path).await?;
-        self.inner.register_read_invalidator(&full_path)?;
-        Ok(Completion::new())
     }
 
     #[turbo_tasks::function(fs)]
@@ -1278,6 +1279,10 @@ impl FileSystemPath {
     /// None when the joined path would leave the filesystem root.
     #[turbo_tasks::function]
     pub async fn try_join(&self, path: RcStr) -> Result<Vc<FileSystemPathOption>> {
+        // TODO(PACK-3279): Remove this once we do not produce invalid paths at the first place.
+        #[cfg(target_os = "windows")]
+        let path = path.replace('\\', "/");
+
         if let Some(path) = join_path(&self.path, &path) {
             Ok(Vc::cell(Some(
                 Self::new_normalized(*self.fs, path.into())
@@ -1312,6 +1317,13 @@ impl FileSystemPath {
         include_dot_files: bool,
     ) -> Vc<ReadGlobResult> {
         read_glob(self, glob, include_dot_files)
+    }
+
+    // Tracks all files and directories matching the glob
+    // Follows symlinks as though they were part of the original hierarchy.
+    #[turbo_tasks::function]
+    pub fn track_glob(self: Vc<Self>, glob: Vc<Glob>, include_dot_files: bool) -> Vc<Completion> {
+        track_glob(self, glob, include_dot_files)
     }
 
     #[turbo_tasks::function]
@@ -1452,10 +1464,6 @@ impl FileSystemPath {
         self.fs().raw_read_dir(self)
     }
 
-    pub fn track(self: Vc<Self>) -> Vc<Completion> {
-        self.fs().track(self)
-    }
-
     pub fn write(self: Vc<Self>, content: Vc<FileContent>) -> Vc<()> {
         self.fs().write(self, content)
     }
@@ -1489,24 +1497,29 @@ impl FileSystemPath {
     /// depend on the order.
     #[turbo_tasks::function]
     pub async fn read_dir(self: Vc<Self>) -> Result<Vc<DirectoryContent>> {
-        match &*self.await?.fs.raw_read_dir(self).await? {
+        let this = self.await?;
+        let fs = this.fs;
+        match &*fs.raw_read_dir(self).await? {
             RawDirectoryContent::NotFound => Ok(DirectoryContent::not_found()),
             RawDirectoryContent::Entries(entries) => {
                 let mut normalized_entries = AutoMap::new();
+                let dir_path = &this.path;
                 for (name, entry) in entries {
+                    // Construct the path directly instead of going through `join`.
+                    // We do not need to normalize since the `name` is guaranteed to be a simple
+                    // path segment.
+                    let path = if dir_path.is_empty() {
+                        name.clone()
+                    } else {
+                        RcStr::from(format!("{dir_path}/{name}"))
+                    };
+
+                    let entry_path = Self::new_normalized(*fs, path).to_resolved().await?;
                     let entry = match entry {
-                        RawDirectoryEntry::File => {
-                            DirectoryEntry::File(self.join(name.clone()).to_resolved().await?)
-                        }
-                        RawDirectoryEntry::Directory => {
-                            DirectoryEntry::Directory(self.join(name.clone()).to_resolved().await?)
-                        }
-                        RawDirectoryEntry::Symlink => {
-                            DirectoryEntry::Symlink(self.join(name.clone()).to_resolved().await?)
-                        }
-                        RawDirectoryEntry::Other => {
-                            DirectoryEntry::Other(self.join(name.clone()).to_resolved().await?)
-                        }
+                        RawDirectoryEntry::File => DirectoryEntry::File(entry_path),
+                        RawDirectoryEntry::Directory => DirectoryEntry::Directory(entry_path),
+                        RawDirectoryEntry::Symlink => DirectoryEntry::Symlink(entry_path),
+                        RawDirectoryEntry::Other => DirectoryEntry::Other(entry_path),
                         RawDirectoryEntry::Error => DirectoryEntry::Error,
                     };
                     normalized_entries.insert(name.clone(), entry);
@@ -1563,46 +1576,85 @@ impl FileSystemPath {
 
     #[turbo_tasks::function]
     pub async fn realpath_with_links(self: ResolvedVc<Self>) -> Result<Vc<RealPathResult>> {
-        let this = self.await?;
-        if this.is_root() {
-            return Ok(RealPathResult {
-                path: self,
-                symlinks: Vec::new(),
+        let mut current_vc = self;
+        let mut symlinks: IndexSet<ResolvedVc<FileSystemPath>> = IndexSet::new();
+        let mut visited: AutoSet<RcStr> = AutoSet::new();
+        // Pick some arbitrary symlink depth limit... similar to the ELOOP logic for realpath(3).
+        // SYMLOOP_MAX is 40 for Linux: https://unix.stackexchange.com/q/721724
+        for _i in 0..40 {
+            let current = current_vc.await?;
+            if current.is_root() {
+                // fast path
+                return Ok(RealPathResult {
+                    path: self,
+                    symlinks: symlinks.into_iter().collect(),
+                }
+                .cell());
             }
-            .cell());
-        }
-        let parent = self.parent().to_resolved().await?;
-        let parent_result = parent.realpath_with_links().owned().await?;
-        let basename = this
-            .path
-            .rsplit_once('/')
-            .map_or(this.path.as_str(), |(_, name)| name);
-        let real_self = if parent_result.path != parent {
-            parent_result
+
+            if !visited.insert(current.path.clone()) {
+                break; // we detected a cycle
+            }
+
+            // see if a parent segment of the path is a symlink and resolve that first
+            let parent = self.parent().to_resolved().await?;
+            let parent_result = parent.realpath_with_links().owned().await?;
+            let basename = current
                 .path
-                .join(basename.into())
-                .to_resolved()
-                .await?
-        } else {
-            self
-        };
-        let mut result = parent_result;
-        if matches!(*real_self.get_type().await?, FileSystemEntryType::Symlink) {
-            if let LinkContent::Link { target, link_type } = &*real_self.read_link().await? {
-                result.symlinks.push(real_self);
-                result.path = if link_type.contains(LinkType::ABSOLUTE) {
-                    real_self.root().to_resolved().await?
+                .rsplit_once('/')
+                .map_or(current.path.as_str(), |(_, name)| name);
+            if parent_result.path != parent {
+                current_vc = parent_result
+                    .path
+                    .join(basename.into())
+                    .to_resolved()
+                    .await?;
+            }
+            symlinks.extend(parent_result.symlinks);
+
+            // use `get_type` before trying `read_link`, as there's a good chance of a cache hit on
+            // `get_type`, and `read_link` isn't the common codepath.
+            if !matches!(*current_vc.get_type().await?, FileSystemEntryType::Symlink) {
+                return Ok(RealPathResult {
+                    path: current_vc,
+                    symlinks: symlinks.into_iter().collect(), // convert set to vec
+                }
+                .cell());
+            }
+
+            if let LinkContent::Link { target, link_type } = &*current_vc.read_link().await? {
+                symlinks.insert(current_vc);
+                current_vc = if link_type.contains(LinkType::ABSOLUTE) {
+                    current_vc.root()
                 } else {
-                    result.path
+                    *parent_result.path
                 }
                 .join(target.clone())
                 .to_resolved()
                 .await?;
-                return Ok(result.cell());
+            } else {
+                // get_type() and read_link() might disagree temporarily due to turbo-tasks
+                // eventual consistency or if the file gets invalidated before the directory does
+                return Ok(RealPathResult {
+                    path: current_vc,
+                    symlinks: symlinks.into_iter().collect(), // convert set to vec
+                }
+                .cell());
             }
         }
-        result.path = real_self;
-        Ok(result.cell())
+
+        // Too many attempts or detected a cycle, we bailed out!
+        //
+        // TODO: There's no proper way to indicate an non-turbo-tasks error here, so just return the
+        // original path and all the symlinks we followed.
+        //
+        // Returning the followed symlinks is still important, even if there is an error! Otherwise
+        // we may never notice if the symlink loop is fixed.
+        Ok(RealPathResult {
+            path: self,
+            symlinks: symlinks.into_iter().collect(),
+        }
+        .cell())
     }
 }
 
@@ -2252,10 +2304,10 @@ pub enum DirectoryEntry {
     Error,
 }
 
-/// Handles the `DirectoryEntry::Symlink` variant by checking the symlink target
-/// type and replacing it with `DirectoryEntry::File` or
-/// `DirectoryEntry::Directory`.
 impl DirectoryEntry {
+    /// Handles the `DirectoryEntry::Symlink` variant by checking the symlink target
+    /// type and replacing it with `DirectoryEntry::File` or
+    /// `DirectoryEntry::Directory`.
     pub async fn resolve_symlink(self) -> Result<Self> {
         if let DirectoryEntry::Symlink(symlink) = self {
             let real_path = symlink.realpath().to_resolved().await?;
@@ -2266,6 +2318,16 @@ impl DirectoryEntry {
             }
         } else {
             Ok(self)
+        }
+    }
+
+    pub fn path(self) -> Option<ResolvedVc<FileSystemPath>> {
+        match self {
+            DirectoryEntry::File(path)
+            | DirectoryEntry::Directory(path)
+            | DirectoryEntry::Symlink(path)
+            | DirectoryEntry::Other(path) => Some(path),
+            DirectoryEntry::Error => None,
         }
     }
 }
@@ -2331,6 +2393,8 @@ impl From<&RawDirectoryEntry> for FileSystemEntryType {
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub enum RawDirectoryContent {
+    // The entry keys are the directory relative file names
+    // e.g. for `/bar/foo`, it will be `foo`
     Entries(AutoMap<RcStr, RawDirectoryEntry>),
     NotFound,
 }
@@ -2380,11 +2444,6 @@ impl FileSystem for NullFileSystem {
     #[turbo_tasks::function]
     fn raw_read_dir(&self, _fs_path: Vc<FileSystemPath>) -> Vc<RawDirectoryContent> {
         RawDirectoryContent::not_found()
-    }
-
-    #[turbo_tasks::function]
-    fn track(&self, _fs_path: Vc<FileSystemPath>) -> Vc<Completion> {
-        Completion::immutable()
     }
 
     #[turbo_tasks::function]

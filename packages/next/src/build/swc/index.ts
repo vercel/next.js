@@ -874,6 +874,33 @@ function bindingToApi(
       }
     }
 
+    const conditions: (typeof nextConfig)['turbopack']['conditions'] =
+      nextConfigSerializable.turbopack?.conditions
+    if (conditions) {
+      type SerializedConditions = {
+        [key: string]: {
+          path:
+            | { type: 'regexp'; value: { source: string; flags: string } }
+            | { type: 'glob'; value: string }
+        }
+      }
+
+      const serializedConditions: SerializedConditions = {}
+      for (const [key, value] of Object.entries(conditions)) {
+        serializedConditions[key] = {
+          ...value,
+          path:
+            value.path instanceof RegExp
+              ? {
+                  type: 'regexp',
+                  value: { source: value.path.source, flags: value.path.flags },
+                }
+              : { type: 'glob', value: value.path },
+        }
+      }
+      nextConfigSerializable.turbopack.conditions = serializedConditions
+    }
+
     return JSON.stringify(nextConfigSerializable, null, 2)
   }
 
@@ -1104,6 +1131,11 @@ async function loadWasm(importPath = '') {
             return bindings.mdxCompileSync(src, getMdxOptions(options))
           },
         },
+        reactCompiler: {
+          isReactCompilerRequired(_filename: string) {
+            return Promise.resolve(true)
+          },
+        },
       }
       return wasmBindings
     } catch (e: any) {
@@ -1250,7 +1282,7 @@ function loadNative(importPath?: string) {
         createProject: bindingToApi(customBindings ?? bindings, false),
         startTurbopackTraceServer(traceFilePath) {
           Log.warn(
-            'Turbopack trace server started. View trace at https://turbo-trace-viewer.vercel.app/'
+            'Turbopack trace server started. View trace at https://trace.nextjs.org'
           )
           ;(customBindings ?? bindings).startTurbopackTraceServer(traceFilePath)
         },
@@ -1273,6 +1305,11 @@ function loadNative(importPath?: string) {
               transformAttrOptions
             )
           },
+        },
+      },
+      reactCompiler: {
+        isReactCompilerRequired: (filename: string) => {
+          return bindings.isReactCompilerRequired(filename)
         },
       },
     }
@@ -1318,6 +1355,13 @@ export async function minify(
 ): Promise<{ code: string; map: any }> {
   let bindings = await loadBindings()
   return bindings.minify(src, options)
+}
+
+export async function isReactCompilerRequired(
+  filename: string
+): Promise<boolean> {
+  let bindings = await loadBindings()
+  return bindings.reactCompiler.isReactCompilerRequired(filename)
 }
 
 export async function parse(src: string, options: any): Promise<any> {

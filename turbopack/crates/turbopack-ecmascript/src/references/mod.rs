@@ -56,7 +56,7 @@ use turbo_tasks::{
     trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
     TryJoinIterExt, Upcast, Value, ValueToString, Vc,
 };
-use turbo_tasks_fs::{rope::Rope, FileSystemPath};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     compile_time_info::{
         CompileTimeInfo, DefineableNameSegment, FreeVarReference, FreeVarReferences,
@@ -76,9 +76,7 @@ use turbopack_core::{
         resolve, FindContextFileResult, ModulePart,
     },
     source::Source,
-    source_map::{
-        utils::resolve_source_map_sources, GenerateSourceMap, OptionStringifiedSourceMap,
-    },
+    source_map::GenerateSourceMap,
 };
 use turbopack_resolve::{
     ecmascript::{apply_cjs_specific_options, cjs_resolve_source},
@@ -148,6 +146,7 @@ use crate::{
         node::PackageJsonReference,
         require_context::{RequireContextAssetReference, RequireContextMap},
         type_issue::SpecifiedModuleTypeIssue,
+        util::InlineSourceMap,
     },
     runtime_functions::{
         TUBROPACK_RUNTIME_FUNCTION_SHORTCUTS, TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE,
@@ -174,7 +173,7 @@ pub struct AnalyzeEcmascriptModuleResult {
     pub has_side_effect_free_directive: bool,
     /// `true` when the analysis was successful.
     pub successful: bool,
-    pub source_map: ResolvedVc<OptionStringifiedSourceMap>,
+    pub source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -223,7 +222,7 @@ pub struct AnalyzeEcmascriptModuleResultBuilder {
     exports: EcmascriptExports,
     async_module: ResolvedVc<OptionAsyncModule>,
     successful: bool,
-    source_map: Option<ResolvedVc<OptionStringifiedSourceMap>>,
+    source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     has_side_effect_free_directive: bool,
 }
 
@@ -289,7 +288,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Sets the analysis result ES export.
-    pub fn set_source_map(&mut self, source_map: ResolvedVc<OptionStringifiedSourceMap>) {
+    pub fn set_source_map(&mut self, source_map: ResolvedVc<Box<dyn GenerateSourceMap>>) {
         self.source_map = Some(source_map);
     }
 
@@ -401,12 +400,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
 
         let references: Vec<_> = self.references.into_iter().collect();
 
-        let source_map = if let Some(source_map) = self.source_map {
-            source_map
-        } else {
-            OptionStringifiedSourceMap::none().to_resolved().await?
-        };
-
         self.code_gens.shrink_to_fit();
         Ok(AnalyzeEcmascriptModuleResult::cell(
             AnalyzeEcmascriptModuleResult {
@@ -424,7 +417,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 async_module: self.async_module,
                 has_side_effect_free_directive: self.has_side_effect_free_directive,
                 successful: self.successful,
-                source_map,
+                source_map: self.source_map,
             },
         ))
     }
@@ -705,14 +698,16 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         .to_resolved()
                         .await?;
                     analysis.add_reference(reference);
-                    let source_map = reference.generate_source_map();
-                    analysis.set_source_map(source_map.to_resolved().await?);
+                    analysis.set_source_map(ResolvedVc::upcast(reference));
                     source_map_from_comment = true;
                 } else if JSON_DATA_URL_BASE64.is_match(path) {
-                    let source_map = maybe_decode_data_url(path.into());
-                    let source_map =
-                        resolve_source_map_sources(source_map.as_ref(), origin_path).await?;
-                    analysis.set_source_map(ResolvedVc::cell(source_map));
+                    analysis.set_source_map(ResolvedVc::upcast(
+                        InlineSourceMap {
+                            origin_path: origin_path.to_resolved().await?,
+                            source_map: path.into(),
+                        }
+                        .resolved_cell(),
+                    ));
                     source_map_from_comment = true;
                 }
             }
@@ -720,12 +715,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 if let Some(generate_source_map) =
                     ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source)
                 {
-                    analysis.set_source_map(
-                        generate_source_map
-                            .generate_source_map()
-                            .to_resolved()
-                            .await?,
-                    );
+                    analysis.set_source_map(generate_source_map);
                 }
             }
             anyhow::Ok(())
@@ -765,7 +755,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
                         ImportedSymbol::PartEvaluation(part_id) => {
                             should_add_evaluation = true;
-                            Some(ModulePart::internal_evaluation(*part_id))
+                            Some(ModulePart::internal(*part_id))
                         }
                         ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id)),
                         ImportedSymbol::Exports => Some(ModulePart::exports()),
@@ -1312,7 +1302,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     let func = analysis_state
                         .link_value(
                             JsValue::member(Box::new(obj.clone()), Box::new(prop)),
-                            ImportAttributes::empty_ref(),
+                            eval_context.imports.get_attributes(span),
                         )
                         .await?;
 
@@ -1641,14 +1631,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
 
                     return Ok(());
                 }
-                let (args, hints) = explain_args(&args);
-                handler.span_warn_with_code(
-                    span,
-                    &format!("new Worker({args}) is not statically analyse-able{hints}",),
-                    DiagnosticId::Error(
-                        errors::failed_to_analyse::ecmascript::DYNAMIC_IMPORT.to_string(),
-                    ),
-                );
+                // Ignore (e.g. dynamic parameter or string literal), just as Webpack does
                 return Ok(());
             }
             _ => {}
@@ -1864,7 +1847,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     origin,
                     options.dir,
                     options.include_subdirs,
-                    Vc::cell(options.filter),
+                    options.filter.cell(),
                     Some(issue_source(source, span)),
                     in_try,
                 )
@@ -2882,7 +2865,7 @@ async fn value_visitor_inner(
             ),
             _,
         ) => {
-            // TODO: figure out how to do static analysis without invalidating the while
+            // TODO: figure out how to do static analysis without invalidating the whole
             // analysis when a new file gets added
             v.into_unknown(
                 true,
@@ -2908,6 +2891,20 @@ async fn value_visitor_inner(
                 }
             } else {
                 v.into_unknown(true, "new non constant")
+            }
+        }
+        JsValue::WellKnownFunction(
+            WellKnownFunctionKind::PathJoin
+            | WellKnownFunctionKind::PathResolve(_)
+            | WellKnownFunctionKind::FsReadMethod(_),
+        ) => {
+            if ignore {
+                return Ok((
+                    JsValue::unknown(v, true, "ignored well known function"),
+                    true,
+                ));
+            } else {
+                return Ok((v, false));
             }
         }
         JsValue::FreeVar(ref kind) => match &**kind {
@@ -3032,7 +3029,7 @@ async fn require_context_visitor(
         origin,
         dir,
         options.include_subdirs,
-        Vc::cell(options.filter),
+        options.filter.cell(),
         None,
         true,
     );
@@ -3657,17 +3654,4 @@ fn is_invoking_node_process_eval(args: &[JsValue]) -> bool {
     }
 
     false
-}
-
-fn maybe_decode_data_url(url: RcStr) -> Option<Rope> {
-    const DATA_PREAMBLE: &str = "data:application/json;base64,";
-
-    if !url.starts_with(DATA_PREAMBLE) {
-        return None;
-    }
-    let data_b64 = &url[DATA_PREAMBLE.len()..];
-    data_encoding::BASE64
-        .decode(data_b64.as_bytes())
-        .ok()
-        .map(Rope::from)
 }

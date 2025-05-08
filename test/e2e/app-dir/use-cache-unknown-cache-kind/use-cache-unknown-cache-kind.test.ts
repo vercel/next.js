@@ -134,7 +134,7 @@ describe('use-cache-unknown-cache-kind', () => {
         )
       } else {
         expect(errorDescription).toMatchInlineSnapshot(
-          `"Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the "experimental.cacheHandlers" object in your Next.js config."`
+          `"  x Unknown cache kind "custom". Please configure a cache handler for this kind in the "experimental.cacheHandlers" object in your Next.js config."`
         )
       }
 

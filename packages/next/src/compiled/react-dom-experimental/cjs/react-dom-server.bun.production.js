@@ -463,12 +463,7 @@ function createResumableState(
   };
 }
 function createPreambleState() {
-  return {
-    htmlChunks: null,
-    headChunks: null,
-    bodyChunks: null,
-    contribution: 0
-  };
+  return { htmlChunks: null, headChunks: null, bodyChunks: null };
 }
 function createFormatContext(insertionMode, selectedValue, tagScope) {
   return {
@@ -1961,6 +1956,7 @@ function pushStartInstance(
         var preamble = preambleState || renderState.preamble;
         if (preamble.headChunks)
           throw Error("The `<head>` tag may only be rendered once.");
+        null !== preambleState && target$jscomp$0.push("\x3c!--head--\x3e");
         preamble.headChunks = [];
         var JSCompiler_inline_result$jscomp$9 = pushStartSingletonElement(
           preamble.headChunks,
@@ -1979,6 +1975,7 @@ function pushStartInstance(
         var preamble$jscomp$0 = preambleState || renderState.preamble;
         if (preamble$jscomp$0.bodyChunks)
           throw Error("The `<body>` tag may only be rendered once.");
+        null !== preambleState && target$jscomp$0.push("\x3c!--body--\x3e");
         preamble$jscomp$0.bodyChunks = [];
         var JSCompiler_inline_result$jscomp$10 = pushStartSingletonElement(
           preamble$jscomp$0.bodyChunks,
@@ -1997,6 +1994,7 @@ function pushStartInstance(
         var preamble$jscomp$1 = preambleState || renderState.preamble;
         if (preamble$jscomp$1.htmlChunks)
           throw Error("The `<html>` tag may only be rendered once.");
+        null !== preambleState && target$jscomp$0.push("\x3c!--html--\x3e");
         preamble$jscomp$1.htmlChunks = ["<!DOCTYPE html>"];
         var JSCompiler_inline_result$jscomp$11 = pushStartSingletonElement(
           preamble$jscomp$1.htmlChunks,
@@ -2074,16 +2072,13 @@ function hoistPreambleState(renderState, preambleState) {
   renderState = renderState.preamble;
   null === renderState.htmlChunks &&
     preambleState.htmlChunks &&
-    ((renderState.htmlChunks = preambleState.htmlChunks),
-    (preambleState.contribution |= 1));
+    (renderState.htmlChunks = preambleState.htmlChunks);
   null === renderState.headChunks &&
     preambleState.headChunks &&
-    ((renderState.headChunks = preambleState.headChunks),
-    (preambleState.contribution |= 4));
+    (renderState.headChunks = preambleState.headChunks);
   null === renderState.bodyChunks &&
     preambleState.bodyChunks &&
-    ((renderState.bodyChunks = preambleState.bodyChunks),
-    (preambleState.contribution |= 2));
+    (renderState.bodyChunks = preambleState.bodyChunks);
 }
 function writeBootstrap(destination, renderState) {
   renderState = renderState.bootstrapChunks;
@@ -2102,13 +2097,6 @@ function writeStartPendingSuspenseBoundary(destination, renderState, id) {
   writeChunk(destination, renderState.boundaryPrefix);
   writeChunk(destination, id.toString(16));
   return !!destination.write('"></template>');
-}
-function writePreambleContribution(destination, preambleState) {
-  preambleState = preambleState.contribution;
-  0 !== preambleState &&
-    (writeChunk(destination, "\x3c!--"),
-    writeChunk(destination, "" + preambleState),
-    writeChunk(destination, "--\x3e"));
 }
 function writeStartSegment(destination, renderState, formatContext, id) {
   switch (formatContext.insertionMode) {
@@ -4308,27 +4296,21 @@ function renderElement(request, task, keyPath, type, props, ref) {
         return;
       case REACT_ACTIVITY_TYPE:
         type = task.blockedSegment;
-        if (null === type)
-          "hidden" !== props.mode &&
+        null === type
+          ? "hidden" !== props.mode &&
             ((type = task.keyPath),
             (task.keyPath = keyPath),
             renderNode(request, task, props.children, -1),
-            (task.keyPath = type));
-        else {
-          type.chunks.push("\x3c!--&--\x3e");
-          type.lastPushedText = !1;
-          "hidden" !== props.mode &&
-            ((newProps = task.keyPath),
+            (task.keyPath = type))
+          : "hidden" !== props.mode &&
+            (type.chunks.push("\x3c!--&--\x3e"),
+            (type.lastPushedText = !1),
+            (newProps = task.keyPath),
             (task.keyPath = keyPath),
             renderNode(request, task, props.children, -1),
-            (task.keyPath = newProps));
-          request = type.chunks;
-          if ((task = task.blockedPreamble))
-            (task = task.contribution),
-              0 !== task && request.push("\x3c!--", "" + task, "--\x3e");
-          request.push("\x3c!--/&--\x3e");
-          type.lastPushedText = !1;
-        }
+            (task.keyPath = newProps),
+            type.chunks.push("\x3c!--/&--\x3e"),
+            (type.lastPushedText = !1));
         return;
       case REACT_SUSPENSE_LIST_TYPE:
         type = task.keyPath;
@@ -5919,24 +5901,18 @@ function flushSegment(request, destination, segment, hoistableState) {
   if (null === boundary)
     return flushSubtree(request, destination, segment, hoistableState);
   boundary.parentFlushed = !0;
-  if (4 === boundary.status) {
-    var errorDigest = boundary.errorDigest;
-    destination.write("\x3c!--$!--\x3e");
-    writeChunk(destination, "<template");
-    errorDigest &&
-      (writeChunk(destination, ' data-dgst="'),
-      writeChunk(destination, escapeTextForBrowser(errorDigest)),
-      writeChunk(destination, '"'));
-    destination.write("></template>");
-    flushSubtree(request, destination, segment, hoistableState);
-    (request = boundary.fallbackPreamble) &&
-      writePreambleContribution(destination, request);
-    return !!destination.write("\x3c!--/$--\x3e");
-  }
-  if (1 !== boundary.status)
-    return (
-      0 === boundary.status &&
-        (boundary.rootSegmentID = request.nextSegmentId++),
+  if (4 === boundary.status)
+    (boundary = boundary.errorDigest),
+      destination.write("\x3c!--$!--\x3e"),
+      writeChunk(destination, "<template"),
+      boundary &&
+        (writeChunk(destination, ' data-dgst="'),
+        writeChunk(destination, escapeTextForBrowser(boundary)),
+        writeChunk(destination, '"')),
+      destination.write("></template>"),
+      flushSubtree(request, destination, segment, hoistableState);
+  else if (1 !== boundary.status)
+    0 === boundary.status && (boundary.rootSegmentID = request.nextSegmentId++),
       0 < boundary.completedSegments.length &&
         request.partialBoundaries.push(boundary),
       writeStartPendingSuspenseBoundary(
@@ -5951,34 +5927,29 @@ function flushSegment(request, destination, segment, hoistableState) {
           hoistStylesheetDependency,
           hoistableState
         )),
-      flushSubtree(request, destination, segment, hoistableState),
-      !!destination.write("\x3c!--/$--\x3e")
-    );
-  if (boundary.byteSize > request.progressiveChunkSize)
-    return (
-      (boundary.rootSegmentID = request.nextSegmentId++),
+      flushSubtree(request, destination, segment, hoistableState);
+  else if (boundary.byteSize > request.progressiveChunkSize)
+    (boundary.rootSegmentID = request.nextSegmentId++),
       request.completedBoundaries.push(boundary),
       writeStartPendingSuspenseBoundary(
         destination,
         request.renderState,
         boundary.rootSegmentID
       ),
-      flushSubtree(request, destination, segment, hoistableState),
-      !!destination.write("\x3c!--/$--\x3e")
-    );
-  hoistableState &&
-    ((segment = boundary.contentState),
-    segment.styles.forEach(hoistStyleQueueDependency, hoistableState),
-    segment.stylesheets.forEach(hoistStylesheetDependency, hoistableState));
-  destination.write("\x3c!--$--\x3e");
-  segment = boundary.completedSegments;
-  if (1 !== segment.length)
-    throw Error(
-      "A previously unvisited boundary must have exactly one root segment. This is a bug in React."
-    );
-  flushSegment(request, destination, segment[0], hoistableState);
-  (request = boundary.contentPreamble) &&
-    writePreambleContribution(destination, request);
+      flushSubtree(request, destination, segment, hoistableState);
+  else {
+    hoistableState &&
+      ((segment = boundary.contentState),
+      segment.styles.forEach(hoistStyleQueueDependency, hoistableState),
+      segment.stylesheets.forEach(hoistStylesheetDependency, hoistableState));
+    destination.write("\x3c!--$--\x3e");
+    segment = boundary.completedSegments;
+    if (1 !== segment.length)
+      throw Error(
+        "A previously unvisited boundary must have exactly one root segment. This is a bug in React."
+      );
+    flushSegment(request, destination, segment[0], hoistableState);
+  }
   return !!destination.write("\x3c!--/$--\x3e");
 }
 function flushSegmentContainer(request, destination, segment, hoistableState) {
@@ -6023,7 +5994,7 @@ function flushCompletedBoundary(request, destination, boundary) {
           ? ((completedSegments.instructions |= 10),
             writeChunk(
               destination,
-              '$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};$RM=new Map;\n$RR=function(t,u,y){function v(n){this._p=null;n()}for(var w=$RC,p=$RM,q=new Map,r=document,g,b,h=r.querySelectorAll("link[data-precedence],style[data-precedence]"),x=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?x.push(b):("LINK"===b.tagName&&p.set(b.getAttribute("href"),b),q.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var e=y[b++];if(!e){k=!1;b=0;continue}var c=!1,m=0;var d=e[m++];if(a=p.get(d)){var f=a._p;c=!0}else{a=r.createElement("link");a.href=\nd;a.rel="stylesheet";for(a.dataset.precedence=l=e[m++];f=e[m++];)a.setAttribute(f,e[m++]);f=a._p=new Promise(function(n,z){a.onload=v.bind(a,n);a.onerror=v.bind(a,z)});p.set(d,a)}d=a.getAttribute("media");!f||d&&!matchMedia(d).matches||h.push(f);if(c)continue}else{a=x[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=q.get(l)||g;c===g&&(g=a);q.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=r.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(w.bind(null,\nt,u,""),w.bind(null,t,u,"Resource failed to load"))};$RR("'
+              '$RC=function(b,d,e){d=document.getElementById(d);d.parentNode.removeChild(d);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var c=a.data;if("/$"===c||"/&"===c)if(0===f)break;else f--;else"$"!==c&&"$?"!==c&&"$!"!==c&&"&"!==c||f++}c=a.nextSibling;e.removeChild(a);a=c}while(a);for(;d.firstChild;)e.insertBefore(d.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};$RM=new Map;\n$RR=function(t,u,y){function v(n){this._p=null;n()}for(var w=$RC,p=$RM,q=new Map,r=document,g,b,h=r.querySelectorAll("link[data-precedence],style[data-precedence]"),x=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?x.push(b):("LINK"===b.tagName&&p.set(b.getAttribute("href"),b),q.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var e=y[b++];if(!e){k=!1;b=0;continue}var c=!1,m=0;var d=e[m++];if(a=p.get(d)){var f=a._p;c=!0}else{a=r.createElement("link");a.href=\nd;a.rel="stylesheet";for(a.dataset.precedence=l=e[m++];f=e[m++];)a.setAttribute(f,e[m++]);f=a._p=new Promise(function(n,z){a.onload=v.bind(a,n);a.onerror=v.bind(a,z)});p.set(d,a)}d=a.getAttribute("media");!f||d&&!matchMedia(d).matches||h.push(f);if(c)continue}else{a=x[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=q.get(l)||g;c===g&&(g=a);q.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=r.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(w.bind(null,\nt,u,""),w.bind(null,t,u,"Resource failed to load"))};$RR("'
             ))
           : 0 === (completedSegments.instructions & 8)
             ? ((completedSegments.instructions |= 8),
@@ -6036,7 +6007,7 @@ function flushCompletedBoundary(request, destination, boundary) {
           ? ((completedSegments.instructions |= 2),
             writeChunk(
               destination,
-              '$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};$RC("'
+              '$RC=function(b,d,e){d=document.getElementById(d);d.parentNode.removeChild(d);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var c=a.data;if("/$"===c||"/&"===c)if(0===f)break;else f--;else"$"!==c&&"$?"!==c&&"$!"!==c&&"&"!==c||f++}c=a.nextSibling;e.removeChild(a);a=c}while(a);for(;d.firstChild;)e.insertBefore(d.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};$RC("'
             ))
           : writeChunk(destination, '$RC("'))
     : requiresStyleInsertion
@@ -6427,15 +6398,15 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
     parentNode[2].push(node);
   }
 }
-var isomorphicReactPackageVersion$jscomp$inline_826 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_819 = React.version;
 if (
-  "19.2.0-experimental-3fbfb9ba-20250409" !==
-  isomorphicReactPackageVersion$jscomp$inline_826
+  "19.2.0-experimental-197d6a04-20250424" !==
+  isomorphicReactPackageVersion$jscomp$inline_819
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
-      (isomorphicReactPackageVersion$jscomp$inline_826 +
-        "\n  - react-dom:  19.2.0-experimental-3fbfb9ba-20250409\nLearn more: https://react.dev/warnings/version-mismatch")
+      (isomorphicReactPackageVersion$jscomp$inline_819 +
+        "\n  - react-dom:  19.2.0-experimental-197d6a04-20250424\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -6526,4 +6497,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-experimental-3fbfb9ba-20250409";
+exports.version = "19.2.0-experimental-197d6a04-20250424";

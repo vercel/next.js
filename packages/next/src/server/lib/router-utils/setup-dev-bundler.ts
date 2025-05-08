@@ -5,6 +5,7 @@ import {
   getPageStaticInfo,
   type MiddlewareMatcher,
 } from '../../../build/analysis/get-page-static-info'
+import type { RoutesManifest } from '../../../build'
 import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
@@ -53,6 +54,8 @@ import {
   DEV_CLIENT_MIDDLEWARE_MANIFEST,
   PHASE_DEVELOPMENT_SERVER,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
+  ROUTES_MANIFEST,
+  PRERENDER_MANIFEST,
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
@@ -96,6 +99,17 @@ export type SetupOpts = {
   port: number
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   resetFetch: () => void
+}
+
+export interface DevRoutesManifest {
+  version: number
+  caseSensitive: RoutesManifest['caseSensitive']
+  basePath: RoutesManifest['basePath']
+  rewrites: RoutesManifest['rewrites']
+  redirects: RoutesManifest['redirects']
+  headers: RoutesManifest['headers']
+  i18n: RoutesManifest['i18n']
+  skipMiddlewareUrlNormalize: RoutesManifest['skipMiddlewareUrlNormalize']
 }
 
 export type ServerFields = {
@@ -193,6 +207,30 @@ async function startWatcher(opts: SetupOpts) {
       })
 
   await hotReloader.start()
+
+  // have to write this after starting hot-reloader since that
+  // cleans the dist dir
+  const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
+  const routesManifest: DevRoutesManifest = {
+    version: 3,
+    caseSensitive: !!nextConfig.experimental.caseSensitiveRoutes,
+    basePath: nextConfig.basePath,
+    rewrites: opts.fsChecker.rewrites,
+    redirects: opts.fsChecker.redirects,
+    headers: opts.fsChecker.headers,
+    i18n: nextConfig.i18n || undefined,
+    skipMiddlewareUrlNormalize: nextConfig.skipMiddlewareUrlNormalize,
+  }
+  await fs.promises.writeFile(
+    routesManifestPath,
+    JSON.stringify(routesManifest)
+  )
+
+  const prerenderManifestPath = path.join(distDir, PRERENDER_MANIFEST)
+  await fs.promises.writeFile(
+    prerenderManifestPath,
+    JSON.stringify(opts.fsChecker.prerenderManifest, null, 2)
+  )
 
   if (opts.nextConfig.experimental.nextScriptWorkers) {
     await verifyPartytownSetup(

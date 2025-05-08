@@ -155,7 +155,10 @@ export function getDefineEnv({
     'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_DYNAMIC_IO': isDynamicIOEnabled,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
-    'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
+
+    'process.env.NEXT_DEPLOYMENT_ID': config.experimental?.useSkewCookie
+      ? false
+      : config.deploymentId || false,
     // Propagates the `__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING` environment
     // variable to the client.
     'process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING':
@@ -265,6 +268,21 @@ export function getDefineEnv({
             needsExperimentalReact(config),
         }
       : undefined),
+
+    'process.env.__NEXT_MULTI_ZONE_DRAFT_MODE': JSON.stringify(
+      config.experimental.multiZoneDraftMode
+    ),
+    'process.env.__NEXT_TRUST_HOST_HEADER': JSON.stringify(
+      config.experimental.trustHostHeader
+    ),
+    'process.env.__NEXT_ALLOWED_REVALIDATE_HEADERS': JSON.stringify(
+      config.experimental.allowedRevalidateHeaderKeys
+    ),
+    ...(isNodeServer
+      ? {
+          'process.env.__NEXT_RELATIVE_DIST_DIR': config.distDir,
+        }
+      : {}),
   }
 
   const userDefines = config.compiler?.define ?? {}

@@ -12,8 +12,6 @@ This example uses [next-intl](https://github.com/amannn/next-intl), a minimal, b
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-i18n-next-intl)
-
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-i18n-next-intl)
 
 ## How to use

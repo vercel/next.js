@@ -98,7 +98,8 @@ impl IssueEmitter {
 }
 
 impl Emitter for IssueEmitter {
-    fn emit(&mut self, db: &DiagnosticBuilder<'_>) {
+    fn emit(&mut self, db: &mut DiagnosticBuilder<'_>) {
+        let db = db.take();
         let level = db.level;
         let mut message = db
             .message

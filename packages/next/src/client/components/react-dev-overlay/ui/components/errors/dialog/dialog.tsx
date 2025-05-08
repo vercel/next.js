@@ -16,7 +16,6 @@ export function ErrorOverlayDialog({
   return (
     <div className="error-overlay-dialog-container">
       <Dialog
-        type="error"
         aria-labelledby="nextjs__container_errors_label"
         aria-describedby="nextjs__container_errors_desc"
         className="error-overlay-dialog-scroll"

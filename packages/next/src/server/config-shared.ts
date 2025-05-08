@@ -105,6 +105,10 @@ export type TurbopackLoaderItem =
       options: Record<string, JSONValue>
     }
 
+export type TurbopackRuleCondition = {
+  path: string | RegExp
+}
+
 export type TurbopackRuleConfigItemOrShortcut =
   | TurbopackLoaderItem[]
   | TurbopackRuleConfigItem
@@ -143,6 +147,13 @@ export interface TurbopackOptions {
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
   rules?: Record<string, TurbopackRuleConfigItemOrShortcut>
+
+  /**
+   * (`next --turbopack` only) A list of conditions to apply when running webpack loaders with Turbopack.
+   *
+   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
+   */
+  conditions?: Record<string, TurbopackRuleCondition>
 
   /**
    * The module ID strategy to use for Turbopack.
@@ -262,6 +273,7 @@ export interface LoggingConfig {
 }
 
 export interface ExperimentalConfig {
+  useSkewCookie?: boolean
   nodeMiddleware?: boolean
   cacheHandlers?: {
     default?: string
@@ -509,6 +521,16 @@ export interface ExperimentalConfig {
    */
   routerBFCache?: boolean
 
+  /**
+   * Uninstalls all "unhandledRejection" and "uncaughtException" listeners from
+   * the global process so that we can override the behavior, which in some
+   * runtimes is to exit the process.
+   *
+   * This is experimental until we've considered the impact in various
+   * deployment environments.
+   */
+  removeUncaughtErrorAndRejectionListeners?: boolean
+
   serverActions?: {
     /**
      * Allows adjusting body parser size limit for server actions.
@@ -709,6 +731,15 @@ export type ExportPathMap = {
      * @internal
      */
     _isProspectiveRender?: boolean
+
+    /**
+     * When true, it indicates that the diagnostic render for this page is
+     * disabled. This is only used when the app has `experimental.ppr` and
+     * `experimental.dynamicIO` enabled.
+     *
+     * @internal
+     */
+    _doNotThrowOnEmptyStaticShell?: boolean
   }
 }
 
@@ -1036,6 +1067,22 @@ export interface NextConfig extends Record<string, any> {
      * replaced with the respective values.
      */
     define?: Record<string, string>
+
+    /**
+     * A hook function that executes after production build compilation finishes,
+     * but before running post-compilation tasks such as type checking and
+     * static page generation.
+     */
+    runAfterProductionCompile?: (metadata: {
+      /**
+       * The root directory of the project
+       */
+      projectDir: string
+      /**
+       * The build output directory (defaults to `.next`)
+       */
+      distDir: string
+    }) => Promise<void>
   }
 
   /**
@@ -1181,6 +1228,7 @@ export const defaultConfig: NextConfig = {
     keepAlive: true,
   },
   logging: {},
+  compiler: {},
   expireTime: process.env.NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL
     ? undefined
     : 31536000, // one year
@@ -1190,6 +1238,7 @@ export const defaultConfig: NextConfig = {
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   allowedDevOrigins: undefined,
   experimental: {
+    useSkewCookie: false,
     nodeMiddleware: false,
     cacheLife: {
       default: {
@@ -1302,6 +1351,7 @@ export const defaultConfig: NextConfig = {
     useEarlyImport: false,
     viewTransition: false,
     routerBFCache: false,
+    removeUncaughtErrorAndRejectionListeners: false,
     staleTimes: {
       dynamic: 0,
       static: 300,

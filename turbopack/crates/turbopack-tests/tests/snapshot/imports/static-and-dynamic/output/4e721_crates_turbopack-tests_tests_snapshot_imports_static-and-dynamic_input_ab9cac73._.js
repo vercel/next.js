@@ -8,7 +8,7 @@ var { g: global, __dirname } = __turbopack_context__;
 __turbopack_context__.s({
     "default": (()=>__TURBOPACK__default__export__)
 });
-const __TURBOPACK__default__export__ = "turbopack";
+const __TURBOPACK__default__export__ = 'turbopack';
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";

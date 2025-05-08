@@ -113,11 +113,19 @@ export default function RootLayout({ children }) {
 ```
 
 - The root layout **must** define `<html>` and `<body>` tags.
-  - You should **not** manually add `<head>` tags such as `<title>` and `<meta>` to root layouts. Instead, you should use the [Metadata API](/docs/app/building-your-application/optimizing/metadata) which automatically handles advanced requirements such as streaming and de-duplicating `<head>` elements.
+  - You should **not** manually add `<head>` tags such as `<title>` and `<meta>` to root layouts. Instead, you should use the [Metadata API](/docs/app/getting-started/metadata-and-og-images) which automatically handles advanced requirements such as streaming and de-duplicating `<head>` elements.
 - You can use [route groups](/docs/app/building-your-application/routing/route-groups) to create multiple root layouts.
   - Navigating **across multiple root layouts** will cause a **full page load** (as opposed to a client-side navigation). For example, navigating from `/cart` that uses `app/(shop)/layout.js` to `/blog` that uses `app/(marketing)/layout.js` will cause a full page load. This **only** applies to multiple root layouts.
 
 ## Caveats
+
+### How can I access the request object in a layout?
+
+You intentionally cannot access the raw request object in a layout. However, you can access [`headers`](/docs/app/api-reference/functions/headers) and [`cookies`](/docs/app/api-reference/functions/cookies) through server-only functions.
+
+[Layouts](/docs/app/building-your-application/routing/layouts-and-templates#layouts) do not rerender. They can be cached and reused to avoid unnecessary computation when navigating between pages. By restricting layouts from accessing the raw request, Next.js can prevent the execution of potentially slow or expensive user code within the layout, which could negatively impact performance.
+
+This design also enforces consistent and predictable behavior for layouts across different pages, which simplifies development and debugging.
 
 ### Layouts do not receive `searchParams`
 
@@ -253,7 +261,7 @@ export default function Page({ params }) {
 
 ## Version History
 
-| Version      | Changes                                                                                                          |
-| ------------ | ---------------------------------------------------------------------------------------------------------------- |
-| `v15.0.0-RC` | `params` is now a promise. A [codemod](/docs/app/building-your-application/upgrading/codemods#150) is available. |
-| `v13.0.0`    | `layout` introduced.                                                                                             |
+| Version      | Changes                                                                                       |
+| ------------ | --------------------------------------------------------------------------------------------- |
+| `v15.0.0-RC` | `params` is now a promise. A [codemod](/docs/app/guides/upgrading/codemods#150) is available. |
+| `v13.0.0`    | `layout` introduced.                                                                          |

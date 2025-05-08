@@ -2,6 +2,7 @@ use std::{borrow::Cow, future::Future, mem::replace, panic, pin::Pin};
 
 use anyhow::{anyhow, Result};
 use auto_hash_map::AutoSet;
+use futures::{StreamExt, TryStreamExt};
 use parking_lot::Mutex;
 use rustc_hash::FxHashSet;
 use tracing::{Instrument, Span};
@@ -14,8 +15,10 @@ use crate::{
     manager::turbo_tasks_future_scope,
     trace::TraceRawVcs,
     util::SharedError,
-    CollectiblesSource, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
+    CollectiblesSource, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt,
 };
+
+const APPLY_EFFECTS_CONCURRENCY_LIMIT: usize = 1024;
 
 /// A trait to emit a task effect as collectible. This trait only has one
 /// implementation, `EffectInstance` and no other implementation is allowed.
@@ -162,21 +165,22 @@ pub fn effect(future: impl Future<Output = Result<()>> + Send + Sync + 'static) 
 /// apply_effects(operation).await?;
 /// ```
 pub async fn apply_effects(source: impl CollectiblesSource) -> Result<()> {
-    let effects: AutoSet<Vc<Box<dyn Effect>>> = source.take_collectibles();
+    let effects: AutoSet<ResolvedVc<Box<dyn Effect>>> = source.take_collectibles();
     if effects.is_empty() {
         return Ok(());
     }
     let span = tracing::info_span!("apply effects", count = effects.len());
     async move {
-        let mut first_error = anyhow::Ok(());
-        for effect in effects {
-            let Some(effect) = Vc::try_resolve_downcast_type::<EffectInstance>(effect).await?
-            else {
-                panic!("Effect must only be implemented by EffectInstance");
-            };
-            apply_effect(&effect.await?, &mut first_error).await;
-        }
-        first_error
+        // Limit the concurrency of effects
+        futures::stream::iter(effects)
+            .map(Ok)
+            .try_for_each_concurrent(APPLY_EFFECTS_CONCURRENCY_LIMIT, async |effect| {
+                let Some(effect) = ResolvedVc::try_downcast_type::<EffectInstance>(effect) else {
+                    panic!("Effect must only be implemented by EffectInstance");
+                };
+                effect.await?.apply().await
+            })
+            .await
     }
     .instrument(span)
     .await
@@ -202,11 +206,11 @@ pub async fn apply_effects(source: impl CollectiblesSource) -> Result<()> {
 /// result_with_effects.effects.apply().await?;
 /// ```
 pub async fn get_effects(source: impl CollectiblesSource) -> Result<Effects> {
-    let effects: AutoSet<Vc<Box<dyn Effect>>> = source.take_collectibles();
+    let effects: AutoSet<ResolvedVc<Box<dyn Effect>>> = source.take_collectibles();
     let effects = effects
         .into_iter()
         .map(|effect| async move {
-            if let Some(effect) = Vc::try_resolve_downcast_type::<EffectInstance>(effect).await? {
+            if let Some(effect) = ResolvedVc::try_downcast_type::<EffectInstance>(effect) {
                 Ok(effect.await?)
             } else {
                 panic!("Effect must only be implemented by EffectInstance");
@@ -249,26 +253,16 @@ impl Effects {
     pub async fn apply(&self) -> Result<()> {
         let span = tracing::info_span!("apply effects", count = self.effects.len());
         async move {
-            let mut first_error = anyhow::Ok(());
-            for effect in self.effects.iter() {
-                apply_effect(effect, &mut first_error).await;
-            }
-            first_error
+            // Limit the concurrency of effects
+            futures::stream::iter(self.effects.iter())
+                .map(Ok)
+                .try_for_each_concurrent(APPLY_EFFECTS_CONCURRENCY_LIMIT, async |effect| {
+                    effect.apply().await
+                })
+                .await
         }
         .instrument(span)
         .await
-    }
-}
-
-async fn apply_effect(
-    effect: &ReadRef<EffectInstance>,
-    first_error: &mut std::result::Result<(), anyhow::Error>,
-) {
-    match effect.apply().await {
-        Err(err) if first_error.is_ok() => {
-            *first_error = Err(err);
-        }
-        _ => {}
     }
 }
 

@@ -16,7 +16,6 @@ async function turbopackBuildWithWorker() {
       maxRetries: 0,
       forkOptions: {
         env: {
-          ...process.env,
           NEXT_PRIVATE_BUILD_WORKER: '1',
           NODE_OPTIONS: formatNodeOptions(nodeOptions),
         },

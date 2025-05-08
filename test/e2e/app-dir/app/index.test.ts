@@ -1711,6 +1711,57 @@ describe('app dir - basic', () => {
       }
     })
 
+    it('should pass manual `nonce`', async () => {
+      const html = await next.render('/script-manual-nonce')
+      const $ = cheerio.load(html)
+      let scripts = $('script, link[rel="preload"][as="script"]')
+
+      scripts = scripts.filter((_, element) =>
+        (element.attribs.src || element.attribs.href)?.startsWith('/test')
+      )
+
+      expect(scripts.length).toBeGreaterThan(0)
+
+      scripts.each((_, element) => {
+        expect(element.attribs.nonce).toBeTruthy()
+      })
+
+      if (!isNextDev) {
+        const browser = await next.browser('/script-manual-nonce')
+
+        await retry(async () => {
+          await browser.elementByCss('#get-order').click()
+          const order = JSON.parse(await browser.elementByCss('#order').text())
+          expect(order?.length).toBe(2)
+        })
+      }
+    })
+
+    it('should pass manual `nonce` pages', async () => {
+      const html = await next.render('/pages-script-manual-nonce')
+      const $ = cheerio.load(html)
+      let scripts = $('script, link[rel="preload"][as="script"]')
+
+      scripts = scripts.filter((_, element) =>
+        (element.attribs.src || element.attribs.href)?.startsWith('/test')
+      )
+
+      expect(scripts.length).toBeGreaterThan(0)
+
+      scripts.each((_, element) => {
+        expect(element.attribs.nonce).toBeTruthy()
+      })
+
+      if (!isNextDev) {
+        await retry(async () => {
+          const browser = await next.browser('/pages-script-manual-nonce')
+          await browser.elementByCss('#get-order').click()
+          const order = JSON.parse(await browser.elementByCss('#order').text())
+          expect(order?.length).toBe(2)
+        })
+      }
+    })
+
     it('should pass nonce when using next/font', async () => {
       const html = await next.render('/script-nonce/with-next-font')
       const $ = cheerio.load(html)

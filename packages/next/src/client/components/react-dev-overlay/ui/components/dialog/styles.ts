@@ -3,7 +3,7 @@ const styles = `
     --next-dialog-radius: var(--rounded-xl);
     --next-dialog-max-width: 960px;
     --next-dialog-row-padding: 16px;
-    --next-dialog-padding-x: 12px;
+    --next-dialog-padding: 12px;
     --next-dialog-notch-height: 42px;
     --next-dialog-border-width: 1px;
 
@@ -14,7 +14,7 @@ const styles = `
     max-width: var(--next-dialog-max-width);
     margin-right: auto;
     margin-left: auto;
-    scale: 0.98;
+    scale: 0.97;
     opacity: 0;
     transition-property: scale, opacity;
     transition-duration: var(--transition-duration);
@@ -28,7 +28,7 @@ const styles = `
     [data-nextjs-scroll-fader][data-side="top"] {
       left: 1px;
       top: calc(var(--next-dialog-notch-height) + var(--next-dialog-border-width));
-      width: calc(100% - var(--next-dialog-padding-x));
+      width: calc(100% - var(--next-dialog-padding));
       opacity: 0;
     }
   }
@@ -71,6 +71,10 @@ const styles = `
     transition: opacity var(--transition-duration) var(--timing-overlay);
   }
 
+  [data-nextjs-dialog-overlay] {
+    margin: 8px;
+  }
+
   [data-nextjs-dialog-overlay][data-rendered='true']
     [data-nextjs-dialog-backdrop] {
     opacity: 1;
@@ -82,7 +86,7 @@ const styles = `
     display: flex;
     flex-direction: column;
     position: relative;
-    padding: 16px var(--next-dialog-padding-x);
+    padding: var(--next-dialog-padding);
   }
 
   [data-nextjs-dialog-content] > [data-nextjs-dialog-header] {

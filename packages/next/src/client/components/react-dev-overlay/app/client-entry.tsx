@@ -1,7 +1,7 @@
 import React from 'react'
 import { getSocketUrl } from '../utils/get-socket-url'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
-import GlobalError from '../../error-boundary'
+import GlobalError from '../../global-error'
 import { AppDevOverlayErrorBoundary } from './app-dev-overlay-error-boundary'
 
 const noop = () => {}
