@@ -6,6 +6,9 @@ const {
   getInfo,
   getInfoFromPullRequest,
 } = require('@changesets/get-github-info')
+const {
+  getPrNumbersFromEndOfSummary,
+} = require('./get-pr-numbers-from-end-of-summary')
 
 // Note: This script runs during `changeset version` in CI.
 if (!process.env.GITHUB_TOKEN) {
@@ -44,41 +47,33 @@ const defaultChangelogFunctions = {
       )
     }
 
-    // TODO: Mature
-    // If the summary ends with [#number | #number[]],
-    // assume this changeset explicitly specified the
-    // PR number(s) following the custom convension.
-    // Example: [#123], [#123,#456] or [#123, #456, #789]
-    // if (/\[\#\d+(?:,\s*\#\d+)*\]\s*$/.test(changeset.summary.trim())) {
-    //   const pullNumbers = changeset.summary
-    //     .match(/\#\d+/g)
-    //     .map((num) => parseInt(num.replace('#', ''), 10))
-    //   const validPullNumbers = []
+    // If the summary ends with #<number>, assume this
+    // changeset explicitly specified the PR number(s)
+    // following the custom convension.
+    // Example: ... #123 or ... #123, #456
+    const pullNumbers = getPrNumbersFromEndOfSummary(changeset.summary)
+    if (pullNumbers) {
+      await Promise.all(
+        pullNumbers.map(async (pullNumber) => {
+          try {
+            const { links } = await getInfoFromPullRequest({
+              pull: pullNumber,
+              repo: 'vercel/next.js',
+            })
+            if (links.user) {
+              await addCredits(links.user)
+            }
+          } catch (cause) {
+            throw new Error(
+              `Failed to get the required info for PR #${pullNumber}`,
+              { cause }
+            )
+          }
+        })
+      )
 
-    //   await Promise.all(
-    //     pullNumbers.map(async (pullNumber) => {
-    //       try {
-    //         const { links } = await getInfoFromPullRequest({
-    //           pull: pullNumber,
-    //           repo: 'vercel/next.js',
-    //         })
-    //         if (links.user) {
-    //           await addCredits(links.user)
-    //         }
-    //         if (links.pull) {
-    //           validPullNumbers.push(links.pull)
-    //         }
-    //       } catch (cause) {
-    //         throw new Error(
-    //           `Failed to get the required info for PR #${pullNumber}`,
-    //           { cause }
-    //         )
-    //       }
-    //     })
-    //   )
-
-    //   return `- ${changeset.summary} #${validPullNumbers.join(', #')}`
-    // }
+      return `- ${changeset.summary}`
+    }
 
     await addCredits(user)
     return `- ${changeset.summary} #${pull}`
