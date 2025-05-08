@@ -1,5 +1,5 @@
+import { http, HttpResponse } from 'msw';
 import { Book, Review } from "./types";
-import { http, HttpResponse } from 'msw'
 
 export const handlers = [
   http.get("https://my.backend/book", () => {
