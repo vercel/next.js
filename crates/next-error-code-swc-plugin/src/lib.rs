@@ -28,6 +28,7 @@ fn is_error_class_name(name: &str) -> bool {
         || name == "TypeError"
         || name == "URIError"
         // custom error classes
+        || name == "ActionNotInModuleMapError"
         || name == "ApiError"
         || name == "BailoutToCSRError"
         || name == "BubbledError"
