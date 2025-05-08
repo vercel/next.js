@@ -122,7 +122,7 @@ pub async fn get_next_server_transforms_rules(
             }
             false
         }
-        ServerContextType::AppSSR { .. } => {
+        ServerContextType::AppSSR { app_dir, .. } => {
             // Yah, this is SSR, but this is still treated as a Client transform layer.
             // need to apply to foreign code too
             rules.push(
@@ -133,6 +133,7 @@ pub async fn get_next_server_transforms_rules(
                     mdx_rs,
                     use_cache_enabled,
                     cache_kinds,
+                    app_dir,
                 )
                 .await?,
             );
@@ -141,7 +142,7 @@ pub async fn get_next_server_transforms_rules(
 
             false
         }
-        ServerContextType::AppRSC { .. } => {
+        ServerContextType::AppRSC { app_dir, .. } => {
             rules.push(
                 get_server_actions_transform_rule(
                     mode,
@@ -150,6 +151,7 @@ pub async fn get_next_server_transforms_rules(
                     mdx_rs,
                     use_cache_enabled,
                     cache_kinds,
+                    app_dir,
                 )
                 .await?,
             );
@@ -158,7 +160,7 @@ pub async fn get_next_server_transforms_rules(
 
             true
         }
-        ServerContextType::AppRoute { .. } => {
+        ServerContextType::AppRoute { app_dir, .. } => {
             rules.push(
                 get_server_actions_transform_rule(
                     mode,
@@ -167,6 +169,7 @@ pub async fn get_next_server_transforms_rules(
                     mdx_rs,
                     use_cache_enabled,
                     cache_kinds,
+                    app_dir,
                 )
                 .await?,
             );

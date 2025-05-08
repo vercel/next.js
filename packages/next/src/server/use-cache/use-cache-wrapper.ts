@@ -555,9 +555,13 @@ function createTrackedReadableStream(
   })
 }
 
+/**
+ * @param location Similar to a V8 stack frame location e.g. `"myFn (app/page.tsx:47:11)"`
+ */
 export function cache(
   kind: string,
   id: string,
+  location: string,
   boundArgsLength: number,
   originalFn: (...args: unknown[]) => Promise<unknown>
 ) {
@@ -571,6 +575,8 @@ export function cache(
   Error.captureStackTrace(timeoutError, cache)
 
   const name = originalFn.name
+  const displayName = `use-cache ${location}`
+
   const cachedFn = {
     [name]: async function (...args: any[]) {
       const workStore = workAsyncStorage.getStore()
@@ -756,7 +762,7 @@ export function cache(
         let entry = shouldForceRevalidate(workStore, workUnitStore)
           ? undefined
           : 'getExpiration' in cacheHandler
-            ? await cacheHandler.get(serializedCacheKey)
+            ? await cacheHandler.get(serializedCacheKey, { displayName })
             : // Legacy cache handlers require implicit tags to be passed in,
               // instead of checking their staleness here, as we do for modern
               // cache handlers (see below).
@@ -872,7 +878,8 @@ export function cache(
 
             const promise = cacheHandler.set(
               serializedCacheKey,
-              savedCacheEntry
+              savedCacheEntry,
+              { displayName }
             )
 
             workStore.pendingRevalidateWrites ??= []
@@ -933,7 +940,8 @@ export function cache(
 
             const promise = cacheHandler.set(
               serializedCacheKey,
-              savedCacheEntry
+              savedCacheEntry,
+              { displayName }
             )
 
             if (!workStore.pendingRevalidateWrites) {

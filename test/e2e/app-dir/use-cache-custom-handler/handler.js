@@ -7,13 +7,13 @@ const defaultCacheHandler =
  * @type {import('next/dist/server/lib/cache-handlers/types').CacheHandlerV2}
  */
 const cacheHandler = {
-  async get(cacheKey) {
-    console.log('ModernCustomCacheHandler::get', cacheKey)
+  async get(cacheKey, metadata) {
+    console.log('ModernCustomCacheHandler::get', metadata.displayName, cacheKey)
     return defaultCacheHandler.get(cacheKey)
   },
 
-  async set(cacheKey, pendingEntry) {
-    console.log('ModernCustomCacheHandler::set', cacheKey)
+  async set(cacheKey, pendingEntry, metadata) {
+    console.log('ModernCustomCacheHandler::set', metadata.displayName, cacheKey)
     return defaultCacheHandler.set(cacheKey, pendingEntry)
   },
 

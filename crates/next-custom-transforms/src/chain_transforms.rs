@@ -2,6 +2,7 @@ use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 
 use either::Either;
 use modularize_imports;
+use pathdiff::diff_paths;
 use preset_env_base::query::targets_to_versions;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
@@ -18,6 +19,7 @@ use swc_core::{
         visit::visit_mut_pass,
     },
 };
+use turbo_rcstr::RcStr;
 
 use crate::{
     linter::linter,
@@ -27,7 +29,7 @@ use crate::{
         fonts::next_font_loaders,
         lint_codemod_comments::lint_codemod_comments,
         react_server_components,
-        server_actions::ServerActionsMode,
+        server_actions::{FileInfo, ServerActionsMode},
     },
 };
 
@@ -326,8 +328,11 @@ where
             },
             match &opts.server_actions {
                 Some(config) => Either::Left(crate::transforms::server_actions::server_actions(
-                    &file.name,
-                    None,
+                    FileInfo {
+                        path: file.name.to_string().into(),
+                        relative_path: relative_file_path(&opts.app_dir, &file.name),
+                        query: None,
+                    },
                     config.clone(),
                     comments.clone(),
                     cm.clone(),
@@ -459,5 +464,15 @@ where
                 Ok(BoolOr::Data(T::deserialize(d)?))
             }
         }
+    }
+}
+
+pub fn relative_file_path(app_dir: &Option<PathBuf>, file: &FileName) -> Option<RcStr> {
+    let base = app_dir.as_deref()?.parent()?;
+
+    if let FileName::Real(path) = file {
+        diff_paths(path, base).map(|relative| relative.display().to_string().into())
+    } else {
+        None
     }
 }

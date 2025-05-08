@@ -71,7 +71,7 @@ pub async fn get_next_client_transforms_rules(
                 rules.push(get_next_page_config_rule(enable_mdx_rs, pages_dir.await?));
             }
         }
-        ClientContextType::App { .. } => {
+        ClientContextType::App { app_dir, .. } => {
             is_app_dir = true;
             rules.push(
                 get_server_actions_transform_rule(
@@ -81,6 +81,7 @@ pub async fn get_next_client_transforms_rules(
                     enable_mdx_rs,
                     use_cache_enabled,
                     cache_kinds,
+                    app_dir,
                 )
                 .await?,
             );

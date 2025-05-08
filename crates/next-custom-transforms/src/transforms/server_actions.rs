@@ -22,7 +22,7 @@ use swc_core::{
         errors::HANDLER,
         source_map::{SourceMapGenConfig, PURE_SP},
         util::take::Take,
-        BytePos, FileName, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP,
+        BytePos, FileName, Loc, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP,
     },
     ecma::{
         ast::*,
@@ -134,10 +134,21 @@ enum ServerActionsErrorKind {
 // Using BTreeMap to ensure the order of the actions is deterministic.
 pub type ActionsMap = BTreeMap<Atom, Atom>;
 
+pub struct FileInfo {
+    pub path: RcStr,
+    pub relative_path: Option<RcStr>,
+    pub query: Option<RcStr>,
+}
+
+impl FileInfo {
+    fn try_relative_path(&self) -> RcStr {
+        self.relative_path.clone().unwrap_or(self.path.clone())
+    }
+}
+
 #[tracing::instrument(level = tracing::Level::TRACE, skip_all)]
 pub fn server_actions<C: Comments>(
-    file_name: &FileName,
-    file_query: Option<RcStr>,
+    file_info: FileInfo,
     config: Config,
     comments: C,
     cm: Arc<SourceMap>,
@@ -149,8 +160,7 @@ pub fn server_actions<C: Comments>(
         mode,
         comments,
         cm,
-        file_name: file_name.to_string(),
-        file_query,
+        file_info,
         start_pos: BytePos(0),
         file_directive: None,
         in_exported_expr: false,
@@ -209,8 +219,7 @@ fn generate_server_actions_comment(
 struct ServerActions<C: Comments> {
     #[allow(unused)]
     config: Config,
-    file_name: String,
-    file_query: Option<RcStr>,
+    file_info: FileInfo,
     comments: C,
     cm: Arc<SourceMap>,
     mode: ServerActionsMode,
@@ -269,7 +278,7 @@ impl<C: Comments> ServerActions<C> {
 
         let mut hasher = Sha1::new();
         hasher.update(self.config.hash_salt.as_bytes());
-        hasher.update(self.file_name.as_bytes());
+        hasher.update(self.file_info.path.as_bytes());
         hasher.update(b":");
         hasher.update(export_name.as_bytes());
         let mut result = hasher.finalize().to_vec();
@@ -738,6 +747,16 @@ impl<C: Comments> ServerActions<C> {
             });
         }
 
+        let name = if let Some(Ident { sym, .. }) = &self.arrow_or_fn_expr_ident {
+            Some(sym.as_str())
+        } else if self.in_default_export_decl {
+            Some("default")
+        } else {
+            None
+        };
+
+        let loc = self.cm.lookup_char_pos(arrow.span.lo);
+
         // Create the action export decl from the arrow function
         // export var cache_ident = async function() {}
         self.hoisted_extra_items
@@ -774,6 +793,9 @@ impl<C: Comments> ServerActions<C> {
                             })),
                             &cache_kind,
                             &reference_id,
+                            name,
+                            self.file_info.try_relative_path(),
+                            loc,
                             ids_from_closure.len(),
                         )),
                         definite: false,
@@ -783,8 +805,8 @@ impl<C: Comments> ServerActions<C> {
                 .into(),
             })));
 
-        if let Some(Ident { sym, .. }) = &self.arrow_or_fn_expr_ident {
-            assign_name_to_ident(&cache_ident, sym.as_str(), &mut self.hoisted_extra_items);
+        if let Some(name) = name {
+            assign_name_to_ident(&cache_ident, name, &mut self.hoisted_extra_items);
         }
 
         let bound_args: Vec<_> = ids_from_closure
@@ -875,6 +897,16 @@ impl<C: Comments> ServerActions<C> {
             private_ctxt: self.private_ctxt,
         });
 
+        let name = if let Some(Ident { sym, .. }) = &fn_name {
+            Some(sym.as_str())
+        } else if self.in_default_export_decl {
+            Some("default")
+        } else {
+            None
+        };
+
+        let loc = self.cm.lookup_char_pos(function.span.lo);
+
         // export var cache_ident = async function() {}
         self.hoisted_extra_items
             .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
@@ -895,6 +927,9 @@ impl<C: Comments> ServerActions<C> {
                             })),
                             &cache_kind,
                             &reference_id,
+                            name,
+                            self.file_info.try_relative_path(),
+                            loc,
                             ids_from_closure.len(),
                         )),
                         definite: false,
@@ -904,11 +939,9 @@ impl<C: Comments> ServerActions<C> {
                 .into(),
             })));
 
-        if let Some(Ident { sym, .. }) = fn_name {
-            assign_name_to_ident(&cache_ident, sym.as_str(), &mut self.hoisted_extra_items);
-        } else if self.in_default_export_decl {
-            assign_name_to_ident(&cache_ident, "default", &mut self.hoisted_extra_items);
-        }
+        if let Some(name) = name {
+            assign_name_to_ident(&cache_ident, name, &mut self.hoisted_extra_items);
+        };
 
         let bound_args: Vec<_> = ids_from_closure
             .iter()
@@ -2170,7 +2203,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     )],
                                     src: Some(Box::new(
                                         program_to_data_url(
-                                            &self.file_name,
+                                            &self.file_info.path,
                                             &self.cm,
                                             vec![
                                                 ModuleItem::Stmt(Stmt::Expr(ExprStmt {
@@ -2188,8 +2221,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                 text: generate_server_actions_comment(
                                                     &std::iter::once((ref_id, export)).collect(),
                                                     Some((
-                                                        &self.file_name,
-                                                        self.file_query.as_ref().map_or("", |v| v),
+                                                        &self.file_info.path,
+                                                        self.file_info
+                                                            .query
+                                                            .as_ref()
+                                                            .map_or("", |v| v),
                                                     )),
                                                 )
                                                 .into(),
@@ -2368,19 +2404,40 @@ fn retain_names_from_declared_idents(
     *child_names = retained_names;
 }
 
-fn wrap_cache_expr(expr: Box<Expr>, name: &str, id: &str, bound_args_len: usize) -> Box<Expr> {
-    // expr -> $$cache__("name", "id", 0, expr)
+/// `$$cache__("default", "id", "Page (app/page.tsx:47:11)", 0, expr)`
+fn wrap_cache_expr(
+    expr: Box<Expr>,
+    cache_kind: &str,
+    id: &str,
+    name: Option<&str>,
+    file_path: RcStr,
+    loc: Loc,
+    bound_args_len: usize,
+) -> Box<Expr> {
+    let location = format!(
+        "{} ({}:{}:{})",
+        name.unwrap_or("<anonymous>"),
+        file_path,
+        loc.line,
+        // Note: V8 stack frame columns are 1-based, whereas col_display is 0-based.
+        loc.col_display + 1
+    );
+
     Box::new(Expr::Call(CallExpr {
         span: DUMMY_SP,
         callee: quote_ident!("$$cache__").as_callee(),
         args: vec![
             ExprOrSpread {
                 spread: None,
-                expr: Box::new(name.into()),
+                expr: Box::new(cache_kind.into()),
             },
             ExprOrSpread {
                 spread: None,
                 expr: Box::new(id.into()),
+            },
+            ExprOrSpread {
+                spread: None,
+                expr: Box::new(location.into()),
             },
             Number::from(bound_args_len).as_arg(),
             expr.as_arg(),
@@ -2404,8 +2461,8 @@ fn create_var_declarator(ident: &Ident, extra_items: &mut Vec<ModuleItem>) {
     })))));
 }
 
+/// Assign a name with `Object.defineProperty($$ACTION_0, 'name', {value: 'default'})`
 fn assign_name_to_ident(ident: &Ident, name: &str, extra_items: &mut Vec<ModuleItem>) {
-    // Assign a name with `Object.defineProperty($$ACTION_0, 'name', {value: 'default'})`
     extra_items.push(quote!(
         // WORKAROUND for https://github.com/microsoft/TypeScript/issues/61165
         // This should just be
@@ -2438,8 +2495,8 @@ fn assign_arrow_expr(ident: &Ident, expr: Expr) -> Expr {
     }
 }
 
+/// `registerServerReference(ident, id, null)`
 fn annotate_ident_as_server_reference(ident: Ident, action_id: Atom, original_span: Span) -> Expr {
-    // registerServerReference(reference, id, null)
     Expr::Call(CallExpr {
         span: original_span,
         callee: quote_ident!("registerServerReference").as_callee(),
@@ -2461,11 +2518,11 @@ fn annotate_ident_as_server_reference(ident: Ident, action_id: Atom, original_sp
     })
 }
 
+/// `expr.bind(null, [encryptActionBoundArgs("id", arg1, arg2, ...)])`
 fn bind_args_to_ref_expr(expr: Expr, bound: Vec<Option<ExprOrSpread>>, action_id: Atom) -> Expr {
     if bound.is_empty() {
         expr
     } else {
-        // expr.bind(null, [encryptActionBoundArgs("id", arg1, arg2, ...)])
         Expr::Call(CallExpr {
             span: DUMMY_SP,
             callee: Expr::Member(MemberExpr {

@@ -6,7 +6,7 @@ use next_custom_transforms::transforms::{
     fonts::{next_font_loaders, Config as FontLoaderConfig},
     next_ssg::next_ssg,
     react_server_components::server_components,
-    server_actions::{self, server_actions, ServerActionsMode},
+    server_actions::{self, server_actions, FileInfo, ServerActionsMode},
     strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
 };
 use rustc_hash::FxHashSet;
@@ -160,8 +160,11 @@ fn react_server_actions_errors(input: PathBuf) {
                     None,
                 ),
                 server_actions(
-                    &FileName::Real("/app/item.js".into()),
-                    None,
+                    FileInfo {
+                        path: "/app/item.js".into(),
+                        relative_path: Some("app/item.js".into()),
+                        query: None,
+                    },
                     server_actions::Config {
                         is_react_server_layer,
                         is_development: true,
@@ -224,8 +227,11 @@ fn use_cache_not_allowed(input: PathBuf) {
                     None,
                 ),
                 server_actions(
-                    &FileName::Real("/app/item.js".into()),
-                    None,
+                    FileInfo {
+                        path: "/app/item.js".into(),
+                        relative_path: Some("app/item.js".into()),
+                        query: None,
+                    },
                     server_actions::Config {
                         is_react_server_layer: true,
                         is_development: true,

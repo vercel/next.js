@@ -75,11 +75,18 @@ export interface CacheHandler {
   receiveExpiredTags(...tags: string[]): Promise<void>
 }
 
+export interface CacheHandlerMetadata {
+  readonly displayName: string
+}
+
 export interface CacheHandlerV2 {
   /**
    * Retrieve a cache entry for the given cache key, if available.
    */
-  get(cacheKey: string): Promise<undefined | CacheEntry>
+  get(
+    cacheKey: string,
+    metadata?: CacheHandlerMetadata
+  ): Promise<undefined | CacheEntry>
 
   /**
    * Store a cache entry for the given cache key. When this is called, the entry
@@ -89,7 +96,11 @@ export interface CacheHandlerV2 {
    * `set` operation to finish, before returning the entry, instead of returning
    * undefined.
    */
-  set(cacheKey: string, pendingEntry: Promise<CacheEntry>): Promise<void>
+  set(
+    cacheKey: string,
+    pendingEntry: Promise<CacheEntry>,
+    metadata?: CacheHandlerMetadata
+  ): Promise<void>
 
   /**
    * Next.js will call this method periodically, but always before starting a
