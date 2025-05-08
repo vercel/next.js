@@ -1,15 +1,17 @@
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { getCredits, getPackageChangelogs } from './utils'
+import { checkIsNewRelease, getCredits, getPackageChangelogs } from './utils'
 import { writeReleaseNote } from './utils/write-release-note'
 
 export default async function publishReleaseNote() {
+  const { isDryRun } = checkIsNewRelease()
   const changelogs = getPackageChangelogs()
   const credits = getCredits(process.cwd())
   const releaseNote = writeReleaseNote(changelogs, credits)
   const nextjsVersion = changelogs['next'].version
   const isCanary = nextjsVersion.includes('canary')
   try {
+    const draft = isDryRun || !isCanary
     // https://docs.github.com/en/rest/releases/releases?apiVersion=2022-11-28#create-a-release
     const res = await fetch(
       `https://api.github.com/repos/vercel/next.js/releases`,
@@ -25,7 +27,7 @@ export default async function publishReleaseNote() {
           name: `v${nextjsVersion}`,
           body: releaseNote,
           prerelease: isCanary,
-          draft: !isCanary,
+          draft,
         }),
       }
     )
