@@ -3,28 +3,27 @@ import { exec } from './utils'
 export default async function startRelease() {
   const githubToken = process.env.RELEASE_BOT_GITHUB_TOKEN
   if (!githubToken) {
-    console.log('Missing RELEASE_BOT_GITHUB_TOKEN')
-    return
+    throw new Error('Missing RELEASE_BOT_GITHUB_TOKEN')
   }
+  const releaseType = process.env.RELEASE_TYPE
+  if (!releaseType) {
+    throw new Error('Missing RELEASE_TYPE')
+  }
+  const isCanary = releaseType === 'canary'
 
   await exec('pnpm changeset version')
 
-  const isNewRelease = process.env.__NEW_RELEASE === 'true'
+  const isDryRun = process.env.__NEW_RELEASE_DRY_RUN === 'true'
+  const isNewRelease = process.env.__NEW_RELEASE === 'true' || isDryRun
   const isLegacyRelease = !isNewRelease
-  // Dry run the new process w/o triggering the legacy process.
-  // During the legacy process, run the new process as a dry run.
-  const isDryRun =
-    process.env.__NEW_RELEASE_DRY_RUN === 'true' || isLegacyRelease
-  if (isDryRun) {
+  if (isLegacyRelease) {
     // Create a .diff output and revert the `changeset version` result.
     await exec('git diff > .changeset/dry-run-version.diff')
     await exec('git add .changeset/dry-run-version.diff')
     await exec('git checkout -- .')
 
     // In legacy process, Lerna will push including the change.
-    if (isLegacyRelease) {
-      return
-    }
+    return
   }
 
   await exec(
@@ -33,12 +32,56 @@ export default async function startRelease() {
   await exec(`git config user.name "vercel-release-bot"`)
   await exec(`git config user.email "infra+release@vercel.com"`)
 
-  const commitMessage = isDryRun ? `Version Packages (dry)` : `Version Packages`
+  const { version } = require('next/package.json')
+  const commitMessage = isDryRun ? `v${version} (new dry)` : `v${version} (new)`
 
-  await exec('git add .')
-  await exec(`git commit -m "${commitMessage}"`)
-  // Bypass pre-push hook.
-  await exec('git push --no-verify')
+  if (isCanary) {
+    await exec('git add .')
+    await exec(`git commit -m "${commitMessage}"`)
+    // Bypass pre-push hook.
+    await exec('git push --no-verify')
+  } else {
+    // https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#create-a-pull-request--parameters
+    const body = JSON.stringify({
+      title: commitMessage,
+      body: '',
+      head: `release/v${version}-${releaseType}`,
+      base: 'canary',
+      draft: false,
+      maintainer_can_modify: true,
+    })
+    try {
+      const res = await fetch(
+        'https://api.github.com/repos/vercel/next.js/pulls',
+        {
+          method: 'POST',
+          headers: {
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+            Authorization: `Bearer ${githubToken}`,
+          },
+          body,
+        }
+      )
+      if (!res.ok) {
+        throw new Error(
+          `Failed to create a pull request. Received status: ${res.status} ${res.statusText}`
+        )
+      }
+      const data = await res.json()
+      if (data.url) {
+        // TODO: Slack
+        console.log(`Pull request created: ${data.url}`)
+      } else {
+        throw new Error(
+          `Failed to create a pull request. Received: ${JSON.stringify(data, null, 2)}`
+        )
+      }
+    } catch (error) {
+      // TODO: Slack
+      console.error(error)
+    }
+  }
 }
 
 startRelease()

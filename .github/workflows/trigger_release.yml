@@ -118,18 +118,16 @@ jobs:
       - run: node ./scripts/start-release.js --release-type ${{ github.event.inputs.releaseType || 'canary' }} --semver-type ${{ github.event.inputs.semverType }}
         env:
           RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
-          # Feature flag for the new release process. When set to `false`,
-          # the legacy process will be in action and the new process will
-          # run as a dry run. If set to `true`, the new process will be in
-          # action and the legacy process will be skipped.
+          # If set to true, the process will be skipped.
           __NEW_RELEASE: ${{ github.event.inputs.newRelease || github.event.inputs.newReleaseDryRun || false }}
 
       - run: pnpm tsx ./scripts/release/start-release.ts
         env:
           RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
-          # Use the default GitHub token to get PR numbers for the Changelog
-          # to avoid affecting the API usage limit of RELEASE_BOT_GITHUB_TOKEN.
-          GITHUB_TOKEN: ${{ github.token }}
+          # `GITHUB_TOKEN` env necessary for `@changesets/get-github-info`
+          # package to get the GitHub info for the CHANGELOG.md file.
+          GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+          RELEASE_TYPE: ${{ github.event.inputs.releaseType }}
           # Feature flag for the new release process. When set to `false`,
           # the legacy process will be in action and the new process will
           # run as a dry run. If set to `true`, the new process will be in
@@ -138,5 +136,6 @@ jobs:
           # Feature flag for running the new release process in dry run.
           # When set to `true`, the new process will be in action but
           # will not trigger an actual publish. Instead, will push a commit
-          # marked (dry) with the dry run result.
+          # marked (dry) with the dry run result that triggers the dry run
+          # for the rest of the process.
           __NEW_RELEASE_DRY_RUN: ${{ github.event.inputs.newReleaseDryRun || false }}

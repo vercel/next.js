@@ -11,10 +11,10 @@ const checkIsRelease = async () => {
     .toString()
     .trim()
 
-  // "Version Packages" or "Version Packages (dry)"
-  const newReleaseMsgRegex = /^Version Packages( \(dry\))?$/
-  const isNewRelease = newReleaseMsgRegex.test(commitMsg)
-  if (isNewRelease) {
+  // "vX.Y.Z(-tag.N) (new|new dry)"
+  const newReleaseMsgRegex =
+    /^v\d{1,}\.\d{1,}\.\d{1,}(-\w{1,}\.\d{1,})? (\(new( dry)?\))?$/
+  if (newReleaseMsgRegex.test(commitMsg)) {
     console.log('New release process is in action, skipping...')
     process.exit(0)
   }

@@ -12,7 +12,11 @@ export default async function publishNpm(): Promise<void> {
   //
   // This differs from running `pnpm publish --recursive`
   // where pnpm will try to publish ALL packages.
-  let command = `pnpm recursive publish --tag ${tag}`
+  let command = `pnpm recursive publish`
+
+  if (tag) {
+    command += ` --tag ${tag}`
+  }
 
   if (isDryRun) {
     command += ' --dry-run'

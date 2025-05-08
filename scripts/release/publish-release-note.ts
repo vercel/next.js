@@ -1,3 +1,5 @@
+import { writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { getCredits, getPackageChangelogs } from './utils'
 import { writeReleaseNote } from './utils/write-release-note'
 
@@ -40,9 +42,13 @@ export default async function publishReleaseNote() {
   } catch (error) {
     // TODO: Notify via Slack.
     console.error(error)
+  } finally {
+    // Reset the credits file.
+    await writeFile(
+      join(process.cwd(), '.changeset/credits.json'),
+      JSON.stringify({})
+    )
   }
 }
 
-if (!process.env.NEXT_TEST_MODE) {
-  publishReleaseNote()
-}
+publishReleaseNote()

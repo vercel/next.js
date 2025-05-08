@@ -33,10 +33,12 @@ export function checkIsNewRelease(): {
     .toString()
     .trim()
 
-  // "Version Packages" or "Version Packages (dry)"
-  const publishMsgRegex = /^Version Packages( \(dry\))?$/
+  // "vX.Y.Z(-tag.N) (new|new dry)"
+  const publishMsgRegex =
+    // TODO: include new-dry
+    /^v\d{1,}\.\d{1,}\.\d{1,}(-\w{1,}\.\d{1,})( \(new\))?$/
   const isNewRelease = publishMsgRegex.test(commitMsg)
-  const isDryRun = isNewRelease && commitMsg.includes('(dry)')
+  const isDryRun = isNewRelease && commitMsg.includes('dry')
   return { isNewRelease, isDryRun }
 }
 
