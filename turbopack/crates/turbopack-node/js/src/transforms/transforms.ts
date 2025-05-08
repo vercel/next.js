@@ -67,6 +67,9 @@ process.env = new Proxy(originalEnv, {
     }
     return Reflect.get(target, prop)
   },
+  set(target, prop, value) {
+    return Reflect.set(target, prop, value)
+  },
 })
 
 export function getReadEnvVariables(): string[] {
