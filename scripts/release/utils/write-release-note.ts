@@ -28,15 +28,21 @@ export function writeReleaseNote(
   changelogs: Record<string, ChangelogInfo>,
   credits: string[]
 ): string {
-  const creditsAsHandles = credits.map((credit) => `@${credit}`)
-  let releaseNote = ''
+  // Put `next` at the top of the changelog.
+  let orderedChangelogs = { ...changelogs }
+  if (orderedChangelogs['next']) {
+    const { next, ...rest } = orderedChangelogs
+    orderedChangelogs = { next, ...rest }
+  }
 
+  let releaseNote = ''
   for (const [packageName, { version, changelog }] of Object.entries(
-    changelogs
+    orderedChangelogs
   )) {
     releaseNote += `## \`${packageName}@${version}\`\n\n${changelog}\n\n`
   }
 
+  const creditsAsHandles = credits.map((credit) => `@${credit}`)
   // If there are multiple credits, format the list as
   // "@foo, @bar, and @baz"; if there is only one credit,
   // format it as "@foo".
