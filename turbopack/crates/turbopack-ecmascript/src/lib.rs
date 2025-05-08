@@ -16,6 +16,7 @@ pub mod code_gen;
 mod errors;
 pub mod magic_identifier;
 pub mod manifest;
+mod merged_module;
 pub mod minify;
 pub mod parse;
 mod path_visitor;
@@ -86,7 +87,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::AssetIdent,
     module::{Module, OptionModule},
-    module_graph::{ModuleGraph, merged_modules::MergedModules},
+    module_graph::ModuleGraph,
     reference::ModuleReferences,
     reference_type::InnerAssets,
     resolve::{
@@ -103,6 +104,7 @@ use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExp
 use crate::{
     chunk::{EcmascriptChunkPlaceable, placeable::is_marked_as_side_effect_free},
     code_gen::{CodeGens, ModifiableAst},
+    merged_module::MergedEcmascriptModule,
     parse::generate_js_source_map,
     references::{
         analyse_ecmascript_module, async_module::OptionAsyncModule, esm::base::EsmAssetReferences,
@@ -337,47 +339,9 @@ pub trait EcmascriptAnalyzable: Module + Asset {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContent>> {
-        println!(
-            "additional {:?} {:?}",
-            self.ident().to_string().await?,
-            module_graph
-                .merged_modules()
-                .additional_modules_for_entry(Vc::upcast(self))
-                .await?
-                .iter()
-                .map(|(m, _)| m.ident().to_string())
-                .try_join()
-                .await?,
-        );
-
         let own_options =
             self.module_content_options(module_graph, chunking_context, async_module_info);
-        let additional_modules = module_graph
-            .merged_modules()
-            .additional_modules_for_entry(Vc::upcast(self));
-        let additional_modules_ref = additional_modules.await?;
-
-        if additional_modules_ref.is_empty() {
-            Ok(EcmascriptModuleContent::new(own_options))
-        } else {
-            let additional_options = additional_modules_ref
-                .iter()
-                .map(|(m, _)| {
-                    let Some(m) = ResolvedVc::try_downcast::<Box<dyn EcmascriptAnalyzable>>(*m)
-                    else {
-                        anyhow::bail!("Expected EcmascriptAnalyzable in scope hoisting group");
-                    };
-                    Ok(m.module_content_options(module_graph, chunking_context, async_module_info))
-                })
-                .collect::<Result<Vec<_>>>()?;
-
-            Ok(EcmascriptModuleContent::new_merged(
-                Vc::upcast(self),
-                own_options,
-                additional_modules,
-                additional_options,
-            ))
-        }
+        Ok(EcmascriptModuleContent::new(own_options))
     }
 }
 
@@ -799,9 +763,11 @@ impl MergeableModule for EcmascriptModuleAsset {
             Ok(MergeableModuleResult::Merged {
                 consumed: consumed_modules.len() as u32,
                 skipped,
-                merged_module: todo!(),
-                // TODO
-                // merged_module: MergedEcmascriptModule::new(consumed_modules)
+                merged_module: ResolvedVc::upcast(MergedEcmascriptModule::new(
+                    consumed_modules,
+                    // TODO where to get options from?
+                    self.options().to_resolved().await?,
+                )),
             }
             .cell())
         } else {
@@ -1094,19 +1060,16 @@ impl EcmascriptModuleContent {
     /// hoisting.
     #[turbo_tasks::function]
     pub async fn new_merged(
-        module: ResolvedVc<Box<dyn Module>>,
-        module_options: Vc<EcmascriptModuleContentOptions>,
-        additional_modules: Vc<MergedModules>,
-        additional_options: Vec<Vc<EcmascriptModuleContentOptions>>,
+        modules: Vec<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>,
+        module_options: Vec<Vc<EcmascriptModuleContentOptions>>,
     ) -> Result<Vc<Self>> {
-        let additional_modules = additional_modules.await?;
-
-        let modules = std::iter::once((module, true))
-            .chain(additional_modules.iter().copied())
-            .map(|(m, exposed)| {
+        let modules = modules
+            .iter()
+            .map(|m| {
                 (
-                    ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(m).unwrap(),
-                    exposed,
+                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*m).unwrap(),
+                    // TODO when is a module exposed?
+                    true,
                 )
             })
             .collect::<FxIndexMap<_, _>>();
@@ -1122,8 +1085,8 @@ impl EcmascriptModuleContent {
             }))
         });
 
-        let contents = std::iter::once(module_options)
-            .chain(additional_options.into_iter())
+        let contents = module_options
+            .iter()
             .zip(modules.keys().copied())
             .map(async |(options, module)| {
                 let options = options.await?;
