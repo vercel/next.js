@@ -47,7 +47,7 @@ export default async function publishReleaseNote() {
   } finally {
     // Reset the credits file.
     await writeFile(
-      join(process.cwd(), '.changeset/credits.json'),
+      join(process.cwd(), '.changeset/utils/credits.json'),
       JSON.stringify({})
     )
   }

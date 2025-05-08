@@ -83,7 +83,7 @@ export function getPackageChangelogs(): Record<string, ChangelogInfo> {
 
 export function getCredits(cwd: string): string[] {
   const credits: Record<string, ''> = require(
-    path.join(cwd, '.changeset/credits.json')
+    path.join(cwd, '.changeset/utils/credits.json')
   )
   return Object.keys(credits)
 }
