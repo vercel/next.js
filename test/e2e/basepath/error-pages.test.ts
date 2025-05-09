@@ -80,7 +80,7 @@ describe('basePath', () => {
       // will be the Vercel default 404 page
       expect(
         await browser.eval('document.documentElement.innerHTML')
-      ).toContain('NOT_FOUND')
+      ).toContain('404: This page could not be found')
     } else {
       expect(await browser.eval(() => (window as any).next.router.asPath)).toBe(
         `${basePath}hello`

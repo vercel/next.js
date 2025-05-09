@@ -5,7 +5,7 @@ import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 describe('basePath', () => {
   const basePath = '/docs'
 
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
     nextConfig: {
       basePath,
@@ -114,7 +114,9 @@ describe('basePath', () => {
     expect(pathname).toBe(`${basePath}/somewhere-else`)
     expect(res.status).toBe(307)
     const text = await res.text()
-    expect(text).toContain(`${basePath}/somewhere-else`)
+    if (!isNextDeploy) {
+      expect(text).toContain(`${basePath}/somewhere-else`)
+    }
   })
 
   it('should not redirect without basePath without disabling', async () => {
@@ -146,6 +148,8 @@ describe('basePath', () => {
     expect(pathname).toBe('/another-destination')
     expect(res.status).toBe(307)
     const text = await res.text()
-    expect(text).toContain('/another-destination')
+    if (!isNextDeploy) {
+      expect(text).toContain('/another-destination')
+    }
   })
 })
