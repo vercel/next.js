@@ -26,6 +26,10 @@ pub struct Code {
 }
 
 impl Code {
+    pub fn into_source_code(self) -> Rope {
+        self.code
+    }
+
     pub fn source_code(&self) -> &Rope {
         &self.code
     }

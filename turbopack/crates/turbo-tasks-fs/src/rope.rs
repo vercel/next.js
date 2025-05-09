@@ -17,7 +17,6 @@ use serde_bytes::ByteBuf;
 use tokio::io::{AsyncRead, ReadBuf};
 use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
-use unsize::{CoerceUnsize, Coercion};
 use RopeElem::{Local, Shared};
 
 static EMPTY_BUF: &[u8] = &[];
@@ -42,7 +41,7 @@ pub struct Rope {
 /// An Arc container for ropes. This indirection allows for easily sharing the
 /// contents between Ropes (and also RopeBuilders/RopeReaders).
 #[derive(Clone, Debug)]
-struct InnerRope(Arc<[RopeElem]>);
+struct InnerRope(Arc<Vec<RopeElem>>);
 
 /// Differentiates the types of stored bytes in a rope.
 #[derive(Clone, Debug)]
@@ -117,6 +116,16 @@ impl Rope {
     pub fn to_bytes(&self) -> Result<Cow<'_, [u8]>> {
         self.data.to_bytes(self.length)
     }
+
+    pub fn into_string(self) -> Result<String> {
+        let len = self.length;
+
+        if self.data.0.len() != 1 {
+            return self.data.to_str(len).map(Cow::into_owned);
+        }
+
+        self.data.into_string(len)
+    }
 }
 
 impl From<Vec<u8>> for Rope {
@@ -142,7 +151,7 @@ impl<T: Into<Bytes>> From<T> for Rope {
         } else {
             Rope {
                 length: bytes.len(),
-                data: InnerRope(Arc::from([Local(bytes)]).unsize(Coercion::to_slice())),
+                data: InnerRope(Arc::from(vec![Local(bytes)])),
             }
         }
     }
@@ -502,6 +511,17 @@ impl From<Vec<u8>> for Uncommitted {
 }
 
 impl InnerRope {
+    fn into_string(self, len: usize) -> Result<String> {
+        match Arc::try_unwrap(self.0) {
+            Ok(mut v) => {
+                let elem = v.remove(0);
+
+                elem.into_string(len)
+            }
+            Err(err) => InnerRope(err).to_str(len).map(Cow::into_owned),
+        }
+    }
+
     /// Returns a String instance of all bytes.
     fn to_str(&self, len: usize) -> Result<Cow<'_, str>> {
         match &self[..] {
@@ -540,7 +560,7 @@ impl InnerRope {
 
 impl Default for InnerRope {
     fn default() -> Self {
-        InnerRope(Arc::new([]).unsize(Coercion::to_slice()))
+        InnerRope(Arc::new(vec![]))
     }
 }
 
@@ -579,7 +599,7 @@ impl From<Vec<RopeElem>> for InnerRope {
 }
 
 impl Deref for InnerRope {
-    type Target = Arc<[RopeElem]>;
+    type Target = Arc<Vec<RopeElem>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -587,6 +607,16 @@ impl Deref for InnerRope {
 }
 
 impl RopeElem {
+    fn into_string(self, len: usize) -> Result<String> {
+        match self {
+            RopeElem::Local(bytes) => {
+                let bytes: Vec<u8> = bytes.into();
+                String::from_utf8(bytes).context("failed to convert rope into string")
+            }
+            RopeElem::Shared(inner) => inner.into_string(len),
+        }
+    }
+
     fn maybe_cmp(&self, other: &Self) -> Option<Ordering> {
         match (self, other) {
             (Local(a), Local(b)) => {

@@ -36,12 +36,11 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
         .then(|| code.generate_source_map_ref())
         .transpose()?;
 
+    let source_code = code.into_source_code().into_string()?;
+
     let cm = Arc::new(SwcSourceMap::new(FilePathMapping::empty()));
     let (src, mut src_map_buf) = {
-        let fm = cm.new_source_file(
-            FileName::Anon.into(),
-            code.source_code().to_str()?.into_owned(),
-        );
+        let fm = cm.new_source_file(FileName::Anon.into(), source_code);
 
         let lexer = Lexer::new(
             Syntax::default(),
@@ -57,10 +56,7 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
                     Ok(program) => program,
                     Err(err) => {
                         err.into_diagnostic(handler).emit();
-                        bail!(
-                            "failed to parse source code\n{}",
-                            code.source_code().to_str()?
-                        )
+                        bail!("failed to parse source code\n{}", fm.src)
                     }
                 };
                 let comments = SingleThreadedComments::default();
