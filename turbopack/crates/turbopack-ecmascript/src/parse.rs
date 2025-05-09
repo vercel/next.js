@@ -114,11 +114,16 @@ pub fn generate_js_source_map(
         None
     };
 
-    let mut map = files_map.build_source_map_with_config(
-        &mappings,
-        input_map.as_ref(),
-        InlineSourcesContentConfig {},
-    );
+    let map =
+        files_map.build_source_map_with_config(&mappings, None, InlineSourcesContentConfig {});
+
+    let mut map = match input_map {
+        Some(mut input_map) => {
+            input_map.adjust_mappings(&map);
+            input_map
+        }
+        None => map,
+    };
     add_default_ignore_list(&mut map);
 
     let mut result = vec![];

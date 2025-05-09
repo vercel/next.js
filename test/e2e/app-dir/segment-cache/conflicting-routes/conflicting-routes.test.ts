@@ -32,12 +32,6 @@ describe('conflicting routes', () => {
   })
 
   it('matches the right route when the original route has no dynamic params, is dynamic, and PPR is disabled', async () => {
-    if (isNextDeploy) {
-      // TODO: Temporarily disabled until corresponding fix in Vercel builder
-      // (https://github.com/vercel/vercel/pull/13275) is released.
-      return
-    }
-
     const res = await next.fetch('/prefetch-tests/dynamic', {
       headers: {
         RSC: '1',
@@ -52,6 +46,33 @@ describe('conflicting routes', () => {
       expect(res.headers.get('x-matched-path')).toBe(
         '/prefetch-tests/dynamic.prefetch.rsc'
       )
+    }
+  })
+
+  it('handles conflict between App Router and Pages Router routes', async () => {
+    const res = await next.fetch('/new/templates', {
+      headers: {
+        RSC: '1',
+        'Next-Router-Prefetch': '1',
+        'Next-Router-Segment-Prefetch': '/_tree',
+      },
+    })
+
+    // Should match the route defined at pages/new/templates/[[...slug]].js,
+    // not the one at app/new/[teamSlug]/page.tsx
+    if (isNextDeploy) {
+      // In a deployed environment the builder routes this to the .prefetch.rsc
+      // route, which doesn't exist, so it returns a 404.
+      // TODO: It'd probably be more correct if it didn't re-route to
+      // .prefetch.rsc and just routed to the normal Pages route. This would
+      // match the behavior in server mode. This only happens when the
+      // prefetch header is present, though, so the only observable effect right
+      // now is that it shows up as a 404 in the network panel. Either way, the
+      // page can't be prefetched by App Router because it's a Pages route.
+      expect(res.status).toBe(404)
+    } else {
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('/new/templates/[[...slug]].js')
     }
   })
 })
