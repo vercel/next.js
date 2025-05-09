@@ -927,13 +927,12 @@ impl AssetContext for ModuleAssetContext {
     async fn side_effect_free_packages(&self) -> Result<Vc<Glob>> {
         let pkgs = &*self.module_options_context.await?.side_effect_free_packages;
 
-        let mut globs = Vec::with_capacity(pkgs.len());
+        let mut glob = String::new();
+        glob.push_str("**/node_modules/{");
+        glob.push_str(pkgs.join(",").as_str());
+        glob.push_str("}/**");
 
-        for pkg in pkgs {
-            globs.push(Glob::new(format!("**/node_modules/{{{}}}/**", pkg).into()));
-        }
-
-        Ok(Glob::alternatives(globs))
+        Ok(Glob::new(glob.into()))
     }
 }
 

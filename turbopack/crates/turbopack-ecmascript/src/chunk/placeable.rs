@@ -49,13 +49,36 @@ async fn side_effects_from_package_json(
                     .iter()
                     .filter_map(|side_effect| {
                         if let Some(side_effect) = side_effect.as_str() {
-                            if side_effect.contains('/') {
-                                Some(Glob::new(
-                                    side_effect.strip_prefix("./").unwrap_or(side_effect).into(),
-                                ))
+                            let glob = if side_effect.contains('/') {
+                                side_effect
+                                    .strip_prefix("./")
+                                    .unwrap_or(side_effect)
+                                    .to_string()
                             } else {
-                                Some(Glob::new(format!("**/{side_effect}").into()))
+                                format!("**/{side_effect}")
+                            };
+                            match Glob::parse(glob.as_str()) {
+                                Ok(_) => {}
+                                Err(err) => {
+                                    SideEffectsInPackageJsonIssue {
+                                        path: package_json,
+                                        description: Some(
+                                            StyledString::Text(
+                                                format!(
+                                                    "Invalid glob '{}' in sideEffects: {}",
+                                                    glob,
+                                                    PrettyPrintError(&err)
+                                                )
+                                                .into(),
+                                            )
+                                            .resolved_cell(),
+                                        ),
+                                    }
+                                    .resolved_cell()
+                                    .emit();
+                                }
                             }
+                            Some(glob)
                         } else {
                             SideEffectsInPackageJsonIssue {
                                 path: package_json,
@@ -76,34 +99,14 @@ async fn side_effects_from_package_json(
                             None
                         }
                     })
-                    .map(|glob| async move {
-                        match glob.resolve().await {
-                            Ok(glob) => Ok(Some(glob)),
-                            Err(err) => {
-                                SideEffectsInPackageJsonIssue {
-                                    path: package_json,
-                                    description: Some(
-                                        StyledString::Text(
-                                            format!(
-                                                "Invalid glob in sideEffects: {}",
-                                                PrettyPrintError(&err)
-                                            )
-                                            .into(),
-                                        )
-                                        .resolved_cell(),
-                                    ),
-                                }
-                                .resolved_cell()
-                                .emit();
-                                Ok(None)
-                            }
-                        }
-                    })
-                    .try_flat_join()
-                    .await?;
-                return Ok(
-                    SideEffectsValue::Glob(Glob::alternatives(globs).to_resolved().await?).cell(),
-                );
+                    .collect::<Vec<String>>()
+                    .join(",");
+                return Ok(SideEffectsValue::Glob(
+                    Glob::new(format!("{{{}}}", globs).into())
+                        .to_resolved()
+                        .await?,
+                )
+                .cell());
             } else {
                 SideEffectsInPackageJsonIssue {
                     path: package_json,
