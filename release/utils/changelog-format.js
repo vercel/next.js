@@ -1,7 +1,5 @@
 // @ts-check
-const { ChangelogFunctions } = require('@changesets/types')
 const { writeFile } = require('fs/promises')
-const { resolve } = require('path')
 const {
   getInfo,
   getInfoFromPullRequest,

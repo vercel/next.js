@@ -1,12 +1,14 @@
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { checkIsNewRelease, getCredits, getPackageChangelogs } from './utils'
-import { writeReleaseNote } from './utils/write-release-note'
+import { writeReleaseNote } from './write-release-note'
+import { checkIsNewRelease } from '../utils'
+import { getPackageChangelogInfo } from './get-package-changelog-info'
+import { getCredits } from './get-credits'
 
-export default async function publishReleaseNote() {
+async function publishGitHubRelease() {
   const { isDryRun } = checkIsNewRelease()
-  const changelogs = getPackageChangelogs()
-  const credits = getCredits(process.cwd())
+  const changelogs = getPackageChangelogInfo()
+  const credits = await getCredits()
   const releaseNote = writeReleaseNote(changelogs, credits)
   const nextjsVersion = changelogs['next'].version
   const isCanary = nextjsVersion.includes('canary')
@@ -53,4 +55,4 @@ export default async function publishReleaseNote() {
   }
 }
 
-publishReleaseNote()
+publishGitHubRelease()

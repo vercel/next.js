@@ -1,4 +1,4 @@
-import { checkIsNewRelease, exec, getTag } from './utils'
+import { checkIsNewRelease, exec, getTag } from '../utils'
 
 export default async function publishNpm(): Promise<void> {
   const { isDryRun } = checkIsNewRelease()

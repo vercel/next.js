@@ -12,8 +12,7 @@ const customJestConfig = {
   rootDir: 'test',
   roots: [
     '<rootDir>',
-    '<rootDir>/../scripts/',
-    '<rootDir>/../.changeset/',
+    '<rootDir>/../release/',
     '<rootDir>/../packages/next/src/',
     '<rootDir>/../packages/next-codemod/',
     '<rootDir>/../packages/font/src/',

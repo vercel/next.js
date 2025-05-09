@@ -1,4 +1,4 @@
-import type { ChangelogInfo } from '../utils'
+import type { ChangelogInfo } from './get-package-changelog-info'
 
 /**
  * @example
