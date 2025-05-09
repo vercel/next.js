@@ -36,6 +36,7 @@
 #![feature(arbitrary_self_types_pointers)]
 #![feature(new_zeroed_alloc)]
 #![feature(never_type)]
+#![feature(downcast_unchecked)]
 
 pub mod backend;
 mod capture_future;
@@ -89,7 +90,7 @@ use auto_hash_map::AutoSet;
 pub use collectibles::CollectiblesSource;
 pub use completion::{Completion, Completions};
 pub use display::ValueToString;
-pub use effect::{apply_effects, effect, get_effects, Effects};
+pub use effect::{apply_effects, effect, get_effects, ApplyEffectsContext, Effects};
 pub use id::{
     ExecutionId, FunctionId, LocalTaskId, SessionId, TaskId, TraitTypeId, ValueTypeId,
     TRANSIENT_TASK_BIT,
