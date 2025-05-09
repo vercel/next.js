@@ -1,12 +1,8 @@
-// @ts-check
-const { writeFile } = require('fs/promises')
-const {
-  getInfo,
-  getInfoFromPullRequest,
-} = require('@changesets/get-github-info')
-const {
-  getPrNumbersFromEndOfSummary,
-} = require('./get-pr-numbers-from-end-of-summary')
+import type { ChangelogFunctions } from '@changesets/types'
+
+import { writeFile } from 'node:fs/promises'
+import { getInfo, getInfoFromPullRequest } from '@changesets/get-github-info'
+import { getPrNumbersFromEndOfSummary } from './get-pr-numbers-from-end-of-summary'
 
 // Note: This script runs during `changeset version` in CI.
 if (!process.env.GITHUB_TOKEN) {
@@ -15,20 +11,25 @@ if (!process.env.GITHUB_TOKEN) {
   )
 }
 
-async function addCredits(user) {
+async function addCredits(user: string | undefined) {
   if (!user) {
     return
   }
 
-  const credits = require('./credits.json')
+  const credits = require('../github/credits.json')
   // Set on Object.keys to reduce duplicates earlier.
   credits[user] = ''
   await writeFile('./credits.json', JSON.stringify(credits, null, 2))
 }
 
-/** @type {ChangelogFunctions} */
-const defaultChangelogFunctions = {
+const defaultChangelogFunctions: ChangelogFunctions = {
   async getReleaseLine(changeset) {
+    if (!changeset.commit) {
+      throw new Error(
+        `Failed to get the required commit from the changeset: ${changeset}.`
+      )
+    }
+
     const { user, pull } = await getInfo({
       repo: 'vercel/next.js',
       commit: changeset.commit,
@@ -55,7 +56,7 @@ const defaultChangelogFunctions = {
         pullNumbers.map(async (pullNumber) => {
           try {
             const { links } = await getInfoFromPullRequest({
-              pull: pullNumber,
+              pull: parseInt(pullNumber, 10),
               repo: 'vercel/next.js',
             })
             if (links.user) {
@@ -77,7 +78,9 @@ const defaultChangelogFunctions = {
     return `- ${changeset.summary} #${pull}`
   },
   // Do not include dependency updates.
-  async getDependencyReleaseLine() {},
+  async getDependencyReleaseLine() {
+    return ''
+  },
 }
 
-module.exports = defaultChangelogFunctions
+export default defaultChangelogFunctions

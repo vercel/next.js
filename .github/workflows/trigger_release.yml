@@ -115,6 +115,8 @@ jobs:
 
       - run: pnpm run build
 
+      - run: pnpm run build-changeset-utils
+
       - run: node ./scripts/start-release.js --release-type ${{ github.event.inputs.releaseType || 'canary' }} --semver-type ${{ github.event.inputs.semverType }}
         env:
           RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
