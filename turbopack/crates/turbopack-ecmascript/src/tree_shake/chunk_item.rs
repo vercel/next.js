@@ -183,6 +183,7 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
                 },
                 ..Default::default()
             },
+            additional_ids: Default::default(),
             placeholder_for_future_extensions: (),
         }
         .cell())
