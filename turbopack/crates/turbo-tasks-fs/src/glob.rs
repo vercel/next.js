@@ -22,7 +22,6 @@ use turbo_tasks::Vc;
 pub struct Glob {
     #[turbo_tasks(trace_ignore)]
     program: GlobProgram,
-    src: String,
 }
 
 impl Glob {
@@ -34,12 +33,7 @@ impl Glob {
         } else {
             path
         };
-        let result = self.program.matches(path, match_partial);
-        let src = &self.src;
-
-        let dbg = format!("matching: '{src}' against '{path}' = {result}");
-        dbg!(dbg);
-        result
+        self.program.matches(path, match_partial)
     }
 
     // Returns true if the glob could match a filename underneath this `path` where the path
@@ -50,7 +44,6 @@ impl Glob {
 
     pub fn parse(input: &str) -> Result<Self> {
         Ok(Self {
-            src: input.to_string(),
             program: GlobProgram::compile(input)?,
         })
     }
@@ -249,7 +242,6 @@ pub struct GlobProgram {
 
 impl GlobProgram {
     fn compile(pattern: &str) -> Result<GlobProgram> {
-        dbg!(format!("Compiling: {pattern}"));
         GlobProgram::do_compile(pattern).with_context(|| format!("Failed to parse glob: {pattern}"))
     }
     fn do_compile(pattern: &str) -> Result<GlobProgram> {

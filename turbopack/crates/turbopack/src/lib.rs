@@ -933,7 +933,6 @@ impl AssetContext for ModuleAssetContext {
             glob.push_str(pkgs.join(",").as_str());
             glob.push_str("}/**");
         }
-
         Ok(Glob::new(glob.into()))
     }
 }
