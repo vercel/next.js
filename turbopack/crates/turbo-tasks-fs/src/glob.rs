@@ -180,12 +180,6 @@ impl<'a> SparseSet<'a> {
     fn clear(&mut self) {
         self.n = 0
     }
-    fn clear_and_add(&mut self, v: u16) {
-        debug_assert!((v as usize) < self.mem.len() / 2);
-        self.n = 1;
-        *self.get_sparse_mut(v) = 0;
-        *self.get_dense_mut(0) = v;
-    }
 
     fn add(&mut self, v: u16) -> bool {
         debug_assert!((v as usize) < self.mem.len() / 2);
@@ -421,7 +415,7 @@ impl GlobProgram {
         let mut instruction = self.instructions[0];
         let mut vi = 0;
         let vlen = v.len();
-        'outer: while vi < vlen {
+        while vi < vlen {
             let mut byte = v[vi];
             vi += 1;
             let mut thread_index = 0;
@@ -433,25 +427,12 @@ impl GlobProgram {
                 match instruction {
                     GlobInstruction::MatchLiteral(m) => {
                         if byte == m {
-                            // if n_threads == 1 {
-                            //     ip += 1;
-                            //     cur.clear_and_add(ip);
-                            //     instruction = self.instructions[ip as usize];
-                            //     continue 'outer;
-                            // }
                             // We matched, proceed to the next character
                             next.add(ip + 1);
                         }
                     }
-
                     GlobInstruction::MatchAnyNonDelim => {
                         if byte != b'/' {
-                            // if n_threads == 1 {
-                            //     ip += 1;
-                            //     cur.clear_and_add(ip);
-                            //     instruction = self.instructions[ip as usize];
-                            //     continue 'outer;
-                            // }
                             next.add(ip + 1);
                         }
                     }
@@ -512,23 +493,11 @@ impl GlobProgram {
                     }
                     GlobInstruction::MatchClass(index) => {
                         if self.range_sets[index as usize].contains(byte) {
-                            // if n_threads == 1 {
-                            //     ip += 1;
-                            //     cur.clear_and_add(ip);
-                            //     instruction = self.instructions[ip as usize];
-                            //     continue 'outer;
-                            // }
                             next.add(ip + 1);
                         }
                     }
                     GlobInstruction::NegativeMatchClass(index) => {
                         if !self.range_sets[index as usize].contains(byte) {
-                            // if n_threads == 1 {
-                            //     ip += 1;
-                            //     cur.clear_and_add(ip);
-                            //     instruction = self.instructions[ip as usize];
-                            //     continue 'outer;
-                            // }
                             next.add(ip + 1);
                         }
                     }
