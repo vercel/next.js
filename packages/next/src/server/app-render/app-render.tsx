@@ -325,8 +325,8 @@ function parseRequestHeaders(
 }
 
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
-  // Align the segment with parallel-route-default in next-app-loader
   const components = loaderTree[2]
+  const hasGlobalNotFound = !!components['global-not-found']
   return [
     '',
     {
@@ -334,11 +334,12 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
         PAGE_SEGMENT_KEY,
         {},
         {
-          page: components['not-found'],
+          page: components['global-not-found'] ?? components['not-found'],
         },
       ],
     },
-    components,
+    // When global-not-found is present, skip layout from components
+    hasGlobalNotFound ? components : {},
   ]
 }
 
@@ -1282,7 +1283,6 @@ async function renderToHTMLOrFlightImpl(
 
   // Pull out the hooks/references from the component.
   const { tree: loaderTree, taintObjectReference } = ComponentMod
-
   if (enableTainting) {
     taintObjectReference(
       'Do not pass process.env to Client Components since it will leak sensitive data',
