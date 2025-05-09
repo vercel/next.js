@@ -844,9 +844,8 @@ fn generate_code(
     Ok((starts_with_globstar, ends_with_globstar))
 }
 
-// Consider a more compact encoding.
-// The jump offsets force this to 4 bytes
-// A variable length instruction encoding would help a lot
+// A more compact encoding would be nice but experimentally it does not save much
+// Instead we should explore ways to encode more hints into the instructions to speed up matchers.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Serialize, Deserialize)]
 enum GlobInstruction {
     // Matches a single literal byte
