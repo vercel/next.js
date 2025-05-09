@@ -928,9 +928,11 @@ impl AssetContext for ModuleAssetContext {
         let pkgs = &*self.module_options_context.await?.side_effect_free_packages;
 
         let mut glob = String::new();
-        glob.push_str("**/node_modules/{");
-        glob.push_str(pkgs.join(",").as_str());
-        glob.push_str("}/**");
+        if !pkgs.is_empty() {
+            glob.push_str("**/node_modules/{");
+            glob.push_str(pkgs.join(",").as_str());
+            glob.push_str("}/**");
+        }
 
         Ok(Glob::new(glob.into()))
     }

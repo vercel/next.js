@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
 use turbo_tasks_fs::{glob::Glob, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -33,7 +33,7 @@ pub trait EcmascriptChunkPlaceable: ChunkableModule + Module + Asset {
 enum SideEffectsValue {
     None,
     Constant(bool),
-    Glob(ResolvedVc<Glob>),
+    Glob(Vec<ResolvedVc<Glob>>),
 }
 
 #[turbo_tasks::function]
@@ -49,36 +49,13 @@ async fn side_effects_from_package_json(
                     .iter()
                     .filter_map(|side_effect| {
                         if let Some(side_effect) = side_effect.as_str() {
-                            let glob = if side_effect.contains('/') {
-                                side_effect
-                                    .strip_prefix("./")
-                                    .unwrap_or(side_effect)
-                                    .to_string()
+                            if side_effect.contains('/') {
+                                Some(Glob::new(
+                                    side_effect.strip_prefix("./").unwrap_or(side_effect).into(),
+                                ))
                             } else {
-                                format!("**/{side_effect}")
-                            };
-                            match Glob::parse(glob.as_str()) {
-                                Ok(_) => {}
-                                Err(err) => {
-                                    SideEffectsInPackageJsonIssue {
-                                        path: package_json,
-                                        description: Some(
-                                            StyledString::Text(
-                                                format!(
-                                                    "Invalid glob '{}' in sideEffects: {}",
-                                                    glob,
-                                                    PrettyPrintError(&err)
-                                                )
-                                                .into(),
-                                            )
-                                            .resolved_cell(),
-                                        ),
-                                    }
-                                    .resolved_cell()
-                                    .emit();
-                                }
+                                Some(Glob::new(format!("**/{side_effect}").into()))
                             }
-                            Some(glob)
                         } else {
                             SideEffectsInPackageJsonIssue {
                                 path: package_json,
@@ -99,14 +76,32 @@ async fn side_effects_from_package_json(
                             None
                         }
                     })
-                    .collect::<Vec<String>>()
-                    .join(",");
-                return Ok(SideEffectsValue::Glob(
-                    Glob::new(format!("{{{}}}", globs).into())
-                        .to_resolved()
-                        .await?,
-                )
-                .cell());
+                    .map(|glob| async move {
+                        match glob.to_resolved().await {
+                            Ok(glob) => Ok(Some(glob)),
+                            Err(err) => {
+                                SideEffectsInPackageJsonIssue {
+                                    path: package_json,
+                                    description: Some(
+                                        StyledString::Text(
+                                            format!(
+                                                "Invalid glob in sideEffects: {}",
+                                                PrettyPrintError(&err)
+                                            )
+                                            .into(),
+                                        )
+                                        .resolved_cell(),
+                                    ),
+                                }
+                                .resolved_cell()
+                                .emit();
+                                Ok(None)
+                            }
+                        }
+                    })
+                    .try_flat_join()
+                    .await?;
+                return Ok(SideEffectsValue::Glob(globs).cell());
             } else {
                 SideEffectsInPackageJsonIssue {
                     path: package_json,
@@ -175,17 +170,22 @@ pub async fn is_marked_as_side_effect_free(
     let find_package_json = find_context_file(path.parent(), package_json()).await?;
 
     if let FindContextFileResult::Found(package_json, _) = *find_package_json {
-        match *side_effects_from_package_json(*package_json).await? {
+        match &*side_effects_from_package_json(*package_json).await? {
             SideEffectsValue::None => {}
-            SideEffectsValue::Constant(side_effects) => return Ok(Vc::cell(!side_effects)),
-            SideEffectsValue::Glob(glob) => {
+            SideEffectsValue::Constant(side_effects) => return Ok(Vc::cell(!*side_effects)),
+            SideEffectsValue::Glob(globs) => {
                 if let Some(rel_path) = package_json
                     .parent()
                     .await?
                     .get_relative_path_to(&*path.await?)
                 {
                     let rel_path = rel_path.strip_prefix("./").unwrap_or(&rel_path);
-                    return Ok(Vc::cell(!glob.await?.execute(rel_path)));
+                    for glob in globs {
+                        if glob.await?.execute(rel_path) {
+                            return Ok(Vc::cell(false));
+                        }
+                    }
+                    return Ok(Vc::cell(true));
                 }
             }
         }

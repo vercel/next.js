@@ -22,6 +22,7 @@ use turbo_tasks::Vc;
 pub struct Glob {
     #[turbo_tasks(trace_ignore)]
     program: GlobProgram,
+    src: String,
 }
 
 impl Glob {
@@ -33,7 +34,12 @@ impl Glob {
         } else {
             path
         };
-        self.program.matches(path, match_partial)
+        let result = self.program.matches(path, match_partial);
+        let src = &self.src;
+
+        let dbg = format!("matching: '{src}' against '{path}' = {result}");
+        dbg!(dbg);
+        result
     }
 
     // Returns true if the glob could match a filename underneath this `path` where the path
@@ -44,6 +50,7 @@ impl Glob {
 
     pub fn parse(input: &str) -> Result<Self> {
         Ok(Self {
+            src: input.to_string(),
             program: GlobProgram::compile(input)?,
         })
     }
@@ -242,6 +249,7 @@ pub struct GlobProgram {
 
 impl GlobProgram {
     fn compile(pattern: &str) -> Result<GlobProgram> {
+        dbg!(format!("Compiling: {pattern}"));
         GlobProgram::do_compile(pattern).with_context(|| format!("Failed to parse glob: {pattern}"))
     }
     fn do_compile(pattern: &str) -> Result<GlobProgram> {
@@ -795,10 +803,7 @@ fn generate_code(
             }
             Ast::Alternation(pos, branches) => {
                 let num_branches = branches.len();
-                if num_branches <= 1 {
-                    bail!("alternations should have >1 branch, remove the {{'s? @{pos}")
-                }
-                let mut branch_instructions = Vec::with_capacity(branches.len());
+                let mut branch_instructions = Vec::with_capacity(num_branches);
                 for (branch_pos, branch) in branches {
                     let mut instructions = Vec::new();
                     let (branch_starts_with_globstar, branch_ends_with_globstar) =
