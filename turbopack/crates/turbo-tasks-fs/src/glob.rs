@@ -242,6 +242,8 @@ pub struct GlobProgram {
     // Instructions we can end on that are a valid prefix match
     prefix_match_instructions: BitSet,
     range_sets: Box<[RangeSet]>,
+    // Constant prefixes if any, used as a prefilter.
+    prefix: Option<Box<[u8]>>,
 }
 
 impl GlobProgram {
@@ -250,11 +252,30 @@ impl GlobProgram {
     }
     fn do_compile(pattern: &str) -> Result<GlobProgram> {
         let root = Ast::parse(pattern)?;
-
         let mut instructions = Vec::new();
         let mut range_sets = Vec::new();
 
         generate_code(&mut instructions, &mut range_sets, root)?;
+
+        let mut prefix = None;
+        for instruction in &instructions {
+            match instruction {
+                GlobInstruction::MatchLiteral(b) => {
+                    if prefix.is_none() {
+                        prefix = Some(Vec::new());
+                    }
+                    prefix.as_mut().unwrap().push(*b);
+                }
+                _ => {
+                    break;
+                }
+            }
+        }
+        if let Some(ref prefix) = prefix {
+            // drop the prefix
+            instructions.drain(0..prefix.len());
+        }
+
         instructions.push(GlobInstruction::Match);
 
         // Now we need to annotate 'terminal' globstars in order to speed up validating program
@@ -358,10 +379,24 @@ impl GlobProgram {
             match_instructions: has_path_to_match,
             prefix_match_instructions: has_path_to_prefix_match,
             range_sets: range_sets.into_boxed_slice(),
+            prefix: prefix.map(|v| v.into_boxed_slice()),
         })
     }
 
     fn matches(&self, v: &str, prefix: bool) -> bool {
+        let mut v = v.as_bytes();
+        // trim a prefix if we have one
+        if let Some(literal_prefix) = &self.prefix {
+            if prefix && v.len() <= literal_prefix.len() {
+                return v == &literal_prefix[0..v.len()];
+            } else {
+                if literal_prefix.len() > v.len() || v[..literal_prefix.len()] != **literal_prefix {
+                    return false;
+                }
+                v = &v[literal_prefix.len()..];
+            }
+        }
+
         let len = self.instructions.len();
         // Use a single uninitialized allocation for our storage.
         let mut storage: Vec<u16> =
@@ -384,20 +419,26 @@ impl GlobProgram {
         let mut n_threads = 1;
         let mut ip = 0;
         let mut instruction = self.instructions[0];
-        'outer: for &byte in v.as_bytes() {
+        let mut vi = 0;
+        let vlen = v.len();
+        'outer: while vi < vlen {
+            let mut byte = v[vi];
+            vi += 1;
             let mut thread_index = 0;
             // We manage the loop manually at the bottom to make it easier to skip it when hitting
             // some fast paths
             loop {
+                // The dispatching is the slowest part of the loop.  To mitigate we should allow
+                // some of our fastpaths to advance to the next byte locally.
                 match instruction {
                     GlobInstruction::MatchLiteral(m) => {
                         if byte == m {
-                            if n_threads == 1 {
-                                ip += 1;
-                                cur.clear_and_add(ip);
-                                instruction = self.instructions[ip as usize];
-                                continue 'outer;
-                            }
+                            // if n_threads == 1 {
+                            //     ip += 1;
+                            //     cur.clear_and_add(ip);
+                            //     instruction = self.instructions[ip as usize];
+                            //     continue 'outer;
+                            // }
                             // We matched, proceed to the next character
                             next.add(ip + 1);
                         }
@@ -405,12 +446,12 @@ impl GlobProgram {
 
                     GlobInstruction::MatchAnyNonDelim => {
                         if byte != b'/' {
-                            if n_threads == 1 {
-                                ip += 1;
-                                cur.clear_and_add(ip);
-                                instruction = self.instructions[ip as usize];
-                                continue 'outer;
-                            }
+                            // if n_threads == 1 {
+                            //     ip += 1;
+                            //     cur.clear_and_add(ip);
+                            //     instruction = self.instructions[ip as usize];
+                            //     continue 'outer;
+                            // }
                             next.add(ip + 1);
                         }
                     }
@@ -422,19 +463,25 @@ impl GlobProgram {
                         }
                     }
                     GlobInstruction::MatchManyNonDelimWithLit(exit) => {
-                        if byte != b'/' {
-                            // if we match the exit consider this the same as a literal match and
-                            // jump to the subsequent instruction
-                            if byte == exit {
-                                next.add(ip + 2);
-                                next.add(ip);
-                            } else {
-                                // otherwise we can just loop directly like a globstar
-                                if n_threads == 1 {
-                                    continue 'outer;
+                        loop {
+                            if byte != b'/' {
+                                // if we match the exit consider this the same as a literal match
+                                // and jump to the subsequent
+                                // instruction
+                                if byte == exit {
+                                    next.add(ip);
+                                    next.add(ip + 2);
+                                } else {
+                                    // otherwise we can just loop directly like a globstar
+                                    if n_threads == 1 && vi < vlen {
+                                        byte = v[vi];
+                                        vi += 1;
+                                        continue;
+                                    }
+                                    next.add(ip);
                                 }
-                                next.add(ip);
                             }
+                            break;
                         }
                     }
                     GlobInstruction::MatchGlobStar { terminal } => {
@@ -443,44 +490,51 @@ impl GlobProgram {
                             // remains
                             return true;
                         }
-                        // If we see a `/` then we need to consider ending the globstar.
-                        if byte == b'/' {
-                            next.add(ip + 1);
-                            // but even so we should keep trying to match, just like a fork.
-                            next.add(ip);
-                        } else {
-                            // Otherwise we keep globbing, if we are the only thread jump to the
-                            // next byte
-                            if n_threads == 1 {
-                                continue 'outer;
+                        loop {
+                            // If we see a `/` then we need to consider ending the globstar.
+                            if byte == b'/' {
+                                // but even so we keep trying to match, just like a fork.
+                                next.add(ip);
+                                next.add(ip + 1);
+                            } else {
+                                // Otherwise we keep globbing, if we are the only thread jump to the
+                                // next byte
+                                if n_threads == 1 && vi < vlen {
+                                    byte = v[vi];
+                                    vi += 1;
+                                    continue;
+                                }
+                                // otherwise wait for the other threads to complete
+                                next.add(ip);
                             }
-                            next.add(ip);
+                            break;
                         }
                     }
                     GlobInstruction::MatchClass(index) => {
                         if self.range_sets[index as usize].contains(byte) {
-                            if n_threads == 1 {
-                                ip += 1;
-                                cur.clear_and_add(ip);
-                                instruction = self.instructions[ip as usize];
-                                continue 'outer;
-                            }
+                            // if n_threads == 1 {
+                            //     ip += 1;
+                            //     cur.clear_and_add(ip);
+                            //     instruction = self.instructions[ip as usize];
+                            //     continue 'outer;
+                            // }
                             next.add(ip + 1);
                         }
                     }
                     GlobInstruction::NegativeMatchClass(index) => {
                         if !self.range_sets[index as usize].contains(byte) {
-                            if n_threads == 1 {
-                                ip += 1;
-                                cur.clear_and_add(ip);
-                                instruction = self.instructions[ip as usize];
-                                continue 'outer;
-                            }
+                            // if n_threads == 1 {
+                            //     ip += 1;
+                            //     cur.clear_and_add(ip);
+                            //     instruction = self.instructions[ip as usize];
+                            //     continue 'outer;
+                            // }
                             next.add(ip + 1);
                         }
                     }
                     GlobInstruction::Jump(offset) => {
                         // Push another thread onto the current list
+                        // This is just for when we exiting alternations to skip over alternates
                         if cur.add(offset + ip) {
                             n_threads += 1;
                         }
@@ -495,7 +549,7 @@ impl GlobProgram {
                     }
                     GlobInstruction::Match => {
                         // We ran out of instructions while we still have characters
-                        // so this thread dies
+                        // so this thread dies.
                     }
                 }
                 // Do this at the bottom of the loop, this allows our early returns above to skip
