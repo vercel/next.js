@@ -753,8 +753,7 @@ function instantiateModule(id, source) {
                 k: refresh,
                 R: createResolvePathFromModule(r),
                 b: getDevWorkerBlobURL,
-                z: requireStub,
-                d: typeof module.id === 'string' ? module.id.replace(/(^|\/)\/+$/, '') : module.id
+                z: requireStub
             }));
         });
     } catch (error) {

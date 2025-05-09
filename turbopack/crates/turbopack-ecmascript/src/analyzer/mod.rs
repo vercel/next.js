@@ -602,6 +602,20 @@ impl From<&FreeVarReference> for JsValue {
             FreeVarReference::Error(_) => {
                 JsValue::unknown_empty(false, "compile time injected free var error")
             }
+            FreeVarReference::InputRelative(kind) => {
+                use turbopack_core::compile_time_info::InputRelativeConstant;
+                JsValue::unknown_empty(
+                    false,
+                    match kind {
+                        InputRelativeConstant::DirName => {
+                            "compile time injected free var referencing the directory name"
+                        }
+                        InputRelativeConstant::FileName => {
+                            "compile time injected free var referencing the file name"
+                        }
+                    },
+                )
+            }
         }
     }
 }

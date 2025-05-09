@@ -295,10 +295,6 @@ function instantiateModule(
       R: createResolvePathFromModule(r),
       b: getWorkerBlobURL,
       z: requireStub,
-      __dirname:
-        typeof module.id === 'string'
-          ? module.id.replace(/(^|\/)\/+$/, '')
-          : module.id,
     })
   } catch (error) {
     module.error = error as any

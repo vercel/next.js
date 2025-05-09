@@ -85,6 +85,8 @@ pub fn minify(code: &Code, source_maps: bool, mangle: Option<MangleType>) -> Res
                             // Only run 2 passes, this is a tradeoff between performance and
                             // compression size. Default is 3 passes.
                             passes: 2,
+                            keep_classnames: mangle.is_none(),
+                            keep_fnames: mangle.is_none(),
                             ..Default::default()
                         }),
                         mangle: mangle.map(|mangle| {

@@ -87,11 +87,8 @@ impl EcmascriptChunkItemContent {
 
     #[turbo_tasks::function]
     pub async fn module_factory(&self) -> Result<Vc<Code>> {
-        let mut args = vec![
-            "g: global",
-            // HACK
-            "__dirname",
-        ];
+        // TODO(lukesandberg): find a better way to bind this parameter.
+        let mut args = vec!["g: global"];
         if self.options.async_module.is_some() {
             args.push("a: __turbopack_async_module__");
         }

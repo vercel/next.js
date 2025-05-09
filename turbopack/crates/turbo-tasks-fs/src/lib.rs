@@ -48,6 +48,7 @@ use mime::Mime;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 pub use read_glob::ReadGlobResult;
 use read_glob::{read_glob, track_glob};
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::{
@@ -59,8 +60,8 @@ use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat, effect, mark_session_dependent, mark_stateful, trace::TraceRawVcs,
-    Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef, ResolvedVc, ValueToString,
-    Vc,
+    ApplyEffectsContext, Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef,
+    ResolvedVc, ValueToString, Vc,
 };
 use turbo_tasks_hash::{
     hash_xxh3_hash128, hash_xxh3_hash64, DeterministicHash, DeterministicHasher,
@@ -206,6 +207,12 @@ pub trait FileSystem: ValueToString {
     fn write(self: Vc<Self>, fs_path: Vc<FileSystemPath>, content: Vc<FileContent>) -> Vc<()>;
     fn write_link(self: Vc<Self>, fs_path: Vc<FileSystemPath>, target: Vc<LinkContent>) -> Vc<()>;
     fn metadata(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<FileMeta>;
+}
+
+#[derive(Default)]
+struct DiskFileSystemApplyContext {
+    /// A cache of already created directories to avoid creating them multiple times.
+    created_directories: FxHashSet<PathBuf>,
 }
 
 #[derive(Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
@@ -391,6 +398,29 @@ impl DiskFileSystemInner {
         self.watcher
             .start_watching(self.clone(), report_invalidation_reason, poll_interval)?;
 
+        Ok(())
+    }
+
+    async fn create_directory(self: &Arc<Self>, directory: &Path) -> Result<()> {
+        let already_created = ApplyEffectsContext::with_or_insert_with(
+            DiskFileSystemApplyContext::default,
+            |fs_context| fs_context.created_directories.contains(directory),
+        );
+        if !already_created {
+            let func = |p: &Path| std::fs::create_dir_all(p);
+            retry_blocking(directory, func)
+                .concurrency_limited(&self.semaphore)
+                .instrument(tracing::info_span!(
+                    "create directory",
+                    path = display(directory.display())
+                ))
+                .await?;
+            ApplyEffectsContext::with(|fs_context: &mut DiskFileSystemApplyContext| {
+                fs_context
+                    .created_directories
+                    .insert(directory.to_path_buf())
+            });
+        }
         Ok(())
     }
 }
@@ -735,20 +765,13 @@ impl FileSystem for DiskFileSystem {
                     let create_directory = compare == FileComparison::Create;
                     if create_directory {
                         if let Some(parent) = full_path.parent() {
-                            retry_blocking(parent, |p| std::fs::create_dir_all(p))
-                                .concurrency_limited(&inner.semaphore)
-                                .instrument(tracing::info_span!(
-                                    "create directory",
-                                    path = display(parent.display())
-                                ))
-                                .await
-                                .with_context(|| {
-                                    format!(
-                                        "failed to create directory {} for write to {}",
-                                        parent.display(),
-                                        full_path.display()
-                                    )
-                                })?;
+                            inner.create_directory(parent).await.with_context(|| {
+                                format!(
+                                    "failed to create directory {} for write to {}",
+                                    parent.display(),
+                                    full_path.display()
+                                )
+                            })?;
                         }
                     }
                     let full_path_to_write = full_path.clone();
@@ -872,20 +895,13 @@ impl FileSystem for DiskFileSystem {
                     let create_directory = old_content.is_none();
                     if create_directory {
                         if let Some(parent) = full_path.parent() {
-                            retry_blocking(parent, |path| std::fs::create_dir_all(path))
-                                .concurrency_limited(&inner.semaphore)
-                                .instrument(tracing::info_span!(
-                                    "create directory",
-                                    path = display(parent.display())
-                                ))
-                                .await
-                                .with_context(|| {
-                                    format!(
-                                        "failed to create directory {} for write to {}",
-                                        parent.display(),
-                                        full_path.display()
-                                    )
-                                })?;
+                            inner.create_directory(parent).await.with_context(|| {
+                                format!(
+                                    "failed to create directory {} for write link to {}",
+                                    parent.display(),
+                                    full_path.display()
+                                )
+                            })?;
                         }
                     }
 

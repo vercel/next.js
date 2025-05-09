@@ -112,5 +112,4 @@ interface TurbopackBaseContext<M> {
   U: RelativeURL
   b: GetWorkerBlobURL
   z: CommonJsRequire
-  d: string
 }
