@@ -380,10 +380,49 @@ impl GlobProgram {
                     // If we hit a `}` then we are done so compute the jumps and pop the prefix.
                     if t == GlobToken::RBracket {
                         let mut branches = left_bracket_starts.pop().unwrap();
-                        let mut prefix = &mut branches.prefix;
+                        let prefix = &mut branches.prefix;
                         let branches = &mut branches.branches;
-                        build_alternatives(prefix, branches)?;
-                        std::mem::swap(&mut instructions, &mut prefix);
+
+                        let num_branches = branches.len();
+                        if num_branches <= 1 {
+                            bail!(
+                                "Cannot have an alternation with less than 2 members, remove the \
+                                 brackets?"
+                            );
+                        }
+                        let mut next_branch_offset = num_branches - 1;
+                        for branch in &branches[0..num_branches - 1] {
+                            // to jump past the branch we need to jump past all its instructions
+                            // +1 to account for the JUMP
+                            // instruction at the end
+                            next_branch_offset += branch.len() + 1;
+                            prefix.push(GlobInstruction::Fork(
+                                next_branch_offset.try_into().context(
+                                    "glob too large, cannot have more than 32K instructions",
+                                )?,
+                            ));
+                            next_branch_offset -= 1; // subtract one since we added a fork
+                                                     // instruction.
+                        }
+                        let mut end_of_alternation =
+                            next_branch_offset + branches.last().unwrap().len();
+                        for branch in &mut branches[0..num_branches - 1] {
+                            end_of_alternation -= branch.len(); // from the end of this branch, this is how far it is to the end of
+                                                                // the
+                                                                // alternation
+                            prefix.append(branch);
+                            prefix.push(GlobInstruction::Jump(
+                                end_of_alternation.try_into().context(
+                                    "glob too large, cannot have more than 64K instructions",
+                                )?,
+                            ));
+                            end_of_alternation -= 1; // account for the jump instruction
+                        }
+                        end_of_alternation -= branches.last().unwrap().len();
+                        prefix.append(branches.last_mut().unwrap());
+                        debug_assert!(end_of_alternation == 0);
+
+                        std::mem::swap(&mut instructions, prefix);
                     }
                 }
                 GlobToken::End => {
@@ -416,8 +455,8 @@ impl GlobProgram {
         let mut has_path_to_prefix_match = BitSet::new(instructions.len());
 
         for start in (0..instructions.len()).rev() {
-            visited.set(start as usize);
-            let (valid_prefix_end, valid_match) = match instructions[start as usize] {
+            visited.set(start);
+            let (valid_prefix_end, valid_match) = match instructions[start] {
                 GlobInstruction::MatchLiteral(byte) => (byte == b'/', false),
                 GlobInstruction::MatchAnyNonDelim => (false, false),
                 GlobInstruction::MatchGlobStar { terminal } => {
@@ -451,7 +490,7 @@ impl GlobProgram {
                     )
                 }
                 GlobInstruction::Fork(offset) => {
-                    let next_instruction = (start + 1) as usize;
+                    let next_instruction = start + 1;
                     debug_assert!(
                         visited.has(next_instruction),
                         "should have already visited the target"
@@ -466,7 +505,7 @@ impl GlobProgram {
                         // So we don't need to follow them now
                         next
                     } else {
-                        let fork_target = start as usize + offset as usize;
+                        let fork_target = start + offset as usize;
                         debug_assert!(
                             visited.has(fork_target),
                             "should have already visited the target"
@@ -486,10 +525,10 @@ impl GlobProgram {
                 }
             };
             if valid_prefix_end {
-                has_path_to_prefix_match.set(start as usize)
+                has_path_to_prefix_match.set(start)
             }
             if valid_match {
-                has_path_to_match.set(start as usize)
+                has_path_to_match.set(start)
             }
         }
 
@@ -520,22 +559,34 @@ impl GlobProgram {
         // program but typically far less
         // This bounds execution at O(N*M) where N is the size of the path and M is the size of the
         // program
-        for &byte in v.as_bytes() {
+        let mut n_threads = 1;
+        let mut ip = 0;
+        'outer: for &byte in v.as_bytes() {
             let mut thread_index = 0;
-            // We need to use this looping construct since we may add elements to `cur` as we go.
-            // `cur.n` will never be > `len` so this loop is bounded to N iterations.
-            let mut n_threads = cur.n;
-            while thread_index < n_threads {
-                let ip = cur.get(thread_index);
+            // We manage the loop manually at the bottom to make it easier to skip it when hitting
+            // some fast paths
+            loop {
                 match self.instructions[ip as usize] {
                     GlobInstruction::MatchLiteral(m) => {
                         if byte == m {
+                            if n_threads == 1 {
+                                cur.clear();
+                                ip += 1;
+                                cur.add(ip);
+                                continue 'outer;
+                            }
                             // We matched, proceed to the next character
                             next.add(ip + 1);
                         }
                     }
                     GlobInstruction::MatchAnyNonDelim => {
                         if byte != b'/' {
+                            if n_threads == 1 {
+                                cur.clear();
+                                ip += 1;
+                                cur.add(ip);
+                                continue 'outer;
+                            }
                             next.add(ip + 1);
                         }
                     }
@@ -548,17 +599,34 @@ impl GlobProgram {
                         // If we see a `/` then we need to consider ending the globstar.
                         if byte == b'/' {
                             next.add(ip + 1);
+                            // but even so we should keep trying to match, just like a fork.
+                            next.add(ip);
+                        } else {
+                            if n_threads == 1 {
+                                continue 'outer;
+                            }
+                            next.add(ip);
                         }
-                        // but even so we should keep trying to match, just like a fork.
-                        next.add(ip);
                     }
                     GlobInstruction::MatchClass(index) => {
                         if self.range_sets[index as usize].contains(byte) {
+                            if n_threads == 1 {
+                                cur.clear();
+                                ip += 1;
+                                cur.add(ip);
+                                continue 'outer;
+                            }
                             next.add(ip + 1);
                         }
                     }
                     GlobInstruction::NegativeMatchClass(index) => {
                         if !self.range_sets[index as usize].contains(byte) {
+                            if n_threads == 1 {
+                                cur.clear();
+                                ip += 1;
+                                cur.add(ip);
+                                continue 'outer;
+                            }
                             next.add(ip + 1);
                         }
                     }
@@ -569,10 +637,11 @@ impl GlobProgram {
                         }
                     }
                     GlobInstruction::Fork(offset) => {
-                        let added1 = cur.add(ip + 1);
-                        let added2 = cur.add((offset + (ip as i16)) as u16);
-                        if added1 || added2 {
-                            n_threads = cur.n;
+                        if cur.add(ip + 1) {
+                            n_threads += 1;
+                        }
+                        if cur.add((offset + (ip as i16)) as u16) {
+                            n_threads += 1;
                         }
                     }
                     GlobInstruction::Match => {
@@ -580,13 +649,21 @@ impl GlobProgram {
                         // so this thread dies
                     }
                 }
+                // Do this at the bottom of the loop
                 thread_index += 1;
+                if thread_index < n_threads {
+                    ip = cur.get(thread_index);
+                } else {
+                    break;
+                }
             }
-            if next.n == 0 {
+            n_threads = next.n;
+            if n_threads == 0 {
                 // This means that all threads exited early.  This isn't needed for correctness,
                 // but there is no point iterating the rest of the characters.
                 return false;
             }
+            ip = next.get(0);
             // We have some progress! clear current and swap the two lists to advance to the next
             // character.
             cur.clear();
@@ -616,45 +693,6 @@ impl GlobProgram {
         }
         false
     }
-}
-
-fn build_alternatives(
-    prefix: &mut Vec<GlobInstruction>,
-    branches: &mut Vec<Vec<GlobInstruction>>,
-) -> Result<(), anyhow::Error> {
-    let num_branches = branches.len();
-    if num_branches <= 1 {
-        bail!("Cannot have an alternation with less than 2 members, remove the brackets?");
-    }
-    let mut next_branch_offset = num_branches - 1;
-    for branch in &branches[0..num_branches - 1] {
-        // to jump past the branch we need to jump past all its instructions +1
-        // to account for the JUMP instruction at the end
-        next_branch_offset += branch.len() + 1;
-        prefix.push(GlobInstruction::Fork(
-            next_branch_offset
-                .try_into()
-                .context("glob too large, cannot have more than 32K instructions")?,
-        ));
-        next_branch_offset -= 1; // subtract one since we added a fork
-                                 // instruction.
-    }
-    let mut end_of_alternation = next_branch_offset + branches.last().unwrap().len();
-    for branch in &mut branches[0..num_branches - 1] {
-        end_of_alternation -= branch.len(); // from the end of this branch, this is how far it is to the end of the
-                                            // alternation
-        prefix.extend(branch.drain(..));
-        prefix.push(GlobInstruction::Jump(
-            end_of_alternation
-                .try_into()
-                .context("glob too large, cannot have more than 64K instructions")?,
-        ));
-        end_of_alternation -= 1; // account for the jump instruction
-    }
-    end_of_alternation -= branches.last().unwrap().len();
-    prefix.extend(branches.last_mut().unwrap().drain(..));
-    debug_assert!(end_of_alternation == 0);
-    Ok(())
 }
 
 // Consider a more compact encoding.
@@ -966,7 +1004,7 @@ mod tests {
     #[test]
     fn test_tokenizer() {
         let mut tok = Tokenizer::new("foo/bar[a-z]/?/**");
-        let prefix: Vec<GlobToken> = "foo/bar".bytes().map(|c| GlobToken::Literal(c)).collect();
+        let prefix: Vec<GlobToken> = "foo/bar".bytes().map(GlobToken::Literal).collect();
         for t in prefix {
             assert_eq!(t, tok.next_token());
         }
