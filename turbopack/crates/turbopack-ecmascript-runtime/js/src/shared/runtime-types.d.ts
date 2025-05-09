@@ -13,6 +13,7 @@ type ChunkListScript = CurrentScript & { readonly brand: unique symbol }
 type ChunkPath = string & { readonly brand: unique symbol }
 type ChunkScript = CurrentScript & { readonly brand: unique symbol }
 type ChunkUrl = string & { readonly brand: unique symbol }
+// TODO this should actually be `string | number`
 type ModuleId = string
 
 interface Exports {
@@ -58,7 +59,13 @@ type LoadWebAssemblyModule = (
 ) => WebAssembly.Module
 
 type ModuleCache<M> = Record<ModuleId, M>
-type ModuleFactories = Record<ModuleId, unknown>
+// TODO properly type values here
+type ModuleFactories = Record<ModuleId, Function>
+// The value is an array with scope hoisting
+type CompressedModuleFactories = Record<
+  ModuleId,
+  Function | [Function, ModuleId[]]
+>
 
 type RelativeURL = (inputUrl: string) => void
 type ResolvePathFromModule = (moduleId: string) => string
