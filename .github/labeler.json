@@ -5,7 +5,7 @@
     "examples": ["examples/**"],
     "Font (next/font)": ["**/*font*"],
     "tests": ["test/**", "bench/**"],
-    "Turbopack": ["crates/next-*/**"],
+    "Turbopack": ["crates/next-*/**", "crates/napi/**", "turbopack/**"],
     "created-by: Chrome Aurora": [
       { "type": "user", "pattern": "atcastle" },
       { "type": "user", "pattern": "devknoll" },
