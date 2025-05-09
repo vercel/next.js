@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, fmt::Display};
+use std::{cmp::Ordering, collections::VecDeque, fmt::Display};
 
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
@@ -237,216 +237,13 @@ impl GlobProgram {
         GlobProgram::do_compile(pattern).with_context(|| format!("Failed to parse glob: {pattern}"))
     }
     fn do_compile(pattern: &str) -> Result<GlobProgram> {
-        let mut tok = Tokenizer::new(pattern);
+        let root = Ast::parse(pattern)?;
+
         let mut instructions = Vec::new();
         let mut range_sets = Vec::new();
-        // A stack of alternates
-        struct PendingAlternates {
-            prefix: Vec<GlobInstruction>,
-            branches: Vec<Vec<GlobInstruction>>,
-        }
-        let mut left_bracket_starts: Vec<PendingAlternates> = Vec::new();
-        // We avoid synthesizing an AST and compile directly from the lexer, this adds a touch of
-        // trickiness for alternations but that can be managed by a single stack and avoids the
-        // complexity of building and visiting an AST. This simple program also allows
-        // trivial optimizations to be performed during compilation inline.
-        loop {
-            let (pos, t) = tok.next_token();
-            match t {
-                GlobToken::Caret | GlobToken::ExclamationPoint => {
-                    panic!("these cannot appear at the beginning of a pattern")
-                }
-                GlobToken::Literal(lit) => {
-                    instructions.push(GlobInstruction::MatchLiteral(lit));
-                }
-                GlobToken::Star => {
-                    instructions.push(GlobInstruction::Fork(3)); // allowed to match nothing
-                    instructions.push(GlobInstruction::MatchAnyNonDelim);
-                    // After a star match we either loop back to try again, or proceed.
-                    instructions.push(GlobInstruction::Fork(-1));
-                }
-                GlobToken::GlobStar => {
-                    // allow globstars to match nothing by skipping it
-                    instructions.push(GlobInstruction::Fork(2));
-                    // We don't actually know if it is terminal or not yet.  We will determine
-                    // this after code generation.
-                    instructions.push(GlobInstruction::MatchGlobStar { terminal: false });
-                }
-                GlobToken::QuestionMark => {
-                    // A question match, optionally matches a non-delimiter character, so we either
-                    // skip forward or not.
-                    instructions.push(GlobInstruction::Fork(2));
-                    instructions.push(GlobInstruction::MatchAnyNonDelim);
-                }
-                GlobToken::LSquareBracket => {
-                    let mut set = Vec::new();
-                    // with in a square bracket we expect a mix of literals and hyphens followed by
-                    // a RSuareBracket
-                    let mut prev_literal: Option<u8> = None;
-                    let mut partial_range: Option<u8> = None;
-                    let mut negated = false;
-                    loop {
-                        let (pos, t) = tok.next_token();
-                        match t {
-                            GlobToken::Caret | GlobToken::ExclamationPoint => {
-                                if !set.is_empty()
-                                    || prev_literal.is_some()
-                                    || partial_range.is_some()
-                                {
-                                    bail!(
-                                        "negation tokens can only appear at the beginning of \
-                                         character classes @{pos}"
-                                    );
-                                }
-                                negated = !negated;
-                            }
-                            GlobToken::Literal(lit) => {
-                                if lit > 127 {
-                                    // TODO(lukesandberg): These are supportable by expanding into
-                                    // several RanngeSets for each byte in the multibyte characters
-                                    // However, this is very unlikely to be required by a user so
-                                    // for now the feature is omitted.
-                                    bail!("Unsupported non-ascii character in set @{pos}");
-                                }
-                                if let Some(start) = partial_range {
-                                    set.push(ByteRange::range(start, lit));
-                                    partial_range = None;
-                                } else {
-                                    if let Some(prev) = prev_literal {
-                                        set.push(ByteRange::singleton(prev));
-                                    }
-                                    prev_literal = Some(lit);
-                                }
-                            }
-                            GlobToken::Hyphen => {
-                                if let Some(lit) = prev_literal {
-                                    prev_literal = None;
-                                    partial_range = Some(lit);
-                                } else {
-                                    bail!(
-                                        "Unexpected hyphen at the beginning of a character class \
-                                         @{pos}"
-                                    )
-                                }
-                            }
 
-                            GlobToken::RSquareBracket => {
-                                if let Some(lit) = prev_literal {
-                                    set.push(ByteRange::singleton(lit));
-                                }
-                                if partial_range.is_some() {
-                                    bail!(
-                                        "unexpected hyphen at the end of a character class @{pos}"
-                                    )
-                                }
-                                let set = RangeSet::new(set);
-                                let index: u8 = range_sets.len().try_into().with_context(|| {
-                                    format!("Cannot have more than 255 range sets @{pos}")
-                                })?;
-                                range_sets.push(set);
-                                // It is more efficient to use a separate instruction than pad out
-                                // the range class
-                                if negated {
-                                    instructions.push(GlobInstruction::NegativeMatchClass(index))
-                                } else {
-                                    instructions.push(GlobInstruction::MatchClass(index));
-                                }
-                                break;
-                            }
-                            _ => {
-                                bail!("Unexpected token {t} inside of character class @{pos}");
-                            }
-                        }
-                    }
-                }
-                GlobToken::RSquareBracket | GlobToken::Hyphen => panic!(
-                    "should never happen, tokenizer should have already rejected or been consumed \
-                     within another branch"
-                ),
-                GlobToken::LBracket => {
-                    let mut tmp = Vec::new();
-                    std::mem::swap(&mut instructions, &mut tmp);
-                    left_bracket_starts.push(PendingAlternates {
-                        prefix: tmp,
-                        branches: Vec::new(),
-                    });
-                }
-                GlobToken::Comma | GlobToken::RBracket => {
-                    // We don't need to check this, the tokenizer enforces that these tokens can
-                    // only occur inside of an alternation so there must be something on our stack.
-                    {
-                        let pending = left_bracket_starts.last_mut().unwrap();
-                        // for an alternation we either 'jump' past it to the next one, or we
-                        // process it directly
-
-                        let mut branch = Vec::new();
-                        std::mem::swap(&mut instructions, &mut branch);
-                        pending.branches.push(branch);
-                    }
-
-                    // If we hit a `}` then we are done so compute the jumps and pop the prefix.
-                    if t == GlobToken::RBracket {
-                        let mut branches = left_bracket_starts.pop().unwrap();
-                        let prefix = &mut branches.prefix;
-                        let branches = &mut branches.branches;
-
-                        let num_branches = branches.len();
-                        if num_branches <= 1 {
-                            bail!(
-                                "Cannot have an alternation with less than 2 members, remove the \
-                                 brackets? @{pos}"
-                            );
-                        }
-                        let mut next_branch_offset = num_branches - 1;
-                        for branch in &branches[0..num_branches - 1] {
-                            // to jump past the branch we need to jump past all its instructions
-                            // +1 to account for the JUMP
-                            // instruction at the end
-                            next_branch_offset += branch.len() + 1;
-                            prefix.push(GlobInstruction::Fork(
-                                next_branch_offset.try_into().with_context(|| {
-                                    format!(
-                                        "glob too large, cannot have more than 32K instructions  \
-                                         @{pos}"
-                                    )
-                                })?,
-                            ));
-                            next_branch_offset -= 1; // subtract one since we added a fork
-                                                     // instruction.
-                        }
-                        let mut end_of_alternation =
-                            next_branch_offset + branches.last().unwrap().len();
-                        for branch in &mut branches[0..num_branches - 1] {
-                            end_of_alternation -= branch.len(); // from the end of this branch, this is how far it is to the end of
-                                                                // the
-                                                                // alternation
-                            prefix.append(branch);
-                            prefix.push(GlobInstruction::Jump(
-                                end_of_alternation.try_into().with_context(|| {
-                                    format!(
-                                        "glob too large, cannot have more than 32K instructions  \
-                                         @{pos}"
-                                    )
-                                })?,
-                            ));
-                            end_of_alternation -= 1; // account for the jump instruction
-                        }
-                        end_of_alternation -= branches.last().unwrap().len();
-                        prefix.append(branches.last_mut().unwrap());
-                        debug_assert!(end_of_alternation == 0);
-
-                        std::mem::swap(&mut instructions, prefix);
-                    }
-                }
-                GlobToken::End => {
-                    instructions.push(GlobInstruction::Match);
-                    break;
-                }
-            }
-        }
-        if let Some(err) = tok.err {
-            return Err(err);
-        }
+        generate_code(&mut instructions, &mut range_sets, root)?;
+        instructions.push(GlobInstruction::Match);
 
         // Now we need to annotate 'terminal' globstars in order to speed up validating program
         // matches. The issue is that if we are executing a globstar when the program
@@ -463,15 +260,20 @@ impl GlobProgram {
             bail!("program too large");
         }
 
+        // This is just used for validation
         let mut visited = BitSet::new(instructions.len());
+        // For each instruction, tracks if there is a a path from it to `Match`
         let mut has_path_to_match = BitSet::new(instructions.len());
         let mut has_path_to_prefix_match = BitSet::new(instructions.len());
 
+        // Compute paths by iterating backwards through the instructions.
         for start in (0..instructions.len()).rev() {
             visited.set(start);
             let (valid_prefix_end, valid_match) = match instructions[start] {
                 GlobInstruction::MatchLiteral(byte) => (byte == b'/', false),
-                GlobInstruction::MatchAnyNonDelim => (false, false),
+                GlobInstruction::MatchManyNonDelimWithLit(..)
+                | GlobInstruction::MatchManyNonDelim
+                | GlobInstruction::MatchAnyNonDelim => (false, false),
                 GlobInstruction::MatchGlobStar { terminal } => {
                     debug_assert!(!terminal); // shouldn't have been set
                                               // a globstar is always a valid prefix end but is only a valid match if the
@@ -513,22 +315,16 @@ impl GlobProgram {
                         has_path_to_match.has(next_instruction),
                     );
 
-                    if offset < 0 {
-                        // Forks that point backwards are implementing loops.
-                        // So we don't need to follow them now
-                        next
-                    } else {
-                        let fork_target = start + offset as usize;
-                        debug_assert!(
-                            visited.has(fork_target),
-                            "should have already visited the target"
-                        );
-                        let fork = (
-                            has_path_to_prefix_match.has(fork_target),
-                            has_path_to_match.has(fork_target),
-                        );
-                        (next.0 || fork.0, next.1 || fork.1)
-                    }
+                    let fork_target = start + offset as usize;
+                    debug_assert!(
+                        visited.has(fork_target),
+                        "should have already visited the target"
+                    );
+                    let fork = (
+                        has_path_to_prefix_match.has(fork_target),
+                        has_path_to_match.has(fork_target),
+                    );
+                    (next.0 || fork.0, next.1 || fork.1)
                 }
                 GlobInstruction::Match => {
                     // For prefix matches, we only want to say it matches if a a file within the
@@ -592,6 +388,7 @@ impl GlobProgram {
                             next.add(ip + 1);
                         }
                     }
+
                     GlobInstruction::MatchAnyNonDelim => {
                         if byte != b'/' {
                             if n_threads == 1 {
@@ -601,6 +398,29 @@ impl GlobProgram {
                                 continue 'outer;
                             }
                             next.add(ip + 1);
+                        }
+                    }
+                    GlobInstruction::MatchManyNonDelim => {
+                        if byte != b'/' {
+                            // keep evaluating this instruction and possibly exit
+                            next.add(ip);
+                            next.add(ip + 1);
+                        }
+                    }
+                    GlobInstruction::MatchManyNonDelimWithLit(exit) => {
+                        if byte != b'/' {
+                            // if we match the exit consider this the same as a literal match and
+                            // jump to the subsequent instruction
+                            if byte == exit {
+                                next.add(ip + 2);
+                                next.add(ip);
+                            } else {
+                                // otherwise we can just loop directly like a globstar
+                                if n_threads == 1 {
+                                    continue 'outer;
+                                }
+                                next.add(ip);
+                            }
                         }
                     }
                     GlobInstruction::MatchGlobStar { terminal } => {
@@ -615,6 +435,8 @@ impl GlobProgram {
                             // but even so we should keep trying to match, just like a fork.
                             next.add(ip);
                         } else {
+                            // Otherwise we keep globbing, if we are the only thread jump to the
+                            // next byte
                             if n_threads == 1 {
                                 continue 'outer;
                             }
@@ -653,7 +475,7 @@ impl GlobProgram {
                         if cur.add(ip + 1) {
                             n_threads += 1;
                         }
-                        if cur.add((offset + (ip as i16)) as u16) {
+                        if cur.add(offset + ip) {
                             n_threads += 1;
                         }
                     }
@@ -708,6 +530,320 @@ impl GlobProgram {
     }
 }
 
+enum Ast {
+    Child(usize, GlobToken),
+    Alternation(usize, Vec<(usize, VecDeque<Ast>)>),
+    Class(RangeSet, bool),
+}
+impl Ast {
+    fn parse(glob: &str) -> Result<VecDeque<Ast>> {
+        let mut tok = Tokenizer::new(glob);
+        let mut stack: Vec<VecDeque<Ast>> = Vec::new();
+        stack.push(VecDeque::new());
+        loop {
+            let (pos, token) = tok.next_token();
+            match token {
+                GlobToken::Star
+                | GlobToken::Delimiter
+                | GlobToken::QuestionMark
+                | GlobToken::GlobStar
+                | GlobToken::Literal(_) => {
+                    stack.last_mut().unwrap().push_back(Ast::Child(pos, token))
+                }
+                GlobToken::Caret | GlobToken::ExclamationPoint => {
+                    panic!("BUG: these cannot appear at the beginning of a pattern")
+                }
+                GlobToken::LSquareBracket => {
+                    let mut set = Vec::new();
+                    // with in a square bracket we expect a mix of literals and hyphens followed by
+                    // a RSuareBracket
+                    let mut prev_literal: Option<u8> = None;
+                    let mut partial_range: Option<u8> = None;
+                    let mut negated = false;
+                    loop {
+                        let (pos, t) = tok.next_token();
+                        match t {
+                            GlobToken::Caret | GlobToken::ExclamationPoint => {
+                                if !set.is_empty()
+                                    || prev_literal.is_some()
+                                    || partial_range.is_some()
+                                {
+                                    bail!(
+                                        "negation tokens can only appear at the beginning of \
+                                         character classes @{pos}"
+                                    );
+                                }
+                                negated = !negated;
+                            }
+                            GlobToken::Literal(lit) => {
+                                if lit > 127 {
+                                    // TODO(lukesandberg): These are supportable by expanding into
+                                    // several RanngeSets for each byte in the multibyte characters
+                                    // However, this is very unlikely to be required by a user so
+                                    // for now the feature is omitted.
+                                    bail!("Unsupported non-ascii character in set @{pos}");
+                                }
+                                if let Some(start) = partial_range {
+                                    set.push(ByteRange::range(start, lit));
+                                    partial_range = None;
+                                } else {
+                                    if let Some(prev) = prev_literal {
+                                        set.push(ByteRange::singleton(prev));
+                                    }
+                                    prev_literal = Some(lit);
+                                }
+                            }
+                            GlobToken::Hyphen => {
+                                if let Some(lit) = prev_literal {
+                                    prev_literal = None;
+                                    partial_range = Some(lit);
+                                } else {
+                                    bail!(
+                                        "Unexpected hyphen at the beginning of a character class \
+                                         @{pos}"
+                                    )
+                                }
+                            }
+
+                            GlobToken::RSquareBracket => {
+                                if let Some(lit) = prev_literal {
+                                    set.push(ByteRange::singleton(lit));
+                                }
+                                if partial_range.is_some() {
+                                    bail!(
+                                        "Unexpected hyphen at the end of a character class @{pos}"
+                                    )
+                                }
+                                stack
+                                    .last_mut()
+                                    .unwrap()
+                                    .push_back(Ast::Class(RangeSet::new(set), negated));
+                                break;
+                            }
+                            _ => {
+                                bail!("Unexpected token {t} inside of character class @{pos}");
+                            }
+                        }
+                    }
+                }
+                GlobToken::RSquareBracket | GlobToken::Hyphen => panic!(
+                    "should never happen, tokenizer should have already rejected or been consumed \
+                     within another branch"
+                ),
+                GlobToken::LBracket => {
+                    stack
+                        .last_mut()
+                        .unwrap()
+                        .push_back(Ast::Alternation(pos, vec![(pos, VecDeque::new())]));
+                    stack.push(VecDeque::new())
+                }
+                GlobToken::Comma | GlobToken::RBracket => {
+                    let mut last_branch = stack.pop().unwrap();
+                    if let Ast::Alternation(_, branches) =
+                        stack.last_mut().unwrap().back_mut().unwrap()
+                    {
+                        branches.last_mut().unwrap().1.append(&mut last_branch);
+                        if token == GlobToken::Comma {
+                            branches.push((pos, VecDeque::new()));
+                            stack.push(VecDeque::new());
+                        }
+                    } else {
+                        // The lexer ensures that these tokens only occur in the context of an
+                        // alternation.
+                        panic!("impossible!, token in unexpected place");
+                    }
+                }
+                GlobToken::End => break,
+            }
+        }
+        if stack.len() != 1 {
+            bail!("Expected '}}' before end of pattern");
+        }
+        if let Some(err) = tok.err {
+            return Err(err);
+        }
+        Ok(stack.pop().unwrap())
+    }
+}
+
+fn generate_code(
+    instructions: &mut Vec<GlobInstruction>,
+    range_sets: &mut Vec<RangeSet>,
+    mut root: VecDeque<Ast>,
+) -> Result<(bool, bool), anyhow::Error> {
+    // check and validate globstar structure
+    let mut i = 0;
+    let mut starts_with_globstar = false;
+    let mut ends_with_globstar = false;
+    while i < root.len() {
+        if let Ast::Child(pos, GlobToken::GlobStar) = root[i] {
+            // a ** should be followed by a `/` or the end of the branch
+            if i < root.len() - 1 {
+                let next = &root[i + 1];
+                if !matches!(next, Ast::Child(_, GlobToken::Delimiter)) {
+                    bail!("Globstar must be a complete path segment, e.g. /**/ @{pos}");
+                }
+                root.remove(i + 1);
+            } else {
+                ends_with_globstar = true;
+            }
+
+            // a ** should be prefixed by a `/` or the beginning of the branch
+            // duplicated **/**/ are just dropped.
+            if i > 0 {
+                let prev = &root[i - 1];
+                if matches!(prev, Ast::Child(_, GlobToken::GlobStar)) {
+                    root.remove(i);
+                    i -= 1;
+                } else if !matches!(prev, Ast::Child(_, GlobToken::Delimiter)) {
+                    bail!("Globstar must be a complete path segment, e.g. /**/ @{pos}");
+                }
+            } else {
+                starts_with_globstar = true;
+            }
+        }
+        i += 1;
+    }
+
+    let mut prev_token_was_delimiter = false;
+    let mut is_first = true;
+    while let Some(node) = root.pop_front() {
+        match node {
+            Ast::Child(_, glob_token) => {
+                prev_token_was_delimiter = false;
+                match glob_token {
+                    GlobToken::Literal(byte) => {
+                        instructions.push(GlobInstruction::MatchLiteral(byte))
+                    }
+                    GlobToken::Delimiter => {
+                        prev_token_was_delimiter = true;
+                        instructions.push(GlobInstruction::MatchLiteral(b'/'))
+                    }
+                    GlobToken::Star => {
+                        instructions.push(GlobInstruction::Fork(2)); // allowed to match nothing
+                        instructions.push(match root.front() {
+                            Some(Ast::Child(_, GlobToken::Literal(byte))) => {
+                                GlobInstruction::MatchManyNonDelimWithLit(*byte)
+                            }
+                            _ => GlobInstruction::MatchManyNonDelim,
+                        });
+                    }
+                    GlobToken::QuestionMark => {
+                        // A question match, optionally matches a non-delimiter character, so we
+                        // either skip forward or not.
+                        instructions.push(GlobInstruction::Fork(2));
+                        instructions.push(GlobInstruction::MatchAnyNonDelim);
+                    }
+                    GlobToken::GlobStar => {
+                        // allow globstars to match nothing by skipping it
+                        instructions.push(GlobInstruction::Fork(2));
+                        // We don't actually know if it is terminal or not yet.  We will determine
+                        // this after code generation.
+                        instructions.push(GlobInstruction::MatchGlobStar { terminal: false });
+                    }
+
+                    GlobToken::LSquareBracket
+                    | GlobToken::RSquareBracket
+                    | GlobToken::LBracket
+                    | GlobToken::RBracket
+                    | GlobToken::Comma
+                    | GlobToken::Hyphen
+                    | GlobToken::ExclamationPoint
+                    | GlobToken::Caret
+                    | GlobToken::End => unreachable!(),
+                };
+            }
+            Ast::Alternation(pos, branches) => {
+                let num_branches = branches.len();
+                if num_branches <= 1 {
+                    bail!("alternations should have >1 branch, remove the {{'s? @{pos}")
+                }
+                let mut branch_instructions = Vec::with_capacity(branches.len());
+                for (branch_pos, branch) in branches {
+                    let mut instructions = Vec::new();
+                    let (branch_starts_with_globstar, branch_ends_with_globstar) =
+                        generate_code(&mut instructions, range_sets, branch)?;
+                    if branch_starts_with_globstar {
+                        if !is_first {
+                            if !prev_token_was_delimiter {
+                                bail!(
+                                    "Alternation begins with a glob star that is not prefixed by \
+                                     a '/' @{branch_pos}"
+                                );
+                            }
+                        } else {
+                            starts_with_globstar = true;
+                        }
+                    }
+                    if branch_ends_with_globstar {
+                        if root.is_empty() {
+                            ends_with_globstar = true;
+                        } else {
+                            bail!(
+                                "An alternation can only end with a glob star if it is at the end \
+                                 of the pattern @{branch_pos}"
+                            );
+                        }
+                    }
+                    branch_instructions.push(instructions);
+                }
+
+                let mut next_branch_offset = num_branches - 1;
+                for branch in &branch_instructions[0..num_branches - 1] {
+                    // to jump past the branch we need to jump past all its instructions
+                    // +1 to account for the JUMP
+                    // instruction at the end
+                    next_branch_offset += branch.len() + 1;
+                    instructions.push(GlobInstruction::Fork(
+                        next_branch_offset.try_into().with_context(|| {
+                            format!(
+                                "glob too large, cannot have more than 32K instructions  @{pos}"
+                            )
+                        })?,
+                    ));
+                    next_branch_offset -= 1; // subtract one since we added a fork
+                                             // instruction.
+                }
+                let mut end_of_alternation =
+                    next_branch_offset + branch_instructions.last().unwrap().len();
+                for branch in &mut branch_instructions[0..num_branches - 1] {
+                    end_of_alternation -= branch.len(); // from the end of this branch, this is how far it is to the end of
+                                                        // the
+                                                        // alternation
+                    instructions.append(branch);
+                    instructions.push(GlobInstruction::Jump(
+                        end_of_alternation.try_into().with_context(|| {
+                            format!(
+                                "glob too large, cannot have more than 32K instructions  @{pos}"
+                            )
+                        })?,
+                    ));
+                    end_of_alternation -= 1; // account for the jump instruction
+                }
+                let last_branch = branch_instructions.last_mut().unwrap();
+                end_of_alternation -= last_branch.len();
+                instructions.append(last_branch);
+                debug_assert!(end_of_alternation == 0);
+            }
+            Ast::Class(range_set, negated) => {
+                prev_token_was_delimiter = false;
+                let index: u8 = range_sets
+                    .len()
+                    .try_into()
+                    .context("Cannot have >255 character classes in a glob")?;
+                range_sets.push(range_set);
+                instructions.push(if negated {
+                    GlobInstruction::NegativeMatchClass(index)
+                } else {
+                    GlobInstruction::MatchClass(index)
+                });
+            }
+        }
+        is_first = false;
+    }
+    Ok((starts_with_globstar, ends_with_globstar))
+}
+
 // Consider a more compact encoding.
 // The jump offsets force this to 4 bytes
 // A variable length instruction encoding would help a lot
@@ -717,6 +853,10 @@ enum GlobInstruction {
     MatchLiteral(u8),
     // Matches any non-`/` character
     MatchAnyNonDelim,
+    // Matches any number of non-`/` character
+    MatchManyNonDelim,
+    // Matches any number of non-`/` character followed by a literal as a hint
+    MatchManyNonDelimWithLit(u8),
     // Matches **, which is any character but can only 'end' on a `/` or end of string
     MatchGlobStar { terminal: bool },
     // Matches any character in the set
@@ -729,8 +869,7 @@ enum GlobInstruction {
     // other alternates.
     Jump(u16),
     // Splits control flow into two branches.
-    // Represented as a signed integer since we allow backwards forks
-    Fork(i16),
+    Fork(u16),
     // End of program
     Match,
 }
@@ -763,6 +902,8 @@ enum GlobToken {
     ExclamationPoint,
     // a '^' token. Same rules as !
     Caret,
+    // a `/` token,
+    Delimiter,
     End,
 }
 impl Display for GlobToken {
@@ -785,6 +926,7 @@ impl Display for GlobToken {
                 GlobToken::Literal(_) => panic!("impossible"),
                 GlobToken::ExclamationPoint => "!",
                 GlobToken::Caret => "^",
+                GlobToken::Delimiter => "/",
             })
         }
     }
@@ -820,29 +962,7 @@ impl<'a> Tokenizer<'a> {
                     b'*' if self.square_bracket_count == 0 => match self.input.get(self.pos) {
                         Some(b) if *b == b'*' => {
                             // This is a globstar
-
-                            if self.pos > 2 && self.input[self.pos - 2] != b'/' {
-                                self.err = Some(anyhow!(
-                                    "a glob star must be a full path segment, e.g. `/**/` @{}",
-                                    self.pos
-                                ));
-                                return GlobToken::End;
-                            }
                             self.pos += 1;
-                            match self.input.get(self.pos) {
-                                None => {}
-                                Some(b'/') => {
-                                    self.pos += 1;
-                                } // ok if we are at the end or followed by a `/`
-                                _ => {
-                                    self.err = Some(anyhow!(
-                                        "a glob star must be a full path segment, e.g. `/**/`@{}",
-                                        self.pos
-                                    ));
-                                    return GlobToken::End;
-                                }
-                            }
-
                             GlobToken::GlobStar
                         }
                         _ => GlobToken::Star,
@@ -882,6 +1002,7 @@ impl<'a> Tokenizer<'a> {
                     // only valid inside of a character class
                     b'!' if self.square_bracket_count > 0 => GlobToken::ExclamationPoint,
                     b'^' if self.square_bracket_count > 0 => GlobToken::Caret,
+                    b'/' if self.square_bracket_count == 0 => GlobToken::Delimiter,
                     cur => {
                         if *cur == b'\\' {
                             match self.input.get(self.pos) {
@@ -982,6 +1103,7 @@ mod tests {
     #[case::alternatives_nested2("{a,b/c,d/e/{f,g/h}}", "b/c")]
     #[case::alternatives_nested3("{a,b/c,d/e/{f,g/h}}", "d/e/f")]
     #[case::alternatives_nested4("{a,b/c,d/e/{f,g/h}}", "d/e/g/h")]
+    #[case::alternatives_nested6("{a/**,b/**,{c/**,d/**}}", "d/")]
     // #[case::alternatives_chars("[abc]", "b")]
     fn glob_match(#[case] glob: &str, #[case] path: &str) {
         let parsed = Glob::parse(glob).unwrap();
@@ -1020,18 +1142,21 @@ mod tests {
     #[test]
     fn test_tokenizer() {
         let mut tok = Tokenizer::new("foo/bar[a-z]/?/**");
-        let prefix: Vec<GlobToken> = "foo/bar".bytes().map(GlobToken::Literal).collect();
-        for t in prefix {
-            assert_eq!(t, tok.next_token().1);
-        }
+        assert_eq!(GlobToken::Literal(b'f'), tok.next_token().1);
+        assert_eq!(GlobToken::Literal(b'o'), tok.next_token().1);
+        assert_eq!(GlobToken::Literal(b'o'), tok.next_token().1);
+        assert_eq!(GlobToken::Delimiter, tok.next_token().1);
+        assert_eq!(GlobToken::Literal(b'b'), tok.next_token().1);
+        assert_eq!(GlobToken::Literal(b'a'), tok.next_token().1);
+        assert_eq!(GlobToken::Literal(b'r'), tok.next_token().1);
         assert_eq!(GlobToken::LSquareBracket, tok.next_token().1);
         assert_eq!(GlobToken::Literal(b'a'), tok.next_token().1);
         assert_eq!(GlobToken::Hyphen, tok.next_token().1);
         assert_eq!(GlobToken::Literal(b'z'), tok.next_token().1);
         assert_eq!(GlobToken::RSquareBracket, tok.next_token().1);
-        assert_eq!(GlobToken::Literal(b'/'), tok.next_token().1);
+        assert_eq!(GlobToken::Delimiter, tok.next_token().1);
         assert_eq!(GlobToken::QuestionMark, tok.next_token().1);
-        assert_eq!(GlobToken::Literal(b'/'), tok.next_token().1);
+        assert_eq!(GlobToken::Delimiter, tok.next_token().1);
         assert_eq!(GlobToken::GlobStar, tok.next_token().1);
         assert_eq!(GlobToken::End, tok.next_token().1);
     }

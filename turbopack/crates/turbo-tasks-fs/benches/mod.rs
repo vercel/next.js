@@ -102,13 +102,13 @@ fn bench_rope_iteration(c: &mut Criterion) {
 }
 
 fn bench_glob_match_simple(c: &mut Criterion) {
-    const GLOB: &str = "some/**/n*de?txt";
+    const GLOB: &str = "some/**/n*d[k-m]e?txt";
     const PATH: &str = "some/a/bigger/path/to/the/crazy/needle.txt";
     glob_bench(c, "simple", GLOB, PATH);
 }
 
 fn bench_glob_match_alternations(c: &mut Criterion) {
-    const GLOB: &str = "some/**/{tob,crazy}/*.{png,txt}";
+    const GLOB: &str = "some/**/{tob,crazy}/?*.{png,txt}";
     const PATH: &str = "some/a/bigger/path/to/the/crazy/needle.txt";
 
     glob_bench(c, "alternations", GLOB, PATH);
