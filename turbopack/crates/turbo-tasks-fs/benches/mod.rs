@@ -128,6 +128,15 @@ fn glob_bench(c: &mut Criterion, name: &'static str, glob: &str, path: &str) {
     let g = turbo_tasks_fs::glob::Glob::parse(glob).unwrap();
     group.bench_function("turbo-glob-cached", |b| b.iter(|| g.execute(path)));
 
+    group.bench_function("globset", |b| {
+        b.iter(|| {
+            let g = globset::Glob::new(glob).unwrap().compile_matcher();
+            g.is_match(path)
+        })
+    });
+    let g = globset::Glob::new(glob).unwrap().compile_matcher();
+    group.bench_function("globset-cached", |b| b.iter(|| g.is_match(path)));
+
     group.finish();
 }
 

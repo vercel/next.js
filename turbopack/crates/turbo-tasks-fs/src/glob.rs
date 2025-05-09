@@ -370,18 +370,20 @@ impl GlobProgram {
         // program
         let mut n_threads = 1;
         let mut ip = 0;
+        let mut instruction = self.instructions[0];
         'outer: for &byte in v.as_bytes() {
             let mut thread_index = 0;
             // We manage the loop manually at the bottom to make it easier to skip it when hitting
             // some fast paths
             loop {
-                match self.instructions[ip as usize] {
+                match instruction {
                     GlobInstruction::MatchLiteral(m) => {
                         if byte == m {
                             if n_threads == 1 {
                                 cur.clear();
                                 ip += 1;
                                 cur.add(ip);
+                                instruction = self.instructions[ip as usize + 1];
                                 continue 'outer;
                             }
                             // We matched, proceed to the next character
@@ -395,6 +397,7 @@ impl GlobProgram {
                                 cur.clear();
                                 ip += 1;
                                 cur.add(ip);
+                                instruction = self.instructions[ip as usize + 1];
                                 continue 'outer;
                             }
                             next.add(ip + 1);
@@ -449,6 +452,7 @@ impl GlobProgram {
                                 cur.clear();
                                 ip += 1;
                                 cur.add(ip);
+                                instruction = self.instructions[ip as usize + 1];
                                 continue 'outer;
                             }
                             next.add(ip + 1);
@@ -460,6 +464,7 @@ impl GlobProgram {
                                 cur.clear();
                                 ip += 1;
                                 cur.add(ip);
+                                instruction = self.instructions[ip as usize + 1];
                                 continue 'outer;
                             }
                             next.add(ip + 1);
@@ -488,6 +493,7 @@ impl GlobProgram {
                 thread_index += 1;
                 if thread_index < n_threads {
                     ip = cur.get(thread_index);
+                    instruction = self.instructions[ip as usize];
                 } else {
                     break;
                 }
