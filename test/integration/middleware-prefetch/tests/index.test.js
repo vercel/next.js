@@ -60,7 +60,11 @@ describe('Middleware Production Prefetch', () => {
           const attrs = await Promise.all(
             scripts.map((script) => script.getAttribute('src'))
           )
-          return attrs.find((src) => src.includes('/ssg-page')) ? 'yes' : 'nope'
+          // Check if the filename follows the format `static/chunks/pages/[pagename]-[hash].js`
+          // and specifically targets files containing '/ssg-page-' in their path.
+          return attrs.find((src) => src.includes('/ssg-page-'))
+            ? 'yes'
+            : 'nope'
         }, 'yes')
       })
 
@@ -72,7 +76,7 @@ describe('Middleware Production Prefetch', () => {
           const attrs = await Promise.all(
             scripts.map((script) => script.getAttribute('src'))
           )
-          return attrs.find((src) => src.includes('/ssg-page-2'))
+          return attrs.find((src) => src.includes('/ssg-page-2-'))
             ? 'nope'
             : 'yes'
         }, 'yes')
