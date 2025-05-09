@@ -11,11 +11,7 @@ if (!process.env.GITHUB_TOKEN) {
   )
 }
 
-async function addCredits(user: string | undefined) {
-  if (!user) {
-    return
-  }
-
+async function addCredits(user: string) {
   const credits = require('../github/credits.json')
   // Set on Object.keys to reduce duplicates earlier.
   credits[user] = ''
