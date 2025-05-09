@@ -104,6 +104,9 @@ impl Ord for ByteRange {
 
 #[derive(Debug, Eq, Clone, PartialEq, Hash, Serialize, Deserialize)]
 struct RangeSet {
+    // A sorted list of non-overlapping ranges.
+    // The ranges are also non-abutting, but that isn't
+    // This makes it
     ranges: Box<[ByteRange]>,
 }
 
@@ -141,7 +144,9 @@ impl RangeSet {
 }
 
 // A sparse set of integers that supports O(1) insertion, testing, clearing and O(n) iteration.
-// https://research.swtch.com/sparse
+// https://research.swtch.com/sparse has a nice writeup
+// This is useful for our purposes becasue we often need to clear the set and the O(1) clear time is
+// critical.
 struct SparseSet<'a> {
     mem: &'a mut [u16],
     n: u16,
@@ -175,6 +180,13 @@ impl<'a> SparseSet<'a> {
     fn clear(&mut self) {
         self.n = 0
     }
+    fn clear_and_add(&mut self, v: u16) {
+        debug_assert!((v as usize) < self.mem.len() / 2);
+        self.n = 1;
+        *self.get_sparse_mut(v) = 0;
+        *self.get_dense_mut(0) = v;
+    }
+
     fn add(&mut self, v: u16) -> bool {
         debug_assert!((v as usize) < self.mem.len() / 2);
         let n = self.n;
@@ -368,6 +380,7 @@ impl GlobProgram {
         // program but typically far less
         // This bounds execution at O(N*M) where N is the size of the path and M is the size of the
         // program
+        // This is the same as `cur.n` but we track it here to avoid the indirect memory read
         let mut n_threads = 1;
         let mut ip = 0;
         let mut instruction = self.instructions[0];
@@ -380,10 +393,9 @@ impl GlobProgram {
                     GlobInstruction::MatchLiteral(m) => {
                         if byte == m {
                             if n_threads == 1 {
-                                cur.clear();
                                 ip += 1;
-                                cur.add(ip);
-                                instruction = self.instructions[ip as usize + 1];
+                                cur.clear_and_add(ip);
+                                instruction = self.instructions[ip as usize];
                                 continue 'outer;
                             }
                             // We matched, proceed to the next character
@@ -394,10 +406,9 @@ impl GlobProgram {
                     GlobInstruction::MatchAnyNonDelim => {
                         if byte != b'/' {
                             if n_threads == 1 {
-                                cur.clear();
                                 ip += 1;
-                                cur.add(ip);
-                                instruction = self.instructions[ip as usize + 1];
+                                cur.clear_and_add(ip);
+                                instruction = self.instructions[ip as usize];
                                 continue 'outer;
                             }
                             next.add(ip + 1);
@@ -449,10 +460,9 @@ impl GlobProgram {
                     GlobInstruction::MatchClass(index) => {
                         if self.range_sets[index as usize].contains(byte) {
                             if n_threads == 1 {
-                                cur.clear();
                                 ip += 1;
-                                cur.add(ip);
-                                instruction = self.instructions[ip as usize + 1];
+                                cur.clear_and_add(ip);
+                                instruction = self.instructions[ip as usize];
                                 continue 'outer;
                             }
                             next.add(ip + 1);
@@ -461,10 +471,9 @@ impl GlobProgram {
                     GlobInstruction::NegativeMatchClass(index) => {
                         if !self.range_sets[index as usize].contains(byte) {
                             if n_threads == 1 {
-                                cur.clear();
                                 ip += 1;
-                                cur.add(ip);
-                                instruction = self.instructions[ip as usize + 1];
+                                cur.clear_and_add(ip);
+                                instruction = self.instructions[ip as usize];
                                 continue 'outer;
                             }
                             next.add(ip + 1);
@@ -489,7 +498,8 @@ impl GlobProgram {
                         // so this thread dies
                     }
                 }
-                // Do this at the bottom of the loop
+                // Do this at the bottom of the loop, this allows our early returns above to skip
+                // the dependent memory reads.
                 thread_index += 1;
                 if thread_index < n_threads {
                     ip = cur.get(thread_index);
@@ -505,6 +515,7 @@ impl GlobProgram {
                 return false;
             }
             ip = next.get(0);
+            instruction = self.instructions[ip as usize];
             // We have some progress! clear current and swap the two lists to advance to the next
             // character.
             cur.clear();
