@@ -84,7 +84,9 @@ export default function Page() {
 
 You can use global CSS to apply styles across your application.
 
-To use global styles, create a `app/global.css` file and import it in the root layout to apply the styles to **every route** in your application:
+<AppOnly>
+
+Create a `app/global.css` file and import it in the root layout to apply the styles to **every route** in your application:
 
 ```css filename="app/global.css"
 body {
@@ -125,6 +127,24 @@ export default function RootLayout({ children }) {
 ```
 
 > **Good to know:** Global styles can be imported into any layout, page, or component inside the `app` directory. However, since Next.js uses React's built-in support for stylesheets to integrate with Suspense, this currently does not remove stylesheets as you navigate between routes which can lead to conflicts. We recommend using global styles for _truly_ global CSS, and [CSS Modules](#css-modules) for scoped CSS.
+
+</AppOnly>
+
+<PagesOnly>
+
+Import the stylesheet in the `pages/_app.js` file to apply the styles to **every route** in your application:
+
+```tsx filename="pages/_app.js"
+import '@/styles/global.css'
+
+export default function MyApp({ Component, pageProps }) {
+  return <Component {...pageProps} />
+}
+```
+
+Due to the global nature of stylesheets, and to avoid conflicts, you should import them inside [`pages/_app.js`](/docs/pages/building-your-application/routing/custom-app).
+
+</PagesOnly>
 
 ## External stylesheets
 
