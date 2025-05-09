@@ -1,6 +1,6 @@
-import { writeReleaseNote } from './write-release-note'
+import { createReleaseNote } from './create-release-note'
 
-describe('writeReleaseNote', () => {
+describe('createReleaseNote', () => {
   it('should generate a release note with multiple credits', () => {
     const changelogs = {
       next: {
@@ -30,7 +30,7 @@ describe('writeReleaseNote', () => {
 
 Huge thanks to @foo, @bar, and @baz for helping!`
 
-    expect(writeReleaseNote(changelogs, credits)).toBe(expected)
+    expect(createReleaseNote(changelogs, credits)).toBe(expected)
   })
 
   it('should generate a release note with a single credit', () => {
@@ -62,6 +62,6 @@ Huge thanks to @foo, @bar, and @baz for helping!`
 
 Huge thanks to @foo for helping!`
 
-    expect(writeReleaseNote(changelogs, credits)).toBe(expected)
+    expect(createReleaseNote(changelogs, credits)).toBe(expected)
   })
 })

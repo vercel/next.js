@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { writeReleaseNote } from './write-release-note'
+import { createReleaseNote } from './create-release-note'
 import { checkIsNewRelease } from '../utils'
 import { getPackageChangelogInfo } from './get-package-changelog-info'
 import { getCredits } from './get-credits'
@@ -9,11 +9,10 @@ async function publishGitHubRelease() {
   const { isDryRun } = checkIsNewRelease()
   const changelogs = getPackageChangelogInfo()
   const credits = await getCredits()
-  const releaseNote = writeReleaseNote(changelogs, credits)
+  const releaseNote = createReleaseNote(changelogs, credits)
   const nextjsVersion = changelogs['next'].version
   const isCanary = nextjsVersion.includes('canary')
   try {
-    const draft = isDryRun || !isCanary
     // https://docs.github.com/en/rest/releases/releases?apiVersion=2022-11-28#create-a-release
     const res = await fetch(
       `https://api.github.com/repos/vercel/next.js/releases`,
@@ -29,7 +28,7 @@ async function publishGitHubRelease() {
           name: `v${nextjsVersion}`,
           body: releaseNote,
           prerelease: isCanary,
-          draft,
+          draft: isDryRun || !isCanary,
         }),
       }
     )

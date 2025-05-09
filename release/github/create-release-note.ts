@@ -24,7 +24,7 @@ import type { ChangelogInfo } from './get-package-changelog-info'
  * Huge thanks to ... for helping!
  * ```
  */
-export function writeReleaseNote(
+export function createReleaseNote(
   changelogs: Record<string, ChangelogInfo>,
   credits: string[]
 ): string {
