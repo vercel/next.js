@@ -50,6 +50,7 @@ use path_visitor::ApplyVisitors;
 use references::esm::UrlRewriteBehavior;
 pub use references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER};
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 pub use static_code::StaticEcmascriptCode;
 use swc_core::{
     atoms::Atom,
@@ -81,7 +82,8 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext, EvaluatableAsset,
-        MergeableModule, MergeableModuleResult, MergeableModules, MinifyType,
+        MergeableModule, MergeableModuleResult, MergeableModules, MinifyType, ModuleChunkItemIdExt,
+        ModuleId,
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
@@ -887,7 +889,7 @@ pub struct EcmascriptModuleContent {
     pub inner_code: Rope,
     pub source_map: Option<Rope>,
     pub is_esm: bool,
-    // pub refresh: bool,
+    pub additional_ids: SmallVec<[ResolvedVc<ModuleId>; 1]>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -1028,7 +1030,7 @@ impl EcmascriptModuleContent {
                 false,
             )
             .await?;
-            emit_content(content).await
+            emit_content(content, Default::default()).await
         }
         .instrument(tracing::info_span!("gen content with code gens"))
         .await
@@ -1053,7 +1055,7 @@ impl EcmascriptModuleContent {
             false,
         )
         .await?;
-        emit_content(content).await
+        emit_content(content, Default::default()).await
     }
 
     /// Creates a new [`Vc<EcmascriptModuleContent>`] from multiple modules, performing scope
@@ -1227,7 +1229,16 @@ impl EcmascriptModuleContent {
                 .await?,
             extra_comments: SwcComments::default(),
         };
-        emit_content(content).await
+        let chunking_context = module_options.first().unwrap().await?.chunking_context;
+        let additional_ids = modules
+            .keys()
+            .skip(1)
+            .map(|m| m.chunk_item_id(*chunking_context).to_resolved())
+            .try_join()
+            .await?
+            .into();
+
+        emit_content(content, additional_ids).await
     }
 }
 
@@ -1435,7 +1446,10 @@ async fn process_parse_result(
     })
 }
 
-async fn emit_content(content: CodeGenResult) -> Result<Vc<EcmascriptModuleContent>> {
+async fn emit_content(
+    content: CodeGenResult,
+    additional_ids: SmallVec<[ResolvedVc<ModuleId>; 1]>,
+) -> Result<Vc<EcmascriptModuleContent>> {
     let CodeGenResult {
         program,
         source_map,
@@ -1515,6 +1529,7 @@ async fn emit_content(content: CodeGenResult) -> Result<Vc<EcmascriptModuleConte
         inner_code: bytes.into(),
         source_map,
         is_esm,
+        additional_ids,
     }
     .cell())
 }
