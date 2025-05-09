@@ -56,7 +56,7 @@ interface TurbopackNodeBuildContext extends TurbopackBaseContext<Module> {
 type ModuleFactory = (
   this: Module['exports'],
   context: TurbopackNodeBuildContext
-) => undefined
+) => unknown
 
 const url = require('url') as typeof import('url')
 const fs = require('fs/promises') as typeof import('fs/promises')
@@ -107,11 +107,19 @@ function loadChunkPath(chunkPath: ChunkPath, source?: SourceInfo): void {
 
   try {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
-    const chunkModules: ModuleFactories = require(resolved)
+    const chunkModules: CompressedModuleFactories = require(resolved)
 
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
       if (!moduleFactories[moduleId]) {
-        moduleFactories[moduleId] = moduleFactory
+        if (Array.isArray(moduleFactory)) {
+          let [moduleFactoryFn, otherIds] = moduleFactory
+          moduleFactories[moduleId] = moduleFactoryFn
+          for (const otherModuleId of otherIds) {
+            moduleFactories[otherModuleId] = moduleFactoryFn
+          }
+        } else {
+          moduleFactories[moduleId] = moduleFactory
+        }
       }
     }
     loadedChunks.add(chunkPath)
@@ -165,10 +173,18 @@ async function loadChunkAsync(
         url.pathToFileURL(resolved)
     )(module, module.exports, localRequire, path.dirname(resolved), resolved)
 
-    const chunkModules: ModuleFactories = module.exports
+    const chunkModules: CompressedModuleFactories = module.exports
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
       if (!moduleFactories[moduleId]) {
-        moduleFactories[moduleId] = moduleFactory
+        if (Array.isArray(moduleFactory)) {
+          let [moduleFactoryFn, otherIds] = moduleFactory
+          moduleFactories[moduleId] = moduleFactoryFn
+          for (const otherModuleId of otherIds) {
+            moduleFactories[otherModuleId] = moduleFactoryFn
+          }
+        } else {
+          moduleFactories[moduleId] = moduleFactory
+        }
       }
     }
     loadedChunks.add(chunkPath)

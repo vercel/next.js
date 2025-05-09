@@ -43,7 +43,7 @@ interface TurbopackDevContext extends TurbopackDevBaseContext {}
 type ModuleFactory = (
   this: Module['exports'],
   context: TurbopackDevBaseContext
-) => undefined
+) => unknown
 
 interface DevRuntimeBackend {
   reloadChunk?: (chunkUrl: ChunkUrl) => Promise<void>
