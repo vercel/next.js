@@ -32,7 +32,7 @@ app.prepare().then(() => {
     // Handle promise rejections from the request handler
     handle(req, res, parsedUrl).catch(err => {
       console.error('Error handling request:', err);
-  
+
       // Only send response if headers haven't been sent yet
       if (!res.headersSent) {
         res.statusCode = 500;
@@ -40,7 +40,7 @@ app.prepare().then(() => {
       }
     });
     // Handle server-level errors
-    server.on('error', (err) => 
+    server.on('error', (err) =>
       console.error('Server error:', err)
       // Implement recovery logic if needed
     });
@@ -80,7 +80,7 @@ app.prepare().then(() => {
     // Handle promise rejections from the request handler
     handle(req, res, parsedUrl).catch(err => {
       console.error('Error handling request:', err);
-  
+
       // Only send response if headers haven't been sent yet
       if (!res.headersSent) {
         res.statusCode = 500;
@@ -88,7 +88,7 @@ app.prepare().then(() => {
       }
     });
     // Handle server-level errors
-    server.on('error', (err) => 
+    server.on('error', (err) =>
       console.error('Server error:', err)
       // Implement recovery logic if needed
     });
