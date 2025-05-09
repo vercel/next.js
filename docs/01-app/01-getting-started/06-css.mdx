@@ -52,9 +52,33 @@ export default function Layout() {
 
 </AppOnly>
 
-}
+<PagesOnly>
 
-````
+To start using CSS Modules, create a new file with the extension `.module.css` and import it into any component inside the `pages` directory:
+
+```css filename="/styles/blog.module.css"
+.blog {
+  padding: 24px;
+}
+```
+
+```tsx filename="pages/blog/index.tsx" switcher
+import styles from './blog.module.css'
+
+export default function Page() {
+  return <main className={styles.blog}></main>
+}
+```
+
+```jsx filename="pages/blog/index.js" switcher
+import styles from './blog.module.css'
+
+export default function Page() {
+  return <main className={styles.blog}></main>
+}
+```
+
+</PagesOnly>
 
 ## Global CSS
 
@@ -68,7 +92,7 @@ body {
   max-width: 680px;
   margin: 0 auto;
 }
-````
+```
 
 ```tsx filename="app/layout.tsx" switcher
 // These styles apply to every route in the application
