@@ -4,7 +4,7 @@ use turbo_esregex::EsRegex;
 use turbo_tasks::{primitives::Regex, trace::TraceRawVcs, NonLocalValue, ReadRef, ResolvedVc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
-    reference_type::ReferenceType, source::Source, virtual_source::VirtualSource,
+    ident::AssetIdent, reference_type::ReferenceType, source::Source, virtual_source::VirtualSource,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
@@ -53,16 +53,17 @@ impl RuleCondition {
 }
 
 impl RuleCondition {
-    pub async fn matches(
+    pub fn matches(
         &self,
         source: ResolvedVc<Box<dyn Source>>,
+        source_ident: &AssetIdent,
         path: &FileSystemPath,
         reference_type: &ReferenceType,
     ) -> Result<bool> {
         Ok(match self {
             RuleCondition::All(conditions) => {
                 for condition in conditions {
-                    if !Box::pin(condition.matches(source, path, reference_type)).await? {
+                    if !condition.matches(source, source_ident, path, reference_type)? {
                         return Ok(false);
                     }
                 }
@@ -70,14 +71,14 @@ impl RuleCondition {
             }
             RuleCondition::Any(conditions) => {
                 for condition in conditions {
-                    if Box::pin(condition.matches(source, path, reference_type)).await? {
+                    if condition.matches(source, source_ident, path, reference_type)? {
                         return Ok(true);
                     }
                 }
                 false
             }
             RuleCondition::Not(condition) => {
-                !Box::pin(condition.matches(source, path, reference_type)).await?
+                !condition.matches(source, source_ident, path, reference_type)?
             }
             RuleCondition::ResourcePathEquals(other) => path == &**other,
             RuleCondition::ResourcePathEndsWith(end) => path.path.ends_with(end),
@@ -103,13 +104,13 @@ impl RuleCondition {
                 ResolvedVc::try_downcast_type::<VirtualSource>(source).is_some()
             }
             RuleCondition::ContentTypeStartsWith(start) => {
-                if let Some(content_type) = source.ident().await?.content_type.as_ref() {
+                if let Some(content_type) = source_ident.content_type.as_ref() {
                     content_type.starts_with(start)
                 } else {
                     false
                 }
             }
-            RuleCondition::ContentTypeEmpty => source.ident().await?.content_type.is_none(),
+            RuleCondition::ContentTypeEmpty => source_ident.content_type.is_none(),
             RuleCondition::ResourcePathGlob { glob, base } => {
                 if let Some(path) = base.get_relative_path_to(path) {
                     glob.execute(&path)

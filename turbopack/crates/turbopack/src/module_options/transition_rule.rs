@@ -55,7 +55,11 @@ impl TransitionRule {
         path: &FileSystemPath,
         reference_type: &ReferenceType,
     ) -> Result<bool> {
+        let source_ident = source.ident().await?;
+
         Ok(self.match_mode.matches(reference_type)
-            && self.condition.matches(source, path, reference_type).await?)
+            && self
+                .condition
+                .matches(source, &source_ident, path, reference_type)?)
     }
 }
