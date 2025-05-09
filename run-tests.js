@@ -81,7 +81,7 @@ const testFilters = {
     '^(test/(production|e2e))/.*\\.test\\.(js|jsx|ts|tsx)$'
   ),
   unit: new RegExp(
-    '^test/unit|packages/.*/src/.*/.*\\.test\\.(js|jsx|ts|tsx)$'
+    '^(test/unit|packages/.*/src/.*/.*|release/.*)\\.test\\.(js|jsx|ts|tsx)$'
   ),
   examples: 'examples/',
   integration: 'test/integration/',
