@@ -9,9 +9,25 @@ export default async function startRelease() {
   if (!releaseType) {
     throw new Error('Missing RELEASE_TYPE')
   }
-  const isCanary = releaseType === 'canary'
 
-  await exec('pnpm changeset version')
+  const isCanary = releaseType === 'canary'
+  if (isCanary) {
+    await exec('pnpm changeset version')
+  } else {
+    if (releaseType === 'release-candidate') {
+      await exec('pnpm changeset pre exit')
+      // TODO: This might not reset version to rc.0
+      await exec('pnpm changeset pre enter rc')
+    }
+    if (releaseType === 'stable') {
+      await exec('pnpm changeset pre exit')
+    }
+
+    await exec('pnpm changeset version')
+    // Set back the prerelease mode to canary.
+    await exec('pnpm changeset pre exit')
+    await exec('pnpm changeset pre enter canary')
+  }
 
   const isDryRun = process.env.__NEW_RELEASE_DRY_RUN === 'true'
   const isNewRelease = process.env.__NEW_RELEASE === 'true' || isDryRun
@@ -35,22 +51,18 @@ export default async function startRelease() {
   const { version } = require('next/package.json')
   const commitMessage = isDryRun ? `v${version} (new dry)` : `v${version} (new)`
 
+  await exec('git add .')
+  await exec(`git commit --message "${commitMessage}"`)
+
   if (isCanary) {
-    await exec('git add .')
-    await exec(`git commit -m "${commitMessage}"`)
-    // Bypass pre-push hook.
+    // Bypass pre-push hook and push to the canary branch.
     await exec('git push --no-verify')
   } else {
-    // https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#create-a-pull-request--parameters
-    const body = JSON.stringify({
-      title: commitMessage,
-      body: '',
-      head: `release/v${version}-${releaseType}`,
-      base: 'canary',
-      draft: false,
-      maintainer_can_modify: true,
-    })
+    const branchName = `release/v${version}-${releaseType}`
     try {
+      await exec(`git checkout --branch ${branchName}`)
+      await exec(`git push origin ${branchName}`)
+
       const res = await fetch(
         'https://api.github.com/repos/vercel/next.js/pulls',
         {
@@ -60,7 +72,15 @@ export default async function startRelease() {
             'X-GitHub-Api-Version': '2022-11-28',
             Authorization: `Bearer ${githubToken}`,
           },
-          body,
+          // https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#create-a-pull-request--parameters
+          body: JSON.stringify({
+            title: commitMessage,
+            body: '',
+            head: branchName,
+            base: 'canary',
+            draft: false,
+            maintainer_can_modify: true,
+          }),
         }
       )
       if (!res.ok) {
