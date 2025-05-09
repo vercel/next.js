@@ -5,8 +5,8 @@ import {
   RSC_HEADER,
 } from 'next/src/client/components/app-router-headers'
 import type { Page, Request as PlaywrightRequest } from 'playwright'
-import { WebdriverOptions } from '../../../../lib/next-webdriver'
-import { retry } from '../../../../lib/next-test-utils'
+import { WebdriverOptions } from 'next-webdriver'
+import { retry } from 'next-test-utils'
 
 const _describe =
   // prefetching is disabled in dev.
@@ -15,6 +15,11 @@ const _describe =
 _describe('app dir - form prefetching', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    nextConfig: {
+      typescript: {
+        ignoreBuildErrors: true,
+      },
+    },
   })
 
   it("should prefetch a loading state for the form's target", async () => {
