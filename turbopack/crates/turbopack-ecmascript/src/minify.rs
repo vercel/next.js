@@ -31,7 +31,7 @@ use turbopack_core::{
 use crate::parse::generate_js_source_map;
 
 #[instrument(level = Level::INFO, skip_all)]
-pub fn minify(code: &Code, source_maps: bool, mangle: Option<MangleType>) -> Result<Code> {
+pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Result<Code> {
     let source_maps = source_maps
         .then(|| code.generate_source_map_ref())
         .transpose()?;
