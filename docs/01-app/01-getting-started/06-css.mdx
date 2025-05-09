@@ -24,6 +24,8 @@ Next.js provides several ways to use CSS in your application, including:
 
 CSS Modules locally scope CSS by generating unique class names. This allows you to use the same class in different files without worrying about naming collisions.
 
+<AppOnly>
+
 To start using CSS Modules, create a new file with the extension `.module.css` and import it into any component inside the `app` directory:
 
 ```css filename="app/blog/styles.module.css"
@@ -33,20 +35,26 @@ To start using CSS Modules, create a new file with the extension `.module.css` a
 ```
 
 ```tsx filename="app/blog/page.tsx" switcher
-import styles from './styles.module.css'
+import styles from './blog.module.css'
 
-export default function Page({ children }: { children: React.ReactNode }) {
-  return <main className={styles.blog}>{children}</main>
+export default function Page() {
+  return <main className={styles.blog}></main>
 }
 ```
 
 ```jsx filename="app/blog/page.js" switcher
-import styles from './styles.module.css'
+import styles from './blog.module.css'
 
-export default function Page({ children }) {
-  return <main className={styles.blog}>{children}</main>
+export default function Layout() {
+  return <main className={styles.blog}></main>
 }
 ```
+
+</AppOnly>
+
+}
+
+````
 
 ## Global CSS
 
@@ -60,7 +68,7 @@ body {
   max-width: 680px;
   margin: 0 auto;
 }
-```
+````
 
 ```tsx filename="app/layout.tsx" switcher
 // These styles apply to every route in the application
