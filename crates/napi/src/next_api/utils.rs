@@ -464,6 +464,8 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
 
             let status = func.call(
                 result.map_err(|e| {
+                    dbg!(&e);
+                    dbg!(&e.root_cause());
                     log_internal_error_and_inform(&e);
                     napi::Error::from_reason(PrettyPrintError(&e).to_string())
                 }),

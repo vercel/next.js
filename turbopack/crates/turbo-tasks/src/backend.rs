@@ -430,7 +430,7 @@ impl Error for TurboTasksExecutionError {
         match self {
             TurboTasksExecutionError::Panic(_panic) => None,
             TurboTasksExecutionError::Error { source, .. } => {
-                source.as_deref().map(|s| s as &dyn Error)
+                source.as_ref().map(|s| s as &dyn Error)
             }
         }
     }
@@ -451,16 +451,23 @@ impl From<anyhow::Error> for TurboTasksExecutionError {
     fn from(err: anyhow::Error) -> Self {
         let mut current: &dyn std::error::Error = err.as_ref();
         let mut message = current.to_string();
+        let mut found = None;
 
         // Flatten the error chain into a single message
         while let Some(current_source) = current.source() {
+            dbg!("examining source", current_source);
+            if let Some(turbo_error) = current.downcast_ref::<Arc<TurboTasksExecutionError>>() {
+                println!("!!! Found TurboTasksExecutionError: {:?}", turbo_error);
+                found = Some(turbo_error.clone());
+                break;
+            }
             message.push_str(&format!("\n{}", current_source));
             current = current_source;
         }
 
         TurboTasksExecutionError::Error {
             message: TurboTasksExecutionErrorMessage::NonPIISafe(message),
-            source: None,
+            source: found,
         }
     }
 }
