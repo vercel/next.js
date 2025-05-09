@@ -307,7 +307,7 @@ testing = { version = "10.0.0" }
 browserslist-rs = { version = "0.18.0" }
 miette = { version = "5.10.0", features = ["fancy"] }
 mdxjs = "1.0.1"
-modularize_imports = { version = "0.83.0" }
+modularize_imports = { version = "0.83.1" }
 styled_components = { version = "0.111.0" }
 styled_jsx = { version = "0.87.0" }
 swc_emotion = { version = "0.87.0" }
