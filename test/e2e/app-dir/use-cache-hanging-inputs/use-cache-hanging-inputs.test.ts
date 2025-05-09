@@ -10,8 +10,6 @@ import {
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
-const isExperimentalReact = process.env.__NEXT_EXPERIMENTAL_PPR
-
 const expectedTimeoutErrorMessage =
   'Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".'
 
@@ -271,55 +269,38 @@ describe('use-cache-hanging-inputs', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        if (isExperimentalReact) {
-          // TODO(react-time-info): Remove this branch for experimental React when the issue is
-          // resolved where the inclusion of server timings in the RSC payload
-          // makes the serialized bound args not suitable to be used as a cache
-          // key.
+        expect(errorDescription).toBe(expectedTimeoutErrorMessage)
 
-          const expectedErrorMessagePpr =
-            'Route "/bound-args": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don\'t have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense'
+        if (isTurbopack) {
+          expect(errorSource).toMatchInlineSnapshot(`
+            "app/bound-args/page.tsx (13:15) @ [project]/app/bound-args/page.tsx [app-rsc] (ecmascript)
 
-          expect(errorDescription).toBe(expectedErrorMessagePpr)
+              11 |   const uncachedDataPromise = fetchUncachedData()
+              12 |
+            > 13 |   const Foo = async () => {
+                 |               ^
+              14 |     'use cache'
+              15 |
+              16 |     return ("
+          `)
 
-          expect(cliOutput).toContain(
-            `${expectedErrorMessagePpr}
-    at Page [Server] (<anonymous>)`
-          )
-        } else {
-          expect(errorDescription).toBe(expectedTimeoutErrorMessage)
-
-          if (isTurbopack) {
-            expect(errorSource).toMatchInlineSnapshot(`
-             "app/bound-args/page.tsx (13:15) @ [project]/app/bound-args/page.tsx [app-rsc] (ecmascript)
-
-               11 |   const uncachedDataPromise = fetchUncachedData()
-               12 |
-             > 13 |   const Foo = async () => {
-                  |               ^
-               14 |     'use cache'
-               15 |
-               16 |     return ("
-            `)
-
-            expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
+          expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
     at [project]/app/bound-args/page.tsx [app-rsc] (ecmascript)`)
-          } else {
-            expect(errorSource).toMatchInlineSnapshot(`
-             "app/bound-args/page.tsx (13:15) @ eval
+        } else {
+          expect(errorSource).toMatchInlineSnapshot(`
+            "app/bound-args/page.tsx (13:15) @ eval
 
-               11 |   const uncachedDataPromise = fetchUncachedData()
-               12 |
-             > 13 |   const Foo = async () => {
-                  |               ^
-               14 |     'use cache'
-               15 |
-               16 |     return ("
-            `)
+              11 |   const uncachedDataPromise = fetchUncachedData()
+              12 |
+            > 13 |   const Foo = async () => {
+                 |               ^
+              14 |     'use cache'
+              15 |
+              16 |     return ("
+          `)
 
-            expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
+          expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
     at eval (app/bound-args/page.tsx:13:14)`)
-          }
         }
       }, 180_000)
     })
