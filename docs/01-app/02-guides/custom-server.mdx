@@ -41,14 +41,14 @@ app.prepare().then(() => {
     });
     // Handle server-level errors
     server.on('error', (err) =>
-      console.error('Server error:', err)
+      console.error('Server error:', err);
       // Implement recovery logic if needed
     });
 
     // Handle specific connection errors
     server.on('clientError', (err, socket) => {
-      console.error('Client connection error:', err)
-      socket.end('HTTP/1.1 400 Bad Request\r\n\r\n')
+      console.error('Client connection error:', err);
+      socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
     });
 
     server.listen(port, () => {
@@ -57,9 +57,9 @@ app.prepare().then(() => {
       );
     })
 }).catch(err => {
-  console.error('Error preparing Next.js app:', err)
-  process.exit(1)
-})
+  console.error('Error preparing Next.js app:', err);
+  process.exit(1);
+});
 
 ```
 
@@ -89,7 +89,7 @@ app.prepare().then(() => {
     });
     // Handle server-level errors
     server.on('error', (err) =>
-      console.error('Server error:', err)
+      console.error('Server error:', err);
       // Implement recovery logic if needed
     });
 
@@ -105,8 +105,8 @@ app.prepare().then(() => {
       );
     })
 }).catch(err => {
-  console.error('Error preparing Next.js app:', err)
-  process.exit(1)
+  console.error('Error preparing Next.js app:', err);
+  process.exit(1);
 })
 
 ```
