@@ -217,7 +217,7 @@ pub fn extract_exported_const_values(
         let mut visitor =
             collect_exported_const_visitor::CollectExportedConstVisitor::new(properties_to_extract);
 
-        source_ast.visit_with(&mut visitor);
+        visitor.check_program(source_ast);
     })
 }
 

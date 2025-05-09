@@ -4,11 +4,10 @@ use swc_core::{
     common::{Mark, SyntaxContext},
     ecma::{
         ast::{
-            BindingIdent, Decl, ExportDecl, Expr, Lit, ModuleDecl, ModuleItem, Pat, Prop, PropName,
-            PropOrSpread, VarDecl, VarDeclKind, VarDeclarator,
+            BindingIdent, Decl, ExportDecl, Expr, Lit, Module, ModuleDecl, ModuleItem, Pat,
+            Program, Prop, PropName, PropOrSpread, VarDecl, VarDeclKind, VarDeclarator,
         },
         utils::{ExprCtx, ExprExt},
-        visit::{Visit, VisitWith},
     },
 };
 
@@ -43,18 +42,13 @@ where
             },
         }
     }
-}
 
-pub trait GetMut<K, V> {
-    fn get_mut(&mut self, key: &K) -> Option<&mut V>;
-}
+    pub fn check_program(&mut self, program: &Program) {
+        let Program::Module(Module { body, .. }) = program else {
+            return;
+        };
 
-impl<M> Visit for CollectExportedConstVisitor<'_, M>
-where
-    M: GetMut<Atom, Option<Const>>,
-{
-    fn visit_module_items(&mut self, module_items: &[ModuleItem]) {
-        for module_item in module_items {
+        for module_item in body {
             if let ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                 decl: Decl::Var(decl),
                 ..
@@ -78,9 +72,11 @@ where
                 }
             }
         }
-
-        module_items.visit_children_with(self);
     }
+}
+
+pub trait GetMut<K, V> {
+    fn get_mut(&mut self, key: &K) -> Option<&mut V>;
 }
 
 /// Coerece the actual value of the given ast node.
