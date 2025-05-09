@@ -123,7 +123,7 @@ jobs:
           # If set to true, the process will be skipped.
           __NEW_RELEASE: ${{ github.event.inputs.newRelease || github.event.inputs.newReleaseDryRun || false }}
 
-      - run: pnpm tsx ./scripts/release/start-release.ts
+      - run: pnpm tsx ./release/start-release.ts
         env:
           RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
           # `GITHUB_TOKEN` env necessary for `@changesets/get-github-info`

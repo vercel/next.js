@@ -585,7 +585,7 @@ jobs:
       - run: ./scripts/publish-release.js
         env:
           RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
-      - run: pnpm tsx ./scripts/release/publish-release.ts
+      - run: pnpm tsx ./release/publish-release.ts
         env:
           RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
 
