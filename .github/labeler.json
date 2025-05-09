@@ -1,4 +1,3 @@
-// This is a JSON5 file, processed by https://github.com/vercel/next-labeler-webhook/
 {
   "labels": {
     "create-next-app": ["packages/create-next-app/**"],
@@ -8,8 +7,6 @@
     "tests": ["test/**", "bench/**"],
     "Turbopack": ["crates/next-*/**", "crates/napi/**", "turbopack/**"],
     "Rspack": [
-      // Usernames sourced from: https://rspack.dev/misc/team/core-team
-      // This label determines whether or not to run the Rspack CI alongside the normal CI jobs
       { "type": "user", "pattern": "9aoy" },
       { "type": "user", "pattern": "ahabhgk" },
       { "type": "user", "pattern": "bvanjoi" },
@@ -35,7 +32,6 @@
       { "type": "user", "pattern": "xc2" },
       { "type": "user", "pattern": "zackarychapple" },
       { "type": "user", "pattern": "zoolsher" },
-      // these files are mostly webpack plugins/configs
       "packages/next/src/build/**"
     ],
     "created-by: Chrome Aurora": [
