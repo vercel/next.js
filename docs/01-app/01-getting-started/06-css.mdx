@@ -283,3 +283,10 @@ To keep CSS ordering predictable:
 - Extract shared styles into shared components to avoid duplicate imports.
 - Turn off linters or formatters that auto-sort imports like ESLint’s [`sort-imports`](https://eslint.org/docs/latest/rules/sort-imports).
 - You can use the [`cssChunking`](/docs/app/api-reference/config/next-config-js/cssChunking) option in `next.config.js` to control how CSS is chunked.
+
+## Development vs Production
+
+- In development (`next dev`), CSS updates apply instantly with [Fast Refresh](/docs/architecture/fast-refresh).
+- In production (`next build`), all CSS files are automatically concatenated into **many minified and code-split** `.css` files, ensuring the minimal amount of CSS is loaded for a route.
+- CSS still loads with JavaScript disabled in production, but JavaScript is required in development for Fast Refresh.
+- CSS ordering can behave differently in development, always ensure to check the build (`next build`) to verify the final CSS order.
