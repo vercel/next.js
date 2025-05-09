@@ -14,7 +14,6 @@ async function main() {
 
   const args = process.argv
   const releaseType = args[args.indexOf('--release-type') + 1]
-
   const semverType = args[args.indexOf('--semver-type') + 1]
   const isCanary = releaseType === 'canary'
   const isReleaseCandidate = releaseType === 'release-candidate'
