@@ -234,6 +234,9 @@ pub struct GlobProgram {
 
 impl GlobProgram {
     fn compile(pattern: &str) -> Result<GlobProgram> {
+        GlobProgram::do_compile(pattern).with_context(|| format!("Failed to parse glob: {pattern}"))
+    }
+    fn do_compile(pattern: &str) -> Result<GlobProgram> {
         let mut tok = Tokenizer::new(pattern);
         let mut instructions = Vec::new();
         let mut range_sets = Vec::new();
@@ -248,7 +251,7 @@ impl GlobProgram {
         // complexity of building and visiting an AST. This simple program also allows
         // trivial optimizations to be performed during compilation inline.
         loop {
-            let t = tok.next_token();
+            let (pos, t) = tok.next_token();
             match t {
                 GlobToken::Caret | GlobToken::ExclamationPoint => {
                     panic!("these cannot appear at the beginning of a pattern")
@@ -283,7 +286,7 @@ impl GlobProgram {
                     let mut partial_range: Option<u8> = None;
                     let mut negated = false;
                     loop {
-                        let t = tok.next_token();
+                        let (pos, t) = tok.next_token();
                         match t {
                             GlobToken::Caret | GlobToken::ExclamationPoint => {
                                 if !set.is_empty()
@@ -292,7 +295,7 @@ impl GlobProgram {
                                 {
                                     bail!(
                                         "negation tokens can only appear at the beginning of \
-                                         character classes"
+                                         character classes @{pos}"
                                     );
                                 }
                                 negated = !negated;
@@ -303,7 +306,7 @@ impl GlobProgram {
                                     // several RanngeSets for each byte in the multibyte characters
                                     // However, this is very unlikely to be required by a user so
                                     // for now the feature is omitted.
-                                    bail!("Unsupported non-ascii character in set");
+                                    bail!("Unsupported non-ascii character in set @{pos}");
                                 }
                                 if let Some(start) = partial_range {
                                     set.push(ByteRange::range(start, lit));
@@ -320,7 +323,10 @@ impl GlobProgram {
                                     prev_literal = None;
                                     partial_range = Some(lit);
                                 } else {
-                                    bail!("Unexpected hyphen at the beginning of a character class")
+                                    bail!(
+                                        "Unexpected hyphen at the beginning of a character class \
+                                         @{pos}"
+                                    )
                                 }
                             }
 
@@ -329,13 +335,14 @@ impl GlobProgram {
                                     set.push(ByteRange::singleton(lit));
                                 }
                                 if partial_range.is_some() {
-                                    bail!("unexpected hyphen at the end of a character class")
+                                    bail!(
+                                        "unexpected hyphen at the end of a character class @{pos}"
+                                    )
                                 }
                                 let set = RangeSet::new(set);
-                                let index: u8 = range_sets
-                                    .len()
-                                    .try_into()
-                                    .context("Cannot have more than 255 range sets")?;
+                                let index: u8 = range_sets.len().try_into().with_context(|| {
+                                    format!("Cannot have more than 255 range sets @{pos}")
+                                })?;
                                 range_sets.push(set);
                                 // It is more efficient to use a separate instruction than pad out
                                 // the range class
@@ -347,7 +354,7 @@ impl GlobProgram {
                                 break;
                             }
                             _ => {
-                                bail!("Unexpected token {t} inside of character class");
+                                bail!("Unexpected token {t} inside of character class @{pos}");
                             }
                         }
                     }
@@ -387,7 +394,7 @@ impl GlobProgram {
                         if num_branches <= 1 {
                             bail!(
                                 "Cannot have an alternation with less than 2 members, remove the \
-                                 brackets?"
+                                 brackets? @{pos}"
                             );
                         }
                         let mut next_branch_offset = num_branches - 1;
@@ -397,9 +404,12 @@ impl GlobProgram {
                             // instruction at the end
                             next_branch_offset += branch.len() + 1;
                             prefix.push(GlobInstruction::Fork(
-                                next_branch_offset.try_into().context(
-                                    "glob too large, cannot have more than 32K instructions",
-                                )?,
+                                next_branch_offset.try_into().with_context(|| {
+                                    format!(
+                                        "glob too large, cannot have more than 32K instructions  \
+                                         @{pos}"
+                                    )
+                                })?,
                             ));
                             next_branch_offset -= 1; // subtract one since we added a fork
                                                      // instruction.
@@ -412,9 +422,12 @@ impl GlobProgram {
                                                                 // alternation
                             prefix.append(branch);
                             prefix.push(GlobInstruction::Jump(
-                                end_of_alternation.try_into().context(
-                                    "glob too large, cannot have more than 64K instructions",
-                                )?,
+                                end_of_alternation.try_into().with_context(|| {
+                                    format!(
+                                        "glob too large, cannot have more than 32K instructions  \
+                                         @{pos}"
+                                    )
+                                })?,
                             ));
                             end_of_alternation -= 1; // account for the jump instruction
                         }
@@ -795,7 +808,10 @@ impl<'a> Tokenizer<'a> {
             square_bracket_count: 0,
         }
     }
-    fn next_token(&mut self) -> GlobToken {
+    fn next_token(&mut self) -> (usize, GlobToken) {
+        (self.pos, self.do_next_token())
+    }
+    fn do_next_token(&mut self) -> GlobToken {
         match self.input.get(self.pos) {
             None => GlobToken::End,
             Some(c) => {
@@ -1006,17 +1022,17 @@ mod tests {
         let mut tok = Tokenizer::new("foo/bar[a-z]/?/**");
         let prefix: Vec<GlobToken> = "foo/bar".bytes().map(GlobToken::Literal).collect();
         for t in prefix {
-            assert_eq!(t, tok.next_token());
+            assert_eq!(t, tok.next_token().1);
         }
-        assert_eq!(GlobToken::LSquareBracket, tok.next_token());
-        assert_eq!(GlobToken::Literal(b'a'), tok.next_token());
-        assert_eq!(GlobToken::Hyphen, tok.next_token());
-        assert_eq!(GlobToken::Literal(b'z'), tok.next_token());
-        assert_eq!(GlobToken::RSquareBracket, tok.next_token());
-        assert_eq!(GlobToken::Literal(b'/'), tok.next_token());
-        assert_eq!(GlobToken::QuestionMark, tok.next_token());
-        assert_eq!(GlobToken::Literal(b'/'), tok.next_token());
-        assert_eq!(GlobToken::GlobStar, tok.next_token());
-        assert_eq!(GlobToken::End, tok.next_token());
+        assert_eq!(GlobToken::LSquareBracket, tok.next_token().1);
+        assert_eq!(GlobToken::Literal(b'a'), tok.next_token().1);
+        assert_eq!(GlobToken::Hyphen, tok.next_token().1);
+        assert_eq!(GlobToken::Literal(b'z'), tok.next_token().1);
+        assert_eq!(GlobToken::RSquareBracket, tok.next_token().1);
+        assert_eq!(GlobToken::Literal(b'/'), tok.next_token().1);
+        assert_eq!(GlobToken::QuestionMark, tok.next_token().1);
+        assert_eq!(GlobToken::Literal(b'/'), tok.next_token().1);
+        assert_eq!(GlobToken::GlobStar, tok.next_token().1);
+        assert_eq!(GlobToken::End, tok.next_token().1);
     }
 }

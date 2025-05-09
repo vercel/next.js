@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{glob::Glob, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
