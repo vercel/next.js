@@ -235,15 +235,20 @@ type ErrorThrownEvent = {
   eventName: typeof ERROR_THROWN_EVENT
   payload: {
     errorCode: string | undefined
+    location: string | undefined
   }
 }
 
 // Creates a Telemetry event for errors. For privacy, only includes the error code.
-export function eventErrorThrown(error: Error): ErrorThrownEvent {
+export function eventErrorThrown(
+  error: Error,
+  location: string | undefined
+): ErrorThrownEvent {
   return {
     eventName: ERROR_THROWN_EVENT,
     payload: {
       errorCode: extractNextErrorCode(error) || 'Unknown',
+      location,
     },
   }
 }
