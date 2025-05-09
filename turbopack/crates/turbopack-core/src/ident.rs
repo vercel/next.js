@@ -59,7 +59,7 @@ impl ValueToString for AssetIdent {
 
         let query = self.query.await?;
         if !query.is_empty() {
-            write!(s, "{}", &*query)?;
+            write!(s, "?{}", &*query)?;
         }
 
         if let Some(fragment) = &self.fragment {
