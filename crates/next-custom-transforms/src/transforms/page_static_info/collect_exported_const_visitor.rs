@@ -1,4 +1,3 @@
-use rustc_hash::{FxHashMap, FxHashSet};
 use serde_json::{Map, Number, Value};
 use swc_core::{
     atoms::Atom,
@@ -21,18 +20,21 @@ pub enum Const {
     Unsupported(String),
 }
 
-pub(crate) struct CollectExportedConstVisitor {
-    pub properties: FxHashMap<Atom, Option<Const>>,
+pub(crate) struct CollectExportedConstVisitor<'a, M>
+where
+    M: GetMut<Atom, Option<Const>>,
+{
+    pub properties: &'a mut M,
     expr_ctx: ExprCtx,
 }
 
-impl CollectExportedConstVisitor {
-    pub fn new(properties_to_extract: FxHashSet<Atom>) -> Self {
+impl<'a, M> CollectExportedConstVisitor<'a, M>
+where
+    M: GetMut<Atom, Option<Const>>,
+{
+    pub fn new(properties: &'a mut M) -> Self {
         Self {
-            properties: properties_to_extract
-                .into_iter()
-                .map(|p| (p, None))
-                .collect(),
+            properties,
             expr_ctx: ExprCtx {
                 unresolved_ctxt: SyntaxContext::empty().apply_mark(Mark::new()),
                 is_unresolved_ref_safe: false,
@@ -43,7 +45,14 @@ impl CollectExportedConstVisitor {
     }
 }
 
-impl Visit for CollectExportedConstVisitor {
+pub trait GetMut<K, V> {
+    fn get_mut(&mut self, key: &K) -> Option<&mut V>;
+}
+
+impl<M> Visit for CollectExportedConstVisitor<'_, M>
+where
+    M: GetMut<Atom, Option<Const>>,
+{
     fn visit_module_items(&mut self, module_items: &[ModuleItem]) {
         for module_item in module_items {
             if let ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
