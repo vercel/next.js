@@ -8,6 +8,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::AssetContent,
+    error::PrettyPrintError,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     reference_type::ReferenceType,
     resolve::{
@@ -31,12 +32,11 @@ use super::{
 use crate::{
     next_app::metadata::split_extension,
     next_font::{
-        local::{errors::FontError, options::FontWeight},
+        local::options::FontWeight,
         util::{get_request_hash, get_request_id},
     },
 };
 
-mod errors;
 pub mod font_fallback;
 pub mod options;
 pub mod request;
@@ -111,25 +111,18 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
 
                 let lookup_path = lookup_path.to_resolved().await?;
                 if let Err(e) = &properties {
-                    for source_error in e.chain() {
-                        if let Some(FontError::FontFileNotFound(font_path)) =
-                            source_error.downcast_ref::<FontError>()
-                        {
-                            FontResolvingIssue {
-                                origin_path: lookup_path,
-                                font_path: ResolvedVc::cell(font_path.clone()),
-                            }
-                            .resolved_cell()
-                            .emit();
-
-                            return Ok(ResolveResultOption::some(*ResolveResult::primary(
-                                ResolveResultItem::Error(ResolvedVc::cell(
-                                    format!("Font file not found: Can't resolve {}'", font_path)
-                                        .into(),
-                                )),
-                            )));
-                        }
+                    FontResolvingIssue {
+                        origin_path: lookup_path,
+                        error: PrettyPrintError(e).to_string().into(),
                     }
+                    .resolved_cell()
+                    .emit();
+
+                    return Ok(ResolveResultOption::some(*ResolveResult::primary(
+                        ResolveResultItem::Error(ResolvedVc::cell(
+                            "Failed to resolve next/font file".into(),
+                        )),
+                    )));
                 }
 
                 let properties = properties?;
@@ -318,8 +311,8 @@ async fn font_file_options_from_query_map(
 
 #[turbo_tasks::value(shared)]
 struct FontResolvingIssue {
-    font_path: ResolvedVc<RcStr>,
     origin_path: ResolvedVc<FileSystemPath>,
+    error: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -342,10 +335,9 @@ impl Issue for FontResolvingIssue {
     #[turbo_tasks::function]
     async fn title(self: Vc<Self>) -> Result<Vc<StyledString>> {
         let this = self.await?;
-        Ok(StyledString::Line(vec![
-            StyledString::Text("Font file not found: Can't resolve '".into()),
-            StyledString::Code(this.font_path.owned().await?),
-            StyledString::Text("'".into()),
+        Ok(StyledString::Stack(vec![
+            StyledString::Text("Failed to resolve next/font file".into()),
+            StyledString::Text(this.error.clone()),
         ])
         .cell())
     }
