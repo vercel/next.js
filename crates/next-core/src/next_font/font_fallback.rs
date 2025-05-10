@@ -60,7 +60,7 @@ impl FontFallback {
 }
 
 #[turbo_tasks::value(transparent)]
-pub(crate) struct FontFallbacks(Vec<ResolvedVc<FontFallback>>);
+pub(crate) struct FontFallbacks(pub Vec<ResolvedVc<FontFallback>>);
 
 #[turbo_tasks::value_impl]
 impl FontFallbacks {
