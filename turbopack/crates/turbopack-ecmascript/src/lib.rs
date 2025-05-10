@@ -94,7 +94,7 @@ pub use turbopack_resolve::ecmascript as resolve;
 use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports};
 use crate::{
     chunk::{placeable::is_marked_as_side_effect_free, EcmascriptChunkPlaceable},
-    code_gen::CodeGens,
+    code_gen::{CodeGens, VisitorFactory},
     parse::generate_js_source_map,
     references::{
         analyse_ecmascript_module, async_module::OptionAsyncModule, esm::base::EsmAssetReferences,
@@ -1151,24 +1151,35 @@ fn process_content_with_code_gens(
     program: &mut Program,
     globals: &Globals,
     top_level_mark: Option<Mark>,
-    code_gens: Vec<CodeGeneration>,
+    mut code_gens: Vec<CodeGeneration>,
 ) {
-    let mut visitors = Vec::new();
-    let mut root_visitors = Vec::new();
-    let mut early_hoisted_stmts = FxIndexMap::default();
-    let mut hoisted_stmts = FxIndexMap::default();
-    for code_gen in &code_gens {
-        for CodeGenerationHoistedStmt { key, stmt } in &code_gen.hoisted_stmts {
-            hoisted_stmts.entry(key.clone()).or_insert(stmt.clone());
+    let mut visitors: Vec<(
+        &Vec<swc_core::ecma::visit::AstParentKind>,
+        &dyn VisitorFactory,
+    )> = Vec::new();
+    let mut root_visitors: Vec<&dyn VisitorFactory> = Vec::new();
+    let mut early_hoisted_stmts: indexmap::IndexMap<
+        RcStr,
+        ast::Stmt,
+        std::hash::BuildHasherDefault<rustc_hash::FxHasher>,
+    > = FxIndexMap::default();
+    let mut hoisted_stmts: indexmap::IndexMap<
+        RcStr,
+        ast::Stmt,
+        std::hash::BuildHasherDefault<rustc_hash::FxHasher>,
+    > = FxIndexMap::default();
+    for code_gen in &mut code_gens {
+        for CodeGenerationHoistedStmt { key, stmt } in code_gen.hoisted_stmts.drain(..) {
+            hoisted_stmts.entry(key).or_insert(stmt);
         }
-        for CodeGenerationHoistedStmt { key, stmt } in &code_gen.early_hoisted_stmts {
-            early_hoisted_stmts.insert(key.clone(), stmt.clone());
+        for CodeGenerationHoistedStmt { key, stmt } in code_gen.early_hoisted_stmts.drain(..) {
+            early_hoisted_stmts.insert(key.clone(), stmt);
         }
         for (path, visitor) in &code_gen.visitors {
             if path.is_empty() {
                 root_visitors.push(&**visitor);
             } else {
-                visitors.push((path, &**visitor));
+                visitors.push((&path, &**visitor));
             }
         }
     }
