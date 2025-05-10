@@ -680,7 +680,6 @@ impl EsmExports {
         Ok(CodeGeneration::new(
             vec![],
             [dynamic_stmt
-                .clone()
                 .map(|stmt| CodeGenerationHoistedStmt::new("__turbopack_dynamic__".into(), stmt))]
             .into_iter()
             .flatten()
@@ -689,7 +688,7 @@ impl EsmExports {
                 "__turbopack_esm__".into(),
                 quote!("$turbopack_esm($getters);" as Stmt,
                     turbopack_esm: Expr = TURBOPACK_ESM.into(),
-                    getters: Expr = getters.clone()
+                    getters: Expr = getters
                 ),
             )],
         ))
