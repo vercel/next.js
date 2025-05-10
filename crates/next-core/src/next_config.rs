@@ -799,6 +799,8 @@ pub struct ExperimentalConfig {
     turbopack_persistent_caching: Option<bool>,
     turbopack_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
+    // Whether to enable the global-not-found convention
+    global_not_found: Option<bool>,
 }
 
 #[derive(
@@ -1187,6 +1189,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn page_extensions(&self) -> Vc<Vec<RcStr>> {
         Vc::cell(self.page_extensions.clone())
+    }
+
+    #[turbo_tasks::function]
+    pub fn is_global_not_found_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.global_not_found.unwrap_or_default())
     }
 
     #[turbo_tasks::function]
