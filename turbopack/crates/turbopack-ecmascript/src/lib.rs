@@ -94,7 +94,7 @@ pub use turbopack_resolve::ecmascript as resolve;
 use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports};
 use crate::{
     chunk::{placeable::is_marked_as_side_effect_free, EcmascriptChunkPlaceable},
-    code_gen::{CodeGens, VisitorFactory},
+    code_gen::CodeGens,
     parse::generate_js_source_map,
     references::{
         analyse_ecmascript_module, async_module::OptionAsyncModule, esm::base::EsmAssetReferences,
