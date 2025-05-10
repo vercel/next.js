@@ -610,6 +610,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
+          RELEASE_TYPE: ${{ github.event.inputs.releaseType }}
 
       - name: Upload npm log artifact
         uses: actions/upload-artifact@v4

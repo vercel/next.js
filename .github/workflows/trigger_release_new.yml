@@ -8,8 +8,7 @@ on:
         required: true
         type: choice
         options:
-          # TODO: Follow up enable the case.
-          # - canary
+          - canary
           - stable
           # TODO: Follow up enable the case.
           # - release-candidate
