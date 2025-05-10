@@ -1153,21 +1153,10 @@ fn process_content_with_code_gens(
     top_level_mark: Option<Mark>,
     mut code_gens: Vec<CodeGeneration>,
 ) {
-    let mut visitors: Vec<(
-        &Vec<swc_core::ecma::visit::AstParentKind>,
-        &dyn VisitorFactory,
-    )> = Vec::new();
-    let mut root_visitors: Vec<&dyn VisitorFactory> = Vec::new();
-    let mut early_hoisted_stmts: indexmap::IndexMap<
-        RcStr,
-        ast::Stmt,
-        std::hash::BuildHasherDefault<rustc_hash::FxHasher>,
-    > = FxIndexMap::default();
-    let mut hoisted_stmts: indexmap::IndexMap<
-        RcStr,
-        ast::Stmt,
-        std::hash::BuildHasherDefault<rustc_hash::FxHasher>,
-    > = FxIndexMap::default();
+    let mut visitors = Vec::new();
+    let mut root_visitors = Vec::new();
+    let mut early_hoisted_stmts = FxIndexMap::default();
+    let mut hoisted_stmts = FxIndexMap::default();
     for code_gen in &mut code_gens {
         for CodeGenerationHoistedStmt { key, stmt } in code_gen.hoisted_stmts.drain(..) {
             hoisted_stmts.entry(key).or_insert(stmt);
@@ -1179,7 +1168,7 @@ fn process_content_with_code_gens(
             if path.is_empty() {
                 root_visitors.push(&**visitor);
             } else {
-                visitors.push((&path, &**visitor));
+                visitors.push((path, &**visitor));
             }
         }
     }
