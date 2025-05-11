@@ -2598,6 +2598,56 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/global-not-found/basic/global-not-found-basic.test.ts": {
+    "passed": [
+      "global-not-found - basic should render global-not-found for 404",
+      "global-not-found - basic should render not-found boundary when calling notFound() in a page",
+      "global-not-found - basic should ssr global-not-found for 404"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/global-not-found/both-present/both-present.test.ts": {
+    "passed": [
+      "global-not-found - both-present should render global-not-found for 404 routes",
+      "global-not-found - both-present should render not-found boundary when calling notFound() in a page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/global-not-found/metadata/metadata.test.ts": {
+    "passed": [
+      "global-not-found - metadata should render metadata of global-not-found for 404"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/global-not-found/no-root-layout/no-root-layout.test.ts": {
+    "passed": [
+      "global-not-found - no-root-layout should render global-not-found for 404",
+      "global-not-found - no-root-layout should ssr global-not-found for 404"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/global-not-found/not-present/not-present.test.ts": {
+    "passed": [
+      "global-not-found - not-present should render custom not-found.js boundary when global-not-found is not defined but enabled",
+      "global-not-found - not-present should render default 404 when global-not-found is not defined but enabled"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/graceful-shutdown-next-after/custom-server/index.test.ts": {
     "passed": [
       "after during server shutdown - custom server waits for after callbacks when the server receives SIGINT",
@@ -3586,58 +3636,6 @@
       "app dir - next/font app dir - next-font preload should preload correctly with layout using fonts",
       "app dir - next/font app dir - next-font preload should preload correctly with page using fonts",
       "app dir - next/font app dir - next-font preload should preload correctly with server components"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/next-form/basepath/next-form-basepath.test.ts": {
-    "passed": [
-      "app dir - form - with basepath should add basePath to `action`",
-      "app dir - form - with basepath should not add basePath to a submitter's formAction"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/next-form/default/next-form-prefetch.test.ts": {
-    "passed": [
-      "app dir - form prefetching should not prefetch when prefetch is set to false`",
-      "app dir - form prefetching should prefetch a loading state for the form's target"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/next-form/default/next-form.test.ts": {
-    "passed": [
-      "app dir - form does not navigate if preventDefault is called in onSubmit",
-      "app dir - form does not push a new history entry if `replace` is passed",
-      "app dir - form functions passed to action runs client action",
-      "app dir - form functions passed to action runs server action",
-      "app dir - form functions passed to action runs server action (closure)",
-      "app dir - form functions passed to formAction runs client action from submitter and doesn't warn about unsupported attributes",
-      "app dir - form functions passed to formAction runs server action (closure) from submitter and doesn't warn about unsupported attributes",
-      "app dir - form functions passed to formAction runs server action from submitter and doesn't warn about unsupported attributes",
-      "app dir - form should soft-navigate on submit and show the prefetched loading state",
-      "app dir - form should soft-navigate to the formAction url of the submitter",
-      "app dir - form unsupported attributes on submitter should warn if submitter sets \"formEncType\" to an unsupported value and fall back to default submit behavior",
-      "app dir - form unsupported attributes on submitter should warn if submitter sets \"formMethod\" to an unsupported value and fall back to default submit behavior",
-      "app dir - form unsupported attributes on submitter should warn if submitter sets \"formTarget\" to an unsupported value and fall back to default submit behavior",
-      "app dir - form url-encodes file inputs, but warns about them",
-      "pages dir - form does not navigate if preventDefault is called in onSubmit",
-      "pages dir - form does not push a new history entry if `replace` is passed",
-      "pages dir - form functions passed to action runs client action",
-      "pages dir - form functions passed to formAction runs client action from submitter and doesn't warn about unsupported attributes",
-      "pages dir - form should soft-navigate on submit",
-      "pages dir - form should soft-navigate to the formAction url of the submitter",
-      "pages dir - form unsupported attributes on submitter should warn if submitter sets \"formEncType\" to an unsupported value and fall back to default submit behavior",
-      "pages dir - form unsupported attributes on submitter should warn if submitter sets \"formMethod\" to an unsupported value and fall back to default submit behavior",
-      "pages dir - form unsupported attributes on submitter should warn if submitter sets \"formTarget\" to an unsupported value and fall back to default submit behavior",
-      "pages dir - form url-encodes file inputs, but warns about them"
     ],
     "failed": [],
     "pending": [],
@@ -7720,6 +7718,66 @@
       "next/font/google no preloads with _app without preload",
       "next/font/google without-preloaded-fonts without _app without fonts",
       "next/font/google without-preloaded-fonts without _app without preload"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/next-form/basepath/next-form-basepath.test.ts": {
+    "passed": [
+      "app dir - form - with basepath should add basePath to `action`",
+      "app dir - form - with basepath should not add basePath to a submitter's formAction"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/next-form/default/app-dir.test.ts": {
+    "passed": [
+      "next-form - app dir does not navigate if preventDefault is called in onSubmit",
+      "next-form - app dir does not push a new history entry if `replace` is passed",
+      "next-form - app dir functions passed to action runs client action",
+      "next-form - app dir functions passed to action runs server action",
+      "next-form - app dir functions passed to action runs server action (closure)",
+      "next-form - app dir functions passed to formAction runs client action from submitter and doesn't warn about unsupported attributes",
+      "next-form - app dir functions passed to formAction runs server action (closure) from submitter and doesn't warn about unsupported attributes",
+      "next-form - app dir functions passed to formAction runs server action from submitter and doesn't warn about unsupported attributes",
+      "next-form - app dir should soft-navigate on submit and show the prefetched loading state",
+      "next-form - app dir should soft-navigate to the formAction url of the submitter",
+      "next-form - app dir unsupported attributes on submitter should warn if submitter sets \"formEncType\" to an unsupported value and fall back to default submit behavior",
+      "next-form - app dir unsupported attributes on submitter should warn if submitter sets \"formMethod\" to an unsupported value and fall back to default submit behavior",
+      "next-form - app dir unsupported attributes on submitter should warn if submitter sets \"formTarget\" to an unsupported value and fall back to default submit behavior",
+      "next-form - app dir url-encodes file inputs, but warns about them"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/next-form/default/next-form-prefetch.test.ts": {
+    "passed": [
+      "app dir - form prefetching should not prefetch when prefetch is set to false`",
+      "app dir - form prefetching should prefetch a loading state for the form's target"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/next-form/default/pages-dir.test.ts": {
+    "passed": [
+      "next-form - pages dir does not navigate if preventDefault is called in onSubmit",
+      "next-form - pages dir does not push a new history entry if `replace` is passed",
+      "next-form - pages dir functions passed to action runs client action",
+      "next-form - pages dir functions passed to formAction runs client action from submitter and doesn't warn about unsupported attributes",
+      "next-form - pages dir should soft-navigate on submit",
+      "next-form - pages dir should soft-navigate to the formAction url of the submitter",
+      "next-form - pages dir unsupported attributes on submitter should warn if submitter sets \"formEncType\" to an unsupported value and fall back to default submit behavior",
+      "next-form - pages dir unsupported attributes on submitter should warn if submitter sets \"formMethod\" to an unsupported value and fall back to default submit behavior",
+      "next-form - pages dir unsupported attributes on submitter should warn if submitter sets \"formTarget\" to an unsupported value and fall back to default submit behavior",
+      "next-form - pages dir url-encodes file inputs, but warns about them"
     ],
     "failed": [],
     "pending": [],
@@ -18438,6 +18496,7 @@
   "test/production/app-dir/no-mangling/no-mangling.test.ts": {
     "passed": [
       "no-mangling with `next build --no-mangling` should show original function names in stack traces",
+      "no-mangling with `next build --no-mangling` with \"use cache\" functions should show original function names in stack traces",
       "no-mangling with the default `next build` should show mangled function names in stack traces"
     ],
     "failed": [],
