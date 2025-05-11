@@ -1,16 +1,11 @@
 import type { Options as SWCOptions } from '@swc/core'
 import type { CompilerOptions } from 'typescript'
 
-import globOrig from 'next/dist/compiled/glob'
-
 import { resolve } from 'node:path'
 import { readFile } from 'node:fs/promises'
-import { promisify } from 'node:util'
 import { deregisterHook, registerHook, requireFromString } from './require-hook'
 import { warn } from '../output/log'
 import { installDependencies } from '../../lib/install-dependencies'
-
-const glob = promisify(globOrig)
 
 function resolveSWCOptions(
   cwd: string,
@@ -73,17 +68,14 @@ async function getTsConfig(cwd: string): Promise<CompilerOptions> {
     require.resolve('typescript', { paths: [cwd] })
   )
 
-  const tsConfigFiles = (await glob('tsconfig*.json', { cwd }))
-    // Sort by length to prefer `tsconfig.json`.
-    .sort((a, b) => a.length - b.length)
-
-  let tsConfigPath = ''
-  for (const tsConfigFile of tsConfigFiles) {
-    tsConfigPath = ts.findConfigFile(cwd, ts.sys.fileExists, tsConfigFile) || ''
-    if (tsConfigPath) {
-      break
-    }
-  }
+  // NOTE: This doesn't fully cover the edge case for setting
+  // "typescript.tsconfigPath" in next config which is currently
+  // a restriction.
+  const tsConfigPath = ts.findConfigFile(
+    cwd,
+    ts.sys.fileExists,
+    'tsconfig.json'
+  )
 
   if (!tsConfigPath) {
     // It is ok to not return ts.getDefaultCompilerOptions() because
