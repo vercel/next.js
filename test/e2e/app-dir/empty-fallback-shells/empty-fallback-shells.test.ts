@@ -3,7 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('empty-fallback-shells', () => {
   const { next, isNextDev, isNextDeploy, isNextStart } = nextTestSetup({
     files: __dirname,
-    timeout: 180_000,
   })
 
   describe('without IO', () => {
@@ -97,7 +96,7 @@ describe('empty-fallback-shells', () => {
       })
 
       describe('and the params accessed in cached non-page function', () => {
-        it('resumes a postponed fallback shell', async () => {
+        it('does not resume a postponed fallback shell', async () => {
           const res = await next.fetch(
             '/with-cached-io/without-suspense/params-not-in-page/bar'
           )

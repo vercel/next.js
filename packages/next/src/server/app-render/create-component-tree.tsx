@@ -21,7 +21,10 @@ import type { LoadingModuleData } from '../../shared/lib/app-router-context.shar
 import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { OUTLET_BOUNDARY_NAME } from '../../lib/metadata/metadata-constants'
-import type { UseCachePageComponentProps } from '../use-cache/use-cache-wrapper'
+import type {
+  UseCacheLayoutComponentProps,
+  UseCachePageComponentProps,
+} from '../use-cache/use-cache-wrapper'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -842,9 +845,24 @@ async function createComponentTreeInternal({
         workStore
       )
 
-      let serverSegment = (
-        <SegmentComponent {...parallelRouteProps} params={params} />
-      )
+      let serverSegment: React.ReactNode
+
+      if (isUseCacheFunction(SegmentComponent)) {
+        const UseCacheLayoutComponent: React.ComponentType<UseCacheLayoutComponentProps> =
+          SegmentComponent
+
+        serverSegment = (
+          <UseCacheLayoutComponent
+            {...parallelRouteProps}
+            params={params}
+            $$isLayoutComponent
+          />
+        )
+      } else {
+        serverSegment = (
+          <SegmentComponent {...parallelRouteProps} params={params} />
+        )
+      }
 
       if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
         // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
