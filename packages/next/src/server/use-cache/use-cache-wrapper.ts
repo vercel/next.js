@@ -466,7 +466,7 @@ async function generateCacheEntryImpl(
         },
       })
     } else if (dynamicAccessAbortSignal?.aborted) {
-      // When the prerender is aborted because of dynamic access (e.g. reading
+      // If the prerender is aborted because of dynamic access (e.g. reading
       // fallback params), we return a hanging promise. This essentially makes
       // the "use cache" function dynamic.
       const hangingPromise = makeHangingPromise<never>(
@@ -1012,8 +1012,6 @@ export function cache(
             const result = await generateCacheEntry(
               workStore,
               // This is not running within the context of this unit.
-              // TODO: We may need to pass in a work unit store that includes
-              // the cookies though.
               undefined,
               clientReferenceManifest,
               encodedCacheKeyParts,
@@ -1041,9 +1039,7 @@ export function cache(
                 savedCacheEntry
               )
 
-              if (!workStore.pendingRevalidateWrites) {
-                workStore.pendingRevalidateWrites = []
-              }
+              workStore.pendingRevalidateWrites ??= []
               workStore.pendingRevalidateWrites.push(promise)
 
               await ignoredStream.cancel()
