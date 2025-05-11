@@ -680,12 +680,12 @@ export interface ExperimentalConfig {
    */
   clientInstrumentationHook?: boolean
 
-  /** 
+  /**
    * Enables using the global-not-found.js file in the app directory
    *
    */
   globalNotFound?: boolean
-  
+
   /**
    * Enable segment viewer for the app directory in dev tool.
    */
