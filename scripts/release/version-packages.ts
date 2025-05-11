@@ -86,6 +86,13 @@ async function versionPackages() {
     }
   }
 
+  if (releaseType === 'release-candidate') {
+    // Enter pre mode as "rc" tag.
+    await execa('pnpm', ['changeset', 'pre', 'enter', 'rc'], {
+      stdio: 'inherit',
+    })
+  }
+
   await execa('pnpm', ['changeset', 'version'], {
     stdio: 'inherit',
   })
