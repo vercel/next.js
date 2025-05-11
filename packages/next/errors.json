@@ -679,7 +679,5 @@
   "678": "CacheSignal got more endRead() calls than beginRead() calls",
   "679": "A CacheSignal cannot subscribe to itself",
   "680": "Expected clientReferenceManifest to be defined.",
-  "681": "Accessed \\`cookies()\\` in \\`\"use cache\"\\` during prerendering.",
-  "682": "Route %s used \"cookies\" inside \"use cache: %s\". Accessing Dynamic data sources inside this kind of cache scope is not supported. If you need this data inside a cached function use \"cookies\" outside of the cached function and pass the required dynamic data in as an argument, or use the default \"use cache\" which does allow accessing cookies. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
   "683": "Accessed fallback \\`params\\` in \\`\"use cache\"\\` during prerendering."
 }
