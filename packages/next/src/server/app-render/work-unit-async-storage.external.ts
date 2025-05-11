@@ -17,7 +17,6 @@ import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../client/components/app-router-headers'
-import type { UseCacheRenderContext } from '../use-cache/render-context'
 
 export type WorkUnitPhase = 'action' | 'render' | 'after'
 
@@ -193,10 +192,6 @@ export interface UseCacheStore extends CommonCacheStore {
   readonly isHmrRefresh: boolean
   readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
   readonly forceRevalidate: boolean
-  // The render context can only be undefined here because we currently don't
-  // forbid nesting `"use cache"` in `unstable_cache`, which we probably should.
-  // This breaks the render context chain.
-  readonly renderContext: UseCacheRenderContext | undefined
 }
 
 export interface UnstableCacheStore extends CommonCacheStore {
