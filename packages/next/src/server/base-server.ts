@@ -2526,18 +2526,17 @@ export default abstract class Server<
       // When html bots request PPR page, perform the full dynamic rendering.
       const shouldWaitOnAllReady = isHtmlBot && isRoutePPREnabled
 
-      // This is a revalidation request if the request is for a static page, and
-      // it is not being resumed from a postponed render, and it is not a
-      // dynamic RSC request.
-      const isRevalidate = isSSG && !postponed && !isDynamicRSCRequest
-
       const renderOpts: LoadedRenderOpts = {
         ...components,
         ...opts,
         ...(isAppPath
           ? {
               incrementalCache,
-              isRevalidate,
+              // This is a revalidation request if the request is for a static
+              // page and it is not being resumed from a postponed render and
+              // it is not a dynamic RSC request then it is a revalidation
+              // request.
+              isRevalidate: isSSG && !postponed && !isDynamicRSCRequest,
               serverActions: this.nextConfig.experimental.serverActions,
             }
           : {}),
