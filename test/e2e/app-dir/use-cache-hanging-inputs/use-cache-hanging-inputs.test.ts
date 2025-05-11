@@ -335,10 +335,6 @@ describe('use-cache-hanging-inputs', () => {
       )
 
       expect(cliOutput).toInclude(
-        createExpectedBuildErrorMessage('/fallback-params/[slug]')
-      )
-
-      expect(cliOutput).toInclude(
         createExpectedBuildErrorMessage('/search-params')
       )
 

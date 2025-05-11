@@ -53,6 +53,7 @@ import type { Params } from '../request/params'
 import React from 'react'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
 import { createUseCacheRenderContext } from './render-context'
+import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 
 type CacheKeyParts =
   | [buildId: string, id: string, args: unknown[]]
@@ -62,6 +63,15 @@ export interface UseCachePageComponentProps {
   params: Promise<Params>
   searchParams: Promise<SearchParams>
   $$isPageComponent: true
+}
+
+export type UseCacheLayoutComponentProps = {
+  params: Promise<Params>
+  $$isLayoutComponent: true
+} & {
+  // The value type should be React.ReactNode. But such an index signature would
+  // be incompatible with the other two props.
+  [slot: string]: any
 }
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
@@ -181,17 +191,19 @@ function generateCacheEntryWithCacheContext(
       outerWorkUnitStore && createUseCacheRenderContext(outerWorkUnitStore),
   }
 
-  return workUnitAsyncStorage.run(
-    cacheStore,
-    generateCacheEntryImpl,
-    workStore,
-    outerWorkUnitStore,
-    kind,
-    cacheStore,
-    clientReferenceManifest,
-    encodedArguments,
-    fn,
-    timeoutError
+  return workUnitAsyncStorage.run(cacheStore, () =>
+    dynamicAccessAsyncStorage.run(
+      { abortController: new AbortController() },
+      generateCacheEntryImpl,
+      workStore,
+      outerWorkUnitStore,
+      kind,
+      cacheStore,
+      clientReferenceManifest,
+      encodedArguments,
+      fn,
+      timeoutError
+    )
   )
 }
 
@@ -409,11 +421,10 @@ async function generateCacheEntryImpl(
   }
 
   let stream: ReadableStream<Uint8Array>
-  const { renderContext } = innerCacheStore
 
-  if (renderContext?.type === 'prerender') {
-    const { signal: dynamicAccessAbortSignal } =
-      renderContext.dynamicAccessAbortController
+  if (outerWorkUnitStore?.type === 'prerender') {
+    const dynamicAccessAbortSignal =
+      dynamicAccessAsyncStorage.getStore()?.abortController.signal
 
     const timeoutAbortController = new AbortController()
 
@@ -428,7 +439,7 @@ async function generateCacheEntryImpl(
     const abortSignal = dynamicAccessAbortSignal
       ? AbortSignal.any([
           dynamicAccessAbortSignal,
-          renderContext.renderSignal,
+          outerWorkUnitStore.renderSignal,
           timeoutAbortController.signal,
         ])
       : timeoutAbortController.signal
@@ -452,32 +463,32 @@ async function generateCacheEntryImpl(
 
     clearTimeout(timer)
 
-    // When the prerender is aborted for any reason (including the timeout), and
-    // we're prerendering a static shell that is allowed to be empty, we return
-    // a hanging promise. This essentially makes the "use cache" function
-    // dynamic in the context of the fallback shell. When there's no suspense
-    // boundary above, the shell will be empty, which is allowed.
-    // TODO: We could consider doing this for any kind of fallback shell
-    // prerendering, including when allowEmptyStaticShell is false.
-    if (abortSignal.aborted && renderContext.allowEmptyStaticShell) {
-      if (outerWorkUnitStore?.type === 'prerender') {
-        outerWorkUnitStore.cacheSignal?.endRead()
-      }
-
-      const hangingPromise = makeHangingPromise<never>(
-        renderContext.renderSignal,
-        abortSignal.reason
-      )
-
-      return { type: 'prerender-dynamic', hangingPromise }
-    }
-
     if (timeoutAbortController.signal.aborted) {
+      // When the timeout is reached we always error the stream. Even for
+      // fallback shell prerenders we don't want to return a hanging promise,
+      // which would allow the function to become a dynamic hole. Because that
+      // would mean that a non-empty shell could be generated which would be
+      // subject to revalidation, and we don't want to create long revalidation
+      // times.
       stream = new ReadableStream({
         start(controller) {
           controller.error(timeoutError)
         },
       })
+    } else if (dynamicAccessAbortSignal?.aborted) {
+      // When the prerender is aborted because of dynamic access (e.g. reading
+      // fallback params), we return a hanging promise. This essentially makes
+      // the "use cache" function dynamic.
+      const hangingPromise = makeHangingPromise<never>(
+        outerWorkUnitStore.renderSignal,
+        abortSignal.reason
+      )
+
+      if (outerWorkUnitStore?.type === 'prerender') {
+        outerWorkUnitStore.cacheSignal?.endRead()
+      }
+
+      return { type: 'prerender-dynamic', hangingPromise }
     } else {
       stream = prelude
     }
@@ -646,9 +657,19 @@ export function cache(
           ? createHangingInputAbortSignal(workUnitStore)
           : undefined
 
+      let isPageOrLayout = false
+
+      // For page and layout components, the cache function is overwritten,
+      // which allows us to apply special handling for params and searchParams.
+      // For pages and layouts we're using the original params prop, and not the
+      // serialized one. While it's not generally true for "use cache" args, in
+      // the case of `params` the serialized and original object are essentially
+      // equivalent, so this is safe to do (including fallback params that are
+      // hanging promises). It allows us to avoid waiting for the timeout, when
+      // prerendering a fallback shell of a cached page or layout that awaits
+      // params.
       if (isPageComponent(args)) {
-        // For page components, the cache function is overwritten, which allows
-        // us to apply special handling for params and searchParams (see below).
+        isPageOrLayout = true
 
         const [{ params, searchParams }] = args
         // Overwrite the props to omit $$isPageComponent.
@@ -661,13 +682,6 @@ export function cache(
           }: Omit<UseCachePageComponentProps, '$$isPageComponent'>) =>
             originalFn.apply(null, [
               {
-                // We're using the original params prop, and not the serialized
-                // one. While it's not generally true for "use cache" args, in
-                // the case of `params` the serialized and original object are
-                // essentially equivalent, so this is safe to do (including
-                // fallback params that are hanging promises). It allows us to
-                // avoid waiting for the timeout, when prerendering a fallback
-                // shell of a cached page that awaits params.
                 params,
                 searchParams: workStore.dynamicIOEnabled
                   ? serializedSearchParams
@@ -682,6 +696,20 @@ export function cache(
                     makeErroringExoticSearchParamsForUseCache(workStore),
               },
             ]),
+        }[name] as (...args: unknown[]) => Promise<unknown>
+      } else if (isLayoutComponent(args)) {
+        isPageOrLayout = true
+
+        const [{ params, $$isLayoutComponent, ...slots }] = args
+        // Overwrite the props to omit $$isLayoutComponent.
+        args = [{ params, ...slots }]
+
+        fn = {
+          [name]: async ({
+            params: _serializedParams,
+            ...serializedSlots
+          }: Omit<UseCacheLayoutComponentProps, '$$isLayoutComponent'>) =>
+            originalFn.apply(null, [{ params, ...serializedSlots }]),
         }[name] as (...args: unknown[]) => Promise<unknown>
       }
 
@@ -716,10 +744,38 @@ export function cache(
         ? [buildId, id, args, hmrRefreshHash]
         : [buildId, id, args]
 
-      const encodedCacheKeyParts: FormData | string = await encodeReply(
-        cacheKeyParts,
-        { temporaryReferences, signal: hangingInputAbortSignal }
-      )
+      const encodeCacheKeyParts = () =>
+        encodeReply(cacheKeyParts, {
+          temporaryReferences,
+          signal: hangingInputAbortSignal,
+        })
+
+      let encodedCacheKeyParts: FormData | string
+
+      if (workUnitStore?.type === 'prerender' && !isPageOrLayout) {
+        // If the "use cache" function is not a page or a layout, we need to
+        // track dynamic access already when encoding the arguments. If params
+        // are passed explicitly into a "use cache" function (as opposed to
+        // receiving them automatically in a page or layout), we assume that the
+        // params are also accessed. This allows us to abort early, and treat
+        // the function as dynamic, instead of waiting for the timeout to be
+        // reached.
+        const dynamicAccessAbortController = new AbortController()
+
+        encodedCacheKeyParts = await dynamicAccessAsyncStorage.run(
+          { abortController: dynamicAccessAbortController },
+          encodeCacheKeyParts
+        )
+
+        if (dynamicAccessAbortController.signal.aborted) {
+          return makeHangingPromise(
+            workUnitStore.renderSignal,
+            dynamicAccessAbortController.signal.reason.message
+          )
+        }
+      } else {
+        encodedCacheKeyParts = await encodeCacheKeyParts()
+      }
 
       const serializedCacheKey =
         typeof encodedCacheKeyParts === 'string'
@@ -1054,6 +1110,23 @@ function isPageComponent(
     props !== null &&
     typeof props === 'object' &&
     (props as UseCachePageComponentProps).$$isPageComponent
+  )
+}
+
+function isLayoutComponent(
+  args: any[]
+): args is [UseCacheLayoutComponentProps, undefined] {
+  if (args.length !== 2) {
+    return false
+  }
+
+  const [props, ref] = args
+
+  return (
+    ref === undefined && // server components receive an undefined ref arg
+    props !== null &&
+    typeof props === 'object' &&
+    (props as UseCacheLayoutComponentProps).$$isLayoutComponent
   )
 }
 

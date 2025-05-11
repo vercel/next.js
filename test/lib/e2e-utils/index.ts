@@ -230,7 +230,6 @@ export function nextTestSetup(
   options: Parameters<typeof createNext>[0] & {
     skipDeployment?: boolean
     dir?: string
-    timeout?: number
   }
 ): {
   isNextDev: boolean

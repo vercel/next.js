@@ -24,6 +24,7 @@ import {
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { scheduleImmediate } from '../../lib/scheduler'
+import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 
 export type ParamValue = string | Array<string> | undefined
 export type Params = Record<string, ParamValue>
@@ -216,16 +217,10 @@ function makeAbortingExoticParams(
         switch (prop) {
           case 'then':
           case 'status':
-            const workUnitStore = workUnitAsyncStorage.getStore()
+            const dynamicAccessStore = dynamicAccessAsyncStorage.getStore()
 
-            if (
-              workUnitStore?.type === 'cache' &&
-              workUnitStore.renderContext?.type === 'prerender' &&
-              // TODO: We could consider aborting for any kind of fallback shell
-              // prerendering, including when allowEmptyStaticShell is false.
-              workUnitStore.renderContext.allowEmptyStaticShell
-            ) {
-              workUnitStore.renderContext.dynamicAccessAbortController.abort(
+            if (dynamicAccessStore) {
+              dynamicAccessStore.abortController.abort(
                 new Error(
                   `Accessed fallback \`params\` in \`"use cache"\` during prerendering.`
                 )
