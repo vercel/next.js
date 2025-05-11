@@ -2,8 +2,10 @@ name: Trigger Release (New)
 
 on:
   # Run every day at 23:15 UTC
-  schedule:
-    - cron: '15 23 * * *'
+  # TODO: Disabled cron for now, but uncomment
+  # once replaced the old release workflow.
+  # schedule:
+  #   - cron: '15 23 * * *'
   # Run manually
   workflow_dispatch:
     inputs:
