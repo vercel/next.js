@@ -2531,15 +2531,6 @@ export default abstract class Server<
       // dynamic RSC request.
       const isRevalidate = isSSG && !postponed && !isDynamicRSCRequest
 
-      // When we're revalidating a fallback shell, we need to set
-      // `allowEmptyStaticShell` to the same value that was used when the shell
-      // was prerendered at build time.
-      const allowEmptyStaticShell = Boolean(
-        isRevalidate &&
-          fallbackRouteParams &&
-          prerenderManifest.dynamicRoutes[pathname]?.allowEmptyStaticShell
-      )
-
       const renderOpts: LoadedRenderOpts = {
         ...components,
         ...opts,
@@ -2583,7 +2574,6 @@ export default abstract class Server<
         onAfterTaskError: undefined,
         // only available in dev
         setIsrStatus: (this as any).setIsrStatus,
-        allowEmptyStaticShell,
       }
 
       if (isDebugStaticShell || isDebugDynamicAccesses) {
