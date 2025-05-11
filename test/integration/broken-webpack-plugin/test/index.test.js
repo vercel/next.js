@@ -10,7 +10,7 @@ let appPort
 let app
 
   // Skipped as it's not relevant to Turbopack.
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Handles a broken webpack plugin (precompile)',
   () => {
     let stderr = ''

@@ -1,6 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check, waitFor, retry } from 'next-test-utils'
-import type { Page, Request, Route } from 'playwright'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 
 const browserConfigWithFixedTime = {
@@ -112,7 +111,7 @@ describe('app dir - prefetching', () => {
       requests.push(new URL(req.url()).pathname)
     })
 
-    await browser.evalAsync('window.next.router.prefetch("/dashboard/123")')
+    await browser.eval('window.next.router.prefetch("/dashboard/123")')
     await browser.waitForIdleNetwork()
 
     expect(requests).toInclude('/dashboard/123')
@@ -342,12 +341,53 @@ describe('app dir - prefetching', () => {
     await browser.waitForElementByCss('#prefetch-auto-page-data')
   })
 
+  it('should not unintentionally modify the requested prefetch by escaping the uri encoded query params', async () => {
+    const rscRequests = []
+    const browser = await next.browser('/uri-encoded-prefetch', {
+      beforePageLoad(page) {
+        page.on('request', async (req) => {
+          const url = new URL(req.url())
+          if (url.searchParams.has('_rsc')) {
+            rscRequests.push(url.pathname + url.search)
+          }
+        })
+      },
+    })
+
+    // sanity check: the link should be present
+    expect(await browser.elementById('prefetch-via-link')).toBeDefined()
+
+    await browser.waitForIdleNetwork()
+
+    // The space encoding of the prefetch request should be the same as the href, and should not be replaced with a +
+    await retry(async () => {
+      expect(
+        rscRequests.filter((req) => req.includes('/?param=with%20space'))
+      ).toHaveLength(1)
+    })
+
+    // Click the link
+    await browser.elementById('prefetch-via-link').click()
+
+    // Assert that we're on the homepage
+    expect(await browser.hasElementByCssSelector('#to-dashboard')).toBe(true)
+
+    await browser.waitForIdleNetwork()
+
+    // No new requests should be made since it is correctly prefetched
+    await retry(async () => {
+      expect(
+        rscRequests.filter((req) => req.includes('/?param=with%20space'))
+      ).toHaveLength(1)
+    })
+  })
+
   describe('prefetch cache seeding', () => {
     it('should not re-fetch the initial static page if the same page is prefetched with prefetch={true}', async () => {
       const rscRequests = []
       const browser = await next.browser('/static-page', {
-        beforePageLoad(page: Page) {
-          page.on('request', async (req: Request) => {
+        beforePageLoad(page) {
+          page.on('request', async (req) => {
             const url = new URL(req.url())
             if (url.pathname === '/static-page' || url.pathname === '/') {
               const headers = await req.allHeaders()
@@ -400,8 +440,8 @@ describe('app dir - prefetching', () => {
     it('should not re-fetch the initial dynamic page if the same page is prefetched with prefetch={true}', async () => {
       const rscRequests = []
       const browser = await next.browser('/dynamic-page', {
-        beforePageLoad(page: Page) {
-          page.on('request', async (req: Request) => {
+        beforePageLoad(page) {
+          page.on('request', async (req) => {
             const url = new URL(req.url())
             if (url.pathname === '/dynamic-page' || url.pathname === '/') {
               const headers = await req.allHeaders()
@@ -534,8 +574,8 @@ describe('app dir - prefetching', () => {
     it('should prefetch links in viewport with low priority', async () => {
       const requests: { priority: string; url: string }[] = []
       const browser = await next.browser('/', {
-        beforePageLoad(page: Page) {
-          page.on('request', async (req: Request) => {
+        beforePageLoad(page) {
+          page.on('request', async (req) => {
             const url = new URL(req.url())
             const headers = await req.allHeaders()
             if (headers['rsc']) {
@@ -559,8 +599,8 @@ describe('app dir - prefetching', () => {
     it('should prefetch with high priority when navigating to a page without a prefetch entry', async () => {
       const requests: { priority: string; url: string }[] = []
       const browser = await next.browser('/prefetch-false/initial', {
-        beforePageLoad(page: Page) {
-          page.on('request', async (req: Request) => {
+        beforePageLoad(page) {
+          page.on('request', async (req) => {
             const url = new URL(req.url())
             const headers = await req.allHeaders()
             if (headers['rsc']) {
@@ -587,8 +627,8 @@ describe('app dir - prefetching', () => {
     it('should have an auto priority for all other fetch operations', async () => {
       const requests: { priority: string; url: string }[] = []
       const browser = await next.browser('/', {
-        beforePageLoad(page: Page) {
-          page.on('request', async (req: Request) => {
+        beforePageLoad(page) {
+          page.on('request', async (req) => {
             const url = new URL(req.url())
             const headers = await req.allHeaders()
             if (headers['rsc']) {
@@ -618,8 +658,8 @@ describe('app dir - prefetching', () => {
       let interceptRequests = false
 
       const browser = await next.browser('/prefetch-race', {
-        beforePageLoad(page: Page) {
-          page.route('**/force-dynamic/**', async (route: Route) => {
+        beforePageLoad(page) {
+          page.route('**/force-dynamic/**', async (route) => {
             if (!interceptRequests) {
               return route.continue()
             }

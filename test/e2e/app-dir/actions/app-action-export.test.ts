@@ -27,6 +27,8 @@ describe('app-dir action handling - next export', () => {
       }
       `
     )
+    // interception routes are also not supported with export
+    await next.remove('app/interception-routes')
     try {
       await next.start()
     } catch {}

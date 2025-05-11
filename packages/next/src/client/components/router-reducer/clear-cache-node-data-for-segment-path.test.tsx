@@ -2,6 +2,8 @@ import React from 'react'
 import { clearCacheNodeDataForSegmentPath } from './clear-cache-node-data-for-segment-path'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 
+const navigatedAt = -1
+
 describe('clearCacheNodeDataForSegmentPath', () => {
   it('should clear the data property', () => {
     const pathname = '/dashboard/settings'
@@ -13,19 +15,21 @@ describe('clearCacheNodeDataForSegmentPath', () => {
       .flat()
 
     const cache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
-      head: [null, null],
+      head: null,
       prefetchHead: null,
       parallelRoutes: new Map(),
       loading: null,
     }
     const existingCache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       rsc: <>Root layout</>,
       prefetchRsc: null,
-      head: [null, null],
+      head: null,
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map([
@@ -35,10 +39,11 @@ describe('clearCacheNodeDataForSegmentPath', () => {
             [
               'linking',
               {
+                navigatedAt,
                 lazyData: null,
                 rsc: <>Linking</>,
                 prefetchRsc: null,
-                head: [null, null],
+                head: null,
                 prefetchHead: null,
                 loading: null,
                 parallelRoutes: new Map([
@@ -48,10 +53,11 @@ describe('clearCacheNodeDataForSegmentPath', () => {
                       [
                         '',
                         {
+                          navigatedAt,
                           lazyData: null,
                           rsc: <>Page</>,
                           prefetchRsc: null,
-                          head: [null, null],
+                          head: null,
                           prefetchHead: null,
                           parallelRoutes: new Map(),
                           loading: null,
@@ -71,30 +77,24 @@ describe('clearCacheNodeDataForSegmentPath', () => {
 
     expect(cache).toMatchInlineSnapshot(`
      {
-       "head": [
-         null,
-         null,
-       ],
+       "head": null,
        "lazyData": null,
        "loading": null,
+       "navigatedAt": -1,
        "parallelRoutes": Map {
          "children" => Map {
            "linking" => {
-             "head": [
-               null,
-               null,
-             ],
+             "head": null,
              "lazyData": null,
              "loading": null,
+             "navigatedAt": -1,
              "parallelRoutes": Map {
                "children" => Map {
                  "" => {
-                   "head": [
-                     null,
-                     null,
-                   ],
+                   "head": null,
                    "lazyData": null,
                    "loading": null,
+                   "navigatedAt": -1,
                    "parallelRoutes": Map {},
                    "prefetchHead": null,
                    "prefetchRsc": null,
@@ -111,12 +111,10 @@ describe('clearCacheNodeDataForSegmentPath', () => {
              </React.Fragment>,
            },
            "dashboard" => {
-             "head": [
-               null,
-               null,
-             ],
+             "head": null,
              "lazyData": null,
              "loading": null,
+             "navigatedAt": -1,
              "parallelRoutes": Map {},
              "prefetchHead": null,
              "prefetchRsc": null,

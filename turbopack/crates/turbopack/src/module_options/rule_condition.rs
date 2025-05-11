@@ -1,6 +1,7 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{primitives::Regex, trace::TraceRawVcs, NonLocalValue, ReadRef, Vc};
+use turbo_esregex::EsRegex;
+use turbo_tasks::{primitives::Regex, trace::TraceRawVcs, NonLocalValue, ReadRef, ResolvedVc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
     reference_type::ReferenceType, source::Source, virtual_source::VirtualSource,
@@ -18,7 +19,10 @@ pub enum RuleCondition {
     ResourcePathEndsWith(String),
     ResourcePathInDirectory(String),
     ResourcePathInExactDirectory(ReadRef<FileSystemPath>),
+    ContentTypeStartsWith(String),
+    ContentTypeEmpty,
     ResourcePathRegex(#[turbo_tasks(trace_ignore)] Regex),
+    ResourcePathEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
     /// For paths that are within the same filesystem as the `base`, it need to
     /// match the relative path from base to resource. This includes `./` or
     /// `../` prefix. For paths in a different filesystem, it need to match
@@ -51,7 +55,7 @@ impl RuleCondition {
 impl RuleCondition {
     pub async fn matches(
         &self,
-        source: Vc<Box<dyn Source>>,
+        source: ResolvedVc<Box<dyn Source>>,
         path: &FileSystemPath,
         reference_type: &ReferenceType,
     ) -> Result<bool> {
@@ -96,10 +100,16 @@ impl RuleCondition {
             }
             RuleCondition::ReferenceType(condition_ty) => condition_ty.includes(reference_type),
             RuleCondition::ResourceIsVirtualSource => {
-                Vc::try_resolve_downcast_type::<VirtualSource>(source)
-                    .await?
-                    .is_some()
+                ResolvedVc::try_downcast_type::<VirtualSource>(source).is_some()
             }
+            RuleCondition::ContentTypeStartsWith(start) => {
+                if let Some(content_type) = source.ident().await?.content_type.as_ref() {
+                    content_type.starts_with(start)
+                } else {
+                    false
+                }
+            }
+            RuleCondition::ContentTypeEmpty => source.ident().await?.content_type.is_none(),
             RuleCondition::ResourcePathGlob { glob, base } => {
                 if let Some(path) = base.get_relative_path_to(path) {
                     glob.execute(&path)
@@ -114,7 +124,10 @@ impl RuleCondition {
                     .map_or(path.path.as_str(), |(_, b)| b);
                 glob.execute(basename)
             }
-            _ => todo!("not implemented yet"),
+            RuleCondition::ResourcePathRegex(_) => {
+                bail!("ResourcePathRegex not implemented yet")
+            }
+            RuleCondition::ResourcePathEsRegex(regex) => regex.is_match(&path.path),
         })
     }
 }

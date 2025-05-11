@@ -240,12 +240,11 @@ impl TsExtendsReference {
 impl ModuleReference for TsExtendsReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        Ok(ModuleResolveResult::module(ResolvedVc::upcast(
+        Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
             RawModule::new(*ResolvedVc::upcast(self.config))
                 .to_resolved()
                 .await?,
-        ))
-        .cell())
+        )))
     }
 }
 

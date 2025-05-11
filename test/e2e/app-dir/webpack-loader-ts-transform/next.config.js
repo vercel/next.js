@@ -2,12 +2,17 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  experimental: {
-    turbo: {
-      rules: {
-        '*.test-file.ts': [require.resolve('./test-file-loader.js')],
-      },
+  turbopack: {
+    rules: {
+      '*.test-file.ts': [require.resolve('./test-file-loader.js')],
     },
+  },
+  webpack(config) {
+    config.module.rules.push({
+      test: /\.test-file\.ts/,
+      use: require.resolve('./test-file-loader.js'),
+    })
+    return config
   },
 }
 

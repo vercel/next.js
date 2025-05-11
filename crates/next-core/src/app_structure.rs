@@ -39,6 +39,8 @@ pub struct AppDirModules {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub global_error: Option<ResolvedVc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub global_not_found: Option<ResolvedVc<FileSystemPath>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub loading: Option<ResolvedVc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub template: Option<ResolvedVc<FileSystemPath>>,
@@ -63,6 +65,7 @@ impl AppDirModules {
             layout: self.layout,
             error: self.error,
             global_error: self.global_error,
+            global_not_found: self.global_not_found,
             loading: self.loading,
             template: self.template,
             not_found: self.not_found,
@@ -192,7 +195,7 @@ impl Metadata {
 }
 
 /// Metadata files that can be placed in the root of the app directory.
-#[turbo_tasks::value(local)]
+#[turbo_tasks::value]
 #[derive(Default, Clone, Debug)]
 pub struct GlobalMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -214,7 +217,7 @@ impl GlobalMetadata {
     }
 }
 
-#[turbo_tasks::value(local)]
+#[turbo_tasks::value]
 #[derive(Debug)]
 pub struct DirectoryTree {
     /// key is e.g. "dashboard", "(dashboard)", "@slot"
@@ -222,7 +225,7 @@ pub struct DirectoryTree {
     pub modules: AppDirModules,
 }
 
-#[turbo_tasks::value(local)]
+#[turbo_tasks::value]
 #[derive(Clone, Debug)]
 struct PlainDirectoryTree {
     /// key is e.g. "dashboard", "(dashboard)", "@slot"
@@ -237,7 +240,7 @@ impl DirectoryTree {
         let mut subdirectories = BTreeMap::new();
 
         for (name, subdirectory) in &self.subdirectories {
-            subdirectories.insert(name.clone(), subdirectory.into_plain().await?.clone_value());
+            subdirectories.insert(name.clone(), subdirectory.into_plain().owned().await?);
         }
 
         Ok(PlainDirectoryTree {
@@ -322,6 +325,7 @@ async fn get_directory_tree_internal(
                             "layout" => modules.layout = Some(file),
                             "error" => modules.error = Some(file),
                             "global-error" => modules.global_error = Some(file),
+                            "global-not-found" => modules.global_not_found = Some(file),
                             "loading" => modules.loading = Some(file),
                             "template" => modules.template = Some(file),
                             "forbidden" => modules.forbidden = Some(file),
@@ -416,7 +420,7 @@ async fn get_directory_tree_internal(
     .cell())
 }
 
-#[turbo_tasks::value(local)]
+#[turbo_tasks::value]
 #[derive(Debug, Clone)]
 pub struct AppPageLoaderTree {
     pub page: AppPage,
@@ -512,6 +516,7 @@ impl ValueDefault for FileSystemPathVec {
     ValueDebugFormat,
     Debug,
     TaskInput,
+    NonLocalValue,
 )]
 pub enum Entrypoint {
     AppPage {
@@ -539,7 +544,7 @@ impl Entrypoint {
     }
 }
 
-#[turbo_tasks::value(transparent, local)]
+#[turbo_tasks::value(transparent)]
 pub struct Entrypoints(FxIndexMap<AppPath, Entrypoint>);
 
 fn is_parallel_route(name: &str) -> bool {
@@ -555,7 +560,7 @@ fn match_parallel_route(name: &str) -> Option<&str> {
 }
 
 fn conflict_issue(
-    app_dir: Vc<FileSystemPath>,
+    app_dir: ResolvedVc<FileSystemPath>,
     e: &'_ OccupiedEntry<'_, AppPath, Entrypoint>,
     a: &str,
     b: &str,
@@ -586,7 +591,7 @@ fn conflict_issue(
 }
 
 fn add_app_page(
-    app_dir: Vc<FileSystemPath>,
+    app_dir: ResolvedVc<FileSystemPath>,
     result: &mut FxIndexMap<AppPath, Entrypoint>,
     page: AppPage,
     loader_tree: ResolvedVc<AppPageLoaderTree>,
@@ -645,7 +650,7 @@ fn add_app_page(
 }
 
 fn add_app_route(
-    app_dir: Vc<FileSystemPath>,
+    app_dir: ResolvedVc<FileSystemPath>,
     result: &mut FxIndexMap<AppPath, Entrypoint>,
     page: AppPage,
     path: ResolvedVc<FileSystemPath>,
@@ -688,7 +693,7 @@ fn add_app_route(
 }
 
 fn add_app_metadata_route(
-    app_dir: Vc<FileSystemPath>,
+    app_dir: ResolvedVc<FileSystemPath>,
     result: &mut FxIndexMap<AppPath, Entrypoint>,
     page: AppPage,
     metadata: MetadataItem,
@@ -729,11 +734,13 @@ fn add_app_metadata_route(
 pub fn get_entrypoints(
     app_dir: Vc<FileSystemPath>,
     page_extensions: Vc<Vec<RcStr>>,
+    is_global_not_found_enabled: Vc<bool>,
 ) -> Vc<Entrypoints> {
     directory_tree_to_entrypoints(
         app_dir,
         get_directory_tree(app_dir, page_extensions),
         get_global_metadata(app_dir, page_extensions),
+        is_global_not_found_enabled,
         Default::default(),
     )
 }
@@ -743,11 +750,13 @@ fn directory_tree_to_entrypoints(
     app_dir: Vc<FileSystemPath>,
     directory_tree: Vc<DirectoryTree>,
     global_metadata: Vc<GlobalMetadata>,
+    is_global_not_found_enabled: Vc<bool>,
     root_layouts: Vc<FileSystemPathVec>,
 ) -> Vc<Entrypoints> {
     directory_tree_to_entrypoints_internal(
         app_dir,
         global_metadata,
+        is_global_not_found_enabled,
         "".into(),
         directory_tree,
         AppPage::new(),
@@ -1121,8 +1130,9 @@ async fn default_route_tree(
 
 #[turbo_tasks::function]
 async fn directory_tree_to_entrypoints_internal(
-    app_dir: Vc<FileSystemPath>,
+    app_dir: ResolvedVc<FileSystemPath>,
     global_metadata: Vc<GlobalMetadata>,
+    is_global_not_found_enabled: Vc<bool>,
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
@@ -1132,6 +1142,7 @@ async fn directory_tree_to_entrypoints_internal(
     directory_tree_to_entrypoints_internal_untraced(
         app_dir,
         global_metadata,
+        is_global_not_found_enabled,
         directory_name,
         directory_tree,
         app_page,
@@ -1142,8 +1153,9 @@ async fn directory_tree_to_entrypoints_internal(
 }
 
 async fn directory_tree_to_entrypoints_internal_untraced(
-    app_dir: Vc<FileSystemPath>,
+    app_dir: ResolvedVc<FileSystemPath>,
     global_metadata: Vc<GlobalMetadata>,
+    is_global_not_found_enabled: Vc<bool>,
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
@@ -1160,7 +1172,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     // segment config. https://nextjs.org/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#segment-runtime-option
     // Pass down layouts from each tree to apply segment config when adding route.
     let root_layouts = if let Some(layout) = modules.layout {
-        let mut layouts = root_layouts.await?.clone_value();
+        let mut layouts = root_layouts.owned().await?;
         layouts.push(layout);
         ResolvedVc::cell(layouts)
     } else {
@@ -1171,7 +1183,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         let app_path = AppPath::from(app_page.clone());
 
         let loader_tree = *directory_tree_to_loader_tree(
-            app_dir,
+            *app_dir,
             global_metadata,
             directory_name.clone(),
             directory_tree_vc,
@@ -1244,8 +1256,52 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             );
         }
 
+        let mut modules = directory_tree.modules.clone();
+
+        // fill in the default modules for the not-found entrypoint
+        if modules.layout.is_none() {
+            modules.layout = Some(
+                get_next_package(*app_dir)
+                    .join("dist/client/components/default-layout.js".into())
+                    .to_resolved()
+                    .await?,
+            );
+        }
+
+        if modules.not_found.is_none() {
+            modules.not_found = Some(
+                get_next_package(*app_dir)
+                    .join("dist/client/components/not-found-error.js".into())
+                    .to_resolved()
+                    .await?,
+            );
+        }
+        if modules.forbidden.is_none() {
+            modules.forbidden = Some(
+                get_next_package(*app_dir)
+                    .join("dist/client/components/forbidden-error.js".into())
+                    .to_resolved()
+                    .await?,
+            );
+        }
+        if modules.unauthorized.is_none() {
+            modules.unauthorized = Some(
+                get_next_package(*app_dir)
+                    .join("dist/client/components/unauthorized-error.js".into())
+                    .to_resolved()
+                    .await?,
+            );
+        }
+
         // Next.js has this logic in "collect-app-paths", where the root not-found page
         // is considered as its own entry point.
+
+        // Determine if we enable the global not-found feature.
+        let is_global_not_found_enabled = *is_global_not_found_enabled.await?;
+        let use_global_not_found =
+            is_global_not_found_enabled || modules.global_not_found.is_some();
+
+        let not_found_root_modules = modules.without_leafs();
         let not_found_tree = AppPageLoaderTree {
             page: app_page.clone(),
             segment: directory_name.clone(),
@@ -1258,24 +1314,54 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                             page: app_page.clone(),
                             segment: "__PAGE__".into(),
                             parallel_routes: FxIndexMap::default(),
-                            modules: AppDirModules {
-                                page: match modules.not_found {
-                                    Some(v) => Some(v),
-                                    None => Some(get_next_package(app_dir)
-                                        .join("dist/client/components/not-found-error.js".into())
-                                        .to_resolved()
-                                        .await?),
-                                },
-                                ..Default::default()
+                            modules: if use_global_not_found {
+                                // if global-not-found.js is present:
+                                // we use it for the page and no layout, since layout is included in global-not-found.js;
+                                AppDirModules {
+                                    layout: None,
+                                    page: match modules.global_not_found {
+                                        Some(v) => Some(v),
+                                        None => Some(get_next_package(*app_dir)
+                                            .join("dist/client/components/global-not-found.js".into())
+                                            .to_resolved()
+                                            .await?),
+                                    },
+                                    ..Default::default()
+                                }
+                            } else {
+                                // if global-not-found.js is not present:
+                                // we search if we can compose root layout with the root not-found.js;
+                                AppDirModules {
+                                    page: match modules.not_found {
+                                        Some(v) => Some(v),
+                                        None => Some(get_next_package(*app_dir)
+                                            .join("dist/client/components/not-found-error.js".into())
+                                            .to_resolved()
+                                            .await?),
+                                    },
+                                    ..Default::default()
+                                }
                             },
                             global_metadata: global_metadata.to_resolved().await?,
                         }
                     },
-                    modules: AppDirModules::default(),
+                    modules: AppDirModules {
+                        ..Default::default()
+                    },
                     global_metadata: global_metadata.to_resolved().await?,
                 },
             },
-            modules: modules.without_leafs(),
+            modules: AppDirModules {
+                // `global-not-found.js` does not need a layout since it's included.
+                // Skip it if it's present.
+                // Otherwise, we need to compose it with the root layout to compose with not-found.js boundary.
+                layout: if use_global_not_found {
+                    None
+                } else {
+                    modules.layout
+                },
+                ..not_found_root_modules
+            },
             global_metadata: global_metadata.to_resolved().await?,
         }
         .resolved_cell();
@@ -1305,8 +1391,9 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             }
 
             let map = directory_tree_to_entrypoints_internal(
-                app_dir,
+                *app_dir,
                 global_metadata,
+                is_global_not_found_enabled,
                 subdir_name.clone(),
                 *subdirectory,
                 child_app_page.clone(),
@@ -1332,7 +1419,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                         let app_path = AppPath::from(page.clone());
 
                         let loader_tree = directory_tree_to_loader_tree(
-                            app_dir,
+                            *app_dir,
                             global_metadata,
                             directory_name.clone(),
                             directory_tree_vc,
@@ -1427,11 +1514,10 @@ pub async fn get_global_metadata(
     Ok(metadata.cell())
 }
 
-#[turbo_tasks::value(shared, local)]
+#[turbo_tasks::value(shared)]
 struct DirectoryTreeIssue {
     pub severity: ResolvedVc<IssueSeverity>,
-    // no-resolved-vc(kdy1): I'll resolve this later because it's a complex case.
-    pub app_dir: Vc<FileSystemPath>,
+    pub app_dir: ResolvedVc<FileSystemPath>,
     pub message: ResolvedVc<StyledString>,
 }
 
@@ -1454,7 +1540,7 @@ impl Issue for DirectoryTreeIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.app_dir
+        *self.app_dir
     }
 
     #[turbo_tasks::function]

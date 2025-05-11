@@ -1,5 +1,26 @@
 import { NEXT_CACHE_IMPLICIT_TAG_ID } from '../../lib/constants'
 import type { FallbackRouteParams } from '../request/fallback-params'
+import { getCacheHandlerEntries } from '../use-cache/handlers'
+import { createLazyResult, type LazyResult } from './lazy-result'
+
+export interface ImplicitTags {
+  /**
+   * For legacy usage, the implicit tags are passed to the incremental cache
+   * handler in `get` calls.
+   */
+  readonly tags: string[]
+
+  /**
+   * Modern cache handlers don't receive implicit tags. Instead, the implicit
+   * tags' expirations are stored in the work unit store, and used to compare
+   * with a cache entry's timestamp.
+   *
+   * Note: This map contains lazy results so that we can evaluate them when the
+   * first cache entry is read. It allows us to skip fetching the expiration
+   * values if no caches are read at all.
+   */
+  readonly expirationsByCacheKind: Map<string, LazyResult<number>>
+}
 
 const getDerivedTags = (pathname: string): string[] => {
   const derivedTags: string[] = [`/layout`]
@@ -26,16 +47,39 @@ const getDerivedTags = (pathname: string): string[] => {
   return derivedTags
 }
 
-export function getImplicitTags(
+/**
+ * Creates a map with lazy results that fetch the expiration value for the given
+ * tags and respective cache kind when they're awaited for the first time.
+ */
+function createTagsExpirationsByCacheKind(
+  tags: string[]
+): Map<string, LazyResult<number>> {
+  const expirationsByCacheKind = new Map<string, LazyResult<number>>()
+  const cacheHandlers = getCacheHandlerEntries()
+
+  if (cacheHandlers) {
+    for (const [kind, cacheHandler] of cacheHandlers) {
+      if ('getExpiration' in cacheHandler) {
+        expirationsByCacheKind.set(
+          kind,
+          createLazyResult(async () => cacheHandler.getExpiration(...tags))
+        )
+      }
+    }
+  }
+
+  return expirationsByCacheKind
+}
+
+export async function getImplicitTags(
   page: string,
   url: {
     pathname: string
     search?: string
   },
   fallbackRouteParams: null | FallbackRouteParams
-) {
-  // TODO: Cache the result
-  const newTags: string[] = []
+): Promise<ImplicitTags> {
+  const tags: string[] = []
   const hasFallbackRouteParams =
     fallbackRouteParams && fallbackRouteParams.size > 0
 
@@ -43,15 +87,18 @@ export function getImplicitTags(
   const derivedTags = getDerivedTags(page)
   for (let tag of derivedTags) {
     tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${tag}`
-    newTags.push(tag)
+    tags.push(tag)
   }
 
   // Add the tags from the pathname. If the route has unknown params, we don't
   // want to add the pathname as a tag, as it will be invalid.
   if (url.pathname && !hasFallbackRouteParams) {
     const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${url.pathname}`
-    newTags.push(tag)
+    tags.push(tag)
   }
 
-  return newTags
+  return {
+    tags,
+    expirationsByCacheKind: createTagsExpirationsByCacheKind(tags),
+  }
 }

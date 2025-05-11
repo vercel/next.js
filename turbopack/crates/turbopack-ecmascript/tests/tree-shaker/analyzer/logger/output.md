@@ -1,6 +1,6 @@
 # Items
 
-Count: 8
+Count: 7
 
 ## Item 1: Stmt 0, `VarDeclarator(0)`
 
@@ -106,11 +106,9 @@ graph TD
     Item4;
     Item5;
     Item6;
-    Item6["ModuleEvaluation"];
+    Item6["export wrapClientComponentLoader"];
     Item7;
-    Item7["export wrapClientComponentLoader"];
-    Item8;
-    Item8["export getClientComponentLoaderMetrics"];
+    Item7["export getClientComponentLoaderMetrics"];
 ```
 # Phase 2
 ```mermaid
@@ -121,13 +119,11 @@ graph TD
     Item4;
     Item5;
     Item6;
-    Item6["ModuleEvaluation"];
+    Item6["export wrapClientComponentLoader"];
     Item7;
-    Item7["export wrapClientComponentLoader"];
-    Item8;
-    Item8["export getClientComponentLoaderMetrics"];
-    Item7 --> Item4;
-    Item8 --> Item5;
+    Item7["export getClientComponentLoaderMetrics"];
+    Item6 --> Item4;
+    Item7 --> Item5;
 ```
 # Phase 3
 ```mermaid
@@ -138,13 +134,11 @@ graph TD
     Item4;
     Item5;
     Item6;
-    Item6["ModuleEvaluation"];
+    Item6["export wrapClientComponentLoader"];
     Item7;
-    Item7["export wrapClientComponentLoader"];
-    Item8;
-    Item8["export getClientComponentLoaderMetrics"];
-    Item7 --> Item4;
-    Item8 --> Item5;
+    Item7["export getClientComponentLoaderMetrics"];
+    Item6 --> Item4;
+    Item7 --> Item5;
     Item4 --> Item1;
     Item4 --> Item3;
     Item4 --> Item2;
@@ -161,13 +155,11 @@ graph TD
     Item4;
     Item5;
     Item6;
-    Item6["ModuleEvaluation"];
+    Item6["export wrapClientComponentLoader"];
     Item7;
-    Item7["export wrapClientComponentLoader"];
-    Item8;
-    Item8["export getClientComponentLoaderMetrics"];
-    Item7 --> Item4;
-    Item8 --> Item5;
+    Item7["export getClientComponentLoaderMetrics"];
+    Item6 --> Item4;
+    Item7 --> Item5;
     Item4 --> Item1;
     Item4 --> Item3;
     Item4 --> Item2;
@@ -183,7 +175,6 @@ graph TD
     N2["Items: [ItemId(2, VarDeclarator(0))]"];
     N3["Items: [ItemId(3, Normal), ItemId(Export((&quot;wrapClientComponentLoader&quot;, #2), &quot;wrapClientComponentLoader&quot;))]"];
     N4["Items: [ItemId(4, Normal), ItemId(Export((&quot;getClientComponentLoaderMetrics&quot;, #2), &quot;getClientComponentLoaderMetrics&quot;))]"];
-    N5["Items: [ItemId(ModuleEvaluation)]"];
     N4 --> N0;
     N4 --> N2;
     N3 --> N1;
@@ -195,14 +186,14 @@ graph TD
 
 ```
 {
+    ModuleEvaluation: 6,
     Export(
         "getClientComponentLoaderMetrics",
     ): 4,
-    ModuleEvaluation: 5,
-    Exports: 6,
     Export(
         "wrapClientComponentLoader",
     ): 3,
+    Exports: 5,
 }
 ```
 
@@ -309,11 +300,6 @@ export { getClientComponentLoaderMetrics as e } from "__TURBOPACK_VAR__" assert 
 ```
 ## Part 5
 ```js
-"module evaluation";
-
-```
-## Part 6
-```js
 export { wrapClientComponentLoader } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export wrapClientComponentLoader"
 };
@@ -322,23 +308,28 @@ export { getClientComponentLoaderMetrics } from "__TURBOPACK_PART__" assert {
 };
 
 ```
+## Part 6
+```js
+export { };
+
+```
 ## Merged (module eval)
 ```js
-"module evaluation";
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
+    ModuleEvaluation: 6,
     Export(
         "getClientComponentLoaderMetrics",
     ): 4,
-    ModuleEvaluation: 5,
-    Exports: 6,
     Export(
         "wrapClientComponentLoader",
     ): 3,
+    Exports: 5,
 }
 ```
 
@@ -445,11 +436,6 @@ export { getClientComponentLoaderMetrics as e } from "__TURBOPACK_VAR__" assert 
 ```
 ## Part 5
 ```js
-"module evaluation";
-
-```
-## Part 6
-```js
 export { wrapClientComponentLoader } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export wrapClientComponentLoader"
 };
@@ -458,8 +444,13 @@ export { getClientComponentLoaderMetrics } from "__TURBOPACK_PART__" assert {
 };
 
 ```
+## Part 6
+```js
+export { };
+
+```
 ## Merged (module eval)
 ```js
-"module evaluation";
+export { };
 
 ```

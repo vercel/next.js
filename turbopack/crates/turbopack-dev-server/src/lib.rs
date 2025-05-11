@@ -116,7 +116,7 @@ impl DevServerBuilder {
     pub fn serve(
         self,
         turbo_tasks: Arc<dyn TurboTasksApi>,
-        source_provider: impl SourceProvider + Sync,
+        source_provider: impl SourceProvider + NonLocalValue + TraceRawVcs + Sync,
         get_issue_reporter: Arc<dyn Fn() -> Vc<Box<dyn IssueReporter>> + Send + Sync>,
     ) -> DevServer {
         let ongoing_side_effects = Arc::new(Mutex::new(VecDeque::<
@@ -173,6 +173,8 @@ impl DevServerBuilder {
                             uri: request.uri().clone(),
                         };
                         run_once_with_reason(tt.clone(), reason, async move {
+                            // TODO: `get_issue_reporter` should be an `OperationVc`, as there's a
+                            // risk it could be a task-local Vc, which is not safe for us to await.
                             let issue_reporter = get_issue_reporter();
 
                             if hyper_tungstenite::is_upgrade_request(&request) {
@@ -210,12 +212,12 @@ impl DevServerBuilder {
 
                             let uri = request.uri();
                             let path = uri.path().to_string();
-                            let source = source_provider.get_source();
+                            let source_op = source_provider.get_source();
                             // HACK: Resolve `source` now so that we can get any issues on it
-                            let _ = source.connect().resolve_strongly_consistent().await?;
-                            apply_effects(source).await?;
+                            let _ = source_op.resolve_strongly_consistent().await?;
+                            apply_effects(source_op).await?;
                             handle_issues(
-                                source,
+                                source_op,
                                 issue_reporter,
                                 IssueSeverity::Fatal.cell(),
                                 Some(&path),
@@ -231,7 +233,7 @@ impl DevServerBuilder {
                                     // It's unlikely (the calls happen one-after-another), but this
                                     // could cause inconsistency between the reported issues and
                                     // the generated HTTP response.
-                                    source,
+                                    source_op,
                                     request,
                                     issue_reporter,
                                 )

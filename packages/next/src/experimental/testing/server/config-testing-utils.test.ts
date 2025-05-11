@@ -49,6 +49,27 @@ describe('config-testing-utils', () => {
       )
     })
 
+    it('handles redirect with query params', async () => {
+      const response = await unstable_getResponseFromNextConfig({
+        url: 'https://nextjs.org/test/foo',
+        nextConfig: {
+          async redirects() {
+            return [
+              {
+                source: '/test/:slug',
+                destination: '/test2?slug=:slug',
+                permanent: true,
+              },
+            ]
+          },
+        },
+      })
+      expect(response.status).toEqual(308)
+      expect(response.headers.get('location')).toEqual(
+        'https://nextjs.org/test2?slug=foo'
+      )
+    })
+
     it("ignores redirect that doesn't match has", async () => {
       const response = await unstable_getResponseFromNextConfig({
         url: 'https://nextjs.org/test/foo',

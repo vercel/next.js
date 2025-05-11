@@ -10,7 +10,6 @@ import type { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/sub
 import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
-import type { ExpireTime } from './lib/revalidate'
 import type { SupportedTestRunners } from '../cli/next-test'
 import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
@@ -21,6 +20,10 @@ export type NextConfigComplete = Required<NextConfig> & {
   configOrigin?: string
   configFile?: string
   configFileName: string
+  // override NextConfigComplete.experimental.htmlLimitedBots to string
+  // because it's not defined in NextConfigComplete.experimental
+  htmlLimitedBots: string | undefined
+  experimental: Omit<ExperimentalConfig, 'turbo'>
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -91,7 +94,10 @@ type JSONValue =
   | JSONValue[]
   | { [k: string]: JSONValue }
 
-export type TurboLoaderItem =
+/**
+ * @deprecated Use `TurbopackRuleConfigItem` instead.
+ */
+export type TurbopackLoaderItem =
   | string
   | {
       loader: string
@@ -99,21 +105,25 @@ export type TurboLoaderItem =
       options: Record<string, JSONValue>
     }
 
-export type TurboRuleConfigItemOrShortcut =
-  | TurboLoaderItem[]
-  | TurboRuleConfigItem
+export type TurbopackRuleCondition = {
+  path: string | RegExp
+}
 
-export type TurboRuleConfigItemOptions = {
-  loaders: TurboLoaderItem[]
+export type TurbopackRuleConfigItemOrShortcut =
+  | TurbopackLoaderItem[]
+  | TurbopackRuleConfigItem
+
+export type TurbopackRuleConfigItemOptions = {
+  loaders: TurbopackLoaderItem[]
   as?: string
 }
 
-export type TurboRuleConfigItem =
-  | TurboRuleConfigItemOptions
-  | { [condition: string]: TurboRuleConfigItem }
+export type TurbopackRuleConfigItem =
+  | TurbopackRuleConfigItemOptions
+  | { [condition: string]: TurbopackRuleConfigItem }
   | false
 
-export interface ExperimentalTurboOptions {
+export interface TurbopackOptions {
   /**
    * (`next --turbopack` only) A mapping of aliased imports to modules to load in their place.
    *
@@ -136,47 +146,61 @@ export interface ExperimentalTurboOptions {
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
-  loaders?: Record<string, TurboLoaderItem[]>
+  rules?: Record<string, TurbopackRuleConfigItemOrShortcut>
 
   /**
-   * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
+   * (`next --turbopack` only) A list of conditions to apply when running webpack loaders with Turbopack.
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
-  rules?: Record<string, TurboRuleConfigItemOrShortcut>
-
-  /**
-   * A target memory limit for turbo, in bytes.
-   */
-  memoryLimit?: number
-
-  /**
-   * Enable persistent caching for the turbopack dev server and build.
-   */
-  unstablePersistentCaching?: boolean
-
-  /**
-   * Enable tree shaking for the turbopack dev server and build.
-   */
-  treeShaking?: boolean
+  conditions?: Record<string, TurbopackRuleCondition>
 
   /**
    * The module ID strategy to use for Turbopack.
    * If not set, the default is `'named'` for development and `'deterministic'`
    * for production.
    */
-  moduleIdStrategy?: 'named' | 'deterministic'
+  moduleIds?: 'named' | 'deterministic'
 
   /**
    * This is the repo root usually and only files above this
    * directory can be resolved by turbopack.
    */
   root?: string
+}
+
+export interface DeprecatedExperimentalTurboOptions extends TurbopackOptions {
+  /**
+   * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
+   *
+   * @deprecated Use `rules` instead.
+   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
+   */
+  loaders?: Record<string, TurbopackLoaderItem[]>
+
+  /**
+   * A target memory limit for turbo, in bytes.
+   * @deprecated Use `experimental.turbopackMemoryLimit` instead.
+   */
+  memoryLimit?: number
 
   /**
    * Enable minification. Defaults to true in build mode and false in dev mode.
+   * @deprecated Use `experimental.turbopackMinify` instead.
    */
   minify?: boolean
+
+  /**
+   * Enable tree shaking for the turbopack dev server and build.
+   * @deprecated Use `experimental.turbopackTreeShaking` instead.
+   */
+  treeShaking?: boolean
+
+  /**
+   * Enable source maps. Defaults to true.
+   * @deprecated Use `experimental.turbopackSourceMaps` instead.
+   */
+  sourceMaps?: boolean
 }
 
 export interface WebpackConfigContext {
@@ -223,6 +247,14 @@ export interface ReactCompilerOptions {
   panicThreshold?: 'ALL_ERRORS' | 'CRITICAL_ERRORS' | 'NONE'
 }
 
+export interface IncomingRequestLoggingConfig {
+  /**
+   * A regular expression array to match incoming requests that should not be logged.
+   * You can specify multiple patterns to match incoming requests that should not be logged.
+   */
+  ignore?: RegExp[]
+}
+
 export interface LoggingConfig {
   fetches?: {
     fullUrl?: boolean
@@ -232,9 +264,17 @@ export interface LoggingConfig {
      */
     hmrRefreshes?: boolean
   }
+
+  /**
+   * If set to false, incoming request logging is disabled.
+   * You can specify a pattern to match incoming requests that should not be logged.
+   */
+  incomingRequests?: boolean | IncomingRequestLoggingConfig
 }
 
 export interface ExperimentalConfig {
+  useSkewCookie?: boolean
+  nodeMiddleware?: boolean
   cacheHandlers?: {
     default?: string
     remote?: string
@@ -246,7 +286,8 @@ export interface ExperimentalConfig {
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
-  clientSegmentCache?: boolean
+  clientSegmentCache?: boolean | 'client-only'
+  dynamicOnHover?: boolean
   appDocumentPreloading?: boolean
   preloadEntriesOnStart?: boolean
   /** @default true */
@@ -292,7 +333,7 @@ export interface ExperimentalConfig {
   /**
    * @deprecated use config.expireTime instead
    */
-  expireTime?: ExpireTime
+  expireTime?: number
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
   /**
@@ -353,7 +394,35 @@ export interface ExperimentalConfig {
    */
   optimizeServerReact?: boolean
 
-  turbo?: ExperimentalTurboOptions
+  /**
+   * @deprecated Use `config.turbopack` instead.
+   */
+  turbo?: DeprecatedExperimentalTurboOptions
+
+  /**
+   * A target memory limit for turbo, in bytes.
+   */
+  turbopackMemoryLimit?: number
+
+  /**
+   * Enable minification. Defaults to true in build mode and false in dev mode.
+   */
+  turbopackMinify?: boolean
+
+  /**
+   * Enable persistent caching for the turbopack dev server and build.
+   */
+  turbopackPersistentCaching?: boolean
+
+  /**
+   * Enable source maps. Defaults to true.
+   */
+  turbopackSourceMaps?: boolean
+
+  /**
+   * Enable tree shaking for the turbopack dev server and build.
+   */
+  turbopackTreeShaking?: boolean
 
   /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
@@ -448,10 +517,19 @@ export interface ExperimentalConfig {
   taint?: boolean
 
   /**
-   * Enables leveraging experimental captureOwnerStack API in React,
-   * to create a better stack trace for React errors.
+   * Enables the Back/Forward Cache for the router.
    */
-  reactOwnerStack?: boolean
+  routerBFCache?: boolean
+
+  /**
+   * Uninstalls all "unhandledRejection" and "uncaughtException" listeners from
+   * the global process so that we can override the behavior, which in some
+   * runtimes is to exit the process.
+   *
+   * This is experimental until we've considered the impact in various
+   * deployment environments.
+   */
+  removeUncaughtErrorAndRejectionListeners?: boolean
 
   serverActions?: {
     /**
@@ -494,6 +572,11 @@ export interface ExperimentalConfig {
    * Enables early import feature for app router modules
    */
   useEarlyImport?: boolean
+
+  /**
+   * Enables view transitions by using the {@link https://github.com/facebook/react/pull/31975 unstable_ViewTransition} Component.
+   */
+  viewTransition?: boolean
 
   /**
    * Enables `fetch` requests to be proxied to the experimental test proxy server
@@ -564,9 +647,36 @@ export interface ExperimentalConfig {
   authInterrupts?: boolean
 
   /**
-   * Enables the new dev overlay.
+   * Enables the use of the `"use cache"` directive.
    */
-  newDevOverlay?: boolean
+  useCache?: boolean
+
+  /**
+   * Enables detection and reporting of slow modules during development builds.
+   * Enabling this may impact build performance to ensure accurate measurements.
+   */
+  slowModuleDetection?: {
+    /**
+     * The time threshold in milliseconds for identifying slow modules.
+     * Modules taking longer than this build time threshold will be reported.
+     */
+    buildTimeThresholdMs: number
+  }
+
+  /**
+   * Enables the client instrumentation hook.
+   * Loads the instrumentation-client.ts file from the project root
+   * and executes it on the client side before hydration.
+   *
+   * Note: Use with caution as this can negatively impact page loading performance.
+   */
+  clientInstrumentationHook?: boolean
+
+  /**
+   * Enables using the global-not-found.js file in the app directory
+   *
+   */
+  globalNotFound?: boolean
 }
 
 export type ExportPathMap = {
@@ -627,6 +737,15 @@ export type ExportPathMap = {
      * @internal
      */
     _isProspectiveRender?: boolean
+
+    /**
+     * When true, it indicates that the diagnostic render for this page is
+     * disabled. This is only used when the app has `experimental.ppr` and
+     * `experimental.dynamicIO` enabled.
+     *
+     * @internal
+     */
+    _doNotThrowOnEmptyStaticShell?: boolean
   }
 }
 
@@ -635,9 +754,11 @@ export type ExportPathMap = {
  *
  * This can change the behavior, enable experimental features, and configure other advanced options.
  *
- * Read more: [Next.js Docs: `next.config.js`](https://nextjs.org/docs/api-reference/next.config.js/introduction)
+ * Read more: [Next.js Docs: `next.config.js`](https://nextjs.org/docs/app/api-reference/config/next-config-js)
  */
 export interface NextConfig extends Record<string, any> {
+  allowedDevOrigins?: string[]
+
   exportPathMap?: (
     defaultMap: ExportPathMap,
     ctx: {
@@ -670,28 +791,28 @@ export interface NextConfig extends Record<string, any> {
   /**
    * Headers allow you to set custom HTTP headers for an incoming request path.
    *
-   * @see [Headers configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/headers)
+   * @see [Headers configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/headers)
    */
   headers?: () => Promise<Header[]>
 
   /**
    * Rewrites allow you to map an incoming request path to a different destination path.
    *
-   * @see [Rewrites configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/rewrites)
+   * @see [Rewrites configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/rewrites)
    */
   rewrites?: () => Promise<
     | Rewrite[]
     | {
-        beforeFiles: Rewrite[]
-        afterFiles: Rewrite[]
-        fallback: Rewrite[]
+        beforeFiles?: Rewrite[]
+        afterFiles?: Rewrite[]
+        fallback?: Rewrite[]
       }
   >
 
   /**
    * Redirects allow you to redirect an incoming request path to a different destination path.
    *
-   * @see [Redirects configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/redirects)
+   * @see [Redirects configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/redirects)
    */
   redirects?: () => Promise<Redirect[]>
 
@@ -703,7 +824,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * Before continuing to add custom webpack configuration to your application make sure Next.js doesn't already support your use-case
    *
-   * @see [Custom Webpack Config documentation](https://nextjs.org/docs/api-reference/next.config.js/custom-webpack-config)
+   * @see [Custom Webpack Config documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/webpack)
    */
   webpack?: NextJsWebpackConfig | null
 
@@ -711,14 +832,14 @@ export interface NextConfig extends Record<string, any> {
    * By default Next.js will redirect urls with trailing slashes to their counterpart without a trailing slash.
    *
    * @default false
-   * @see [Trailing Slash Configuration](https://nextjs.org/docs/api-reference/next.config.js/trailing-slash)
+   * @see [Trailing Slash Configuration](https://nextjs.org/docs/app/api-reference/config/next-config-js/trailingSlash)
    */
   trailingSlash?: boolean
 
   /**
    * Next.js comes with built-in support for environment variables
    *
-   * @see [Environment Variables documentation](https://nextjs.org/docs/api-reference/next.config.js/environment-variables)
+   * @see [Environment Variables documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/env)
    */
   env?: Record<string, string | undefined>
 
@@ -735,7 +856,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * To set up a CDN, you can set up an asset prefix and configure your CDN's origin to resolve to the domain that Next.js is hosted on.
    *
-   * @see [CDN Support with Asset Prefix](https://nextjs.org/docs/api-reference/next.config.js/cdn-support-with-asset-prefix)
+   * @see [CDN Support with Asset Prefix](https://nextjs.org/docs/app/api-reference/config/next-config-js/assetPrefix)
    */
   assetPrefix?: string
 
@@ -764,43 +885,62 @@ export interface NextConfig extends Record<string, any> {
   useFileSystemPublicRoutes?: boolean
 
   /**
-   * @see [Configuring the build ID](https://nextjs.org/docs/api-reference/next.config.js/configuring-the-build-id)
+   * @see [Configuring the build ID](https://nextjs.org/docs/app/api-reference/config/next-config-js/generateBuildId)
    */
   generateBuildId?: () => string | null | Promise<string | null>
 
-  /** @see [Disabling ETag Configuration](https://nextjs.org/docs/api-reference/next.config.js/disabling-etag-generation) */
+  /** @see [Disabling ETag Configuration](https://nextjs.org/docs/app/api-reference/config/next-config-js/generateEtags) */
   generateEtags?: boolean
 
-  /** @see [Including non-page files in the pages directory](https://nextjs.org/docs/api-reference/next.config.js/custom-page-extensions) */
+  /** @see [Including non-page files in the pages directory](https://nextjs.org/docs/app/api-reference/config/next-config-js/pageExtensions) */
   pageExtensions?: string[]
 
-  /** @see [Compression documentation](https://nextjs.org/docs/api-reference/next.config.js/compression) */
+  /** @see [Compression documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/compress) */
   compress?: boolean
 
-  /** @see [Disabling x-powered-by](https://nextjs.org/docs/api-reference/next.config.js/disabling-x-powered-by) */
+  /** @see [Disabling x-powered-by](https://nextjs.org/docs/app/api-reference/config/next-config-js/poweredByHeader) */
   poweredByHeader?: boolean
 
   /** @see [Using the Image Component](https://nextjs.org/docs/app/api-reference/next-config-js/images) */
   images?: ImageConfig
 
   /** Configure indicators in development environment */
-  devIndicators?: {
-    /** Show "building..."" indicator in development */
-    buildActivity?: boolean
-    /** Position of "building..." indicator in browser */
-    buildActivityPosition?:
-      | 'bottom-right'
-      | 'bottom-left'
-      | 'top-right'
-      | 'top-left'
+  devIndicators?:
+    | false
+    | {
+        /**
+         * @deprecated The dev tools indicator has it enabled by default. To disable, set `devIndicators` to `false`.
+         * */
+        appIsrStatus?: boolean
 
-    appIsrStatus?: boolean
-  }
+        /**
+         * Show "building..." indicator in development
+         * @deprecated The dev tools indicator has it enabled by default. To disable, set `devIndicators` to `false`.
+         */
+        buildActivity?: boolean
+
+        /**
+         * Position of "building..." indicator in browser
+         * @default "bottom-right"
+         * @deprecated Renamed as `position`.
+         */
+        buildActivityPosition?:
+          | 'top-left'
+          | 'top-right'
+          | 'bottom-left'
+          | 'bottom-right'
+
+        /**
+         * Position of the development tools indicator in the browser window.
+         * @default "bottom-left"
+         * */
+        position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+      }
 
   /**
    * Next.js exposes some options that give you some control over how the server will dispose or keep in memory built pages in development.
    *
-   * @see [Configuring `onDemandEntries`](https://nextjs.org/docs/api-reference/next.config.js/configuring-onDemandEntries)
+   * @see [Configuring `onDemandEntries`](https://nextjs.org/docs/app/api-reference/config/next-config-js/onDemandEntries)
    */
   onDemandEntries?: {
     /** period (in ms) where the server will keep pages in the buffer */
@@ -822,7 +962,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * Deploy a Next.js application under a sub-path of a domain
    *
-   * @see [Base path configuration](https://nextjs.org/docs/api-reference/next.config.js/basepath)
+   * @see [Base path configuration](https://nextjs.org/docs/app/api-reference/config/next-config-js/basePath)
    */
   basePath?: string
 
@@ -848,7 +988,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * The Next.js runtime is Strict Mode-compliant.
    *
-   * @see [React Strict Mode](https://nextjs.org/docs/api-reference/next.config.js/react-strict-mode)
+   * @see [React Strict Mode](https://nextjs.org/docs/app/api-reference/config/next-config-js/reactStrictMode)
    */
   reactStrictMode?: boolean | null
 
@@ -856,21 +996,21 @@ export interface NextConfig extends Record<string, any> {
    * The maximum length of the headers that are emitted by React and added to
    * the response.
    *
-   * @see [React Max Headers Length](https://nextjs.org/docs/api-reference/next.config.js/react-max-headers-length)
+   * @see [React Max Headers Length](https://nextjs.org/docs/app/api-reference/config/next-config-js/reactMaxHeadersLength)
    */
   reactMaxHeadersLength?: number
 
   /**
    * Add public (in browser) runtime configuration to your app
    *
-   * @see [Runtime configuration](https://nextjs.org/docs/api-reference/next.config.js/runtime-configuration)
+   * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration
    */
   publicRuntimeConfig?: { [key: string]: any }
 
   /**
    * Add server runtime configuration to your app
    *
-   * @see [Runtime configuration](https://nextjs.org/docs/api-reference/next.config.js/runtime-configuration)
+   * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration
    */
   serverRuntimeConfig?: { [key: string]: any }
 
@@ -933,6 +1073,22 @@ export interface NextConfig extends Record<string, any> {
      * replaced with the respective values.
      */
     define?: Record<string, string>
+
+    /**
+     * A hook function that executes after production build compilation finishes,
+     * but before running post-compilation tasks such as type checking and
+     * static page generation.
+     */
+    runAfterProductionCompile?: (metadata: {
+      /**
+       * The root directory of the project
+       */
+      projectDir: string
+      /**
+       * The build output directory (defaults to `.next`)
+       */
+      distDir: string
+    }) => Promise<void>
   }
 
   /**
@@ -952,6 +1108,11 @@ export interface NextConfig extends Record<string, any> {
    */
   transpilePackages?: string[]
 
+  /**
+   * Options for Turbopack. Temporarily also available as `experimental.turbo` for compatibility.
+   */
+  turbopack?: TurbopackOptions
+
   skipMiddlewareUrlNormalize?: boolean
 
   skipTrailingSlashRedirect?: boolean
@@ -965,12 +1126,15 @@ export interface NextConfig extends Record<string, any> {
     }
   >
 
+  /**
+   * Logging configuration. Set to `false` to disable logging.
+   */
   logging?: LoggingConfig | false
 
   /**
    * period (in seconds) where the server allow to serve stale cache
    */
-  expireTime?: ExpireTime
+  expireTime?: number
 
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
@@ -1010,6 +1174,15 @@ export interface NextConfig extends Record<string, any> {
   watchOptions?: {
     pollIntervalMs?: number
   }
+
+  /**
+   * User Agent of bots that can handle streaming metadata.
+   * Besides the default behavior, Next.js act differently on serving metadata to bots based on their capability.
+   *
+   * @default
+   * /Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview/i
+   */
+  htmlLimitedBots?: RegExp
 }
 
 export const defaultConfig: NextConfig = {
@@ -1037,9 +1210,7 @@ export const defaultConfig: NextConfig = {
   compress: true,
   images: imageConfigDefault,
   devIndicators: {
-    appIsrStatus: true,
-    buildActivity: true,
-    buildActivityPosition: 'bottom-right',
+    position: 'bottom-left',
   },
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
@@ -1063,12 +1234,18 @@ export const defaultConfig: NextConfig = {
     keepAlive: true,
   },
   logging: {},
-  expireTime: process.env.__NEXT_TEST_MODE ? undefined : 31536000,
+  compiler: {},
+  expireTime: process.env.NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL
+    ? undefined
+    : 31536000, // one year
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
+  allowedDevOrigins: undefined,
   experimental: {
+    useSkewCookie: false,
+    nodeMiddleware: false,
     cacheLife: {
       default: {
         stale: undefined, // defaults to staleTimes.static
@@ -1120,6 +1297,7 @@ export const defaultConfig: NextConfig = {
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
     clientSegmentCache: false,
+    dynamicOnHover: false,
     appDocumentPreloading: undefined,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
@@ -1173,11 +1351,13 @@ export const defaultConfig: NextConfig = {
         process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       ),
     authInterrupts: false,
-    reactOwnerStack: false,
     webpackBuildWorker: undefined,
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     useEarlyImport: false,
+    viewTransition: false,
+    routerBFCache: false,
+    removeUncaughtErrorAndRejectionListeners: false,
     staleTimes: {
       dynamic: 0,
       static: 300,
@@ -1190,8 +1370,11 @@ export const defaultConfig: NextConfig = {
     staticGenerationMinPagesPerWorker: 25,
     dynamicIO: false,
     inlineCss: false,
-    newDevOverlay: false,
+    useCache: undefined,
+    slowModuleDetection: undefined,
+    globalNotFound: false,
   },
+  htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
 }
 

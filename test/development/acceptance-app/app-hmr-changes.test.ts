@@ -22,7 +22,7 @@ describe('Error overlay - RSC build errors', () => {
   })
 
   // TODO: The error overlay is not closed when restoring the working code.
-  ;(process.env.TURBOPACK ? describe : describe.skip)(
+  ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
     'Skipped in webpack',
     () => {
       it('should handle successive HMR changes with errors correctly', async () => {

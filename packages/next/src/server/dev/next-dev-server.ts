@@ -6,7 +6,6 @@ import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { MiddlewareRoutingItem } from '../base-server'
-import type { FunctionComponent } from 'react'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { RouteMatcherManager } from '../route-matcher-managers/route-matcher-manager'
 import {
@@ -70,13 +69,15 @@ import type { ServerOnInstrumentationRequestError } from '../app-render/types'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import { logRequests } from './log-requests'
 import { FallbackMode } from '../../lib/fallback'
+import type { PagesDevOverlayType } from '../../client/components/react-dev-overlay/pages/pages-dev-overlay'
 
 // Load ReactDevOverlay only when needed
-let ReactDevOverlayImpl: FunctionComponent
-const ReactDevOverlay = (props: any) => {
+let ReactDevOverlayImpl: PagesDevOverlayType
+const ReactDevOverlay: PagesDevOverlayType = (props) => {
   if (ReactDevOverlayImpl === undefined) {
     ReactDevOverlayImpl =
-      require('../../client/components/react-dev-overlay/pages/client').ReactDevOverlay
+      require('../../client/components/react-dev-overlay/pages/pages-dev-overlay')
+        .PagesDevOverlay as PagesDevOverlayType
   }
   return ReactDevOverlayImpl(props)
 }
@@ -173,27 +174,59 @@ export default class DevServer extends Server {
     )
     this.renderOpts.ampSkipValidation =
       this.nextConfig.experimental?.amp?.skipValidation ?? false
-    this.renderOpts.ampValidator = (html: string, pathname: string) => {
-      const validatorPath =
-        (this.nextConfig.experimental &&
-          this.nextConfig.experimental.amp &&
-          this.nextConfig.experimental.amp.validator) ||
-        require.resolve(
-          'next/dist/compiled/amphtml-validator/validator_wasm.js'
-        )
+    this.renderOpts.ampValidator = async (html: string, pathname: string) => {
+      const { getAmpValidatorInstance, getBundledAmpValidatorFilepath } =
+        require('../../export/helpers/get-amp-html-validator') as typeof import('../../export/helpers/get-amp-html-validator')
 
-      const AmpHtmlValidator =
-        require('next/dist/compiled/amphtml-validator') as typeof import('next/dist/compiled/amphtml-validator')
-      return AmpHtmlValidator.getInstance(validatorPath).then((validator) => {
-        const result = validator.validateString(html)
-        ampValidation(
-          pathname,
-          result.errors
-            .filter((e) => e.severity === 'ERROR')
-            .filter((e) => this._filterAmpDevelopmentScript(html, e)),
-          result.errors.filter((e) => e.severity !== 'ERROR')
-        )
-      })
+      const validatorPath =
+        this.nextConfig.experimental?.amp?.validator ||
+        getBundledAmpValidatorFilepath()
+
+      const validator = await getAmpValidatorInstance(validatorPath)
+
+      const result = validator.validateString(html)
+      ampValidation(
+        pathname,
+        result.errors
+          .filter((error) => {
+            if (error.severity === 'ERROR') {
+              // Unclear yet if these actually prevent the page from being indexed by the AMP cache.
+              // These are coming from React so all we can do is ignore them for now.
+
+              // <link rel="expect" blocking="render" />
+              // https://github.com/ampproject/amphtml/issues/40279
+              if (
+                error.code === 'DISALLOWED_ATTR' &&
+                error.params[0] === 'blocking' &&
+                error.params[1] === 'link'
+              ) {
+                return false
+              }
+              // <template> without type
+              // https://github.com/ampproject/amphtml/issues/40280
+              if (
+                error.code === 'MANDATORY_ATTR_MISSING' &&
+                error.params[0] === 'type' &&
+                error.params[1] === 'template'
+              ) {
+                return false
+              }
+              // <template> without type
+              // https://github.com/ampproject/amphtml/issues/40280
+              if (
+                error.code === 'MISSING_REQUIRED_EXTENSION' &&
+                error.params[0] === 'template' &&
+                error.params[1] === 'amp-mustache'
+              ) {
+                return false
+              }
+              return true
+            }
+            return false
+          })
+          .filter((e) => this._filterAmpDevelopmentScript(html, e)),
+        result.errors.filter((e) => e.severity !== 'ERROR')
+      )
     }
 
     const { pagesDir, appDir } = findPagesDir(this.dir)
@@ -604,10 +637,18 @@ export default class DevServer extends Server {
       this.nextConfig.basePath
     ).map((route) => new RegExp(buildCustomRoute('rewrite', route).regex))
 
+    if (this.nextConfig.output === 'export' && rewrites.length > 0) {
+      Log.error(
+        'Intercepting routes are not supported with static export.\nRead more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports#unsupported-features'
+      )
+
+      process.exit(1)
+    }
+
     return rewrites ?? []
   }
 
-  protected getMiddleware() {
+  protected async getMiddleware() {
     // We need to populate the match
     // field as it isn't serializable
     if (this.middleware?.match === null) {
@@ -770,6 +811,7 @@ export default class DevServer extends Server {
           isAppPath,
           requestHeaders,
           cacheHandler: this.nextConfig.cacheHandler,
+          cacheHandlers: this.nextConfig.experimental.cacheHandlers,
           cacheLifeProfiles: this.nextConfig.experimental.cacheLife,
           fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
@@ -866,34 +908,27 @@ export default class DevServer extends Server {
       // Wrap build errors so that they don't get logged again
       throw new WrappedBuildError(compilationErr)
     }
-    try {
-      if (shouldEnsure || this.serverOptions.customServer) {
-        await this.ensurePage({
-          page,
-          appPaths,
-          clientOnly: false,
-          definition: undefined,
-          url,
-        })
-      }
-
-      this.nextFontManifest = super.getNextFontManifest()
-
-      return await super.findPageComponents({
-        locale,
+    if (shouldEnsure || this.serverOptions.customServer) {
+      await this.ensurePage({
         page,
-        query,
-        params,
-        isAppPath,
-        shouldEnsure,
+        appPaths,
+        clientOnly: false,
+        definition: undefined,
         url,
       })
-    } catch (err) {
-      if ((err as any).code !== 'ENOENT') {
-        throw err
-      }
-      return null
     }
+
+    this.nextFontManifest = super.getNextFontManifest()
+
+    return await super.findPageComponents({
+      page,
+      query,
+      params,
+      locale,
+      isAppPath,
+      shouldEnsure,
+      url,
+    })
   }
 
   protected async getFallbackErrorComponents(

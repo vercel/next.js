@@ -1,5 +1,4 @@
 use std::{
-    collections::{HashMap, HashSet},
     env::{self, current_dir},
     fmt::{Display, Write},
     fs::read_dir,
@@ -10,9 +9,10 @@ use std::{
 use anyhow::{Context, Result};
 use glob::glob;
 use quote::ToTokens;
+use rustc_hash::{FxHashMap, FxHashSet};
 use syn::{
     parse_quote, Attribute, Ident, Item, ItemEnum, ItemFn, ItemImpl, ItemMacro, ItemMod,
-    ItemStruct, ItemTrait, TraitItem, TraitItemMethod,
+    ItemStruct, ItemTrait, TraitItem, TraitItemFn,
 };
 use turbo_tasks_macros_shared::{
     get_impl_function_ident, get_native_function_ident, get_path_ident,
@@ -98,7 +98,7 @@ pub fn generate_register() {
         let prefix = format!("{crate_name}@{hash}::");
 
         let mut register_code = String::new();
-        let mut values = HashMap::new();
+        let mut values = FxHashMap::default();
 
         let out_file = out_dir.join(filename);
 
@@ -184,7 +184,7 @@ pub fn rerun_if_glob(globs: &str, root: &str) {
     let globs = cwd.join(globs.replace('/', PATH_SEP.to_string().as_str()));
     let root = cwd.join(root.replace('/', PATH_SEP.to_string().as_str()));
     println!("cargo:rerun-if-changed={}", root.display());
-    let mut seen = HashSet::from([root]);
+    let mut seen = FxHashSet::from_iter([root]);
     for entry in glob(globs.to_str().unwrap()).unwrap() {
         let path = entry.unwrap();
         for ancestor in path.ancestors() {
@@ -225,7 +225,7 @@ struct RegisterContext<'a> {
     prefix: &'a str,
 
     register: &'a mut String,
-    values: &'a mut HashMap<ValueKey, ValueEntry>,
+    values: &'a mut FxHashMap<ValueKey, ValueEntry>,
 }
 
 impl RegisterContext<'_> {
@@ -286,7 +286,7 @@ impl RegisterContext<'_> {
             }
 
             for item in &impl_item.items {
-                if let syn::ImplItem::Method(method_item) = item {
+                if let syn::ImplItem::Fn(method_item) = item {
                     // TODO: if method_item.attrs.iter().any(|a|
                     // is_attribute(a,
                     // "function")) {
@@ -371,7 +371,7 @@ impl RegisterContext<'_> {
             let trait_ident = &trait_item.ident;
 
             for item in &trait_item.items {
-                if let TraitItem::Method(TraitItemMethod {
+                if let TraitItem::Fn(TraitItemFn {
                     default: Some(_),
                     sig,
                     ..
@@ -583,7 +583,7 @@ fn has_turbo_attribute(attrs: &[Attribute], name: &str) -> bool {
 }
 
 fn is_turbo_attribute(attr: &Attribute, name: &str) -> bool {
-    let path = &attr.path;
+    let path = attr.path();
     if path.leading_colon.is_some() {
         return false;
     }
@@ -598,7 +598,7 @@ fn is_turbo_attribute(attr: &Attribute, name: &str) -> bool {
 }
 
 fn is_cfg_attribute(attr: &Attribute) -> bool {
-    attr.path
+    attr.path()
         .get_ident()
         .is_some_and(|ident| ident == "cfg" || ident == "cfg_attr")
 }

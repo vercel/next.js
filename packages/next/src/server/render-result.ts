@@ -1,5 +1,5 @@
 import type { OutgoingHttpHeaders, ServerResponse } from 'http'
-import type { Revalidate } from './lib/revalidate'
+import type { CacheControl } from './lib/cache-control'
 import type { FetchMetrics } from './base-http'
 
 import {
@@ -16,7 +16,7 @@ type ContentTypeOption = string | undefined
 
 export type AppPageRenderResultMetadata = {
   flightData?: Buffer
-  revalidate?: Revalidate
+  cacheControl?: CacheControl
   staticBailoutInfo?: {
     stack?: string
     description?: string
@@ -45,7 +45,7 @@ export type AppPageRenderResultMetadata = {
 
 export type PagesRenderResultMetadata = {
   pageData?: any
-  revalidate?: Revalidate
+  cacheControl?: CacheControl
   assetQueryString?: string
   isNotFound?: boolean
   isRedirect?: boolean

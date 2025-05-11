@@ -5,10 +5,7 @@
  */
 export function getEdgePreviewProps() {
   return {
-    previewModeId:
-      process.env.NODE_ENV === 'production'
-        ? process.env.__NEXT_PREVIEW_MODE_ID!
-        : 'development-id',
+    previewModeId: process.env.__NEXT_PREVIEW_MODE_ID || '',
     previewModeSigningKey: process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY || '',
     previewModeEncryptionKey:
       process.env.__NEXT_PREVIEW_MODE_ENCRYPTION_KEY || '',

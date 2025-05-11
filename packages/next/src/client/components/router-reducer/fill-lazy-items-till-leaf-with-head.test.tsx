@@ -33,22 +33,26 @@ const getFlightData = (): FlightData => {
   ]
 }
 
+const navigatedAt = Date.now()
+
 describe('fillLazyItemsTillLeafWithHead', () => {
   it('should fill lazy items till leaf with head', () => {
     const cache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
-      head: [null, null],
+      head: null,
       prefetchHead: null,
       parallelRoutes: new Map(),
       loading: null,
     }
     const existingCache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       rsc: <>Root layout</>,
       prefetchRsc: null,
-      head: [null, null],
+      head: null,
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map([
@@ -58,10 +62,11 @@ describe('fillLazyItemsTillLeafWithHead', () => {
             [
               'linking',
               {
+                navigatedAt,
                 lazyData: null,
                 rsc: <>Linking</>,
                 prefetchRsc: null,
-                head: [null, null],
+                head: null,
                 prefetchHead: null,
                 loading: null,
                 parallelRoutes: new Map([
@@ -71,10 +76,11 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                       [
                         '',
                         {
+                          navigatedAt,
                           lazyData: null,
                           rsc: <>Page</>,
                           prefetchRsc: null,
-                          head: [null, null],
+                          head: null,
                           prefetchHead: null,
                           loading: null,
                           parallelRoutes: new Map(),
@@ -102,6 +108,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
       flightDataPath.slice(-4)
 
     fillLazyItemsTillLeafWithHead(
+      navigatedAt,
       cache,
       existingCache,
       treePatch,
@@ -111,10 +118,11 @@ describe('fillLazyItemsTillLeafWithHead', () => {
     )
 
     const expectedCache: CacheNode = {
+      navigatedAt,
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
-      head: [null, null],
+      head: null,
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map([
@@ -124,10 +132,11 @@ describe('fillLazyItemsTillLeafWithHead', () => {
             [
               'linking',
               {
+                navigatedAt,
                 lazyData: null,
                 rsc: null,
                 prefetchRsc: null,
-                head: [null, null],
+                head: null,
                 prefetchHead: null,
                 loading: null,
                 parallelRoutes: new Map([
@@ -137,6 +146,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                       [
                         'about',
                         {
+                          navigatedAt,
                           lazyData: null,
                           loading: null,
                           parallelRoutes: new Map([
@@ -146,18 +156,14 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                                 [
                                   '',
                                   {
+                                    navigatedAt,
                                     lazyData: null,
                                     rsc: null,
                                     prefetchRsc: null,
                                     prefetchHead: null,
                                     loading: null,
                                     parallelRoutes: new Map(),
-                                    head: [
-                                      null,
-                                      <>
-                                        <title>About page!</title>
-                                      </>,
-                                    ],
+                                    head: null,
                                   },
                                 ],
                               ]),
@@ -165,17 +171,18 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                           ]),
                           rsc: null,
                           prefetchRsc: null,
-                          head: [null, null],
+                          head: null,
                           prefetchHead: null,
                         },
                       ],
                       [
                         '',
                         {
+                          navigatedAt,
                           lazyData: null,
                           rsc: <>Page</>,
                           prefetchRsc: null,
-                          head: [null, null],
+                          head: null,
                           prefetchHead: null,
                           loading: null,
                           parallelRoutes: new Map(),

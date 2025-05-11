@@ -36,7 +36,6 @@ declare type ImageOptions = {
     /**
      * Using a specific Emoji style. Defaults to `twemoji`.
      *
-     * @link https://github.com/vercel/og#emoji
      * @type {EmojiType}
      * @default 'twemoji'
      */

@@ -1,11 +1,14 @@
 import type { CacheNodeSeedData, PreloadCallbacks } from './types'
 import React from 'react'
-import { isClientReference } from '../../lib/client-reference'
+import {
+  isClientReference,
+  isUseCacheFunction,
+} from '../../lib/client-and-server-references'
 import { getLayoutOrPageModule } from '../lib/app-dir-module'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { interopDefault } from './interop-default'
 import { parseLoaderTree } from './parse-loader-tree'
-import type { AppRenderContext } from './app-render'
+import type { AppRenderContext, GetDynamicParamFromSegment } from './app-render'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
@@ -18,6 +21,7 @@ import type { LoadingModuleData } from '../../shared/lib/app-router-context.shar
 import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { OUTLET_BOUNDARY_NAME } from '../../lib/metadata/metadata-constants'
+import type { UseCachePageComponentProps } from '../use-cache/use-cache-wrapper'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -35,6 +39,7 @@ export function createComponentTree(props: {
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
+  StreamingMetadataOutlet: React.ComponentType
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -70,6 +75,7 @@ async function createComponentTreeInternal({
   missingSlots,
   preloadCallbacks,
   authInterrupts,
+  StreamingMetadataOutlet,
 }: {
   loaderTree: LoaderTree
   parentParams: Params
@@ -83,6 +89,7 @@ async function createComponentTreeInternal({
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
+  StreamingMetadataOutlet: React.ComponentType | null
 }): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
@@ -167,7 +174,7 @@ async function createComponentTreeInternal({
 
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
-  const { mod: layoutOrPageMod } = await getTracer().trace(
+  const { mod: layoutOrPageMod, modType } = await getTracer().trace(
     NextNodeServerSpan.getLayoutOrPageModule,
     {
       hideSpan: !(isLayout || isPage),
@@ -178,6 +185,8 @@ async function createComponentTreeInternal({
     },
     () => getLayoutOrPageModule(tree)
   )
+
+  const gracefullyDegrade = !!ctx.renderOpts.botType
 
   /**
    * Checks if the current segment is a root layout.
@@ -221,27 +230,6 @@ async function createComponentTreeInternal({
         })
       : []
 
-  const notFoundElement = NotFound ? (
-    <>
-      {notFoundStyles}
-      <NotFound />
-    </>
-  ) : undefined
-
-  const forbiddenElement = Forbidden ? (
-    <>
-      {forbiddenStyles}
-      <Forbidden />
-    </>
-  ) : undefined
-
-  const unauthorizedElement = Unauthorized ? (
-    <>
-      {unauthorizedStyles}
-      <Unauthorized />
-    </>
-  ) : undefined
-
   let dynamic = layoutOrPageMod?.dynamic
 
   if (nextConfigOutput === 'export') {
@@ -250,7 +238,7 @@ async function createComponentTreeInternal({
     } else if (dynamic === 'force-dynamic') {
       // force-dynamic is always incompatible with 'export'. We must interrupt the build
       throw new StaticGenBailoutError(
-        `Page with \`dynamic = "force-dynamic"\` couldn't be exported. \`output: "export"\` requires all pages be renderable statically because there is not runtime server to dynamic render routes in this output format. Learn more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports`
+        `Page with \`dynamic = "force-dynamic"\` couldn't be exported. \`output: "export"\` requires all pages be renderable statically because there is no runtime server to dynamically render routes in this output format. Learn more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports`
       )
     }
   }
@@ -340,11 +328,6 @@ async function createComponentTreeInternal({
   const isPossiblyPartialResponse =
     isStaticGeneration && experimental.isRoutePPREnabled === true
 
-  // If there's a dynamic usage error attached to the store, throw it.
-  if (workStore.dynamicUsageErr) {
-    throw workStore.dynamicUsageErr
-  }
-
   const LayoutOrPage: React.ComponentType<any> | undefined = layoutOrPageMod
     ? interopDefault(layoutOrPageMod)
     : undefined
@@ -357,10 +340,10 @@ async function createComponentTreeInternal({
   if (process.env.NODE_ENV === 'development') {
     const { isValidElementType } = require('next/dist/compiled/react-is')
     if (
-      (isPage || typeof MaybeComponent !== 'undefined') &&
+      typeof MaybeComponent !== 'undefined' &&
       !isValidElementType(MaybeComponent)
     ) {
-      errorMissingDefaultExport(pagePath, 'page')
+      errorMissingDefaultExport(pagePath, modType ?? 'page')
     }
 
     if (
@@ -405,11 +388,32 @@ async function createComponentTreeInternal({
   // Resolve the segment param
   const actualSegment = segmentParam ? segmentParam.treeSegment : segment
 
-  if (rootLayoutAtThisLevel) {
-    workStore.rootParams = currentParams
-  }
+  // Use the same condition to render metadataOutlet as metadata
+  const metadataOutlet = StreamingMetadataOutlet ? (
+    <StreamingMetadataOutlet />
+  ) : undefined
 
-  //
+  const notFoundElement = NotFound ? (
+    <>
+      <NotFound />
+      {notFoundStyles}
+    </>
+  ) : undefined
+
+  const forbiddenElement = Forbidden ? (
+    <>
+      <Forbidden />
+      {forbiddenStyles}
+    </>
+  ) : undefined
+
+  const unauthorizedElement = Unauthorized ? (
+    <>
+      <Unauthorized />
+      {unauthorizedStyles}
+    </>
+  ) : undefined
+
   // TODO: Combine this `map` traversal with the loop below that turns the array
   // into an object.
   const parallelRouteMap = await Promise.all(
@@ -504,7 +508,12 @@ async function createComponentTreeInternal({
             ctx,
             missingSlots,
             preloadCallbacks,
-            authInterrupts: authInterrupts,
+            authInterrupts,
+            // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
+            // but we only want to throw on the first one.
+            StreamingMetadataOutlet: isChildrenRouteKey
+              ? StreamingMetadataOutlet
+              : null,
           })
 
           childCacheNodeSeedData = seedData
@@ -529,6 +538,9 @@ async function createComponentTreeInternal({
             notFound={notFoundComponent}
             forbidden={forbiddenComponent}
             unauthorized={unauthorizedComponent}
+            // Since gracefullyDegrade only applies to bots, only
+            // pass it when we're in a bot context to avoid extra bytes.
+            {...(gracefullyDegrade && { gracefullyDegrade })}
           />,
           childCacheNodeSeedData,
         ]
@@ -566,7 +578,6 @@ async function createComponentTreeInternal({
   }
 
   const Component = MaybeComponent
-
   // If force-dynamic is used and the current render supports postponing, we
   // replace it with a node that will postpone the render. This ensures that the
   // postpone is invoked during the react render phase and not during the next
@@ -640,19 +651,44 @@ async function createComponentTreeInternal({
         )
       }
     } else {
-      // If we are passing searchParams to a server component Page we need to track their usage in case
-      // the current render mode tracks dynamic API usage.
+      // If we are passing params to a server component Page we need to track
+      // their usage in case the current render mode tracks dynamic API usage.
       const params = createServerParamsForServerSegment(
         currentParams,
         workStore
       )
-      const searchParams = createServerSearchParamsForServerPage(
-        query,
-        workStore
-      )
-      pageElement = (
-        <PageComponent params={params} searchParams={searchParams} />
-      )
+
+      // TODO(useCache): Should we use this trick also if dynamicIO is enabled,
+      // instead of relying on the searchParams being a hanging promise?
+      if (!experimental.dynamicIO && isUseCacheFunction(PageComponent)) {
+        const UseCachePageComponent: React.ComponentType<UseCachePageComponentProps> =
+          PageComponent
+
+        // The "use cache" wrapper takes care of converting this into an
+        // erroring search params promise when passing it to the original
+        // function.
+        const searchParams = Promise.resolve({})
+
+        pageElement = (
+          <UseCachePageComponent
+            params={params}
+            searchParams={searchParams}
+            $$isPageComponent
+          />
+        )
+      } else {
+        // If we are passing searchParams to a server component Page we need to
+        // track their usage in case the current render mode tracks dynamic API
+        // usage.
+        const searchParams = createServerSearchParamsForServerPage(
+          query,
+          workStore
+        )
+
+        pageElement = (
+          <PageComponent params={params} searchParams={searchParams} />
+        )
+      }
     }
     return [
       actualSegment,
@@ -661,7 +697,10 @@ async function createComponentTreeInternal({
         {layerAssets}
         <OutletBoundary>
           <MetadataOutlet ready={getViewportReady} />
+          {/* Blocking metadata outlet */}
           <MetadataOutlet ready={getMetadataReady} />
+          {/* Streaming metadata outlet */}
+          {metadataOutlet}
         </OutletBoundary>
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
@@ -872,4 +911,56 @@ function createErrorBoundaryClientSegmentRoot({
     )
   }
   return null
+}
+
+export function getRootParams(
+  loaderTree: LoaderTree,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment
+): Params {
+  return getRootParamsImpl({}, loaderTree, getDynamicParamFromSegment)
+}
+
+function getRootParamsImpl(
+  parentParams: Params,
+  loaderTree: LoaderTree,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment
+): Params {
+  const {
+    segment,
+    modules: { layout },
+    parallelRoutes,
+  } = parseLoaderTree(loaderTree)
+
+  const segmentParam = getDynamicParamFromSegment(segment)
+
+  let currentParams: Params = parentParams
+  if (segmentParam && segmentParam.value !== null) {
+    currentParams = {
+      ...parentParams,
+      [segmentParam.param]: segmentParam.value,
+    }
+  }
+
+  const isRootLayout = typeof layout !== 'undefined'
+
+  if (isRootLayout) {
+    return currentParams
+  } else if (!parallelRoutes.children) {
+    // This should really be an error but there are bugs in Turbopack that cause
+    // the _not-found LoaderTree to not have any layouts. For rootParams sake
+    // this is somewhat irrelevant when you are not customizing the 404 page.
+    // If you are customizing 404
+    // TODO update rootParams to make all params optional if `/app/not-found.tsx` is defined
+    return currentParams
+  } else {
+    return getRootParamsImpl(
+      currentParams,
+      // We stop looking for root params as soon as we hit the first layout
+      // and it is not possible to use parallel route children above the root layout
+      // so every parallelRoutes object that this function can visit will necessarily
+      // have a single `children` prop and no others.
+      parallelRoutes.children,
+      getDynamicParamFromSegment
+    )
+  }
 }

@@ -91,7 +91,7 @@ export class ProfilingPlugin {
   traceTopLevelHooks(compiler: any) {
     this.traceHookPair(
       'webpack-compilation',
-      compiler.hooks.compilation,
+      compiler.hooks.thisCompilation,
       compiler.hooks.afterCompile,
       {
         parentSpan: () =>
@@ -146,7 +146,7 @@ export class ProfilingPlugin {
       },
     })
 
-    compiler.hooks.compilation.tap(
+    compiler.hooks.thisCompilation.tap(
       { name: pluginName, stage: -Infinity },
       (compilation: any) => {
         compilation.hooks.buildModule.tap(pluginName, (module: any) => {

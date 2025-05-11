@@ -1,10 +1,7 @@
 import nodePath from 'path'
-import crypto from 'crypto'
 import type { Span } from '../../../trace'
-import { spans } from './profiling-plugin'
 import isError from '../../../lib/is-error'
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
-import type { SWCLoaderOptions } from '../loaders/next-swc-loader'
 import type { NodeFileTraceReasons } from 'next/dist/compiled/@vercel/nft'
 import {
   CLIENT_REFERENCE_MANIFEST,
@@ -21,7 +18,10 @@ import picomatch from 'next/dist/compiled/picomatch'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getPageFilePath } from '../../entries'
 import { resolveExternal } from '../../handle-externals'
-import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import swcLoader, { type SWCLoaderOptions } from '../loaders/next-swc-loader'
+import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
+import { getCompilationSpan } from '../utils'
+import { isClientComponentEntryModule } from '../loaders/utils'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 export const TRACE_IGNORES = [
@@ -118,6 +118,7 @@ export interface BuildTraceContext {
     outputPath: string
     depModArray: string[]
     entryNameMap: Record<string, string>
+    absolutePathByEntryName: Record<string, string>
   }
   chunksTrace?: {
     action: TurbotraceAction
@@ -126,27 +127,21 @@ export interface BuildTraceContext {
   }
 }
 
-export function getHash(content: string | Buffer): string {
-  return crypto.createHash('sha1').update(content).digest('hex')
-}
-
 export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   public buildTraceContext: BuildTraceContext = {}
 
   private rootDir: string
   private appDir: string | undefined
   private pagesDir: string | undefined
-  private optOutBundlingPackages: string[]
   private appDirEnabled?: boolean
   private tracingRoot: string
   private entryTraces: Map<string, Map<string, { bundled: boolean }>>
   private traceIgnores: string[]
   private esmExternals?: NextConfigComplete['experimental']['esmExternals']
-  private traceHashes: Map<string, string>
   private compilerType: CompilerNameValues
   private swcLoaderConfig: {
     loader: string
-    options: SWCLoaderOptions
+    options: Partial<SWCLoaderOptions>
   }
 
   constructor({
@@ -154,7 +149,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     appDir,
     pagesDir,
     compilerType,
-    optOutBundlingPackages,
     appDirEnabled,
     traceIgnores,
     esmExternals,
@@ -165,7 +159,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     compilerType: CompilerNameValues
     appDir: string | undefined
     pagesDir: string | undefined
-    optOutBundlingPackages: string[]
     appDirEnabled?: boolean
     traceIgnores?: string[]
     outputFileTracingRoot?: string
@@ -180,19 +173,13 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     this.appDirEnabled = appDirEnabled
     this.traceIgnores = traceIgnores || []
     this.tracingRoot = outputFileTracingRoot || rootDir
-    this.optOutBundlingPackages = optOutBundlingPackages
-    this.traceHashes = new Map()
     this.compilerType = compilerType
     this.swcLoaderConfig = swcLoaderConfig
   }
 
   // Here we output all traced assets and webpack chunks to a
   // ${page}.js.nft.json file
-  async createTraceAssets(
-    compilation: webpack.Compilation,
-    assets: any,
-    span: Span
-  ) {
+  async createTraceAssets(compilation: webpack.Compilation, span: Span) {
     const outputPath = compilation.outputOptions.path || ''
 
     await span.traceChild('create-trace-assets').traceAsyncFn(async () => {
@@ -257,12 +244,21 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           nodePath.join(outputPath, `${outputPrefix}${entrypoint.name}.js`)
         )
 
-        if (entrypoint.name.startsWith('app/')) {
-          // Include the client reference manifest for pages and route handlers,
-          // excluding metadata route handlers.
-          const clientManifestsForEntrypoint = isMetadataRoute(entrypoint.name)
-            ? null
-            : nodePath.join(
+        if (entrypoint.name.startsWith('app/') && this.appDir) {
+          const appDirRelativeEntryPath =
+            this.buildTraceContext.entriesTrace?.absolutePathByEntryName[
+              entrypoint.name
+            ]?.replace(this.appDir, '')
+
+          const entryIsStaticMetadataRoute =
+            appDirRelativeEntryPath &&
+            isMetadataRouteFile(appDirRelativeEntryPath, [], true)
+
+          // Include the client reference manifest in the trace, but not for
+          // static metadata routes, for which we don't generate those.
+          if (!entryIsStaticMetadataRoute) {
+            entryFiles.add(
+              nodePath.join(
                 outputPath,
                 outputPrefix,
                 entrypoint.name.replace(/%5F/g, '_') +
@@ -270,9 +266,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                   CLIENT_REFERENCE_MANIFEST +
                   '.js'
               )
-
-          if (clientManifestsForEntrypoint !== null) {
-            entryFiles.add(clientManifestsForEntrypoint)
+            )
           }
         }
 
@@ -299,11 +293,14 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           })
         )
 
-        assets[traceOutputName] = new sources.RawSource(
-          JSON.stringify({
-            version: TRACE_OUTPUT_VERSION,
-            files: finalFiles,
-          })
+        compilation.emitAsset(
+          traceOutputName,
+          new sources.RawSource(
+            JSON.stringify({
+              version: TRACE_OUTPUT_VERSION,
+              files: finalFiles,
+            })
+          ) as unknown as webpack.sources.RawSource
         )
       }
     })
@@ -334,6 +331,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             const entryNameMap = new Map<string, string>()
             const entryModMap = new Map<string, any>()
             const additionalEntries = new Map<string, Map<string, any>>()
+            const absolutePathByEntryName = new Map<string, string>()
 
             const depModMap = new Map<string, any>()
 
@@ -375,6 +373,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                           ) {
                             entryModMap.set(absolutePath, entryMod)
                             entryNameMap.set(absolutePath, name)
+                            absolutePathByEntryName.set(name, absolutePath)
                           }
                         }
 
@@ -410,6 +409,18 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                 }
               })
 
+            const readOriginalSource = (path: string) => {
+              return new Promise<string | Buffer>((resolve) => {
+                compilation.inputFileSystem.readFile(path, (err, result) => {
+                  if (err) {
+                    // we can't throw here as that crashes build un-necessarily
+                    return resolve('')
+                  }
+                  resolve(result || '')
+                })
+              })
+            }
+
             const readFile = async (
               path: string
             ): Promise<Buffer | string | null> => {
@@ -418,6 +429,60 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
               // map the transpiled source when available to avoid
               // parse errors in node-file-trace
               let source: Buffer | string = mod?.originalSource?.()?.buffer()
+
+              try {
+                // fallback to reading raw source file, this may fail
+                // due to unsupported syntax but best effort attempt
+                let usingOriginalSource = false
+                if (!source || isClientComponentEntryModule(mod)) {
+                  source = await readOriginalSource(path)
+                  usingOriginalSource = true
+                }
+                const sourceString = source.toString()
+
+                // If this is a client component we need to trace the
+                // original transpiled source not the client proxy which is
+                // applied before this plugin is run due to the
+                // client-module-loader
+                if (
+                  usingOriginalSource &&
+                  // don't attempt transpiling CSS or image imports
+                  path.match(/\.(tsx|ts|js|cjs|mjs|jsx)$/)
+                ) {
+                  let transformResolve: (result: string) => void
+                  let transformReject: (error: unknown) => void
+                  const transformPromise = new Promise<string>(
+                    (resolve, reject) => {
+                      transformResolve = resolve
+                      transformReject = reject
+                    }
+                  )
+
+                  // TODO: should we apply all loaders except the
+                  // client-module-loader?
+                  swcLoader.apply(
+                    {
+                      resourcePath: path,
+                      getOptions: () => {
+                        return this.swcLoaderConfig.options
+                      },
+                      async: () => {
+                        return (err: unknown, result: string) => {
+                          if (err) {
+                            return transformReject(err)
+                          }
+                          return transformResolve(result)
+                        }
+                      },
+                    },
+                    [sourceString, undefined]
+                  )
+                  source = await transformPromise
+                }
+              } catch {
+                /* non-fatal */
+              }
+
               return source || ''
             }
 
@@ -460,6 +525,9 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
               appDir: this.rootDir,
               depModArray: Array.from(depModMap.keys()),
               entryNameMap: Object.fromEntries(entryNameMap),
+              absolutePathByEntryName: Object.fromEntries(
+                absolutePathByEntryName
+              ),
               outputPath: compilation.outputOptions.path!,
             }
 
@@ -582,7 +650,13 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   }
 
   apply(compiler: webpack.Compiler) {
-    compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
+    compiler.hooks.thisCompilation.tap(PLUGIN_NAME, (compilation) => {
+      const compilationSpan =
+        getCompilationSpan(compilation) || getCompilationSpan(compiler)!
+      const traceEntrypointsPluginSpan = compilationSpan.traceChild(
+        'next-trace-entrypoint-plugin'
+      )
+
       const readlink = async (path: string): Promise<string | null> => {
         try {
           return await new Promise((resolve, reject) => {
@@ -623,22 +697,14 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         }
       }
 
-      const compilationSpan = spans.get(compilation) || spans.get(compiler)!
-      const traceEntrypointsPluginSpan = compilationSpan.traceChild(
-        'next-trace-entrypoint-plugin'
-      )
       traceEntrypointsPluginSpan.traceFn(() => {
         compilation.hooks.processAssets.tapAsync(
           {
             name: PLUGIN_NAME,
             stage: webpack.Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
           },
-          (assets: any, callback: any) => {
-            this.createTraceAssets(
-              compilation,
-              assets,
-              traceEntrypointsPluginSpan
-            )
+          (_, callback: any) => {
+            this.createTraceAssets(compilation, traceEntrypointsPluginSpan)
               .then(() => callback())
               .catch((err) => callback(err))
           }
@@ -776,7 +842,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             context,
             request,
             isEsmRequested,
-            this.optOutBundlingPackages,
             (options) => (_: string, resRequest: string) => {
               return getResolve(options)(parent, resRequest, job)
             },

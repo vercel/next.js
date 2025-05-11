@@ -49,6 +49,12 @@ import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 import { NEXT_PATCH_SYMBOL } from './patch-fetch'
 import type { ServerInitResult } from './render-server'
 import { filterInternalHeaders } from './server-ipc/utils'
+import { blockCrossSite } from './router-utils/block-cross-site'
+import { traceGlobals } from '../../trace/shared'
+import {
+  RouterServerContextSymbol,
+  routerServerGlobal,
+} from './router-utils/router-server-context'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -121,6 +127,8 @@ export async function initialize(opts: {
     const telemetry = new Telemetry({
       distDir: path.join(opts.dir, config.distDir),
     })
+    traceGlobals.set('telemetry', telemetry)
+
     const { pagesDir, appDir } = findPagesDir(opts.dir)
 
     const { setupDevBundler } =
@@ -316,6 +324,9 @@ export async function initialize(opts: {
 
       // handle hot-reloader first
       if (developmentBundler) {
+        if (blockCrossSite(req, res, config.allowedDevOrigins, opts.hostname)) {
+          return
+        }
         const origUrl = req.url || '/'
 
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
@@ -428,12 +439,12 @@ export async function initialize(opts: {
             fsChecker.pageFiles.has(matchedOutput.itemPath))
         ) {
           res.statusCode = 500
+          const message = `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`
           await invokeRender(parsedUrl, '/_error', handleIndex, {
             invokeStatus: 500,
-            invokeError: new Error(
-              `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`
-            ),
+            invokeError: new Error(message),
           })
+          Log.error(message)
           return
         }
 
@@ -625,8 +636,7 @@ export async function initialize(opts: {
     server: opts.server,
     serverFields: {
       ...(developmentBundler?.serverFields || {}),
-      setAppIsrStatus:
-        devBundlerService?.setAppIsrStatus.bind(devBundlerService),
+      setIsrStatus: devBundlerService?.setIsrStatus.bind(devBundlerService),
     } satisfies ServerFields,
     experimentalTestProxy: !!config.experimental.testProxy,
     experimentalHttpsServer: !!opts.experimentalHttpsServer,
@@ -639,6 +649,14 @@ export async function initialize(opts: {
 
   // pre-initialize workers
   const handlers = await renderServer.instance.initialize(renderServerOpts)
+
+  // this must come after initialize of render server since it's
+  // using initialized methods
+  routerServerGlobal[RouterServerContextSymbol] = {
+    dir: opts.dir,
+    hostname: handlers.server.hostname,
+    revalidate: handlers.server.revalidate.bind(handlers.server),
+  }
 
   const logError = async (
     type: 'uncaughtException' | 'unhandledRejection',
@@ -680,6 +698,11 @@ export async function initialize(opts: {
       })
 
       if (opts.dev && developmentBundler && req.url) {
+        if (
+          blockCrossSite(req, socket, config.allowedDevOrigins, opts.hostname)
+        ) {
+          return
+        }
         const { basePath, assetPrefix } = config
 
         let hmrPrefix = basePath
@@ -710,7 +733,7 @@ export async function initialize(opts: {
             (client) => {
               client.send(
                 JSON.stringify({
-                  action: HMR_ACTIONS_SENT_TO_BROWSER.APP_ISR_MANIFEST,
+                  action: HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST,
                   data: devBundlerService?.appIsrManifest || {},
                 } satisfies AppIsrManifestAction)
               )
@@ -751,5 +774,12 @@ export async function initialize(opts: {
     }
   }
 
-  return { requestHandler, upgradeHandler, server: handlers.server }
+  return {
+    requestHandler,
+    upgradeHandler,
+    server: handlers.server,
+    closeUpgraded() {
+      developmentBundler?.hotReloader?.close()
+    },
+  }
 }
