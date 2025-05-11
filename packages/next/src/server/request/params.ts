@@ -221,9 +221,7 @@ function makeAbortingExoticParams(
 
             if (dynamicAccessStore) {
               dynamicAccessStore.abortController.abort(
-                new Error(
-                  `Accessed fallback \`params\` in \`"use cache"\` during prerendering.`
-                )
+                new Error(`Accessed fallback \`params\` during prerendering.`)
               )
             }
           // intentionally fallthrough
