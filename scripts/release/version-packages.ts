@@ -1,5 +1,6 @@
 import execa from 'execa'
 import { existsSync } from 'node:fs'
+import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 async function versionPackages() {
@@ -23,8 +24,16 @@ async function versionPackages() {
     await execa('pnpm', ['changeset', 'pre', 'enter', 'canary'], {
       stdio: 'inherit',
     })
-    // TODO: Create empty changeset for `next` to bump canary version
-    // even if there is no changeset.
+
+    // Create empty changeset for `next` to bump canary version even if
+    // there was no changeset.
+    const res = await execa('pnpm', ['changeset', 'version'])
+    if (res.stderr.includes('No unreleased changesets found, exiting.')) {
+      await writeFile(
+        join(process.cwd(), '.changeset', `next-canary-${Date.now()}.md`),
+        `---\n'next': patch\n---`
+      )
+    }
   }
 
   await execa('pnpm', ['changeset', 'version'], {
