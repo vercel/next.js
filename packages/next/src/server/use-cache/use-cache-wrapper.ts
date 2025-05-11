@@ -82,7 +82,6 @@ const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
 function generateCacheEntry(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
-  kind: string,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
@@ -97,7 +96,6 @@ function generateCacheEntry(
     generateCacheEntryWithRestoredWorkStore,
     workStore,
     outerWorkUnitStore,
-    kind,
     clientReferenceManifest,
     encodedArguments,
     fn,
@@ -108,7 +106,6 @@ function generateCacheEntry(
 function generateCacheEntryWithRestoredWorkStore(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
-  kind: string,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
@@ -126,7 +123,6 @@ function generateCacheEntryWithRestoredWorkStore(
     generateCacheEntryWithCacheContext,
     workStore,
     outerWorkUnitStore,
-    kind,
     clientReferenceManifest,
     encodedArguments,
     fn,
@@ -137,7 +133,6 @@ function generateCacheEntryWithRestoredWorkStore(
 function generateCacheEntryWithCacheContext(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
-  kind: string,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
@@ -194,7 +189,6 @@ function generateCacheEntryWithCacheContext(
       generateCacheEntryImpl,
       workStore,
       outerWorkUnitStore,
-      kind,
       cacheStore,
       clientReferenceManifest,
       encodedArguments,
@@ -339,7 +333,6 @@ type GenerateCacheEntryResult =
 async function generateCacheEntryImpl(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
-  _kind: string,
   innerCacheStore: UseCacheStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
@@ -947,7 +940,6 @@ export function cache(
           const result = await generateCacheEntry(
             workStore,
             workUnitStore,
-            kind,
             clientReferenceManifest,
             encodedCacheKeyParts,
             fn,
@@ -1023,7 +1015,6 @@ export function cache(
               // TODO: We may need to pass in a work unit store that includes
               // the cookies though.
               undefined,
-              kind,
               clientReferenceManifest,
               encodedCacheKeyParts,
               fn,
