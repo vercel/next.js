@@ -52,7 +52,6 @@ import {
 import type { Params } from '../request/params'
 import React from 'react'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
-import { createUseCacheRenderContext } from './render-context'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 
 type CacheKeyParts =
@@ -187,8 +186,6 @@ function generateCacheEntryWithCacheContext(
     draftMode:
       outerWorkUnitStore &&
       getDraftModeProviderForCacheScope(workStore, outerWorkUnitStore),
-    renderContext:
-      outerWorkUnitStore && createUseCacheRenderContext(outerWorkUnitStore),
   }
 
   return workUnitAsyncStorage.run(cacheStore, () =>
