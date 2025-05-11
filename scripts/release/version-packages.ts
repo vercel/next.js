@@ -25,10 +25,24 @@ async function versionPackages() {
       stdio: 'inherit',
     })
 
-    // Create empty changeset for `next` to bump canary version even if
-    // there was no changeset.
-    const res = await execa('pnpm', ['changeset', 'version'])
-    if (res.stderr.includes('No unreleased changesets found, exiting.')) {
+    console.log(
+      '▲   Preparing to bump the canary version, checking if there are any changesets.'
+    )
+    // Create an empty changeset for `next` to bump the canary version
+    // even if there are no changesets for `next`.
+    const res = await execa('pnpm', ['changeset', 'status'], {
+      // If there are no changesets, this will error. Set reject: false
+      // to avoid trycatch and handle the rest based on the stdout.
+      reject: false,
+    })
+
+    console.log('▲   Changeset Status:')
+    console.log({ ...res })
+
+    if (!res.stdout.includes('- next')) {
+      console.log(
+        '▲   No changesets found for `next`, creating an empty changeset.'
+      )
       await writeFile(
         join(process.cwd(), '.changeset', `next-canary-${Date.now()}.md`),
         `---\n'next': patch\n---`
