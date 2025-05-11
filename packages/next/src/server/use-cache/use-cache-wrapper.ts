@@ -413,9 +413,6 @@ async function generateCacheEntryImpl(
   let stream: ReadableStream<Uint8Array>
 
   if (outerWorkUnitStore?.type === 'prerender') {
-    const dynamicAccessAbortSignal =
-      dynamicAccessAsyncStorage.getStore()?.abortController.signal
-
     const timeoutAbortController = new AbortController()
 
     // If we're prerendering, we give you 50 seconds to fill a cache entry.
@@ -425,6 +422,9 @@ async function generateCacheEntryImpl(
       workStore.invalidDynamicUsageError = timeoutError
       timeoutAbortController.abort(timeoutError)
     }, 50000)
+
+    const dynamicAccessAbortSignal =
+      dynamicAccessAsyncStorage.getStore()?.abortController.signal
 
     const abortSignal = dynamicAccessAbortSignal
       ? AbortSignal.any([
