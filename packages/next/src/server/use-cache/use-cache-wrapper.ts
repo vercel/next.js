@@ -321,13 +321,13 @@ async function collectResult(
 
 type GenerateCacheEntryResult =
   | {
-      type: 'cached'
-      stream: ReadableStream
-      pendingCacheEntry: Promise<CacheEntry>
+      readonly type: 'cached'
+      readonly stream: ReadableStream
+      readonly pendingCacheEntry: Promise<CacheEntry>
     }
   | {
-      type: 'prerender-dynamic'
-      hangingPromise: Promise<never>
+      readonly type: 'prerender-dynamic'
+      readonly hangingPromise: Promise<never>
     }
 
 async function generateCacheEntryImpl(
