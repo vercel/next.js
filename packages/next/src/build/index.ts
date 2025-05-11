@@ -310,15 +310,6 @@ export interface DynamicPrerenderManifestRoute {
    */
   fallbackSourceRoute: string | undefined
 
-  /**
-   * When true, the page was prerendered as a fallback shell, while allowing any
-   * dynamic accesses to result in an empty shell. This is the case when there
-   * are also routes prerendered with a more complete set of params.
-   * Prerendering those routes would catch any invalid dynamic accesses. This
-   * flag needs to be considered during revalidation.
-   */
-  allowEmptyStaticShell: boolean
-
   prefetchDataRoute: string | null | undefined
   prefetchDataRouteRegex: string | null | undefined
   routeRegex: string
@@ -3156,7 +3147,6 @@ export default async function build(
                         }).re.source
                       ),
                   allowHeader: ALLOWED_HEADERS,
-                  allowEmptyStaticShell: !route.throwOnEmptyStaticShell,
                 }
               }
             }
@@ -3633,7 +3623,6 @@ export default async function build(
             prefetchDataRoute: undefined,
             prefetchDataRouteRegex: undefined,
             allowHeader: ALLOWED_HEADERS,
-            allowEmptyStaticShell: false,
           }
         })
 
