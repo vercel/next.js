@@ -1,12 +1,18 @@
 name: Trigger Release (New)
 
 on:
+  # Run every day at 23:15 UTC
+  schedule:
+    - cron: '15 23 * * *'
+  # Run manually
   workflow_dispatch:
     inputs:
       releaseType:
         description: Release Type
         required: true
         type: choice
+        # Cron job will run canary release
+        default: canary
         options:
           - canary
           - stable
@@ -24,6 +30,11 @@ env:
   NAPI_CLI_VERSION: 2.14.7
   TURBO_VERSION: 2.3.3
   NODE_LTS_VERSION: 20
+
+# Limit the permissions of GITHUB_TOKEN for this
+# workflow which is good practice.
+permissions:
+  pull-requests: write
 
 jobs:
   start:

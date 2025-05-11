@@ -607,10 +607,19 @@ jobs:
         uses: changesets/action@v1
         with:
           publish: pnpm ci:publish
+          title: Version Packages (${{ github.event.inputs.releaseType }})
+          commit: Version Packages (${{ github.event.inputs.releaseType }})
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
           RELEASE_TYPE: ${{ github.event.inputs.releaseType }}
+
+      # Add label to verify the PR is created from this workflow.
+      - name: Add label to PR
+        if: steps.changesets.outputs.pullRequestNumber
+        run: 'gh pr edit ${{ steps.changesets.outputs.pullRequestNumber }} --add-label "created-by: CI"'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload npm log artifact
         uses: actions/upload-artifact@v4
