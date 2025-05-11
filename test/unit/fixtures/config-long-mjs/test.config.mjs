@@ -1,1 +1,1 @@
-module.exports = { foo: 'bar' }
+export default { foo: 'bar' }
