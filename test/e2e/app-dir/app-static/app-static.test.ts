@@ -2358,7 +2358,6 @@ describe('app-dir static/dynamic handling', () => {
       expect(curManifest.dynamicRoutes).toMatchInlineSnapshot(`
        {
          "/articles/[slug]": {
-           "allowEmptyStaticShell": false,
            "allowHeader": [
              "host",
              "x-matched-path",
@@ -2384,7 +2383,6 @@ describe('app-dir static/dynamic handling', () => {
            "routeRegex": "^\\/articles\\/([^\\/]+?)(?:\\/)?$",
          },
          "/blog/[author]": {
-           "allowEmptyStaticShell": false,
            "allowHeader": [
              "host",
              "x-matched-path",
@@ -2410,7 +2408,6 @@ describe('app-dir static/dynamic handling', () => {
            "routeRegex": "^\\/blog\\/([^\\/]+?)(?:\\/)?$",
          },
          "/blog/[author]/[slug]": {
-           "allowEmptyStaticShell": false,
            "allowHeader": [
              "host",
              "x-matched-path",
@@ -2436,7 +2433,6 @@ describe('app-dir static/dynamic handling', () => {
            "routeRegex": "^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
          },
          "/dynamic-error/[id]": {
-           "allowEmptyStaticShell": false,
            "allowHeader": [
              "host",
              "x-matched-path",
@@ -2462,7 +2458,6 @@ describe('app-dir static/dynamic handling', () => {
            "routeRegex": "^\\/dynamic\\-error\\/([^\\/]+?)(?:\\/)?$",
          },
          "/force-static/[slug]": {
-           "allowEmptyStaticShell": false,
            "allowHeader": [
              "host",
              "x-matched-path",
@@ -2488,7 +2483,6 @@ describe('app-dir static/dynamic handling', () => {
            "routeRegex": "^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$",
          },
          "/gen-params-catch-all-unique/[...slug]": {
-           "allowEmptyStaticShell": false,
            "allowHeader": [
              "host",
              "x-matched-path",
@@ -2514,7 +2508,6 @@ describe('app-dir static/dynamic handling', () => {
            "routeRegex": "^\\/gen\\-params\\-catch\\-all\\-unique\\/(.+?)(?:\\/)?$",
          },
          "/gen-params-dynamic-revalidate/[slug]": {
-           "allowEmptyStaticShell": false,
            "allowHeader": [
              "host",
              "x-matched-path",
@@ -2540,7 +2533,6 @@ describe('app-dir static/dynamic handling', () => {
            "routeRegex": "^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)(?:\\/)?$",
          },
          "/hooks/use-pathname/[slug]": {
-           "allowEmptyStaticShell": false,
            "allowHeader": [
              "host",
              "x-matched-path",
@@ -2566,7 +2558,6 @@ describe('app-dir static/dynamic handling', () => {
            "routeRegex": "^\\/hooks\\/use\\-pathname\\/([^\\/]+?)(?:\\/)?$",
          },
          "/partial-gen-params-no-additional-lang/[lang]/[slug]": {
-           "allowEmptyStaticShell": false,
            "allowHeader": [
              "host",
              "x-matched-path",
@@ -2592,7 +2583,6 @@ describe('app-dir static/dynamic handling', () => {
            "routeRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-lang\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
          },
          "/partial-gen-params-no-additional-slug/[lang]/[slug]": {
-           "allowEmptyStaticShell": false,
            "allowHeader": [
              "host",
              "x-matched-path",
@@ -2618,7 +2608,6 @@ describe('app-dir static/dynamic handling', () => {
            "routeRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
          },
          "/prerendered-not-found/[slug]": {
-           "allowEmptyStaticShell": false,
            "allowHeader": [
              "host",
              "x-matched-path",
@@ -2644,7 +2633,6 @@ describe('app-dir static/dynamic handling', () => {
            "routeRegex": "^\\/prerendered\\-not\\-found\\/([^\\/]+?)(?:\\/)?$",
          },
          "/ssg-draft-mode/[[...route]]": {
-           "allowEmptyStaticShell": false,
            "allowHeader": [
              "host",
              "x-matched-path",
@@ -2670,7 +2658,6 @@ describe('app-dir static/dynamic handling', () => {
            "routeRegex": "^\\/ssg\\-draft\\-mode(?:\\/(.+?))?(?:\\/)?$",
          },
          "/static-to-dynamic-error-forced/[id]": {
-           "allowEmptyStaticShell": false,
            "allowHeader": [
              "host",
              "x-matched-path",

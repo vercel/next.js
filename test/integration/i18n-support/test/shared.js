@@ -1768,68 +1768,64 @@ export function runTests(ctx) {
             'BUILD_ID'
           )
       ).toMatchInlineSnapshot(`
-       "{
-         "/gsp/fallback/[slug]": {
-           "routeRegex": "^\\/gsp\\/fallback\\/([^\\/]+?)(?:\\/)?$",
-           "dataRoute": "/_next/data/BUILD_ID/gsp/fallback/[slug].json",
-           "fallback": "/gsp/fallback/[slug].html",
-           "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/gsp\\/fallback\\/([^\\/]+?)\\.json$",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ],
-           "allowEmptyStaticShell": false
-         },
-         "/gsp/no-fallback/[slug]": {
-           "routeRegex": "^\\/gsp\\/no\\-fallback\\/([^\\/]+?)(?:\\/)?$",
-           "dataRoute": "/_next/data/BUILD_ID/gsp/no-fallback/[slug].json",
-           "fallback": false,
-           "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/gsp\\/no\\-fallback\\/([^\\/]+?)\\.json$",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ],
-           "allowEmptyStaticShell": false
-         },
-         "/not-found/blocking-fallback/[slug]": {
-           "routeRegex": "^\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)(?:\\/)?$",
-           "dataRoute": "/_next/data/BUILD_ID/not-found/blocking-fallback/[slug].json",
-           "fallback": null,
-           "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)\\.json$",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ],
-           "allowEmptyStaticShell": false
-         },
-         "/not-found/fallback/[slug]": {
-           "routeRegex": "^\\/not\\-found\\/fallback\\/([^\\/]+?)(?:\\/)?$",
-           "dataRoute": "/_next/data/BUILD_ID/not-found/fallback/[slug].json",
-           "fallback": "/not-found/fallback/[slug].html",
-           "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/not\\-found\\/fallback\\/([^\\/]+?)\\.json$",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ],
-           "allowEmptyStaticShell": false
-         }
-       }"
+        "{
+          "/gsp/fallback/[slug]": {
+            "routeRegex": "^\\/gsp\\/fallback\\/([^\\/]+?)(?:\\/)?$",
+            "dataRoute": "/_next/data/BUILD_ID/gsp/fallback/[slug].json",
+            "fallback": "/gsp/fallback/[slug].html",
+            "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/gsp\\/fallback\\/([^\\/]+?)\\.json$",
+            "allowHeader": [
+              "host",
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token"
+            ]
+          },
+          "/gsp/no-fallback/[slug]": {
+            "routeRegex": "^\\/gsp\\/no\\-fallback\\/([^\\/]+?)(?:\\/)?$",
+            "dataRoute": "/_next/data/BUILD_ID/gsp/no-fallback/[slug].json",
+            "fallback": false,
+            "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/gsp\\/no\\-fallback\\/([^\\/]+?)\\.json$",
+            "allowHeader": [
+              "host",
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token"
+            ]
+          },
+          "/not-found/blocking-fallback/[slug]": {
+            "routeRegex": "^\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)(?:\\/)?$",
+            "dataRoute": "/_next/data/BUILD_ID/not-found/blocking-fallback/[slug].json",
+            "fallback": null,
+            "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)\\.json$",
+            "allowHeader": [
+              "host",
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token"
+            ]
+          },
+          "/not-found/fallback/[slug]": {
+            "routeRegex": "^\\/not\\-found\\/fallback\\/([^\\/]+?)(?:\\/)?$",
+            "dataRoute": "/_next/data/BUILD_ID/not-found/fallback/[slug].json",
+            "fallback": "/not-found/fallback/[slug].html",
+            "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/not\\-found\\/fallback\\/([^\\/]+?)\\.json$",
+            "allowHeader": [
+              "host",
+              "x-matched-path",
+              "x-prerender-revalidate",
+              "x-prerender-revalidate-if-generated",
+              "x-next-revalidated-tags",
+              "x-next-revalidate-tag-token"
+            ]
+          }
+        }"
       `)
     })
   }
