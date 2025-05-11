@@ -255,7 +255,7 @@ export function nextTestSetup(
   if (!skipped) {
     beforeAll(async () => {
       next = await createNext(options)
-    }, options.timeout)
+    })
     afterAll(async () => {
       // Gracefully destroy the instance if `createNext` success.
       // If next instance is not available, it's likely beforeAll hook failed and unnecessarily throws another error
