@@ -23,6 +23,8 @@ async function versionPackages() {
     await execa('pnpm', ['changeset', 'pre', 'enter', 'canary'], {
       stdio: 'inherit',
     })
+    // TODO: Create empty changeset for `next` to bump canary version
+    // even if there is no changeset.
   }
 
   await execa('pnpm', ['changeset', 'version'], {

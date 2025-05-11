@@ -9,11 +9,7 @@ async function publishNpm() {
         ? 'rc'
         : 'latest'
 
-  await execa('pnpm', ['publish', '--recursive', '--tag', tag], {
-    stdio: 'inherit',
-  })
-  // The tag will be pushed when changesets/action releases the GitHub Release.
-  await execa('pnpm', ['changeset', 'tag'], {
+  await execa('pnpm', ['changeset', 'publish', '--tag', tag], {
     stdio: 'inherit',
   })
 }

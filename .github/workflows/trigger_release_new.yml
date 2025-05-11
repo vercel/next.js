@@ -32,7 +32,7 @@ env:
   NODE_LTS_VERSION: 20
 
 # Limit the permissions of GITHUB_TOKEN for this
-# workflow which is good practice.
+# workflow which is good security practice.
 permissions:
   pull-requests: write
 
