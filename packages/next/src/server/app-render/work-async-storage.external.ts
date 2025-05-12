@@ -51,12 +51,13 @@ export interface WorkStore {
   dynamicUsageStack?: string
 
   /**
-   * Invalid usage errors might be caught in userland. We attach them to the
-   * work store to ensure we can still fail the build or dev render.
+   * Invalid dynamic usage errors might be caught in userland. We attach them to
+   * the work store to ensure we can still fail the build, or show en error in
+   * dev mode.
    */
   // TODO: Collect an array of errors, and throw as AggregateError when
   // `serializeError` and the Dev Overlay support it.
-  invalidUsageError?: Error
+  invalidDynamicUsageError?: Error
 
   nextFetchId?: number
   pathWasRevalidated?: boolean

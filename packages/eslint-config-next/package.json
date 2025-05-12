@@ -1,6 +1,6 @@
 {
   "name": "eslint-config-next",
-  "version": "15.4.0-canary.28",
+  "version": "15.4.0-canary.31",
   "description": "ESLint configuration used by Next.js.",
   "main": "index.js",
   "license": "MIT",

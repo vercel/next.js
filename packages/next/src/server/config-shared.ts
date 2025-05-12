@@ -671,6 +671,12 @@ export interface ExperimentalConfig {
    * Note: Use with caution as this can negatively impact page loading performance.
    */
   clientInstrumentationHook?: boolean
+
+  /**
+   * Enables using the global-not-found.js file in the app directory
+   *
+   */
+  globalNotFound?: boolean
 }
 
 export type ExportPathMap = {
@@ -1366,6 +1372,7 @@ export const defaultConfig: NextConfig = {
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,
+    globalNotFound: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
