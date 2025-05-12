@@ -52,8 +52,9 @@ When using the `'use client'` directive, the props of the Client Components must
 ```tsx filename="app/components/counter.tsx" highlight={3} switcher
 'use client'
 
-export default function Counter({ useState }) {
-  // ❌ Function is not serializable
+export default function Counter({
+  useState /* ❌ Function is not serializable */,
+}) {
   const [count, setCount] = useState(0)
 
   return (
@@ -68,8 +69,9 @@ export default function Counter({ useState }) {
 ```jsx filename="app/components/counter.js" highlight={3} switcher
 'use client'
 
-export default function Counter({ useState }) {
-  // ❌ Function is not serializable
+export default function Counter({
+  useState /* ❌ Function is not serializable */,
+}) {
   const [count, setCount] = useState(0)
 
   return (
