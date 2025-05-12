@@ -342,6 +342,8 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             (ChunkGroupId, FxIndexSet<ResolvedVc<Box<dyn Module>>>),
         > = FxIndexMap::default();
 
+        // For each module, the indices in the bitmap store which chunk groups in `chunk_groups_map`
+        // that module is part of.
         let mut module_chunk_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
             FxHashMap::default();
 
