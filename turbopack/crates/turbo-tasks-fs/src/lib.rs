@@ -486,7 +486,7 @@ struct PathLockGuard<'a>(
 );
 
 fn format_absolute_fs_path(path: &Path, name: &str, root_path: &Path) -> Option<String> {
-    let path = if let Ok(rel_path) = path.strip_prefix(root_path) {
+    if let Ok(rel_path) = path.strip_prefix(root_path) {
         let path = if MAIN_SEPARATOR != '/' {
             let rel_path = rel_path.to_string_lossy().replace(MAIN_SEPARATOR, "/");
             format!("[{name}]/{rel_path}")
@@ -496,8 +496,7 @@ fn format_absolute_fs_path(path: &Path, name: &str, root_path: &Path) -> Option<
         Some(path)
     } else {
         None
-    };
-    path
+    }
 }
 
 pub fn path_to_key(path: impl AsRef<Path>) -> String {
