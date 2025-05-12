@@ -4,7 +4,6 @@ import type { PrerenderManifest } from '..'
 import type { DevRoutesManifest } from '../../server/lib/router-utils/setup-dev-bundler'
 import type { InstrumentationOnRequestError } from '../../server/instrumentation/types'
 
-import { parse } from 'node:url'
 import { sendError } from '../../server/api-utils'
 import { RouteKind } from '../../server/route-kind'
 import type { Span } from '../../server/lib/trace/tracer'
@@ -35,6 +34,7 @@ import {
 import { loadManifestFromRelativePath } from '../../server/load-manifest.external'
 import { getHostname } from '../../shared/lib/get-hostname'
 import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
+import { parseReqUrl } from '../../lib/url'
 
 // Re-export the handler (should be the default export).
 export default hoist(userland, 'default')
@@ -109,7 +109,15 @@ export async function handler(
     }
   }
 
-  const parsedUrl = parse(req.url || '/', true)
+  const parsedUrl = parseReqUrl(req.url || '/')
+
+  if (!parsedUrl) {
+    res.statusCode = 400
+    res.end('Bad Request')
+    ctx.waitUntil?.(Promise.resolve())
+    return
+  }
+
   const pageIsDynamic = isDynamicRoute(srcPage)
 
   const serverUtils = getUtils({
