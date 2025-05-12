@@ -471,7 +471,7 @@ jobs:
       skipNativeBuild: 'yes'
       skipNativeInstall: 'yes'
       afterBuild: |
-        rustup target add wasm32-wasip1
+        rustup target add wasm32-unknown-unknown
         curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
         node ./scripts/normalize-version-bump.js
         pnpm dlx turbo@${TURBO_VERSION} run build-wasm -- --target nodejs

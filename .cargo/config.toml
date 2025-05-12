@@ -77,14 +77,3 @@ rustflags = [
 
 [target.armv7-unknown-linux-gnueabihf]
 linker = "arm-linux-gnueabihf-gcc"
-
-[target.wasm32-unknown-unknown]
-rustflags = [
-  "--cfg",
-  "tokio_unstable",
-  "-Zshare-generics=y", # make the current crate share its generic instantiations
-  "-Zthreads=8", # parallel frontend https://blog.rust-lang.org/2023/11/09/parallel-rustc.html
-  "-Csymbol-mangling-version=v0",
-  "--cfg",
-  "getrandom_backend=\"wasm_js\"",
-]
