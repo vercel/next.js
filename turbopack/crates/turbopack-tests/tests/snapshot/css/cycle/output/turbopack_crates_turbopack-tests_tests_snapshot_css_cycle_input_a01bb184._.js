@@ -2,7 +2,6 @@
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/1.css [test] (css, async loader)": ((__turbopack_context__) => {
 
-var { g: global } = __turbopack_context__;
 {
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
@@ -36,7 +35,6 @@ __turbopack_context__.v((parentImport) => {
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/2.css [test] (css, async loader)": ((__turbopack_context__) => {
 
-var { g: global } = __turbopack_context__;
 {
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
@@ -70,7 +68,6 @@ __turbopack_context__.v((parentImport) => {
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/x.css [test] (css, async loader)": ((__turbopack_context__) => {
 
-var { g: global } = __turbopack_context__;
 {
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
@@ -92,7 +89,6 @@ __turbopack_context__.v((parentImport) => {
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/y.css [test] (css, async loader)": ((__turbopack_context__) => {
 
-var { g: global } = __turbopack_context__;
 {
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
@@ -114,7 +110,6 @@ __turbopack_context__.v((parentImport) => {
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/i.css [test] (css, async loader)": ((__turbopack_context__) => {
 
-var { g: global } = __turbopack_context__;
 {
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
