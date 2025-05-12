@@ -1,11 +1,5 @@
 import { join } from 'path'
-import cheerio from 'cheerio'
-import {
-  getBrowserBodyText,
-  renderViaHTTP,
-  retry,
-  waitFor,
-} from 'next-test-utils'
+import { getBrowserBodyText, retry, waitFor } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 export function runHotModuleReloadHmrTest(nextConfig: {
@@ -197,13 +191,15 @@ export function runHotModuleReloadHmrTest(nextConfig: {
 
         expect(initialFontSize).toBe('100px')
 
-        const initialHtml = await renderViaHTTP(
+        const initialHtml = await next.render(
           next.url,
           basePath + '/hmr/style-dynamic-component'
         )
         expect(initialHtml.includes('100px')).toBeTruthy()
 
-        const $initialHtml = cheerio.load(initialHtml)
+        const $initialHtml = await next.render$(
+          basePath + '/hmr/style-dynamic-component'
+        )
         const initialServerClassName =
           $initialHtml('#dynamic-component').attr('class')
 
@@ -229,12 +225,14 @@ export function runHotModuleReloadHmrTest(nextConfig: {
         expect(browserHtml.includes('font-size:200px')).toBe(true)
         expect(browserHtml.includes('font-size:100px')).toBe(false)
 
-        const editedHtml = await renderViaHTTP(
+        const editedHtml = await next.render(
           next.url,
           basePath + '/hmr/style-dynamic-component'
         )
         expect(editedHtml.includes('200px')).toBeTruthy()
-        const $editedHtml = cheerio.load(editedHtml)
+        const $editedHtml = await next.render$(
+          basePath + '/hmr/style-dynamic-component'
+        )
         const editedServerClassName =
           $editedHtml('#dynamic-component').attr('class')
 
