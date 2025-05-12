@@ -1,10 +1,5 @@
-// import otherImported from './other.js'
-// console.log('3 index', otherImported)
-
-// import { x } from './x.js'
-const { x } = require('./x.js')
-import { y } from './y.js'
-import { z } from './z.js'
-console.log('4 index', x, y, z)
+import { a } from './a.js'
+const { b } = require('./b.js')
+console.log('4 index', a, b)
 
 it('works', () => {})
