@@ -113,7 +113,7 @@ impl GetContentSourceContent for IntrospectionSource {
         let internal_ty = Vc::debug_identifier(*introspectable).await?;
         fn str_or_err(s: &Result<ReadRef<RcStr>>) -> Cow<'_, str> {
             s.as_ref().map_or_else(
-                |e| Cow::<'_, str>::Owned(format!("ERROR: {:?}", e)),
+                |e| Cow::<'_, str>::Owned(format!("ERROR: {e:?}")),
                 |d| Cow::Borrowed(&**d),
             )
         }

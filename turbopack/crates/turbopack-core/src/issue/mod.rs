@@ -672,7 +672,7 @@ impl Display for IssueStage {
             IssueStage::Unsupported => write!(f, "unsupported"),
             IssueStage::AppStructure => write!(f, "app structure"),
             IssueStage::Misc => write!(f, "misc"),
-            IssueStage::Other(s) => write!(f, "{}", s),
+            IssueStage::Other(s) => write!(f, "{s}"),
         }
     }
 }

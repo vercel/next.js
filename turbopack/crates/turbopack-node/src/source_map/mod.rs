@@ -91,9 +91,9 @@ fn write_resolved(
     match resolved {
         Err(err) => {
             // There was an error resolving the source map
-            write!(writable, "{PADDING}at {}", original_frame)?;
+            write!(writable, "{PADDING}at {original_frame}")?;
             if *first_error {
-                write!(writable, "{PADDING}(error resolving source map: {})", err)?;
+                write!(writable, "{PADDING}(error resolving source map: {err})")?;
                 *first_error = false;
             } else {
                 write!(writable, "{PADDING}(error resolving source map)")?;
@@ -104,7 +104,7 @@ fn write_resolved(
             write!(
                 writable,
                 "{PADDING}{}",
-                formatting_mode.lowlight(&format_args!("[at {}]", original_frame))
+                formatting_mode.lowlight(&format_args!("[at {original_frame}]"))
             )?;
         }
         Ok(ResolvedSourceMapping::Mapped { frame }) => {
@@ -165,7 +165,7 @@ fn write_resolved(
                     let ctx = get_source_context(lines, line, column, line, column);
                     match formatting_mode {
                         FormattingMode::Plain => {
-                            write!(writable, "\n{}", ctx)?;
+                            write!(writable, "\n{ctx}")?;
                         }
                         FormattingMode::AnsiColors => {
                             writable.write_char('\n')?;

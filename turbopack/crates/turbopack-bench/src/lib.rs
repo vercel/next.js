@@ -85,7 +85,7 @@ fn bench_startup_internal(
             let input = (bundler.as_ref(), &test_app);
             resume_on_error(AssertUnwindSafe(|| {
                 g.bench_with_input(
-                    BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
+                    BenchmarkId::new(bundler.get_name(), format!("{module_count} modules")),
                     &input,
                     |b, &(bundler, test_app)| {
                         let test_app = &**test_app;
@@ -172,7 +172,7 @@ fn bench_hmr_internal(
 
             resume_on_error(AssertUnwindSafe(|| {
                 g.bench_with_input(
-                    BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
+                    BenchmarkId::new(bundler.get_name(), format!("{module_count} modules")),
                     &input,
                     |b, &(bundler, test_app)| {
                         let test_app = &**test_app;
@@ -309,7 +309,7 @@ fn bench_hmr_internal(
                                                 FormatDuration(value / (iter as u32)),
                                                 iter,
                                                 if dropped > 0 {
-                                                    format!(" ({} dropped)", dropped)
+                                                    format!(" ({dropped} dropped)")
                                                 } else {
                                                     "".to_string()
                                                 }
@@ -481,7 +481,7 @@ fn bench_startup_cached_internal(
 
             resume_on_error(AssertUnwindSafe(|| {
                 g.bench_with_input(
-                    BenchmarkId::new(bundler.get_name(), format!("{} modules", module_count)),
+                    BenchmarkId::new(bundler.get_name(), format!("{module_count} modules")),
                     &input,
                     |b, &(bundler, test_app)| {
                         let test_app = &**test_app;

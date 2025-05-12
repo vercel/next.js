@@ -992,9 +992,11 @@ impl Viewer {
                                 }
                             }
                             ViewSpan {
-                                id: (!span.is_root())
-                                    .then(|| span.id().get() as u64)
-                                    .unwrap_or_default(),
+                                id: if !span.is_root() {
+                                    span.id().get() as u64
+                                } else {
+                                    Default::default()
+                                },
                                 start: entry.start,
                                 width: entry.width,
                                 category: category.to_string(),

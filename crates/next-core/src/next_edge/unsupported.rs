@@ -70,9 +70,8 @@ fn unsupported_module_source(root_path: Vc<FileSystemPath>, module: RcStr) -> Vc
     };
     let content = AssetContent::file(File::from(code).into());
     VirtualSource::new_with_ident(
-        AssetIdent::from_path(root_path).with_modifier(Vc::cell(
-            format!("unsupported edge import {}", module).into(),
-        )),
+        AssetIdent::from_path(root_path)
+            .with_modifier(Vc::cell(format!("unsupported edge import {module}").into())),
         content,
     )
 }

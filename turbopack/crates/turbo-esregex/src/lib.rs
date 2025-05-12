@@ -92,7 +92,7 @@ impl EsRegex {
         }
 
         let regex = if !applied_flags.is_empty() {
-            regex::Regex::new(&format!("(?{}){}", applied_flags, pattern))
+            regex::Regex::new(&format!("(?{applied_flags}){pattern}"))
         } else {
             regex::Regex::new(&pattern)
         };

@@ -169,7 +169,7 @@ fn main() {
             };
 
             let json = serde_json::to_string_pretty(&options).unwrap();
-            println!("{}", json);
+            println!("{json}");
         }
     }
 }

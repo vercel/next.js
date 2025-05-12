@@ -92,7 +92,7 @@ impl ModularizeImportsTransformer {
                                         modularize_imports::Transform::Vec(v.clone())
                                     }
                                     Transform::None => {
-                                        panic!("Missing transform value for package {}", k)
+                                        panic!("Missing transform value for package {k}")
                                     }
                                 },
                                 prevent_full_import: v.prevent_full_import,

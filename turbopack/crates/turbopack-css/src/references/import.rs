@@ -170,7 +170,7 @@ impl CodeGenerateable for ImportAssetReference {
         } = &*this.request.await?
         {
             imports.push(CssImport::External(ResolvedVc::cell(
-                format!("{}{}", protocol, remainder).into(),
+                format!("{protocol}{remainder}").into(),
             )))
         }
 

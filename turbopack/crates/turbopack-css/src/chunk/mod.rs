@@ -90,7 +90,7 @@ impl CssChunk {
                 MinifyType::NoMinify
             ) {
                 let id = css_item.asset_ident().to_string().await?;
-                writeln!(body, "/* {} */", id)?;
+                writeln!(body, "/* {id} */")?;
             }
 
             let close = write_import_context(&mut body, content.import_context).await?;

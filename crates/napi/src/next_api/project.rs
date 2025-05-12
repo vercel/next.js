@@ -66,9 +66,9 @@ use crate::{register, util::DhatProfilerGuard};
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
 const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(100);
-static SOURCE_MAP_PREFIX: Lazy<String> = Lazy::new(|| format!("{}///", SOURCE_URL_PROTOCOL));
+static SOURCE_MAP_PREFIX: Lazy<String> = Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///"));
 static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
-    Lazy::new(|| format!("{}///[{}]/", SOURCE_URL_PROTOCOL, PROJECT_FILESYSTEM_NAME));
+    Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///[{PROJECT_FILESYSTEM_NAME}]/"));
 
 #[napi(object)]
 #[derive(Clone, Debug)]
@@ -1213,7 +1213,7 @@ pub fn project_update_info_subscribe(
 
             if !matches!(status, Status::Ok) {
                 let error = anyhow!("Error calling JS function: {}", status);
-                eprintln!("{}", error);
+                eprintln!("{error}");
                 break;
             }
         }
@@ -1376,7 +1376,7 @@ pub async fn project_trace_source(
                 (
                     get_relative_path_to(
                         &current_directory_file_url,
-                        &format!("{}{}", project_root_uri, source_file),
+                        &format!("{project_root_uri}{source_file}"),
                     )
                     // TODO(sokra) remove this to include a ./ here to make it a relative path
                     .trim_start_matches("./")

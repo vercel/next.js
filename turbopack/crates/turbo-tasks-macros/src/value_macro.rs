@@ -199,9 +199,9 @@ impl Parse for ValueArguments {
                     return Err(Error::new_spanned(
                         &meta,
                         format!(
-                            "unexpected {:?}, expected \"shared\", \"into\", \"serialization\", \
-                             \"cell\", \"eq\", \"transparent\", or \"operation\"",
-                            meta
+                            "unexpected {meta:?}, expected \"shared\", \"into\", \
+                             \"serialization\", \"cell\", \"eq\", \"transparent\", or \
+                             \"operation\""
                         ),
                     ))
                 }
@@ -255,8 +255,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 // the leading whitespace.
                 let doc_str = format!(
                     "\n\nThis is a [transparent value type][turbo_tasks::value#transparent] \
-                     wrapping [`{}`].",
-                    inner_type_string,
+                     wrapping [`{inner_type_string}`].",
                 );
 
                 attrs.push(parse_quote! {

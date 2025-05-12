@@ -1196,7 +1196,7 @@ impl Project {
                     ConflictIssue {
                         path: self.project_path().to_resolved().await?,
                         title: StyledString::Text(
-                            format!("App Router and Pages Router both match path: {}", pathname)
+                            format!("App Router and Pages Router both match path: {pathname}")
                                 .into(),
                         )
                         .resolved_cell(),

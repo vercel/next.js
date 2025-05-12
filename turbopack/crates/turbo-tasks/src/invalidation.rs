@@ -302,7 +302,7 @@ impl Display for InvalidationReasonSet {
             }
             match entry {
                 MapEntry::Single { reason } => {
-                    write!(f, "{}", reason)?;
+                    write!(f, "{reason}")?;
                 }
                 MapEntry::Multiple { reasons } => {
                     let MapKey::Typed { kind } = key else {

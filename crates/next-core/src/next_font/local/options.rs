@@ -149,7 +149,7 @@ impl Display for FontWeight {
             f,
             "{}",
             match self {
-                Self::Variable(start, end) => format!("{} {}", start, end),
+                Self::Variable(start, end) => format!("{start} {end}"),
                 Self::Fixed(val) => val.to_string(),
             }
         )
@@ -322,7 +322,7 @@ mod tests {
         );
 
         match request {
-            Ok(r) => panic!("Expected failure, received {:?}", r),
+            Ok(r) => panic!("Expected failure, received {r:?}"),
             Err(err) => {
                 assert!(err
                     .to_string()

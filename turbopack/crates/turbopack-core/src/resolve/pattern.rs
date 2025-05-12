@@ -859,7 +859,7 @@ impl Pattern {
                 }
             }
             Pattern::Alternatives(_) => {
-                panic!("for matching a Pattern must be normalized {:?}", self)
+                panic!("for matching a Pattern must be normalized {self:?}")
             }
             Pattern::Concatenation(list) => {
                 for part in list {
@@ -943,7 +943,7 @@ impl Pattern {
                 }
             }
             Pattern::Alternatives(_) => {
-                panic!("for matching a Pattern must be normalized {:?}", self)
+                panic!("for matching a Pattern must be normalized {self:?}")
             }
             Pattern::Concatenation(list) => {
                 for part in list {

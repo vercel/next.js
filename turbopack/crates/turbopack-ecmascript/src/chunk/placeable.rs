@@ -63,8 +63,7 @@ async fn side_effects_from_package_json(
                                     StyledString::Text(
                                         format!(
                                             "Each element in sideEffects must be a string, but \
-                                             found {:?}",
-                                            side_effect
+                                             found {side_effect:?}"
                                         )
                                         .into(),
                                     )
@@ -110,8 +109,8 @@ async fn side_effects_from_package_json(
                     description: Some(
                         StyledString::Text(
                             format!(
-                                "sideEffects must be a boolean or an array, but found {:?}",
-                                side_effects
+                                "sideEffects must be a boolean or an array, but found \
+                                 {side_effects:?}"
                             )
                             .into(),
                         )

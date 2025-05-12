@@ -462,6 +462,6 @@ pub fn get_client_reference_module_key(server_path: &str, export_name: &str) -> 
     if export_name == "*" {
         server_path.into()
     } else {
-        format!("{}#{}", server_path, export_name).into()
+        format!("{server_path}#{export_name}").into()
     }
 }

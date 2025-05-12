@@ -47,8 +47,8 @@ pub enum FormattingMode {
 impl FormattingMode {
     pub fn magic_identifier<'a>(&self, content: impl Display + 'a) -> impl Display + 'a {
         match self {
-            FormattingMode::Plain => format!("{{{}}}", content),
-            FormattingMode::AnsiColors => format!("{{{}}}", content).italic().to_string(),
+            FormattingMode::Plain => format!("{{{content}}}"),
+            FormattingMode::AnsiColors => format!("{{{content}}}").italic().to_string(),
         }
     }
 
@@ -203,7 +203,7 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
         ) -> Result<()> {
             if let Ok(text) = std::str::from_utf8(bytes) {
                 let text = unmangle_identifiers(text, |content| {
-                    format!("{{{}}}", content).italic().to_string()
+                    format!("{{{content}}}").italic().to_string()
                 });
                 match apply_source_mapping(
                     text.as_ref(),

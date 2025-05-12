@@ -155,11 +155,11 @@ fn get_messages(js_results: JsResult) -> Vec<String> {
     }
 
     for uncaught_exception in js_results.uncaught_exceptions {
-        messages.push(format!("Uncaught exception: {}", uncaught_exception));
+        messages.push(format!("Uncaught exception: {uncaught_exception}"));
     }
 
     for unhandled_rejection in js_results.unhandled_rejections {
-        messages.push(format!("Unhandled rejection: {}", unhandled_rejection));
+        messages.push(format!("Unhandled rejection: {unhandled_rejection}"));
     }
 
     messages
@@ -256,7 +256,7 @@ struct PreparedTest {
 #[turbo_tasks::function]
 async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
     let resource_path = canonicalize(&resource)?;
-    assert!(resource_path.exists(), "{} does not exist", resource);
+    assert!(resource_path.exists(), "{resource} does not exist");
     assert!(
         resource_path.is_dir(),
         "{} is not a directory. Execution tests must be directories.",

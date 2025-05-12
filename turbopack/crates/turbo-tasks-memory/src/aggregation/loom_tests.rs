@@ -217,7 +217,7 @@ fn fuzzy_loom_new() {
     for size in [10, 20] {
         for _ in 0..1000 {
             let seed = rand::random();
-            println!("Seed {} Size {}", seed, size);
+            println!("Seed {seed} Size {size}");
             fuzzy_loom(seed, size);
         }
     }

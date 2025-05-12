@@ -212,7 +212,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
         )
         .issue_file_path(
             entry.module.ident().path(),
-            format!("server-side rendering {}", pathname),
+            format!("server-side rendering {pathname}"),
         )
         .await?;
         Ok(match *result_op.connect().await? {

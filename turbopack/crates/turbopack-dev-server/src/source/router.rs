@@ -190,7 +190,7 @@ impl Introspectable for PrefixedRouterContentSource {
     #[turbo_tasks::function]
     async fn details(&self) -> Result<Vc<RcStr>> {
         let prefix = self.prefix.await?;
-        Ok(Vc::cell(format!("prefix: '{}'", prefix).into()))
+        Ok(Vc::cell(format!("prefix: '{prefix}'").into()))
     }
 
     #[turbo_tasks::function]

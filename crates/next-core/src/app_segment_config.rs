@@ -394,7 +394,7 @@ async fn parse_config_value(
                     invalid_config(
                         source,
                         span,
-                        &format!("`dynamic` has an invalid value: {}", err),
+                        &format!("`dynamic` has an invalid value: {err}"),
                         &value,
                     )
                     .await?;
@@ -455,7 +455,7 @@ async fn parse_config_value(
                     return invalid_config(
                         source,
                         span,
-                        &format!("`fetchCache` has an invalid value: {}", err),
+                        &format!("`fetchCache` has an invalid value: {err}"),
                         &value,
                     )
                     .await;
@@ -480,7 +480,7 @@ async fn parse_config_value(
                     return invalid_config(
                         source,
                         span,
-                        &format!("`runtime` has an invalid value: {}", err),
+                        &format!("`runtime` has an invalid value: {err}"),
                         &value,
                     )
                     .await;

@@ -72,7 +72,7 @@ where
     if let Some(id) = map_by_value.get(&value) {
         id.clone()
     } else {
-        panic!("Use of unregistered {:?}", value);
+        panic!("Use of unregistered {value:?}");
     }
 }
 
