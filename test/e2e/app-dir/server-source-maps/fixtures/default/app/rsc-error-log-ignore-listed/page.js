@@ -1,4 +1,3 @@
-import { connection } from 'next/server'
 import { runInternal } from 'internal-pkg'
 import { runInternalSourceMapped } from 'internal-pkg/sourcemapped'
 import { runInternalIgnored } from 'internal-pkg/ignored'
@@ -11,8 +10,6 @@ function logError() {
 }
 
 export default async function Page() {
-  await connection()
-
   runInternal(function runWithInternal() {
     runInternalSourceMapped(function runWithInternalSourceMapped() {
       runExternal(function runWithExternal() {

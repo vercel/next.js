@@ -36,15 +36,15 @@ describe('app-dir - server source maps', () => {
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         '\nError: rsc-error-log' +
-          '\n    at logError (app/rsc-error-log/page.js:5:16)' +
-          '\n    at Page (app/rsc-error-log/page.js:12:2)' +
-          '\n  3 |' +
-          '\n  4 | function logError() {' +
-          "\n> 5 |   const error = new Error('rsc-error-log')" +
+          '\n    at logError (app/rsc-error-log/page.js:4:16)' +
+          '\n    at Page (app/rsc-error-log/page.js:9:2)' +
+          '\n  2 |' +
+          '\n  3 | function logError() {' +
+          "\n> 4 |   const error = new Error('rsc-error-log')" +
           '\n    |                ^' +
-          '\n  6 |   console.error(error)' +
-          '\n  7 | }' +
-          '\n  8 |' +
+          '\n  5 |   console.error(error)' +
+          '\n  6 | }' +
+          '\n  7 |' +
           '\n'
       )
     } else {
@@ -64,24 +64,23 @@ describe('app-dir - server source maps', () => {
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         '\nError: rsc-error-log-cause' +
-          '\n    at logError (app/rsc-error-log-cause/page.js:4:16)' +
-          '\n    at Page (app/rsc-error-log-cause/page.js:12:2)' +
-          '\n  2 |' +
-          '\n  3 | function logError(cause) {' +
-          "\n> 4 |   const error = new Error('rsc-error-log-cause', { cause })" +
+          '\n    at logError (app/rsc-error-log-cause/page.js:2:16)' +
+          '\n    at Page (app/rsc-error-log-cause/page.js:8:2)' +
+          '\n  1 | function logError(cause) {' +
+          "\n> 2 |   const error = new Error('rsc-error-log-cause', { cause })" +
           '\n    |                ^' +
-          '\n  5 |   console.error(error)' +
-          '\n  6 | }' +
-          '\n  7 | {' +
+          '\n  3 |   console.error(error)' +
+          '\n  4 | }' +
+          '\n  5 | {' +
           '\n  [cause]: Error: Boom' +
-          '\n      at Page (app/rsc-error-log-cause/page.js:11:16)' +
-          '\n     9 |   await connection()' +
-          '\n    10 |' +
-          "\n  > 11 |   const error = new Error('Boom')" +
+          '\n      at Page (app/rsc-error-log-cause/page.js:7:16)' +
+          '\n     5 |' +
+          '\n     6 | export default function Page() {' +
+          "\n  >  7 |   const error = new Error('Boom')" +
           '\n       |                ^' +
-          '\n    12 |   logError(error)' +
-          '\n    13 |   return null' +
-          '\n    14 | }' +
+          '\n     8 |   logError(error)' +
+          '\n     9 |   return null' +
+          '\n    10 | }' +
           '\n'
       )
     } else {
@@ -207,39 +206,39 @@ describe('app-dir - server source maps', () => {
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         isTurbopack
           ? '\nError: rsc-error-log-ignore-listed' +
-              '\n    at logError (app/rsc-error-log-ignore-listed/page.js:9:16)' +
-              '\n    at runWithInternalIgnored (app/rsc-error-log-ignore-listed/page.js:21:12)' +
-              '\n    at runWithExternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:20:29)' +
-              '\n    at runWithExternal (app/rsc-error-log-ignore-listed/page.js:19:32)' +
-              '\n    at runWithInternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:18:18)' +
+              '\n    at logError (app/rsc-error-log-ignore-listed/page.js:8:16)' +
+              '\n    at runWithInternalIgnored (app/rsc-error-log-ignore-listed/page.js:18:12)' +
+              '\n    at runWithExternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:17:29)' +
+              '\n    at runWithExternal (app/rsc-error-log-ignore-listed/page.js:16:32)' +
+              '\n    at runWithInternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:15:18)' +
               // Realpath does not point into node_modules so we don't ignore it.
               // TODO(veil): Should be internal-pkg/sourcemapped.ts
               '\n    at runInternalSourceMapped (sourcemapped.ts:5:9)' +
-              '\n    at runWithInternal (app/rsc-error-log-ignore-listed/page.js:17:28)' +
+              '\n    at runWithInternal (app/rsc-error-log-ignore-listed/page.js:14:28)' +
               // Realpath does not point into node_modules so we don't ignore it.
               '\n    at runInternal (internal-pkg/index.js:2:9)' +
-              '\n    at Page (app/rsc-error-log-ignore-listed/page.js:16:14)' +
-              '\n   7 |' +
+              '\n    at Page (app/rsc-error-log-ignore-listed/page.js:13:14)' +
+              '\n   6 |' +
               '\n'
           : '\nError: rsc-error-log-ignore-listed' +
-              '\n    at logError (app/rsc-error-log-ignore-listed/page.js:9:16)' +
-              '\n    at runWithInternalIgnored (app/rsc-error-log-ignore-listed/page.js:21:12)' +
+              '\n    at logError (app/rsc-error-log-ignore-listed/page.js:8:16)' +
+              '\n    at runWithInternalIgnored (app/rsc-error-log-ignore-listed/page.js:18:12)' +
               // TODO(veil): Webpacks's sourcemap loader drops `ignoreList`
               // TODO(veil): Webpack's sourcemap loader creates an incorrect `sources` entry.
               // Can be worked around by using `./sourcemapped.ts` instead of `sourcemapped.ts`.
               '\n    at runInternalIgnored (webpack-internal:/(rsc)/internal-pkg/ignored.ts:6:9)' +
-              '\n    at runWithExternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:20:29)' +
-              '\n    at runWithExternal (app/rsc-error-log-ignore-listed/page.js:19:32)' +
-              '\n    at runWithInternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:18:18)' +
+              '\n    at runWithExternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:17:29)' +
+              '\n    at runWithExternal (app/rsc-error-log-ignore-listed/page.js:16:32)' +
+              '\n    at runWithInternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:15:18)' +
               // TODO(veil): Webpack's sourcemap loader creates an incorrect `sources` entry.
               // Can be worked around by using `./sourcemapped.ts` instead of `sourcemapped.ts`.
               // Realpath does not point into node_modules so we don't ignore it.
               '\n    at runInternalSourceMapped (webpack-internal:/(rsc)/internal-pkg/sourcemapped.ts:5:9)' +
-              '\n    at runWithInternal (app/rsc-error-log-ignore-listed/page.js:17:28)' +
+              '\n    at runWithInternal (app/rsc-error-log-ignore-listed/page.js:14:28)' +
               // Realpath does not point into node_modules so we don't ignore it.
               '\n    at runInternal (internal-pkg/index.js:2:9)' +
-              '\n    at Page (app/rsc-error-log-ignore-listed/page.js:16:14)' +
-              '\n   7 |' +
+              '\n    at Page (app/rsc-error-log-ignore-listed/page.js:13:14)' +
+              '\n   6 |' +
               '\n'
       )
     } else {
@@ -293,11 +292,15 @@ describe('app-dir - server source maps', () => {
   })
 
   it('logged errors preserve their name', async () => {
-    const outputIndex = next.cliOutput.length
-    await next.render('/rsc-error-log-custom-name')
+    let cliOutput = next.cliOutput
+    if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      await next.render('/rsc-error-log-custom-name')
+      cliOutput = next.cliOutput.slice(outputIndex)
+    }
 
     await retry(() => {
-      expect(next.cliOutput.slice(outputIndex)).toContain(
+      expect(cliOutput).toContain(
         // TODO: isNextDev ? 'UnnamedError: rsc-error-log-custom-name-Foo' : '[Error]: rsc-error-log-custom-name-Foo'
         isNextDev
           ? 'Error: rsc-error-log-custom-name-Foo'
@@ -305,30 +308,31 @@ describe('app-dir - server source maps', () => {
       )
     })
 
-    expect(next.cliOutput.slice(outputIndex)).toContain(
+    expect(cliOutput).toContain(
       // TODO: isNextDev ? 'NamedError [MyError]: rsc-error-log-custom-name-Bar' : '[MyError]: rsc-error-log-custom-name-Bar'
-      isNextDev ? 'Error [MyError]: rsc-error-log-custom-name-Bar' : 'Error [MyError]: rsc-error-log-custom-name-Bar'
+      isNextDev
+        ? 'Error [MyError]: rsc-error-log-custom-name-Bar'
+        : 'Error [MyError]: rsc-error-log-custom-name-Bar'
     )
   })
 
   it('handles invalid sourcemaps gracefully', async () => {
-    const outputIndex = next.cliOutput.length
-    await next.render('/bad-sourcemap')
-
-    await retry(() => {
-      expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
-        'Error: bad-sourcemap'
-      )
-    })
-
     if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      await next.render('/bad-sourcemap')
+
+      await retry(() => {
+        expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+          'Error: bad-sourcemap'
+        )
+      })
       if (isTurbopack) {
         expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
           // Node.js is fine with invalid URLs in index maps apparently.
           '' +
             '\nError: bad-sourcemap' +
-            '\n    at logError (custom://[badhost]/app/bad-sourcemap/page.js:8:16)' +
-            '\n    at Page (custom://[badhost]/app/bad-sourcemap/page.js:13:2)' +
+            '\n    at logError (custom://[badhost]/app/bad-sourcemap/page.js:6:16)' +
+            '\n    at Page (custom://[badhost]/app/bad-sourcemap/page.js:10:2)' +
             // TODO: Remove blank line
             '\n'
         )
@@ -340,15 +344,16 @@ describe('app-dir - server source maps', () => {
           '' +
             `\nwebpack-internal:///(rsc)/./app/bad-sourcemap/page.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: TypeError [ERR_INVALID_ARG_TYPE]: The "payload" argument must be of type object. Received null` +
             '\nError: bad-sourcemap' +
-            '\n    at logError (webpack-internal:///(rsc)/./app/bad-sourcemap/page.js:14:19)' +
-            '\n    at Page (webpack-internal:///(rsc)/./app/bad-sourcemap/page.js:18:5)'
+            '\n    at logError (webpack-internal:///(rsc)/./app/bad-sourcemap/page.js:12:19)' +
+            '\n    at Page (webpack-internal:///(rsc)/./app/bad-sourcemap/page.js:15:5)'
         )
-        // Expect the invalid sourcemap warning only once.
+        // Expect the invalid sourcemap warning only once per render.
+        // Dynamic I/O renders three times.
         expect(
           normalizeCliOutput(next.cliOutput.slice(outputIndex)).split(
             'Invalid source map.'
           ).length - 1
-        ).toEqual(1)
+        ).toEqual(3)
       }
     } else {
       // TODO: test `next start` with `--enable-source-maps`
