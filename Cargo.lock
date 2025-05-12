@@ -3005,7 +3005,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.4.9",
+ "socket2 0.5.8",
  "tokio",
  "tower-service",
  "tracing",
@@ -4329,9 +4329,9 @@ dependencies = [
 
 [[package]]
 name = "modularize_imports"
-version = "0.83.0"
+version = "0.83.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "36f4d5dedf01a8f57d7d76a57e5c0e58e9f5e3b4eea8782f36689bfd276641ee"
+checksum = "74957b5e9687164f3221cb6f29f55fde71b74f61d6fea41b7b9dfca3670dc25e"
 dependencies = [
  "convert_case",
  "handlebars",
@@ -4510,7 +4510,7 @@ dependencies = [
  "turbopack-node",
  "turbopack-nodejs",
  "turbopack-wasm",
- "vergen 9.0.5",
+ "vergen 9.0.6",
 ]
 
 [[package]]
@@ -10610,8 +10610,8 @@ dependencies = [
 
 [[package]]
 name = "vergen"
-version = "9.0.5"
-source = "git+https://github.com/bgw/vergen.git?branch=bgw%2Fno-optional-locks#0c9698692edd542772619f6db103681a832f61a7"
+version = "9.0.6"
+source = "git+https://github.com/bgw/vergen.git?branch=bgw%2Fno-optional-locks#ebb2f123ed3ab0a409040943b8e20f5c8b480585"
 dependencies = [
  "anyhow",
  "cargo_metadata 0.19.2",
@@ -10623,14 +10623,14 @@ dependencies = [
 
 [[package]]
 name = "vergen-gitcl"
-version = "1.0.6"
-source = "git+https://github.com/bgw/vergen.git?branch=bgw%2Fno-optional-locks#0c9698692edd542772619f6db103681a832f61a7"
+version = "1.0.7"
+source = "git+https://github.com/bgw/vergen.git?branch=bgw%2Fno-optional-locks#ebb2f123ed3ab0a409040943b8e20f5c8b480585"
 dependencies = [
  "anyhow",
  "derive_builder 0.20.2",
  "rustversion",
  "time",
- "vergen 9.0.5",
+ "vergen 9.0.6",
  "vergen-lib 0.1.6 (git+https://github.com/bgw/vergen.git?branch=bgw%2Fno-optional-locks)",
 ]
 
@@ -10648,7 +10648,7 @@ dependencies = [
 [[package]]
 name = "vergen-lib"
 version = "0.1.6"
-source = "git+https://github.com/bgw/vergen.git?branch=bgw%2Fno-optional-locks#0c9698692edd542772619f6db103681a832f61a7"
+source = "git+https://github.com/bgw/vergen.git?branch=bgw%2Fno-optional-locks#ebb2f123ed3ab0a409040943b8e20f5c8b480585"
 dependencies = [
  "anyhow",
  "derive_builder 0.20.2",
