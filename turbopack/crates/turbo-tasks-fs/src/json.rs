@@ -5,7 +5,7 @@ use std::{
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue};
+use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 
 use crate::{rope::Rope, source_context::get_source_context};
 

@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{duration_span, mark_session_dependent, ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, Vc, duration_span, mark_session_dependent};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
 

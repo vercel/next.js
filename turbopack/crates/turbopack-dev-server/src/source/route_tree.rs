@@ -4,8 +4,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
-    TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
+    fxindexmap, trace::TraceRawVcs,
 };
 
 use super::{GetContentSourceContent, GetContentSourceContents};

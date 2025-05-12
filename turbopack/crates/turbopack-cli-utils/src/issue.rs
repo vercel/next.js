@@ -8,12 +8,12 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use crossterm::style::{StyledContent, Stylize};
 use owo_colors::{OwoColorize as _, Style};
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_tasks::{RawVc, ReadRef, TransientInstance, TransientValue, TryJoinIterExt, Vc};
-use turbo_tasks_fs::{source_context::get_source_context, FileLinesContent};
+use turbo_tasks_fs::{FileLinesContent, source_context::get_source_context};
 use turbopack_core::issue::{
     CapturedIssues, Issue, IssueReporter, IssueSeverity, PlainIssue, PlainIssueProcessingPathItem,
     PlainIssueSource, StyledString,

@@ -1,14 +1,14 @@
 use std::collections::BTreeMap;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use indexmap::map::{Entry, OccupiedEntry};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc,
-    TaskInput, TryJoinIterExt, ValueDefault, ValueToString, Vc,
+    FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault, ValueToString,
+    Vc, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{
@@ -17,11 +17,11 @@ use turbopack_core::issue::{
 
 use crate::{
     next_app::{
-        metadata::{
-            match_global_metadata_file, match_local_metadata_file, normalize_metadata_route,
-            GlobalMetadataFileMatch, MetadataFileMatch,
-        },
         AppPage, AppPath, PageSegment, PageType,
+        metadata::{
+            GlobalMetadataFileMatch, MetadataFileMatch, match_global_metadata_file,
+            match_local_metadata_file, normalize_metadata_route,
+        },
     },
     next_import_map::get_next_package,
 };

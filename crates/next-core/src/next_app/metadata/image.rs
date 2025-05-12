@@ -2,7 +2,7 @@
 //!
 //! See `next/src/build/webpack/loaders/next-metadata-image-loader`
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ValueToString, Vc};

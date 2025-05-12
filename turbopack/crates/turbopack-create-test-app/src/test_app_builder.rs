@@ -1,12 +1,12 @@
 use std::{
     collections::VecDeque,
-    fs::{create_dir_all, File},
+    fs::{File, create_dir_all},
     io::prelude::*,
     path::{Path, PathBuf},
     str::FromStr,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use indoc::{formatdoc, indoc};
 use serde_json::json;
 use tempfile::TempDir;

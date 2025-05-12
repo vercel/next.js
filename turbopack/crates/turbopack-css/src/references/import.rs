@@ -11,7 +11,7 @@ use turbopack_core::{
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::{CssReferenceSubType, ImportContext},
-    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
 };
 
 use crate::{

@@ -1,6 +1,6 @@
 use std::{env, path::PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -11,7 +11,7 @@ use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, File, FileContent, FileSystemEntryType, FileSystemPath,
 };
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
-use turbopack_cli_utils::issue::{format_issue, LogOptions};
+use turbopack_cli_utils::issue::{LogOptions, format_issue};
 use turbopack_core::{
     asset::AssetContent,
     issue::{IssueSeverity, PlainIssue, StyledString},

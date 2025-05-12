@@ -1,6 +1,6 @@
 #![feature(arbitrary_self_types_pointers)]
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 pub fn register() {
     turbo_tasks::register();

@@ -3,16 +3,16 @@ use std::{
     collections::HashSet,
     fs::{self, File, OpenOptions, ReadDir},
     io::{BufWriter, Write},
-    mem::{swap, transmute, MaybeUninit},
+    mem::{MaybeUninit, swap, transmute},
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicBool, AtomicU32, Ordering},
         Arc,
+        atomic::{AtomicBool, AtomicU32, Ordering},
     },
 };
 
-use anyhow::{bail, Context, Result};
-use byteorder::{ReadBytesExt, WriteBytesExt, BE};
+use anyhow::{Context, Result, bail};
+use byteorder::{BE, ReadBytesExt, WriteBytesExt};
 use jiff::Timestamp;
 use lzzzz::lz4::decompress;
 use memmap2::Mmap;
@@ -21,16 +21,17 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterato
 use tracing::Span;
 
 use crate::{
+    QueryKey,
     arc_slice::ArcSlice,
     compaction::selector::{
-        get_compaction_jobs, total_coverage, CompactConfig, Compactable, CompactionJobs,
+        CompactConfig, Compactable, CompactionJobs, get_compaction_jobs, total_coverage,
     },
     constants::{
         AQMF_AVG_SIZE, AQMF_CACHE_SIZE, DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE,
         KEY_BLOCK_CACHE_SIZE, MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE,
         VALUE_BLOCK_CACHE_SIZE,
     },
-    key::{hash_key, StoreKey},
+    key::{StoreKey, hash_key},
     lookup_entry::LookupEntry,
     merge_iter::MergeIter,
     static_sorted_file::{
@@ -38,7 +39,6 @@ use crate::{
     },
     static_sorted_file_builder::StaticSortedFileBuilder,
     write_batch::{FinishResult, WriteBatch},
-    QueryKey,
 };
 
 #[cfg(feature = "stats")]

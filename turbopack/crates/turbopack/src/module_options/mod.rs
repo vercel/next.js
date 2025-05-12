@@ -12,7 +12,7 @@ pub use module_rule::*;
 pub use rule_condition::*;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 use turbopack_core::{
     chunk::SourceMapsType,
     reference_type::{CssReferenceSubType, ReferenceType, UrlReferenceSubType},
