@@ -4,7 +4,7 @@ use anyhow::Result;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
-use turbo_tasks_fs::{json::parse_json_with_source_context, File};
+use turbo_tasks_fs::{File, json::parse_json_with_source_context};
 use turbopack_core::{
     asset::AssetContent,
     introspect::{Introspectable, IntrospectableChildren},
@@ -13,8 +13,8 @@ use turbopack_core::{
 use turbopack_ecmascript::utils::FormatIter;
 
 use crate::source::{
-    route_tree::{RouteTree, RouteTrees, RouteType},
     ContentSource, ContentSourceContent, ContentSourceData, GetContentSourceContent,
+    route_tree::{RouteTree, RouteTrees, RouteType},
 };
 
 #[turbo_tasks::value(shared)]

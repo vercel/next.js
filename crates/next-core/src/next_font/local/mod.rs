@@ -1,33 +1,33 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use font_fallback::FontFallbackResult;
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{
-    glob::Glob, json::parse_json_with_source_context, FileContent, FileSystemPath,
+    FileContent, FileSystemPath, glob::Glob, json::parse_json_with_source_context,
 };
 use turbopack_core::{
     asset::AssetContent,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     reference_type::ReferenceType,
     resolve::{
+        ResolveResult, ResolveResultItem, ResolveResultOption,
         parse::Request,
         plugin::{BeforeResolvePlugin, BeforeResolvePluginCondition},
-        ResolveResult, ResolveResultItem, ResolveResultOption,
     },
     virtual_source::VirtualSource,
 };
 
 use self::{
     font_fallback::get_font_fallbacks,
-    options::{options_from_request, FontDescriptors, NextFontLocalOptions},
+    options::{FontDescriptors, NextFontLocalOptions, options_from_request},
     stylesheet::build_stylesheet,
     util::build_font_family_string,
 };
 use super::{
     font_fallback::FontFallbacks,
-    util::{can_use_next_font, FontCssProperties},
+    util::{FontCssProperties, can_use_next_font},
 };
 use crate::{
     next_app::metadata::split_extension,

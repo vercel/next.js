@@ -2,7 +2,7 @@
 //!
 //! See `next/src/build/webpack/loaders/next-metadata-route-loader`
 
-use anyhow::{bail, Ok, Result};
+use anyhow::{Ok, Result, bail};
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
 use indoc::{formatdoc, indoc};
 use turbo_tasks::{ValueToString, Vc};
@@ -18,7 +18,7 @@ use crate::{
     app_structure::MetadataItem,
     mode::NextMode,
     next_app::{
-        app_entry::AppEntry, app_route_entry::get_app_route_entry, AppPage, PageSegment, PageType,
+        AppPage, PageSegment, PageType, app_entry::AppEntry, app_route_entry::get_app_route_entry,
     },
     next_config::NextConfig,
     parse_segment_config_from_source,

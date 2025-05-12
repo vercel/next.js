@@ -4,7 +4,7 @@ use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{IssueExt, IssueSeverity, StyledString};
 
@@ -12,11 +12,11 @@ use super::options::NextFontGoogleOptions;
 use crate::{
     next_font::{
         font_fallback::{
-            AutomaticFontFallback, FontAdjustment, FontFallback, DEFAULT_SANS_SERIF_FONT,
-            DEFAULT_SERIF_FONT,
+            AutomaticFontFallback, DEFAULT_SANS_SERIF_FONT, DEFAULT_SERIF_FONT, FontAdjustment,
+            FontFallback,
         },
         issue::NextFontIssue,
-        util::{get_scoped_font_family, FontFamilyType},
+        util::{FontFamilyType, get_scoped_font_family},
     },
     util::load_next_js_templateon,
 };
@@ -175,7 +175,7 @@ mod tests {
     use turbo_tasks_fs::json::parse_json_with_source_context;
 
     use super::{FontAdjustment, FontMetricsMap};
-    use crate::next_font::google::font_fallback::{lookup_fallback, Fallback};
+    use crate::next_font::google::font_fallback::{Fallback, lookup_fallback};
 
     #[test]
     fn test_fallback_from_metrics_sans_serif() -> Result<()> {

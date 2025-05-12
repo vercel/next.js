@@ -10,24 +10,24 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use dunce::canonicalize;
 use serde::{Deserialize, Serialize};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
+use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion,
-    NonLocalValue, OperationVc, ResolvedVc, TryJoinIterExt, TurboTasks, Value, Vc,
+    Completion, NonLocalValue, OperationVc, ResolvedVc, TryJoinIterExt, TurboTasks, Value, Vc,
+    apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
-use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
+use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
 use turbo_tasks_fs::{
-    json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystem, FileContent,
-    FileSystem, FileSystemEntryType, FileSystemPath,
+    DiskFileSystem, FileContent, FileSystem, FileSystemEntryType, FileSystemPath,
+    json::parse_json_with_source_context, util::sys_to_unix,
 };
 use turbopack::{
-    css::chunk::CssChunkType,
-    ecmascript::{chunk::EcmascriptChunkType, TreeShakingMode},
-    module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
     ModuleAssetContext,
+    css::chunk::CssChunkType,
+    ecmascript::{TreeShakingMode, chunk::EcmascriptChunkType},
+    module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
 };
 use turbopack_core::{
     chunk::ChunkingConfig,
@@ -40,8 +40,8 @@ use turbopack_core::{
     issue::{Issue, IssueDescriptionExt},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
-        options::{ImportMap, ImportMapping},
         ExternalTraced, ExternalType,
+        options::{ImportMap, ImportMapping},
     },
     source::Source,
 };

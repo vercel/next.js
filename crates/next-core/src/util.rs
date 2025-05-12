@@ -1,19 +1,19 @@
 use std::future::Future;
 
-use anyhow::{bail, Context, Result};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use anyhow::{Context, Result, bail};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use swc_core::{
     common::GLOBALS,
     ecma::ast::{Expr, Lit, Program},
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, util::WrapFuture, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc,
-    TaskInput, ValueDefault, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, ValueDefault, ValueToString, Vc,
+    trace::TraceRawVcs, util::WrapFuture,
 };
 use turbo_tasks_fs::{
-    self, json::parse_json_rope_with_source_context, rope::Rope, util::join_path, File,
-    FileContent, FileSystem, FileSystemPath,
+    self, File, FileContent, FileSystem, FileSystemPath, json::parse_json_rope_with_source_context,
+    rope::Rope, util::join_path,
 };
 use turbopack_core::{
     asset::AssetContent,
@@ -25,10 +25,10 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
+    EcmascriptParsable,
     analyzer::{ConstantValue, JsValue, ObjectPart},
     parse::ParseResult,
     utils::StringifyJs,
-    EcmascriptParsable,
 };
 
 use crate::{

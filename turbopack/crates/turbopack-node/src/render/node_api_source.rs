@@ -5,16 +5,16 @@ use turbo_tasks::{FxIndexSet, ResolvedVc, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::introspect::{
-    module::IntrospectableModule, output_asset::IntrospectableOutputAsset, Introspectable,
-    IntrospectableChildren,
+    Introspectable, IntrospectableChildren, module::IntrospectableModule,
+    output_asset::IntrospectableOutputAsset,
 };
 use turbopack_dev_server::source::{
-    route_tree::{BaseSegment, RouteTree, RouteType},
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
     GetContentSourceContent,
+    route_tree::{BaseSegment, RouteTree, RouteType},
 };
 
-use super::{render_proxy::render_proxy_operation, RenderData};
+use super::{RenderData, render_proxy::render_proxy_operation};
 use crate::{get_intermediate_asset, node_entry::NodeEntry, route_matcher::RouteMatcher};
 
 /// Creates a [NodeApiContentSource].

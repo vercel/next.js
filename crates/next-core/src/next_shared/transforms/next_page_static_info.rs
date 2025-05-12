@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::page_static_info::{
-    collect_exports, extract_exported_const_values, Const,
+    Const, collect_exports, extract_exported_const_values,
 };
 use serde_json::Value;
 use swc_core::{atoms::atom, ecma::ast::Program};

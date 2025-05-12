@@ -3,16 +3,16 @@ use std::{
     mem::take,
     path::{Path, PathBuf},
     sync::{
-        mpsc::{channel, Receiver, TryRecvError},
         Arc, Mutex,
+        mpsc::{Receiver, TryRecvError, channel},
     },
     time::Duration,
 };
 
 use anyhow::Result;
 use notify::{
-    event::{MetadataKind, ModifyKind, RenameMode},
     Config, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
+    event::{MetadataKind, ModifyKind, RenameMode},
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -20,15 +20,15 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    spawn_thread, util::StaticOrArc, FxIndexSet, InvalidationReason, InvalidationReasonKind,
-    Invalidator,
+    FxIndexSet, InvalidationReason, InvalidationReasonKind, Invalidator, spawn_thread,
+    util::StaticOrArc,
 };
 
 use crate::{
-    format_absolute_fs_path,
+    DiskFileSystemInner, format_absolute_fs_path,
     invalidation::{WatchChange, WatchStart},
     invalidator_map::WriteContent,
-    path_to_key, DiskFileSystemInner,
+    path_to_key,
 };
 
 enum DiskWatcherInternal {

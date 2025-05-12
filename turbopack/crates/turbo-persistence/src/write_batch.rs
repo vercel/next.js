@@ -8,7 +8,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use byteorder::{WriteBytesExt, BE};
+use byteorder::{BE, WriteBytesExt};
 use lzzzz::lz4::{self, ACC_LEVEL_DEFAULT};
 use parking_lot::Mutex;
 use rayon::{
@@ -20,12 +20,12 @@ use thread_local::ThreadLocal;
 use tracing::Span;
 
 use crate::{
+    ValueBuffer,
     collector::Collector,
     collector_entry::CollectorEntry,
     constants::{MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
     key::StoreKey,
     static_sorted_file_builder::StaticSortedFileBuilder,
-    ValueBuffer,
 };
 
 /// The thread local state of a `WriteBatch`. `FAMILIES` should fit within a `u32`.

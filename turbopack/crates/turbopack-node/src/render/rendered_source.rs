@@ -6,8 +6,8 @@ use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     introspect::{
-        module::IntrospectableModule, output_asset::IntrospectableOutputAsset, Introspectable,
-        IntrospectableChildren,
+        Introspectable, IntrospectableChildren, module::IntrospectableModule,
+        output_asset::IntrospectableOutputAsset,
     },
     issue::IssueDescriptionExt,
     module::Module,
@@ -17,18 +17,18 @@ use turbopack_core::{
 use turbopack_dev_server::{
     html::DevHtmlAsset,
     source::{
+        ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
+        GetContentSourceContent, ProxyResult,
         asset_graph::AssetGraphContentSource,
         conditional::ConditionalContentSource,
         lazy_instantiated::{GetContentSource, LazyInstantiatedContentSource},
         route_tree::{BaseSegment, RouteTree, RouteType},
-        ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
-        GetContentSourceContent, ProxyResult,
     },
 };
 
 use super::{
-    render_static::{render_static_operation, StaticResult},
     RenderData,
+    render_static::{StaticResult, render_static_operation},
 };
 use crate::{
     external_asset_entrypoints, get_intermediate_asset, node_entry::NodeEntry,

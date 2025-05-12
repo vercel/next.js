@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, json::parse_json_with_source_context};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::issue::{IssueExt, IssueSeverity, StyledString};
 
