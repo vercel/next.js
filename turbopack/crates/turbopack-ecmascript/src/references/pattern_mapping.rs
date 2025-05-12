@@ -410,7 +410,7 @@ impl PatternMapping {
                 request_to_string(request).await?.to_string(),
             ))
             .cell()),
-            1 => {
+            1 if !request.request_pattern().await?.has_dynamic_parts() => {
                 let resolve_item = &result.primary.first().unwrap().1;
                 let single_pattern_mapping =
                     to_single_pattern_mapping(origin, chunking_context, resolve_item, resolve_type)

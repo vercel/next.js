@@ -39,6 +39,10 @@ export interface Binding {
       transformStyleAttr(transformAttrOptions: any): Promise<any>
     }
   }
+
+  reactCompiler: {
+    isReactCompilerRequired(filename: string): Promise<boolean>
+  }
 }
 
 export type StyledString =
@@ -185,6 +189,10 @@ export interface UpdateInfo {
 
 export interface Project {
   update(options: Partial<ProjectOptions>): Promise<void>
+
+  writeAllEntrypointsToDisk(
+    appDirOnly: boolean
+  ): Promise<TurbopackResult<RawEntrypoints>>
 
   entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<RawEntrypoints>>
 

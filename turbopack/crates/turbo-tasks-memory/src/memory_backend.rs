@@ -79,7 +79,7 @@ impl MemoryBackend {
             persistent_tasks: NoMoveVec::new(),
             transient_tasks: NoMoveVec::new(),
             backend_jobs: NoMoveVec::new(),
-            backend_job_id_factory: IdFactoryWithReuse::new(1, u32::MAX as u64),
+            backend_job_id_factory: IdFactoryWithReuse::new(BackendJobId::MIN, BackendJobId::MAX),
             task_cache: DashMap::with_hasher_and_shard_amount(Default::default(), shard_amount),
             transient_task_cache: DashMap::with_hasher_and_shard_amount(
                 Default::default(),

@@ -4236,6 +4236,21 @@ describe('app-dir static/dynamic handling', () => {
       expect(data).not.toEqual(data2)
     })
 
+    it('should be able to read the draft mode status', async () => {
+      let $ = await next.render$('/unstable-cache/dynamic')
+      expect($('#draft-mode-enabled').text()).toBe('draft mode enabled: false')
+
+      const draftRes = await next.fetch('/api/draft-mode?status=enable')
+      const setCookie = draftRes.headers.get('set-cookie')
+      const cookieHeader = { Cookie: setCookie?.split(';', 1)[0] }
+
+      $ = await next.render$('/unstable-cache/dynamic', undefined, {
+        headers: cookieHeader,
+      })
+
+      expect($('#draft-mode-enabled').text()).toBe('draft mode enabled: true')
+    })
+
     it('should not error when retrieving the value undefined', async () => {
       const res = await next.fetch('/unstable-cache/dynamic-undefined')
       const html = await res.text()

@@ -49,15 +49,13 @@
     function getComponentNameFromType(type) {
       if (null == type) return null;
       if ("function" === typeof type)
-        return type.$$typeof === REACT_CLIENT_REFERENCE$1
+        return type.$$typeof === REACT_CLIENT_REFERENCE
           ? null
           : type.displayName || type.name || null;
       if ("string" === typeof type) return type;
       switch (type) {
         case REACT_FRAGMENT_TYPE:
           return "Fragment";
-        case REACT_PORTAL_TYPE:
-          return "Portal";
         case REACT_PROFILER_TYPE:
           return "Profiler";
         case REACT_STRICT_MODE_TYPE:
@@ -66,6 +64,8 @@
           return "Suspense";
         case REACT_SUSPENSE_LIST_TYPE:
           return "SuspenseList";
+        case REACT_ACTIVITY_TYPE:
+          return "Activity";
       }
       if ("object" === typeof type)
         switch (
@@ -75,6 +75,8 @@
             ),
           type.$$typeof)
         ) {
+          case REACT_PORTAL_TYPE:
+            return "Portal";
           case REACT_CONTEXT_TYPE:
             return (type.displayName || "Context") + ".Provider";
           case REACT_CONSUMER_TYPE:
@@ -120,6 +122,9 @@
     function getOwner() {
       var dispatcher = ReactSharedInternals.A;
       return null === dispatcher ? null : dispatcher.getOwner();
+    }
+    function UnknownOwner() {
+      return Error("react-stack-top-frame");
     }
     function hasValidKey(config) {
       if (hasOwnProperty.call(config, "key")) {
@@ -461,7 +466,12 @@
     function createCacheNode() {
       return { s: 0, v: void 0, o: null, p: null };
     }
-    var ReactSharedInternals = { H: null, A: null, getCurrentStack: null },
+    var ReactSharedInternals = {
+        H: null,
+        A: null,
+        getCurrentStack: null,
+        recentlyCreatedOwnerStacks: 0
+      },
       isArrayImpl = Array.isArray,
       REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
       REACT_PORTAL_TYPE = Symbol.for("react.portal"),
@@ -476,9 +486,9 @@
       REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"),
       REACT_MEMO_TYPE = Symbol.for("react.memo"),
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
-      REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
+      REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
-      REACT_CLIENT_REFERENCE$1 = Symbol.for("react.client.reference"),
+      REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"),
       hasOwnProperty = Object.prototype.hasOwnProperty,
       assign = Object.assign,
       createTask = console.createTask
@@ -486,12 +496,20 @@
         : function () {
             return null;
           },
+      createFakeCallStack = {
+        "react-stack-bottom-frame": function (callStackForError) {
+          return callStackForError();
+        }
+      },
       specialPropKeyWarningShown,
       didWarnAboutOldJSXRuntime;
     var didWarnAboutElementRef = {};
+    var unknownOwnerDebugStack = createFakeCallStack[
+      "react-stack-bottom-frame"
+    ].bind(createFakeCallStack, UnknownOwner)();
+    var unknownOwnerDebugTask = createTask(getTaskName(UnknownOwner));
     var didWarnAboutMaps = !1,
-      userProvidedKeyEscapeRegex = /\/+/g,
-      REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
+      userProvidedKeyEscapeRegex = /\/+/g;
     exports.Children = {
       map: mapChildren,
       forEach: function (children, forEachFunc, forEachContext) {
@@ -644,7 +662,6 @@
         var node = arguments[i];
         isValidElement(node) && node._store && (node._store.validated = 1);
       }
-      var propName;
       i = {};
       node = null;
       if (null != config)
@@ -685,6 +702,7 @@
             ? type.displayName || type.name || "Unknown"
             : type
         );
+      var propName = 1e4 > ReactSharedInternals.recentlyCreatedOwnerStacks++;
       return ReactElement(
         type,
         node,
@@ -692,8 +710,8 @@
         void 0,
         getOwner(),
         i,
-        Error("react-stack-top-frame"),
-        createTask(getTaskName(type))
+        propName ? Error("react-stack-top-frame") : unknownOwnerDebugStack,
+        propName ? createTask(getTaskName(type)) : unknownOwnerDebugTask
       );
     };
     exports.createRef = function () {
@@ -751,23 +769,7 @@
       };
     };
     exports.memo = function (type, compare) {
-      "string" === typeof type ||
-        "function" === typeof type ||
-        type === REACT_FRAGMENT_TYPE ||
-        type === REACT_PROFILER_TYPE ||
-        type === REACT_STRICT_MODE_TYPE ||
-        type === REACT_SUSPENSE_TYPE ||
-        type === REACT_SUSPENSE_LIST_TYPE ||
-        type === REACT_OFFSCREEN_TYPE ||
-        ("object" === typeof type &&
-          null !== type &&
-          (type.$$typeof === REACT_LAZY_TYPE ||
-            type.$$typeof === REACT_MEMO_TYPE ||
-            type.$$typeof === REACT_CONTEXT_TYPE ||
-            type.$$typeof === REACT_CONSUMER_TYPE ||
-            type.$$typeof === REACT_FORWARD_REF_TYPE ||
-            type.$$typeof === REACT_CLIENT_REFERENCE ||
-            void 0 !== type.getModuleId)) ||
+      null == type &&
         console.error(
           "memo: The first argument must be a component. Instead received: %s",
           null === type ? "null" : typeof type
@@ -809,5 +811,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.1.0-canary-e03ac20f-20250305";
+    exports.version = "19.2.0-canary-197d6a04-20250424";
   })();

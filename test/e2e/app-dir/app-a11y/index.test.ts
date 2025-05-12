@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
-import type { BrowserInterface } from 'next-webdriver'
+import type { Playwright } from 'next-webdriver'
 
 describe('app a11y features', () => {
   const { next, skipped } = nextTestSetup({
@@ -14,7 +14,7 @@ describe('app a11y features', () => {
   }
 
   describe('route announcer', () => {
-    async function getAnnouncerContent(browser: BrowserInterface) {
+    async function getAnnouncerContent(browser: Playwright) {
       return browser.eval(
         `document.getElementsByTagName('next-route-announcer')[0]?.shadowRoot.childNodes[0]?.innerHTML`
       )

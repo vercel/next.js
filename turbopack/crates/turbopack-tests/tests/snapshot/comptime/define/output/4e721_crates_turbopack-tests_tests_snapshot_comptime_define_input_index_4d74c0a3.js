@@ -2,7 +2,7 @@
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/define/input/index.js [test] (ecmascript)": (function(__turbopack_context__) {
 
-var { g: global, d: __dirname, m: module, e: exports } = __turbopack_context__;
+var { m: module, e: exports } = __turbopack_context__;
 {
 if ("TURBOPACK compile-time truthy", 1) {
     console.log('DEFINED_VALUE');
@@ -30,6 +30,7 @@ if ("TURBOPACK compile-time falsy", 0) {
 // TODO short-circuit is not implemented yet
 ("TURBOPACK compile-time value", "development") != 'production' && console.log('development');
 ("TURBOPACK compile-time value", "development") == 'production' && console.log('production');
+console.log(("TURBOPACK compile-time value", "/ROOT/turbopack/crates/turbopack-tests/tests/snapshot/comptime/define/input"));
 }}),
 }]);
 

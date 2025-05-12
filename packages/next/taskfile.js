@@ -93,6 +93,19 @@ export async function ncc_node_html_parser(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+externals['busboy'] = 'next/dist/compiled/busboy'
+export async function ncc_busboy(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('busboy')))
+    .ncc({
+      packageName: 'busboy',
+      externals,
+      target: 'es5',
+    })
+    .target('src/compiled/busboy')
+}
+
+// eslint-disable-next-line camelcase
 externals['@mswjs/interceptors/ClientRequest'] =
   'next/dist/compiled/@mswjs/interceptors/ClientRequest'
 export async function ncc_mswjs_interceptors(task, opts) {
@@ -1787,11 +1800,17 @@ export async function copy_vendor_react(task_) {
         // bundles have unique constraints like a runtime bundle. For browser builds this
         // package will be bundled alongside user code and we don't need to introduce the extra
         // indirection
-        if (
-          (file.base.startsWith('react-server-dom-turbopack-client') &&
-            !file.base.startsWith(
-              'react-server-dom-turbopack-client.browser'
-            )) ||
+
+        if (file.base.startsWith('react-server-dom-turbopack-client.browser')) {
+          const source = file.data.toString()
+          let newSource = source.replace(
+            /__turbopack_load__/g,
+            '__turbopack_load_by_url__'
+          )
+
+          file.data = newSource
+        } else if (
+          file.base.startsWith('react-server-dom-turbopack-client') ||
           (file.base.startsWith('react-server-dom-turbopack-server') &&
             !file.base.startsWith('react-server-dom-turbopack-server.browser'))
         ) {
@@ -2396,6 +2415,7 @@ export async function ncc(task, opts) {
       'ncc_edge_runtime_primitives',
       'ncc_edge_runtime_ponyfill',
       'ncc_edge_runtime',
+      'ncc_busboy',
       'ncc_mswjs_interceptors',
       'ncc_rsc_poison_packages',
     ],
@@ -2807,14 +2827,14 @@ export async function release(task) {
   await task.clear('dist').start('build')
 }
 
-export async function next_bundle_app_turbo(task, opts) {
+export async function next_bundle_app_prod_turbo(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
     config: require('./next-runtime.webpack-config')({
       turbo: true,
       bundleType: 'app',
     }),
-    name: 'next-bundle-app-turbo',
+    name: 'next-bundle-app-prod-turbo',
   })
 }
 
@@ -2829,6 +2849,18 @@ export async function next_bundle_app_prod(task, opts) {
   })
 }
 
+export async function next_bundle_app_dev_turbo(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-runtime.webpack-config')({
+      turbo: true,
+      dev: true,
+      bundleType: 'app',
+    }),
+    name: 'next-bundle-app-dev-turbo',
+  })
+}
+
 export async function next_bundle_app_dev(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
@@ -2840,7 +2872,7 @@ export async function next_bundle_app_dev(task, opts) {
   })
 }
 
-export async function next_bundle_app_turbo_experimental(task, opts) {
+export async function next_bundle_app_prod_turbo_experimental(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
     config: require('./next-runtime.webpack-config')({
@@ -2848,7 +2880,7 @@ export async function next_bundle_app_turbo_experimental(task, opts) {
       bundleType: 'app',
       experimental: true,
     }),
-    name: 'next-bundle-app-turbo-experimental',
+    name: 'next-bundle-app-prod-turbo-experimental',
   })
 }
 
@@ -2861,6 +2893,19 @@ export async function next_bundle_app_prod_experimental(task, opts) {
       experimental: true,
     }),
     name: 'next-bundle-app-prod-experimental',
+  })
+}
+
+export async function next_bundle_app_dev_turbo_experimental(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-runtime.webpack-config')({
+      turbo: true,
+      dev: true,
+      bundleType: 'app',
+      experimental: true,
+    }),
+    name: 'next-bundle-app-dev-turbo-experimental',
   })
 }
 
@@ -2898,14 +2943,26 @@ export async function next_bundle_pages_dev(task, opts) {
   })
 }
 
-export async function next_bundle_pages_turbo(task, opts) {
+export async function next_bundle_pages_prod_turbo(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
     config: require('./next-runtime.webpack-config')({
       turbo: true,
       bundleType: 'pages',
     }),
-    name: 'next-bundle-pages-turbo',
+    name: 'next-bundle-pages-prod-turbo',
+  })
+}
+
+export async function next_bundle_pages_dev_turbo(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-runtime.webpack-config')({
+      turbo: true,
+      dev: true,
+      bundleType: 'pages',
+    }),
+    name: 'next-bundle-pages-dev-turbo',
   })
 }
 
@@ -2924,17 +2981,20 @@ export async function next_bundle(task, opts) {
   await task.parallel(
     [
       // builds the app (route/page) bundles
-      'next_bundle_app_turbo',
+      'next_bundle_app_prod_turbo',
       'next_bundle_app_prod',
+      'next_bundle_app_dev_turbo',
       'next_bundle_app_dev',
       // builds the app (route/page) bundles with react experimental
-      'next_bundle_app_turbo_experimental',
+      'next_bundle_app_prod_turbo_experimental',
       'next_bundle_app_prod_experimental',
+      'next_bundle_app_dev_turbo_experimental',
       'next_bundle_app_dev_experimental',
       // builds the pages (page/api) bundles
       'next_bundle_pages_prod',
       'next_bundle_pages_dev',
-      'next_bundle_pages_turbo',
+      'next_bundle_pages_prod_turbo',
+      'next_bundle_pages_dev_turbo',
       // builds the minimal server
       'next_bundle_server',
     ],

@@ -17,21 +17,20 @@ import {
   useClickOutside,
   useFocusTrap,
 } from './utils'
+import {
+  getInitialPosition,
+  type DevToolsScale,
+} from './dev-tools-info/preferences'
+import { Draggable } from './draggable'
 
 // TODO: add E2E tests to cover different scenarios
-
-const INDICATOR_POSITION =
-  (process.env
-    .__NEXT_DEV_INDICATOR_POSITION as typeof window.__NEXT_DEV_INDICATOR_POSITION) ||
-  'bottom-left'
-
-export type DevToolsIndicatorPosition = typeof INDICATOR_POSITION
 
 export function DevToolsIndicator({
   state,
   errorCount,
   isBuildError,
   setIsErrorOverlayOpen,
+  ...props
 }: {
   state: OverlayState
   errorCount: number
@@ -39,6 +38,8 @@ export function DevToolsIndicator({
   setIsErrorOverlayOpen: (
     isErrorOverlayOpen: boolean | ((prev: boolean) => boolean)
   ) => void
+  scale: DevToolsScale
+  setScale: (value: DevToolsScale) => void
 }) {
   const [isDevToolsIndicatorVisible, setIsDevToolsIndicatorVisible] =
     useState(true)
@@ -59,6 +60,7 @@ export function DevToolsIndicator({
       isTurbopack={!!process.env.TURBOPACK}
       disabled={state.disableDevIndicator || !isDevToolsIndicatorVisible}
       isBuildError={isBuildError}
+      {...props}
     />
   )
 }
@@ -73,19 +75,6 @@ interface C {
 
 const Context = createContext({} as C)
 
-function getInitialPosition() {
-  if (
-    typeof localStorage !== 'undefined' &&
-    localStorage.getItem(STORAGE_KEY_POSITION)
-  ) {
-    return localStorage.getItem(
-      STORAGE_KEY_POSITION
-    ) as DevToolsIndicatorPosition
-  }
-
-  return INDICATOR_POSITION
-}
-
 const OVERLAYS = {
   Root: 'root',
   Turbo: 'turbo',
@@ -94,6 +83,8 @@ const OVERLAYS = {
 } as const
 
 export type Overlays = (typeof OVERLAYS)[keyof typeof OVERLAYS]
+
+const INDICATOR_PADDING = 20
 
 function DevToolsPopover({
   routerType,
@@ -104,6 +95,8 @@ function DevToolsPopover({
   isBuildError,
   hide,
   setIsErrorOverlayOpen,
+  scale,
+  setScale,
 }: {
   routerType: 'pages' | 'app'
   disabled: boolean
@@ -116,6 +109,8 @@ function DevToolsPopover({
   setIsErrorOverlayOpen: (
     isOverlayOpen: boolean | ((prev: boolean) => boolean)
   ) => void
+  scale: DevToolsScale
+  setScale: (value: DevToolsScale) => void
 }) {
   const menuRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
@@ -266,30 +261,38 @@ function DevToolsPopover({
           '--animate-out-timing-function': MENU_CURVE,
           boxShadow: 'none',
           zIndex: 2147483647,
-          // Reset the toast component's default positions.
-          bottom: 'initial',
-          left: 'initial',
-          [vertical]: '20px',
-          [horizontal]: '20px',
+          [vertical]: `${INDICATOR_PADDING}px`,
+          [horizontal]: `${INDICATOR_PADDING}px`,
         } as CSSProperties
       }
     >
-      {/* Trigger */}
-      <NextLogo
-        ref={triggerRef}
-        aria-haspopup="menu"
-        aria-expanded={isMenuOpen}
-        aria-controls="nextjs-dev-tools-menu"
-        aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
-        data-nextjs-dev-tools-button
-        disabled={disabled}
-        issueCount={issueCount}
-        onTriggerClick={onTriggerClick}
-        toggleErrorOverlay={toggleErrorOverlay}
-        isDevBuilding={useIsDevBuilding()}
-        isDevRendering={useIsDevRendering()}
-        isBuildError={isBuildError}
-      />
+      <Draggable
+        padding={INDICATOR_PADDING}
+        onDragStart={() => setOpen(null)}
+        position={position}
+        setPosition={(p) => {
+          localStorage.setItem(STORAGE_KEY_POSITION, p)
+          setPosition(p)
+        }}
+      >
+        {/* Trigger */}
+        <NextLogo
+          ref={triggerRef}
+          aria-haspopup="menu"
+          aria-expanded={isMenuOpen}
+          aria-controls="nextjs-dev-tools-menu"
+          aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
+          data-nextjs-dev-tools-button
+          disabled={disabled}
+          issueCount={issueCount}
+          onTriggerClick={onTriggerClick}
+          toggleErrorOverlay={toggleErrorOverlay}
+          isDevBuilding={useIsDevBuilding()}
+          isDevRendering={useIsDevRendering()}
+          isBuildError={isBuildError}
+          scale={scale}
+        />
+      </Draggable>
 
       {/* Route Info */}
       <RouteInfo
@@ -318,6 +321,8 @@ function DevToolsPopover({
         hide={handleHideDevtools}
         setPosition={setPosition}
         position={position}
+        scale={scale}
+        setScale={setScale}
       />
 
       {/* Dropdown Menu */}
@@ -615,6 +620,14 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
       text-align: center;
       font-size: var(--size-12);
       line-height: var(--size-16);
+    }
+  }
+
+  .dev-tools-grabbing {
+    cursor: grabbing;
+
+    > * {
+      pointer-events: none;
     }
   }
 `

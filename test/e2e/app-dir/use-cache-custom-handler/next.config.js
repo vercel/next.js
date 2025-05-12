@@ -6,6 +6,7 @@ const nextConfig = {
     dynamicIO: true,
     cacheHandlers: {
       default: require.resolve('./handler.js'),
+      legacy: require.resolve('./legacy-handler.js'),
     },
   },
 }

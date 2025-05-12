@@ -904,13 +904,7 @@ where
                                 description: ResolvedVc::cell(RcStr::from(description.into())),
                             },
                         )),
-                        children
-                            .into_iter()
-                            .map(|v: Vc<Box<dyn IssueProcessingPath>>| v.to_resolved())
-                            .try_join()
-                            .await?
-                            .into_iter()
-                            .collect(),
+                        children,
                     )),
                 ));
             }
@@ -943,13 +937,7 @@ where
                                 description: ResolvedVc::cell(RcStr::from(description.into())),
                             },
                         )),
-                        children
-                            .into_iter()
-                            .map(|v: Vc<Box<dyn IssueProcessingPath>>| v.to_resolved())
-                            .try_join()
-                            .await?
-                            .into_iter()
-                            .collect(),
+                        children,
                     )),
                 ));
             }
@@ -967,48 +955,22 @@ where
 
     async fn peek_issues_with_path(self) -> Result<CapturedIssues> {
         Ok(CapturedIssues {
-            issues: self
-                .peek_collectibles()
-                .into_iter()
-                .map(|v: Vc<Box<dyn Issue>>| v.to_resolved())
-                .try_join()
-                .await?
-                .into_iter()
-                .collect(),
+            issues: self.peek_collectibles(),
             #[cfg(feature = "issue_path")]
             processing_path: ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
                 None,
-                self.peek_collectibles()
-                    .into_iter()
-                    .map(|v: Vc<Box<dyn IssueProcessingPath>>| v.to_resolved())
-                    .try_join()
-                    .await?
-                    .into_iter()
-                    .collect(),
+                self.peek_collectibles(),
             )),
         })
     }
 
     async fn take_issues_with_path(self) -> Result<CapturedIssues> {
         Ok(CapturedIssues {
-            issues: self
-                .take_collectibles()
-                .into_iter()
-                .map(|v: Vc<Box<dyn Issue>>| v.to_resolved())
-                .try_join()
-                .await?
-                .into_iter()
-                .collect(),
+            issues: self.take_collectibles(),
             #[cfg(feature = "issue_path")]
             processing_path: ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
                 None,
-                self.take_collectibles()
-                    .into_iter()
-                    .map(|v: Vc<Box<dyn IssueProcessingPath>>| v.to_resolved())
-                    .try_join()
-                    .await?
-                    .into_iter()
-                    .collect(),
+                self.take_collectibles(),
             )),
         })
     }

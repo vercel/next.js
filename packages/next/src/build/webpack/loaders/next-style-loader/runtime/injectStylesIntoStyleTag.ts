@@ -1,3 +1,5 @@
+/// <reference types="webpack/module.d.ts" />
+
 const isOldIE = (function isOldIE() {
   let memo: any
 

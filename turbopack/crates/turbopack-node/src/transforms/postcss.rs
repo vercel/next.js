@@ -33,7 +33,7 @@ use super::{
     webpack::WebpackLoaderContext,
 };
 use crate::{
-    embed_js::embed_file, execution_context::ExecutionContext,
+    embed_js::embed_file_path, execution_context::ExecutionContext,
     transforms::webpack::evaluate_webpack_loader,
 };
 
@@ -43,7 +43,6 @@ use crate::{
 struct PostCssProcessingResult {
     css: String,
     map: Option<String>,
-    #[turbo_tasks(trace_ignore)]
     assets: Option<Vec<EmittedAsset>>,
 }
 
@@ -411,15 +410,9 @@ async fn postcss_executor(
         .await?;
 
     Ok(asset_context.process(
-        Vc::upcast(VirtualSource::new(
-            postcss_config_path.join("transform.ts".into()),
-            AssetContent::File(
-                embed_file("transforms/postcss.ts".into())
-                    .to_resolved()
-                    .await?,
-            )
-            .cell(),
-        )),
+        Vc::upcast(FileSource::new(embed_file_path(
+            "transforms/postcss.ts".into(),
+        ))),
         Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
             "CONFIG".into() => config_asset
         }))),

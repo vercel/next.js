@@ -1,5 +1,4 @@
 import { isNextDev, isNextDeploy, createNext } from 'e2e-utils'
-import type * as Playwright from 'playwright'
 import { createRouterAct } from '../router-act'
 import { createTestDataServer } from 'test-data-service/writer'
 import { createTestLog } from 'test-log'
@@ -53,7 +52,7 @@ describe('segment cache (revalidation)', () => {
   it('evict client cache when Server Action calls revalidatePath', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -104,7 +103,7 @@ describe('segment cache (revalidation)', () => {
     // be sufficient.
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -150,10 +149,61 @@ describe('segment cache (revalidation)', () => {
     }, 'no-requests')
   })
 
+  it('call router.prefetch(..., {onInvalidate}) after cache is revalidated', async () => {
+    // This is the similar to the previous tests, but uses a custom Link
+    // implementation that calls router.prefetch manually. It demonstrates it's
+    // possible to simulate the revalidating behavior of Link using the manual
+    // prefetch API.
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    const linkVisibilityToggle = await browser.elementByCss(
+      'input[data-manual-prefetch-link-accordion="/greeting"]'
+    )
+
+    // Reveal the link that points to the target page to trigger a prefetch
+    await act(
+      async () => {
+        await linkVisibilityToggle.click()
+      },
+      {
+        includes: 'random-greeting',
+      }
+    )
+
+    // Perform an action that calls revalidatePath. This should cause the
+    // corresponding entry to be evicted from the client cache, and a new
+    // prefetch to be requested.
+    await act(
+      async () => {
+        const revalidateByPath = await browser.elementById('revalidate-by-path')
+        await revalidateByPath.click()
+      },
+      {
+        includes: 'random-greeting [1]',
+      }
+    )
+    TestLog.assert(['REQUEST: random-greeting'])
+
+    // Navigate to the target page.
+    await act(async () => {
+      const link = await browser.elementByCss('a[href="/greeting"]')
+      await link.click()
+      // Navigation should finish immedately because the page is
+      // fully prefetched.
+      const greeting = await browser.elementById('greeting')
+      expect(await greeting.innerHTML()).toBe('random-greeting [1]')
+    }, 'no-requests')
+  })
+
   it('evict client cache when Server Action calls revalidateTag', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })
@@ -200,7 +250,7 @@ describe('segment cache (revalidation)', () => {
   it('re-fetch visible links after a navigation, if needed', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/refetch-on-new-base-tree/a', {
-      beforePageLoad(page: Playwright.Page) {
+      beforePageLoad(page) {
         act = createRouterAct(page)
       },
     })

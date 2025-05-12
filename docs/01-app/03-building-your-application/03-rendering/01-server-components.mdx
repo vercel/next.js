@@ -4,7 +4,7 @@ description: Learn how you can use React Server Components to render parts of yo
 related:
   description: Learn how Next.js caches data and the result of static rendering.
   links:
-    - app/building-your-application/caching
+    - app/deep-dive/caching
 ---
 
 React Server Components allow you to write UI that can be rendered and optionally cached on the server. In Next.js, the rendering work is further split by route segments to enable streaming and partial rendering, and there are three different server rendering strategies:
@@ -78,7 +78,7 @@ Dynamic rendering is useful when a route has data that is personalized to the us
 >
 > In Next.js, you can have dynamically rendered routes that have both cached and uncached data. This is because the RSC Payload and data are cached separately. This allows you to opt into dynamic rendering without worrying about the performance impact of fetching all the data at request time.
 >
-> Learn more about the [full-route cache](/docs/app/building-your-application/caching#full-route-cache) and [Data Cache](/docs/app/building-your-application/caching#data-cache).
+> Learn more about the [full-route cache](/docs/app/deep-dive/caching#full-route-cache) and [Data Cache](/docs/app/deep-dive/caching#data-cache).
 
 #### Switching to Dynamic Rendering
 

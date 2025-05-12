@@ -177,6 +177,7 @@ impl Task for TransformTask {
                                 .into_inner(),
                         )
                     })
+                    .map_err(|e| e.to_pretty_error())
                     .convert_err(),
                 Err(err) => Err(napi::Error::new(
                     Status::GenericFailure,

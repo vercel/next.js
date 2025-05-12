@@ -12,10 +12,9 @@ describe('hook-function-names', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "count": 1,
-       "description": "Error: Kaputt!",
+       "description": "Kaputt!",
        "environmentLabel": null,
-       "label": "Unhandled Runtime Error",
+       "label": "Runtime Error",
        "source": "app/button/page.tsx (7:11) @ Button.useCallback[handleClick]
      >  7 |     throw new Error(message)
           |           ^",
@@ -34,10 +33,9 @@ describe('hook-function-names', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 1,
-       "description": "Error: error in useEffect",
+       "description": "error in useEffect",
        "environmentLabel": null,
-       "label": "Unhandled Runtime Error",
+       "label": "Runtime Error",
        "source": "app/page.tsx (7:11) @ Page.useEffect
      >  7 |     throw new Error('error in useEffect')
           |           ^",

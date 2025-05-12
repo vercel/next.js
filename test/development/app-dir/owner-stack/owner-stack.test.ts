@@ -1,19 +1,22 @@
 import { nextTestSetup } from 'e2e-utils'
 import { assertNoRedbox, retry } from 'next-test-utils'
 
-// Remove the location `()` part in every line of stack trace;
-// Remove the leading spaces in every line of stack trace;
-// Remove the trailing spaces in every line of stack trace;
 // These stacks are not sourcemapped and therefore not ignore-listed.
 // Feel free to update internal frames in assertions.
 function normalizeBrowserConsoleStackTrace(trace: unknown) {
   if (typeof trace !== 'string') {
     return trace
   }
-  return trace
-    .replace(/\(.*\)/g, '')
-    .replace(/^\s+/gm, '')
-    .trim()
+  return (
+    trace
+      // Removes React's internals i.e. incomplete ignore-listing
+      .split(/at react-stack-bottom-frame.*/m)[0]
+      // Remove the location `()` part in every line of stack trace;
+      .replace(/\(.*\)/g, '')
+      // Remove the leading spaces in every line of stack trace;
+      .replace(/^\s+/gm, '')
+      .trim()
+  )
 }
 
 describe('app-dir - owner-stack', () => {
@@ -55,10 +58,9 @@ describe('app-dir - owner-stack', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 1,
-       "description": "Error: browser error",
+       "description": "browser error",
        "environmentLabel": null,
-       "label": "Unhandled Runtime Error",
+       "label": "Runtime Error",
        "source": "app/browser/uncaught/page.js (5:11) @ useThrowError
      > 5 |     throw new Error('browser error')
          |           ^",
@@ -75,8 +77,7 @@ describe('app-dir - owner-stack', () => {
      "Error: browser error
      at useThrowError 
      at useErrorHook 
-     at Page 
-     at ClientPageRoot"
+     at Page"
     `)
   })
 
@@ -92,10 +93,9 @@ describe('app-dir - owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "count": 1,
-       "description": "Error: browser error",
+       "description": "browser error",
        "environmentLabel": null,
-       "label": "Unhandled Runtime Error",
+       "label": "Runtime Error",
        "source": "app/browser/caught/page.js (34:11) @ useThrowError
      > 34 |     throw new Error('browser error')
           |           ^",
@@ -110,22 +110,11 @@ describe('app-dir - owner-stack', () => {
     `)
 
     expect(normalizeBrowserConsoleStackTrace(errorLog)).toMatchInlineSnapshot(`
-      "%o
-      %s Error: browser error
-      at useThrowError 
-      at useErrorHook 
-      at Thrower 
-      at react-stack-bottom-frame 
-      at renderWithHooks 
-      at updateFunctionComponent 
-      at beginWork 
-      at runWithFiberInDEV 
-      at performUnitOfWork 
-      at workLoopSync 
-      at renderRootSync 
-      at performWorkOnRoot 
-      at performWorkOnRootViaSchedulerTask 
-      at MessagePort.performWorkUntilDeadline  The above error occurred in the <Thrower> component. It was handled by the <MyErrorBoundary> error boundary."
+     "%o
+     %s Error: browser error
+     at useThrowError 
+     at useErrorHook 
+     at Thrower"
     `)
   })
 
@@ -141,10 +130,9 @@ describe('app-dir - owner-stack', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 1,
-       "description": "Error: ssr error",
+       "description": "ssr error",
        "environmentLabel": null,
-       "label": "Unhandled Runtime Error",
+       "label": "Runtime Error",
        "source": "app/ssr/page.js (4:9) @ useThrowError
      > 4 |   throw new Error('ssr error')
          |         ^",
@@ -161,8 +149,7 @@ describe('app-dir - owner-stack', () => {
      "Error: ssr error
      at useThrowError 
      at useErrorHook 
-     at Page 
-     at ClientPageRoot"
+     at Page"
     `)
   })
 
@@ -171,10 +158,9 @@ describe('app-dir - owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "count": 1,
        "description": "string in rejected promise",
        "environmentLabel": null,
-       "label": "Console Error",
+       "label": "Runtime Error",
        "source": null,
        "stack": [],
      }

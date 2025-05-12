@@ -254,6 +254,10 @@ export interface NapiEntrypoints {
   pagesAppEndpoint: ExternalObject<ExternalEndpoint>
   pagesErrorEndpoint: ExternalObject<ExternalEndpoint>
 }
+export declare function projectWriteAllEntrypointsToDisk(
+  project: { __napiType: 'Project' },
+  appDirOnly: boolean
+): Promise<TurbopackResult>
 export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any
@@ -363,6 +367,10 @@ export declare function parse(
   filename?: string | undefined | null,
   signal?: AbortSignal | undefined | null
 ): Promise<string>
+export declare function isReactCompilerRequired(
+  filename: string,
+  signal?: AbortSignal | undefined | null
+): Promise<boolean>
 export declare function transform(
   src: string | Buffer | undefined,
   isModule: boolean,

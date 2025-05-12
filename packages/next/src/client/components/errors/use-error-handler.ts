@@ -1,12 +1,9 @@
 import { useEffect } from 'react'
-import { attachHydrationErrorState } from './attach-hydration-error-state'
 import { isNextRouterError } from '../is-next-router-error'
-import { storeHydrationErrorStateFromConsoleArgs } from './hydration-error-info'
 import { formatConsoleArgs, parseConsoleArgs } from '../../lib/console'
 import isError from '../../../lib/is-error'
-import { createUnhandledError } from './console-error'
-import { enqueueConsecutiveDedupedError } from './enqueue-client-error'
-import { getReactStitchedError } from '../errors/stitched-error'
+import { createConsoleError } from './console-error'
+import { coerceError, setOwnerStackIfAvailable } from '../errors/stitched-error'
 
 const queueMicroTask =
   globalThis.queueMicrotask || ((cb: () => void) => Promise.resolve().then(cb))
@@ -18,28 +15,34 @@ const errorHandlers: Array<ErrorHandler> = []
 const rejectionQueue: Array<Error> = []
 const rejectionHandlers: Array<ErrorHandler> = []
 
-export function handleClientError(
+export function handleConsoleError(
   originError: unknown,
-  consoleErrorArgs: any[],
-  capturedFromConsole: boolean = false
+  consoleErrorArgs: any[]
 ) {
   let error: Error
-  if (!originError || !isError(originError)) {
-    // If it's not an error, format the args into an error
-    const formattedErrorMessage = formatConsoleArgs(consoleErrorArgs)
-    const { environmentName } = parseConsoleArgs(consoleErrorArgs)
-    error = createUnhandledError(formattedErrorMessage, environmentName)
+  const { environmentName } = parseConsoleArgs(consoleErrorArgs)
+  if (isError(originError)) {
+    error = createConsoleError(originError, environmentName)
   } else {
-    error = capturedFromConsole
-      ? createUnhandledError(originError)
-      : originError
+    error = createConsoleError(
+      formatConsoleArgs(consoleErrorArgs),
+      environmentName
+    )
   }
-  error = getReactStitchedError(error)
+  setOwnerStackIfAvailable(error)
 
-  storeHydrationErrorStateFromConsoleArgs(...consoleErrorArgs)
-  attachHydrationErrorState(error)
+  errorQueue.push(error)
+  for (const handler of errorHandlers) {
+    // Delayed the error being passed to React Dev Overlay,
+    // avoid the state being synchronously updated in the component.
+    queueMicroTask(() => {
+      handler(error)
+    })
+  }
+}
 
-  enqueueConsecutiveDedupedError(errorQueue, error)
+export function handleClientError(error: Error) {
+  errorQueue.push(error)
   for (const handler of errorHandlers) {
     // Delayed the error being passed to React Dev Overlay,
     // avoid the state being synchronously updated in the component.
@@ -78,28 +81,30 @@ export function useErrorHandler(
 }
 
 function onUnhandledError(event: WindowEventMap['error']): void | boolean {
-  if (isNextRouterError(event.error)) {
+  const thrownValue: unknown = event.error
+  if (isNextRouterError(thrownValue)) {
     event.preventDefault()
     return false
   }
   // When there's an error property present, we log the error to error overlay.
   // Otherwise we don't do anything as it's not logging in the console either.
-  if (event.error) {
-    handleClientError(event.error, [])
+  if (thrownValue) {
+    const error = coerceError(thrownValue)
+    setOwnerStackIfAvailable(error)
+
+    handleClientError(error)
   }
 }
 
 function onUnhandledRejection(ev: WindowEventMap['unhandledrejection']): void {
-  const reason = ev?.reason
+  const reason: unknown = ev?.reason
   if (isNextRouterError(reason)) {
     ev.preventDefault()
     return
   }
 
-  let error = reason
-  if (error && !isError(error)) {
-    error = createUnhandledError(error + '')
-  }
+  const error = coerceError(reason)
+  setOwnerStackIfAvailable(error)
 
   rejectionQueue.push(error)
   for (const handler of rejectionHandlers) {

@@ -4,7 +4,7 @@ nav_title: Project Structure
 description: An overview of the folder and file conventions in Next.js, and how to organize your project.
 ---
 
-This page provides an overview of the folder and file conventions in Next.js, as well as tips for organizing your project.
+This page provides an overview of **all** the folder and file conventions in Next.js, and recommendations for organizing your project.
 
 ## Folder and file conventions
 
@@ -20,33 +20,33 @@ Top-level folders are used to organize your application's code and static assets
   height="525"
 />
 
-|                                                                          |                                    |
-| ------------------------------------------------------------------------ | ---------------------------------- |
-| [`app`](/docs/app/building-your-application/routing)                     | App Router                         |
-| [`pages`](/docs/pages/building-your-application/routing)                 | Pages Router                       |
-| [`public`](/docs/app/building-your-application/optimizing/static-assets) | Static assets to be served         |
-| [`src`](/docs/app/building-your-application/configuring/src-directory)   | Optional application source folder |
+|                                                                    |                                    |
+| ------------------------------------------------------------------ | ---------------------------------- |
+| [`app`](/docs/app/building-your-application/routing)               | App Router                         |
+| [`pages`](/docs/pages/building-your-application/routing)           | Pages Router                       |
+| [`public`](/docs/app/api-reference/file-conventions/public-folder) | Static assets to be served         |
+| [`src`](/docs/app/api-reference/file-conventions/src-folder)       | Optional application source folder |
 
 ### Top-level files
 
 Top-level files are used to configure your application, manage dependencies, run middleware, integrate monitoring tools, and define environment variables.
 
-|                                                                                             |                                         |
-| ------------------------------------------------------------------------------------------- | --------------------------------------- |
-| **Next.js**                                                                                 |                                         |
-| [`next.config.js`](/docs/app/api-reference/config/next-config-js)                           | Configuration file for Next.js          |
-| [`package.json`](/docs/app/getting-started/installation#manual-installation)                | Project dependencies and scripts        |
-| [`instrumentation.ts`](/docs/app/building-your-application/optimizing/instrumentation)      | OpenTelemetry and Instrumentation file  |
-| [`middleware.ts`](/docs/app/building-your-application/routing/middleware)                   | Next.js request middleware              |
-| [`.env`](/docs/app/building-your-application/configuring/environment-variables)             | Environment variables                   |
-| [`.env.local`](/docs/app/building-your-application/configuring/environment-variables)       | Local environment variables             |
-| [`.env.production`](/docs/app/building-your-application/configuring/environment-variables)  | Production environment variables        |
-| [`.env.development`](/docs/app/building-your-application/configuring/environment-variables) | Development environment variables       |
-| [`.eslintrc.json`](/docs/app/api-reference/config/eslint)                                   | Configuration file for ESLint           |
-| `.gitignore`                                                                                | Git files and folders to ignore         |
-| `next-env.d.ts`                                                                             | TypeScript declaration file for Next.js |
-| `tsconfig.json`                                                                             | Configuration file for TypeScript       |
-| `jsconfig.json`                                                                             | Configuration file for JavaScript       |
+|                                                                              |                                         |
+| ---------------------------------------------------------------------------- | --------------------------------------- |
+| **Next.js**                                                                  |                                         |
+| [`next.config.js`](/docs/app/api-reference/config/next-config-js)            | Configuration file for Next.js          |
+| [`package.json`](/docs/app/getting-started/installation#manual-installation) | Project dependencies and scripts        |
+| [`instrumentation.ts`](/docs/app/guides/instrumentation)                     | OpenTelemetry and Instrumentation file  |
+| [`middleware.ts`](/docs/app/building-your-application/routing/middleware)    | Next.js request middleware              |
+| [`.env`](/docs/app/guides/environment-variables)                             | Environment variables                   |
+| [`.env.local`](/docs/app/guides/environment-variables)                       | Local environment variables             |
+| [`.env.production`](/docs/app/guides/environment-variables)                  | Production environment variables        |
+| [`.env.development`](/docs/app/guides/environment-variables)                 | Development environment variables       |
+| [`.eslintrc.json`](/docs/app/api-reference/config/eslint)                    | Configuration file for ESLint           |
+| `.gitignore`                                                                 | Git files and folders to ignore         |
+| `next-env.d.ts`                                                              | TypeScript declaration file for Next.js |
+| `tsconfig.json`                                                              | Configuration file for TypeScript       |
+| `jsconfig.json`                                                              | Configuration file for JavaScript       |
 
 <AppOnly>
 
@@ -168,9 +168,13 @@ Top-level files are used to configure your application, manage dependencies, run
 
 <AppOnly>
 
-## Component hierarchy
+## Organizing your project
 
-The React components defined in special files of a route segment are rendered in a specific hierarchy:
+Next.js is **unopinionated** about how you organize and colocate your project files. But it does provide several features to help you organize your project.
+
+### Component hierarchy
+
+The components defined in special files are rendered in a specific hierarchy:
 
 - `layout.js`
 - `template.js`
@@ -187,7 +191,7 @@ The React components defined in special files of a route segment are rendered in
   height="643"
 />
 
-In a nested route, the components of a segment will be nested **inside** the components of its parent segment.
+The components are rendered recursively in nested routes, meaning the components of a route segment will be nested **inside** the components of its parent segment.
 
 <Image
   alt="Nested File Conventions Component Hierarchy"
@@ -196,10 +200,6 @@ In a nested route, the components of a segment will be nested **inside** the com
   width="1600"
   height="863"
 />
-
-## Organizing your project
-
-Apart from [folder and file conventions](/docs/app/getting-started/project-structure), Next.js is **unopinionated** about how you organize and colocate your project files. But it does provide several features to help you organize your project.
 
 ### Colocation
 
@@ -235,9 +235,7 @@ This means that **project files** can be **safely colocated** inside route segme
   height="1011"
 />
 
-> **Good to know**:
->
-> - While you **can** colocate your project files in `app` you don't **have** to. If you prefer, you can [keep them outside the `app` directory](#store-project-files-outside-of-app).
+> **Good to know**: While you **can** colocate your project files in `app` you don't **have** to. If you prefer, you can [keep them outside the `app` directory](#store-project-files-outside-of-app).
 
 ### Private folders
 
@@ -282,30 +280,30 @@ This indicates the folder is for organizational purposes and should **not be inc
 
 Route groups are useful for:
 
-- [Organizing routes into groups](/docs/app/building-your-application/routing/route-groups#organize-routes-without-affecting-the-url-path) e.g. by site section, intent, or team.
+- Organizing routes by site section, intent, or team. e.g. marketing pages, admin pages, etc.
 - Enabling nested layouts in the same route segment level:
-  - [Creating multiple nested layouts in the same segment, including multiple root layouts](/docs/app/building-your-application/routing/route-groups#creating-multiple-root-layouts)
-  - [Adding a layout to a subset of routes in a common segment](/docs/app/building-your-application/routing/route-groups#opting-specific-segments-into-a-layout)
+  - [Creating multiple nested layouts in the same segment, including multiple root layouts](#creating-multiple-root-layouts)
+  - [Adding a layout to a subset of routes in a common segment](#opting-specific-segments-into-a-layout)
 
-### `src` directory
+### `src` folder
 
-Next.js supports storing application code (including `app`) inside an optional [`src` directory](/docs/app/building-your-application/configuring/src-directory). This separates application code from project configuration files which mostly live in the root of a project.
+Next.js supports storing application code (including `app`) inside an optional [`src` folder](/docs/app/api-reference/file-conventions/src-folder). This separates application code from project configuration files which mostly live in the root of a project.
 
 <Image
-  alt="An example folder structure with the `src` directory"
+  alt="An example folder structure with the `src` folder"
   srcLight="/docs/light/project-organization-src-directory.png"
   srcDark="/docs/dark/project-organization-src-directory.png"
   width="1600"
   height="687"
 />
 
-### Common strategies
+## Examples
 
 The following section lists a very high-level overview of common strategies. The simplest takeaway is to choose a strategy that works for you and your team and be consistent across the project.
 
 > **Good to know**: In our examples below, we're using `components` and `lib` folders as generalized placeholders, their naming has no special framework significance and your projects might use other folders like `ui`, `utils`, `hooks`, `styles`, etc.
 
-#### Store project files outside of `app`
+### Store project files outside of `app`
 
 This strategy stores all application code in shared folders in the **root of your project** and keeps the `app` directory purely for routing purposes.
 
@@ -317,7 +315,7 @@ This strategy stores all application code in shared folders in the **root of you
   height="849"
 />
 
-#### Store project files in top-level folders inside of `app`
+### Store project files in top-level folders inside of `app`
 
 This strategy stores all application code in shared folders in the **root of the `app` directory**.
 
@@ -329,7 +327,7 @@ This strategy stores all application code in shared folders in the **root of the
   height="849"
 />
 
-#### Split project files by feature or route
+### Split project files by feature or route
 
 This strategy stores globally shared application code in the root `app` directory and **splits** more specific application code into the route segments that use them.
 
@@ -340,5 +338,67 @@ This strategy stores globally shared application code in the root `app` director
   width="1600"
   height="1011"
 />
+
+### Organize routes without affecting the URL path
+
+To organize routes without affecting the URL, create a group to keep related routes together. The folders in parenthesis will be omitted from the URL (e.g. `(marketing)` or `(shop)`).
+
+<Image
+  alt="Organizing Routes with Route Groups"
+  srcLight="/docs/light/route-group-organisation.png"
+  srcDark="/docs/dark/route-group-organisation.png"
+  width="1600"
+  height="930"
+/>
+
+Even though routes inside `(marketing)` and `(shop)` share the same URL hierarchy, you can create a different layout for each group by adding a `layout.js` file inside their folders.
+
+<Image
+  alt="Route Groups with Multiple Layouts"
+  srcLight="/docs/light/route-group-multiple-layouts.png"
+  srcDark="/docs/dark/route-group-multiple-layouts.png"
+  width="1600"
+  height="768"
+/>
+
+### Opting specific segments into a layout
+
+To opt specific routes into a layout, create a new route group (e.g. `(shop)`) and move the routes that share the same layout into the group (e.g. `account` and `cart`). The routes outside of the group will not share the layout (e.g. `checkout`).
+
+<Image
+  alt="Route Groups with Opt-in Layouts"
+  srcLight="/docs/light/route-group-opt-in-layouts.png"
+  srcDark="/docs/dark/route-group-opt-in-layouts.png"
+  width="1600"
+  height="930"
+/>
+
+### Opting for loading skeletons on a specific route
+
+To apply a [loading skeleton](/docs/app/building-your-application/routing/loading-ui-and-streaming) via a `loading.js` file to a specific route, create a new route group (e.g., `/(overview)`) and then move your `loading.tsx` inside that route group.
+
+<Image
+  alt="Folder structure showing a loading.tsx and a page.tsx inside the route group"
+  srcLight="/docs/light/route-group-loading.png"
+  srcDark="/docs/dark/route-group-loading.png"
+  width="1600"
+  height="444"
+/>
+
+Now, the `loading.tsx` file will only apply to your dashboard → overview page instead of all your dashboard pages without affecting the URL path structure.
+
+### Creating multiple root layouts
+
+To create multiple [root layouts](/docs/app/api-reference/file-conventions/layout#root-layouts), remove the top-level `layout.js` file, and add a `layout.js` file inside each route group. This is useful for partitioning an application into sections that have a completely different UI or experience. The `<html>` and `<body>` tags need to be added to each root layout.
+
+<Image
+  alt="Route Groups with Multiple Root Layouts"
+  srcLight="/docs/light/route-group-multiple-root-layouts.png"
+  srcDark="/docs/dark/route-group-multiple-root-layouts.png"
+  width="1600"
+  height="687"
+/>
+
+In the example above, both `(marketing)` and `(shop)` have their own root layout.
 
 </AppOnly>

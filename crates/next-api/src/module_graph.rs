@@ -213,7 +213,7 @@ impl ServerActionsGraph {
                     return Ok(Vc::cell(Default::default()));
                 }
 
-                let mut result = FxHashMap::default();
+                let mut result = FxIndexMap::default();
                 graph.traverse_from_entry(entry, |node| {
                     if let Some(node_data) = data.get(&node.module) {
                         result.insert(node.module, *node_data);
@@ -225,10 +225,11 @@ impl ServerActionsGraph {
             let actions = data
                 .iter()
                 .map(|(module, (layer, actions))| async move {
+                    let actions = actions.await?;
                     actions
-                        .await?
+                        .actions
                         .iter()
-                        .map(|(hash, name)| async move {
+                        .map(async |(hash, name)| {
                             Ok((
                                 hash.to_string(),
                                 (
@@ -237,7 +238,13 @@ impl ServerActionsGraph {
                                     if *layer == ActionLayer::Rsc {
                                         *module
                                     } else {
-                                        to_rsc_context(**module, rsc_asset_context).await?
+                                        to_rsc_context(
+                                            **module,
+                                            &actions.entry_path,
+                                            &actions.entry_query,
+                                            rsc_asset_context,
+                                        )
+                                        .await?
                                     },
                                 ),
                             ))
@@ -525,6 +532,7 @@ impl ReducedGraphs {
         &self,
         entry: Vc<Box<dyn Module>>,
         has_layout_segments: bool,
+        include_traced: bool,
     ) -> Result<Vc<ClientReferenceGraphResult>> {
         let span = tracing::info_span!("collect all client references for endpoint");
         async move {
@@ -560,7 +568,7 @@ impl ReducedGraphs {
                 let ServerEntries {
                     server_utils,
                     server_component_entries,
-                } = &*find_server_entries(entry).await?;
+                } = &*find_server_entries(entry, include_traced).await?;
                 result.server_utils = server_utils.clone();
                 result.server_component_entries = server_component_entries.clone();
             }

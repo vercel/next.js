@@ -3,7 +3,7 @@ import type { DebugInfo } from '../../../../types'
 import type { ErrorMessageType } from '../error-message/error-message'
 import type { ErrorType } from '../error-type-label/error-type-label'
 
-import { DialogContent, DialogFooter } from '../../dialog'
+import { DialogContent } from '../../dialog'
 import {
   ErrorOverlayToolbar,
   styles as toolbarStyles,
@@ -35,8 +35,10 @@ import type { ErrorBaseProps } from '../error-overlay/error-overlay'
 import type { ReadyRuntimeError } from '../../../../utils/get-error-by-type'
 import { EnvironmentNameLabel } from '../environment-name-label/environment-name-label'
 import { useFocusTrap } from '../dev-tools-indicator/utils'
+import { Fader } from '../../fader'
+import { Resizer } from '../../resizer'
 
-interface ErrorOverlayLayoutProps extends ErrorBaseProps {
+export interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   errorMessage: ErrorMessageType
   errorType: ErrorType
   children?: React.ReactNode
@@ -58,6 +60,7 @@ export function ErrorOverlayLayout({
   errorType,
   children,
   errorCode,
+  errorCount,
   error,
   debugInfo,
   isBuildError,
@@ -82,53 +85,39 @@ export function ErrorOverlayLayout({
     } as React.CSSProperties,
   }
 
+  const [animating, setAnimating] = React.useState(
+    Boolean(transitionDurationMs)
+  )
+
+  const faderRef = React.useRef<HTMLDivElement | null>(null)
   const hasFooter = Boolean(footerMessage || errorCode)
   const dialogRef = React.useRef<HTMLDivElement | null>(null)
   useFocusTrap(dialogRef, null, rendered)
 
+  function onScroll(e: React.UIEvent<HTMLDivElement>) {
+    if (faderRef.current) {
+      const opacity = clamp(e.currentTarget.scrollTop / 17, [0, 1])
+      faderRef.current.style.opacity = String(opacity)
+    }
+  }
+
+  function onTransitionEnd({ propertyName, target }: React.TransitionEvent) {
+    // We can only measure height after the `scale` transition ends,
+    // otherwise we will measure height as a multiple of the animating value
+    // which will give us an incorrect value.
+    if (propertyName === 'scale' && target === dialogRef.current) {
+      setAnimating(false)
+    }
+  }
+
   return (
     <ErrorOverlayOverlay fixed={isBuildError} {...animationProps}>
-      <div data-nextjs-dialog-root ref={dialogRef} {...animationProps}>
-        <ErrorOverlayDialog
-          onClose={onClose}
-          dialogResizerRef={dialogResizerRef}
-          data-has-footer={hasFooter}
-        >
-          <DialogContent>
-            <ErrorOverlayDialogHeader>
-              <div
-                className="nextjs__container_errors__error_title"
-                // allow assertion in tests before error rating is implemented
-                data-nextjs-error-code={errorCode}
-              >
-                <span data-nextjs-error-label-group>
-                  <ErrorTypeLabel errorType={errorType} />
-                  {error.environmentName && (
-                    <EnvironmentNameLabel
-                      environmentName={error.environmentName}
-                    />
-                  )}
-                </span>
-                <ErrorOverlayToolbar error={error} debugInfo={debugInfo} />
-              </div>
-              <ErrorMessage errorMessage={errorMessage} />
-            </ErrorOverlayDialogHeader>
-
-            <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>
-          </DialogContent>
-          {hasFooter && (
-            <DialogFooter>
-              <ErrorOverlayFooter
-                footerMessage={footerMessage}
-                errorCode={errorCode}
-              />
-            </DialogFooter>
-          )}
-          <ErrorOverlayBottomStack
-            errorCount={runtimeErrors?.length ?? 0}
-            activeIdx={activeIdx ?? 0}
-          />
-        </ErrorOverlayDialog>
+      <div
+        data-nextjs-dialog-root
+        onTransitionEnd={onTransitionEnd}
+        ref={dialogRef}
+        {...animationProps}
+      >
         <ErrorOverlayNav
           runtimeErrors={runtimeErrors}
           activeIdx={activeIdx}
@@ -136,9 +125,62 @@ export function ErrorOverlayLayout({
           versionInfo={versionInfo}
           isTurbopack={isTurbopack}
         />
+        <ErrorOverlayDialog
+          onClose={onClose}
+          dialogResizerRef={dialogResizerRef}
+          data-has-footer={hasFooter}
+          onScroll={onScroll}
+          footer={
+            hasFooter && (
+              <ErrorOverlayFooter
+                footerMessage={footerMessage}
+                errorCode={errorCode}
+              />
+            )
+          }
+        >
+          <Resizer
+            ref={dialogResizerRef}
+            measure={!animating}
+            data-nextjs-dialog-sizer
+          >
+            <DialogContent>
+              <ErrorOverlayDialogHeader>
+                <div
+                  className="nextjs__container_errors__error_title"
+                  // allow assertion in tests before error rating is implemented
+                  data-nextjs-error-code={errorCode}
+                >
+                  <span data-nextjs-error-label-group>
+                    <ErrorTypeLabel errorType={errorType} />
+                    {error.environmentName && (
+                      <EnvironmentNameLabel
+                        environmentName={error.environmentName}
+                      />
+                    )}
+                  </span>
+                  <ErrorOverlayToolbar error={error} debugInfo={debugInfo} />
+                </div>
+                <ErrorMessage errorMessage={errorMessage} />
+              </ErrorOverlayDialogHeader>
+
+              <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>
+            </DialogContent>
+          </Resizer>
+
+          <ErrorOverlayBottomStack
+            errorCount={errorCount}
+            activeIdx={activeIdx ?? 0}
+          />
+        </ErrorOverlayDialog>
+        <Fader ref={faderRef} side="top" stop="50%" blur="4px" height={48} />
       </div>
     </ErrorOverlayOverlay>
   )
+}
+
+function clamp(value: number, [min, max]: [number, number]) {
+  return Math.min(Math.max(value, min), max)
 }
 
 export const styles = `

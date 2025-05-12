@@ -21,7 +21,6 @@ import type { LoadingModuleData } from '../../shared/lib/app-router-context.shar
 import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { OUTLET_BOUNDARY_NAME } from '../../lib/metadata/metadata-constants'
-import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { UseCachePageComponentProps } from '../use-cache/use-cache-wrapper'
 
 /**
@@ -40,7 +39,6 @@ export function createComponentTree(props: {
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  StreamingMetadata: React.ComponentType<{}> | null
   StreamingMetadataOutlet: React.ComponentType
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
@@ -77,7 +75,6 @@ async function createComponentTreeInternal({
   missingSlots,
   preloadCallbacks,
   authInterrupts,
-  StreamingMetadata,
   StreamingMetadataOutlet,
 }: {
   loaderTree: LoaderTree
@@ -92,7 +89,6 @@ async function createComponentTreeInternal({
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  StreamingMetadata: React.ComponentType<{}> | null
   StreamingMetadataOutlet: React.ComponentType | null
 }): Promise<CacheNodeSeedData> {
   const {
@@ -189,6 +185,8 @@ async function createComponentTreeInternal({
     },
     () => getLayoutOrPageModule(tree)
   )
+
+  const gracefullyDegrade = !!ctx.renderOpts.botType
 
   /**
    * Checks if the current segment is a root layout.
@@ -330,11 +328,6 @@ async function createComponentTreeInternal({
   const isPossiblyPartialResponse =
     isStaticGeneration && experimental.isRoutePPREnabled === true
 
-  // If there's a dynamic usage error attached to the store, throw it.
-  if (workStore.dynamicUsageErr) {
-    throw workStore.dynamicUsageErr
-  }
-
   const LayoutOrPage: React.ComponentType<any> | undefined = layoutOrPageMod
     ? interopDefault(layoutOrPageMod)
     : undefined
@@ -395,18 +388,10 @@ async function createComponentTreeInternal({
   // Resolve the segment param
   const actualSegment = segmentParam ? segmentParam.treeSegment : segment
 
-  // Only render metadata on the actual SSR'd segment not the `default` segment,
-  // as it's used as a placeholder for navigation.
-  const isNotDefaultSegment = actualSegment !== DEFAULT_SEGMENT_KEY
-
-  const metadata =
-    isNotDefaultSegment && StreamingMetadata ? <StreamingMetadata /> : undefined
-
   // Use the same condition to render metadataOutlet as metadata
-  const metadataOutlet =
-    isNotDefaultSegment && StreamingMetadataOutlet ? (
-      <StreamingMetadataOutlet />
-    ) : undefined
+  const metadataOutlet = StreamingMetadataOutlet ? (
+    <StreamingMetadataOutlet />
+  ) : undefined
 
   const notFoundElement = NotFound ? (
     <>
@@ -524,7 +509,6 @@ async function createComponentTreeInternal({
             missingSlots,
             preloadCallbacks,
             authInterrupts,
-            StreamingMetadata: isChildrenRouteKey ? StreamingMetadata : null,
             // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
             // but we only want to throw on the first one.
             StreamingMetadataOutlet: isChildrenRouteKey
@@ -554,6 +538,9 @@ async function createComponentTreeInternal({
             notFound={notFoundComponent}
             forbidden={forbiddenComponent}
             unauthorized={unauthorizedComponent}
+            // Since gracefullyDegrade only applies to bots, only
+            // pass it when we're in a bot context to avoid extra bytes.
+            {...(gracefullyDegrade && { gracefullyDegrade })}
           />,
           childCacheNodeSeedData,
         ]
@@ -707,12 +694,6 @@ async function createComponentTreeInternal({
       actualSegment,
       <React.Fragment key={cacheNodeKey}>
         {pageElement}
-        {/*
-         * The order here matters since a parent might call findDOMNode().
-         * findDOMNode() will return the first child if multiple children are rendered.
-         * But React will hoist metadata into <head> which breaks scroll handling.
-         */}
-        {metadata}
         {layerAssets}
         <OutletBoundary>
           <MetadataOutlet ready={getViewportReady} />

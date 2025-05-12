@@ -20,13 +20,14 @@ use turbo_tasks::{
 };
 
 use crate::{
-    chunk::{AsyncModuleInfo, ChunkGroupType, ChunkingType},
+    chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType},
     issue::Issue,
     module::Module,
     module_graph::{
         async_module_info::{compute_async_module_info, AsyncModulesInfo},
-        chunk_group_info::{compute_chunk_group_info, ChunkGroupInfo},
+        chunk_group_info::{compute_chunk_group_info, ChunkGroupEntry, ChunkGroupInfo},
         module_batches::{compute_module_batches, ModuleBatchesGraph},
+        style_groups::{compute_style_groups, StyleGroups, StyleGroupsConfig},
         traced_di_graph::{iter_neighbors_rev, TracedDiGraph},
     },
     reference::primary_chunkable_referenced_modules,
@@ -36,6 +37,7 @@ pub mod async_module_info;
 pub mod chunk_group_info;
 pub mod module_batch;
 pub(crate) mod module_batches;
+pub(crate) mod style_groups;
 mod traced_di_graph;
 
 pub use self::module_batches::BatchingConfig;
@@ -144,10 +146,11 @@ impl VisitedModules {
     }
 }
 
-pub type GraphEntriesT = Vec<(Vec<ResolvedVc<Box<dyn Module>>>, ChunkGroupType)>;
+pub type GraphEntriesT = Vec<ChunkGroupEntry>;
 
 #[turbo_tasks::value(transparent)]
 pub struct GraphEntries(GraphEntriesT);
+
 #[turbo_tasks::value_impl]
 impl GraphEntries {
     #[turbo_tasks::function]
@@ -184,10 +187,11 @@ impl SingleModuleGraph {
     async fn new_inner(
         entries: &GraphEntriesT,
         visited_modules: &FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
+        include_traced: bool,
     ) -> Result<Vc<Self>> {
         let root_edges = entries
             .iter()
-            .flat_map(|(e, _)| e.clone())
+            .flat_map(|e| e.entries())
             .map(|e| async move {
                 Ok(SingleModuleGraphBuilderEdge {
                     to: SingleModuleGraphBuilderNode::new_module(e).await?,
@@ -198,7 +202,13 @@ impl SingleModuleGraph {
 
         let (children_nodes_iter, visited_nodes) = AdjacencyMap::new()
             .skip_duplicates()
-            .visit(root_edges, SingleModuleGraphBuilder { visited_modules })
+            .visit(
+                root_edges,
+                SingleModuleGraphBuilder {
+                    visited_modules,
+                    include_traced,
+                },
+            )
             .await
             .completed()?
             .into_inner_with_visited();
@@ -322,6 +332,21 @@ impl SingleModuleGraph {
 
         graph.shrink_to_fit();
 
+        #[cfg(debug_assertions)]
+        {
+            let mut duplicates = Vec::new();
+            let mut set = FxHashSet::default();
+            for &module in modules.keys() {
+                let ident = module.ident().to_string().await?;
+                if !set.insert(ident.clone()) {
+                    duplicates.push(ident);
+                }
+            }
+            if !duplicates.is_empty() {
+                panic!("Duplicate module idents in graph: {:#?}", duplicates);
+            }
+        }
+
         Ok(SingleModuleGraph {
             graph: TracedDiGraph::new(graph),
             number_of_modules,
@@ -348,7 +373,7 @@ impl SingleModuleGraph {
 
     /// Iterate over all nodes in the graph
     pub fn entry_modules(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
-        self.entries.iter().flat_map(|(e, _)| e).copied()
+        self.entries.iter().flat_map(|e| e.entries())
     }
 
     /// Enumerate all nodes in the graph
@@ -460,8 +485,8 @@ impl SingleModuleGraph {
         let mut stack: Vec<NodeIndex> = self
             .entries
             .iter()
-            .flat_map(|(e, _)| e)
-            .map(|e| *self.modules.get(e).unwrap())
+            .flat_map(|e| e.entries())
+            .map(|e| *self.modules.get(&e).unwrap())
             .collect();
         let mut discovered = graph.visit_map();
         for entry_node in &stack {
@@ -708,16 +733,19 @@ impl ModuleGraph {
     }
 
     #[turbo_tasks::function]
-    pub fn from_module(module: ResolvedVc<Box<dyn Module>>, ty: ChunkGroupType) -> Vc<Self> {
-        Self::from_single_graph(SingleModuleGraph::new_with_entries(Vc::cell(vec![(
-            vec![module],
-            ty,
-        )])))
+    pub fn from_entry_module(
+        module: ResolvedVc<Box<dyn Module>>,
+        include_traced: bool,
+    ) -> Vc<Self> {
+        Self::from_single_graph(SingleModuleGraph::new_with_entries(
+            Vc::cell(vec![ChunkGroupEntry::Entry(vec![module])]),
+            include_traced,
+        ))
     }
 
     #[turbo_tasks::function]
-    pub fn from_modules(modules: Vc<GraphEntries>) -> Vc<Self> {
-        Self::from_single_graph(SingleModuleGraph::new_with_entries(modules))
+    pub fn from_modules(modules: Vc<GraphEntries>, include_traced: bool) -> Vc<Self> {
+        Self::from_single_graph(SingleModuleGraph::new_with_entries(modules, include_traced))
     }
 
     #[turbo_tasks::function]
@@ -730,8 +758,16 @@ impl ModuleGraph {
         self: Vc<Self>,
         config: Vc<BatchingConfig>,
     ) -> Result<Vc<ModuleBatchesGraph>> {
-        // TODO dev: Return modules only
         compute_module_batches(self, &*config.await?).await
+    }
+
+    #[turbo_tasks::function]
+    pub async fn style_groups(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        config: StyleGroupsConfig,
+    ) -> Result<Vc<StyleGroups>> {
+        compute_style_groups(self, chunking_context, &config).await
     }
 
     #[turbo_tasks::function]
@@ -859,7 +895,7 @@ impl ModuleGraph {
                 graphs
                     .iter()
                     .flat_map(|g| g.entries.iter())
-                    .flat_map(|(e, _)| e)
+                    .flat_map(|e| e.entries())
                     .map(|e| e.ident().to_string())
                     .try_join()
                     .await?
@@ -1134,17 +1170,36 @@ impl ModuleGraph {
 #[turbo_tasks::value_impl]
 impl SingleModuleGraph {
     #[turbo_tasks::function]
-    pub async fn new_with_entries(entries: Vc<GraphEntries>) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(&*entries.await?, &Default::default()).await
+    pub async fn new_with_entries(
+        entries: Vc<GraphEntries>,
+        include_traced: bool,
+    ) -> Result<Vc<Self>> {
+        SingleModuleGraph::new_inner(&*entries.await?, &Default::default(), include_traced).await
     }
 
     #[turbo_tasks::function]
     pub async fn new_with_entries_visited(
+        entries: Vc<GraphEntries>,
+        visited_modules: Vc<VisitedModules>,
+        include_traced: bool,
+    ) -> Result<Vc<Self>> {
+        SingleModuleGraph::new_inner(
+            &*entries.await?,
+            &visited_modules.await?.modules,
+            include_traced,
+        )
+        .await
+    }
+
+    #[turbo_tasks::function]
+    pub async fn new_with_entries_visited_intern(
         // This must not be a Vc<Vec<_>> to ensure layout segment optimization hits the cache
         entries: GraphEntriesT,
         visited_modules: Vc<VisitedModules>,
+        include_traced: bool,
     ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(&entries, &visited_modules.await?.modules).await
+        SingleModuleGraph::new_inner(&entries, &visited_modules.await?.modules, include_traced)
+            .await
     }
 }
 
@@ -1262,10 +1317,15 @@ struct SingleModuleGraphBuilderEdge {
 
 /// The chunking type that occurs most often, is handled more efficiently by not creating
 /// intermediate SingleModuleGraphBuilderNode::ChunkableReference nodes.
-const COMMON_CHUNKING_TYPE: ChunkingType = ChunkingType::ParallelInheritAsync;
+const COMMON_CHUNKING_TYPE: ChunkingType = ChunkingType::Parallel {
+    inherit_async: true,
+    hoisted: true,
+};
 
 struct SingleModuleGraphBuilder<'a> {
     visited_modules: &'a FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
+    /// Whether to walk ChunkingType::Traced references
+    include_traced: bool,
 }
 impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
     type Edge = SingleModuleGraphBuilderEdge;
@@ -1300,10 +1360,11 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
             | SingleModuleGraphBuilderNode::Issues(_) => unreachable!(),
         };
         let visited_modules = self.visited_modules;
+        let include_traced = self.include_traced;
         async move {
             Ok(match (module, chunkable_ref_target) {
                 (Some(module), None) => {
-                    let refs_cell = primary_chunkable_referenced_modules(*module);
+                    let refs_cell = primary_chunkable_referenced_modules(*module, include_traced);
                     let refs = match refs_cell.await {
                         Ok(refs) => refs,
                         Err(e) => {
@@ -1367,7 +1428,10 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
                 target_ident,
                 ..
             } => match chunking_type {
-                ChunkingType::Parallel => Span::current(),
+                ChunkingType::Parallel {
+                    inherit_async: false,
+                    ..
+                } => Span::current(),
                 _ => {
                     tracing::info_span!(
                         "chunkable reference",

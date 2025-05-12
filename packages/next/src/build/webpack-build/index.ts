@@ -11,6 +11,7 @@ import {
   getParsedNodeOptionsWithoutInspect,
 } from '../../server/lib/utils'
 import { mergeUseCacheTrackers } from '../webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
+import { durationToString } from '../duration-to-string'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -56,7 +57,6 @@ async function webpackBuildWithWorker(
       maxRetries: 0,
       forkOptions: {
         env: {
-          ...process.env,
           NEXT_PRIVATE_BUILD_WORKER: '1',
           NODE_OPTIONS: formatNodeOptions(nodeOptions),
         },
@@ -119,7 +119,8 @@ async function webpackBuildWithWorker(
   }
 
   if (compilerNames.length === 3) {
-    Log.event('Compiled successfully')
+    const durationString = durationToString(combinedResult.duration)
+    Log.event(`Compiled successfully in ${durationString}`)
   }
 
   return combinedResult

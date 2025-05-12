@@ -12,9 +12,9 @@ use parking_lot::Mutex;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{
-    apply_effects, duration_span, fxindexmap, mark_finished, prevent_gc, util::SharedError,
-    Completion, FxIndexMap, NonLocalValue, OperationVc, RawVc, ResolvedVc, TaskInput,
-    TryJoinIterExt, Value, Vc,
+    apply_effects, duration_span, fxindexmap, mark_finished, prevent_gc, trace::TraceRawVcs,
+    util::SharedError, Completion, FxIndexMap, NonLocalValue, OperationVc, RawVc, ResolvedVc,
+    TaskInput, TryJoinIterExt, Value, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
@@ -22,16 +22,14 @@ use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
     changed::content_changed,
-    chunk::{
-        ChunkGroupType, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
-    },
+    chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets},
     context::AssetContext,
     error::PrettyPrintError,
     file_source::FileSource,
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::ChunkGroupEntry, ModuleGraph},
     output::{OutputAsset, OutputAssets},
     reference_type::{InnerAssets, ReferenceType},
     virtual_source::VirtualSource,
@@ -158,12 +156,14 @@ async fn emit_evaluate_pool_assets_operation(
         entries
     };
 
-    let module_graph = ModuleGraph::from_modules(Vc::cell(vec![(
-        iter::once(entry_module)
-            .chain(runtime_entries.iter().copied().map(ResolvedVc::upcast))
-            .collect(),
-        ChunkGroupType::Entry,
-    )]));
+    let module_graph = ModuleGraph::from_modules(
+        Vc::cell(vec![ChunkGroupEntry::Entry(
+            iter::once(entry_module)
+                .chain(runtime_entries.iter().copied().map(ResolvedVc::upcast))
+                .collect(),
+        )]),
+        false,
+    );
 
     let bootstrap = chunking_context.root_entry_chunk_group_asset(
         entrypoint,
@@ -204,7 +204,17 @@ async fn emit_evaluate_pool_assets_with_effects_operation(
 }
 
 #[derive(
-    Clone, Copy, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TaskInput, NonLocalValue,
+    Clone,
+    Copy,
+    Hash,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TaskInput,
+    NonLocalValue,
+    TraceRawVcs,
 )]
 pub enum EnvVarTracking {
     WholeEnvTracked,
@@ -570,7 +580,7 @@ async fn basic_compute(
     compute(evaluate_context, sender).await
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, Serialize, Deserialize, TraceRawVcs)]
 struct BasicEvaluateContext {
     module_asset: ResolvedVc<Box<dyn Module>>,
     cwd: ResolvedVc<FileSystemPath>,

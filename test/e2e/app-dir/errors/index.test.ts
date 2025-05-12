@@ -176,10 +176,9 @@ describe('app-dir - errors', () => {
       if (isNextDev) {
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
-           "description": "Error: this is a test",
+           "description": "this is a test",
            "environmentLabel": null,
-           "label": "Unhandled Runtime Error",
+           "label": "Runtime Error",
            "source": "app/global-error-boundary/client/page.js (8:11) @ Page
          >  8 |     throw new Error('this is a test')
               |           ^",
@@ -216,10 +215,9 @@ describe('app-dir - errors', () => {
       if (isNextDev) {
         await expect(browser).toDisplayRedbox(`
           {
-            "count": 1,
-            "description": "Error: custom server error",
+            "description": "custom server error",
             "environmentLabel": "Server",
-            "label": "Unhandled Runtime Error",
+            "label": "Runtime Error",
             "source": "app/global-error-boundary/server/page.js (2:9) @ Page
           > 2 |   throw Error('custom server error')
               |         ^",

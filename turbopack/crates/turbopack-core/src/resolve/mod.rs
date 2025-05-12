@@ -32,6 +32,7 @@ use self::{
 };
 use crate::{
     context::AssetContext,
+    data_uri_source::DataUriSource,
     file_source::FileSource,
     issue::{
         module::emit_unknown_module_type_error, resolve::ResolvingIssue, IssueExt, IssueSource,
@@ -43,6 +44,7 @@ use crate::{
     reference_type::ReferenceType,
     resolve::{
         node::{node_cjs_resolve_options, node_esm_resolve_options},
+        parse::stringify_data_uri,
         pattern::{read_matches, PatternMatch},
         plugin::AfterResolvePlugin,
     },
@@ -1998,6 +2000,40 @@ async fn resolve_internal_inline(
                 )
                 .await?
             }
+            Request::DataUri {
+                media_type,
+                encoding,
+                data,
+            } => {
+                // Behave like Request::Uri
+                let uri: RcStr = stringify_data_uri(media_type, encoding, *data)
+                    .await?
+                    .into();
+                if options.await?.parse_data_uris {
+                    *ResolveResult::primary_with_key(
+                        RequestKey::new(uri.clone()),
+                        ResolveResultItem::Source(ResolvedVc::upcast(
+                            DataUriSource::new(
+                                media_type.clone(),
+                                encoding.clone(),
+                                **data,
+                                lookup_path,
+                            )
+                            .to_resolved()
+                            .await?,
+                        )),
+                    )
+                } else {
+                    *ResolveResult::primary_with_key(
+                        RequestKey::new(uri.clone()),
+                        ResolveResultItem::External {
+                            name: uri,
+                            ty: ExternalType::Url,
+                            traced: ExternalTraced::Untraced,
+                        },
+                    )
+                }
+            }
             Request::Uri {
                 protocol,
                 remainder,
@@ -3108,7 +3144,6 @@ async fn error_severity(resolve_options: Vc<ResolveOptions>) -> Result<ResolvedV
     })
 }
 
-// TODO this should become a TaskInput instead of a Vc
 /// ModulePart represents a part of a module.
 ///
 /// Currently this is used only for ESMs.
@@ -3130,8 +3165,6 @@ pub enum ModulePart {
     RenamedNamespace { export: RcStr },
     /// A pointer to a specific part.
     Internal(u32),
-    /// A pointer to a specific part, but with evaluation.
-    InternalEvaluation(u32),
     /// The local declarations of a module.
     Locals,
     /// The whole exports of a module.
@@ -3165,10 +3198,6 @@ impl ModulePart {
         ModulePart::Internal(id)
     }
 
-    pub fn internal_evaluation(id: u32) -> Self {
-        ModulePart::InternalEvaluation(id)
-    }
-
     pub fn locals() -> Self {
         ModulePart::Locals
     }
@@ -3195,7 +3224,6 @@ impl Display for ModulePart {
                 write!(f, "export * as {}", export)
             }
             ModulePart::Internal(id) => write!(f, "internal part {}", id),
-            ModulePart::InternalEvaluation(id) => write!(f, "internal part {}", id),
             ModulePart::Locals => f.write_str("locals"),
             ModulePart::Exports => f.write_str("exports"),
             ModulePart::Facade => f.write_str("facade"),
