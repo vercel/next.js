@@ -164,7 +164,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
     await assertHasRedbox(browser)
     const source = next.normalizeTestDirContent(await getRedboxSource(browser))
 
-    if (basePath === '' && process.env.IS_TURBOPACK_TEST) {
+    if (process.env.IS_TURBOPACK_TEST) {
       expect(source).toMatchInlineSnapshot(`
          "./pages/hmr/about2.js (7:1)
          Parsing ecmascript source code failed
@@ -176,7 +176,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
 
          Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
         `)
-    } else if (basePath === '' && process.env.NEXT_RSPACK) {
+    } else if (process.env.NEXT_RSPACK) {
       expect(trimEndMultiline(source)).toMatchInlineSnapshot(`
          "./pages/hmr/about2.js
            × Module build failed:
@@ -203,70 +203,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
          Import trace for requested module:
          ./pages/hmr/about2.js"
         `)
-    } else if (basePath === '') {
-      expect(source).toMatchInlineSnapshot(`
-          "./pages/hmr/about2.js
-          Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-             ,-[7:1]
-           4 |       <p>This is the about page.</p>
-           5 |     div
-           6 |   )
-           7 | }
-             : ^
-             \`----
-            x Unexpected eof
-             ,-[7:3]
-           5 |     div
-           6 |   )
-           7 | }
-             \`----
-
-          Caused by:
-              Syntax Error
-
-          Import trace for requested module:
-          ./pages/hmr/about2.js"
-        `)
-    } else if (basePath === '/docs' && process.env.IS_TURBOPACK_TEST) {
-      expect(source).toMatchInlineSnapshot(`
-            "./pages/hmr/about2.js (7:1)
-            Parsing ecmascript source code failed
-              5 |     div
-              6 |   )
-            > 7 | }
-                | ^
-              8 |
-
-            Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
-          `)
-    } else if (basePath === '/docs' && process.env.NEXT_RSPACK) {
-      expect(trimEndMultiline(source)).toMatchInlineSnapshot(`
-         "./pages/hmr/about2.js
-           × Module build failed:
-           ├─▶   ×
-           │     │   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-           │     │    ,-[TEST_DIR/pages/hmr/about2.js:7:1]
-           │     │  4 |       <p>This is the about page.</p>
-           │     │  5 |     div
-           │     │  6 |   )
-           │     │  7 | }
-           │     │    : ^
-           │     │    \`----
-           │     │
-           │     │   x Unexpected eof
-           │     │    ,-[TEST_DIR/pages/hmr/about2.js:7:3]
-           │     │  5 |     div
-           │     │  6 |   )
-           │     │  7 | }
-           │     │    \`----
-           │     │
-           │
-           ╰─▶ Syntax Error
-
-         Import trace for requested module:
-         ./pages/hmr/about2.js"
-        `)
-    } else if (basePath === '/docs') {
+    } else {
       expect(source).toMatchInlineSnapshot(`
           "./pages/hmr/about2.js
           Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
