@@ -902,6 +902,7 @@ Relevant Packages:
   react: .*
   react-dom: .*
   typescript: .*
+  ${process.env.NEXT_RSPACK ? 'next-rspack: .*' : ''}
 Next.js Config:
   output: ${nextConfigOutput}
 `)
