@@ -192,7 +192,6 @@ export function runHotModuleReloadHmrTest(nextConfig: {
         expect(initialFontSize).toBe('100px')
 
         const initialHtml = await next.render(
-          next.url,
           basePath + '/hmr/style-dynamic-component'
         )
         expect(initialHtml.includes('100px')).toBeTruthy()
@@ -226,7 +225,6 @@ export function runHotModuleReloadHmrTest(nextConfig: {
         expect(browserHtml.includes('font-size:100px')).toBe(false)
 
         const editedHtml = await next.render(
-          next.url,
           basePath + '/hmr/style-dynamic-component'
         )
         expect(editedHtml.includes('200px')).toBeTruthy()
