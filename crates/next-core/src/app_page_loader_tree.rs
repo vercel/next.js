@@ -335,6 +335,7 @@ impl AppPageLoaderTreeBuilder {
             default,
             error,
             global_error,
+            global_not_found,
             layout,
             loading,
             template,
@@ -375,6 +376,8 @@ impl AppPageLoaderTreeBuilder {
             .await?;
         self.write_modules_entry(AppDirModuleType::GlobalError, *global_error)
             .await?;
+        self.write_modules_entry(AppDirModuleType::GlobalNotFound, *global_not_found)
+            .await?;
 
         let modules_code = replace(&mut self.loader_tree_code, temp_loader_tree_code);
 
@@ -399,6 +402,7 @@ impl AppPageLoaderTreeBuilder {
         let loader_tree = &*loader_tree.await?;
 
         let modules = &loader_tree.modules;
+        // load global-error module
         if let Some(global_error) = modules.global_error {
             let module = self
                 .base
@@ -406,6 +410,17 @@ impl AppPageLoaderTreeBuilder {
                 .to_resolved()
                 .await?;
             self.base.inner_assets.insert(GLOBAL_ERROR.into(), module);
+        };
+        // load global-not-found module
+        if let Some(global_not_found) = modules.global_not_found {
+            let module = self
+                .base
+                .process_source(Vc::upcast(FileSource::new(*global_not_found)))
+                .to_resolved()
+                .await?;
+            self.base
+                .inner_assets
+                .insert(GLOBAL_NOT_FOUND.into(), module);
         };
 
         self.walk_tree(loader_tree, true).await?;
@@ -439,3 +454,4 @@ impl AppPageLoaderTreeModule {
 }
 
 pub const GLOBAL_ERROR: &str = "GLOBAL_ERROR_MODULE";
+pub const GLOBAL_NOT_FOUND: &str = "GLOBAL_NOT_FOUND_MODULE";

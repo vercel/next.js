@@ -120,7 +120,6 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
         L: loadChunkByUrl.bind(null, sourceInfo),
         w: loadWebAssembly.bind(null, sourceInfo),
         u: loadWebAssemblyModule.bind(null, sourceInfo),
-        g: globalThis,
         P: resolveAbsolutePath,
         U: relativeURL,
         R: createResolvePathFromModule(r),
