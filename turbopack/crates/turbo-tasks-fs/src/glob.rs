@@ -86,7 +86,7 @@ impl TryFrom<GlobForm> for Glob {
 
     fn try_from(value: GlobForm) -> Result<Self, Self::Error> {
         if value.globs.len() == 1 {
-            return Ok(Glob::parse(value.globs[0].clone())?);
+            return Glob::parse(value.globs[0].clone());
         }
         let mut set = GlobSet::builder();
         for raw in &value.globs {
