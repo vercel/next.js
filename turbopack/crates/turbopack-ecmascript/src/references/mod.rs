@@ -1521,6 +1521,18 @@ async fn compile_time_info_for_module_type(
             InputRelativeConstant::FileName,
         ));
 
+    // Compiletime rewrite the nodejs `global` to `globalThis`
+    let global: RcStr = "global".into();
+    free_var_references
+        .entry(vec![
+            DefineableNameSegment::Name(global.clone()),
+            DefineableNameSegment::TypeOf,
+        ])
+        .or_insert("object".into());
+    free_var_references
+        .entry(vec![DefineableNameSegment::Name(global)])
+        .or_insert(FreeVarReference::Ident("globalThis".into()));
+
     free_var_references.extend(TUBROPACK_RUNTIME_FUNCTION_SHORTCUTS.into_iter().map(
         |(name, shortcut)| {
             (

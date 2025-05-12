@@ -87,8 +87,7 @@ impl EcmascriptChunkItemContent {
 
     #[turbo_tasks::function]
     pub async fn module_factory(&self) -> Result<Vc<Code>> {
-        // TODO(lukesandberg): find a better way to bind this parameter.
-        let mut args = vec!["g: global"];
+        let mut args = Vec::new();
         if self.options.async_module.is_some() {
             args.push("a: __turbopack_async_module__");
         }
@@ -106,7 +105,6 @@ impl EcmascriptChunkItemContent {
             args.push("u: __turbopack_wasm_module__");
         }
         let mut code = CodeBuilder::default();
-        let args = FormatIter(|| args.iter().copied().intersperse(", "));
         if self.options.this {
             code += "(function(__turbopack_context__) {\n";
         } else {
@@ -117,7 +115,10 @@ impl EcmascriptChunkItemContent {
         } else {
             code += "\n";
         }
-        writeln!(code, "var {{ {} }} = __turbopack_context__;", args)?;
+        if !args.is_empty() {
+            let args = FormatIter(|| args.iter().copied().intersperse(", "));
+            writeln!(code, "var {{ {} }} = __turbopack_context__;", args)?;
+        }
 
         if self.options.async_module.is_some() {
             code += "__turbopack_async_module__(async (__turbopack_handle_async_dependencies__, \
