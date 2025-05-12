@@ -276,7 +276,7 @@ export function BaseButton() {
 
 To keep CSS ordering predictable:
 
-- Only import a CSS file in a single JS/TS file.
+- Try to contain CSS imports to a single JavaScript or TypeScript entry file
 - Import global styles and Tailwind stylesheets in the root of your application.
 - Use CSS Modules instead of global styles for nested components.
 - Use a consistent naming convention for your CSS modules. For example, using `<name>.module.css` over `<name>.tsx`.
