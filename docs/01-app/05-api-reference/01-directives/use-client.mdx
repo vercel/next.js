@@ -53,14 +53,11 @@ When using the `'use client'` directive, the props of the Client Components must
 'use client'
 
 export default function Counter({
-  useState /* ❌ Function is not serializable */,
+  onClick /* ❌ Function is not serializable */,
 }) {
-  const [count, setCount] = useState(0)
-
   return (
     <div>
-      <p>Count: {count}</p>
-      <button onClick={() => setCount(count + 1)}>Increment</button>
+      <button onClick={onClick}>Increment</button>
     </div>
   )
 }
@@ -70,14 +67,11 @@ export default function Counter({
 'use client'
 
 export default function Counter({
-  useState /* ❌ Function is not serializable */,
+  onClick /* ❌ Function is not serializable */,
 }) {
-  const [count, setCount] = useState(0)
-
   return (
     <div>
-      <p>Count: {count}</p>
-      <button onClick={() => setCount(count + 1)}>Increment</button>
+      <button onClick={onClick}>Increment</button>
     </div>
   )
 }
