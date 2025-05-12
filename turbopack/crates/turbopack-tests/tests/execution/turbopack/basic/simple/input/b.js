@@ -1,1 +1,1 @@
-module.exports.b = require('./z.js').z
+export const b = require('./z.js').z
