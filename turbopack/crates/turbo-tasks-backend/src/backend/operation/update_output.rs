@@ -119,10 +119,11 @@ impl UpdateOutputOperation {
             value: output_value,
         });
 
-        let dependent_tasks = ctx
-            .should_track_dependencies()
-            .then(|| get_many!(task, OutputDependent { task } => task))
-            .unwrap_or_default();
+        let dependent_tasks = if ctx.should_track_dependencies() {
+            get_many!(task, OutputDependent { task } => task)
+        } else {
+            Default::default()
+        };
 
         let mut queue = AggregationUpdateQueue::new();
 
