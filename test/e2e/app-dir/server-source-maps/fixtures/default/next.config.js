@@ -3,6 +3,7 @@
  */
 const nextConfig = {
   experimental: {
+    cpus: 1,
     dynamicIO: true,
     serverSourceMaps: true,
   },

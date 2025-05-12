@@ -194,10 +194,6 @@ import {
 import { FallbackMode, fallbackModeToFallbackField } from '../lib/fallback'
 import { RenderingMode } from './rendering-mode'
 import { getParamKeys } from '../server/request/fallback-params'
-import {
-  formatNodeOptions,
-  getParsedNodeOptionsWithoutInspect,
-} from '../server/lib/utils'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import type { UseCacheTrackerKey } from './webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
@@ -743,17 +739,15 @@ const staticWorkerExposedMethods = [
 type StaticWorker = typeof import('./worker') & Worker
 export function createStaticWorker(
   config: NextConfigComplete,
-  progress?: {
-    run: () => void
-    clear: () => void
+  options: {
+    debuggerPortOffset: number
+    progress?: {
+      run: () => void
+      clear: () => void
+    }
   }
 ): StaticWorker {
-  // Get the node options without inspect and also remove the
-  // --max-old-space-size flag as it can cause memory issues.
-  const nodeOptions = getParsedNodeOptionsWithoutInspect()
-  delete nodeOptions['max-old-space-size']
-  delete nodeOptions['max_old_space_size']
-
+  const { debuggerPortOffset, progress } = options
   return new Worker(staticWorkerPath, {
     logger: Log,
     numWorkers: getNumberOfWorkers(config),
@@ -763,11 +757,9 @@ export function createStaticWorker(
     onActivityAbort: () => {
       progress?.clear()
     },
-    forkOptions: {
-      env: {
-        NODE_OPTIONS: formatNodeOptions(nodeOptions),
-      },
-    },
+    debuggerPortOffset,
+    // remove --max-old-space-size flag as it can cause memory issues.
+    isolatedMemory: true,
     enableWorkerThreads: config.experimental.workerThreads,
     exposedMethods: staticWorkerExposedMethods,
   }) as StaticWorker
@@ -1496,6 +1488,8 @@ export default async function build(
                 const buildTraceWorker = new Worker(
                   require.resolve('./collect-build-traces'),
                   {
+                    debuggerPortOffset: -1,
+                    isolatedMemory: false,
                     numWorkers: 1,
                     exposedMethods: ['collectBuildTraces'],
                   }
@@ -1652,7 +1646,7 @@ export default async function build(
 
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-      const worker = createStaticWorker(config)
+      const worker = createStaticWorker(config, { debuggerPortOffset: -1 })
 
       const analysisBegin = process.hrtime()
       const staticCheckSpan = nextBuildSpan.traceChild('static-check')
