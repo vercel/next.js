@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::hash_map::Entry};
+use std::collections::hash_map::Entry;
 
 use anyhow::Result;
 use roaring::RoaringBitmap;
@@ -58,31 +58,7 @@ impl MergedModuleInfo {
 /// - if a merged module has an incoming edge not contained in the group, it has to expose its
 ///   exports into the module cache.
 pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<MergedModuleInfo>> {
-    let chunk_groups = module_graph.chunk_group_info().await?;
     let module_graph = module_graph.await?;
-
-    #[allow(clippy::type_complexity)]
-    let mut replacements: FxHashMap<
-        ResolvedVc<Box<dyn Module>>,
-        ResolvedVc<Box<dyn ChunkableModule>>,
-    > = Default::default();
-    let mut included: FxHashSet<ResolvedVc<Box<dyn Module>>> = FxHashSet::default();
-
-    #[derive(Debug, PartialEq, Eq, Hash)]
-    struct ListOccurence {
-        list: usize,
-        entry: usize,
-    }
-    impl PartialOrd for ListOccurence {
-        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-            Some(self.cmp(other))
-        }
-    }
-    impl Ord for ListOccurence {
-        fn cmp(&self, other: &Self) -> Ordering {
-            self.entry.cmp(&other.entry)
-        }
-    }
 
     // Use all entries from all graphs
     let graphs = module_graph.get_graphs().await?;
@@ -97,7 +73,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
     let mut next_index = 0u32;
 
     let visit_count = module_graph
-        .traverse_edges_fixed_point(
+        .traverse_edges_fixed_point_with_priority(
             entries.iter().map(|e| (*e, 0)),
             &mut module_merged_groups,
             |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
@@ -190,9 +166,9 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         .await?;
 
     {
-        let mut foo: FxIndexMap<RoaringBitmapWrapper, Vec<ReadRef<RcStr>>> = Default::default();
+        let mut x: FxIndexMap<RoaringBitmapWrapper, Vec<ReadRef<RcStr>>> = Default::default();
         for (k, v) in &module_merged_groups {
-            foo.entry(v.clone())
+            x.entry(v.clone())
                 .or_default()
                 .push(k.ident().to_string().await?);
         }
@@ -200,7 +176,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             "{} {} {:#?}",
             visit_count,
             module_merged_groups.len(),
-            foo.iter().filter(|(_, v)| v.len() > 1).collect::<Vec<_>>()
+            x.iter().filter(|(_, v)| v.len() > 1).collect::<Vec<_>>()
         );
     }
 
@@ -285,6 +261,13 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         })
         .try_join()
         .await?;
+
+    #[allow(clippy::type_complexity)]
+    let mut replacements: FxHashMap<
+        ResolvedVc<Box<dyn Module>>,
+        ResolvedVc<Box<dyn ChunkableModule>>,
+    > = Default::default();
+    let mut included: FxHashSet<ResolvedVc<Box<dyn Module>>> = FxHashSet::default();
 
     for (replacements_part, included_part) in result.into_iter().flatten() {
         replacements.extend(replacements_part.into_iter());
