@@ -1186,7 +1186,7 @@ impl ModuleGraph {
     ///    - Receives: target &SingleModuleGraphNode, state &S
     ///    - Return a priority value for the node
     ///
-    /// Returns the number of node visits (i.e. higher that the node count if there are revisits).
+    /// Returns the number of node visits (i.e. higher than the node count if there are revisits).
     pub async fn traverse_edges_fixed_point<S, P: Ord>(
         &self,
         entries: impl IntoIterator<Item = (ResolvedVc<Box<dyn Module>>, P)>,
