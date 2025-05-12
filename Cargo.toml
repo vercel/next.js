@@ -308,7 +308,7 @@ browserslist-rs = { version = "0.18.0" }
 miette = { version = "5.10.0", features = ["fancy"] }
 mdxjs = "1.0.1"
 modularize_imports = { version = "0.84.0" }
-styled_components = { version = "0.112.0" }
+styled_components = { version = "0.112.1" }
 styled_jsx = { version = "0.88.0" }
 swc_emotion = { version = "0.88.0" }
 swc_relay = { version = "0.58.0" }
