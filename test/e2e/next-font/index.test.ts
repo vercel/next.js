@@ -2,7 +2,7 @@ import cheerio from 'cheerio'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
-import { join, basename } from 'path'
+import { join } from 'path'
 import webdriver from 'next-webdriver'
 
 const mockedGoogleFontResponses = require.resolve(
@@ -410,11 +410,10 @@ describe('next/font', () => {
         .sort()
 
       for (const href of hrefs) {
-        const base = basename(href)
-        // Check that font filename is not too long for Windows systems.
-        // Windows allows up to 256 characters but we check for 200 here
-        // because if it's over 200 it's already way too much
-        expect(base.length).toBeLessThan(200)
+        // Check that font file path is not too long for Windows systems.
+        // Windows allows up to 256 characters but we check for 100 here
+        // because if it's over 100 it's already way too much
+        expect(href.length).toBeLessThan(100)
         hrefMatchesFontWithSizeAdjust(href)
       }
 
