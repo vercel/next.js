@@ -1,15 +1,21 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, collections::hash_map::Entry};
 
 use anyhow::Result;
+use roaring::RoaringBitmap;
 use rustc_hash::{FxHashMap, FxHashSet};
-use turbo_tasks::{FxIndexSet, ResolvedVc, SliceMap, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{
+    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, SliceMap, TryJoinIterExt, ValueToString, Vc,
+};
 
 use crate::{
     chunk::{
         ChunkableModule, ChunkingType, MergeableModule, MergeableModuleResult, MergeableModules,
     },
     module::Module,
-    module_graph::{GraphTraversalAction, ModuleGraph},
+    module_graph::{
+        GraphTraversalAction, ModuleGraph, SingleModuleGraphModuleNode,
+        chunk_group_info::RoaringBitmapWrapper,
+    },
 };
 
 #[turbo_tasks::value(transparent)]
@@ -87,90 +93,184 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
     // that are eligible for merging).
     for chunk_group in &chunk_groups.chunk_groups {
         // TODO parallelize the chunk_group loop
-        struct State {
-            lists: Vec<FxIndexSet<ResolvedVc<Box<dyn MergeableModule>>>>,
-            /// For each module, the lists it is imported into (may be multiple).
-            current_list_indices: FxHashMap<ResolvedVc<Box<dyn Module>>, usize>,
-        }
-        let mut state = State {
-            lists: vec![],
-            current_list_indices: FxHashMap::default(),
-        };
-        module_graph
-            .traverse_edges_from_entries_topological(
-                chunk_group.entries(),
-                &mut state,
-                |parent_info, node, state| {
+
+        let mut module_merged_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
+            FxHashMap::default();
+        let mut next_index = 0u32;
+
+        let visit_count = module_graph
+            .traverse_edges_fixed_point(
+                chunk_group.entries().map(|e| (e, 0)),
+                &mut module_merged_groups,
+                |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
+                 node: &'_ SingleModuleGraphModuleNode,
+                 module_merged_groups: &mut FxHashMap<
+                    ResolvedVc<Box<dyn Module>>,
+                    RoaringBitmapWrapper,
+                >|
+                 -> GraphTraversalAction {
                     // On the down traversal, establish which edges are mergable and set the list
                     // indices.
+
                     if parent_info.is_some_and(|p| !p.1.is_parallel()) {
-                        return Ok(GraphTraversalAction::Exclude);
+                        // We are only interested in this particular chunk group
+                        return GraphTraversalAction::Exclude;
                     }
-                    let (parent_module, hoisted) =
-                        parent_info.map_or((None, false), |(node, ty)| {
-                            (
-                                Some(node.module),
-                                match ty {
-                                    ChunkingType::Parallel { hoisted, .. } => *hoisted,
-                                    _ => unreachable!(),
-                                },
-                            )
-                        });
+                    let (parent, hoisted) = parent_info.map_or((None, false), |(node, ty)| {
+                        (
+                            Some(node.module),
+                            match ty {
+                                ChunkingType::Parallel { hoisted, .. } => *hoisted,
+                                _ => unreachable!(),
+                            },
+                        )
+                    });
                     let module = node.module;
 
-                    if ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(module).is_some() {
-                        let idx = if hoisted
-                            && parent_module.is_some_and(|p| {
-                                ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(p).is_some()
-                            }) {
-                            // An eligible edge: MergeableModule ---hoisted---> MergeableModule
-                            // Reuse the parent's list to later add the child to it
-                            parent_module
-                                .and_then(|p| state.current_list_indices.get(&p).copied())
-                                .unwrap_or_else(|| {
-                                    let idx = state.lists.len();
-                                    state.lists.push(Default::default());
-                                    idx
-                                })
+                    if let (Some(parent_module), true) = (parent, hoisted) {
+                        // Mergable with parent, inherit from parent
+                        if parent_module == node.module {
+                            // A self-reference
+                            GraphTraversalAction::Skip
                         } else {
-                            // The module get its own list
-                            let idx = state.lists.len();
-                            state.lists.push(Default::default());
-                            idx
-                        };
-                        state.current_list_indices.insert(module, idx);
-                    }
-                    Ok(GraphTraversalAction::Continue)
-                },
-                |_parent_info, node, state| {
-                    // On the up traversal (which corresponds to execution order), add the module to
-                    // the lists it belongs to.
-                    let module = node.module;
-                    // TODO when is a module exposed?
-                    // let is_exposed = parent_info.is_none();
+                            module_merged_groups.entry(node.module).or_default();
+                            let [Some(parent_merged_groups), Some(current_merged_groups)] =
+                                module_merged_groups
+                                    .get_disjoint_mut([&parent_module, &node.module])
+                            else {
+                                // All modules are inserted in the previous iteration
+                                unreachable!()
+                            };
 
-                    if let Some(mergable_module) =
-                        ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(module)
-                    {
-                        let idx = *state.current_list_indices.get(&module).unwrap();
-                        let list = state.lists.get_mut(idx).unwrap();
+                            if current_merged_groups.is_empty() {
+                                // Initial visit, clone instead of merging
+                                *current_merged_groups = parent_merged_groups.clone();
+                                GraphTraversalAction::Continue
+                            } else if parent_merged_groups.is_proper_superset(current_merged_groups)
+                            {
+                                // Add bits from parent, and continue traversal because changed
+                                **current_merged_groups |= &**parent_merged_groups;
+                                GraphTraversalAction::Continue
+                            } else {
+                                // Unchanged, no need to forward to children
+                                GraphTraversalAction::Skip
+                            }
+                        }
+                    } else {
+                        // Either a non-hoisted reference, or an incompatible parent, create a new
+                        // group
+                        let idx = next_index;
+                        next_index += 1;
 
-                        // We might visit the module multiple times, but only add it the first time
-                        // (which corresponds to when it executes).
-                        if list.insert(mergable_module) {
-                            lists_reverse_map.entry(mergable_module).or_default().push(
-                                ListOccurence {
-                                    list: idx,
-                                    entry: list.len(),
-                                },
-                            );
+                        match module_merged_groups.entry(module) {
+                            Entry::Occupied(mut entry) => {
+                                let current = entry.get_mut();
+                                if !current.contains(idx) {
+                                    // Mark and continue traversal because modified
+                                    current.insert(idx);
+                                    GraphTraversalAction::Continue
+                                } else {
+                                    // Unchanged, no need to forward to children
+                                    GraphTraversalAction::Skip
+                                }
+                            }
+                            Entry::Vacant(entry) => {
+                                // First visit
+                                entry.insert(RoaringBitmapWrapper(
+                                    RoaringBitmap::from_sorted_iter(std::iter::once(idx)).unwrap(),
+                                ));
+                                GraphTraversalAction::Continue
+                            }
                         }
                     }
                 },
+                |_, _| 0,
             )
             .await?;
 
-        lists.extend(state.lists);
+        let mut foo: FxIndexMap<RoaringBitmapWrapper, Vec<ReadRef<RcStr>>> = Default::default();
+        for (k, v) in &module_merged_groups {
+            foo.entry(v.clone())
+                .or_default()
+                .push(k.ident().to_string().await?);
+        }
+        println!("{} {} {:#?}", visit_count, module_merged_groups.len(), foo);
+
+        // module_graph
+        //     .traverse_edges_from_entries_topological(
+        //         chunk_group.entries(),
+        //         &mut state,
+        //         |parent_info, node, state| {
+        //             // On the down traversal, establish which edges are mergable and set the list
+        //             // indices.
+        //             if parent_info.is_some_and(|p| !p.1.is_parallel()) {
+        //                 return Ok(GraphTraversalAction::Exclude);
+        //             }
+        //             let (parent_module, hoisted) =
+        //                 parent_info.map_or((None, false), |(node, ty)| {
+        //                     (
+        //                         Some(node.module),
+        //                         match ty {
+        //                             ChunkingType::Parallel { hoisted, .. } => *hoisted,
+        //                             _ => unreachable!(),
+        //                         },
+        //                     )
+        //                 });
+        //             let module = node.module;
+
+        //             if ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(module).is_some() {
+        //                 let idx = if hoisted
+        //                     && parent_module.is_some_and(|p| {
+        //                         ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(p).is_some()
+        //                     }) {
+        //                     // An eligible edge: MergeableModule ---hoisted---> MergeableModule
+        //                     // Reuse the parent's list to later add the child to it
+        //                     parent_module
+        //                         .and_then(|p| state.current_list_indices.get(&p).copied())
+        //                         .unwrap_or_else(|| {
+        //                             let idx = state.lists.len();
+        //                             state.lists.push(Default::default());
+        //                             idx
+        //                         })
+        //                 } else {
+        //                     // The module get its own list
+        //                     let idx = state.lists.len();
+        //                     state.lists.push(Default::default());
+        //                     idx
+        //                 };
+        //                 state.current_list_indices.insert(module, idx);
+        //             }
+        //             Ok(GraphTraversalAction::Continue)
+        //         },
+        //         |_parent_info, node, state| {
+        //             // On the up traversal (which corresponds to execution order), add the module
+        // to             // the lists it belongs to.
+        //             let module = node.module;
+        //             // TODO when is a module exposed?
+        //             // let is_exposed = parent_info.is_none();
+
+        //             if let Some(mergable_module) =
+        //                 ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(module)
+        //             {
+        //                 let idx = *state.current_list_indices.get(&module).unwrap();
+        //                 let list = state.lists.get_mut(idx).unwrap();
+
+        //                 // We might visit the module multiple times, but only add it the first
+        // time                 // (which corresponds to when it executes).
+        //                 if list.insert(mergable_module) {
+        //                     lists_reverse_map.entry(mergable_module).or_default().push(
+        //                         ListOccurence {
+        //                             list: idx,
+        //                             entry: list.len(),
+        //                         },
+        //                     );
+        //                 }
+        //             }
+        //         },
+        //     )
+        //     .await?;
+
+        // lists.extend(state.lists);
     }
 
     // Sort the reverse mappings by the index in the lists, so that we start with smaller indices to
