@@ -359,7 +359,10 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         let ext = ext.with_context(|| format!("font url {} is missing an extension", &url))?;
 
         // remove dashes and dots as they might be used for the markers below.
-        let mut name = filename.replace(['-', '.'], "_");
+        let mut name = format!(
+            "{:016x}",
+            hash_xxh3_hash64(filename.replace(['-', '.'], "_").as_bytes())
+        );
         if size_adjust {
             name.push_str("-s")
         }
@@ -368,7 +371,7 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         }
 
         let font_virtual_path = next_js_file_path("internal/font/google".into())
-            .join(format!("/{:016x}.{}", hash_xxh3_hash64(name.as_bytes()), ext).into());
+            .join(format!("/{}.{}", name, ext).into());
 
         // doesn't seem ideal to download the font into a string, but probably doesn't
         // really matter either.
