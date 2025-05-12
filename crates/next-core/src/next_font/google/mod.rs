@@ -124,13 +124,13 @@ impl NextFontGoogleReplacer {
                         .weight
                         .await?
                         .as_ref()
-                        .map(|w| format!("fontWeight: {},\n", w))
+                        .map(|w| format!("fontWeight: {w},\n"))
                         .unwrap_or_else(|| "".to_owned()),
                     properties
                         .style
                         .await?
                         .as_ref()
-                        .map(|s| format!("fontStyle: \"{}\",\n", s))
+                        .map(|s| format!("fontStyle: \"{s}\",\n"))
                         .unwrap_or_else(|| "".to_owned()),
                 )
                 .into(),
@@ -367,8 +367,8 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
             name.push_str(".p")
         }
 
-        let font_virtual_path = next_js_file_path("internal/font/google".into())
-            .join(format!("/{}.{}", name, ext).into());
+        let font_virtual_path =
+            next_js_file_path("internal/font/google".into()).join(format!("/{name}.{ext}").into());
 
         // doesn't seem ideal to download the font into a string, but probably doesn't
         // really matter either.
@@ -438,7 +438,7 @@ async fn update_google_stylesheet(
 
         stylesheet = stylesheet.replace(
             &font_url,
-            &format!("{}?{}", GOOGLE_FONTS_INTERNAL_PREFIX, query_str),
+            &format!("{GOOGLE_FONTS_INTERNAL_PREFIX}?{query_str}"),
         )
     }
 
@@ -494,7 +494,7 @@ async fn get_stylesheet_url_from_options(
 
         let env = CommandLineProcessEnv::new();
         if let Some(url) = &*env.read("TURBOPACK_TEST_ONLY_MOCK_SERVER".into()).await? {
-            css_url = Some(format!("{}/css2", url));
+            css_url = Some(format!("{url}/css2"));
         }
     }
 

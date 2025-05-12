@@ -154,7 +154,7 @@ async fn static_error(
         .replace('<', "&lt;");
 
     if let Some(status) = status {
-        message.push_str(&format!("\n\nStatus: {}", status));
+        message.push_str(&format!("\n\nStatus: {status}"));
     }
 
     let mut body = "<script id=\"__NEXT_DATA__\" type=\"application/json\">{ \"props\": {} \

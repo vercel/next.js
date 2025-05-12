@@ -427,8 +427,7 @@ impl DiskWatcher {
                                     // notify or system weirdness.
                                     panic!(
                                         "Rename event does not contain source and destination \
-                                         paths {:#?}",
-                                        paths
+                                         paths {paths:#?}"
                                     );
                                 }
                             }
@@ -455,7 +454,7 @@ impl DiskWatcher {
                     }
                     // Error raised by notify watcher itself
                     Ok(Err(notify::Error { kind, paths })) => {
-                        println!("watch error ({:?}): {:?} ", paths, kind);
+                        println!("watch error ({paths:?}): {kind:?} ");
 
                         if paths.is_empty() {
                             batched_invalidate_path_and_children

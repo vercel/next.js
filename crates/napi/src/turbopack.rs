@@ -180,7 +180,7 @@ impl FromNapiValue for NapiRouteHas {
             _ => {
                 return Err(napi::Error::new(
                     Status::GenericFailure,
-                    format!("invalid type for RouteHas: {}", type_),
+                    format!("invalid type for RouteHas: {type_}"),
                 ))
             }
         })

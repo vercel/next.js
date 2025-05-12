@@ -97,7 +97,7 @@ impl ModuleReference for WebpackChunkAssetReference {
                     Lit::Num(num) => format!("{num}"),
                     _ => todo!(),
                 };
-                let filename = format!("./chunks/{}.js", chunk_id).into();
+                let filename = format!("./chunks/{chunk_id}.js").into();
                 let source = Vc::upcast(FileSource::new(context_path.join(filename)));
 
                 *ModuleResolveResult::module(ResolvedVc::upcast(
@@ -120,7 +120,7 @@ impl ValueToString for WebpackChunkAssetReference {
             Lit::Num(num) => format!("{num}"),
             _ => todo!(),
         };
-        Vc::cell(format!("webpack chunk {}", chunk_id).into())
+        Vc::cell(format!("webpack chunk {chunk_id}").into())
     }
 }
 

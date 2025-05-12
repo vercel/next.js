@@ -102,7 +102,7 @@ fn format_optional_path(
             if let Some(context) = context {
                 let option_context = Some(context.clone());
                 if last_context == option_context {
-                    writeln!(formatted_issue, " at {}", description)?;
+                    writeln!(formatted_issue, " at {description}")?;
                 } else {
                     writeln!(
                         formatted_issue,
@@ -113,7 +113,7 @@ fn format_optional_path(
                     last_context = option_context;
                 }
             } else {
-                writeln!(formatted_issue, " at {}", description)?;
+                writeln!(formatted_issue, " at {description}")?;
                 last_context = None;
             }
         }
@@ -167,7 +167,7 @@ pub fn format_issue(
             writeln!(styled_issue, "\ndocumentation: {documentation_link}").unwrap();
         }
         if let Some(path) = path {
-            writeln!(styled_issue, "{}", path).unwrap();
+            writeln!(styled_issue, "{path}").unwrap();
         }
     }
 
@@ -590,7 +590,7 @@ fn style_issue_source(plain_issue: &PlainIssue, context_path: &str) -> String {
                 start.column,
                 formatted_title
             ),
-            None => format!("{}  {}", context_path, formatted_title),
+            None => format!("{context_path}  {formatted_title}"),
         };
         styled_issue.push('\n');
         format_source_content(source, &mut styled_issue);

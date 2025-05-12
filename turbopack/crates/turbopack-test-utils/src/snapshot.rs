@@ -109,7 +109,7 @@ pub async fn matches_expected(
         let p = &path.await?.path;
         if *UPDATE {
             remove_file(path).await?;
-            println!("removed file {}", p);
+            println!("removed file {p}");
         } else {
             bail!("expected file {}, but it was not emitted", p);
         }
@@ -129,7 +129,7 @@ pub async fn diff(path: Vc<FileSystemPath>, actual: Vc<AssetContent>) -> Result<
             if *UPDATE {
                 let content = File::from(RcStr::from(actual)).into();
                 path.write(content).await?;
-                println!("updated contents of {}", path_str);
+                println!("updated contents of {path_str}");
             } else {
                 if expected.is_none() {
                     eprintln!("new file {path_str} detected:");
@@ -172,14 +172,13 @@ async fn get_contents(file: Vc<AssetContent>, path: Vc<FileSystemPath>) -> Resul
                         Ok(str) => Some(str.trim().to_string()),
                         Err(_) => {
                             let hash = hash_xxh3_hash64(rope);
-                            Some(format!("Binary content {:016x}", hash))
+                            Some(format!("Binary content {hash:016x}"))
                         }
                     }
                 }
             },
             AssetContent::Redirect { target, link_type } => Some(format!(
-                "Redirect {{ target: {target}, link_type: {:?} }}",
-                link_type
+                "Redirect {{ target: {target}, link_type: {link_type:?} }}"
             )),
         },
     )
@@ -233,7 +232,7 @@ fn styled_string_to_file_safe_string(styled_string: &StyledString) -> String {
             string
         }
         StyledString::Text(string) => string.to_string(),
-        StyledString::Code(string) => format!("__c_{}__", string),
-        StyledString::Strong(string) => format!("__{}__", string),
+        StyledString::Code(string) => format!("__c_{string}__"),
+        StyledString::Strong(string) => format!("__{string}__"),
     }
 }

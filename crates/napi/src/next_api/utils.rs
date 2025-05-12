@@ -471,7 +471,7 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
             );
             if !matches!(status, Status::Ok) {
                 let error = anyhow!("Error calling JS function: {}", status);
-                eprintln!("{}", error);
+                eprintln!("{error}");
                 return Err::<Vc<()>, _>(error);
             }
             Ok(Default::default())

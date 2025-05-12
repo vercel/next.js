@@ -198,7 +198,7 @@ async fn run_inner_operation(resource: RcStr) -> Result<()> {
 #[turbo_tasks::function(operation)]
 async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let test_path = canonicalize(&resource)?;
-    assert!(test_path.exists(), "{} does not exist", resource);
+    assert!(test_path.exists(), "{resource} does not exist");
     assert!(
         test_path.is_dir(),
         "{} is not a directory. Snapshot tests must be directories.",

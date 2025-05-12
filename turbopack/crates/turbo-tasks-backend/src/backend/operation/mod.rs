@@ -451,7 +451,7 @@ impl<B: BackingStorage> Debug for TaskGuardImpl<'_, B> {
             d.field("task_type", &task_type);
         };
         for (key, value) in self.task.iter_all() {
-            d.field(&format!("{:?}", key), &value);
+            d.field(&format!("{key:?}"), &value);
         }
         d.finish()
     }

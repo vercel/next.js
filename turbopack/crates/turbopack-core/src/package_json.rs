@@ -44,7 +44,7 @@ pub async fn read_package_json(path: ResolvedVc<FileSystemPath>) -> Result<Vc<Op
                 let text = content.content().to_str()?;
                 e.write_with_content(&mut message, &text)?;
             } else {
-                write!(message, "{}", e)?;
+                write!(message, "{e}")?;
             }
             PackageJsonIssue {
                 error_message: message.into(),

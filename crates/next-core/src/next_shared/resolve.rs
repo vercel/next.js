@@ -85,7 +85,7 @@ impl Issue for InvalidImportModuleIssue {
             StyledString::Line(
                 messages
                     .iter()
-                    .map(|v| StyledString::Text(format!("{}\n", v).into()))
+                    .map(|v| StyledString::Text(format!("{v}\n").into()))
                     .collect::<Vec<StyledString>>(),
             )
             .resolved_cell(),
@@ -374,7 +374,7 @@ impl BeforeResolvePlugin for ModuleFeatureReportResolvePlugin {
                     .find(|sub_path| path.is_match(sub_path));
 
                 if let Some(sub_path) = sub_path {
-                    ModuleFeatureTelemetry::new(format!("{}{}", module, sub_path).into(), 1)
+                    ModuleFeatureTelemetry::new(format!("{module}{sub_path}").into(), 1)
                         .resolved_cell()
                         .emit();
                 }

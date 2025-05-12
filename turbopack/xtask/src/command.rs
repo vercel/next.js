@@ -52,7 +52,7 @@ impl Command {
             cmd.current_dir(&current_dir);
         }
         if self.dry_run {
-            println!("{:?}", cmd);
+            println!("{cmd:?}");
             return;
         }
         let status = cmd.status();

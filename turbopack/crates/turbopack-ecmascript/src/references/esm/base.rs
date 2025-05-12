@@ -71,7 +71,7 @@ impl ReferencedAsset {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<String> {
         let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
-        Ok(magic_identifier::mangle(&format!("imported module {}", id)))
+        Ok(magic_identifier::mangle(&format!("imported module {id}")))
     }
 }
 

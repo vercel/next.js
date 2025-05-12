@@ -149,7 +149,7 @@ impl EcmascriptChunkItem for JsonChunkItem {
                     let text = content.content().to_str()?;
                     e.write_with_content(&mut message, text.as_ref())?;
                 } else {
-                    write!(message, "{}", e)?;
+                    write!(message, "{e}")?;
                 }
 
                 Err(Error::msg(message))

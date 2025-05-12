@@ -69,7 +69,7 @@ pub async fn read_tsconfigs(
                     let text = content.content().to_str()?;
                     e.write_with_content(&mut message, text.as_ref())?;
                 } else {
-                    write!(message, "{}", e)?;
+                    write!(message, "{e}")?;
                 }
                 TsConfigIssue {
                     severity: IssueSeverity::Error.resolved_cell(),
@@ -100,7 +100,7 @@ pub async fn read_tsconfigs(
                         TsConfigIssue {
                             severity: IssueSeverity::Error.resolved_cell(),
                             source_ident: tsconfig.ident().to_resolved().await?,
-                            message: format!("extends: \"{}\" doesn't resolve correctly", extends)
+                            message: format!("extends: \"{extends}\" doesn't resolve correctly")
                                 .into(),
                         }
                         .resolved_cell()

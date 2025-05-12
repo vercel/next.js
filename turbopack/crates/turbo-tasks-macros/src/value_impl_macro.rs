@@ -92,7 +92,7 @@ impl Parse for ValueImplArguments {
                 (_, meta) => {
                     return Err(Error::new_spanned(
                         &meta,
-                        format!("unexpected {:?}, expected \"ident\"", meta),
+                        format!("unexpected {meta:?}, expected \"ident\""),
                     ))
                 }
             }
@@ -241,7 +241,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
 
                 let inline_function_ident = turbo_fn.inline_ident();
                 let inline_extension_trait_ident = Ident::new(
-                    &format!("{}_{}_{}_inline", ty_ident, trait_ident, ident),
+                    &format!("{ty_ident}_{trait_ident}_{ident}_inline"),
                     ident.span(),
                 );
                 let (inline_signature, inline_block) =

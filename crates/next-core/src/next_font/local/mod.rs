@@ -151,13 +151,13 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                         .weight
                         .await?
                         .as_ref()
-                        .map(|w| format!("fontWeight: {},\n", w))
+                        .map(|w| format!("fontWeight: {w},\n"))
                         .unwrap_or_else(|| "".to_owned()),
                     properties
                         .style
                         .await?
                         .as_ref()
-                        .map(|s| format!("fontStyle: \"{}\",\n", s))
+                        .map(|s| format!("fontStyle: \"{s}\",\n"))
                         .unwrap_or_else(|| "".to_owned()),
                 );
                 let js_asset = VirtualSource::new(
@@ -242,7 +242,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                     name.push_str(".p")
                 }
 
-                let font_virtual_path = lookup_path.join(format!("/{}.{}", name, ext).into());
+                let font_virtual_path = lookup_path.join(format!("/{name}.{ext}").into());
 
                 let font_file = lookup_path.join(path.clone()).read();
 

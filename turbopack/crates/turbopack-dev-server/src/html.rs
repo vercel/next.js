@@ -208,11 +208,10 @@ impl DevHtmlAssetContent {
 
         for relative_path in &*self.chunk_paths {
             if relative_path.ends_with(".js") {
-                scripts.push(format!("<script src=\"{}\"></script>", relative_path));
+                scripts.push(format!("<script src=\"{relative_path}\"></script>"));
             } else if relative_path.ends_with(".css") {
                 stylesheets.push(format!(
-                    "<link data-turbopack rel=\"stylesheet\" href=\"{}\">",
-                    relative_path
+                    "<link data-turbopack rel=\"stylesheet\" href=\"{relative_path}\">"
                 ));
             } else {
                 anyhow::bail!("chunk with unknown asset type: {}", relative_path)

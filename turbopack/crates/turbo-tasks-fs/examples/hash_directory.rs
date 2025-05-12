@@ -100,7 +100,7 @@ async fn hash_directory(directory: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
             .join(",")
             .as_bytes(),
     );
-    println!("hash_directory({})", dir_path);
+    println!("hash_directory({dir_path})");
     Ok(hash)
 }
 

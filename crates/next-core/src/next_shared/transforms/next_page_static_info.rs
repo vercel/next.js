@@ -92,11 +92,11 @@ impl CustomTransformer for NextPageStaticInfo {
                     )];
 
                     if let Some(runtime) = config_obj.get("runtime") {
-                        messages.push(format!("- `export const runtime = {}`", runtime));
+                        messages.push(format!("- `export const runtime = {runtime}`"));
                     }
 
                     if let Some(regions) = config_obj.get("regions") {
-                        messages.push(format!("- `export const preferredRegion = {}`", regions));
+                        messages.push(format!("- `export const preferredRegion = {regions}`"));
                     }
 
                     messages.push("Visit https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config for more information.".to_string());
@@ -164,7 +164,7 @@ impl Issue for PageStaticInfoIssue {
             StyledString::Line(
                 self.messages
                     .iter()
-                    .map(|v| StyledString::Text(format!("{}\n", v).into()))
+                    .map(|v| StyledString::Text(format!("{v}\n").into()))
                     .collect::<Vec<StyledString>>(),
             )
             .resolved_cell(),

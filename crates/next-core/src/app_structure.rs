@@ -375,7 +375,7 @@ async fn get_directory_tree_internal(
                     .map_or(file_name, |(basename, _)| basename);
                 let alt_path = file
                     .parent()
-                    .join(format!("{}.alt.txt", basename).into())
+                    .join(format!("{basename}.alt.txt").into())
                     .to_resolved()
                     .await?;
                 let alt_path = matches!(&*alt_path.get_type().await?, FileSystemEntryType::File)
@@ -568,9 +568,9 @@ fn conflict_issue(
     value_b: &AppPage,
 ) {
     let item_names = if a == b {
-        format!("{}s", a)
+        format!("{a}s")
     } else {
-        format!("{} and {}", a, b)
+        format!("{a} and {b}")
     };
 
     DirectoryTreeIssue {
@@ -1038,7 +1038,7 @@ async fn directory_tree_to_loader_tree_internal(
         }
 
         for key in keys_to_replace {
-            let subdir_name: RcStr = format!("@{}", key).into();
+            let subdir_name: RcStr = format!("@{key}").into();
 
             let default = if key == "children" {
                 modules.default

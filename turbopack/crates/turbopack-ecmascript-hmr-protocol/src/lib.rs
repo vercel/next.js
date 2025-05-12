@@ -19,7 +19,7 @@ impl Display for ResourceIdentifier {
         write!(f, "{}", self.path)?;
         if let Some(headers) = &self.headers {
             for (key, value) in headers.iter() {
-                write!(f, " [{}: {}]", key, value)?;
+                write!(f, " [{key}: {value}]")?;
             }
         }
         Ok(())

@@ -136,7 +136,7 @@ impl AppPageLoaderTreeBuilder {
         let metadata_manifest_route = get_metadata_route_name(manifest).await?;
         // prefix with base_path if it exists
         let manifest_route = if let Some(base_path) = &self.base_path {
-            format!("{}/{}", base_path, metadata_manifest_route)
+            format!("{base_path}/{metadata_manifest_route}")
         } else {
             metadata_manifest_route.to_string()
         };
@@ -250,7 +250,7 @@ impl AppPageLoaderTreeBuilder {
         let s = "      ";
         writeln!(self.loader_tree_code, "{s}(async (props) => [{{")?;
         let pathname_prefix = if let Some(base_path) = &self.base_path {
-            format!("{}/{}", base_path, app_page)
+            format!("{base_path}/{app_page}")
         } else {
             app_page.to_string()
         };

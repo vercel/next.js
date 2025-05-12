@@ -190,7 +190,7 @@ impl DevServerBuilder {
                                     return Ok(response);
                                 }
 
-                                println!("[404] {} (WebSocket)", path);
+                                println!("[404] {path} (WebSocket)");
                                 if path == "/_next/webpack-hmr" {
                                     // Special-case requests to webpack-hmr as these are made by
                                     // Next.js clients built

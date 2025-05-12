@@ -489,7 +489,7 @@ fn format_absolute_fs_path(path: &Path, name: &str, root_path: &Path) -> Option<
     let path = if let Ok(rel_path) = path.strip_prefix(root_path) {
         let path = if MAIN_SEPARATOR != '/' {
             let rel_path = rel_path.to_string_lossy().replace(MAIN_SEPARATOR, "/");
-            format!("[{name}]/{}", rel_path)
+            format!("[{name}]/{rel_path}")
         } else {
             format!("[{name}]/{}", rel_path.display())
         };
@@ -932,7 +932,7 @@ impl FileSystem for DiskFileSystem {
                         }
                     })
                     .await
-                    .with_context(|| format!("create symlink to {}", target))?;
+                    .with_context(|| format!("create symlink to {target}"))?;
                 }
                 LinkContent::Invalid => {
                     anyhow::bail!("invalid symlink target: {}", full_path.display())
@@ -1161,13 +1161,12 @@ impl FileSystemPath {
         // provided by the user, so we allow it.
         debug_assert!(
             MAIN_SEPARATOR != '\\' || !path.contains('\\'),
-            "path {} must not contain a Windows directory '\\', it must be normalized to Unix '/'",
-            path,
+            "path {path} must not contain a Windows directory '\\', it must be normalized to Unix \
+             '/'",
         );
         debug_assert!(
             normalize_path(&path).as_deref() == Some(&*path),
-            "path {} must be normalized",
-            path,
+            "path {path} must be normalized",
         );
         Self::cell(FileSystemPath { fs, path })
     }
@@ -1221,7 +1220,7 @@ impl FileSystemPath {
         if let (path, Some(ext)) = this.split_extension() {
             return Ok(Self::new_normalized(
                 *this.fs,
-                format!("{}{}.{}", path, appending, ext).into(),
+                format!("{path}{appending}.{ext}").into(),
             ));
         }
         Ok(Self::new_normalized(
@@ -1956,7 +1955,7 @@ mod mime_option_serde {
                 } else {
                     Mime::from_str(value)
                         .map(Some)
-                        .map_err(|e| E::custom(format!("{}", e)))
+                        .map_err(|e| E::custom(format!("{e}")))
                 }
             }
         }

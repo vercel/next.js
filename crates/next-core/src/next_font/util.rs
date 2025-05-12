@@ -56,7 +56,7 @@ pub(crate) async fn get_scoped_font_family(
     let font_family_base = font_family_name.await?.to_string();
     let font_family_name = match &*ty.await? {
         FontFamilyType::WebFont => font_family_base,
-        FontFamilyType::Fallback => format!("{} Fallback", font_family_base),
+        FontFamilyType::Fallback => format!("{font_family_base} Fallback"),
     };
 
     Ok(Vc::cell(font_family_name.into()))

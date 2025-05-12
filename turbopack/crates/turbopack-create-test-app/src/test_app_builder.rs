@@ -521,7 +521,7 @@ impl TestAppBuilder {
             write_file(
                 "package.json",
                 path.join("package.json"),
-                format!("{:#}", package_json).as_bytes(),
+                format!("{package_json:#}").as_bytes(),
             )?;
         }
 

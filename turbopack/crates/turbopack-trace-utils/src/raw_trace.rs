@@ -176,7 +176,7 @@ impl ValuesVisitor {
 impl Visit for ValuesVisitor {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
         let mut str = String::new();
-        let _ = write!(str, "{:?}", value);
+        let _ = write!(str, "{value:?}");
         self.values
             .push((field.name().into(), TraceValue::String(str.into())));
     }

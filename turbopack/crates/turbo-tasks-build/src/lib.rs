@@ -137,7 +137,7 @@ pub fn generate_register() {
                         ctx.process_item(&item).unwrap();
                     }
                 }
-                Err(err) => println!("{}", err),
+                Err(err) => println!("{err}"),
             }
         }
 
@@ -461,8 +461,7 @@ impl RegisterContext<'_> {
 
         assert!(
             self.values.insert(key, value).is_none(),
-            "{} is declared more than once",
-            ident
+            "{ident} is declared more than once"
         );
     }
 

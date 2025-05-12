@@ -117,7 +117,7 @@ impl EcmascriptChunkItemContent {
         }
         if !args.is_empty() {
             let args = FormatIter(|| args.iter().copied().intersperse(", "));
-            writeln!(code, "var {{ {} }} = __turbopack_context__;", args)?;
+            writeln!(code, "var {{ {args} }} = __turbopack_context__;")?;
         }
 
         if self.options.async_module.is_some() {
@@ -264,8 +264,7 @@ async fn module_factory_with_code_generation_issue(
                     .await;
                 let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
                 let error = error.context(format!(
-                    "An error occurred while generating the chunk item {}",
-                    id
+                    "An error occurred while generating the chunk item {id}"
                 ));
                 let error_message = format!("{}", PrettyPrintError(&error)).into();
                 let js_error_message = serde_json::to_string(&error_message)?;

@@ -207,7 +207,7 @@ impl ValueToString for RouteTree {
         let mut result = "RouteTree(".to_string();
         for segment in base {
             match segment {
-                BaseSegment::Static(str) => write!(result, "/{}", str)?,
+                BaseSegment::Static(str) => write!(result, "/{str}")?,
                 BaseSegment::Dynamic => result.push_str("/[dynamic]"),
             }
         }
@@ -216,7 +216,7 @@ impl ValueToString for RouteTree {
         }
         for (key, tree) in static_segments {
             let tree = tree.to_string().await?;
-            write!(result, "{}: {}, ", key, tree)?;
+            write!(result, "{key}: {tree}, ")?;
         }
         if !sources.is_empty() {
             write!(result, "{} x source, ", sources.len())?;

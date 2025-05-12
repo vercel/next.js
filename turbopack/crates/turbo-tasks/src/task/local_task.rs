@@ -186,7 +186,7 @@ impl LocalTaskType {
             Err(name) => {
                 if !has_trait(value_type, trait_type) {
                     let traits = traits(value_type).iter().fold(String::new(), |mut out, t| {
-                        let _ = write!(out, " {}", t);
+                        let _ = write!(out, " {t}");
                         out
                     });
                     Err(anyhow!(

@@ -1975,7 +1975,7 @@ impl Endpoint for AppEndpoint {
         }
         .instrument(span)
         .await
-        .with_context(|| format!("Failed to write app endpoint {}", page_name))
+        .with_context(|| format!("Failed to write app endpoint {page_name}"))
     }
 
     #[turbo_tasks::function]

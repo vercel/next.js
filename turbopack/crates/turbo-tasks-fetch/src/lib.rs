@@ -196,20 +196,17 @@ impl Issue for FetchIssue {
 
         Ok(Vc::cell(Some(
             StyledString::Text(match kind {
-                FetchErrorKind::Connect => format!(
-                    "There was an issue establishing a connection while requesting {}.",
-                    url
-                )
-                .into(),
-                FetchErrorKind::Status(status) => format!(
-                    "Received response with status {} when requesting {}",
-                    status, url
-                )
-                .into(),
-                FetchErrorKind::Timeout => {
-                    format!("Connection timed out when requesting {}", url).into()
+                FetchErrorKind::Connect => {
+                    format!("There was an issue establishing a connection while requesting {url}.")
+                        .into()
                 }
-                FetchErrorKind::Other => format!("There was an issue requesting {}", url).into(),
+                FetchErrorKind::Status(status) => {
+                    format!("Received response with status {status} when requesting {url}").into()
+                }
+                FetchErrorKind::Timeout => {
+                    format!("Connection timed out when requesting {url}").into()
+                }
+                FetchErrorKind::Other => format!("There was an issue requesting {url}").into(),
             })
             .resolved_cell(),
         )))

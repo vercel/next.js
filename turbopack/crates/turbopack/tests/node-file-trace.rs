@@ -532,7 +532,7 @@ fn node_file_trace<B: Backend + 'static>(
                     }
                 }
                 Err(err) => {
-                    panic!("Execution failed: {:?}", err);
+                    panic!("Execution failed: {err:?}");
                 }
             };
 
@@ -643,7 +643,7 @@ async fn exec_node(directory: RcStr, path: Vc<FileSystemPath>) -> Result<Vc<Comm
         cmd.current_dir(current_dir);
     }
 
-    println!("[CMD]: {:#?}", cmd);
+    println!("[CMD]: {cmd:#?}");
 
     let output = timeout(Duration::from_secs(100), cmd.output())
         .await
@@ -707,10 +707,7 @@ async fn assert_output(
                 String::new()
             } else {
                 let stderr_diff = diff(&expected.stderr, &actual.stderr);
-                format!(
-                    "could not find `{}` in stderr\n{}",
-                    expected_stderr, stderr_diff
-                )
+                format!("could not find `{expected_stderr}` in stderr\n{stderr_diff}")
             }
         } else {
             diff(&expected.stderr, &actual.stderr)
