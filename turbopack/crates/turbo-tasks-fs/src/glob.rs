@@ -1,34 +1,8 @@
-use std::mem::take;
-
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::Result;
+use globset::{Glob as GlobsetGlob, GlobBuilder, GlobMatcher, GlobSet};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, TryJoinIterExt, Vc, trace::TraceRawVcs};
-use unicode_segmentation::GraphemeCursor;
-
-#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
-enum GlobPart {
-    /// `/**/`: Matches any path of directories
-    AnyDirectories,
-
-    /// `*`: Matches any filename (no path separator)
-    AnyFile,
-
-    /// `?`: Matches a single filename character (no path separator)
-    AnyFileChar,
-
-    /// `/`: Matches the path separator
-    PathSeparator,
-
-    /// `[abc]`: Matches any char of the list
-    FileChar(Vec<char>),
-
-    /// `abc`: Matches literal filename
-    File(String),
-
-    /// `{a,b,c}`: Matches any of the globs in the list
-    Alternatives(Vec<Glob>),
-}
+use turbo_tasks::Vc;
 
 // Examples:
 // - file.js = File(file.js)
@@ -39,9 +13,6 @@ enum GlobPart {
 // - {a/**,*}/file = Alternatives([File(a), PathSeparator, AnyDirectories], [AnyFile]),
 //   PathSeparator, File(file)
 
-// Note: a/**/b does match a/b, so we need some special logic about path
-// separators
-
 #[turbo_tasks::value(eq = "manual")]
 #[serde(into = "GlobForm", try_from = "GlobForm")]
 #[derive(Clone, Debug)]
@@ -49,7 +20,21 @@ pub struct Glob {
     // Store the raw glob strings to support equality and serialization
     raw: Vec<RcStr>,
     #[turbo_tasks(trace_ignore)]
-    matcher: globset::GlobSet,
+    implementation: GlobImpl,
+}
+#[derive(Clone, Debug)]
+enum GlobImpl {
+    Set(GlobSet),
+    Single(GlobMatcher),
+}
+
+impl GlobImpl {
+    fn is_match(&self, path: &str) -> bool {
+        match self {
+            GlobImpl::Set(glob_set) => glob_set.is_match(path),
+            GlobImpl::Single(glob_matcher) => glob_matcher.is_match(path),
+        }
+    }
 }
 
 impl PartialEq for Glob {
@@ -61,22 +46,19 @@ impl Eq for Glob {}
 
 impl Glob {
     pub fn execute(&self, path: &str) -> bool {
-        self.matcher.is_match(path)
+        self.implementation.is_match(path)
     }
     fn parse(input: RcStr) -> Result<Glob> {
-        let parsed = parse_as_globset_glob(input.as_str())?;
-
-        let set = GlobSet::builder().add(parsed).build()?;
-
-        Ok(Glob {
+        let parsed = parse_as_globset_glob(input.as_str())?.compile_matcher();
+        Ok(Self {
             raw: vec![input],
-            matcher: set,
+            implementation: GlobImpl::Single(parsed),
         })
     }
 }
 
-// Small helper to apply our configuration
-fn parse_as_globset_glob(input: &str) -> Result<globset::Glob> {
+// Small helper to apply our configuration consistently
+fn parse_as_globset_glob(input: &str) -> Result<GlobsetGlob> {
     Ok(GlobBuilder::new(input)
         // allow '\' to escape meta characters
         .backslash_escape(true)
@@ -89,6 +71,7 @@ fn parse_as_globset_glob(input: &str) -> Result<globset::Glob> {
         .build()?)
 }
 
+// Serialized form of `Glob`
 #[derive(Serialize, Deserialize)]
 struct GlobForm {
     globs: Vec<RcStr>,
@@ -102,13 +85,16 @@ impl TryFrom<GlobForm> for Glob {
     type Error = anyhow::Error;
 
     fn try_from(value: GlobForm) -> Result<Self, Self::Error> {
+        if value.globs.len() == 1 {
+            return Ok(Glob::parse(value.globs[0].clone())?);
+        }
         let mut set = GlobSet::builder();
         for raw in &value.globs {
             set.add(parse_as_globset_glob(raw)?);
         }
         Ok(Glob {
             raw: value.globs,
-            matcher: set.build()?,
+            implementation: GlobImpl::Set(set.build()?),
         })
     }
 }
@@ -133,7 +119,7 @@ impl Glob {
         if globs.is_empty() {
             return Ok(Self::cell(Glob {
                 raw: Vec::new(),
-                matcher: GlobSet::empty(),
+                implementation: GlobImpl::Set(GlobSet::empty()),
             }));
         }
         if globs.len() == 1 {
@@ -150,8 +136,10 @@ impl Glob {
         for raw in &raw {
             set.add(parse_as_globset_glob(raw)?);
         }
-        let matcher = set.build()?;
-        Ok(Self::cell(Glob { raw, matcher }))
+        Ok(Self::cell(Glob {
+            raw,
+            implementation: GlobImpl::Set(set.build()?),
+        }))
     }
 }
 
@@ -165,20 +153,16 @@ mod tests {
     #[case::file("file.js", "file.js")]
     #[case::dir_and_file("../public/äöüščří.png", "../public/äöüščří.png")]
     #[case::dir_and_file("dir/file.js", "dir/file.js")]
-    // #[case::dir_and_file_partial("dir/file.js", "dir/")]
     #[case::file_braces("file.{ts,js}", "file.js")]
     #[case::dir_and_file_braces("dir/file.{ts,js}", "dir/file.js")]
     #[case::dir_and_file_dir_braces("{dir,other}/file.{ts,js}", "dir/file.js")]
     #[case::star("*.js", "file.js")]
     #[case::dir_star("dir/*.js", "dir/file.js")]
-    // #[case::dir_star_partial("dir/*.js", "dir/")]
     #[case::globstar("**/*.js", "file.js")]
     #[case::globstar("**/*.js", "dir/file.js")]
     #[case::globstar("**/*.js", "dir/sub/file.js")]
     #[case::globstar("**/**/*.js", "file.js")]
     #[case::globstar("**/**/*.js", "dir/sub/file.js")]
-    // #[case::globstar_partial("**/**/*.js", "dir/sub/")]
-    // #[case::globstar_partial("**/**/*.js", "dir/")]
     #[case::globstar_in_dir("dir/**/sub/file.js", "dir/sub/file.js")]
     #[case::globstar_in_dir("dir/**/sub/file.js", "dir/a/sub/file.js")]
     #[case::globstar_in_dir("dir/**/sub/file.js", "dir/a/b/sub/file.js")]
@@ -186,10 +170,6 @@ mod tests {
         "**/next/dist/**/*.shared-runtime.js",
         "next/dist/shared/lib/app-router-context.shared-runtime.js"
     )]
-    // #[case::globstar_in_dir_partial("dir/**/sub/file.js", "dir/a/b/sub/")]
-    // #[case::globstar_in_dir_partial("dir/**/sub/file.js", "dir/a/b/")]
-    // #[case::globstar_in_dir_partial("dir/**/sub/file.js", "dir/a/")]
-    // #[case::globstar_in_dir_partial("dir/**/sub/file.js", "dir/")]
     #[case::star_dir(
         "**/*/next/dist/server/next.js",
         "node_modules/next/dist/server/next.js"
