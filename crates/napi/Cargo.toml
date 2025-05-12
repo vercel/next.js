@@ -79,8 +79,6 @@ dashmap = { workspace = true }
 swc_core = { workspace = true, features = [
     "base_concurrent",
     "base_node",
-    "bundler",
-    "bundler_concurrent",
     "common_concurrent",
     "ecma_ast",
     "ecma_ast_serde",

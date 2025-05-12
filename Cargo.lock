@@ -1590,21 +1590,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56b08621c00321efcfa3eee6a3179adc009e21ea8d24ca7adc3c326184bc3f48"
 
 [[package]]
-name = "crc"
-version = "2.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49fc9a695bca7f35f5f4c15cddc84415f66a74ea78eef08e90c5024f2b540e23"
-dependencies = [
- "crc-catalog",
-]
-
-[[package]]
-name = "crc-catalog"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ccaeedb56da03b09f598226e25e80088cb4cd25f316e6e4df7d695f0feeb1403"
-
-[[package]]
 name = "crc32fast"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3373,7 +3358,6 @@ checksum = "8c9c992b02b5b4c94ea26e32fe5bccb7aa7d9f390ab5c1221ff895bc7ea8b652"
 dependencies = [
  "equivalent",
  "hashbrown 0.15.2",
- "rayon",
  "serde",
 ]
 
@@ -7257,38 +7241,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "swc_bundler"
-version = "16.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1b74879da703e85dce2d15409cfac169dcff91b41b902e7cfc97199e19fd626"
-dependencies = [
- "anyhow",
- "crc",
- "dashmap 5.5.3",
- "indexmap 2.7.1",
- "is-macro",
- "once_cell",
- "parking_lot",
- "petgraph 0.7.1",
- "radix_fmt",
- "rayon",
- "relative-path",
- "rustc-hash 2.1.1",
- "swc_atoms",
- "swc_common",
- "swc_ecma_ast",
- "swc_ecma_codegen",
- "swc_ecma_loader",
- "swc_ecma_parser",
- "swc_ecma_transforms_base",
- "swc_ecma_transforms_optimization",
- "swc_ecma_utils",
- "swc_ecma_visit",
- "swc_graph_analyzer",
- "tracing",
-]
-
-[[package]]
 name = "swc_cached"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7401,7 +7353,6 @@ dependencies = [
  "swc",
  "swc_allocator",
  "swc_atoms",
- "swc_bundler",
  "swc_cached",
  "swc_common",
  "swc_ecma_ast",
@@ -8383,19 +8334,6 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "swc_common",
-]
-
-[[package]]
-name = "swc_graph_analyzer"
-version = "10.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1920fdb0c0a79404f668fb194cbbffaf76d9fb31abd139bd397353d0cefb9e3c"
-dependencies = [
- "auto_impl",
- "petgraph 0.7.1",
- "rustc-hash 2.1.1",
- "swc_common",
- "tracing",
 ]
 
 [[package]]
