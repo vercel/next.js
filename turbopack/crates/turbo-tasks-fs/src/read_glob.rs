@@ -13,6 +13,12 @@ pub struct ReadGlobResult {
     pub inner: FxHashMap<String, ResolvedVc<ReadGlobResult>>,
 }
 
+impl ReadGlobResult {
+    fn is_empty(&self) -> bool {
+        self.results.is_empty() && self.inner.is_empty()
+    }
+}
+
 /// Reads matches of a glob pattern.
 ///
 /// DETERMINISM: Result is in random order. Either sort result or do not depend
@@ -64,13 +70,12 @@ async fn read_glob_internal(
                     result.results.insert(entry_path.to_string(), entry);
                 }
                 if let DirectoryEntry::Directory(path) = entry {
-                    if glob_value.match_in_directory(&entry_path) {
-                        result.inner.insert(
-                            entry_path.to_string(),
-                            read_glob_inner(entry_path, *path, glob, include_dot_files)
-                                .to_resolved()
-                                .await?,
-                        );
+                    let directory =
+                        read_glob_inner(entry_path.clone(), *path, glob, include_dot_files)
+                            .to_resolved()
+                            .await?;
+                    if !directory.await?.is_empty() {
+                        result.inner.insert(entry_path.to_string(), directory);
                     }
                 }
             }
@@ -158,14 +163,12 @@ async fn track_glob_internal(
 
                 match resolve_symlink_safely(entry).await? {
                     DirectoryEntry::Directory(path) => {
-                        if glob_value.match_in_directory(&entry_path) {
-                            completions.push(track_glob_inner(
-                                entry_path,
-                                *path,
-                                glob,
-                                include_dot_files,
-                            ));
-                        }
+                        completions.push(track_glob_inner(
+                            entry_path,
+                            *path,
+                            glob,
+                            include_dot_files,
+                        ));
                     }
                     DirectoryEntry::File(path) => {
                         if glob_value.execute(&entry_path) {

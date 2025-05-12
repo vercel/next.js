@@ -42,360 +42,74 @@ enum GlobPart {
 // Note: a/**/b does match a/b, so we need some special logic about path
 // separators
 
-#[turbo_tasks::value]
-#[derive(Debug, Clone)]
+#[turbo_tasks::value(eq = "manual")]
+#[serde(into = "GlobForm", try_from = "GlobForm")]
+#[derive(Clone, Debug)]
 pub struct Glob {
-    expression: Vec<GlobPart>,
+    // Store the raw glob strings to support equality and serialization
+    raw: Vec<RcStr>,
+    #[turbo_tasks(trace_ignore)]
+    matcher: globset::GlobSet,
 }
+
+impl PartialEq for Glob {
+    fn eq(&self, other: &Self) -> bool {
+        self.raw == other.raw
+    }
+}
+impl Eq for Glob {}
 
 impl Glob {
     pub fn execute(&self, path: &str) -> bool {
-        // TODO(lukesandberg): deprecate this implicit behavior
-        let match_partial = path.ends_with('/');
-        self.iter_matches(path, true, match_partial)
-            .any(|result| matches!(result, ("", _)))
+        self.matcher.is_match(path)
     }
+    fn parse(input: RcStr) -> Result<Glob> {
+        let parsed = parse_as_globset_glob(input.as_str())?;
 
-    // Returns true if the glob could match a filename underneath this `path` where the path
-    // represents a directory.
-    pub fn match_in_directory(&self, path: &str) -> bool {
-        debug_assert!(!path.ends_with('/'));
-        // TODO(lukesandberg): see if we can avoid this allocation by changing the matching
-        // algorithm
-        let path = format!("{path}/");
-        self.iter_matches(&path, true, true)
-            .any(|result| matches!(result, ("", _)))
-    }
+        let set = GlobSet::builder().add(parsed).build()?;
 
-    fn iter_matches<'a>(
-        &'a self,
-        path: &'a str,
-        previous_part_is_path_separator_equivalent: bool,
-        match_in_directory: bool,
-    ) -> GlobMatchesIterator<'a> {
-        GlobMatchesIterator {
-            current: path,
-            glob: self,
-            match_in_directory,
-            is_path_separator_equivalent: previous_part_is_path_separator_equivalent,
-            stack: Vec::new(),
-            index: 0,
-        }
-    }
-
-    pub fn parse(input: &str) -> Result<Glob> {
-        let mut current = input;
-        let mut expression = Vec::new();
-
-        while !current.is_empty() {
-            let (part, remainder) = GlobPart::parse(current, false)
-                .with_context(|| anyhow!("Failed to parse glob {input}"))?;
-            expression.push(part);
-            current = remainder;
-        }
-
-        Ok(Glob { expression })
+        Ok(Glob {
+            raw: vec![input],
+            matcher: set,
+        })
     }
 }
 
-struct GlobMatchesIterator<'a> {
-    current: &'a str,
-    glob: &'a Glob,
-    // In this mode we are checking if the glob might match something in the directory represented
-    // by this path.
-    match_in_directory: bool,
-    is_path_separator_equivalent: bool,
-    stack: Vec<GlobPartMatchesIterator<'a>>,
-    index: usize,
+// Small helper to apply our configuration
+fn parse_as_globset_glob(input: &str) -> Result<globset::Glob> {
+    Ok(GlobBuilder::new(input)
+        // allow '\' to escape meta characters
+        .backslash_escape(true)
+        // allow empty alternates '{}', not really desired but this isn't ambiguous and is backwards
+        // compatible.
+        .empty_alternates(true)
+        // Don't allow `* ` or `?` to match `/`
+        .literal_separator(true)
+        .case_insensitive(false)
+        .build()?)
 }
 
-impl<'a> Iterator for GlobMatchesIterator<'a> {
-    type Item = (&'a str, bool);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            if let Some(part) = self.glob.expression.get(self.index) {
-                let iter = if let Some(iter) = self.stack.get_mut(self.index) {
-                    iter
-                } else {
-                    let iter = part.iter_matches(
-                        self.current,
-                        self.is_path_separator_equivalent,
-                        self.match_in_directory,
-                    );
-                    self.stack.push(iter);
-                    self.stack.last_mut().unwrap()
-                };
-                if let Some((new_path, new_is_path_separator_equivalent)) = iter.next() {
-                    self.current = new_path;
-                    self.is_path_separator_equivalent = new_is_path_separator_equivalent;
-
-                    self.index += 1;
-
-                    if self.match_in_directory && self.current.is_empty() {
-                        return Some(("", self.is_path_separator_equivalent));
-                    }
-                } else {
-                    if self.index == 0 {
-                        // failed to match
-                        return None;
-                    }
-                    // backtrack
-                    self.stack.pop();
-                    self.index -= 1;
-                }
-            } else {
-                // end of expression, matched successfully
-
-                // backtrack for the next iteration
-                self.index -= 1;
-
-                return Some((self.current, self.is_path_separator_equivalent));
-            }
-        }
+#[derive(Serialize, Deserialize)]
+struct GlobForm {
+    globs: Vec<RcStr>,
+}
+impl From<Glob> for GlobForm {
+    fn from(value: Glob) -> Self {
+        Self { globs: value.raw }
     }
 }
+impl TryFrom<GlobForm> for Glob {
+    type Error = anyhow::Error;
 
-impl GlobPart {
-    /// Iterates over all possible matches of this part with the provided path.
-    /// The least greedy match is returned first. This is usually used for
-    /// backtracking. The string slice returned is the remaining part or the
-    /// path. The boolean flag returned specifies if the matched part should
-    /// be considered as path-separator equivalent.
-    fn iter_matches<'a>(
-        &'a self,
-        path: &'a str,
-        previous_part_is_path_separator_equivalent: bool,
-        match_in_directory: bool,
-    ) -> GlobPartMatchesIterator<'a> {
-        GlobPartMatchesIterator {
-            path,
-            part: self,
-            match_in_directory,
-            previous_part_is_path_separator_equivalent,
-            cursor: GraphemeCursor::new(0, path.len(), true),
-            index: 0,
-            glob_iterator: None,
+    fn try_from(value: GlobForm) -> Result<Self, Self::Error> {
+        let mut set = GlobSet::builder();
+        for raw in &value.globs {
+            set.add(parse_as_globset_glob(raw)?);
         }
-    }
-
-    fn parse(input: &str, inside_of_braces: bool) -> Result<(GlobPart, &str)> {
-        debug_assert!(!input.is_empty());
-        let two_chars = {
-            let mut chars = input.chars();
-            (chars.next().unwrap(), chars.next())
-        };
-        match two_chars {
-            ('/', _) => Ok((GlobPart::PathSeparator, &input[1..])),
-            ('*', Some('*')) => Ok((GlobPart::AnyDirectories, &input[2..])),
-            ('*', _) => Ok((GlobPart::AnyFile, &input[1..])),
-            ('?', _) => Ok((GlobPart::AnyFileChar, &input[1..])),
-            ('[', Some('[')) => todo!("glob char classes are not implemented yet"),
-            ('[', _) => todo!("glob char sequences are not implemented yet"),
-            ('{', Some(_)) => {
-                let mut current = &input[1..];
-                let mut alternatives = Vec::new();
-                let mut expression = Vec::new();
-
-                loop {
-                    let (part, remainder) = GlobPart::parse(current, true)?;
-                    expression.push(part);
-                    current = remainder;
-                    match current.chars().next() {
-                        Some(',') => {
-                            alternatives.push(Glob {
-                                expression: take(&mut expression),
-                            });
-                            current = &current[1..];
-                        }
-                        Some('}') => {
-                            alternatives.push(Glob {
-                                expression: take(&mut expression),
-                            });
-                            current = &current[1..];
-                            break;
-                        }
-                        None => bail!("Unterminated glob braces"),
-                        _ => {
-                            // next part of the glob
-                        }
-                    }
-                }
-
-                Ok((GlobPart::Alternatives(alternatives), current))
-            }
-            ('{', None) => {
-                bail!("Unterminated glob braces")
-            }
-            _ => {
-                let mut is_escaped = false;
-                let mut literal = String::new();
-
-                let mut cursor = GraphemeCursor::new(0, input.len(), true);
-
-                let mut start = cursor.cur_cursor();
-                let mut end_cursor = cursor
-                    .next_boundary(input, 0)
-                    .map_err(|e| anyhow!("{:?}", e))?;
-
-                while let Some(end) = end_cursor {
-                    let c = &input[start..end];
-                    if is_escaped {
-                        is_escaped = false;
-                    } else if c == "\\" {
-                        is_escaped = true;
-                    } else if c == "/"
-                        || c == "*"
-                        || c == "?"
-                        || c == "["
-                        || c == "{"
-                        || (inside_of_braces && (c == "," || c == "}"))
-                    {
-                        break;
-                    }
-                    literal.push_str(c);
-
-                    start = cursor.cur_cursor();
-                    end_cursor = cursor
-                        .next_boundary(input, end)
-                        .map_err(|e| anyhow!("{:?}", e))?;
-                }
-
-                Ok((GlobPart::File(literal), &input[start..]))
-            }
-        }
-    }
-}
-
-struct GlobPartMatchesIterator<'a> {
-    path: &'a str,
-    part: &'a GlobPart,
-    match_in_directory: bool,
-    previous_part_is_path_separator_equivalent: bool,
-    cursor: GraphemeCursor,
-    index: usize,
-    glob_iterator: Option<Box<GlobMatchesIterator<'a>>>,
-}
-
-impl<'a> Iterator for GlobPartMatchesIterator<'a> {
-    type Item = (&'a str, bool);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.part {
-            GlobPart::AnyDirectories => {
-                if self.cursor.cur_cursor() == 0 {
-                    let Ok(Some(_)) = self.cursor.next_boundary(self.path, 0) else {
-                        return None;
-                    };
-                    return Some((self.path, true));
-                }
-
-                if self.cursor.cur_cursor() == self.path.len() {
-                    return None;
-                }
-
-                loop {
-                    let start = self.cursor.cur_cursor();
-                    // next_boundary does not set cursor offset to the end of the string
-                    // if there is no next boundary - manually set cursor to the end
-                    let end = match self.cursor.next_boundary(self.path, 0) {
-                        Ok(end) => {
-                            if let Some(end) = end {
-                                end
-                            } else {
-                                self.cursor.set_cursor(self.path.len());
-                                self.cursor.cur_cursor()
-                            }
-                        }
-                        _ => return None,
-                    };
-
-                    if &self.path[start..end] == "/" {
-                        return Some((&self.path[end..], true));
-                    } else if start == end {
-                        return Some((&self.path[start..], false));
-                    }
-                }
-            }
-            GlobPart::AnyFile => {
-                let Ok(Some(c)) = self.cursor.next_boundary(self.path, 0) else {
-                    return None;
-                };
-
-                let idx = self.path[0..c].len();
-
-                // TODO verify if `*` does match zero chars?
-                if let Some(slice) = self.path.get(0..c) {
-                    if slice.ends_with('/') {
-                        None
-                    } else {
-                        Some((
-                            &self.path[c..],
-                            self.previous_part_is_path_separator_equivalent && idx == 1,
-                        ))
-                    }
-                } else {
-                    None
-                }
-            }
-            GlobPart::AnyFileChar => todo!(),
-            GlobPart::PathSeparator => {
-                if self.cursor.cur_cursor() == 0 {
-                    let Ok(Some(b)) = self.cursor.next_boundary(self.path, 0) else {
-                        return None;
-                    };
-                    if self.path.starts_with('/') {
-                        Some((&self.path[b..], true))
-                    } else if self.previous_part_is_path_separator_equivalent {
-                        Some((self.path, true))
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            }
-            GlobPart::FileChar(chars) => {
-                let start = self.cursor.cur_cursor();
-                let Ok(Some(end)) = self.cursor.next_boundary(self.path, 0) else {
-                    return None;
-                };
-                let mut chars_in_path = self.path[start..end].chars();
-                let c = chars_in_path.next()?;
-                if chars_in_path.next().is_some() {
-                    return None;
-                }
-                chars.contains(&c).then(|| (&self.path[end..], false))
-            }
-            GlobPart::File(name) => {
-                if self.cursor.cur_cursor() == 0 && self.path.starts_with(name) {
-                    let Ok(Some(_)) = self.cursor.next_boundary(self.path, 0) else {
-                        return None;
-                    };
-                    Some((&self.path[name.len()..], false))
-                } else {
-                    None
-                }
-            }
-            GlobPart::Alternatives(alternatives) => loop {
-                if let Some(glob_iterator) = &mut self.glob_iterator {
-                    if let Some((path, is_path_separator_equivalent)) = glob_iterator.next() {
-                        return Some((path, is_path_separator_equivalent));
-                    } else {
-                        self.index += 1;
-                        self.glob_iterator = None;
-                    }
-                } else if let Some(alternative) = alternatives.get(self.index) {
-                    self.glob_iterator = Some(Box::new(alternative.iter_matches(
-                        self.path,
-                        self.previous_part_is_path_separator_equivalent,
-                        self.match_in_directory,
-                    )));
-                } else {
-                    return None;
-                }
-            },
-        }
+        Ok(Glob {
+            raw: value.globs,
+            matcher: set.build()?,
+        })
     }
 }
 
@@ -403,7 +117,7 @@ impl TryFrom<&str> for Glob {
     type Error = anyhow::Error;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Glob::parse(value)
+        Glob::parse(value.into())
     }
 }
 
@@ -411,19 +125,33 @@ impl TryFrom<&str> for Glob {
 impl Glob {
     #[turbo_tasks::function]
     pub fn new(glob: RcStr) -> Result<Vc<Self>> {
-        Ok(Self::cell(Glob::try_from(glob.as_str())?))
+        Ok(Self::cell(Glob::parse(glob)?))
     }
 
     #[turbo_tasks::function]
     pub async fn alternatives(globs: Vec<Vc<Glob>>) -> Result<Vc<Self>> {
+        if globs.is_empty() {
+            return Ok(Self::cell(Glob {
+                raw: Vec::new(),
+                matcher: GlobSet::empty(),
+            }));
+        }
         if globs.len() == 1 {
             return Ok(globs.into_iter().next().unwrap());
         }
-        Ok(Self::cell(Glob {
-            expression: vec![GlobPart::Alternatives(
-                globs.into_iter().map(|g| g.owned()).try_join().await?,
-            )],
-        }))
+        let mut set = GlobSet::builder();
+        let mut raw = Vec::new();
+        for glob in globs {
+            let glob = &*glob.await?;
+            for item in &glob.raw {
+                raw.push(item.clone());
+            }
+        }
+        for raw in &raw {
+            set.add(parse_as_globset_glob(raw)?);
+        }
+        let matcher = set.build()?;
+        Ok(Self::cell(Glob { raw, matcher }))
     }
 }
 
@@ -437,20 +165,20 @@ mod tests {
     #[case::file("file.js", "file.js")]
     #[case::dir_and_file("../public/äöüščří.png", "../public/äöüščří.png")]
     #[case::dir_and_file("dir/file.js", "dir/file.js")]
-    #[case::dir_and_file_partial("dir/file.js", "dir/")]
+    // #[case::dir_and_file_partial("dir/file.js", "dir/")]
     #[case::file_braces("file.{ts,js}", "file.js")]
     #[case::dir_and_file_braces("dir/file.{ts,js}", "dir/file.js")]
     #[case::dir_and_file_dir_braces("{dir,other}/file.{ts,js}", "dir/file.js")]
     #[case::star("*.js", "file.js")]
     #[case::dir_star("dir/*.js", "dir/file.js")]
-    #[case::dir_star_partial("dir/*.js", "dir/")]
+    // #[case::dir_star_partial("dir/*.js", "dir/")]
     #[case::globstar("**/*.js", "file.js")]
     #[case::globstar("**/*.js", "dir/file.js")]
     #[case::globstar("**/*.js", "dir/sub/file.js")]
     #[case::globstar("**/**/*.js", "file.js")]
     #[case::globstar("**/**/*.js", "dir/sub/file.js")]
-    #[case::globstar_partial("**/**/*.js", "dir/sub/")]
-    #[case::globstar_partial("**/**/*.js", "dir/")]
+    // #[case::globstar_partial("**/**/*.js", "dir/sub/")]
+    // #[case::globstar_partial("**/**/*.js", "dir/")]
     #[case::globstar_in_dir("dir/**/sub/file.js", "dir/sub/file.js")]
     #[case::globstar_in_dir("dir/**/sub/file.js", "dir/a/sub/file.js")]
     #[case::globstar_in_dir("dir/**/sub/file.js", "dir/a/b/sub/file.js")]
@@ -458,10 +186,10 @@ mod tests {
         "**/next/dist/**/*.shared-runtime.js",
         "next/dist/shared/lib/app-router-context.shared-runtime.js"
     )]
-    #[case::globstar_in_dir_partial("dir/**/sub/file.js", "dir/a/b/sub/")]
-    #[case::globstar_in_dir_partial("dir/**/sub/file.js", "dir/a/b/")]
-    #[case::globstar_in_dir_partial("dir/**/sub/file.js", "dir/a/")]
-    #[case::globstar_in_dir_partial("dir/**/sub/file.js", "dir/")]
+    // #[case::globstar_in_dir_partial("dir/**/sub/file.js", "dir/a/b/sub/")]
+    // #[case::globstar_in_dir_partial("dir/**/sub/file.js", "dir/a/b/")]
+    // #[case::globstar_in_dir_partial("dir/**/sub/file.js", "dir/a/")]
+    // #[case::globstar_in_dir_partial("dir/**/sub/file.js", "dir/")]
     #[case::star_dir(
         "**/*/next/dist/server/next.js",
         "node_modules/next/dist/server/next.js"
@@ -503,9 +231,9 @@ mod tests {
     #[case::alternatives_nested2("{a,b/c,d/e/{f,g/h}}", "b/c")]
     #[case::alternatives_nested3("{a,b/c,d/e/{f,g/h}}", "d/e/f")]
     #[case::alternatives_nested4("{a,b/c,d/e/{f,g/h}}", "d/e/g/h")]
-    // #[case::alternatives_chars("[abc]", "b")]
+    #[case::alternatives_chars("[abc]", "b")]
     fn glob_match(#[case] glob: &str, #[case] path: &str) {
-        let glob = Glob::parse(glob).unwrap();
+        let glob = Glob::parse(glob.into()).unwrap();
 
         println!("{glob:?} {path}");
 
@@ -519,7 +247,7 @@ mod tests {
         "next/dist/shared/lib/app-router-context.shared-runtime.js"
     )]
     fn glob_not_matching(#[case] glob: &str, #[case] path: &str) {
-        let glob = Glob::parse(glob).unwrap();
+        let glob = Glob::parse(glob.into()).unwrap();
 
         println!("{glob:?} {path}");
 

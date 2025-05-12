@@ -55,6 +55,8 @@ turbo-tasks = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 unicode-segmentation = { workspace = true }
 urlencoding = { workspace = true }
+# Remove this once https://github.com/BurntSushi/ripgrep/pull/3048 is merged and released
+globset = {git = "https://github.com/lukesandberg/ripgrep", branch="serialize_globset" }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

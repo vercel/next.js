@@ -2679,6 +2679,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "globset"
+version = "0.4.16"
+source = "git+https://github.com/lukesandberg/ripgrep?branch=serialize_globset#7c1f24bda92874ec316a70bada5f024e4dfc4ea6"
+dependencies = [
+ "aho-corasick",
+ "bstr",
+ "log",
+ "regex-automata 0.4.9",
+ "regex-syntax 0.8.5",
+]
+
+[[package]]
 name = "gloo-timers"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3328,7 +3340,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b46810df39e66e925525d6e38ce1e7f6e1d208f72dc39757880fcb66e2c58af1"
 dependencies = [
  "crossbeam-deque",
- "globset",
+ "globset 0.4.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "log",
  "memchr",
  "regex-automata 0.4.9",
@@ -9728,6 +9740,7 @@ dependencies = [
  "dunce",
  "futures",
  "futures-retry",
+ "globset 0.4.16 (git+https://github.com/lukesandberg/ripgrep?branch=serialize_globset)",
  "include_dir",
  "indexmap 2.7.1",
  "jsonc-parser 0.21.0",
