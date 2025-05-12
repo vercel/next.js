@@ -49,7 +49,7 @@ export default function Counter() {
 
 When using the `'use client'` directive, the props of the Client Components must be [serializable](https://react.dev/reference/rsc/use-client#serializable-types). This means the props need to be in a format that React can serialize when sending data from the server to the client.
 
-```tsx filename="app/components/counter.tsx" highlight={3} switcher
+```tsx filename="app/components/counter.tsx" highlight={4} switcher
 'use client'
 
 export default function Counter({
@@ -66,7 +66,7 @@ export default function Counter({
 }
 ```
 
-```jsx filename="app/components/counter.js" highlight={3} switcher
+```jsx filename="app/components/counter.js" highlight={4} switcher
 'use client'
 
 export default function Counter({
