@@ -289,7 +289,6 @@ function instantiateModule(
       }),
       w: loadWebAssembly,
       u: loadWebAssemblyModule,
-      g: globalThis,
       P: resolveAbsolutePath,
       U: relativeURL,
       R: createResolvePathFromModule(r),

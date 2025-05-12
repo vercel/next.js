@@ -12,7 +12,7 @@ use swc_core::{
         preset_env::{self, Targets},
         transforms::{
             base::{assumptions::Assumptions, feature::FeatureFlag, helpers::inject_helpers},
-            optimization::inline_globals2,
+            optimization::inline_globals,
             react::react,
         },
     },
@@ -134,7 +134,8 @@ impl EcmascriptInputTransform {
                 let mut typeofs: FxHashMap<Atom, Atom> = Default::default();
                 typeofs.insert(Atom::from("window"), Atom::from(&**window_value));
 
-                program.mutate(inline_globals2(
+                program.mutate(inline_globals(
+                    unresolved_mark,
                     Default::default(),
                     Default::default(),
                     Default::default(),
