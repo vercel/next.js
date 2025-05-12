@@ -14,6 +14,7 @@ use turbo_tasks_fs::{
     json::parse_json_with_source_context, DiskFileSystem, File, FileContent, FileSystem,
     FileSystemPath,
 };
+use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack::evaluate_context::node_evaluate_asset_context;
 use turbopack_core::{
     asset::AssetContent,
@@ -367,8 +368,7 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         }
 
         let font_virtual_path = next_js_file_path("internal/font/google".into())
-            .join(format!("/{}.{}", name, ext).into())
-            .truncate_file_name_with_hash_vc();
+            .join(format!("/{:016x}.{}", hash_xxh3_hash64(name.as_bytes()), ext).into());
 
         // doesn't seem ideal to download the font into a string, but probably doesn't
         // really matter either.
