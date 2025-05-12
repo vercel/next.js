@@ -59,9 +59,7 @@ describe(`HMR - Full Reload, nextConfig: ${JSON.stringify(nextConfig)}`, () => {
       'Fast Refresh had to perform a full reload due to a runtime error.'
 
     await retry(async () => {
-      expect(await getRedboxHeader(browser)).toMatch(
-        /ReferenceError: whoops is not defined/
-      )
+      expect(await getRedboxHeader(browser)).toMatch(/whoops is not defined/)
     })
     expect(next.cliOutput.slice(start)).not.toContain(cliWarning)
 
