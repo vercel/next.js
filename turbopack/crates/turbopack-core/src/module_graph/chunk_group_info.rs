@@ -443,7 +443,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             .collect::<FxHashMap<_, _>>();
 
         let visit_count = graph
-            .traverse_edges_fixed_point(
+            .traverse_edges_fixed_point_with_priority(
                 entries.iter().flat_map(|e| e.entries()).map(|e| {
                     (
                         e,
@@ -601,6 +601,13 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         }
                     }
                 },
+                // This priority is used as a heuristic to keep the number of retraversals down, by
+                // - keeping it similar to a BFS via the depth priority
+                // - prioritizing smaller chunk groups which are expected to themselves reference
+                //   bigger chunk groups (i.e. shared code deeper down in the graph).
+                //
+                // Both try to first visit modules with a large dependency subgraph first (which
+                // would be higher in the graph and are included by few chunks themselves).
                 |successor, module_chunk_groups| TraversalPriority {
                     depth: *module_depth.get(&successor.module).unwrap(),
                     chunk_group_len: module_chunk_groups.get(&successor.module).unwrap().len(),
