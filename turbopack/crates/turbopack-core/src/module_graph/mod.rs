@@ -1174,7 +1174,8 @@ impl ModuleGraph {
     /// the graph.
     ///
     /// Nodes are (re)visited according to the returned priority of the node, prioritizing high
-    /// values.
+    /// values. This priority is intended to be used a heuristic to reduce the number of
+    /// retraversals.
     ///
     /// * `entries` - The entry modules to start the traversal from
     /// * `state` - The state to be passed to the callbacks
@@ -1186,8 +1187,9 @@ impl ModuleGraph {
     ///    - Receives: target &SingleModuleGraphNode, state &S
     ///    - Return a priority value for the node
     ///
-    /// Returns the number of node visits (i.e. higher than the node count if there are revisits).
-    pub async fn traverse_edges_fixed_point<S, P: Ord>(
+    /// Returns the number of node visits (i.e. higher than the node count if there are
+    /// retraversals).
+    pub async fn traverse_edges_fixed_point_with_priority<S, P: Ord>(
         &self,
         entries: impl IntoIterator<Item = (ResolvedVc<Box<dyn Module>>, P)>,
         state: &mut S,
