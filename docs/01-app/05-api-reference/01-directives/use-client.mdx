@@ -3,11 +3,11 @@ title: use client
 description: Learn how to use the use client directive to render a component on the client.
 ---
 
-The `use client` directive designates a component to be rendered on the **client side** and should be used when creating interactive user interfaces (UI) that require client-side JavaScript capabilities, such as state management, event handling, and access to browser APIs. This is a React feature.
+The `'use client'` directive designates a component to be rendered on the **client side** and should be used when creating interactive user interfaces (UI) that require client-side JavaScript capabilities, such as state management, event handling, and access to browser APIs. This is a React feature.
 
 ## Usage
 
-To designate a component as a Client Component, add the `use client` directive **at the top of the file**, before any imports:
+To designate a component as a Client Component, add the `'use client'` directive **at the top of the file**, before any imports:
 
 ```tsx filename="app/components/counter.tsx" highlight={1} switcher
 'use client'
@@ -86,4 +86,4 @@ export default function Page() {
 
 ## Reference
 
-See the [React documentation](https://react.dev/reference/rsc/use-client) for more information on `use client`.
+See the [React documentation](https://react.dev/reference/rsc/use-client) for more information on `'use client'`.
