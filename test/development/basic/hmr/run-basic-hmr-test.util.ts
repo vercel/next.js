@@ -5,14 +5,11 @@ import {
   waitFor,
 } from 'next-test-utils'
 import { createNext, nextTestSetup } from 'e2e-utils'
-import type { NextConfig } from 'next'
 
-describe.each([
-  { basePath: '', assetPrefix: '' },
-  { basePath: '', assetPrefix: '/asset-prefix' },
-  { basePath: '/docs', assetPrefix: '' },
-  { basePath: '/docs', assetPrefix: '/asset-prefix' },
-])('basic HMR, nextConfig: %o', (nextConfig: Partial<NextConfig>) => {
+export function runBasicHmrTest(nextConfig: {
+  basePath: string
+  assetPrefix: string
+}) {
   const { next } = nextTestSetup({
     files: __dirname,
     nextConfig,
@@ -113,4 +110,4 @@ describe.each([
     await reloadPromise
     await secondNext.destroy()
   })
-})
+}
