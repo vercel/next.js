@@ -237,8 +237,7 @@ impl SingleModuleGraph {
                         continue;
                     }
                     Some(
-                        SingleModuleGraphBuilderNode::VisitedModule { .. }
-                        | SingleModuleGraphBuilderNode::Issues { .. },
+                        SingleModuleGraphBuilderNode::VisitedModule { .. }, /* | SingleModuleGraphBuilderNode::Issues { .. }, */
                     ) => unreachable!(),
                     None => None,
                 };
@@ -247,7 +246,7 @@ impl SingleModuleGraph {
                     SingleModuleGraphBuilderNode::Module {
                         module,
                         layer,
-                        ident: _,
+                        ident,
                     } => {
                         // Find the current node, if it was already added
                         let current_idx = if let Some(current_idx) = modules.get(&module) {
@@ -256,8 +255,9 @@ impl SingleModuleGraph {
                             let idx = graph.add_node(SingleModuleGraphNode::Module(
                                 SingleModuleGraphModuleNode {
                                     module,
-                                    issues: Default::default(),
                                     layer,
+                                    ident,
+                                    // issues: Default::default(),
                                 },
                             ));
                             number_of_modules += 1;
@@ -289,6 +289,7 @@ impl SingleModuleGraph {
                         target,
                         target_layer,
                         chunking_type,
+                        target_ident,
                         ..
                     } => {
                         // Find the current node, if it was already added
@@ -304,8 +305,9 @@ impl SingleModuleGraph {
                                 None => {
                                     SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
                                         module: target,
-                                        issues: Default::default(),
                                         layer: target_layer,
+                                        ident: target_ident,
+                                        // issues: Default::default(),
                                     })
                                 }
                             });
@@ -313,19 +315,17 @@ impl SingleModuleGraph {
                             idx
                         };
                         graph.add_edge(*modules.get(&source).unwrap(), target_idx, chunking_type);
-                    }
-                    SingleModuleGraphBuilderNode::Issues(new_issues) => {
-                        let (parent_idx, _) = parent_edge.unwrap();
-                        let SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
-                            issues,
-                            ..
-                        }) = graph.node_weight_mut(parent_idx).unwrap()
-                        else {
-                            bail!("Expected Module node");
-                        };
-
-                        issues.extend(new_issues);
-                    }
+                    } /* SingleModuleGraphBuilderNode::Issues(new_issues) => {
+                       * let (parent_idx, _) = parent_edge.unwrap();
+                       * let SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
+                       *     issues,
+                       *     ..
+                       * }) = graph.node_weight_mut(parent_idx).unwrap()
+                       * else {
+                       *     bail!("Expected Module node");
+                       * };
+                       * issues.extend(new_issues);
+                       * } */
                 }
             }
         }
@@ -333,17 +333,120 @@ impl SingleModuleGraph {
         graph.shrink_to_fit();
 
         #[cfg(debug_assertions)]
-        {
-            let mut duplicates = Vec::new();
-            let mut set = FxHashSet::default();
-            for &module in modules.keys() {
-                let ident = module.ident().to_string().await?;
-                if !set.insert(ident.clone()) {
-                    duplicates.push(ident);
+        if std::env::var("TURBOPACK_DUMP_GRAPH") == Ok("1".to_string()) {
+            use std::io::Write;
+
+            use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
+
+            struct Escaper<W>(W);
+            impl<W> std::fmt::Write for Escaper<W>
+            where
+                W: std::fmt::Write,
+            {
+                fn write_str(&mut self, s: &str) -> std::fmt::Result {
+                    for c in s.chars() {
+                        self.write_char(c)?;
+                    }
+                    Ok(())
+                }
+
+                fn write_char(&mut self, c: char) -> std::fmt::Result {
+                    match c {
+                        '"' | '\\' => self.0.write_char('\\')?,
+                        // \l is for left justified linebreak
+                        '\n' => return self.0.write_str("\\l"),
+                        _ => {}
+                    }
+                    self.0.write_char(c)
                 }
             }
+            struct Escaped<T>(T);
+            impl<T> std::fmt::Display for Escaped<T>
+            where
+                T: std::fmt::Display,
+            {
+                fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                    use std::fmt::Write;
+                    if f.alternate() {
+                        writeln!(&mut Escaper(f), "{:#}", &self.0)
+                    } else {
+                        write!(&mut Escaper(f), "{}", &self.0)
+                    }
+                }
+            }
+
+            let mut hash = entries
+                .iter()
+                .flat_map(|e| e.entries())
+                .map(|e| e.ident().to_string())
+                .try_join()
+                .await?;
+            hash.sort();
+            let mut state = Xxh3Hash64Hasher::new();
+            hash.deterministic_hash(&mut state);
+            let filename = format!("module_graph_{:x}.dot", state.finish());
+            println!("writing graph to {:?}", filename);
+            let mut file = std::fs::File::create(filename)?;
+            let dot = petgraph::dot::Dot::with_attr_getters(
+                &graph,
+                &[
+                    petgraph::dot::Config::NodeNoLabel,
+                    petgraph::dot::Config::EdgeNoLabel,
+                ],
+                &|_, e| match e.weight() {
+                    ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => String::new(),
+                    _ => format!(
+                        "label = \"{}\"",
+                        Escaped(match e.weight() {
+                            ChunkingType::Parallel => "Parallel",
+                            ChunkingType::ParallelInheritAsync => "ParallelInheritAsync",
+                            ChunkingType::Async => "Async",
+                            ChunkingType::Isolated { .. } => "Isolated",
+                            ChunkingType::Shared { .. } => "Shared",
+                            ChunkingType::Traced => "Traced",
+                        })
+                    ),
+                },
+                &|_, n| match n.1 {
+                    SingleModuleGraphNode::Module(m) => {
+                        format!("label = \"{}\"", Escaped(&m.ident))
+                    }
+                    SingleModuleGraphNode::VisitedModule { idx, .. } => {
+                        format!(
+                            "label = \"visited {} {}\"",
+                            idx.graph_idx,
+                            idx.node_idx.index()
+                        )
+                    }
+                },
+            );
+            write!(file, "{:?}", dot)?;
+            file.flush()?;
+        }
+
+        #[cfg(debug_assertions)]
+        {
+            let mut set: FxHashMap<ReadRef<RcStr>, FxHashSet<_>> = FxHashMap::default();
+            for &module in modules.keys() {
+                let ident = module.ident().to_string().await?;
+                set.entry(ident).or_default().insert(module);
+            }
+            let duplicates = set
+                .into_iter()
+                .filter_map(|(k, v)| {
+                    if v.len() > 1 {
+                        Some((k, v.into_iter().collect::<Vec<_>>()))
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
             if !duplicates.is_empty() {
-                panic!("Duplicate module idents in graph: {:#?}", duplicates);
+                if std::env::var("ABC") == Ok("1".to_string()) {
+                    println!("Duplicate module idents in graph: {:#?}", duplicates);
+                } else {
+                    bail!("Duplicate module idents in graph: {:#?}", duplicates);
+                }
             }
         }
 
@@ -1207,7 +1310,8 @@ impl SingleModuleGraph {
 pub struct SingleModuleGraphModuleNode {
     pub module: ResolvedVc<Box<dyn Module>>,
     pub layer: Option<ReadRef<RcStr>>,
-    pub issues: Vec<ResolvedVc<Box<dyn Issue>>>,
+    // pub issues: Vec<ResolvedVc<Box<dyn Issue>>>,
+    pub ident: ReadRef<RcStr>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
@@ -1273,9 +1377,8 @@ enum SingleModuleGraphBuilderNode {
         module: ResolvedVc<Box<dyn Module>>,
         idx: GraphNodeIndex,
     },
-    /// Issues to be added to the parent Module node
-    #[allow(dead_code)]
-    Issues(Vec<ResolvedVc<Box<dyn Issue>>>),
+    // Issues to be added to the parent Module node
+    // Issues(Vec<ResolvedVc<Box<dyn Issue>>>),
 }
 
 impl SingleModuleGraphBuilderNode {
@@ -1344,7 +1447,7 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
             // Module was already visited previously
             SingleModuleGraphBuilderNode::VisitedModule { .. } => VisitControlFlow::Skip(edge.to),
             // Issues doen't have any children
-            SingleModuleGraphBuilderNode::Issues(_) => VisitControlFlow::Skip(edge.to),
+            // SingleModuleGraphBuilderNode::Issues(_) => VisitControlFlow::Skip(edge.to),
         }
     }
 
@@ -1356,8 +1459,8 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
                 (None, Some(*target))
             }
             // These are always skipped in `visit()`
-            SingleModuleGraphBuilderNode::VisitedModule { .. }
-            | SingleModuleGraphBuilderNode::Issues(_) => unreachable!(),
+            SingleModuleGraphBuilderNode::VisitedModule { .. } => unreachable!(),
+            // SingleModuleGraphBuilderNode::Issues(_) => unreachable!(),
         };
         let visited_modules = self.visited_modules;
         let include_traced = self.include_traced;
@@ -1419,9 +1522,9 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
             SingleModuleGraphBuilderNode::Module { ident, .. } => {
                 tracing::info_span!("module", name = display(ident))
             }
-            SingleModuleGraphBuilderNode::Issues(_) => {
-                tracing::info_span!("issues")
-            }
+            // SingleModuleGraphBuilderNode::Issues(_) => {
+            //     tracing::info_span!("issues")
+            // }
             SingleModuleGraphBuilderNode::ChunkableReference {
                 chunking_type,
                 source_ident,
