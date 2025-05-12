@@ -148,6 +148,7 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
     .optional(),
   resolveExtensions: z.array(z.string()).optional(),
   moduleIds: z.enum(['named', 'deterministic']).optional(),
+  root: z.string().optional(),
 })
 
 // Same as zTurbopackConfig but with deprecated properties. Unfortunately, base
