@@ -172,7 +172,7 @@ export function normalizeDynamicRouteParams(
   }
 }
 
-export function getUtils({
+export function getServerUtils({
   page,
   i18n,
   basePath,
