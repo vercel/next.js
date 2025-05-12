@@ -1151,18 +1151,18 @@ fn process_content_with_code_gens(
     program: &mut Program,
     globals: &Globals,
     top_level_mark: Option<Mark>,
-    code_gens: Vec<CodeGeneration>,
+    mut code_gens: Vec<CodeGeneration>,
 ) {
     let mut visitors = Vec::new();
     let mut root_visitors = Vec::new();
     let mut early_hoisted_stmts = FxIndexMap::default();
     let mut hoisted_stmts = FxIndexMap::default();
-    for code_gen in &code_gens {
-        for CodeGenerationHoistedStmt { key, stmt } in &code_gen.hoisted_stmts {
-            hoisted_stmts.entry(key.clone()).or_insert(stmt.clone());
+    for code_gen in &mut code_gens {
+        for CodeGenerationHoistedStmt { key, stmt } in code_gen.hoisted_stmts.drain(..) {
+            hoisted_stmts.entry(key).or_insert(stmt);
         }
-        for CodeGenerationHoistedStmt { key, stmt } in &code_gen.early_hoisted_stmts {
-            early_hoisted_stmts.insert(key.clone(), stmt.clone());
+        for CodeGenerationHoistedStmt { key, stmt } in code_gen.early_hoisted_stmts.drain(..) {
+            early_hoisted_stmts.insert(key.clone(), stmt);
         }
         for (path, visitor) in &code_gen.visitors {
             if path.is_empty() {
