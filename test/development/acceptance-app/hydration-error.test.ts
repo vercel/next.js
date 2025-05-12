@@ -221,6 +221,7 @@ describe('Error overlay for hydration errors in App router', () => {
                            <script>
                            <script>
                            <script>
+                           <script>
                            <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
                              <Root params={Promise}>
                                <html

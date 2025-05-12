@@ -103,27 +103,41 @@ pub async fn get_app_route_entry(
         INNER.into() => userland_module
     };
 
-    let mut rsc_entry = module_asset_context
+    let rsc_entry = module_asset_context
         .process(
             Vc::upcast(virtual_source),
             Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
         )
         .module();
 
-    if is_edge {
-        rsc_entry = wrap_edge_route(
+    let (rsc_entry, rsc_edge_inner) = if is_edge {
+        let rsc_entry = wrap_edge_route(
             Vc::upcast(module_asset_context),
             project_root,
             rsc_entry,
-            page,
+            page.clone(),
             next_config,
-        );
-    }
+        )
+        .to_resolved()
+        .await?;
+        (
+            wrap_edge_entry(
+                Vc::upcast(module_asset_context),
+                project_root,
+                *rsc_entry,
+                AppPath::from(page).to_string().into(),
+            ),
+            Some(rsc_entry),
+        )
+    } else {
+        (rsc_entry, None)
+    };
 
     Ok(AppEntry {
         pathname,
         original_name,
         rsc_entry: rsc_entry.to_resolved().await?,
+        rsc_edge_inner,
         config: config.to_resolved().await?,
     }
     .cell())
@@ -166,10 +180,5 @@ async fn wrap_edge_route(
         )
         .module();
 
-    Ok(wrap_edge_entry(
-        asset_context,
-        project_root,
-        wrapped,
-        AppPath::from(page).to_string().into(),
-    ))
+    Ok(wrapped)
 }

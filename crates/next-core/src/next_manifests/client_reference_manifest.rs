@@ -352,8 +352,14 @@ impl ClientReferenceManifest {
                 }
             }
 
+            // The server utility chunks are merged into the first layout segment
+            let mut server_utility_chunks = layout_segment_client_chunks.get(&None);
             // per layout segment chunks need to be emitted into the manifest too
             for (server_component, client_chunks) in layout_segment_client_chunks.iter() {
+                let Some(server_component) = server_component else {
+                    // Handled via server_utility_chunks
+                    continue;
+                };
                 let server_component_name = server_component
                     .server_path()
                     .with_extension("".into())
@@ -366,10 +372,12 @@ impl ClientReferenceManifest {
                     .entry(server_component_name.clone())
                     .or_default();
 
-                let client_chunks = &client_chunks.await?;
+                let client_chunks = client_chunks
+                    .iter()
+                    .copied()
+                    .chain(server_utility_chunks.take().into_iter().flatten().copied());
                 let client_chunks_with_path =
-                    cached_chunk_paths(&mut client_chunk_path_cache, client_chunks.iter().copied())
-                        .await?;
+                    cached_chunk_paths(&mut client_chunk_path_cache, client_chunks).await?;
 
                 for (chunk, chunk_path) in client_chunks_with_path {
                     if let Some(path) = client_relative_path.get_path_to(&chunk_path) {

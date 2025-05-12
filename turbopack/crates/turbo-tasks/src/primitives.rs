@@ -1,12 +1,17 @@
-use std::{ops::Deref, time::Duration};
+use std::{
+    hash::{BuildHasher, Hash},
+    ops::{Deref, DerefMut},
+    time::Duration,
+};
 
+use anyhow::Result;
+use rustc_hash::FxBuildHasher;
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 // This specific macro identifier is detected by turbo-tasks-build.
-use turbo_tasks_macros::primitive as __turbo_tasks_internal_primitive;
+use turbo_tasks_macros::{primitive as __turbo_tasks_internal_primitive, TraceRawVcs};
 
-use crate::{
-    Vc, {self as turbo_tasks},
-};
+use crate::{self as turbo_tasks, FxIndexSet, NonLocalValue, TaskInput, Vc};
 
 __turbo_tasks_internal_primitive!(());
 __turbo_tasks_internal_primitive!(String, manual_shrink_to_fit);
@@ -57,3 +62,70 @@ impl PartialEq for Regex {
     }
 }
 impl Eq for Regex {}
+
+/// An IndexSet with a Hash implementation that is order-independent (and just like IndexSet,
+/// equality is also order-independent).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(bound(
+    deserialize = "T: Hash + Eq + Deserialize<'de>",
+    serialize = "T: Hash + Eq + Serialize"
+))]
+pub struct HashableIndexSet<T: Hash + Eq>(pub FxIndexSet<T>);
+
+impl<T: Hash + Eq> From<FxIndexSet<T>> for HashableIndexSet<T> {
+    fn from(set: FxIndexSet<T>) -> Self {
+        HashableIndexSet(set)
+    }
+}
+
+impl<T: Hash + Eq> FromIterator<T> for HashableIndexSet<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        HashableIndexSet(iter.into_iter().collect())
+    }
+}
+
+impl<T: Hash + Eq> Deref for HashableIndexSet<T> {
+    type Target = FxIndexSet<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<T: Hash + Eq> DerefMut for HashableIndexSet<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl<T: Hash + Eq> Hash for HashableIndexSet<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let mut result = 0u64;
+        for item in self.iter() {
+            let item_hash = FxBuildHasher.hash_one(item);
+            result ^= item_hash;
+        }
+        state.write_u64(result);
+    }
+}
+
+impl<T> TaskInput for HashableIndexSet<T>
+where
+    T: TaskInput,
+{
+    fn is_resolved(&self) -> bool {
+        self.iter().all(TaskInput::is_resolved)
+    }
+
+    fn is_transient(&self) -> bool {
+        self.iter().any(TaskInput::is_transient)
+    }
+
+    async fn resolve_input(&self) -> Result<Self> {
+        let mut resolved = FxIndexSet::with_capacity_and_hasher(self.len(), Default::default());
+        for value in self.iter() {
+            resolved.insert(value.resolve_input().await?);
+        }
+        Ok(HashableIndexSet(resolved))
+    }
+}
+
+unsafe impl<T: NonLocalValue + Hash + Eq> NonLocalValue for HashableIndexSet<T> {}
