@@ -464,6 +464,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         optimizeServerReact: z.boolean().optional(),
         clientTraceMetadata: z.array(z.string()).optional(),
         serverMinification: z.boolean().optional(),
+        enablePrerenderSourceMaps: z.boolean().optional(),
         serverSourceMaps: z.boolean().optional(),
         useWasmBinary: z.boolean().optional(),
         useLightningcss: z.boolean().optional(),

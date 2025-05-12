@@ -560,6 +560,12 @@ export interface ExperimentalConfig {
   serverMinification?: boolean
 
   /**
+   * Enables source maps while generating static pages.
+   * Helps with errors during the prerender phase in `next build`.
+   */
+  enablePrerenderSourceMaps?: boolean
+
+  /**
    * Enables source maps generation for the server production bundle.
    */
   serverSourceMaps?: boolean
@@ -1309,6 +1315,7 @@ export const defaultConfig = {
     appNavFailHandling: false,
     prerenderEarlyExit: true,
     serverMinification: true,
+    enablePrerenderSourceMaps: false,
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
