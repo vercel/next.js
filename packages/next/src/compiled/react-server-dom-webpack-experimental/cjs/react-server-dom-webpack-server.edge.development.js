@@ -11,6 +11,15 @@
 "use strict";
 "production" !== process.env.NODE_ENV &&
   (function () {
+    // This is a patch added by Next.js
+    const setTimeoutOrImmediate =
+      typeof globalThis["set" + "Immediate"] === "function" &&
+      // edge runtime sandbox defines a stub for setImmediate
+      // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
+      // but it's made non-enumerable, so we can detect it
+      globalThis.propertyIsEnumerable("setImmediate")
+        ? globalThis["set" + "Immediate"]
+        : (callback, ...args) => setTimeout(callback, 0, ...args);
     function voidHandler() {}
     function getIteratorFn(maybeIterable) {
       if (null === maybeIterable || "object" !== typeof maybeIterable)
@@ -1445,7 +1454,7 @@
             })
           : setTimeoutOrImmediate(function () {
               return performWork(request);
-            }, 0));
+            }));
     }
     function createTask(
       request,
@@ -2826,7 +2835,7 @@
           });
       setTimeoutOrImmediate(function () {
         request.status === OPENING && (request.status = 11);
-      }, 0);
+      });
     }
     function enqueueFlush(request) {
       !1 === request.flushScheduled &&
@@ -2837,7 +2846,7 @@
           request.flushScheduled = !1;
           var destination = request.destination;
           destination && flushCompletedChunks(request, destination);
-        }, 0));
+        }));
     }
     function callOnAllReadyIfReady(request) {
       if (
@@ -4306,17 +4315,6 @@
         bind: { value: bind, configurable: !0 }
       });
     };
-
-// This is a patch added by Next.js
-const setTimeoutOrImmediate =
-  typeof globalThis['set' + 'Immediate'] === 'function' &&
-  // edge runtime sandbox defines a stub for setImmediate
-  // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
-  // but it's made non-enumerable, so we can detect it
-  globalThis.propertyIsEnumerable('setImmediate')
-    ? globalThis['set' + 'Immediate']
-    : setTimeout;
-
     exports.renderToReadableStream = function (model, webpackMap, options) {
       var request = createRequest(
         model,
