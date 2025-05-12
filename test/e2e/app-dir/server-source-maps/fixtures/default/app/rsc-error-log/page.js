@@ -2,7 +2,7 @@ import { someClass } from './styles.module.css'
 import { connection } from 'next/server'
 
 function logError() {
-  const error = new Error('Boom')
+  const error = new Error('rsc-error-log')
   console.error(error)
 }
 

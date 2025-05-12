@@ -30,15 +30,17 @@ describe('app-dir - server source maps', () => {
 
     if (isNextDev) {
       await retry(() => {
-        expect(next.cliOutput.slice(outputIndex)).toContain('Error: Boom')
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: rsc-error-log'
+        )
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
-        '\nError: Boom' +
+        '\nError: rsc-error-log' +
           '\n    at logError (app/rsc-error-log/page.js:5:16)' +
           '\n    at Page (app/rsc-error-log/page.js:12:2)' +
           '\n  3 |' +
           '\n  4 | function logError() {' +
-          "\n> 5 |   const error = new Error('Boom')" +
+          "\n> 5 |   const error = new Error('rsc-error-log')" +
           '\n    |                ^' +
           '\n  6 |   console.error(error)' +
           '\n  7 | }' +
@@ -56,17 +58,17 @@ describe('app-dir - server source maps', () => {
 
     if (isNextDev) {
       await retry(() => {
-        expect(next.cliOutput.slice(outputIndex)).toContain('Error: Boom')
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: rsc-error-log-cause'
+        )
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
-        '\nError: Boom' +
+        '\nError: rsc-error-log-cause' +
           '\n    at logError (app/rsc-error-log-cause/page.js:4:16)' +
-          (isTurbopack
-            ? '\n    at Page (app/rsc-error-log-cause/page.js:12:2)'
-            : '\n    at Page (app/rsc-error-log-cause/page.js:12:2)') +
+          '\n    at Page (app/rsc-error-log-cause/page.js:12:2)' +
           '\n  2 |' +
           '\n  3 | function logError(cause) {' +
-          "\n> 4 |   const error = new Error('Boom', { cause })" +
+          "\n> 4 |   const error = new Error('rsc-error-log-cause', { cause })" +
           '\n    |                ^' +
           '\n  5 |   console.error(error)' +
           '\n  6 | }' +
@@ -93,11 +95,13 @@ describe('app-dir - server source maps', () => {
 
     if (isNextDev) {
       await retry(() => {
-        expect(next.cliOutput.slice(outputIndex)).toContain('Error: Boom')
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: ssr-error-log-ignore-listed'
+        )
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         isTurbopack
-          ? '\nError: Boom' +
+          ? '\nError: ssr-error-log-ignore-listed' +
               '\n    at logError (app/ssr-error-log-ignore-listed/page.js:9:16)' +
               '\n    at runWithInternalIgnored (app/ssr-error-log-ignore-listed/page.js:19:12)' +
               '\n    at runWithExternalSourceMapped (app/ssr-error-log-ignore-listed/page.js:18:29)' +
@@ -112,7 +116,7 @@ describe('app-dir - server source maps', () => {
               '\n    at Page (app/ssr-error-log-ignore-listed/page.js:14:14)' +
               '\n   7 |' +
               '\n'
-          : '\nError: Boom' +
+          : '\nError: ssr-error-log-ignore-listed' +
               '\n    at logError (app/ssr-error-log-ignore-listed/page.js:9:16)' +
               '\n    at runWithInternalIgnored (app/ssr-error-log-ignore-listed/page.js:19:12)' +
               // TODO(veil-NDX-910): Webpacks's sourcemap loader drops `ignoreList`
@@ -138,11 +142,11 @@ describe('app-dir - server source maps', () => {
         // TODO(veil-NDX-910): Turbopack's sourcemap loader drops `ignoreList` in browser sourcemaps.
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "description": "Boom",
+           "description": "ssr-error-log-ignore-listed",
            "environmentLabel": null,
            "label": "Console Error",
            "source": "app/ssr-error-log-ignore-listed/page.js (9:17) @ logError
-         >  9 |   const error = new Error('Boom')
+         >  9 |   const error = new Error('ssr-error-log-ignore-listed')
               |                 ^",
            "stack": [
              "logError app/ssr-error-log-ignore-listed/page.js (9:17)",
@@ -164,11 +168,11 @@ describe('app-dir - server source maps', () => {
         // TODO(veil): Webpack's sourcemap loader creates an incorrect `sources` entry.
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "description": "Boom",
+           "description": "ssr-error-log-ignore-listed",
            "environmentLabel": null,
            "label": "Console Error",
            "source": "app/ssr-error-log-ignore-listed/page.js (9:17) @ logError
-         >  9 |   const error = new Error('Boom')
+         >  9 |   const error = new Error('ssr-error-log-ignore-listed')
               |                 ^",
            "stack": [
              "logError app/ssr-error-log-ignore-listed/page.js (9:17)",
@@ -197,12 +201,12 @@ describe('app-dir - server source maps', () => {
     if (isNextDev) {
       await retry(() => {
         expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
-          'Error: Boom'
+          'Error: rsc-error-log-ignore-listed'
         )
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         isTurbopack
-          ? '\nError: Boom' +
+          ? '\nError: rsc-error-log-ignore-listed' +
               '\n    at logError (app/rsc-error-log-ignore-listed/page.js:9:16)' +
               '\n    at runWithInternalIgnored (app/rsc-error-log-ignore-listed/page.js:21:12)' +
               '\n    at runWithExternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:20:29)' +
@@ -217,7 +221,7 @@ describe('app-dir - server source maps', () => {
               '\n    at Page (app/rsc-error-log-ignore-listed/page.js:16:14)' +
               '\n   7 |' +
               '\n'
-          : '\nError: Boom' +
+          : '\nError: rsc-error-log-ignore-listed' +
               '\n    at logError (app/rsc-error-log-ignore-listed/page.js:9:16)' +
               '\n    at runWithInternalIgnored (app/rsc-error-log-ignore-listed/page.js:21:12)' +
               // TODO(veil): Webpacks's sourcemap loader drops `ignoreList`
@@ -249,17 +253,17 @@ describe('app-dir - server source maps', () => {
 
     if (isNextDev) {
       await retry(() => {
-        expect(next.cliOutput.slice(outputIndex)).toContain('Error: Boom')
+        expect(next.cliOutput.slice(outputIndex)).toContain('Error: ssr-throw')
       })
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
       expect(cliOutput).toContain(
-        '\n ⨯ Error: Boom' +
+        '\n ⨯ Error: ssr-throw' +
           '\n    at throwError (app/ssr-throw/Thrower.js:4:8)' +
           '\n    at Thrower (app/ssr-throw/Thrower.js:8:2)' +
           '\n  2 |' +
           '\n  3 | function throwError() {' +
-          "\n> 4 |   throw new Error('Boom')" +
+          "\n> 4 |   throw new Error('ssr-throw')" +
           '\n    |        ^' +
           '\n  5 | }' +
           '\n  6 |' +
@@ -270,11 +274,11 @@ describe('app-dir - server source maps', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Boom",
+         "description": "ssr-throw",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "app/ssr-throw/Thrower.js (4:9) @ throwError
-       > 4 |   throw new Error('Boom')
+       > 4 |   throw new Error('ssr-throw')
            |         ^",
          "stack": [
            "throwError app/ssr-throw/Thrower.js (4:9)",
@@ -294,14 +298,16 @@ describe('app-dir - server source maps', () => {
 
     await retry(() => {
       expect(next.cliOutput.slice(outputIndex)).toContain(
-        // TODO: isNextDev ? 'UnnamedError: Foo' : '[Error]: Foo'
-        isNextDev ? 'Error: Foo' : 'Error: Foo'
+        // TODO: isNextDev ? 'UnnamedError: rsc-error-log-custom-name-Foo' : '[Error]: rsc-error-log-custom-name-Foo'
+        isNextDev
+          ? 'Error: rsc-error-log-custom-name-Foo'
+          : 'Error: rsc-error-log-custom-name-Foo'
       )
     })
 
     expect(next.cliOutput.slice(outputIndex)).toContain(
-      // TODO: isNextDev ? 'NamedError [MyError]: Bar' : '[MyError]: Bar'
-      isNextDev ? 'Error [MyError]: Bar' : 'Error [MyError]: Bar'
+      // TODO: isNextDev ? 'NamedError [MyError]: rsc-error-log-custom-name-Bar' : '[MyError]: rsc-error-log-custom-name-Bar'
+      isNextDev ? 'Error [MyError]: rsc-error-log-custom-name-Bar' : 'Error [MyError]: rsc-error-log-custom-name-Bar'
     )
   })
 
@@ -311,7 +317,7 @@ describe('app-dir - server source maps', () => {
 
     await retry(() => {
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
-        'Error: Boom!'
+        'Error: bad-sourcemap'
       )
     })
 
@@ -320,7 +326,7 @@ describe('app-dir - server source maps', () => {
         expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
           // Node.js is fine with invalid URLs in index maps apparently.
           '' +
-            '\nError: Boom!' +
+            '\nError: bad-sourcemap' +
             '\n    at logError (custom://[badhost]/app/bad-sourcemap/page.js:8:16)' +
             '\n    at Page (custom://[badhost]/app/bad-sourcemap/page.js:13:2)' +
             // TODO: Remove blank line
@@ -333,7 +339,7 @@ describe('app-dir - server source maps', () => {
           // sourcemapping is broken on invalid sources.
           '' +
             `\nwebpack-internal:///(rsc)/./app/bad-sourcemap/page.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: TypeError [ERR_INVALID_ARG_TYPE]: The "payload" argument must be of type object. Received null` +
-            '\nError: Boom!' +
+            '\nError: bad-sourcemap' +
             '\n    at logError (webpack-internal:///(rsc)/./app/bad-sourcemap/page.js:14:19)' +
             '\n    at Page (webpack-internal:///(rsc)/./app/bad-sourcemap/page.js:18:5)'
         )

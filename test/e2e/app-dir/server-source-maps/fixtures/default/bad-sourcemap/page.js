@@ -5,7 +5,7 @@
 import { connection } from 'next/server'
 
 function logError() {
-  console.error(new Error('Boom!'))
+  console.error(new Error('bad-sourcemap'))
 }
 
 export default async function Page() {

@@ -6,7 +6,7 @@ import { runExternal } from 'external-pkg'
 import { runExternalSourceMapped } from 'external-pkg/sourcemapped'
 
 function logError() {
-  const error = new Error('Boom')
+  const error = new Error('rsc-error-log-ignore-listed')
   console.error(error)
 }
 
