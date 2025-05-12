@@ -174,7 +174,7 @@ export default function Page() {
 
 ### Passing dynamic props
 
-Components only opt into dynamic rendering when the value is accessed. For example, if you are reading `searchParams` from a `page`, you can forward this value to another component as a prop:
+Components only opt into dynamic rendering when the value is accessed. For example, if you are reading `searchParams` from a `<Page />` component, you can forward this value to another component as a prop:
 
 ```tsx filename="app/page.tsx" switcher
 import { Table } from './table'
