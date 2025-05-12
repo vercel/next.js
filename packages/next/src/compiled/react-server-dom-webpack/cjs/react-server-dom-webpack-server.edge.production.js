@@ -1,3 +1,12 @@
+// This is a patch added by Next.js
+const setTimeoutOrImmediate =
+  typeof globalThis["set" + "Immediate"] === "function" &&
+  // edge runtime sandbox defines a stub for setImmediate
+  // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
+  // but it's made non-enumerable, so we can detect it
+  globalThis.propertyIsEnumerable("setImmediate")
+    ? globalThis["set" + "Immediate"]
+    : (callback, ...args) => setTimeout(callback, 0, ...args);
 /**
  * @license React
  * react-server-dom-webpack-server.edge.production.js
@@ -1112,7 +1121,7 @@ function pingTask(request, task) {
         })
       : setTimeoutOrImmediate(function () {
           return performWork(request);
-        }, 0));
+        }));
 }
 function createTask(request, model, keyPath, implicitSlot, abortSet) {
   request.pendingChunks++;
@@ -1840,7 +1849,7 @@ function startWork(request) {
       });
   setTimeoutOrImmediate(function () {
     10 === request.status && (request.status = 11);
-  }, 0);
+  });
 }
 function enqueueFlush(request) {
   !1 === request.flushScheduled &&
@@ -1851,7 +1860,7 @@ function enqueueFlush(request) {
       request.flushScheduled = !1;
       var destination = request.destination;
       destination && flushCompletedChunks(request, destination);
-    }, 0));
+    }));
 }
 function callOnAllReadyIfReady(request) {
   if (0 === request.abortableTasks.size && 0 === request.abortListeners.size)
@@ -2757,17 +2766,6 @@ exports.registerServerReference = function (reference, id, exportName) {
     bind: { value: bind, configurable: !0 }
   });
 };
-
-// This is a patch added by Next.js
-const setTimeoutOrImmediate =
-  typeof globalThis['set' + 'Immediate'] === 'function' &&
-  // edge runtime sandbox defines a stub for setImmediate
-  // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
-  // but it's made non-enumerable, so we can detect it
-  globalThis.propertyIsEnumerable('setImmediate')
-    ? globalThis['set' + 'Immediate']
-    : setTimeout;
-
 exports.renderToReadableStream = function (model, webpackMap, options) {
   var request = new RequestInstance(
     20,

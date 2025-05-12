@@ -148,6 +148,7 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
     .optional(),
   resolveExtensions: z.array(z.string()).optional(),
   moduleIds: z.enum(['named', 'deterministic']).optional(),
+  root: z.string().optional(),
 })
 
 // Same as zTurbopackConfig but with deprecated properties. Unfortunately, base
@@ -173,6 +174,7 @@ const zDeprecatedExperimentalTurboConfig: zod.ZodType<DeprecatedExperimentalTurb
     moduleIds: z.enum(['named', 'deterministic']).optional(),
     minify: z.boolean().optional(),
     sourceMaps: z.boolean().optional(),
+    root: z.string().optional(),
   })
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
