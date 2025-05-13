@@ -20,7 +20,8 @@ env:
   # See https://doc.rust-lang.org/rustc/platform-support/apple-darwin.html#os-version for more details
   MACOSX_DEPLOYMENT_TARGET: 11.0
   # This will become "true" if the latest commit is
-  # "Version Packages", set from check-is-release.js
+  # "Version Packages (canary|release-candidate|stable)"
+  # set from scripts/check-is-release.js
   __NEW_RELEASE: 'false'
 
 jobs:
