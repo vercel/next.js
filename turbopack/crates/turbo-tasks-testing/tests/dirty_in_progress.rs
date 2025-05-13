@@ -4,10 +4,10 @@
 
 use std::time::Duration;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{emit, CollectiblesSource, ResolvedVc, State, ValueToString, Vc};
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks::{CollectiblesSource, ResolvedVc, State, ValueToString, Vc, emit};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 

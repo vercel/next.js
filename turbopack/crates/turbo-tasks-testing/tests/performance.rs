@@ -6,7 +6,7 @@ use std::{future::Future, time::Duration};
 
 use anyhow::Result;
 use turbo_tasks::{TransientInstance, Vc};
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 

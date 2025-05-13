@@ -3,10 +3,10 @@ use std::cmp::Ordering;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
+    CellId, KeyValuePair, SessionId, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId,
     event::{Event, EventListener},
     registry,
     util::SharedError,
-    CellId, KeyValuePair, SessionId, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId,
 };
 
 use crate::{
