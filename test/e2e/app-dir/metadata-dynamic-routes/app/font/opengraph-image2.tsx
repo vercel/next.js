@@ -1,12 +1,17 @@
 import fs from 'fs'
 import path from 'path'
+import url from 'url'
 import { ImageResponse } from 'next/og'
 
 export const contentType = 'image/png'
 
 export default async function og() {
   const font = await fs.promises.readFile(
-    path.join(process.cwd(), 'assets/typewr__.ttf')
+    path.join(
+      url.fileURLToPath(import.meta.url),
+      '../../../',
+      'assets/typewr__.ttf'
+    )
   )
   return new ImageResponse(
     (
