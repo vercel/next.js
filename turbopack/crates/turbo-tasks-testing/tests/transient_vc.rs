@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 use turbo_tasks::{TaskInput, TransientValue, Vc};
-use turbo_tasks_testing::{register, run_without_cache_check, Registration};
+use turbo_tasks_testing::{Registration, register, run_without_cache_check};
 
 static REGISTRATION: Registration = register!();
 

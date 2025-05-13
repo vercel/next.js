@@ -104,8 +104,8 @@ function Get({
   return (
     <section>
       <h2>{expression}.get('...')</h2>
-      <div id={'get-x-sentinel'}>
-        <pre>{headers.get('x-sentinel')}</pre>
+      <div>
+        <pre id={'get-x-sentinel'}>{headers.get('x-sentinel')}</pre>
       </div>
     </section>
   )
@@ -194,8 +194,8 @@ function ForEach({
   headers.forEach((value, header) => {
     if (header.startsWith('x-sentinel')) {
       output.push(
-        <div key={header} id={'for-each-' + header}>
-          <pre>{value}</pre>
+        <div key={header}>
+          <pre id={'for-each-' + header}>{value}</pre>
         </div>
       )
     }
@@ -300,8 +300,8 @@ function ForOf({
   for (let [headerName, value] of headers) {
     if (headerName.startsWith('x-sentinel')) {
       output.push(
-        <div key={headerName} id={'for-of-' + headerName}>
-          <pre>{value}</pre>
+        <div key={headerName}>
+          <pre id={'for-of-' + headerName}>{value}</pre>
         </div>
       )
     }
@@ -326,8 +326,8 @@ function Spread({
     .filter(([headerName]) => headerName.startsWith('x-sentinel'))
     .map((v) => {
       return (
-        <div key={v[0]} id={'spread-' + v[0]}>
-          <pre>{v[1]}</pre>
+        <div key={v[0]}>
+          <pre id={'spread-' + v[0]}>{v[1]}</pre>
         </div>
       )
     })

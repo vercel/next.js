@@ -82,8 +82,8 @@ fn split_off_query_fragment(raw: RcStr) -> (Pattern, Vc<RcStr>, Vc<RcStr>) {
 
     (
         Pattern::Constant(raw.into()),
-        Vc::cell(format!("?{}", query).into()),
-        Vc::cell(format!("#{}", fragment).into()),
+        Vc::cell(format!("?{query}").into()),
+        Vc::cell(format!("#{fragment}").into()),
     )
 }
 
@@ -648,7 +648,7 @@ impl Request {
                 query,
                 fragment,
             } => {
-                let remainder = format!("{}{}", remainder, suffix).into();
+                let remainder = format!("{remainder}{suffix}").into();
                 Self::Uri {
                     protocol: protocol.clone(),
                     remainder,

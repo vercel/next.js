@@ -40,7 +40,7 @@ pub fn swap_retain<T>(vec: &mut impl VecLike<T>, mut f: impl FnMut(&mut T) -> bo
 
 #[cfg(test)]
 mod tests {
-    use smallvec::{smallvec, SmallVec};
+    use smallvec::{SmallVec, smallvec};
 
     use super::swap_retain;
 

@@ -1177,6 +1177,7 @@ export default async function loadConfig(
       } else if (configFileName === 'next.config.ts') {
         userConfigModule = await transpileConfig({
           nextConfigPath: path,
+          configFileName,
           cwd: dir,
         })
       } else {

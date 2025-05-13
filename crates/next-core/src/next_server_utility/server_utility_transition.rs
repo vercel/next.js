@@ -1,7 +1,7 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
-use turbopack::{transition::Transition, ModuleAssetContext};
+use turbopack::{ModuleAssetContext, transition::Transition};
 use turbopack_core::module::Module;
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 

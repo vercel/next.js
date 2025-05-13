@@ -5490,11 +5490,11 @@
       "segment cache (basic tests) navigate to page with lazily-generated (not at build time) static param",
       "segment cache (basic tests) navigate with prefetched data",
       "segment cache (basic tests) prefetch interception route",
-      "segment cache (basic tests) refreshes page segments when navigating to the exact same URL as the current location",
-      "segment cache (basic tests) skips dynamic request if prefetched data is fully static"
+      "segment cache (basic tests) skips dynamic request if prefetched data is fully static",
+      "segment cache (basic tests) skips static layouts during partially static navigation"
     ],
     "failed": [
-      "segment cache (basic tests) skips static layouts during partially static navigation"
+      "segment cache (basic tests) refreshes page segments when navigating to the exact same URL as the current location"
     ],
     "pending": [],
     "flakey": [],
@@ -5548,18 +5548,18 @@
   "test/e2e/app-dir/segment-cache/incremental-opt-in/segment-cache-incremental-opt-in.test.ts": {
     "passed": [
       "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR disabled",
+      "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR disabled, and has a loading boundary",
       "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR enabled",
       "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR enabled, and has a dynamic param",
       "segment cache (incremental opt in) prefetches a dynamic route when PPR is disabled if it has a loading.tsx boundary",
       "segment cache (incremental opt in) prefetches a shared layout on a PPR-enabled route that was previously omitted from a non-PPR-enabled route",
-      "segment cache (incremental opt in) skips prefetching a dynamic route when PPR is disabled if it has no loading.tsx boundary",
       "segment cache (incremental opt in) when a link is prefetched with <Link prefetch=true>, no dynamic request is made on navigation",
       "segment cache (incremental opt in) when prefetching with prefetch=true, refetches cache entries that only contain partial data",
       "segment cache (incremental opt in) when prefetching with prefetch=true, refetches partial cache entries even if there's already a pending PPR request"
     ],
     "failed": [
-      "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR disabled, and has a loading boundary",
-      "segment cache (incremental opt in) skips prefetching a dynamic route when PPR is disabled if everything up to its loading.tsx boundary is already cached"
+      "segment cache (incremental opt in) skips prefetching a dynamic route when PPR is disabled if everything up to its loading.tsx boundary is already cached",
+      "segment cache (incremental opt in) skips prefetching a dynamic route when PPR is disabled if it has no loading.tsx boundary"
     ],
     "pending": [],
     "flakey": [],
@@ -5621,21 +5621,21 @@
   },
   "test/e2e/app-dir/segment-cache/search-params/segment-cache-search-params.test.ts": {
     "passed": [
-      "segment cache (search params) when fetching with PPR, does not include search params in the cache key"
-    ],
-    "failed": [
+      "segment cache (search params) when fetching with PPR, does not include search params in the cache key",
       "segment cache (search params) when fetching without PPR (e.g. prefetch={true}), includes the search params in the cache key"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/staleness/segment-cache-stale-time.test.ts": {
     "passed": [
-      "segment cache (staleness) entry expires when its stale time has elapsed",
+      "segment cache (staleness) entry expires when its stale time has elapsed"
+    ],
+    "failed": [
       "segment cache (staleness) reuses dynamic data up to the staleTimes.dynamic threshold"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

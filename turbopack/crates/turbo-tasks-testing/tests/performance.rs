@@ -6,7 +6,7 @@ use std::{future::Future, time::Duration};
 
 use anyhow::Result;
 use turbo_tasks::{TransientInstance, Vc};
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
@@ -31,7 +31,7 @@ where
         let start = std::time::Instant::now();
         f().await?;
         let warmup_call = start.elapsed();
-        println!("Subsequent call took {:?}", warmup_call);
+        println!("Subsequent call took {warmup_call:?}");
         warmup_calls.push(warmup_call);
     }
 
@@ -99,7 +99,7 @@ where
     let start = std::time::Instant::now();
     f().await?;
     let final_call = start.elapsed();
-    println!("Final call took {:?}", final_call);
+    println!("Final call took {final_call:?}");
 
     let target = subsequent / COUNT1;
 
@@ -114,20 +114,17 @@ where
 
     assert!(
         subsequent < limit * COUNT1,
-        "Each call should be less than {:?}",
-        limit
+        "Each call should be less than {limit:?}"
     );
 
     assert!(
         subsequent2 < limit * COUNT1,
-        "Each call should be less than {:?}",
-        limit
+        "Each call should be less than {limit:?}"
     );
 
     assert!(
         subsequent3 < limit * COUNT1,
-        "Each call should be less than {:?}",
-        limit
+        "Each call should be less than {limit:?}"
     );
 
     anyhow::Ok(())

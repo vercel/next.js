@@ -6,8 +6,8 @@ use swc_core::{
     quote,
 };
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc,
+    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModuleReference, ChunkingContext, ChunkingType},

@@ -1,6 +1,6 @@
 use std::{hash::Hash, mem::take};
 
-use super::{balance_queue::BalanceQueue, AggregationContext, AggregationNode, StackVec};
+use super::{AggregationContext, AggregationNode, StackVec, balance_queue::BalanceQueue};
 
 impl<I: Clone + Eq + Hash, D> AggregationNode<I, D> {
     /// Finishes an in progress operation. This might enqueue balancing

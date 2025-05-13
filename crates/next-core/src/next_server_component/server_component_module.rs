@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};

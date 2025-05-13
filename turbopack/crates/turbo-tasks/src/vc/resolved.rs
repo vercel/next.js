@@ -12,10 +12,10 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    RawVc, Upcast, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
     vc::Vc,
-    RawVc, Upcast, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
 };
 
 /// A "subtype" (via [`Deref`]) of [`Vc`] that represents a specific [`Vc::cell`]/`.cell()` or

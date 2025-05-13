@@ -4,11 +4,11 @@ use dashmap::mapref::entry::Entry;
 use once_cell::sync::Lazy;
 
 use crate::{
+    FxDashMap, TraitType, ValueType,
     id::{FunctionId, TraitTypeId, ValueTypeId},
     id_factory::IdFactory,
     native_function::NativeFunction,
     no_move_vec::NoMoveVec,
-    FxDashMap, TraitType, ValueType,
 };
 
 static FUNCTION_ID_FACTORY: IdFactory<FunctionId> = IdFactory::new_const(
@@ -72,7 +72,7 @@ where
     if let Some(id) = map_by_value.get(&value) {
         id.clone()
     } else {
-        panic!("Use of unregistered {:?}", value);
+        panic!("Use of unregistered {value:?}");
     }
 }
 

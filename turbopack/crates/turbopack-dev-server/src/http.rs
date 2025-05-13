@@ -1,29 +1,29 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use auto_hash_map::AutoSet;
 use futures::{StreamExt, TryStreamExt};
 use hyper::{
-    header::{HeaderName, CONTENT_ENCODING, CONTENT_LENGTH},
-    http::HeaderValue,
     Request, Response,
+    header::{CONTENT_ENCODING, CONTENT_LENGTH, HeaderName},
+    http::HeaderValue,
 };
 use mime::Mime;
 use tokio_util::io::{ReaderStream, StreamReader};
 use turbo_tasks::{
-    apply_effects, util::SharedError, CollectiblesSource, OperationVc, ReadRef, ResolvedVc,
-    TransientInstance, Vc,
+    CollectiblesSource, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc, apply_effects,
+    util::SharedError,
 };
 use turbo_tasks_bytes::Bytes;
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     asset::AssetContent,
-    issue::{handle_issues, IssueReporter, IssueSeverity},
+    issue::{IssueReporter, IssueSeverity, handle_issues},
     version::VersionedContent,
 };
 
 use crate::source::{
-    request::SourceRequest,
-    resolve::{resolve_source_request, ResolveSourceRequestResult},
     Body, ContentSource, ContentSourceSideEffect, HeaderList, ProxyResult,
+    request::SourceRequest,
+    resolve::{ResolveSourceRequestResult, resolve_source_request},
 };
 
 #[turbo_tasks::value(serialization = "none")]

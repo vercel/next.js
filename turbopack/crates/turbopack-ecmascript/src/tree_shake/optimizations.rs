@@ -1,6 +1,6 @@
 use std::ops::Index;
 
-use petgraph::{visit::EdgeRef, Direction, Graph};
+use petgraph::{Direction, Graph, visit::EdgeRef};
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_tasks::FxIndexSet;
 
