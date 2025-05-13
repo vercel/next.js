@@ -10,9 +10,10 @@ use turbopack_core::{
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
+        ModuleResolveResult, ModuleResolveResultItem,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
-        resolve, ModuleResolveResult, ModuleResolveResultItem,
+        resolve,
     },
     source::Source,
 };
