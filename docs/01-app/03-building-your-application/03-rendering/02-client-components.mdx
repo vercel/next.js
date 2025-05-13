@@ -18,7 +18,7 @@ There are a couple of benefits to doing the rendering work on the client, includ
 
 To use Client Components, you can add the React [`'use client'` directive](https://react.dev/reference/react/use-client) at the top of a file, above your imports.
 
-`'use client'` is used to declare a [boundary](/docs/app/building-your-application/rendering#network-boundary) between a Server and Client Component modules. This means that by defining a `'use client'` in a file, all other modules imported into it, including child components, are considered part of the client bundle. The props of Client Components exported from a file with the `'use client'` directive must be [serializable](https://react.dev/reference/rsc/use-client#serializable-types) by React to allow data to be passed from the server to the client across the boundary.
+`'use client'` is used to declare a [boundary](/docs/app/building-your-application/rendering#network-boundary) between a Server and Client Component modules. This means that by defining a `'use client'` in a file, all other modules imported into it, including child components, are considered part of the client bundle. The props of components exported from a file with the `'use client'` directive must be [serializable](https://react.dev/reference/rsc/use-client#serializable-types) by React to allow data to be passed from the server to the client across the boundary.
 
 ```tsx filename="app/counter.tsx" highlight={1} switcher
 'use client'
