@@ -248,28 +248,58 @@ pub async fn compute_merged_modules(module_graph: &ModuleGraph) -> Result<Vc<Mer
 
                 let mut i = 0;
                 while i < list.len() - 1 {
-                    let first = *list.iter().nth(i).unwrap();
-                    let modules = list.iter().skip(i).map(|m| **m).collect::<Vec<_>>();
+                    let first = list[i];
+                    let modules = list[i..].iter().map(|m| **m).collect::<Vec<_>>();
                     match *first.merge(MergeableModules::interned(modules)).await? {
                         MergeableModuleResult::Merged {
                             merged_module,
                             consumed,
                             skipped,
                         } => {
+                            // println!(
+                            //     "accepted from {:?} {:#?} {:?} consumed {} {:#?} skipped {}
+                            // {:#?}",     first.ident().to_string().
+                            // await?,     list[i..]
+                            //         .iter()
+                            //         .map(|m| m.ident().to_string())
+                            //         .try_join()
+                            //         .await?,
+                            //     merged_module.ident().to_string().await?,
+                            //     consumed,
+                            //     list.iter()
+                            //         .skip(i)
+                            //         .skip(skipped as usize)
+                            //         .take(consumed as usize)
+                            //         .map(|m| m.ident().to_string())
+                            //         .try_join()
+                            //         .await?,
+                            //     skipped,
+                            //     list.iter()
+                            //         .skip(i)
+                            //         .take(skipped as usize)
+                            //         .map(|m| m.ident().to_string())
+                            //         .try_join()
+                            //         .await?,
+                            // );
+
+                            let mut current_included = list[i..]
+                                .iter()
+                                .skip(skipped as usize)
+                                .take(consumed as usize);
+                            // The first module should not be `included` but `replaced`
+                            let first = *current_included.next().unwrap();
+                            debug_assert!(
+                                first.ident().to_string().await?
+                                    == merged_module.ident().to_string().await?,
+                                "{} == {}",
+                                first.ident().to_string().await?,
+                                merged_module.ident().to_string().await?
+                            );
                             resulting_list.push((
                                 ResolvedVc::upcast::<Box<dyn Module>>(first),
                                 merged_module,
                             ));
-                            included.extend(
-                                list.iter()
-                                    .skip(i)
-                                    .skip(skipped as usize)
-                                    // The first module should not be `included` but `replaced`
-                                    .skip(1)
-                                    .take(consumed as usize)
-                                    .copied()
-                                    .map(ResolvedVc::upcast),
-                            );
+                            included.extend(current_included.copied().map(ResolvedVc::upcast));
                             i += (skipped + consumed) as usize;
                         }
                         MergeableModuleResult::NotMerged => {
@@ -298,6 +328,26 @@ pub async fn compute_merged_modules(module_graph: &ModuleGraph) -> Result<Vc<Mer
 
         span.record("merged_groups", replacements.len());
         span.record("included_modules", included.len());
+
+        // println!(
+        //     "included {:#?}",
+        //     included
+        //         .iter()
+        //         .map(|m| m.ident().to_string())
+        //         .try_join()
+        //         .await?
+        // );
+        // println!(
+        //     "replacements {:#?}",
+        //     replacements
+        //         .iter()
+        //         .map(async |(k, v)| Ok((
+        //             k.ident().to_string().await?,
+        //             v.ident().to_string().await?
+        //         )))
+        //         .try_join()
+        //         .await?
+        // );
 
         Ok(MergedModuleInfo {
             replacements,
