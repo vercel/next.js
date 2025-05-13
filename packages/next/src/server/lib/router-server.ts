@@ -327,11 +327,19 @@ export async function initialize(opts: {
         if (blockCrossSite(req, res, config.allowedDevOrigins, opts.hostname)) {
           return
         }
+
         const origUrl = req.url || '/'
 
+        // both the basePath and assetPrefix need to be stripped from the URL
+        // so that the development bundler can find the correct file
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
           req.url = removePathPrefix(origUrl, config.basePath)
         }
+
+        if (config.assetPrefix && pathHasPrefix(origUrl, config.assetPrefix)) {
+          req.url = removePathPrefix(origUrl, config.assetPrefix)
+        }
+
         const parsedUrl = url.parse(req.url || '/')
 
         const hotReloaderResult = await developmentBundler.hotReloader.run(
@@ -343,6 +351,7 @@ export async function initialize(opts: {
         if (hotReloaderResult.finished) {
           return hotReloaderResult
         }
+
         req.url = origUrl
       }
 
@@ -370,6 +379,10 @@ export async function initialize(opts: {
 
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
           req.url = removePathPrefix(origUrl, config.basePath)
+        }
+
+        if (config.assetPrefix && pathHasPrefix(origUrl, config.assetPrefix)) {
+          req.url = removePathPrefix(origUrl, config.assetPrefix)
         }
 
         if (resHeaders) {
