@@ -29,19 +29,19 @@ DEALINGS IN THE SOFTWARE.
 use std::{
     cell::RefCell,
     fs::read_to_string,
-    panic::{catch_unwind, AssertUnwindSafe},
+    panic::{AssertUnwindSafe, catch_unwind},
     rc::Rc,
 };
 
-use anyhow::{anyhow, bail, Context as _};
+use anyhow::{Context as _, anyhow, bail};
 use napi::bindgen_prelude::*;
-use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
+use next_custom_transforms::chain_transforms::{TransformOptions, custom_before_pass};
 use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
-    base::{try_with_handler, Compiler, TransformOutput},
-    common::{comments::SingleThreadedComments, errors::ColorConfig, FileName, Mark, GLOBALS},
+    base::{Compiler, TransformOutput, try_with_handler},
+    common::{FileName, GLOBALS, Mark, comments::SingleThreadedComments, errors::ColorConfig},
     ecma::ast::noop_pass,
 };
 
