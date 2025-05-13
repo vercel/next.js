@@ -19,6 +19,9 @@ type Range = (u64, u64);
 pub trait Compactable {
     /// Returns the range of the compactable.
     fn range(&self) -> Range;
+
+    /// Returns the size of the compactable.
+    fn size(&self) -> usize;
 }
 
 fn is_overlapping(a: &Range, b: &Range) -> bool {
@@ -55,11 +58,14 @@ pub fn total_coverage<T: Compactable>(compactables: &[T], full_range: Range) -> 
 
 /// Configuration for the compaction algorithm.
 pub struct CompactConfig {
+    /// The minimum number of files to merge at once.
+    pub min_merge: usize,
+
     /// The maximum number of files to merge at once.
     pub max_merge: usize,
 
-    /// The minimum number of files to merge at once.
-    pub min_merge: usize,
+    /// The maximum size of all files to merge at once.
+    pub max_merge_size: usize,
 }
 
 /// For a list of compactables, computes merge and move jobs that are expected to perform best.
@@ -102,6 +108,7 @@ fn get_compaction_jobs_internal<T: Compactable>(
         let start_range = compactables[start].range();
         let mut range = start_range;
 
+        let mut merge_job_size = compactables[start].size();
         let mut merge_job = Vec::new();
         merge_job.push(start);
         let mut merge_job_input_spread = spread(&start_range) as f32;
@@ -116,8 +123,13 @@ fn get_compaction_jobs_internal<T: Compactable>(
                     if is_overlapping(&range, &range_for_i) {
                         let mut extended_range = range;
                         if !extend_range(&mut extended_range, &range_for_i) {
+                            let size = compactables[i].size();
+                            if merge_job_size + size > config.max_merge_size {
+                                break 'outer;
+                            }
                             used_compactables[i] = true;
                             merge_job.push(i);
+                            merge_job_size += compactables[i].size();
                             merge_job_input_spread += spread(&range_for_i) as f32;
                         } else {
                             let s = spread(&range);
@@ -216,22 +228,32 @@ mod tests {
 
     struct TestCompactable {
         range: Range,
+        size: usize,
     }
 
     impl Compactable for TestCompactable {
         fn range(&self) -> Range {
             self.range
         }
+
+        fn size(&self) -> usize {
+            self.size
+        }
     }
 
-    fn compact<const N: usize>(ranges: [(u64, u64); N], max_merge: usize) -> CompactionJobs {
+    fn compact<const N: usize>(
+        ranges: [(u64, u64); N],
+        max_merge: usize,
+        max_merge_size: usize,
+    ) -> CompactionJobs {
         let compactables = ranges
             .iter()
-            .map(|&range| TestCompactable { range })
+            .map(|&range| TestCompactable { range, size: 100 })
             .collect::<Vec<_>>();
         let config = CompactConfig {
             max_merge,
             min_merge: 2,
+            max_merge_size,
         };
         get_compaction_jobs(&compactables, &config)
     }
@@ -255,6 +277,32 @@ mod tests {
                 (30, 40),
             ],
             3,
+            usize::MAX,
+        );
+        assert_eq!(merge_jobs, vec![vec![0, 1, 2], vec![4, 5, 6]]);
+        assert_eq!(move_jobs, vec![3, 8]);
+    }
+
+    #[test]
+    fn test_compaction_jobs_by_size() {
+        let CompactionJobs {
+            merge_jobs,
+            move_jobs,
+            ..
+        } = compact(
+            [
+                (0, 10),
+                (10, 30),
+                (9, 13),
+                (0, 30),
+                (40, 44),
+                (41, 42),
+                (41, 47),
+                (90, 100),
+                (30, 40),
+            ],
+            usize::MAX,
+            300,
         );
         assert_eq!(merge_jobs, vec![vec![0, 1, 2], vec![4, 5, 6]]);
         assert_eq!(move_jobs, vec![3, 8]);
@@ -264,7 +312,7 @@ mod tests {
     fn simulate_compactions() {
         let mut rnd = rand::rngs::SmallRng::from_seed([0; 32]);
         let mut keys = (0..1000)
-            .map(|_| rnd.gen_range(0..10000))
+            .map(|_| rnd.random_range(0..10000))
             .collect::<Vec<_>>();
 
         let mut containers = keys
@@ -274,7 +322,7 @@ mod tests {
 
         let mut warm_keys = (0..100)
             .map(|_| {
-                let i = rnd.gen_range(0..keys.len());
+                let i = rnd.random_range(0..keys.len());
                 keys.swap_remove(i)
             })
             .collect::<Vec<_>>();
@@ -293,6 +341,7 @@ mod tests {
                 let config = CompactConfig {
                     max_merge: 4,
                     min_merge: 2,
+                    max_merge_size: usize::MAX,
                 };
                 let jobs = get_compaction_jobs(&containers, &config);
                 if !jobs.is_empty() {
@@ -310,12 +359,12 @@ mod tests {
 
             // Change some warm keys
             for _ in 0..10 {
-                let i = rnd.gen_range(0..warm_keys.len());
-                let j = rnd.gen_range(0..keys.len());
+                let i = rnd.random_range(0..warm_keys.len());
+                let j = rnd.random_range(0..keys.len());
                 swap(&mut warm_keys[i], &mut keys[j]);
             }
         }
-        println!("Number of compactions: {}", number_of_compactions);
+        println!("Number of compactions: {number_of_compactions}");
 
         assert!(containers.len() < 40);
         let coverage = total_coverage(&containers, (0, 10000));
@@ -336,6 +385,10 @@ mod tests {
     impl Compactable for Container {
         fn range(&self) -> Range {
             (self.keys[0], *self.keys.last().unwrap())
+        }
+
+        fn size(&self) -> usize {
+            self.keys.len()
         }
     }
 

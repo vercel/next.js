@@ -11,7 +11,7 @@ use turbopack_core::{
     },
 };
 
-#[turbo_tasks::value(shared, local)]
+#[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]
 pub struct ResolveOptionsContext {
     #[serde(default)]
@@ -31,6 +31,10 @@ pub struct ResolveOptionsContext {
     /// Enable resolving of the node_modules folder when within the provided
     /// directory
     pub enable_node_modules: Option<ResolvedVc<FileSystemPath>>,
+    #[serde(default)]
+    /// A specific path to a tsconfig.json file to use for resolving modules. If `None`, one will
+    /// be looked up through the filesystem
+    pub tsconfig_path: Option<ResolvedVc<FileSystemPath>>,
     #[serde(default)]
     /// Mark well-known Node.js modules as external imports and load them using
     /// native `require`. e.g. url, querystring, os
@@ -84,7 +88,7 @@ pub struct ResolveOptionsContext {
 impl ResolveOptionsContext {
     #[turbo_tasks::function]
     pub async fn with_types_enabled(self: Vc<Self>) -> Result<Vc<Self>> {
-        let mut clone = self.await?.clone_value();
+        let mut clone = self.owned().await?;
         clone.enable_types = true;
         clone.enable_typescript = true;
         Ok(Self::cell(clone))
@@ -97,7 +101,7 @@ impl ResolveOptionsContext {
         self: Vc<Self>,
         import_map: Vc<ImportMap>,
     ) -> Result<Vc<Self>> {
-        let mut resolve_options_context = self.await?.clone_value();
+        let mut resolve_options_context = self.owned().await?;
         resolve_options_context.import_map = Some(
             resolve_options_context
                 .import_map
@@ -116,7 +120,7 @@ impl ResolveOptionsContext {
         self: Vc<Self>,
         fallback_import_map: Vc<ImportMap>,
     ) -> Result<Vc<Self>> {
-        let mut resolve_options_context = self.await?.clone_value();
+        let mut resolve_options_context = self.owned().await?;
         resolve_options_context.fallback_import_map = Some(
             resolve_options_context
                 .fallback_import_map

@@ -4,11 +4,11 @@ use std::{
 };
 
 use turbo_rcstr::RcStr;
-use turbo_tasks::{util::StaticOrArc, FxIndexSet, InvalidationReason, InvalidationReasonKind};
+use turbo_tasks::{FxIndexSet, InvalidationReason, InvalidationReasonKind, util::StaticOrArc};
 
 /// Invalidation was caused by a file change detected by the file watcher
 #[derive(PartialEq, Eq, Hash)]
-pub struct WatchChange {
+pub(crate) struct WatchChange {
     pub path: String,
 }
 
@@ -52,7 +52,7 @@ impl InvalidationReasonKind for WatchChangeKind {
 /// Invalidation was caused by a directory starting to watch from which was read
 /// before.
 #[derive(PartialEq, Eq, Hash, Clone)]
-pub struct WatchStart {
+pub(crate) struct WatchStart {
     pub name: RcStr,
     pub path: RcStr,
 }
@@ -84,7 +84,7 @@ impl InvalidationReasonKind for WatchStartKind {
         let example = reasons[0].as_any().downcast_ref::<WatchStart>().unwrap();
         write!(
             f,
-            "{} items started watching (e. g. {} in {})",
+            "{} items started watching (e.g. {} in {})",
             reasons.len(),
             example.path,
             example.name
@@ -92,9 +92,53 @@ impl InvalidationReasonKind for WatchStartKind {
     }
 }
 
+/// Invalidation was caused by initialization of a project or filesystem.
+#[derive(PartialEq, Eq, Hash, Clone)]
+pub struct Initialize {
+    pub path: RcStr,
+}
+
+impl InvalidationReason for Initialize {
+    fn kind(&self) -> Option<StaticOrArc<dyn InvalidationReasonKind>> {
+        Some(StaticOrArc::Static(&INITIALIZE_KIND))
+    }
+}
+
+impl Display for Initialize {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "initialized project or filesystem with path {}",
+            self.path
+        )
+    }
+}
+
+/// [Invalidation kind][InvalidationReasonKind] for [`Initialize`].
+#[derive(PartialEq, Eq, Hash)]
+struct InitializeKind;
+
+static INITIALIZE_KIND: InitializeKind = InitializeKind;
+
+impl InvalidationReasonKind for InitializeKind {
+    fn fmt(
+        &self,
+        reasons: &FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
+        f: &mut Formatter<'_>,
+    ) -> std::fmt::Result {
+        let example = reasons[0].as_any().downcast_ref::<Initialize>().unwrap();
+        write!(
+            f,
+            "{} items invalidated as part of project or filesystem initialization ({}, ...)",
+            reasons.len(),
+            example.path,
+        )
+    }
+}
+
 /// Invalidation was caused by a write operation on the filesystem
 #[derive(PartialEq, Eq, Hash)]
-pub struct Write {
+pub(crate) struct Write {
     pub path: String,
 }
 
@@ -127,49 +171,6 @@ impl InvalidationReasonKind for WriteKind {
             "{} files written ({}, ...)",
             reasons.len(),
             reasons[0].as_any().downcast_ref::<Write>().unwrap().path
-        )
-    }
-}
-
-/// Invalidation was caused by a invalidate operation on the filesystem
-#[derive(Clone, PartialEq, Eq, Hash)]
-pub struct InvalidateFilesystem {
-    pub path: RcStr,
-}
-
-impl InvalidationReason for InvalidateFilesystem {
-    fn kind(&self) -> Option<StaticOrArc<dyn InvalidationReasonKind>> {
-        Some(StaticOrArc::Static(&INVALIDATE_FILESYSTEM_KIND))
-    }
-}
-
-impl Display for InvalidateFilesystem {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} in filesystem invalidated", self.path)
-    }
-}
-
-/// Invalidation kind for [InvalidateFilesystem]
-#[derive(PartialEq, Eq, Hash)]
-struct InvalidateFilesystemKind;
-
-static INVALIDATE_FILESYSTEM_KIND: InvalidateFilesystemKind = InvalidateFilesystemKind;
-
-impl InvalidationReasonKind for InvalidateFilesystemKind {
-    fn fmt(
-        &self,
-        reasons: &FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
-        f: &mut Formatter<'_>,
-    ) -> std::fmt::Result {
-        write!(
-            f,
-            "{} items in filesystem invalidated ({}, ...)",
-            reasons.len(),
-            reasons[0]
-                .as_any()
-                .downcast_ref::<InvalidateFilesystem>()
-                .unwrap()
-                .path
         )
     }
 }

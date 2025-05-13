@@ -24,6 +24,7 @@ type EventCliSessionStarted = {
   imageDomainsCount: number | null
   imageRemotePatternsCount: number | null
   imageLocalPatternsCount: number | null
+  imageQualities: string | null
   imageSizes: string | null
   imageLoader: string | null
   imageFormats: string | null
@@ -32,6 +33,7 @@ type EventCliSessionStarted = {
   reactStrictMode: boolean
   webpackVersion: number | null
   turboFlag: boolean
+  isRspack: boolean
   appDir: boolean | null
   pagesDir: boolean | null
   staticStaleTime: number | null
@@ -80,6 +82,7 @@ export function eventCliSession(
     | 'imageDomainsCount'
     | 'imageRemotePatternsCount'
     | 'imageLocalPatternsCount'
+    | 'imageQualities'
     | 'imageSizes'
     | 'imageLoader'
     | 'imageFormats'
@@ -91,6 +94,7 @@ export function eventCliSession(
     | 'reactCompiler'
     | 'reactCompilerCompilationMode'
     | 'reactCompilerPanicThreshold'
+    | 'isRspack'
   >
 ): { eventName: string; payload: EventCliSessionStarted }[] {
   // This should be an invariant, if it fails our build tooling is broken.
@@ -126,6 +130,7 @@ export function eventCliSession(
       ? images.localPatterns.length
       : null,
     imageSizes: images?.imageSizes ? images.imageSizes.join(',') : null,
+    imageQualities: images?.qualities ? images.qualities.join(',') : null,
     imageLoader: images?.loader,
     imageFormats: images?.formats ? images.formats.join(',') : null,
     nextConfigOutput: nextConfig?.output || null,
@@ -133,6 +138,7 @@ export function eventCliSession(
     reactStrictMode: !!nextConfig?.reactStrictMode,
     webpackVersion: event.webpackVersion || null,
     turboFlag: event.turboFlag || false,
+    isRspack: process.env.NEXT_RSPACK !== undefined,
     appDir: event.appDir,
     pagesDir: event.pagesDir,
     staticStaleTime: nextConfig.experimental.staleTimes?.static ?? null,

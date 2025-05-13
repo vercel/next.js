@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -59,18 +59,14 @@ pub async fn bootstrap(
         );
     };
     let path = if let Some((name, ext)) = path.rsplit_once('.') {
-        if !ext.contains('/') {
-            name
-        } else {
-            path
-        }
+        if !ext.contains('/') { name } else { path }
     } else {
         path
     };
 
     let pathname = normalize_app_page_to_pathname(path);
 
-    let mut config = config.await?.clone_value();
+    let mut config = config.owned().await?;
     config.insert("PAGE".to_string(), path.to_string());
     config.insert("PATHNAME".to_string(), pathname);
 
@@ -97,7 +93,7 @@ pub async fn bootstrap(
         .to_resolved()
         .await?;
 
-    let mut inner_assets = inner_assets.await?.clone_value();
+    let mut inner_assets = inner_assets.owned().await?;
     inner_assets.insert("ENTRY".into(), asset);
     inner_assets.insert("BOOTSTRAP_CONFIG".into(), config_asset);
 
@@ -111,7 +107,6 @@ pub async fn bootstrap(
         .await?;
 
     let asset = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(asset)
-        .await?
         .context("internal module must be evaluatable")?;
 
     Ok(*asset)

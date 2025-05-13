@@ -11,10 +11,10 @@ use std::{
 use anyhow::Result;
 use sha2::{Digest, Sha256};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{util::FormatDuration, ReadConsistency, TurboTasks, UpdateInfo, Vc};
+use turbo_tasks::{ReadConsistency, TurboTasks, UpdateInfo, Vc, util::FormatDuration};
 use turbo_tasks_fs::{
-    glob::Glob, register, DirectoryEntry, DiskFileSystem, FileContent, FileSystem, FileSystemPath,
-    ReadGlobResult,
+    DirectoryEntry, DiskFileSystem, FileContent, FileSystem, FileSystemPath, ReadGlobResult,
+    glob::Glob, register,
 };
 use turbo_tasks_memory::MemoryBackend;
 
@@ -74,13 +74,13 @@ async fn hash_glob_result(result: Vc<ReadGlobResult>) -> Result<Vc<RcStr>> {
     let mut hashes = BTreeMap::new();
     for (name, entry) in result.results.iter() {
         if let DirectoryEntry::File(path) = entry {
-            hashes.insert(name, hash_file(**path).await?.clone_value());
+            hashes.insert(name, hash_file(**path).owned().await?);
         }
     }
     for (name, result) in result.inner.iter() {
-        let hash = hash_glob_result(**result).await?;
+        let hash = hash_glob_result(**result).owned().await?;
         if !hash.is_empty() {
-            hashes.insert(name, hash.clone_value());
+            hashes.insert(name, hash);
         }
     }
     if hashes.is_empty() {

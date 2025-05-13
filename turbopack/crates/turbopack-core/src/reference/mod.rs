@@ -56,7 +56,7 @@ pub struct SingleModuleReference {
 impl ModuleReference for SingleModuleReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::module(self.asset).cell()
+        *ModuleResolveResult::module(self.asset)
     }
 }
 
@@ -102,7 +102,10 @@ impl SingleChunkableModuleReference {
 impl ChunkableModuleReference for SingleChunkableModuleReference {
     #[turbo_tasks::function]
     fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::ParallelInheritAsync))
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: true,
+            hoisted: false,
+        }))
     }
 }
 
@@ -110,7 +113,7 @@ impl ChunkableModuleReference for SingleChunkableModuleReference {
 impl ModuleReference for SingleChunkableModuleReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::module(self.asset).cell()
+        *ModuleResolveResult::module(self.asset)
     }
 }
 
@@ -133,7 +136,7 @@ pub struct SingleOutputAssetReference {
 impl ModuleReference for SingleOutputAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::output_asset(RequestKey::default(), self.asset).cell()
+        *ModuleResolveResult::output_asset(RequestKey::default(), self.asset)
     }
 }
 
@@ -210,7 +213,7 @@ pub struct TracedModuleReference {
 impl ModuleReference for TracedModuleReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::module(self.module).cell()
+        *ModuleResolveResult::module(self.module)
     }
 }
 
@@ -253,13 +256,13 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
         .await?
         .iter()
         .map(|reference| async {
-            Ok(reference
+            reference
                 .resolve_reference()
                 .resolve()
                 .await?
                 .primary_modules()
-                .await?
-                .clone_value())
+                .owned()
+                .await
         })
         .try_join()
         .await?
@@ -282,6 +285,7 @@ pub struct ModulesWithChunkingType(Vec<(ChunkingType, ModulesVec)>);
 #[turbo_tasks::function]
 pub async fn primary_chunkable_referenced_modules(
     module: Vc<Box<dyn Module>>,
+    include_traced: bool,
 ) -> Result<Vc<ModulesWithChunkingType>> {
     let modules = module
         .references()
@@ -289,16 +293,20 @@ pub async fn primary_chunkable_referenced_modules(
         .iter()
         .map(|reference| async {
             if let Some(reference) =
-                ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(*reference).await?
+                ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(*reference)
             {
                 if let Some(chunking_type) = &*reference.chunking_type().await? {
+                    if !include_traced && matches!(chunking_type, ChunkingType::Traced) {
+                        return Ok(None);
+                    }
+
                     let resolved = reference
                         .resolve_reference()
                         .resolve()
                         .await?
                         .primary_modules()
-                        .await?
-                        .clone_value();
+                        .owned()
+                        .await?;
                     return Ok(Some((chunking_type.clone(), resolved)));
                 }
             }
@@ -323,7 +331,7 @@ pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Out
             .await
             .completed()?
             .into_inner()
-            .into_reverse_topological()
+            .into_postorder_topological()
             .collect(),
     ))
 }

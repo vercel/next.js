@@ -4,8 +4,6 @@ This example shows how to use a [Next.js](https://nextjs.org/) project along wit
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-axiom)
-
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-axiom&project-name=with-axiom&repository-name=with-axiom)
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
@@ -16,9 +14,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example with-axiom with-axiom-app
-# or
+```
+
+```bash
 yarn create next-app --example with-axiom with-axiom-app
-# or
+```
+
+```bash
 pnpm create next-app --example with-axiom with-axiom-app
 ```
 

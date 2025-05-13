@@ -55,6 +55,8 @@ function getRouteModuleOptions(page: string) {
       bundlePath: '',
       filename: '',
     },
+    // edge runtime doesn't read from distDir
+    distDir: '',
   }
 
   return options
@@ -166,9 +168,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         },
         {
           incrementalCacheHandler: cacheHandler ?? null,
-        },
-        {
-          cacheHandlers: cacheHandlers ?? {},
         }
       )
     } else {
@@ -197,9 +196,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         {
           userland500Page: userland500Path,
           incrementalCacheHandler: cacheHandler ?? null,
-        },
-        {
-          cacheHandlers: cacheHandlers || {},
         }
       )
     }

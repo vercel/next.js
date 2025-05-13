@@ -123,6 +123,13 @@ describe('app-dir with middleware', () => {
     })
   })
 
+  it('retains a link response header from the middleware', async () => {
+    const res = await next.fetch('/preloads')
+    expect(res.headers.get('link')).toContain(
+      '<https://example.com/page>; rel="alternate"; hreflang="en"'
+    )
+  })
+
   it('should be possible to modify cookies & read them in an RSC in a single request', async () => {
     const browser = await next.browser('/rsc-cookies')
 
@@ -191,6 +198,12 @@ describe('app-dir with middleware', () => {
     const response = await next.fetch('/rsc-cookies/cookie-options')
     expect(response.status).toBe(200)
     expect(response.headers.get('x-middleware-set-cookie')).toBeNull()
+
+    const response2 = await next.fetch('/cookies/api')
+    expect(response2.status).toBe(200)
+    expect(response2.headers.get('x-middleware-set-cookie')).toBeNull()
+    expect(response2.headers.get('set-cookie')).toBeDefined()
+    expect(response2.headers.get('set-cookie')).toContain('example')
   })
 
   it('should ignore x-middleware-set-cookie as a request header', async () => {

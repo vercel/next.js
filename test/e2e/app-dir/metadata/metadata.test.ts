@@ -82,6 +82,8 @@ describe('app dir - metadata', () => {
         preconnect: '/preconnect-url',
         preload: '/api/preload',
         'dns-prefetch': '/dns-prefetch-url',
+        prev: '/basic?page=1',
+        next: '/basic?page=3',
       })
 
       // Manifest link should have crossOrigin attribute
@@ -117,6 +119,8 @@ describe('app dir - metadata', () => {
         preconnect: '/preconnect-url',
         preload: '/api/preload',
         'dns-prefetch': '/dns-prefetch-url',
+        prev: '/basic?page=1',
+        next: '/basic?page=3',
       })
 
       // Manifest link should have crossOrigin attribute
@@ -158,13 +162,14 @@ describe('app dir - metadata', () => {
       )
     })
 
-    it('should support facebook related tags', async () => {
-      const browser = await next.browser('/facebook')
+    it('should support socials related tags like facebook and pinterest', async () => {
+      const browser = await next.browser('/socials')
       const matchMultiDom = createMultiDomMatcher(browser)
 
       await matchMultiDom('meta', 'property', 'content', {
         'fb:app_id': '12345678',
         'fb:admins': ['120', '122', '124'],
+        'pinterest-rich-pin': 'true',
       })
     })
 
@@ -544,8 +549,8 @@ describe('app dir - metadata', () => {
     it('should render icon and apple touch icon meta if their images are specified', async () => {
       const $ = await next.render$('/icons/static/nested')
 
-      const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
-      const $appleIcon = $('head > link[rel="apple-touch-icon"]')
+      const $icon = $('link[rel="icon"][type!="image/x-icon"]')
+      const $appleIcon = $('link[rel="apple-touch-icon"]')
 
       expect($icon.attr('href')).toMatch(/\/icons\/static\/nested\/icon1/)
       expect($icon.attr('sizes')).toBe('32x32')
@@ -560,19 +565,17 @@ describe('app dir - metadata', () => {
     it('should not render if image file is not specified', async () => {
       const $ = await next.render$('/icons/static')
 
-      const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
+      const $icon = $('link[rel="icon"][type!="image/x-icon"]')
 
       expect($icon.attr('href')).toMatch(/\/icons\/static\/icon/)
       expect($icon.attr('sizes')).toBe('114x114')
 
       // No apple icon if it's not provided
-      const $appleIcon = $('head > link[rel="apple-touch-icon"]')
+      const $appleIcon = $('link[rel="apple-touch-icon"]')
       expect($appleIcon.length).toBe(0)
 
       const $dynamic = await next.render$('/icons/static/dynamic-routes/123')
-      const $dynamicIcon = $dynamic(
-        'head > link[rel="icon"][type!="image/x-icon"]'
-      )
+      const $dynamicIcon = $dynamic('link[rel="icon"][type!="image/x-icon"]')
       const dynamicIconHref = $dynamicIcon.attr('href')
       expect(dynamicIconHref).toMatch(
         /\/icons\/static\/dynamic-routes\/123\/icon/
@@ -771,6 +774,14 @@ describe('app dir - metadata', () => {
         'theme-color': '#000',
       })
     })
+
+    it('should skip initial-scale from viewport if it is set to undefined', async () => {
+      const browser = await next.browser('/viewport/skip-initial-scale')
+      const matchMultiDom = createMultiDomMatcher(browser)
+      await matchMultiDom('meta', 'name', 'content', {
+        viewport: 'width=device-width',
+      })
+    })
   })
 
   describe('react cache', () => {
@@ -822,7 +833,7 @@ describe('app dir - metadata', () => {
     if (isNextDev) {
       // This test frequently causes a compilation error when run in Turbopack
       // which also causes all subsequent tests to fail. Disabled while we investigate to reduce flakes.
-      ;(process.env.TURBOPACK ? it.skip : it)(
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'should handle updates to the file icon name and order',
         async () => {
           await next.renameFile(
@@ -832,7 +843,7 @@ describe('app dir - metadata', () => {
 
           await check(async () => {
             const $ = await next.render$('/icons/static')
-            const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
+            const $icon = $('link[rel="icon"][type!="image/x-icon"]')
             return $icon.attr('href')
           }, /\/icons\/static\/icon2/)
 

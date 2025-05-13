@@ -1,16 +1,16 @@
 use std::{future::Future, ops::Deref};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use swc_core::{
-    common::{source_map::SmallPos, Span, Spanned, GLOBALS},
+    common::{GLOBALS, Span, Spanned, source_map::SmallPos},
     ecma::ast::{Decl, Expr, FnExpr, Ident, Program},
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, util::WrapFuture, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueDefault,
-    Vc,
+    NonLocalValue, ResolvedVc, TryJoinIterExt, ValueDefault, Vc, trace::TraceRawVcs,
+    util::WrapFuture,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -23,9 +23,9 @@ use turbopack_core::{
     source::Source,
 };
 use turbopack_ecmascript::{
-    analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
-    parse::{parse, ParseResult},
     EcmascriptInputTransforms, EcmascriptModuleAssetType,
+    analyzer::{ConstantNumber, ConstantValue, JsValue, graph::EvalContext},
+    parse::{ParseResult, parse},
 };
 
 use crate::{app_structure::AppPageLoaderTree, util::NextRuntime};
@@ -177,7 +177,7 @@ impl NextSegmentConfig {
 pub struct NextSegmentConfigParsingIssue {
     ident: ResolvedVc<AssetIdent>,
     detail: ResolvedVc<StyledString>,
-    source: ResolvedVc<IssueSource>,
+    source: IssueSource,
 }
 
 #[turbo_tasks::value_impl]
@@ -186,7 +186,7 @@ impl NextSegmentConfigParsingIssue {
     pub fn new(
         ident: ResolvedVc<AssetIdent>,
         detail: ResolvedVc<StyledString>,
-        source: ResolvedVc<IssueSource>,
+        source: IssueSource,
     ) -> Vc<Self> {
         Self {
             ident,
@@ -247,17 +247,14 @@ impl Issue for NextSegmentConfigParsingIssue {
     #[turbo_tasks::function]
     async fn source(&self) -> Result<Vc<OptionIssueSource>> {
         Ok(Vc::cell(Some(
-            self.source
-                .resolve_source_map(self.ident.path())
-                .to_resolved()
-                .await?,
+            self.source.resolve_source_map().await?.into_owned(),
         )))
     }
 }
 
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_source(
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
 ) -> Result<Vc<NextSegmentConfig>> {
     let path = source.ident().path().await?;
 
@@ -273,7 +270,7 @@ pub async fn parse_segment_config_from_source(
     }
 
     let result = &*parse(
-        source,
+        *source,
         turbo_tasks::Value::new(if path.path.ends_with(".ts") {
             EcmascriptModuleAssetType::Typescript {
                 tsx: false,
@@ -348,12 +345,8 @@ pub async fn parse_segment_config_from_source(
     Ok(config.cell())
 }
 
-fn issue_source(source: Vc<Box<dyn Source>>, span: Span) -> Vc<IssueSource> {
-    IssueSource::from_swc_offsets(source, span.lo.to_usize(), span.hi.to_usize())
-}
-
 async fn parse_config_value(
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     config: &mut NextSegmentConfig,
     ident: &Ident,
     init: &Expr,
@@ -361,7 +354,7 @@ async fn parse_config_value(
 ) -> Result<()> {
     let span = init.span();
     async fn invalid_config(
-        source: Vc<Box<dyn Source>>,
+        source: ResolvedVc<Box<dyn Source>>,
         span: Span,
         detail: &str,
         value: &JsValue,
@@ -370,10 +363,14 @@ async fn parse_config_value(
         let detail =
             StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).resolved_cell();
 
-        NextSegmentConfigParsingIssue::new(source.ident(), *detail, issue_source(source, span))
-            .to_resolved()
-            .await?
-            .emit();
+        NextSegmentConfigParsingIssue::new(
+            source.ident(),
+            *detail,
+            IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32()),
+        )
+        .to_resolved()
+        .await?
+        .emit();
         Ok(())
     }
 
@@ -397,7 +394,7 @@ async fn parse_config_value(
                     invalid_config(
                         source,
                         span,
-                        &format!("`dynamic` has an invalid value: {}", err),
+                        &format!("`dynamic` has an invalid value: {err}"),
                         &value,
                     )
                     .await?;
@@ -458,7 +455,7 @@ async fn parse_config_value(
                     return invalid_config(
                         source,
                         span,
-                        &format!("`fetchCache` has an invalid value: {}", err),
+                        &format!("`fetchCache` has an invalid value: {err}"),
                         &value,
                     )
                     .await;
@@ -483,7 +480,7 @@ async fn parse_config_value(
                     return invalid_config(
                         source,
                         span,
-                        &format!("`runtime` has an invalid value: {}", err),
+                        &format!("`runtime` has an invalid value: {err}"),
                         &value,
                     )
                     .await;

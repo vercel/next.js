@@ -1,5 +1,6 @@
 use std::{
     collections::{HashSet, VecDeque},
+    fmt::Debug,
     hash::{BuildHasher, BuildHasherDefault, Hash},
 };
 
@@ -18,6 +19,12 @@ use serde::{Deserialize, Serialize};
 pub struct DequeSet<T, B: BuildHasher = BuildHasherDefault<FxHasher>> {
     set: HashSet<T, B>,
     queue: VecDeque<T>,
+}
+
+impl<T: Debug, B: BuildHasher> Debug for DequeSet<T, B> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.queue.fmt(f)
+    }
 }
 
 impl<T, B: BuildHasher + Default> Default for DequeSet<T, B> {

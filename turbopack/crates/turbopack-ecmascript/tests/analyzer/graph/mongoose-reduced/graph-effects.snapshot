@@ -152,7 +152,7 @@
                         ),
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "/connection",
                                 ),
                             ),
@@ -252,7 +252,7 @@
                         ),
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "/collection",
                                 ),
                             ),

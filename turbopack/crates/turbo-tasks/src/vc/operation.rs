@@ -1,11 +1,13 @@
-use std::{fmt::Debug, hash::Hash};
+use std::{fmt::Debug, hash::Hash, marker::PhantomData};
 
+use anyhow::Result;
 use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
+pub use turbo_tasks_macros::OperationValue;
 
 use crate::{
-    marker_trait::impl_auto_marker_trait, trace::TraceRawVcs, CollectiblesSource, RawVc, TaskInput,
-    Upcast, Vc, VcValueTrait,
+    CollectiblesSource, RawVc, ReadVcFuture, ResolvedVc, TaskInput, Upcast, Vc, VcValueTrait,
+    VcValueType, marker_trait::impl_auto_marker_trait, trace::TraceRawVcs,
 };
 
 /// A "subtype" (can be converted via [`.connect()`]) of [`Vc`] that
@@ -46,6 +48,7 @@ use crate::{
 /// [`State`]: crate::State
 /// [`ReadRef`]: crate::ReadRef
 #[must_use]
+#[repr(transparent)]
 pub struct OperationVc<T>
 where
     T: ?Sized,
@@ -98,6 +101,37 @@ impl<T: ?Sized> OperationVc<T> {
             node: Vc::upcast(vc.node),
         }
     }
+
+    /// [Connects the `OperationVc`][Self::connect] and [resolves][Vc::to_resolved] the reference
+    /// until it points to a cell directly in a [strongly
+    /// consistent][crate::ReadConsistency::Strong] way.
+    ///
+    /// Resolving will wait for task execution to be finished, so that the returned [`ResolvedVc`]
+    /// points to a cell that stores a value.
+    ///
+    /// Resolving is necessary to compare identities of [`Vc`]s.
+    ///
+    /// This is async and will rethrow any fatal error that happened during task execution.
+    pub async fn resolve_strongly_consistent(self) -> Result<ResolvedVc<T>> {
+        Ok(ResolvedVc {
+            node: Vc {
+                node: self.connect().node.resolve_strongly_consistent().await?,
+                _t: PhantomData,
+            },
+        })
+    }
+
+    /// [Connects the `OperationVc`][Self::connect] and returns a [strongly
+    /// consistent][crate::ReadConsistency::Strong] read of the value.
+    ///
+    /// This ensures that all internal tasks are finished before the read is returned.
+    #[must_use]
+    pub fn read_strongly_consistent(self) -> ReadVcFuture<T>
+    where
+        T: VcValueType,
+    {
+        self.connect().node.into_read().strongly_consistent().into()
+    }
 }
 
 impl<T> Copy for OperationVc<T> where T: ?Sized {}
@@ -142,16 +176,30 @@ where
     }
 }
 
-impl<T> TaskInput for OperationVc<T> where T: ?Sized + Send + Sync {}
+// NOTE: This uses the default implementation of `is_resolved` which returns `true` because we don't
+// want `OperationVc` arguments to get resolved when passed to a `#[turbo_tasks::function]`.
+impl<T> TaskInput for OperationVc<T>
+where
+    T: ?Sized + Send + Sync,
+{
+    fn is_transient(&self) -> bool {
+        self.node.is_transient()
+    }
+}
 
-impl<T> From<RawVc> for OperationVc<T>
+impl<T> TryFrom<RawVc> for OperationVc<T>
 where
     T: ?Sized,
 {
-    fn from(raw: RawVc) -> Self {
-        Self {
-            node: Vc::from(raw),
+    type Error = anyhow::Error;
+
+    fn try_from(raw: RawVc) -> Result<Self> {
+        if !matches!(raw, RawVc::TaskOutput(..)) {
+            anyhow::bail!("Given RawVc {raw:?} is not a TaskOutput");
         }
+        Ok(Self {
+            node: Vc::from(raw),
+        })
     }
 }
 
@@ -188,17 +236,17 @@ impl<T> CollectiblesSource for OperationVc<T>
 where
     T: ?Sized,
 {
-    fn take_collectibles<Vt: VcValueTrait>(self) -> AutoSet<Vc<Vt>> {
+    fn take_collectibles<Vt: VcValueTrait>(self) -> AutoSet<ResolvedVc<Vt>> {
         self.node.node.take_collectibles()
     }
 
-    fn peek_collectibles<Vt: VcValueTrait>(self) -> AutoSet<Vc<Vt>> {
+    fn peek_collectibles<Vt: VcValueTrait>(self) -> AutoSet<ResolvedVc<Vt>> {
         self.node.node.peek_collectibles()
     }
 }
 
-/// Indicates that a type does not contain any instances of [`Vc`] or
-/// [`ResolvedVc`][crate::ResolvedVc]. It may contain [`OperationVc`].
+/// Indicates that a type does not contain any instances of [`Vc`] or [`ResolvedVc`]. It may contain
+/// [`OperationVc`].
 ///
 /// # Safety
 ///
@@ -209,5 +257,3 @@ pub unsafe trait OperationValue {}
 unsafe impl<T: ?Sized + Send> OperationValue for OperationVc<T> {}
 
 impl_auto_marker_trait!(OperationValue);
-
-pub use turbo_tasks_macros::OperationValue;

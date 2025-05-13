@@ -4,10 +4,10 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    Vc, VcValueTrait,
     registry::get_value_type,
     task::shared_reference::TypedSharedReference,
-    vc::{cast::VcCast, ReadVcFuture, VcValueTraitCast},
-    Vc, VcValueTrait,
+    vc::{ReadVcFuture, VcValueTraitCast, cast::VcCast},
 };
 
 /// Similar to a [`ReadRef<T>`][crate::ReadRef], but contains a value trait
@@ -94,7 +94,7 @@ where
     }
 
     pub fn ptr_eq(this: &Self, other: &Self) -> bool {
-        triomphe::Arc::ptr_eq(&this.shared_reference.1 .0, &other.shared_reference.1 .0)
+        triomphe::Arc::ptr_eq(&this.shared_reference.1.0, &other.shared_reference.1.0)
     }
 }
 
@@ -124,8 +124,6 @@ pub trait IntoTraitRef {
     type Future: Future<Output = Result<<VcValueTraitCast<Self::ValueTrait> as VcCast>::Output>>;
 
     fn into_trait_ref(self) -> Self::Future;
-    fn into_trait_ref_untracked(self) -> Self::Future;
-    fn into_trait_ref_strongly_consistent_untracked(self) -> Self::Future;
 }
 
 impl<T> IntoTraitRef for Vc<T>
@@ -138,13 +136,5 @@ where
 
     fn into_trait_ref(self) -> Self::Future {
         self.node.into_read().into()
-    }
-
-    fn into_trait_ref_untracked(self) -> Self::Future {
-        self.node.into_read_untracked().into()
-    }
-
-    fn into_trait_ref_strongly_consistent_untracked(self) -> Self::Future {
-        self.node.into_strongly_consistent_read_untracked().into()
     }
 }

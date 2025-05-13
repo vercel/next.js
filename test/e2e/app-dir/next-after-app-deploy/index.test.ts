@@ -36,7 +36,7 @@ _describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
     const $ = await next.render$(fullPath)
     const dataStr = $('#page-info').text()
     if (!dataStr) {
-      throw new Error(`No page data found for '${fullPath}'`)
+      throw new Error(`No page data found for path '${fullPath}'`)
     }
     return JSON.parse(dataStr) as PageInfo
   }

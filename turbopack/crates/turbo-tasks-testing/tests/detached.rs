@@ -3,22 +3,29 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use tokio::{
-    sync::{watch, Notify},
-    time::{sleep, timeout, Duration},
+    sync::{Notify, watch},
+    time::{Duration, sleep, timeout},
 };
-use turbo_tasks::{turbo_tasks, State, TransientInstance, Vc};
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks::{
+    State, TransientInstance, Vc, prevent_gc,
+    trace::{TraceRawVcs, TraceRawVcsContext},
+    turbo_tasks,
+};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
 #[tokio::test]
 async fn test_spawns_detached() -> anyhow::Result<()> {
     run(&REGISTRATION, || async {
+        // HACK: The watch channel we use has an incorrect implementation of `TraceRawVcs`, just
+        // disable GC for the test so this can't cause any problems.
+        prevent_gc();
         // timeout: prevent the test from hanging, and fail instead if this is broken
         timeout(Duration::from_secs(5), async {
-            let notify = TransientInstance::new(Notify::new());
+            let notify = TransientInstance::new(NotifyTaskInput(Notify::new()));
             let (tx, mut rx) = watch::channel(None);
-            let tx = TransientInstance::new(tx);
+            let tx = TransientInstance::new(WatchSenderTaskInput(tx));
 
             // create the task
             let out_vc = spawns_detached(notify.clone(), tx.clone());
@@ -29,7 +36,7 @@ async fn test_spawns_detached() -> anyhow::Result<()> {
                 .expect_err("should wait on the detached task");
 
             // let the detached future exit
-            notify.notify_waiters();
+            notify.0.notify_waiters();
 
             // it should send us back a cell
             let detached_vc: Vc<u32> = rx.wait_for(|opt| opt.is_some()).await?.unwrap();
@@ -45,16 +52,31 @@ async fn test_spawns_detached() -> anyhow::Result<()> {
     .await
 }
 
+#[derive(TraceRawVcs)]
+struct NotifyTaskInput(
+    // trace_ignore: `notify` doesn't store any data
+    #[turbo_tasks(trace_ignore)] Notify,
+);
+
+struct WatchSenderTaskInput<T>(watch::Sender<T>);
+
+impl<T: TraceRawVcs> TraceRawVcs for WatchSenderTaskInput<T> {
+    fn trace_raw_vcs(&self, _trace_context: &mut TraceRawVcsContext) {
+        // HACK: This implementation is wrong (the channel contains a `Vc`), but we can't access it.
+        // Instead we just `prevent_gc` in the tests.
+    }
+}
+
 #[turbo_tasks::function]
 async fn spawns_detached(
-    notify: TransientInstance<Notify>,
-    sender: TransientInstance<watch::Sender<Option<Vc<u32>>>>,
+    notify: TransientInstance<NotifyTaskInput>,
+    sender: TransientInstance<WatchSenderTaskInput<Option<Vc<u32>>>>,
 ) -> Vc<()> {
     tokio::spawn(turbo_tasks().detached_for_testing(Box::pin(async move {
-        notify.notified().await;
+        notify.0.notified().await;
         // creating cells after the normal lifetime of the task should be okay, as the parent task
         // is waiting on us before exiting!
-        sender.send(Some(Vc::cell(42))).unwrap();
+        sender.0.send(Some(Vc::cell(42))).unwrap();
         Ok(())
     })));
     Vc::cell(())
@@ -63,10 +85,12 @@ async fn spawns_detached(
 #[tokio::test]
 async fn test_spawns_detached_changing() -> anyhow::Result<()> {
     run(&REGISTRATION, || async {
+        // HACK: The watch channel we use has an incorrect implementation of `TraceRawVcs`
+        prevent_gc();
         // timeout: prevent the test from hanging, and fail instead if this is broken
         timeout(Duration::from_secs(5), async {
             let (tx, mut rx) = watch::channel(None);
-            let tx = TransientInstance::new(tx);
+            let tx = TransientInstance::new(WatchSenderTaskInput(tx));
 
             // state that's read by the detached future
             let changing_input_detached = ChangingInput {
@@ -113,7 +137,7 @@ struct ChangingInput {
 
 #[turbo_tasks::function]
 async fn spawns_detached_changing(
-    sender: TransientInstance<watch::Sender<Option<Vc<u32>>>>,
+    sender: TransientInstance<WatchSenderTaskInput<Option<Vc<u32>>>>,
     changing_input_detached: Vc<ChangingInput>,
     changing_input_outer: Vc<ChangingInput>,
 ) -> Vc<u32> {
@@ -126,6 +150,7 @@ async fn spawns_detached_changing(
             // creating cells after the normal lifetime of the task should be okay, as the parent
             // task is waiting on us before exiting!
             sender
+                .0
                 .send(Some(Vc::cell(
                     *read_changing_input(changing_input_detached).await.unwrap(),
                 )))

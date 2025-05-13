@@ -12,6 +12,7 @@ export const NEXT_ROUTER_PREFETCH_HEADER = 'Next-Router-Prefetch' as const
 export const NEXT_ROUTER_SEGMENT_PREFETCH_HEADER =
   'Next-Router-Segment-Prefetch' as const
 export const NEXT_HMR_REFRESH_HEADER = 'Next-HMR-Refresh' as const
+export const NEXT_HMR_REFRESH_HASH_COOKIE = '__next_hmr_refresh_hash__' as const
 export const NEXT_URL = 'Next-Url' as const
 export const RSC_CONTENT_TYPE_HEADER = 'text/x-component' as const
 
@@ -27,4 +28,6 @@ export const NEXT_RSC_UNION_QUERY = '_rsc' as const
 
 export const NEXT_ROUTER_STALE_TIME_HEADER = 'x-nextjs-stale-time' as const
 export const NEXT_DID_POSTPONE_HEADER = 'x-nextjs-postponed' as const
+export const NEXT_REWRITTEN_PATH_HEADER = 'x-nextjs-rewritten-path' as const
+export const NEXT_REWRITTEN_QUERY_HEADER = 'x-nextjs-rewritten-query' as const
 export const NEXT_IS_PRERENDER_HEADER = 'x-nextjs-prerender' as const

@@ -40,8 +40,10 @@ use anyhow::anyhow;
 use napi::bindgen_prelude::{External, Status};
 use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
+use terminal_hyperlink::Hyperlink;
 use tracing_chrome::{ChromeLayerBuilder, FlushGuard};
-use tracing_subscriber::{filter, prelude::*, util::SubscriberInitExt, Layer};
+use tracing_subscriber::{Layer, filter, prelude::*, util::SubscriberInitExt};
+use turbopack_core::error::PrettyPrintError;
 
 static LOG_THROTTLE: Mutex<Option<Instant>> = Mutex::new(None);
 static LOG_DIVIDER: &str = "---------------------------";
@@ -51,15 +53,17 @@ static PANIC_LOG: Lazy<PathBuf> = Lazy::new(|| {
     path
 });
 
-pub fn log_internal_error_and_inform(err_info: &str) {
+pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
     if cfg!(debug_assertions)
         || env::var("SWC_DEBUG") == Ok("1".to_string())
         || env::var("CI").is_ok_and(|v| !v.is_empty())
+        // Next's run-tests unsets CI and sets NEXT_TEST_CI
+        || env::var("NEXT_TEST_CI").is_ok_and(|v| !v.is_empty())
     {
         eprintln!(
             "{}: An unexpected Turbopack error occurred:\n{}",
             "FATAL".red().bold(),
-            err_info
+            PrettyPrintError(internal_error)
         );
         return;
     }
@@ -104,7 +108,7 @@ pub fn log_internal_error_and_inform(err_info: &str) {
             for line in new_lines {
                 match line {
                     Ok(line) => {
-                        writeln!(log_write, "{}", line).unwrap();
+                        writeln!(log_write, "{line}").unwrap();
                     }
                     Err(_) => {
                         break;
@@ -120,62 +124,97 @@ pub fn log_internal_error_and_inform(err_info: &str) {
         .open(PANIC_LOG.as_path())
         .unwrap_or_else(|_| panic!("Failed to open {}", PANIC_LOG.to_string_lossy()));
 
-    writeln!(log_file, "{}\n{}", LOG_DIVIDER, err_info).unwrap();
-    eprintln!("{}: An unexpected Turbopack error occurred. Please report the content of {}, along with a description of what you were doing when the error occurred, to https://github.com/vercel/next.js/issues/new", "FATAL".red().bold(), PANIC_LOG.to_string_lossy());
+    let internal_error_str: String = PrettyPrintError(internal_error).to_string();
+    writeln!(log_file, "{}\n{}", LOG_DIVIDER, &internal_error_str).unwrap();
+
+    let title = format!(
+        "Turbopack Error: {}",
+        internal_error_str.lines().next().unwrap_or("Unknown")
+    );
+    let version_str = format!(
+        "Turbopack version: `{}`\nNext.js version: `{}`",
+        env!("VERGEN_GIT_DESCRIBE"),
+        env!("NEXTJS_VERSION")
+    );
+    let new_discussion_url = if supports_hyperlinks::supports_hyperlinks() {
+        "clicking here.".hyperlink(
+            format!(
+                "https://github.com/vercel/next.js/discussions/new?category=turbopack-error-report&title={}&body={}&labels=Turbopack,Turbopack%20Panic%20Backtrace",
+                &urlencoding::encode(&title),
+                &urlencoding::encode(&format!("{}\n\nError message:\n```\n{}\n```", &version_str, &internal_error_str))
+            )
+        )
+    } else {
+        format!(
+            "clicking here: https://github.com/vercel/next.js/discussions/new?category=turbopack-error-report&title={}&body={}&labels=Turbopack,Turbopack%20Panic%20Backtrace",
+            &urlencoding::encode(&title),
+            &urlencoding::encode(&format!("{}\n\nError message:\n```\n{}\n```", &version_str, &title))
+        )
+    };
+
+    eprintln!(
+        "\n-----\n{}: An unexpected Turbopack error occurred. A panic log has been written to \
+         {}.\n\nTo help make Turbopack better, report this error by {}\n-----\n",
+        "FATAL".red().bold(),
+        PANIC_LOG.to_string_lossy(),
+        &new_discussion_url
+    );
 }
 
 #[napi]
-pub fn get_target_triple() -> String {
-    crate::build::BUILD_TARGET.to_string()
+pub fn get_target_triple() -> &'static str {
+    env!("VERGEN_CARGO_TARGET_TRIPLE")
 }
 
 pub trait MapErr<T>: Into<Result<T, anyhow::Error>> {
     fn convert_err(self) -> napi::Result<T> {
         self.into()
-            .map_err(|err| napi::Error::new(Status::GenericFailure, format!("{:?}", err)))
+            .map_err(|err| napi::Error::new(Status::GenericFailure, format!("{err:?}")))
     }
 }
 
 impl<T> MapErr<T> for Result<T, anyhow::Error> {}
 
+/// An opaque type potentially wrapping a [`dhat::Profiler`] instance. If we
+/// were not compiled with dhat support, this is an empty struct.
 #[cfg(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc"))]
-#[napi]
-pub fn init_heap_profiler() -> napi::Result<External<RefCell<Option<dhat::Profiler>>>> {
-    #[cfg(feature = "__internal_dhat-heap")]
-    {
-        println!("[dhat-heap]: Initializing heap profiler");
-        let _profiler = dhat::Profiler::new_heap();
-        return Ok(External::new(RefCell::new(Some(_profiler))));
-    }
+#[non_exhaustive]
+pub struct DhatProfilerGuard(dhat::Profiler);
 
-    #[cfg(feature = "__internal_dhat-ad-hoc")]
-    {
-        println!("[dhat-ad-hoc]: Initializing ad-hoc profiler");
-        let _profiler = dhat::Profiler::new_ad_hoc();
-        return Ok(External::new(RefCell::new(Some(_profiler))));
+/// An opaque type potentially wrapping a [`dhat::Profiler`] instance. If we
+/// were not compiled with dhat support, this is an empty struct.
+///
+/// [`dhat::Profiler`]: https://docs.rs/dhat/latest/dhat/struct.Profiler.html
+#[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
+#[non_exhaustive]
+pub struct DhatProfilerGuard;
+
+impl DhatProfilerGuard {
+    /// Constructs an instance if we were compiled with dhat support.
+    pub fn try_init() -> Option<Self> {
+        #[cfg(feature = "__internal_dhat-heap")]
+        {
+            println!("[dhat-heap]: Initializing heap profiler");
+            Some(Self(dhat::Profiler::new_heap()))
+        }
+        #[cfg(feature = "__internal_dhat-ad-hoc")]
+        {
+            println!("[dhat-ad-hoc]: Initializing ad-hoc profiler");
+            Some(Self(dhat::Profiler::new_ad_hoc()))
+        }
+        #[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
+        {
+            None
+        }
     }
 }
 
-#[cfg(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc"))]
-#[napi]
-pub fn teardown_heap_profiler(guard_external: External<RefCell<Option<dhat::Profiler>>>) {
-    let guard_cell = &*guard_external;
-
-    if let Some(guard) = guard_cell.take() {
+impl Drop for DhatProfilerGuard {
+    fn drop(&mut self) {
+        #[cfg(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc"))]
         println!("[dhat]: Teardown profiler");
-        drop(guard);
     }
 }
-
-#[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
-#[napi]
-pub fn init_heap_profiler() -> napi::Result<External<RefCell<Option<u32>>>> {
-    Ok(External::new(RefCell::new(Some(0))))
-}
-
-#[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
-#[napi]
-pub fn teardown_heap_profiler(_guard_external: External<RefCell<Option<u32>>>) {}
 
 /// Initialize tracing subscriber to emit traces. This configures subscribers
 /// for Trace Event Format <https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview>.

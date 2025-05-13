@@ -1,9 +1,6 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    io::Write,
-};
+use std::{collections::BTreeMap, io::Write};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use next_core::{
     next_manifests::{
         ActionLayer, ActionManifestModuleId, ActionManifestWorkerEntry, ServerReferenceManifest,
@@ -23,13 +20,18 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, Value, ValueToString, Vc};
-use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
+use turbo_tasks_fs::{self, File, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{ChunkItem, ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
     context::AssetContext,
     file_source::FileSource,
+    ident::AssetIdent,
     module::Module,
+    module_graph::{
+        ModuleGraph, SingleModuleGraph, SingleModuleGraphModuleNode,
+        async_module_info::AsyncModulesInfo,
+    },
     output::OutputAsset,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
@@ -37,11 +39,9 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
-    chunk::EcmascriptChunkPlaceable, parse::ParseResult,
-    tree_shake::asset::EcmascriptModulePartAsset, EcmascriptParsable,
+    EcmascriptParsable, chunk::EcmascriptChunkPlaceable, parse::ParseResult,
+    tree_shake::asset::EcmascriptModulePartAsset,
 };
-
-use crate::module_graph::SingleModuleGraph;
 
 #[turbo_tasks::value]
 pub(crate) struct ServerActionsManifest {
@@ -64,6 +64,7 @@ pub(crate) async fn create_server_actions_manifest(
     page_name: RcStr,
     runtime: NextRuntime,
     rsc_asset_context: Vc<Box<dyn AssetContext>>,
+    module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ServerActionsManifest>> {
     let loader =
@@ -74,13 +75,26 @@ pub(crate) async fn create_server_actions_manifest(
         .to_resolved()
         .await?;
 
-    let chunk_item = loader.as_chunk_item(Vc::upcast(chunking_context));
-    let manifest = build_manifest(node_root, page_name, runtime, actions, chunk_item).await?;
+    let chunk_item = loader.as_chunk_item(module_graph, Vc::upcast(chunking_context));
+    let manifest = build_manifest(
+        node_root,
+        page_name,
+        runtime,
+        actions,
+        chunk_item,
+        module_graph.async_module_info(),
+    )
+    .await?;
     Ok(ServerActionsManifest {
         loader: evaluable,
         manifest,
     }
     .cell())
+}
+
+#[turbo_tasks::function]
+fn server_actions_loader_modifier() -> Vc<RcStr> {
+    Vc::cell("server actions loader".into())
 }
 
 /// Builds the "action loader" entry point, which reexports every found action
@@ -90,7 +104,7 @@ pub(crate) async fn create_server_actions_manifest(
 /// file's name and the action name). This hash matches the id sent to the
 /// client and present inside the paired manifest.
 #[turbo_tasks::function]
-async fn build_server_actions_loader(
+pub(crate) async fn build_server_actions_loader(
     project_path: Vc<FileSystemPath>,
     page_name: RcStr,
     actions: Vc<AllActions>,
@@ -115,10 +129,12 @@ async fn build_server_actions_loader(
         )?;
     }
 
-    let output_path =
-        project_path.join(format!(".next-internal/server/app{page_name}/actions.js").into());
+    let path = project_path.join(format!(".next-internal/server/app{page_name}/actions.js").into());
     let file = File::from(contents.build());
-    let source = VirtualSource::new(output_path, AssetContent::file(file.into()));
+    let source = VirtualSource::new_with_ident(
+        AssetIdent::from_path(path).with_modifier(server_actions_loader_modifier()),
+        AssetContent::file(file.into()),
+    );
     let import_map = import_map.into_iter().map(|(k, v)| (v, k)).collect();
     let module = asset_context
         .process(
@@ -144,6 +160,7 @@ async fn build_manifest(
     runtime: NextRuntime,
     actions: Vc<AllActions>,
     chunk_item: Vc<Box<dyn ChunkItem>>,
+    async_module_info: Vc<AsyncModulesInfo>,
 ) -> Result<ResolvedVc<Box<dyn OutputAsset>>> {
     let manifest_path_prefix = &page_name;
     let manifest_path = node_root
@@ -167,7 +184,7 @@ async fn build_manifest(
             &key,
             ActionManifestWorkerEntry {
                 module_id: ActionManifestModuleId::String(loader_id.as_str()),
-                is_async: *chunk_item.is_self_async().await?,
+                is_async: *async_module_info.is_async(chunk_item.module()).await?,
             },
         );
         entry.layer.insert(&key, *layer);
@@ -186,10 +203,18 @@ async fn build_manifest(
 /// The ActionBrowser layer's module is in the Client context, and we need to
 /// bring it into the RSC context.
 pub async fn to_rsc_context(
-    module: Vc<Box<dyn Module>>,
+    client_module: Vc<Box<dyn Module>>,
+    entry_path: &str,
+    entry_query: &str,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<ResolvedVc<Box<dyn Module>>> {
-    let source = FileSource::new_with_query(module.ident().path(), module.ident().query());
+    // TODO a cleaner solution would something similar to the EcmascriptClientReferenceModule, as
+    // opposed to the following hack to construct the RSC module corresponding to this client
+    // module.
+    let source = FileSource::new_with_query(
+        client_module.ident().path().root().join(entry_path.into()),
+        Vc::cell(entry_query.into()),
+    );
     let module = asset_context
         .process(
             Vc::upcast(source),
@@ -210,7 +235,7 @@ pub async fn to_rsc_context(
 pub fn parse_server_actions(
     program: &Program,
     comments: &dyn Comments,
-) -> Option<BTreeMap<String, String>> {
+) -> Option<(BTreeMap<String, String>, String, String)> {
     let byte_pos = match program {
         Program::Module(m) => m.span.lo,
         Program::Script(s) => s.span.lo,
@@ -219,10 +244,7 @@ pub fn parse_server_actions(
         comments.iter().find_map(|c| {
             c.text
                 .split_once("__next_internal_action_entry_do_not_use__")
-                .and_then(|(_, actions)| match serde_json::from_str(actions) {
-                    Ok(v) => Some(v),
-                    Err(_) => None,
-                })
+                .and_then(|(_, actions)| serde_json::from_str(actions).ok())
         })
     })
 }
@@ -240,7 +262,7 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
     if let Some(module) = Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(module).await?
     {
         if matches!(
-            &*module.await?.part.await?,
+            module.await?.part,
             ModulePart::Evaluation | ModulePart::Facade
         ) {
             return Ok(Vc::cell(None));
@@ -259,7 +281,8 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
         return Ok(Vc::cell(None));
     };
 
-    let Some(mut actions) = parse_server_actions(original, comments) else {
+    let Some((mut actions, entry_path, entry_query)) = parse_server_actions(original, comments)
+    else {
         return Ok(Vc::cell(None));
     };
 
@@ -280,7 +303,14 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
 
     let mut actions = FxIndexMap::from_iter(actions.into_iter());
     actions.sort_keys();
-    Ok(Vc::cell(Some(ResolvedVc::cell(actions))))
+    Ok(Vc::cell(Some(
+        ActionMap {
+            actions,
+            entry_path,
+            entry_query,
+        }
+        .resolved_cell(),
+    )))
 }
 
 fn all_export_names(program: &Program) -> Vec<Atom> {
@@ -381,8 +411,13 @@ impl AllActions {
 }
 
 /// Maps the hashed action id to the action's exported function name.
-#[turbo_tasks::value(transparent)]
-pub struct ActionMap(FxIndexMap<String, String>);
+#[turbo_tasks::value]
+#[derive(Debug)]
+pub struct ActionMap {
+    pub actions: FxIndexMap<String, String>,
+    pub entry_path: String,
+    pub entry_query: String,
+}
 
 /// An Option wrapper around [ActionMap].
 #[turbo_tasks::value(transparent)]
@@ -391,7 +426,7 @@ struct OptionActionMap(Option<ResolvedVc<ActionMap>>);
 type LayerAndActions = (ActionLayer, ResolvedVc<ActionMap>);
 /// A mapping of every module module containing Server Actions, mapping to its layer and actions.
 #[turbo_tasks::value(transparent)]
-pub struct AllModuleActions(HashMap<ResolvedVc<Box<dyn Module>>, LayerAndActions>);
+pub struct AllModuleActions(FxIndexMap<ResolvedVc<Box<dyn Module>>, LayerAndActions>);
 
 #[turbo_tasks::function]
 pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllModuleActions>> {
@@ -400,8 +435,10 @@ pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllMo
         .iter_nodes()
         .map(|node| {
             async move {
+                let SingleModuleGraphModuleNode { module, layer, .. } = node;
+
                 // TODO: compare module contexts instead?
-                let layer = match &node.layer {
+                let layer = match &layer {
                     Some(layer) if &**layer == "app-rsc" || &**layer == "app-edge-rsc" => {
                         ActionLayer::Rsc
                     }
@@ -411,9 +448,9 @@ pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllMo
                 };
                 // TODO the old implementation did parse_actions(to_rsc_context(module))
                 // is that really necessary?
-                Ok(parse_actions(*node.module)
+                Ok(parse_actions(**module)
                     .await?
-                    .map(|action_map| (node.module, (layer, action_map))))
+                    .map(|action_map| (*module, (layer, action_map))))
             }
         })
         .try_flat_join()

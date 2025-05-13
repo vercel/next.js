@@ -10,8 +10,9 @@ use swc_core::{
     quote,
 };
 use turbopack_ecmascript::{
-    annotations::{with_clause, ANNOTATION_TRANSITION},
     TURBOPACK_HELPER,
+    annotations::{ANNOTATION_TRANSITION, with_clause},
+    runtime_functions::TURBOPACK_EXPORT_NAMESPACE,
 };
 
 pub fn create_proxy_module(transition_name: &str, target_import: &str) -> Program {
@@ -33,7 +34,8 @@ pub fn create_proxy_module(transition_name: &str, target_import: &str) -> Progra
                 phase: Default::default(),
             })),
             ModuleItem::Stmt(quote!(
-                "__turbopack_export_namespace__($proxy);" as Stmt,
+                "$turbopack_export_namespace($proxy);" as Stmt,
+                turbopack_export_namespace: Expr = TURBOPACK_EXPORT_NAMESPACE.into(),
                 proxy = ident,
             )),
         ],
@@ -58,7 +60,8 @@ pub fn create_error_proxy_module(error_proxy_module: &str) -> Program {
                 phase: Default::default(),
             })),
             ModuleItem::Stmt(quote!(
-                "__turbopack_export_namespace__($proxy);" as Stmt,
+                "$turbopack_export_namespace($proxy);" as Stmt,
+                turbopack_export_namespace: Expr = TURBOPACK_EXPORT_NAMESPACE.into(),
                 proxy = ident,
             )),
         ],

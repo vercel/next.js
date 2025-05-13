@@ -4,8 +4,6 @@ This starter configures Meilisearch and InstantSearch for a Next.js application.
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
-
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-meilisearch&project-name=with-meilisearch&repository-name=with-meilisearch&integration-ids=oac_VnRV92Cy6BoP96QY6Rkc5898)
 
 ## How to use

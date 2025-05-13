@@ -5,8 +5,10 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
-import type { ExpireTime } from '../lib/revalidate'
-import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
+import type {
+  HeadData,
+  LoadingModuleData,
+} from '../../shared/lib/app-router-context.shared-runtime'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { __ApiPreviewProps } from '../api-utils'
 
@@ -92,7 +94,23 @@ export type FlightRouterState = [
    */
   refresh?: 'refetch' | 'refresh' | 'inside-shared-layout' | null,
   isRootLayout?: boolean,
+  /**
+   * Only present when responding to a tree prefetch request. Indicates whether
+   * there is a loading boundary somewhere in the tree. The client cache uses
+   * this to determine if it can skip the data prefetch request.
+   */
+  hasLoadingBoundary?: HasLoadingBoundary,
 ]
+
+export const enum HasLoadingBoundary {
+  // There is a loading boundary in this particular segment
+  SegmentHasLoadingBoundary = 1,
+  // There is a loading boundary somewhere in the subtree (but not in
+  // this segment)
+  SubtreeHasLoadingBoundary = 2,
+  // There is no loading boundary in this segment or any of its descendants
+  SubtreeHasNoLoadingBoundary = 3,
+}
 
 /**
  * Individual Flight response path
@@ -131,7 +149,7 @@ export type FlightDataSegment = [
   /* segment of the rendered slice: */ Segment,
   /* treePatch */ FlightRouterState,
   /* cacheNodeSeedData */ CacheNodeSeedData | null, // Can be null during prefetch if there's no loading component
-  /* head: [viewport, metadata] */ [React.ReactNode, React.ReactNode],
+  /* head: viewport */ HeadData,
   /* isHeadPartial */ boolean,
 ]
 
@@ -174,12 +192,13 @@ export interface RenderOptsPartial {
   assetPrefix?: string
   crossOrigin?: '' | 'anonymous' | 'use-credentials' | undefined
   nextFontManifest?: DeepReadonly<NextFontManifest>
-  isBot?: boolean
+  botType?: 'dom' | 'html' | undefined
+  serveStreamingMetadata?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
   cacheLifeProfiles?: {
     [profile: string]: import('../use-cache/cache-life').CacheLife
   }
-  setAppIsrStatus?: (key: string, value: boolean | null) => void
+  setIsrStatus?: (key: string, value: boolean | null) => void
   isRevalidate?: boolean
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
@@ -200,32 +219,34 @@ export interface RenderOptsPartial {
   }
   params?: ParsedUrlQuery
   isPrefetch?: boolean
+  htmlLimitedBots: string | undefined
   experimental: {
     /**
      * When true, it indicates that the current page supports partial
      * prerendering.
      */
     isRoutePPREnabled?: boolean
-    expireTime: ExpireTime | undefined
+    expireTime: number | undefined
     clientTraceMetadata: string[] | undefined
     dynamicIO: boolean
-    clientSegmentCache: boolean
+    clientSegmentCache: boolean | 'client-only'
+    dynamicOnHover: boolean
     inlineCss: boolean
     authInterrupts: boolean
   }
   postponed?: string
 
   /**
+   * Should wait for react stream allReady to resolve all suspense boundaries,
+   * in order to perform a full page render.
+   */
+  shouldWaitOnAllReady?: boolean
+
+  /**
    * The resume data cache that was generated for this partially prerendered
    * page during dev warmup.
    */
   devRenderResumeDataCache?: RenderResumeDataCache
-
-  /**
-   * When true, only the static shell of the page will be rendered. This will
-   * also enable other debugging features such as logging in development.
-   */
-  isDebugStaticShell?: boolean
 
   /**
    * When true, the page will be rendered using the static rendering to detect
@@ -241,6 +262,13 @@ export interface RenderOptsPartial {
   reactMaxHeadersLength: number | undefined
 
   isStaticGeneration?: boolean
+
+  /**
+   * When true, the page will be rendered using the static rendering to detect
+   * any dynamic API's that would have stopped the page from being fully
+   * statically generated.
+   */
+  doNotThrowOnEmptyStaticShell?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &

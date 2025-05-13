@@ -6,8 +6,8 @@ use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     introspect::{
-        module::IntrospectableModule, output_asset::IntrospectableOutputAsset, Introspectable,
-        IntrospectableChildren,
+        Introspectable, IntrospectableChildren, module::IntrospectableModule,
+        output_asset::IntrospectableOutputAsset,
     },
     issue::IssueDescriptionExt,
     module::Module,
@@ -17,18 +17,18 @@ use turbopack_core::{
 use turbopack_dev_server::{
     html::DevHtmlAsset,
     source::{
+        ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
+        GetContentSourceContent, ProxyResult,
         asset_graph::AssetGraphContentSource,
         conditional::ConditionalContentSource,
         lazy_instantiated::{GetContentSource, LazyInstantiatedContentSource},
         route_tree::{BaseSegment, RouteTree, RouteType},
-        ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
-        GetContentSourceContent, ProxyResult,
     },
 };
 
 use super::{
-    render_static::{render_static_operation, StaticResult},
     RenderData,
+    render_static::{StaticResult, render_static_operation},
 };
 use crate::{
     external_asset_entrypoints, get_intermediate_asset, node_entry::NodeEntry,
@@ -190,7 +190,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
             self.cwd,
             self.env,
             self.server_root.join(path.clone()).to_resolved().await?,
-            entry.module,
+            ResolvedVc::upcast(entry.module),
             entry.runtime_entries,
             self.fallback_page,
             entry.chunking_context,
@@ -212,7 +212,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
         )
         .issue_file_path(
             entry.module.ident().path(),
-            format!("server-side rendering {}", pathname),
+            format!("server-side rendering {pathname}"),
         )
         .await?;
         Ok(match *result_op.connect().await? {
@@ -234,7 +234,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
                     result_op,
                     ProxyResult {
                         status,
-                        headers: headers.await?.clone_value(),
+                        headers: headers.owned().await?,
                         body: body.clone(),
                     }
                     .resolved_cell(),
@@ -293,7 +293,9 @@ impl Introspectable for NodeRenderContentSource {
             let entry = entry.await?;
             set.insert((
                 ResolvedVc::cell("module".into()),
-                IntrospectableModule::new(Vc::upcast(*entry.module)),
+                IntrospectableModule::new(Vc::upcast(*entry.module))
+                    .to_resolved()
+                    .await?,
             ));
             set.insert((
                 ResolvedVc::cell("intermediate asset".into()),
@@ -301,7 +303,9 @@ impl Introspectable for NodeRenderContentSource {
                     *entry.chunking_context,
                     *entry.module,
                     *entry.runtime_entries,
-                )),
+                ))
+                .to_resolved()
+                .await?,
             ));
         }
         Ok(Vc::cell(set))

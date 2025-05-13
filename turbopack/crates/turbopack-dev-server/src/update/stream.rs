@@ -6,7 +6,10 @@ use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{IntoTraitRef, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc};
+use turbo_tasks::{
+    IntoTraitRef, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc,
+    trace::{TraceRawVcs, TraceRawVcsContext},
+};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     error::PrettyPrintError,
@@ -21,9 +24,68 @@ use turbopack_core::{
     },
 };
 
-use crate::source::{resolve::ResolveSourceRequestResult, ProxyResult};
+use crate::source::{ProxyResult, resolve::ResolveSourceRequestResult};
 
-type GetContentFn = Box<dyn Fn() -> OperationVc<ResolveSourceRequestResult> + Send + Sync>;
+struct TypedGetContentFn<C> {
+    capture: C,
+    func: for<'a> fn(&'a C) -> OperationVc<ResolveSourceRequestResult>,
+}
+
+// Manual (non-derive) impl required due to: https://github.com/rust-lang/rust/issues/70263
+// Safety: `capture` is `NonLocalValue`, `func` stores no data (is a static pointer to code)
+unsafe impl<C: NonLocalValue> NonLocalValue for TypedGetContentFn<C> {}
+
+// Manual (non-derive) impl required due to: https://github.com/rust-lang/rust/issues/70263
+impl<C: TraceRawVcs> TraceRawVcs for TypedGetContentFn<C> {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        self.capture.trace_raw_vcs(trace_context);
+    }
+}
+
+trait TypedGetContentFnTrait: NonLocalValue + TraceRawVcs {
+    fn call(&self) -> OperationVc<ResolveSourceRequestResult>;
+}
+
+impl<C> TypedGetContentFnTrait for TypedGetContentFn<C>
+where
+    C: NonLocalValue + TraceRawVcs,
+{
+    fn call(&self) -> OperationVc<ResolveSourceRequestResult> {
+        (self.func)(&self.capture)
+    }
+}
+
+/// A wrapper type returning [`OperationVc<ResolveSourceRequestResult>`][ResolveSourceRequestResult]
+/// that implements [`NonLocalValue`] and [`TraceRawVcs`].
+///
+/// The capture (e.g. moved values in a closure) and function pointer are stored separately to allow
+/// safe implementation of these desired traits.
+#[derive(NonLocalValue, TraceRawVcs)]
+pub struct GetContentFn {
+    inner: Box<dyn TypedGetContentFnTrait + Send + Sync>,
+}
+
+impl GetContentFn {
+    /// Wrap a function and an optional capture variable (used to simulate a closure) in
+    /// `GetContentFn`.
+    pub fn new<C>(
+        capture: C,
+        func: for<'a> fn(&'a C) -> OperationVc<ResolveSourceRequestResult>,
+    ) -> Self
+    where
+        C: NonLocalValue + TraceRawVcs + Send + Sync + 'static,
+    {
+        Self {
+            inner: Box::new(TypedGetContentFn { capture, func }),
+        }
+    }
+}
+
+impl GetContentFn {
+    fn call(&self) -> OperationVc<ResolveSourceRequestResult> {
+        self.inner.call()
+    }
+}
 
 async fn peek_issues<T: Send>(source: OperationVc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
     let captured = source.peek_issues_with_path().await?;
@@ -49,15 +111,14 @@ fn versioned_content_update_operation(
     content.update(*from)
 }
 
-#[turbo_tasks::function]
-async fn get_update_stream_item(
+#[turbo_tasks::function(operation)]
+async fn get_update_stream_item_operation(
     resource: RcStr,
-    from: Vc<VersionState>,
+    from: ResolvedVc<VersionState>,
     get_content: TransientInstance<GetContentFn>,
 ) -> Result<Vc<UpdateStreamItem>> {
-    let content_op = get_content();
-    let content_vc = content_op.connect();
-    let content_result = content_vc.strongly_consistent().await;
+    let content_op = get_content.call();
+    let content_result = content_op.read_strongly_consistent().await;
     let mut plain_issues = peek_issues(content_op).await?;
 
     let content_value = match content_result {
@@ -167,19 +228,32 @@ async fn get_update_stream_item(
     }
 }
 
+#[derive(TraceRawVcs)]
+struct ComputeUpdateStreamSender(
+    // HACK: `trace_ignore`: It's not correct or safe to send `Vc`s across this mpsc channel, but
+    // (without nightly auto traits) there's no easy way for us to statically assert that
+    // `UpdateStreamItem` does not contain a `RawVc`.
+    //
+    // It could be safe (at least for the GC use-case) if we had some way of wrapping arbitrary
+    // objects in a GC root container.
+    #[turbo_tasks(trace_ignore)] Sender<Result<ReadRef<UpdateStreamItem>>>,
+);
+
+/// This function sends an [`UpdateStreamItem`] to `sender` every time it gets recomputed by
+/// turbo-tasks due to invalidation.
 #[turbo_tasks::function]
 async fn compute_update_stream(
     resource: RcStr,
-    from: Vc<VersionState>,
+    from: ResolvedVc<VersionState>,
     get_content: TransientInstance<GetContentFn>,
-    sender: TransientInstance<Sender<Result<ReadRef<UpdateStreamItem>>>>,
+    sender: TransientInstance<ComputeUpdateStreamSender>,
 ) -> Vc<()> {
-    let item = get_update_stream_item(resource, from, get_content)
-        .strongly_consistent()
+    let item = get_update_stream_item_operation(resource, from, get_content)
+        .read_strongly_consistent()
         .await;
 
     // Send update. Ignore channel closed error.
-    let _ = sender.send(item).await;
+    let _ = sender.0.send(item).await;
 
     Default::default()
 }
@@ -196,7 +270,7 @@ impl UpdateStream {
     ) -> Result<UpdateStream> {
         let (sx, rx) = tokio::sync::mpsc::channel(32);
 
-        let content = get_content();
+        let content = get_content.call();
         // We can ignore issues reported in content here since [compute_update_stream]
         // will handle them
         let version = match *content.connect().await? {
@@ -214,7 +288,7 @@ impl UpdateStream {
             resource,
             version_state,
             get_content,
-            TransientInstance::new(sx),
+            TransientInstance::new(ComputeUpdateStreamSender(sx)),
         );
 
         let mut last_had_issues = false;
@@ -321,5 +395,51 @@ impl Issue for FatalStreamIssue {
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
         Vc::cell(Some(self.description))
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicI32, Ordering},
+    };
+
+    use turbo_tasks::TurboTasks;
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+
+    use super::*;
+
+    #[turbo_tasks::function(operation)]
+    pub fn noop_operation() -> Vc<ResolveSourceRequestResult> {
+        ResolveSourceRequestResult::NotFound.cell()
+    }
+
+    #[tokio::test]
+    async fn test_get_content_fn() {
+        crate::register();
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let number = Arc::new(AtomicI32::new(0));
+            fn func(number: &Arc<AtomicI32>) -> OperationVc<ResolveSourceRequestResult> {
+                number.store(42, Ordering::SeqCst);
+                noop_operation()
+            }
+            let wrapped_func = GetContentFn::new(number.clone(), func);
+            let return_value = wrapped_func
+                .call()
+                .read_strongly_consistent()
+                .await
+                .unwrap();
+            assert_eq!(number.load(Ordering::SeqCst), 42);
+            // ResolveSourceRequestResult doesn't impl Debug
+            assert!(*return_value == ResolveSourceRequestResult::NotFound);
+            Ok(())
+        })
+        .await
+        .unwrap();
     }
 }

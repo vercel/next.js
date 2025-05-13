@@ -1,12 +1,10 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned};
-use syn::{
-    parse_macro_input, parse_quote, spanned::Spanned, ItemTrait, TraitItem, TraitItemMethod,
-};
+use syn::{parse_macro_input, parse_quote, spanned::Spanned, ItemTrait, TraitItem, TraitItemFn};
 use turbo_tasks_macros_shared::{
     get_trait_default_impl_function_id_ident, get_trait_default_impl_function_ident,
-    get_trait_type_id_ident, get_trait_type_ident, ValueTraitArguments,
+    get_trait_type_id_ident, get_trait_type_ident, is_self_used, ValueTraitArguments,
 };
 
 use crate::func::{
@@ -14,11 +12,7 @@ use crate::func::{
 };
 
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
-    let ValueTraitArguments {
-        debug,
-        local,
-        operation,
-    } = parse_macro_input!(args as ValueTraitArguments);
+    let ValueTraitArguments { debug, operation } = parse_macro_input!(args as ValueTraitArguments);
 
     let item = parse_macro_input!(input as ItemTrait);
 
@@ -34,6 +28,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         auto_token,
         generics,
         brace_token: _,
+        restriction: _,
     } = &item;
 
     if unsafety.is_some() {
@@ -74,7 +69,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut items = Vec::with_capacity(raw_items.len());
 
     for item in raw_items.iter() {
-        let TraitItem::Method(TraitItemMethod {
+        let TraitItem::Fn(TraitItemFn {
             sig,
             default,
             attrs,
@@ -105,31 +100,35 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         };
 
         let turbo_signature = turbo_fn.signature();
-        let arg_types = turbo_fn.input_types();
+        let arg_types = turbo_fn.exposed_input_types();
         let dynamic_block = turbo_fn.dynamic_block(&trait_type_id_ident);
         dynamic_trait_fns.push(quote! {
             #turbo_signature #dynamic_block
         });
 
         let default = if let Some(default) = default {
+            let is_self_used = is_self_used(default);
             let inline_function_ident = turbo_fn.inline_ident();
             let inline_extension_trait_ident =
-                Ident::new(&format!("{}_{}_inline", trait_ident, ident), ident.span());
-            let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(default);
+                Ident::new(&format!("{trait_ident}_{ident}_inline"), ident.span());
+            let (inline_signature, inline_block) =
+                turbo_fn.inline_signature_and_block(default, is_self_used);
             let inline_attrs = filter_inline_attributes(&attrs[..]);
 
-            let native_function = NativeFn::new(
-                &format!("{trait_ident}::{ident}"),
-                &parse_quote! {
+            let native_function = NativeFn {
+                function_path_string: format!("{trait_ident}::{ident}"),
+                function_path: parse_quote! {
                     <Box<dyn #trait_ident> as #inline_extension_trait_ident>::#inline_function_ident
                 },
-                turbo_fn.is_method(),
-                // `inline_cells` is currently unsupported here because:
+                is_method: turbo_fn.is_method(),
+                is_self_used,
+                filter_trait_call_args: turbo_fn.filter_trait_call_args(),
+                // `local` is currently unsupported here because:
                 // - The `#[turbo_tasks::function]` macro needs to be present for us to read this
-                //   argument.
+                //   argument. (This could be fixed)
                 // - This only makes sense when a default implementation is present.
-                false,
-            );
+                local: false,
+            };
 
             let native_function_ident = get_trait_default_impl_function_ident(trait_ident, ident);
             let native_function_ty = native_function.ty();
@@ -180,7 +179,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             None
         };
 
-        items.push(TraitItem::Method(TraitItemMethod {
+        items.push(TraitItem::Fn(TraitItemFn {
             sig: turbo_fn.trait_signature(),
             default,
             attrs: attrs.clone(),
@@ -197,12 +196,11 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         quote! {}
     };
 
-    let mut extended_supertraits = vec![quote!(::std::marker::Send), quote!(::std::marker::Sync)];
-    if !local {
-        extended_supertraits.push(quote! {
-            turbo_tasks::NonLocalValue
-        });
-    }
+    let mut extended_supertraits = vec![
+        quote!(::std::marker::Send),
+        quote!(::std::marker::Sync),
+        quote!(turbo_tasks::NonLocalValue),
+    ];
     if let Some(span) = operation {
         extended_supertraits.push(quote_spanned! {
             span => turbo_tasks::OperationValue

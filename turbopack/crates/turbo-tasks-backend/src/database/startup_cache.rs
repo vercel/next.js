@@ -1,5 +1,5 @@
 use std::{
-    borrow::{Borrow, Cow},
+    borrow::Borrow,
     fs::{self, File},
     hash::BuildHasherDefault,
     io::{BufWriter, Read, Write},
@@ -10,13 +10,15 @@ use std::{
 
 use anyhow::{Ok, Result};
 use byteorder::WriteBytesExt;
-use dashmap::DashMap;
 use rustc_hash::{FxHashMap, FxHasher};
+use turbo_tasks::FxDashMap;
 
 use crate::database::{
     by_key_space::ByKeySpace,
     key_value_database::{KeySpace, KeyValueDatabase},
-    write_batch::{BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch},
+    write_batch::{
+        BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch, WriteBuffer,
+    },
 };
 
 const CACHE_SIZE_LIMIT: usize = 100 * 1024 * 1024;
@@ -39,7 +41,7 @@ impl<T: KeyValueDatabase> Borrow<[u8]> for ValueBuffer<'_, T> {
     }
 }
 
-type Cache = ByKeySpace<DashMap<Vec<u8>, Option<Vec<u8>>, BuildHasherDefault<FxHasher>>>;
+type Cache = ByKeySpace<FxDashMap<Vec<u8>, Option<Vec<u8>>>>;
 
 pub struct StartupCacheLayer<T: KeyValueDatabase> {
     database: T,
@@ -81,7 +83,7 @@ impl<T: KeyValueDatabase> StartupCacheLayer<T> {
             fresh_db,
             cache_size: AtomicUsize::new(0),
             cache: ByKeySpace::new(|key_space| {
-                DashMap::with_capacity_and_hasher(
+                FxDashMap::with_capacity_and_hasher(
                     match key_space {
                         KeySpace::Infra => 8,
                         KeySpace::TaskMeta => 1024 * 1024,
@@ -268,7 +270,12 @@ impl<'a, B: BaseWriteBatch<'a>> BaseWriteBatch<'a> for StartupCacheWriteBatch<'a
 }
 
 impl<'a, B: SerialWriteBatch<'a>> SerialWriteBatch<'a> for StartupCacheWriteBatch<'a, B> {
-    fn put(&mut self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()> {
+    fn put(
+        &mut self,
+        key_space: KeySpace,
+        key: WriteBuffer<'_>,
+        value: WriteBuffer<'_>,
+    ) -> Result<()> {
         if !self.fresh_db {
             let cache = self.cache.get(key_space);
             cache.insert(key.to_vec(), Some(value.to_vec()));
@@ -276,7 +283,7 @@ impl<'a, B: SerialWriteBatch<'a>> SerialWriteBatch<'a> for StartupCacheWriteBatc
         self.batch.put(key_space, key, value)
     }
 
-    fn delete(&mut self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()> {
+    fn delete(&mut self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
         if !self.fresh_db {
             let cache = self.cache.get(key_space);
             cache.insert(key.to_vec(), None);
@@ -286,7 +293,7 @@ impl<'a, B: SerialWriteBatch<'a>> SerialWriteBatch<'a> for StartupCacheWriteBatc
 }
 
 impl<'a, B: ConcurrentWriteBatch<'a>> ConcurrentWriteBatch<'a> for StartupCacheWriteBatch<'a, B> {
-    fn put(&self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()> {
+    fn put(&self, key_space: KeySpace, key: WriteBuffer<'_>, value: WriteBuffer<'_>) -> Result<()> {
         if !self.fresh_db {
             let cache = self.cache.get(key_space);
             cache.insert(key.to_vec(), Some(value.to_vec()));
@@ -294,7 +301,7 @@ impl<'a, B: ConcurrentWriteBatch<'a>> ConcurrentWriteBatch<'a> for StartupCacheW
         self.batch.put(key_space, key, value)
     }
 
-    fn delete(&self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()> {
+    fn delete(&self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
         if !self.fresh_db {
             let cache = self.cache.get(key_space);
             cache.insert(key.to_vec(), None);

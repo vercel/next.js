@@ -602,7 +602,7 @@ impl Task {
         aggregation_context.apply_queued_updates();
     }
 
-    pub(crate) fn get_function_name(&self) -> Option<Cow<'static, str>> {
+    pub(crate) fn get_function_name(&self) -> Option<&'static str> {
         if let TaskType::Persistent { ty, .. } | TaskType::Transient { ty, .. } = &self.ty {
             Some(ty.get_name())
         } else {
@@ -616,8 +616,8 @@ impl Task {
 
     fn format_description(ty: &TaskTypeForDescription, id: TaskId) -> String {
         match ty {
-            TaskTypeForDescription::Root => format!("[{}] root", id),
-            TaskTypeForDescription::Once => format!("[{}] once", id),
+            TaskTypeForDescription::Root => format!("[{id}] root"),
+            TaskTypeForDescription::Once => format!("[{id}] once"),
             TaskTypeForDescription::Persistent(ty) => format!("[{id}] {ty}"),
         }
     }
@@ -737,13 +737,10 @@ impl Task {
                 }
                 Dirty { .. } => {
                     let state_type = Task::state_string(&state);
-                    panic!(
-                        "{:?} execution started in unexpected state {}",
-                        self, state_type
-                    )
+                    panic!("{self:?} execution started in unexpected state {state_type}")
                 }
             };
-            self.make_execution_future(backend, turbo_tasks)
+            self.make_execution_future()
         };
         aggregation_context.apply_queued_updates();
         Some(TaskExecutionSpec { future, span })
@@ -752,8 +749,6 @@ impl Task {
     /// Prepares task execution and returns a future that will execute the task.
     fn make_execution_future<'a>(
         self: &'a Task,
-        _backend: &MemoryBackend,
-        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> (
         Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'a>>,
         Span,
@@ -766,58 +761,19 @@ impl Task {
                 mutex.lock().take().expect("Task can only be executed once"),
                 tracing::trace_span!("turbo_tasks::once_task"),
             ),
-            TaskType::Persistent { ty, .. } | TaskType::Transient { ty, .. } => match &***ty {
-                CachedTaskType::Native {
+            TaskType::Persistent { ty, .. } | TaskType::Transient { ty, .. } => {
+                let CachedTaskType {
                     fn_type: native_fn_id,
                     this,
                     arg,
-                } => {
-                    let func = registry::get_function(*native_fn_id);
-                    let span = func.span(self.id);
-                    let entered = span.enter();
-                    let future = func.execute(*this, &**arg);
-                    drop(entered);
-                    (future, span)
-                }
-                CachedTaskType::ResolveNative {
-                    fn_type: native_fn_id,
-                    this,
-                    arg,
-                } => {
-                    let func = registry::get_function(*native_fn_id);
-                    let span = func.resolve_span(self.id);
-                    let entered = span.enter();
-                    let future = Box::pin(CachedTaskType::run_resolve_native(
-                        *native_fn_id,
-                        *this,
-                        &**arg,
-                        self.id.persistence(),
-                        turbo_tasks.pin(),
-                    ));
-                    drop(entered);
-                    (future, span)
-                }
-                CachedTaskType::ResolveTrait {
-                    trait_type: trait_type_id,
-                    method_name: name,
-                    this,
-                    arg,
-                } => {
-                    let trait_type = registry::get_trait(*trait_type_id);
-                    let span = trait_type.resolve_span(name);
-                    let entered = span.enter();
-                    let future = Box::pin(CachedTaskType::run_resolve_trait(
-                        *trait_type_id,
-                        name.clone(),
-                        *this,
-                        &**arg,
-                        self.id.persistence(),
-                        turbo_tasks.pin(),
-                    ));
-                    drop(entered);
-                    (future, span)
-                }
-            },
+                } = &***ty;
+                let func = registry::get_function(*native_fn_id);
+                let span = func.span(self.id.persistence());
+                let entered = span.enter();
+                let future = func.execute(*this, &**arg);
+                drop(entered);
+                (future, span)
+            }
         }
     }
 
@@ -910,7 +866,7 @@ impl Task {
                 }
                 Ok(Err(mut err)) => {
                     if let Some(name) = self.get_function_name() {
-                        err = err.context(format!("Execution of {} failed", name));
+                        err = err.context(format!("Execution of {name} failed"));
                     }
                     state.output.error(err, turbo_tasks)
                 }

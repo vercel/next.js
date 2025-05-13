@@ -1,0 +1,5 @@
+.module-style {
+  cursor: url(./image.png);
+  list-style-image: url(image.png);
+  background-image: url('./image.png');
+}

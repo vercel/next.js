@@ -1,4 +1,3 @@
-#![feature(async_closure)]
 #![feature(str_split_remainder)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(arbitrary_self_types)]
@@ -50,8 +49,8 @@ pub use next_edge::context::{
     get_edge_compile_time_info, get_edge_resolve_options_context,
 };
 pub use next_import_map::get_next_package;
-pub use page_loader::{create_page_loader_entry_module, PageLoaderAsset};
-pub use util::{get_asset_path_from_pathname, pathname_for_path, PathType};
+pub use page_loader::{PageLoaderAsset, create_page_loader_entry_module};
+pub use util::{PathType, get_asset_path_from_pathname, pathname_for_path};
 
 pub fn register() {
     turbo_tasks::register();

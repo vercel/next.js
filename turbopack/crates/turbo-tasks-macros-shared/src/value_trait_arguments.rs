@@ -1,9 +1,8 @@
 use proc_macro2::Span;
 use syn::{
-    parse::{Parse, ParseStream},
-    punctuated::Punctuated,
-    spanned::Spanned,
     Meta, Token,
+    parse::{Parse, ParseStream},
+    spanned::Spanned,
 };
 
 /// Arguments to the `#[turbo_tasks::value_trait]` attribute macro.
@@ -12,8 +11,6 @@ pub struct ValueTraitArguments {
     /// Whether the macro should generate a `ValueDebug`-like `dbg()`
     /// implementation on the trait's `Vc`.
     pub debug: bool,
-    /// By default, traits have a `turbo_tasks::NonLocalValue` supertype. Should we skip this?
-    pub local: bool,
     /// Should the trait have a `turbo_tasks::OperationValue` supertype?
     pub operation: Option<Span>,
 }
@@ -22,7 +19,6 @@ impl Default for ValueTraitArguments {
     fn default() -> Self {
         Self {
             debug: true,
-            local: false,
             operation: None,
         }
     }
@@ -35,14 +31,11 @@ impl Parse for ValueTraitArguments {
             return Ok(result);
         }
 
-        let punctuated: Punctuated<Meta, Token![,]> = input.parse_terminated(Meta::parse)?;
+        let punctuated = input.parse_terminated(Meta::parse, Token![,])?;
         for meta in punctuated {
             match meta.path().get_ident().map(ToString::to_string).as_deref() {
                 Some("no_debug") => {
                     result.debug = false;
-                }
-                Some("local") => {
-                    result.local = true;
                 }
                 Some("operation") => {
                     result.operation = Some(meta.span());

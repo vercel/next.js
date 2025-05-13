@@ -1,16 +1,16 @@
 use std::{
     borrow::Borrow,
-    collections::HashMap,
     fmt::{Debug, Formatter},
     hash::{BuildHasher, BuildHasherDefault, Hash},
     marker::PhantomData,
 };
 
+use hashbrown::hash_map::HashMap;
 use rustc_hash::FxHasher;
 use serde::{
+    Deserialize, Deserializer, Serialize, Serializer,
     de::{MapAccess, Visitor},
     ser::SerializeMap,
-    Deserialize, Deserializer, Serialize, Serializer,
 };
 use smallvec::SmallVec;
 
@@ -176,12 +176,10 @@ impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> AutoMap<K, V, H,
                 None => Entry::Vacant(VacantEntry::List { this, list, key }),
             },
             AutoMap::Map(map) => match map.entry(key) {
-                std::collections::hash_map::Entry::Occupied(entry) => {
+                hashbrown::hash_map::Entry::Occupied(entry) => {
                     Entry::Occupied(OccupiedEntry::Map { this, entry })
                 }
-                std::collections::hash_map::Entry::Vacant(entry) => {
-                    Entry::Vacant(VacantEntry::Map(entry))
-                }
+                hashbrown::hash_map::Entry::Vacant(entry) => Entry::Vacant(VacantEntry::Map(entry)),
             },
         }
     }
@@ -198,10 +196,10 @@ impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> AutoMap<K, V, H,
                 None => RawEntry::Vacant(VacantRawEntry::List { this, list }),
             },
             AutoMap::Map(map) => match map.raw_entry_mut().from_key(key) {
-                std::collections::hash_map::RawEntryMut::Occupied(entry) => {
+                hashbrown::hash_map::RawEntryMut::Occupied(entry) => {
                     RawEntry::Occupied(OccupiedRawEntry::Map { this, entry })
                 }
-                std::collections::hash_map::RawEntryMut::Vacant(entry) => {
+                hashbrown::hash_map::RawEntryMut::Vacant(entry) => {
                     RawEntry::Vacant(VacantRawEntry::Map(entry))
                 }
             },
@@ -289,10 +287,9 @@ impl<K: Eq + Hash, V, H: BuildHasher, const I: usize> AutoMap<K, V, H, I> {
         Q: Hash + Eq + ?Sized,
     {
         match self {
-            AutoMap::List(list) => {
-                list.iter()
-                    .find_map(|(k, v)| if *k.borrow() == *key { Some(v) } else { None })
-            }
+            AutoMap::List(list) => list
+                .iter()
+                .find_map(|(k, v)| if *k.borrow() == *key { Some(v) } else { None }),
             AutoMap::Map(map) => map.get(key),
         }
     }
@@ -300,10 +297,9 @@ impl<K: Eq + Hash, V, H: BuildHasher, const I: usize> AutoMap<K, V, H, I> {
     /// see [HashMap::get_mut](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.get_mut)
     pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
         match self {
-            AutoMap::List(list) => {
-                list.iter_mut()
-                    .find_map(|(k, v)| if *k == *key { Some(v) } else { None })
-            }
+            AutoMap::List(list) => list
+                .iter_mut()
+                .find_map(|(k, v)| if *k == *key { Some(v) } else { None }),
             AutoMap::Map(map) => map.get_mut(key),
         }
     }
@@ -397,7 +393,7 @@ impl<'a, K, V, H, const I: usize> IntoIterator for &'a AutoMap<K, V, H, I> {
 
 pub enum Iter<'a, K, V> {
     List(std::slice::Iter<'a, (K, V)>),
-    Map(std::collections::hash_map::Iter<'a, K, V>),
+    Map(hashbrown::hash_map::Iter<'a, K, V>),
 }
 
 impl<'a, K, V> Iterator for Iter<'a, K, V> {
@@ -431,7 +427,7 @@ impl<K, V> Clone for Iter<'_, K, V> {
 
 pub enum IterMut<'a, K, V> {
     List(std::slice::IterMut<'a, (K, V)>),
-    Map(std::collections::hash_map::IterMut<'a, K, V>),
+    Map(hashbrown::hash_map::IterMut<'a, K, V>),
 }
 
 impl<'a, K, V> Iterator for IterMut<'a, K, V> {
@@ -454,7 +450,7 @@ impl<'a, K, V> Iterator for IterMut<'a, K, V> {
 
 pub enum IntoIter<K, V, const I: usize> {
     List(smallvec::IntoIter<[(K, V); I]>),
-    Map(std::collections::hash_map::IntoIter<K, V>),
+    Map(hashbrown::hash_map::IntoIter<K, V>),
 }
 
 impl<K, V, const I: usize> Iterator for IntoIter<K, V, I> {
@@ -477,7 +473,7 @@ impl<K, V, const I: usize> Iterator for IntoIter<K, V, I> {
 
 pub enum Values<'a, K, V> {
     List(std::slice::Iter<'a, (K, V)>),
-    Map(std::collections::hash_map::Values<'a, K, V>),
+    Map(hashbrown::hash_map::Values<'a, K, V>),
 }
 
 impl<'a, K, V> Iterator for Values<'a, K, V> {
@@ -500,7 +496,7 @@ impl<'a, K, V> Iterator for Values<'a, K, V> {
 
 pub enum ValuesMut<'a, K, V> {
     List(std::slice::IterMut<'a, (K, V)>),
-    Map(std::collections::hash_map::ValuesMut<'a, K, V>),
+    Map(hashbrown::hash_map::ValuesMut<'a, K, V>),
 }
 
 impl<'a, K, V> Iterator for ValuesMut<'a, K, V> {
@@ -523,7 +519,7 @@ impl<'a, K, V> Iterator for ValuesMut<'a, K, V> {
 
 pub enum IntoValues<K, V, const I: usize> {
     List(smallvec::IntoIter<[(K, V); I]>),
-    Map(std::collections::hash_map::IntoValues<K, V>),
+    Map(hashbrown::hash_map::IntoValues<K, V>),
 }
 
 impl<K, V, const I: usize> Iterator for IntoValues<K, V, I> {
@@ -586,7 +582,7 @@ pub enum OccupiedEntry<'a, K, V, H, const I: usize> {
     },
     Map {
         this: *mut AutoMap<K, V, H, I>,
-        entry: std::collections::hash_map::OccupiedEntry<'a, K, V>,
+        entry: hashbrown::hash_map::OccupiedEntry<'a, K, V, H>,
     },
 }
 
@@ -616,6 +612,20 @@ impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> OccupiedEntry<'_
             OccupiedEntry::Map { entry, this: _ } => entry.remove(),
         }
     }
+
+    pub fn replace_entry_with(self, func: impl FnOnce(&K, V) -> Option<V>) {
+        match self {
+            OccupiedEntry::List { list, index } => {
+                let (key, value) = list.swap_remove(index);
+                if let Some(value) = func(&key, value) {
+                    list.push((key, value));
+                }
+            }
+            OccupiedEntry::Map { entry, .. } => {
+                entry.replace_entry_with(func);
+            }
+        }
+    }
 }
 
 pub enum VacantEntry<'a, K, V, H, const I: usize> {
@@ -624,7 +634,7 @@ pub enum VacantEntry<'a, K, V, H, const I: usize> {
         list: &'a mut SmallVec<[(K, V); I]>,
         key: K,
     },
-    Map(std::collections::hash_map::VacantEntry<'a, K, V>),
+    Map(hashbrown::hash_map::VacantEntry<'a, K, V, H>),
 }
 
 impl<'a, K: Eq + Hash, V, H: BuildHasher + Default + 'a, const I: usize>
@@ -659,7 +669,7 @@ pub enum OccupiedRawEntry<'a, K, V, H, const I: usize> {
     },
     Map {
         this: *mut AutoMap<K, V, H, I>,
-        entry: std::collections::hash_map::RawOccupiedEntryMut<'a, K, V, H>,
+        entry: hashbrown::hash_map::RawOccupiedEntryMut<'a, K, V, H>,
     },
 }
 
@@ -696,7 +706,7 @@ pub enum VacantRawEntry<'a, K, V, H, const I: usize> {
         this: *mut AutoMap<K, V, H, I>,
         list: &'a mut SmallVec<[(K, V); I]>,
     },
-    Map(std::collections::hash_map::RawVacantEntryMut<'a, K, V, H>),
+    Map(hashbrown::hash_map::RawVacantEntryMut<'a, K, V, H>),
 }
 
 impl<'a, K: Eq + Hash, V, H: BuildHasher + Default + 'a, const I: usize>
@@ -862,7 +872,7 @@ where
         index: usize,
         f: F,
     },
-    Map(std::collections::hash_map::ExtractIf<'l, K, V, F>),
+    Map(hashbrown::hash_map::ExtractIf<'l, K, V, F>),
 }
 
 impl<K, V, const I: usize, F> Iterator for ExtractIfIter<'_, K, V, I, F>

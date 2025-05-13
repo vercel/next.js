@@ -2,8 +2,8 @@
 name = "turbopack-node"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
-edition = "2021"
+license = "MIT"
+edition = "2024"
 autobenches = false
 
 [lib]
@@ -20,7 +20,8 @@ workspace = true
 anyhow = { workspace = true }
 async-stream = "0.3.4"
 async-trait = { workspace = true }
-const_format = "0.2.30"
+base64 = "0.21.0"
+const_format = { workspace = true }
 either = { workspace = true, features = ["serde"] }
 futures = { workspace = true }
 futures-retry = { workspace = true }
@@ -31,6 +32,7 @@ once_cell = { workspace = true }
 owo-colors = { workspace = true }
 parking_lot = { workspace = true }
 regex = { workspace = true }
+rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_with = { workspace = true, features = ["base64"] }

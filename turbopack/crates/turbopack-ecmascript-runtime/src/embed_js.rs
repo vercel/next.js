@@ -1,6 +1,6 @@
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
-use turbo_tasks_fs::{embed_directory, FileContent, FileSystem, FileSystemPath};
+use turbo_tasks_fs::{FileContent, FileSystem, FileSystemPath, embed_directory};
 use turbopack_core::{code_builder::Code, context::AssetContext};
 use turbopack_ecmascript::StaticEcmascriptCode;
 
@@ -20,6 +20,10 @@ pub fn embed_file_path(path: RcStr) -> Vc<FileSystemPath> {
 }
 
 #[turbo_tasks::function]
-pub fn embed_static_code(asset_context: Vc<Box<dyn AssetContext>>, path: RcStr) -> Vc<Code> {
-    StaticEcmascriptCode::new(asset_context, embed_file_path(path)).code()
+pub fn embed_static_code(
+    asset_context: Vc<Box<dyn AssetContext>>,
+    path: RcStr,
+    generate_source_map: bool,
+) -> Vc<Code> {
+    StaticEcmascriptCode::new(asset_context, embed_file_path(path), generate_source_map).code()
 }

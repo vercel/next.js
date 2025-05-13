@@ -11,7 +11,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-      - run: corepack enable
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
       - name: 'Close issues using the wrong issue template'
         run: node ./.github/actions/next-repo-actions/dist/wrong-issue-template/index.js
         env:

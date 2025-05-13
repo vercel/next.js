@@ -12,6 +12,7 @@
         "../../.github/workflows/build_and_deploy.yml",
         "../../rust-toolchain"
       ],
+      "env": ["CI"],
       "outputs": ["native/*.node"]
     },
     "build-native-release": {
@@ -24,6 +25,7 @@
         "../../.github/workflows/build_and_deploy.yml",
         "../../rust-toolchain"
       ],
+      "env": ["CI"],
       "outputs": ["native/*.node"]
     },
     "build-native-no-plugin": {
@@ -36,6 +38,7 @@
         "../../.github/workflows/build_and_deploy.yml",
         "../../rust-toolchain"
       ],
+      "env": ["CI"],
       "outputs": ["native/*.node"]
     },
     "build-native-no-plugin-release": {
@@ -48,6 +51,7 @@
         "../../.github/workflows/build_and_deploy.yml",
         "../../rust-toolchain"
       ],
+      "env": ["CI"],
       "outputs": ["native/*.node"]
     },
     "build-wasm": {
@@ -60,6 +64,7 @@
         "../../.github/workflows/build_and_deploy.yml",
         "../../rust-toolchain"
       ],
+      "env": ["CI"],
       "outputs": ["../../crates/wasm/pkg/*"]
     },
     "build-native-wasi": {
@@ -72,6 +77,7 @@
         "../../.github/workflows/build_and_deploy.yml",
         "../../rust-toolchain"
       ],
+      "env": ["CI"],
       "outputs": ["native/*"]
     },
     "cache-build-native": {
@@ -84,6 +90,7 @@
         "../../.github/workflows/build_and_deploy.yml",
         "../../rust-toolchain"
       ],
+      "env": ["CI"],
       "outputs": ["native/*.node"]
     },
     "rust-check": {

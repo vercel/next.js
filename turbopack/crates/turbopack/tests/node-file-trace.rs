@@ -18,7 +18,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use difference::Changeset;
 use helpers::print_changeset;
 use lazy_static::lazy_static;
@@ -31,14 +31,14 @@ use serde::{Deserialize, Serialize};
 use tokio::{process::Command, time::timeout};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    apply_effects, backend::Backend, ReadRef, ResolvedVc, TurboTasks, Value, ValueToString, Vc,
+    ReadRef, ResolvedVc, TurboTasks, Value, ValueToString, Vc, apply_effects, backend::Backend,
 };
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    emit_with_completion,
+    ModuleAssetContext, emit_with_completion_operation,
     module_options::{CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext},
-    register, ModuleAssetContext,
+    register,
 };
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
@@ -420,7 +420,7 @@ fn node_file_trace<B: Backend + 'static>(
                 let original_output = exec_node(package_root, input);
 
                 let output_fs = DiskFileSystem::new("output".into(), directory.clone(), vec![]);
-                let output_dir = output_fs.root();
+                let output_dir = output_fs.root().to_resolved().await?;
 
                 let source = FileSource::new(input);
                 let module_asset_context = ModuleAssetContext::new(
@@ -457,18 +457,19 @@ fn node_file_trace<B: Backend + 'static>(
                 let module = module_asset_context
                     .process(Vc::upcast(source), Value::new(ReferenceType::Undefined))
                     .module();
-                let rebased = RebasedAsset::new(Vc::upcast(module), *input_dir, output_dir)
+                let rebased = RebasedAsset::new(Vc::upcast(module), *input_dir, *output_dir)
                     .to_resolved()
                     .await?;
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
-                let output_path = rebased.ident().path();
+                let output_path = rebased.path();
 
                 print_graph(ResolvedVc::upcast(rebased)).await?;
 
-                let emit = emit_with_completion(*ResolvedVc::upcast(rebased), output_dir);
-                emit.strongly_consistent().await?;
-                apply_effects(emit).await?;
+                let emit_op =
+                    emit_with_completion_operation(ResolvedVc::upcast(rebased), output_dir);
+                emit_op.read_strongly_consistent().await?;
+                apply_effects(emit_op).await?;
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
                 {
@@ -531,7 +532,7 @@ fn node_file_trace<B: Backend + 'static>(
                     }
                 }
                 Err(err) => {
-                    panic!("Execution failed: {:?}", err);
+                    panic!("Execution failed: {err:?}");
                 }
             };
 
@@ -642,7 +643,7 @@ async fn exec_node(directory: RcStr, path: Vc<FileSystemPath>) -> Result<Vc<Comm
         cmd.current_dir(current_dir);
     }
 
-    println!("[CMD]: {:#?}", cmd);
+    println!("[CMD]: {cmd:#?}");
 
     let output = timeout(Duration::from_secs(100), cmd.output())
         .await
@@ -706,10 +707,7 @@ async fn assert_output(
                 String::new()
             } else {
                 let stderr_diff = diff(&expected.stderr, &actual.stderr);
-                format!(
-                    "could not find `{}` in stderr\n{}",
-                    expected_stderr, stderr_diff
-                )
+                format!("could not find `{expected_stderr}` in stderr\n{stderr_diff}")
             }
         } else {
             diff(&expected.stderr, &actual.stderr)
@@ -773,11 +771,11 @@ async fn print_graph(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<()> {
             for &asset in references.iter().rev() {
                 queue.push((depth + 1, asset));
             }
-            println!("{}{}", indent, asset.ident().to_string().await?);
+            println!("{}{}", indent, asset.path().to_string().await?);
         } else if references.is_empty() {
-            println!("{}{} *", indent, asset.ident().to_string().await?);
+            println!("{}{} *", indent, asset.path().to_string().await?);
         } else {
-            println!("{}{} *...", indent, asset.ident().to_string().await?);
+            println!("{}{} *...", indent, asset.path().to_string().await?);
         }
     }
     Ok(())

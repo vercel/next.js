@@ -1,9 +1,9 @@
 use std::mem::take;
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, TryJoinIterExt, Vc};
+use turbo_tasks::{NonLocalValue, TryJoinIterExt, Vc, trace::TraceRawVcs};
 use unicode_segmentation::GraphemeCursor;
 
 #[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
@@ -50,8 +50,20 @@ pub struct Glob {
 
 impl Glob {
     pub fn execute(&self, path: &str) -> bool {
+        // TODO(lukesandberg): deprecate this implicit behavior
         let match_partial = path.ends_with('/');
         self.iter_matches(path, true, match_partial)
+            .any(|result| matches!(result, ("", _)))
+    }
+
+    // Returns true if the glob could match a filename underneath this `path` where the path
+    // represents a directory.
+    pub fn match_in_directory(&self, path: &str) -> bool {
+        debug_assert!(!path.ends_with('/'));
+        // TODO(lukesandberg): see if we can avoid this allocation by changing the matching
+        // algorithm
+        let path = format!("{path}/");
+        self.iter_matches(&path, true, true)
             .any(|result| matches!(result, ("", _)))
     }
 
@@ -59,12 +71,12 @@ impl Glob {
         &'a self,
         path: &'a str,
         previous_part_is_path_separator_equivalent: bool,
-        match_partial: bool,
+        match_in_directory: bool,
     ) -> GlobMatchesIterator<'a> {
         GlobMatchesIterator {
             current: path,
             glob: self,
-            match_partial,
+            match_in_directory,
             is_path_separator_equivalent: previous_part_is_path_separator_equivalent,
             stack: Vec::new(),
             index: 0,
@@ -89,7 +101,9 @@ impl Glob {
 struct GlobMatchesIterator<'a> {
     current: &'a str,
     glob: &'a Glob,
-    match_partial: bool,
+    // In this mode we are checking if the glob might match something in the directory represented
+    // by this path.
+    match_in_directory: bool,
     is_path_separator_equivalent: bool,
     stack: Vec<GlobPartMatchesIterator<'a>>,
     index: usize,
@@ -107,7 +121,7 @@ impl<'a> Iterator for GlobMatchesIterator<'a> {
                     let iter = part.iter_matches(
                         self.current,
                         self.is_path_separator_equivalent,
-                        self.match_partial,
+                        self.match_in_directory,
                     );
                     self.stack.push(iter);
                     self.stack.last_mut().unwrap()
@@ -118,7 +132,7 @@ impl<'a> Iterator for GlobMatchesIterator<'a> {
 
                     self.index += 1;
 
-                    if self.match_partial && self.current.is_empty() {
+                    if self.match_in_directory && self.current.is_empty() {
                         return Some(("", self.is_path_separator_equivalent));
                     }
                 } else {
@@ -152,12 +166,12 @@ impl GlobPart {
         &'a self,
         path: &'a str,
         previous_part_is_path_separator_equivalent: bool,
-        match_partial: bool,
+        match_in_directory: bool,
     ) -> GlobPartMatchesIterator<'a> {
         GlobPartMatchesIterator {
             path,
             part: self,
-            match_partial,
+            match_in_directory,
             previous_part_is_path_separator_equivalent,
             cursor: GraphemeCursor::new(0, path.len(), true),
             index: 0,
@@ -256,7 +270,7 @@ impl GlobPart {
 struct GlobPartMatchesIterator<'a> {
     path: &'a str,
     part: &'a GlobPart,
-    match_partial: bool,
+    match_in_directory: bool,
     previous_part_is_path_separator_equivalent: bool,
     cursor: GraphemeCursor,
     index: usize,
@@ -375,7 +389,7 @@ impl<'a> Iterator for GlobPartMatchesIterator<'a> {
                     self.glob_iterator = Some(Box::new(alternative.iter_matches(
                         self.path,
                         self.previous_part_is_path_separator_equivalent,
-                        self.match_partial,
+                        self.match_in_directory,
                     )));
                 } else {
                     return None;
@@ -407,13 +421,7 @@ impl Glob {
         }
         Ok(Self::cell(Glob {
             expression: vec![GlobPart::Alternatives(
-                globs
-                    .into_iter()
-                    .try_join()
-                    .await?
-                    .into_iter()
-                    .map(|g| g.clone_value())
-                    .collect(),
+                globs.into_iter().map(|g| g.owned()).try_join().await?,
             )],
         }))
     }

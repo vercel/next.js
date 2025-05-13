@@ -10,7 +10,7 @@ use turbopack::{
 use turbopack_browser::react_refresh::assert_can_resolve_react_refresh;
 use turbopack_core::{
     file_source::FileSource,
-    resolve::{find_context_file, node::node_cjs_resolve_options, FindContextFileResult},
+    resolve::{FindContextFileResult, find_context_file, node::node_cjs_resolve_options},
     source::Source,
 };
 use turbopack_ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig};
@@ -126,10 +126,15 @@ pub async fn get_jsx_transform_options(
 ) -> Result<Vc<JsxTransformOptions>> {
     let tsconfig = get_typescript_options(project_path).await?;
 
-    let enable_react_refresh = if let Some(resolve_options_context) = resolve_options_context {
-        assert_can_resolve_react_refresh(project_path, resolve_options_context)
-            .await?
-            .is_found()
+    let is_react_development = mode.await?.is_react_development();
+    let enable_react_refresh = if is_react_development {
+        if let Some(resolve_options_context) = resolve_options_context {
+            assert_can_resolve_react_refresh(project_path, resolve_options_context)
+                .await?
+                .is_found()
+        } else {
+            false
+        }
     } else {
         false
     };

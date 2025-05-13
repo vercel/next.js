@@ -1,18 +1,20 @@
 use std::{
     borrow::Cow,
-    collections::{hash_map::Entry, HashMap, HashSet},
-    mem::transmute,
+    collections::hash_map::Entry,
+    mem::{take, transmute},
     ops::{Deref, DerefMut},
     sync::Arc,
 };
 
 use anyhow::Result;
+use rustc_hash::{FxHashMap, FxHashSet};
 use turbopack_trace_utils::tracing::{TraceRow, TraceValue};
 
 use super::TraceFormat;
 use crate::{
     span::SpanIndex,
     store_container::{StoreContainer, StoreWriteGuard},
+    timestamp::Timestamp,
     FxIndexMap,
 };
 
@@ -41,20 +43,20 @@ impl InternalRow<'_> {
 enum InternalRowType<'a> {
     Start {
         new_id: u64,
-        ts: u64,
+        ts: Timestamp,
         name: Cow<'a, str>,
         target: Cow<'a, str>,
         values: Vec<(Cow<'a, str>, TraceValue<'a>)>,
     },
     End {
-        ts: u64,
+        ts: Timestamp,
     },
     SelfTime {
-        start: u64,
-        end: u64,
+        start: Timestamp,
+        end: Timestamp,
     },
     Event {
-        ts: u64,
+        ts: Timestamp,
         values: Vec<(Cow<'a, str>, TraceValue<'a>)>,
     },
     Record {
@@ -129,24 +131,24 @@ struct QueuedRows {
 
 pub struct TurbopackFormat {
     store: Arc<StoreContainer>,
-    id_mapping: HashMap<u64, SpanIndex>,
-    queued_rows: HashMap<u64, QueuedRows>,
-    outdated_spans: HashSet<SpanIndex>,
-    thread_stacks: HashMap<u64, Vec<u64>>,
-    thread_allocation_counters: HashMap<u64, AllocationInfo>,
-    self_time_started: HashMap<(u64, u64), u64>,
+    id_mapping: FxHashMap<u64, SpanIndex>,
+    queued_rows: FxHashMap<u64, QueuedRows>,
+    outdated_spans: FxHashSet<SpanIndex>,
+    thread_stacks: FxHashMap<u64, Vec<u64>>,
+    thread_allocation_counters: FxHashMap<u64, AllocationInfo>,
+    self_time_started: FxHashMap<(u64, u64), Timestamp>,
 }
 
 impl TurbopackFormat {
     pub fn new(store: Arc<StoreContainer>) -> Self {
         Self {
             store,
-            id_mapping: HashMap::new(),
-            queued_rows: HashMap::new(),
-            outdated_spans: HashSet::new(),
-            thread_stacks: HashMap::new(),
-            thread_allocation_counters: HashMap::new(),
-            self_time_started: HashMap::new(),
+            id_mapping: FxHashMap::default(),
+            queued_rows: FxHashMap::default(),
+            outdated_spans: FxHashSet::default(),
+            thread_stacks: FxHashMap::default(),
+            thread_allocation_counters: FxHashMap::default(),
+            self_time_started: FxHashMap::default(),
         }
     }
 
@@ -160,6 +162,7 @@ impl TurbopackFormat {
                 target,
                 values,
             } => {
+                let ts = Timestamp::from_micros(ts);
                 self.process_internal_row(
                     store,
                     InternalRow {
@@ -184,6 +187,7 @@ impl TurbopackFormat {
                 );
             }
             TraceRow::End { ts, id } => {
+                let ts = Timestamp::from_micros(ts);
                 self.process_internal_row(
                     store,
                     InternalRow {
@@ -193,6 +197,7 @@ impl TurbopackFormat {
                 );
             }
             TraceRow::Enter { ts, id, thread_id } => {
+                let ts = Timestamp::from_micros(ts);
                 let stack = self.thread_stacks.entry(thread_id).or_default();
                 if let Some(&parent) = stack.last() {
                     if let Some(parent_start) = self.self_time_started.remove(&(parent, thread_id))
@@ -217,6 +222,7 @@ impl TurbopackFormat {
                 self.self_time_started.insert((id, thread_id), ts);
             }
             TraceRow::Exit { ts, id, thread_id } => {
+                let ts = Timestamp::from_micros(ts);
                 let stack = self.thread_stacks.entry(thread_id).or_default();
                 if let Some(pos) = stack.iter().rev().position(|&x| x == id) {
                     let stack_index = stack.len() - pos - 1;
@@ -237,6 +243,7 @@ impl TurbopackFormat {
                 }
             }
             TraceRow::Event { ts, parent, values } => {
+                let ts = Timestamp::from_micros(ts);
                 self.process_internal_row(
                     store,
                     InternalRow {
@@ -345,6 +352,22 @@ impl TurbopackFormat {
     }
 
     fn process_internal_row(&mut self, store: &mut StoreWriteGuard, row: InternalRow<'_>) {
+        let mut queue = Vec::new();
+        queue.push(row);
+        while !queue.is_empty() {
+            let q = take(&mut queue);
+            for row in q {
+                self.process_internal_row_queue(store, row, &mut queue);
+            }
+        }
+    }
+
+    fn process_internal_row_queue(
+        &mut self,
+        store: &mut StoreWriteGuard,
+        row: InternalRow<'_>,
+        queue: &mut Vec<InternalRow<'_>>,
+    ) {
         let id = if let Some(id) = row.id {
             if let Some(id) = self.id_mapping.get(&id) {
                 Some(*id)
@@ -381,7 +404,7 @@ impl TurbopackFormat {
                 self.id_mapping.insert(new_id, span_id);
                 if let Some(QueuedRows { rows }) = self.queued_rows.remove(&new_id) {
                     for row in rows {
-                        self.process_internal_row(store, row);
+                        queue.push(row);
                     }
                 }
             }
@@ -403,10 +426,12 @@ impl TurbopackFormat {
             }
             InternalRowType::Event { ts, values } => {
                 let mut values = values.into_iter().collect::<FxIndexMap<_, _>>();
-                let duration = values
-                    .swap_remove("duration")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0);
+                let duration = Timestamp::from_micros(
+                    values
+                        .swap_remove("duration")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0),
+                );
                 let name = values
                     .swap_remove("name")
                     .and_then(|v| v.as_str().map(|s| s.to_string()))

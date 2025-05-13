@@ -16,6 +16,7 @@ pub(crate) mod next_pure;
 pub(crate) mod next_react_server_components;
 pub(crate) mod next_shake_exports;
 pub(crate) mod next_strip_page_exports;
+pub(crate) mod next_track_dynamic_imports;
 pub(crate) mod react_remove_properties;
 pub(crate) mod relay;
 pub(crate) mod remove_console;
@@ -25,11 +26,12 @@ pub(crate) mod styled_jsx;
 pub(crate) mod swc_ecma_transform_plugins;
 
 use anyhow::Result;
-pub use modularize_imports::{get_next_modularize_imports_rule, ModularizeImportPackageConfig};
+pub use modularize_imports::{ModularizeImportPackageConfig, get_next_modularize_imports_rule};
 pub use next_dynamic::get_next_dynamic_transform_rule;
 pub use next_font::get_next_font_transform_rule;
 pub use next_lint::get_next_lint_transform_rule;
 pub use next_strip_page_exports::get_next_pages_transforms_rule;
+pub use next_track_dynamic_imports::get_next_track_dynamic_imports_transform_rule;
 pub use server_actions::get_server_actions_transform_rule;
 use turbo_tasks::{ReadRef, ResolvedVc, Value};
 use turbo_tasks_fs::FileSystemPath;
@@ -37,7 +39,7 @@ use turbopack::module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCo
 use turbopack_core::reference_type::{ReferenceType, UrlReferenceSubType};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform};
 
-use crate::next_image::{module::BlurPlaceholderMode, StructuredImageModuleType};
+use crate::next_image::{StructuredImageModuleType, module::BlurPlaceholderMode};
 
 pub async fn get_next_image_rule() -> Result<ModuleRule> {
     Ok(ModuleRule::new(
@@ -86,6 +88,8 @@ fn match_js_extension(enable_mdx_rs: bool) -> Vec<RuleCondition> {
         RuleCondition::ResourcePathEndsWith(".tsx".to_string()),
         RuleCondition::ResourcePathEndsWith(".mjs".to_string()),
         RuleCondition::ResourcePathEndsWith(".cjs".to_string()),
+        RuleCondition::ContentTypeStartsWith("application/javascript".to_string()),
+        RuleCondition::ContentTypeStartsWith("text/javascript".to_string()),
     ];
 
     if enable_mdx_rs {
@@ -93,6 +97,7 @@ fn match_js_extension(enable_mdx_rs: bool) -> Vec<RuleCondition> {
             vec![
                 RuleCondition::ResourcePathEndsWith(".md".to_string()),
                 RuleCondition::ResourcePathEndsWith(".mdx".to_string()),
+                RuleCondition::ContentTypeStartsWith("text/markdown".to_string()),
             ]
             .as_mut(),
         );

@@ -1,16 +1,15 @@
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
-import type { DynamicServerError } from '../../client/components/hooks-server-context'
 import type { FetchMetrics } from '../base-http'
 import type { FallbackRouteParams } from '../request/fallback-params'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 import type { AfterContext } from '../after/after-context'
 import type { CacheLife } from '../use-cache/cache-life'
-import type { Params } from '../request/params'
 
 // Share the instance module in the next-shared layer
 import { workAsyncStorageInstance } from './work-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
+import type { LazyResult } from '../lib/lazy-result'
 
 export interface WorkStore {
   readonly isStaticGeneration: boolean
@@ -50,12 +49,39 @@ export interface WorkStore {
 
   dynamicUsageDescription?: string
   dynamicUsageStack?: string
-  dynamicUsageErr?: DynamicServerError
+
+  /**
+   * Invalid dynamic usage errors might be caught in userland. We attach them to
+   * the work store to ensure we can still fail the build, or show en error in
+   * dev mode.
+   */
+  // TODO: Collect an array of errors, and throw as AggregateError when
+  // `serializeError` and the Dev Overlay support it.
+  invalidDynamicUsageError?: Error
 
   nextFetchId?: number
   pathWasRevalidated?: boolean
 
-  revalidatedTags?: string[]
+  /**
+   * Tags that were revalidated during the current request. They need to be sent
+   * to cache handlers to propagate their revalidation.
+   */
+  pendingRevalidatedTags?: string[]
+
+  /**
+   * Tags that were previously revalidated (e.g. by a redirecting server action)
+   * and have already been sent to cache handlers. Retrieved cache entries that
+   * include any of these tags must be discarded.
+   */
+  readonly previouslyRevalidatedTags: readonly string[]
+
+  /**
+   * This map contains lazy results so that we can evaluate them when the first
+   * cache entry is read. It allows us to skip refreshing tags if no caches are
+   * read at all.
+   */
+  readonly refreshTagsByCacheKind: Map<string, LazyResult<void>>
+
   fetchMetrics?: FetchMetrics
 
   isDraftMode?: boolean
@@ -71,7 +97,20 @@ export interface WorkStore {
   >
   readonly assetPrefix?: string
 
-  rootParams: Params
+  dynamicIOEnabled: boolean
+  dev: boolean
+
+  /**
+   * Run the given function inside a clean AsyncLocalStorage snapshot. This is
+   * useful when generating cache entries, to ensure that the cache generation
+   * cannot read anything from the context we're currently executing in, which
+   * might include request-specific things like `cookies()` inside a
+   * `React.cache()`.
+   */
+  runInCleanSnapshot: <R, TArgs extends any[]>(
+    fn: (...args: TArgs) => R,
+    ...args: TArgs
+  ) => R
 }
 
 export type WorkAsyncStorage = AsyncLocalStorage<WorkStore>

@@ -5,6 +5,7 @@ import cheerio from 'cheerio'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
+  createNowRouteMatches,
   fetchViaHTTP,
   findPort,
   initNextServerScript,
@@ -182,7 +183,9 @@ describe('required server files app router', () => {
       headers: {
         'user-agent':
           'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-        'x-now-route-matches': '1=second&nxtPslug=new',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'new',
+        }).toString(),
         'x-matched-path': '/isr/[slug]',
       },
     })
@@ -197,7 +200,9 @@ describe('required server files app router', () => {
       headers: {
         'user-agent':
           'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-        'x-now-route-matches': '1=second&nxtPslug=new',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'new',
+        }).toString(),
         'x-matched-path': '/isr/[slug]',
       },
     })

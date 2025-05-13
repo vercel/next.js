@@ -5,8 +5,8 @@ use clap::Parser;
 use owo_colors::OwoColorize;
 use regex::{NoExpand, Regex};
 use swc_core::{
-    base::{config::IsModule, try_with_handler, Compiler, HandlerOpts},
-    common::{errors::ColorConfig, source_map::FileName, Globals, SourceMap, GLOBALS},
+    base::{Compiler, HandlerOpts, config::IsModule, try_with_handler},
+    common::{GLOBALS, Globals, SourceMap, errors::ColorConfig, source_map::FileName},
     ecma::{
         ast::EsVersion,
         parser::{Syntax, TsSyntax},
@@ -39,16 +39,18 @@ fn main() -> Result<()> {
     });
 
     let compiler = Compiler::new(sm.clone());
-    let res = GLOBALS.set(&Globals::new(), || {
-        try_with_handler(
-            sm,
-            HandlerOpts {
-                color: ColorConfig::Always,
-                skip_filename: false,
-            },
-            |handler| compiler.parse_js(file, handler, target, syntax, IsModule::Unknown, None),
-        )
-    });
+    let res = GLOBALS
+        .set(&Globals::new(), || {
+            try_with_handler(
+                sm,
+                HandlerOpts {
+                    color: ColorConfig::Always,
+                    skip_filename: false,
+                },
+                |handler| compiler.parse_js(file, handler, target, syntax, IsModule::Unknown, None),
+            )
+        })
+        .map_err(|e| e.to_pretty_error());
 
     let print = format!("{:#?}", res?);
 

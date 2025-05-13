@@ -16,9 +16,9 @@ use turbopack_node::execution_context::ExecutionContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{
+    ModuleAssetContext,
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
     transition::TransitionOptions,
-    ModuleAssetContext,
 };
 
 #[turbo_tasks::function]
@@ -37,7 +37,7 @@ pub async fn node_evaluate_asset_context(
     ignore_dynamic_requests: bool,
 ) -> Result<Vc<Box<dyn AssetContext>>> {
     let mut import_map = if let Some(import_map) = import_map {
-        import_map.await?.clone_value()
+        import_map.owned().await?
     } else {
         ImportMap::empty()
     };
