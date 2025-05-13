@@ -43,3 +43,20 @@ On subsequent navigations:
 
 - The **RSC Payload** is prefetched and cached for instant navigation.
 - **Client Components** are rendered entirely on the client, without the server-rendered HTML.
+
+## When to use Server and Client Components?
+
+Use **Client Components** when you need:
+
+- [State](https://react.dev/learn/managing-state) and [event handlers](https://react.dev/learn/responding-to-events). E.g. `onClick`, `onChange`.
+- [Lifecycle logic](https://react.dev/learn/lifecycle-of-reactive-effects). E.g. `useEffect`.
+- Browser-only APIs. E.g. `localStorage`, `window`, `Navigator.geolocation`, etc.
+- [Custom hooks](https://react.dev/learn/reusing-logic-with-custom-hooks).
+
+Use **Server Components** when you need:
+
+- Fetch data from databases or APIs close to the source.
+- Prevent API keys, tokens, and other secrets from being exposed to the client.
+- Reduce the amount of JavaScript sent to the browser.
+- Improve the [First Contentful Paint (FCP)](https://web.dev/fcp/), and stream content progressively to the client.
+- Improve SEO by rendering content on the server.
