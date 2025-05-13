@@ -5,7 +5,9 @@ message: Add your rule message here....
 severity: error # error, warning, info, hint
 language: Rust
 rule:
-  kind: function_signature_item
+  any:
+    - kind: function_signature_item
+    - kind: function_item
   pattern: $FN
   follows:
     not:
