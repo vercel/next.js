@@ -220,6 +220,7 @@ pub(crate) mod tests {
 
     #[turbo_tasks::value_trait]
     trait MockTrait {
+        #[turbo_tasks::function]
         fn mock_method_task() -> Vc<()>;
     }
 

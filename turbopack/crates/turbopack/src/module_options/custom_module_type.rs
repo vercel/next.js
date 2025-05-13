@@ -5,6 +5,7 @@ use crate::ModuleAssetContext;
 
 #[turbo_tasks::value_trait]
 pub trait CustomModuleType {
+    #[turbo_tasks::function]
     fn create_module(
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,

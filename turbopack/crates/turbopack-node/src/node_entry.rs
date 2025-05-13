@@ -20,7 +20,9 @@ pub struct NodeRenderingEntries(Vec<ResolvedVc<NodeRenderingEntry>>);
 /// Trait that allows to get the entry module for rendering something in Node.js
 #[turbo_tasks::value_trait]
 pub trait NodeEntry {
+    #[turbo_tasks::function]
     fn entry(self: Vc<Self>, data: Value<ContentSourceData>) -> Vc<NodeRenderingEntry>;
+    #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<NodeRenderingEntries>> {
         Ok(Vc::cell(vec![
             self.entry(Value::new(Default::default()))

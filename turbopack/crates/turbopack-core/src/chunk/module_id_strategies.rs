@@ -11,6 +11,7 @@ use crate::{
 
 #[turbo_tasks::value_trait]
 pub trait ModuleIdStrategy {
+    #[turbo_tasks::function]
     fn get_module_id(self: Vc<Self>, ident: Vc<AssetIdent>) -> Vc<ModuleId>;
 }
 

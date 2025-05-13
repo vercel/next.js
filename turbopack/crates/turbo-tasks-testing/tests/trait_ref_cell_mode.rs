@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 use turbo_tasks::{IntoTraitRef, State, TraitRef, Upcast, Vc};
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
@@ -79,6 +79,7 @@ async fn test_trait_ref_new_cell_mode() {
 
 #[turbo_tasks::value_trait]
 trait ValueTrait {
+    #[turbo_tasks::function]
     fn get_value(&self) -> Vc<usize>;
 }
 

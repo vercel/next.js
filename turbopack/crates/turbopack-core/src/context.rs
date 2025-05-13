@@ -60,12 +60,15 @@ impl ProcessResult {
 #[turbo_tasks::value_trait]
 pub trait AssetContext {
     /// Gets the compile time info of the asset context.
+    #[turbo_tasks::function]
     fn compile_time_info(self: Vc<Self>) -> Vc<CompileTimeInfo>;
 
     /// Gets the layer of the asset context.
+    #[turbo_tasks::function]
     fn layer(self: Vc<Self>) -> Vc<RcStr>;
 
     /// Gets the resolve options for a given path.
+    #[turbo_tasks::function]
     fn resolve_options(
         self: Vc<Self>,
         origin_path: Vc<FileSystemPath>,
@@ -73,6 +76,7 @@ pub trait AssetContext {
     ) -> Vc<ResolveOptions>;
 
     /// Resolves an request to an [ModuleResolveResult].
+    #[turbo_tasks::function]
     fn resolve_asset(
         self: Vc<Self>,
         origin_path: Vc<FileSystemPath>,
@@ -82,6 +86,7 @@ pub trait AssetContext {
     ) -> Vc<ModuleResolveResult>;
 
     /// Process a source into a module.
+    #[turbo_tasks::function]
     fn process(
         self: Vc<Self>,
         asset: Vc<Box<dyn Source>>,
@@ -89,6 +94,7 @@ pub trait AssetContext {
     ) -> Vc<ProcessResult>;
 
     /// Process an [ResolveResult] into an [ModuleResolveResult].
+    #[turbo_tasks::function]
     fn process_resolve_result(
         self: Vc<Self>,
         result: Vc<ResolveResult>,
@@ -96,7 +102,9 @@ pub trait AssetContext {
     ) -> Vc<ModuleResolveResult>;
 
     /// Gets a new AssetContext with the transition applied.
+    #[turbo_tasks::function]
     fn with_transition(self: Vc<Self>, transition: RcStr) -> Vc<Box<dyn AssetContext>>;
 
+    #[turbo_tasks::function]
     fn side_effect_free_packages(self: Vc<Self>) -> Vc<Glob>;
 }

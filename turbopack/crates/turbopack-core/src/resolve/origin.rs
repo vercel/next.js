@@ -16,14 +16,17 @@ pub trait ResolveOrigin {
     /// since that might be needed to infer custom resolving options for that
     /// specific file. But usually only the directory is relevant for the real
     /// resolving.
+    #[turbo_tasks::function]
     fn origin_path(self: Vc<Self>) -> Vc<FileSystemPath>;
 
     /// The AssetContext that carries the configuration for building that
     /// subgraph.
+    #[turbo_tasks::function]
     fn asset_context(self: Vc<Self>) -> Vc<Box<dyn AssetContext>>;
 
     /// Get an inner asset form this origin that doesn't require resolving but
     /// is directly attached
+    #[turbo_tasks::function]
     fn get_inner_asset(self: Vc<Self>, request: Vc<Request>) -> Vc<OptionModule> {
         let _ = request;
         Vc::cell(None)
