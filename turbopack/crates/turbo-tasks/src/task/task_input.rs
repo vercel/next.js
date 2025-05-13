@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 
 use crate::{
-    trace::TraceRawVcs, MagicAny, ResolvedVc, TaskId, TransientInstance, TransientValue, Value,
-    ValueTypeId, Vc,
+    MagicAny, ResolvedVc, TaskId, TransientInstance, TransientValue, Value, ValueTypeId, Vc,
+    trace::TraceRawVcs,
 };
 
 /// Trait to implement in order for a type to be accepted as a
