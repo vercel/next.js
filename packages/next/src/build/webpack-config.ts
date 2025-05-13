@@ -1156,9 +1156,25 @@ export default async function getBaseWebpackConfig(
             : (chunk: any) =>
                 !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
 
-          // TODO: investigate these cache groups with rspack
           cacheGroups: isRspack
-            ? {}
+            ? {
+                framework: {
+                  chunks: 'all' as const,
+                  name: 'framework',
+                  layer: isWebpackDefaultLayer,
+                  test: /[/]node_modules[/](react|react-dom|next[/]dist[/]compiled[/](react|react-dom)(-experimental)?)[/]/,
+                  priority: 40,
+                  enforce: true,
+                },
+                lib: {
+                  test: /[/]node_modules[/](?!.*\.(css|scss|sass|less|styl)$)/,
+                  name: 'lib',
+                  chunks: 'all',
+                  priority: 30,
+                  minChunks: 1,
+                  reuseExistingChunk: true,
+                },
+              }
             : {
                 framework: frameworkCacheGroup,
                 lib: libCacheGroup,
