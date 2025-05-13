@@ -7538,7 +7538,7 @@ checksum = "a01bfcbbdea182bdda93713aeecd997749ae324686bf7944f54d128e56be4ea9"
 dependencies = [
  "anyhow",
  "dashmap 5.5.3",
- "globset",
+ "globset 0.4.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "indexmap 2.7.1",
  "once_cell",
  "regex",
