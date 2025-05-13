@@ -901,8 +901,7 @@ Relevant Packages:
   eslint-config-next: .*
   react: .*
   react-dom: .*
-  typescript: .*
-  ${process.env.NEXT_RSPACK ? 'next-rspack: .*' : ''}
+  typescript: .*${process.env.NEXT_RSPACK ? '\n  next-rspack: .*' : ''}
 Next.js Config:
   output: ${nextConfigOutput}
 `)
