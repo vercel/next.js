@@ -132,11 +132,11 @@ pub async fn resolve_node_pre_gyp_files(
                         )
                         .into();
 
-                    let dir = config_file_dir
+                    if let DirectoryContent::Entries(entries) = &*config_file_dir
                         .join(native_binding_path.clone())
                         .read_dir()
-                        .await?;
-                    if let DirectoryContent::Entries(entries) = &*dir {
+                        .await?
+                    {
                         let extension = format!("*.{}", compile_target.dylib_ext());
                         for (key, entry) in entries
                             .iter()
@@ -166,13 +166,13 @@ pub async fn resolve_node_pre_gyp_files(
                         );
                     }
                 }
-                let dir = config_file_dir
+                if let DirectoryContent::Entries(entries) = &*config_file_dir
                     // TODO
                     // read the dependencies path from `bindings.gyp`
                     .join("deps/lib".into())
                     .read_dir()
-                    .await?;
-                if let DirectoryContent::Entries(entries) = &*dir {
+                    .await?
+                {
                     for (key, entry) in entries.iter() {
                         match *entry {
                             DirectoryEntry::File(dylib) => {
