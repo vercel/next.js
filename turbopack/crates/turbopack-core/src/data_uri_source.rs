@@ -1,7 +1,7 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{rope::Rope, File, FileContent, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 
 use crate::{

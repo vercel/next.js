@@ -1,14 +1,13 @@
 use std::{
     fs,
-    sync::{mpsc::channel, Arc},
+    sync::{Arc, mpsc::channel},
     thread,
     time::{Duration, Instant},
 };
 
 use criterion::{
-    criterion_group, criterion_main,
+    BenchmarkId, Criterion, criterion_group, criterion_main,
     measurement::{Measurement, WallTime},
-    BenchmarkId, Criterion,
 };
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use tokio::runtime::Runtime;

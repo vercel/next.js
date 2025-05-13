@@ -130,7 +130,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                     util::take::Take,
                 },
                 ecma::ast::Module,
-                plugin::proxies::{HostCommentsStorage, COMMENTS},
+                plugin::proxies::{COMMENTS, HostCommentsStorage},
                 plugin_runner::plugin_module_bytes::PluginModuleBytes,
             };
 

@@ -764,7 +764,9 @@ export function createStaticWorker(
       progress?.clear()
     },
     forkOptions: {
-      env: { ...process.env, NODE_OPTIONS: formatNodeOptions(nodeOptions) },
+      env: {
+        NODE_OPTIONS: formatNodeOptions(nodeOptions),
+      },
     },
     enableWorkerThreads: config.experimental.workerThreads,
     exposedMethods: staticWorkerExposedMethods,
@@ -3555,18 +3557,11 @@ export default async function build(
               ...routesManifest.staticRoutes,
               ...routesManifest.dynamicRoutes,
             ]) {
-              // We only want to handle pages that are using the app router. We
-              // need this path in order to determine if it's an app route or an
-              // app page.
-              const originalAppPath = pageInfos.get(route.page)?.originalAppPath
-              if (!originalAppPath) {
-                continue
-              }
-
-              // We only want to handle app pages, not app routes.
-              if (isAppRouteRoute(originalAppPath)) {
-                continue
-              }
+              // If the segment paths aren't defined, we need to insert a
+              // reverse routing rule so that there isn't any conflicts
+              // with other dynamic routes for the prefetch segment
+              // routes. This is true for any route that is not PPR-enabled,
+              // including all routes defined by Pages Router.
 
               // We don't need to add the prefetch segment data routes if it was
               // added due to a page that was already generated. This would have
@@ -3575,11 +3570,6 @@ export default async function build(
                 continue
               }
 
-              // If the segment paths aren't defined, we need to insert a
-              // reverse routing rule so that there isn't any conflicts
-              // with other dynamic routes for the prefetch segment
-              // routes. This is only an issue for pages that do not have
-              // partial prerendering enabled.
               route.prefetchSegmentDataRoutes = [
                 buildInversePrefetchSegmentDataRoute(
                   route.page,

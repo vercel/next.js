@@ -651,12 +651,17 @@ function createErrorWithComponentStack(
 }
 
 export function throwIfDisallowedDynamic(
-  route: string,
+  workStore: WorkStore,
   hasEmptyShell: boolean,
   dynamicValidation: DynamicValidationState,
   serverDynamic: DynamicTrackingState,
   clientDynamic: DynamicTrackingState
 ): void {
+  if (workStore.invalidDynamicUsageError) {
+    console.error(workStore.invalidDynamicUsageError)
+    throw new StaticGenBailoutError()
+  }
+
   if (hasEmptyShell) {
     if (dynamicValidation.hasSuspenseAboveBody) {
       // This route has opted into allowing fully dynamic rendering
@@ -698,7 +703,7 @@ export function throwIfDisallowedDynamic(
     // to indicate your are ok with fully dynamic rendering.
     if (dynamicValidation.hasDynamicViewport) {
       console.error(
-        `Route "${route}" has a \`generateViewport\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
+        `Route "${workStore.route}" has a \`generateViewport\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
       )
       throw new StaticGenBailoutError()
     }
@@ -708,7 +713,7 @@ export function throwIfDisallowedDynamic(
       dynamicValidation.hasDynamicMetadata
     ) {
       console.error(
-        `Route "${route}" has a \`generateMetadata\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) when the rest of the route does not. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
+        `Route "${workStore.route}" has a \`generateMetadata\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) when the rest of the route does not. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
       )
       throw new StaticGenBailoutError()
     }

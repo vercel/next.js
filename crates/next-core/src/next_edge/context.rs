@@ -7,8 +7,8 @@ use turbopack::{css::chunk::CssChunkType, resolve_options_context::ResolveOption
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     chunk::{
-        module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, MangleType,
-        MinifyType, SourceMapsType,
+        ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapsType,
+        module_id_strategies::ModuleIdStrategy,
     },
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
@@ -27,10 +27,10 @@ use crate::{
     next_import_map::get_next_edge_import_map,
     next_server::context::ServerContextType,
     next_shared::resolve::{
-        get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
         ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
+        get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
     },
-    util::{foreign_code_context_condition, NextRuntime},
+    util::{NextRuntime, foreign_code_context_condition},
 };
 
 fn defines(define_env: &FxIndexMap<RcStr, RcStr>) -> CompileTimeDefines {

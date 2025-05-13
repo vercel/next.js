@@ -4,20 +4,20 @@ use anyhow::Result;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexset, Completion, FxIndexMap, FxIndexSet, ResolvedVc, State, TryJoinIterExt, Value,
-    ValueToString, Vc,
+    Completion, FxIndexMap, FxIndexSet, ResolvedVc, State, TryJoinIterExt, Value, ValueToString,
+    Vc, fxindexset,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::Asset,
-    introspect::{output_asset::IntrospectableOutputAsset, Introspectable, IntrospectableChildren},
+    introspect::{Introspectable, IntrospectableChildren, output_asset::IntrospectableOutputAsset},
     output::{OutputAsset, OutputAssetsSet},
 };
 
 use super::{
-    route_tree::{BaseSegment, RouteTree, RouteTrees, RouteType},
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceSideEffect,
     GetContentSourceContent,
+    route_tree::{BaseSegment, RouteTree, RouteTrees, RouteType},
 };
 
 #[turbo_tasks::value(transparent)]

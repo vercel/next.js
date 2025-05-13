@@ -3,16 +3,16 @@ use std::{borrow::Cow, collections::BinaryHeap, hash::BuildHasherDefault, mem::t
 use anyhow::Result;
 use rustc_hash::FxHasher;
 use smallvec::SmallVec;
-use tracing::{field::Empty, Instrument};
+use tracing::{Instrument, field::Empty};
 use turbo_prehash::BuildHasherExt;
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
     chunk::{
-        chunking::{make_chunk, ChunkItemOrBatchWithInfo, SplitContext},
         ChunkItemBatchGroup, ChunkItemWithAsyncModuleInfo, ChunkingConfig,
+        chunking::{ChunkItemOrBatchWithInfo, SplitContext, make_chunk},
     },
-    module_graph::{chunk_group_info::RoaringBitmapWrapper, ModuleGraph},
+    module_graph::{ModuleGraph, chunk_group_info::RoaringBitmapWrapper},
 };
 
 pub async fn make_production_chunks(

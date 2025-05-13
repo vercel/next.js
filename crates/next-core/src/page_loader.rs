@@ -1,10 +1,10 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{fxindexmap, ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc, fxindexmap};
 use turbo_tasks_fs::{
-    self, rope::RopeBuilder, File, FileContent, FileSystemPath, FileSystemPathOption,
+    self, File, FileContent, FileSystemPath, FileSystemPathOption, rope::RopeBuilder,
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},

@@ -11,14 +11,14 @@ use swc_core::{
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use super::EsmAssetReference;
 use crate::{
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
-    references::{esm::base::ReferencedAsset, AstPath},
+    references::{AstPath, esm::base::ReferencedAsset},
 };
 
 #[derive(Hash, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs, NonLocalValue)]

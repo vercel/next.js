@@ -9,17 +9,17 @@ use std::{
 use anyhow::Result;
 use tokio::{spawn, time::sleep};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{util::FormatDuration, ReadConsistency, TurboTasks, UpdateInfo, Value, Vc};
+use turbo_tasks::{ReadConsistency, TurboTasks, UpdateInfo, Value, Vc, util::FormatDuration};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{emit_with_completion, register};
 use turbopack_core::{
+    PROJECT_FILESYSTEM_NAME,
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     rebase::RebasedAsset,
-    PROJECT_FILESYSTEM_NAME,
 };
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 

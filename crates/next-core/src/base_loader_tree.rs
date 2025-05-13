@@ -3,7 +3,7 @@ use indoc::formatdoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::{transition::Transition, ModuleAssetContext};
+use turbopack::{ModuleAssetContext, transition::Transition};
 use turbopack_core::{
     file_source::FileSource,
     module::Module,
@@ -32,6 +32,7 @@ pub enum AppDirModuleType {
     Forbidden,
     Unauthorized,
     GlobalError,
+    GlobalNotFound,
 }
 
 impl AppDirModuleType {
@@ -47,6 +48,7 @@ impl AppDirModuleType {
             AppDirModuleType::Forbidden => "forbidden",
             AppDirModuleType::Unauthorized => "unauthorized",
             AppDirModuleType::GlobalError => "global-error",
+            AppDirModuleType::GlobalNotFound => "global-not-found",
         }
     }
 }

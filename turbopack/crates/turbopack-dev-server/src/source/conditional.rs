@@ -4,9 +4,9 @@ use turbo_tasks::{Completion, ResolvedVc, State, TryJoinIterExt, Value, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use super::{
-    route_tree::{MapGetContentSourceContent, RouteTree, RouteTrees},
     ContentSource, ContentSourceData, ContentSourceDataVary, ContentSourceSideEffect,
     GetContentSourceContent,
+    route_tree::{MapGetContentSourceContent, RouteTree, RouteTrees},
 };
 use crate::source::{ContentSourceContent, ContentSources};
 
