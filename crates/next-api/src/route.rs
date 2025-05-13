@@ -2,8 +2,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexMap, NonLocalValue,
-    OperationVc, ResolvedVc, Vc,
+    Completion, FxIndexMap, NonLocalValue, OperationVc, ResolvedVc, Vc, debug::ValueDebugFormat,
+    trace::TraceRawVcs,
 };
 use turbopack_core::{
     module_graph::{GraphEntries, ModuleGraph},

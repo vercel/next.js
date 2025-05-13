@@ -1,6 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use next_custom_transforms::transforms::shake_exports::{shake_exports, Config};
+use next_custom_transforms::transforms::shake_exports::{Config, shake_exports};
 use swc_core::ecma::ast::*;
 use turbo_tasks::ResolvedVc;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};

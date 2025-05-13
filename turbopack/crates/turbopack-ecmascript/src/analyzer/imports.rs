@@ -3,10 +3,10 @@ use std::{collections::BTreeMap, fmt::Display};
 use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    common::{comments::Comments, source_map::SmallPos, BytePos, Span, Spanned},
+    common::{BytePos, Span, Spanned, comments::Comments, source_map::SmallPos},
     ecma::{
         ast::*,
-        atoms::{atom, Atom},
+        atoms::{Atom, atom},
         utils::find_pat_ids,
         visit::{Visit, VisitWith},
     },
@@ -15,11 +15,11 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc};
 use turbopack_core::{issue::IssueSource, source::Source};
 
-use super::{top_level_await::has_top_level_await, JsValue, ModuleValue};
+use super::{JsValue, ModuleValue, top_level_await::has_top_level_await};
 use crate::{
-    analyzer::{ConstantValue, ObjectPart},
-    tree_shake::{find_turbopack_part_id_in_asserts, PartId},
     SpecifiedModuleType,
+    analyzer::{ConstantValue, ObjectPart},
+    tree_shake::{PartId, find_turbopack_part_id_in_asserts},
 };
 
 #[turbo_tasks::value(serialization = "auto_for_input")]

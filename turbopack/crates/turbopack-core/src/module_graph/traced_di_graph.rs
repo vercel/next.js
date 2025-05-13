@@ -3,9 +3,9 @@ use std::ops::Deref;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
+    NonLocalValue,
     debug::ValueDebugFormat,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    NonLocalValue,
 };
 
 #[derive(Clone, Debug, ValueDebugFormat, Serialize, Deserialize)]

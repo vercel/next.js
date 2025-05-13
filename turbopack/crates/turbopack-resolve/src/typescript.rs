@@ -3,7 +3,7 @@ use std::{collections::HashMap, fmt::Write, mem::take};
 use anyhow::Result;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{fxindexset, ResolvedVc, Value, ValueDefault, Vc};
+use turbo_tasks::{ResolvedVc, Value, ValueDefault, Vc, fxindexset};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -13,7 +13,7 @@ use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{
-        handle_resolve_error,
+        AliasPattern, ModuleResolveResult, handle_resolve_error,
         node::node_cjs_resolve_options,
         options::{
             ConditionValue, ImportMap, ImportMapping, ResolveIntoPackage, ResolveModules,
@@ -22,7 +22,7 @@ use turbopack_core::{
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
         pattern::Pattern,
-        resolve, AliasPattern, ModuleResolveResult,
+        resolve,
     },
     source::{OptionSource, Source},
 };
@@ -69,7 +69,7 @@ pub async fn read_tsconfigs(
                     let text = content.content().to_str()?;
                     e.write_with_content(&mut message, text.as_ref())?;
                 } else {
-                    write!(message, "{}", e)?;
+                    write!(message, "{e}")?;
                 }
                 TsConfigIssue {
                     severity: IssueSeverity::Error.resolved_cell(),
@@ -100,7 +100,7 @@ pub async fn read_tsconfigs(
                         TsConfigIssue {
                             severity: IssueSeverity::Error.resolved_cell(),
                             source_ident: tsconfig.ident().to_resolved().await?,
-                            message: format!("extends: \"{}\" doesn't resolve correctly", extends)
+                            message: format!("extends: \"{extends}\" doesn't resolve correctly")
                                 .into(),
                         }
                         .resolved_cell()

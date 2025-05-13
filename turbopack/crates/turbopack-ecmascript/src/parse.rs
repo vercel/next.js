@@ -1,48 +1,48 @@
 use std::{future::Future, sync::Arc};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use rustc_hash::FxHashSet;
 use swc_core::{
     base::SwcComments,
     common::{
-        errors::{Handler, HANDLER},
+        BytePos, FileName, GLOBALS, Globals, LineCol, Mark, SyntaxContext,
+        errors::{HANDLER, Handler},
         input::StringInput,
         source_map::SourceMapGenConfig,
         util::take::Take,
-        BytePos, FileName, Globals, LineCol, Mark, SyntaxContext, GLOBALS,
     },
     ecma::{
         ast::{EsVersion, Id, ObjectPatProp, Pat, Program, VarDecl},
         lints::{config::LintConfig, rules::LintParams},
-        parser::{lexer::Lexer, EsSyntax, Parser, Syntax, TsSyntax},
+        parser::{EsSyntax, Parser, Syntax, TsSyntax, lexer::Lexer},
         transforms::base::{
-            helpers::{Helpers, HELPERS},
+            helpers::{HELPERS, Helpers},
             resolver,
         },
-        visit::{noop_visit_type, Visit, VisitMutWith, VisitWith},
+        visit::{Visit, VisitMutWith, VisitWith, noop_visit_type},
     },
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{util::WrapFuture, ResolvedVc, Value, ValueToString, Vc};
-use turbo_tasks_fs::{rope::Rope, FileContent, FileSystemPath};
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc, util::WrapFuture};
+use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
+    SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
     error::PrettyPrintError,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     source::Source,
     source_map::utils::add_default_ignore_list,
-    SOURCE_URL_PROTOCOL,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
 use super::EcmascriptModuleAssetType;
 use crate::{
-    analyzer::{graph::EvalContext, ImportMap},
+    EcmascriptInputTransform,
+    analyzer::{ImportMap, graph::EvalContext},
     swc_comments::ImmutableComments,
     transform::{EcmascriptInputTransforms, TransformContext},
-    EcmascriptInputTransform,
 };
 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]

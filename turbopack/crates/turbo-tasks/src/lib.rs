@@ -90,24 +90,24 @@ use auto_hash_map::AutoSet;
 pub use collectibles::CollectiblesSource;
 pub use completion::{Completion, Completions};
 pub use display::ValueToString;
-pub use effect::{apply_effects, effect, get_effects, ApplyEffectsContext, Effects};
+pub use effect::{ApplyEffectsContext, Effects, apply_effects, effect, get_effects};
 pub use id::{
-    ExecutionId, FunctionId, LocalTaskId, SessionId, TaskId, TraitTypeId, ValueTypeId,
-    TRANSIENT_TASK_BIT,
+    ExecutionId, FunctionId, LocalTaskId, SessionId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId,
+    ValueTypeId,
 };
 pub use invalidation::{
-    get_invalidator, DynamicEqHash, InvalidationReason, InvalidationReasonKind,
-    InvalidationReasonSet, Invalidator,
+    DynamicEqHash, InvalidationReason, InvalidationReasonKind, InvalidationReasonSet, Invalidator,
+    get_invalidator,
 };
 pub use join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt};
 pub use key_value_pair::KeyValuePair;
 pub use magic_any::MagicAny;
 pub use manager::{
+    CurrentCellRef, ReadConsistency, TaskPersistence, TurboTasks, TurboTasksApi,
+    TurboTasksBackendApi, TurboTasksBackendApiExt, TurboTasksCallApi, Unused, UpdateInfo,
     dynamic_call, emit, mark_finished, mark_root, mark_session_dependent, mark_stateful,
     prevent_gc, run_once, run_once_with_reason, spawn_blocking, spawn_thread, trait_call,
-    turbo_tasks, turbo_tasks_scope, CurrentCellRef, ReadConsistency, TaskPersistence, TurboTasks,
-    TurboTasksApi, TurboTasksBackendApi, TurboTasksBackendApiExt, TurboTasksCallApi, Unused,
-    UpdateInfo,
+    turbo_tasks, turbo_tasks_scope,
 };
 pub use output::OutputContent;
 pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
@@ -118,9 +118,9 @@ pub use scope::scope;
 pub use serialization_invalidation::SerializationInvalidator;
 pub use shrink_to_fit::ShrinkToFit;
 pub use state::{State, TransientState};
-pub use task::{task_input::TaskInput, SharedReference, TypedSharedReference};
+pub use task::{SharedReference, TypedSharedReference, task_input::TaskInput};
 pub use trait_ref::{IntoTraitRef, TraitRef};
-pub use turbo_tasks_macros::{function, value_impl, TaskInput};
+pub use turbo_tasks_macros::{TaskInput, function, value_impl};
 pub use value::{TransientInstance, TransientValue, Value};
 pub use value_type::{TraitMethod, TraitType, ValueType};
 pub use vc::{

@@ -11,20 +11,20 @@ use std::{
     sync::{Arc, Mutex, Weak},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use futures::FutureExt;
 use rustc_hash::FxHashMap;
 use turbo_tasks::{
+    CellId, ExecutionId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadCellOptions,
+    ReadConsistency, TaskId, TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
     backend::{CellContent, TaskCollectiblesMap, TypedCellContent},
     event::{Event, EventListener},
     registry,
     test_helpers::with_turbo_tasks_for_testing,
     util::{SharedError, StaticOrArc},
-    CellId, ExecutionId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadCellOptions,
-    ReadConsistency, TaskId, TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
 };
 
-pub use crate::run::{run, run_with_tt, run_without_cache_check, Registration};
+pub use crate::run::{Registration, run, run_with_tt, run_without_cache_check};
 
 enum Task {
     Spawned(Event),

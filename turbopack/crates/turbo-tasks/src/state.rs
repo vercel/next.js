@@ -9,8 +9,8 @@ use parking_lot::{Mutex, MutexGuard};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    get_invalidator, mark_session_dependent, mark_stateful, trace::TraceRawVcs, Invalidator,
-    OperationValue, SerializationInvalidator,
+    Invalidator, OperationValue, SerializationInvalidator, get_invalidator, mark_session_dependent,
+    mark_stateful, trace::TraceRawVcs,
 };
 
 #[derive(Serialize, Deserialize)]

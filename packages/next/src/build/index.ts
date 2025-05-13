@@ -783,9 +783,6 @@ async function writeFullyStaticExport(
   const exportApp = require('../export')
     .default as typeof import('../export').default
 
-  const pagesWorker = createStaticWorker(config)
-  const appWorker = createStaticWorker(config)
-
   await exportApp(
     dir,
     {
@@ -798,9 +795,6 @@ async function writeFullyStaticExport(
     },
     nextBuildSpan
   )
-
-  pagesWorker.end()
-  appWorker.end()
 }
 
 async function getBuildId(

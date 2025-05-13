@@ -1,13 +1,13 @@
 use std::future::Future;
 
 use anyhow::Result;
-use futures::{stream::FuturesUnordered, StreamExt};
+use futures::{StreamExt, stream::FuturesUnordered};
 use rustc_hash::FxHashSet;
 
 use super::{
+    SkipDuplicates, Visit, VisitControlFlow,
     graph_store::{GraphNode, GraphStore},
     with_future::With,
-    SkipDuplicates, Visit, VisitControlFlow,
 };
 
 /// A list of modules that were already visited and should be skipped (including their subgraphs).
@@ -104,7 +104,7 @@ where
                                     self.insert(Some(parent_handle.clone()), GraphNode(node));
                                 }
                                 VisitControlFlow::Abort(abort) => {
-                                    return GraphTraversalResult::Aborted(abort)
+                                    return GraphTraversalResult::Aborted(abort);
                                 }
                             }
                         }

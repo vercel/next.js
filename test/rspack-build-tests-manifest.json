@@ -3695,6 +3695,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/next-config-ts/tsconfig-extends/index.test.ts": {
+    "passed": [
+      "next-config-ts-tsconfig-extends should support tsconfig extends"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/next-config-ts/type-error/index.test.ts": {
     "passed": [
       "next-config-ts-type-error should throw with type error on build"
@@ -5491,11 +5500,10 @@
       "segment cache (basic tests) navigate with prefetched data",
       "segment cache (basic tests) prefetch interception route",
       "segment cache (basic tests) refreshes page segments when navigating to the exact same URL as the current location",
-      "segment cache (basic tests) skips dynamic request if prefetched data is fully static"
-    ],
-    "failed": [
+      "segment cache (basic tests) skips dynamic request if prefetched data is fully static",
       "segment cache (basic tests) skips static layouts during partially static navigation"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5503,11 +5511,10 @@
   "test/e2e/app-dir/segment-cache/client-only-opt-in/client-only-opt-in.test.ts": {
     "passed": [
       "segment cache prefetch scheduling prefetches a dynamic page (with PPR enabled)",
+      "segment cache prefetch scheduling prefetches a dynamic page (without PPR enabled)",
       "segment cache prefetch scheduling prefetches a static page in a single request"
     ],
-    "failed": [
-      "segment cache prefetch scheduling prefetches a dynamic page (without PPR enabled)"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5548,19 +5555,18 @@
   "test/e2e/app-dir/segment-cache/incremental-opt-in/segment-cache-incremental-opt-in.test.ts": {
     "passed": [
       "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR disabled",
+      "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR disabled, and has a loading boundary",
       "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR enabled",
       "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR enabled, and has a dynamic param",
       "segment cache (incremental opt in) prefetches a dynamic route when PPR is disabled if it has a loading.tsx boundary",
       "segment cache (incremental opt in) prefetches a shared layout on a PPR-enabled route that was previously omitted from a non-PPR-enabled route",
+      "segment cache (incremental opt in) skips prefetching a dynamic route when PPR is disabled if everything up to its loading.tsx boundary is already cached",
       "segment cache (incremental opt in) skips prefetching a dynamic route when PPR is disabled if it has no loading.tsx boundary",
       "segment cache (incremental opt in) when a link is prefetched with <Link prefetch=true>, no dynamic request is made on navigation",
       "segment cache (incremental opt in) when prefetching with prefetch=true, refetches cache entries that only contain partial data",
       "segment cache (incremental opt in) when prefetching with prefetch=true, refetches partial cache entries even if there's already a pending PPR request"
     ],
-    "failed": [
-      "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR disabled, and has a loading boundary",
-      "segment cache (incremental opt in) skips prefetching a dynamic route when PPR is disabled if everything up to its loading.tsx boundary is already cached"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5621,11 +5627,10 @@
   },
   "test/e2e/app-dir/segment-cache/search-params/segment-cache-search-params.test.ts": {
     "passed": [
-      "segment cache (search params) when fetching with PPR, does not include search params in the cache key"
-    ],
-    "failed": [
+      "segment cache (search params) when fetching with PPR, does not include search params in the cache key",
       "segment cache (search params) when fetching without PPR (e.g. prefetch={true}), includes the search params in the cache key"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6152,6 +6157,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/webpack-loader-set-environment-variable/webpack-loader-set-environment-variable.test.ts": {
+    "passed": [
+      "webpack-loader-set-environment-variable loader that sets an environment variable should work"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/webpack-loader-ts-transform/webpack-loader-ts-transform.test.ts": {
     "passed": [
       "webpack-loader-ts-transform should only run the test in turbopack"
@@ -6262,23 +6276,9 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/basepath/basepath-trailing-slash.test.ts": {
-    "passed": [
-      "basePath + trailingSlash should allow URL query strings on index without refresh",
-      "basePath + trailingSlash should allow URL query strings without refresh",
-      "basePath + trailingSlash should correctly replace state when same asPath but different url"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/basepath/basepath.test.ts": {
     "passed": [
       "basePath should 404 for public file without basePath",
-      "basePath should 404 when manually adding basePath with <Link>",
-      "basePath should 404 when manually adding basePath with router.push",
-      "basePath should 404 when manually adding basePath with router.replace",
       "basePath should add basePath to routes-manifest",
       "basePath should add header with basePath by default",
       "basePath should add header without basePath when set to false",
@@ -6287,17 +6287,6 @@
       "basePath should correctly replace state when same asPath but different url",
       "basePath should fetch data for getServerSideProps without reloading",
       "basePath should fetch data for getStaticProps without reloading",
-      "basePath should handle 404 urls that start with basePath",
-      "basePath should handle query/hash correctly during query updating ## $search",
-      "basePath should handle query/hash correctly during query updating ##? $search",
-      "basePath should handle query/hash correctly during query updating ##hello $search",
-      "basePath should handle query/hash correctly during query updating ##hello? $search",
-      "basePath should handle query/hash correctly during query updating #? $search",
-      "basePath should handle query/hash correctly during query updating #a ?hello",
-      "basePath should handle query/hash correctly during query updating #a ?hello=",
-      "basePath should handle query/hash correctly during query updating #a ?hello=world",
-      "basePath should handle query/hash correctly during query updating #hello? $search",
-      "basePath should handle query/hash correctly during query updating #hello?world $search",
       "basePath should have basePath field on Router",
       "basePath should have correct href for a link",
       "basePath should have correct href for a link to /",
@@ -6307,46 +6296,105 @@
       "basePath should navigate an absolute local url without basePath",
       "basePath should navigate an absolute url",
       "basePath should navigate back correctly to a dynamic route",
-      "basePath should navigate to /404 correctly client-side",
-      "basePath should navigate to /_error correctly client-side",
       "basePath should navigate to external site and back",
       "basePath should navigate to index page with getStaticProps",
       "basePath should navigate to the page without refresh",
       "basePath should not add header with basePath when set to false",
       "basePath should not add header without basePath without disabling",
-      "basePath should not redirect with basePath when set to false",
-      "basePath should not redirect without basePath without disabling",
-      "basePath should not rewrite with basePath when set to false",
-      "basePath should not rewrite without basePath without disabling",
-      "basePath should not update URL for a 404",
       "basePath should prefetch pages correctly in viewport with <Link>",
       "basePath should prefetch pages correctly when manually called",
       "basePath should redirect trailing slash correctly",
       "basePath should redirect trailing slash on root correctly",
-      "basePath should redirect with basePath by default",
-      "basePath should redirect without basePath when set to false",
       "basePath should respect basePath in amphtml link rel",
-      "basePath should rewrite with basePath by default",
-      "basePath should rewrite without basePath when set to false",
       "basePath should serve public file with basePath correctly",
       "basePath should show 404 for page not under the /docs prefix",
       "basePath should show the hello page under the /docs prefix",
       "basePath should show the other-page page under the /docs prefix",
       "basePath should update dynamic params after mount correctly",
-      "basePath should use urls with basepath in router events",
-      "basePath should use urls with basepath in router events for cancelled routes",
-      "basePath should use urls with basepath in router events for failed route change",
-      "basePath should use urls with basepath in router events for hash changes",
       "basePath should work with catch-all page",
-      "basePath should work with hash links",
       "basePath should work with nested folder with same name as basePath",
       "basePath should work with normal dynamic page"
     ],
     "failed": [],
     "pending": [
-      "basePath should navigate back to a non-basepath 404 that starts with basepath",
       "basePath should navigate to nested index page with getStaticProps"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/error-pages.test.ts": {
+    "passed": [
+      "basePath client-side navigation should navigate to /404 correctly client-side",
+      "basePath client-side navigation should navigate to /_error correctly client-side",
+      "basePath manually added basePath in application logic should 404 when manually adding basePath with <Link>",
+      "basePath manually added basePath in application logic should 404 when manually adding basePath with router.push",
+      "basePath manually added basePath in application logic should 404 when manually adding basePath with router.replace",
+      "basePath should handle 404 urls that start with basePath",
+      "basePath should not update URL for a 404",
+      "basePath should show 404 for page not under the /docs prefix"
+    ],
+    "failed": [],
+    "pending": [
+      "basePath should navigate back to a non-basepath 404 that starts with basepath"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/query-hash.test.ts": {
+    "passed": [
+      "basePath query/hash handling is correct during query updating ## $search",
+      "basePath query/hash handling is correct during query updating ##? $search",
+      "basePath query/hash handling is correct during query updating ##hello $search",
+      "basePath query/hash handling is correct during query updating ##hello? $search",
+      "basePath query/hash handling is correct during query updating #? $search",
+      "basePath query/hash handling is correct during query updating #a ?hello",
+      "basePath query/hash handling is correct during query updating #a ?hello=",
+      "basePath query/hash handling is correct during query updating #a ?hello=world",
+      "basePath query/hash handling is correct during query updating #hello? $search",
+      "basePath query/hash handling is correct during query updating #hello?world $search",
+      "basePath query/hash handling should work with hash links"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/redirect-and-rewrite.test.ts": {
+    "passed": [
+      "basePath should not redirect with basePath when set to false",
+      "basePath should not redirect without basePath without disabling",
+      "basePath should not rewrite with basePath when set to false",
+      "basePath should not rewrite without basePath without disabling",
+      "basePath should redirect with basePath by default",
+      "basePath should redirect without basePath when set to false",
+      "basePath should rewrite with basePath by default",
+      "basePath should rewrite without basePath when set to false"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/router-events.test.ts": {
+    "passed": [
+      "basePath should use urls with basepath in router events",
+      "basePath should use urls with basepath in router events for cancelled routes",
+      "basePath should use urls with basepath in router events for failed route change",
+      "basePath should use urls with basepath in router events for hash changes"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/trailing-slash.test.ts": {
+    "passed": [
+      "basePath + trailingSlash should allow URL query strings on index without refresh",
+      "basePath + trailingSlash should allow URL query strings without refresh",
+      "basePath + trailingSlash should correctly replace state when same asPath but different url"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -6757,20 +6805,8 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/i18n-data-fetching-redirect/index.test.ts": {
+  "test/e2e/i18n-data-fetching-redirect/redirect-from-context.test.ts": {
     "passed": [
-      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect sv -> en",
       "i18n-data-fetching-redirect Redirect to locale from context gsp-blocking-redirect en",
       "i18n-data-fetching-redirect Redirect to locale from context gsp-blocking-redirect sv",
       "i18n-data-fetching-redirect Redirect to locale from context gsp-fallback-redirect en",
@@ -6783,6 +6819,26 @@
       "i18n-data-fetching-redirect Redirect to locale from context next/link gsp-fallback-redirect sv",
       "i18n-data-fetching-redirect Redirect to locale from context next/link gssp-redirect en",
       "i18n-data-fetching-redirect Redirect to locale from context next/link gssp-redirect sv"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/i18n-data-fetching-redirect/redirect.test.ts": {
+    "passed": [
+      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect sv -> en"
     ],
     "failed": [],
     "pending": [],
@@ -8884,28 +8940,28 @@
     "runtimeError": false
   },
   "test/e2e/yarn-pnp/test/mdx-pages.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "yarn PnP should compile and serve the index page correctly mdx-pages"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/yarn-pnp/test/with-eslint.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "yarn PnP should compile and serve the index page correctly with-eslint"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/yarn-pnp/test/with-sass.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "yarn PnP should compile and serve the index page correctly with-sass"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

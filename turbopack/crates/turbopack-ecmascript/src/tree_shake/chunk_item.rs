@@ -10,6 +10,7 @@ use turbopack_core::{
 
 use super::asset::EcmascriptModulePartAsset;
 use crate::{
+    EcmascriptAnalyzable,
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
         EcmascriptChunkPlaceable, EcmascriptChunkType,
@@ -18,7 +19,6 @@ use crate::{
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
     tree_shake::side_effect_module::SideEffectsModule,
     utils::StringifyModuleId,
-    EcmascriptAnalyzable,
 };
 
 /// This is an implementation of [ChunkItem] for

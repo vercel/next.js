@@ -10,13 +10,13 @@ use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterato
 use rustc_hash::FxHashSet;
 
 use crate::{
+    FxIndexMap,
     bottom_up::build_bottom_up_graph,
     span::{Span, SpanEvent, SpanExtra, SpanGraphEvent, SpanIndex, SpanNames, SpanTimeData},
     span_bottom_up_ref::SpanBottomUpRef,
-    span_graph_ref::{event_map_to_list, SpanGraphEventRef, SpanGraphRef},
+    span_graph_ref::{SpanGraphEventRef, SpanGraphRef, event_map_to_list},
     store::{SpanId, Store},
     timestamp::Timestamp,
-    FxIndexMap,
 };
 
 #[derive(Copy, Clone)]
@@ -187,7 +187,7 @@ impl<'a> SpanRef<'a> {
         })
     }
 
-    pub fn children(&self) -> impl DoubleEndedIterator<Item = SpanRef<'a>> + 'a {
+    pub fn children(&self) -> impl DoubleEndedIterator<Item = SpanRef<'a>> + 'a + use<'a> {
         self.span.events.iter().filter_map(|event| match event {
             SpanEvent::SelfTime { .. } => None,
             SpanEvent::Child { index } => Some(SpanRef {

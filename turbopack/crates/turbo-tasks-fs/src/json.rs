@@ -5,7 +5,7 @@ use std::{
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue};
+use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 
 use crate::{rope::Rope, source_context::get_source_context};
 
@@ -57,7 +57,7 @@ impl UnparseableJson {
     pub fn write_with_content(&self, writer: &mut impl Write, text: &str) -> std::fmt::Result {
         writeln!(writer, "{}", self.message)?;
         if let Some(path) = &self.path {
-            writeln!(writer, "  at {}", path)?;
+            writeln!(writer, "  at {path}")?;
         }
         match (self.start_location, self.end_location) {
             (Some((line, column)), Some((end_line, end_column))) => {
@@ -92,7 +92,7 @@ impl Display for UnparseableJson {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.message)?;
         if let Some(path) = &self.path {
-            write!(f, "  at {}", path)?;
+            write!(f, "  at {path}")?;
         }
         Ok(())
     }

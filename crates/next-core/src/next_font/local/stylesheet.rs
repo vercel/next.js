@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
@@ -8,7 +8,7 @@ use crate::next_font::{
     font_fallback::FontFallbacks,
     local::NextFontLocalFontFileOptions,
     stylesheet::{build_fallback_definition, build_font_class_rules},
-    util::{get_scoped_font_family, FontCssProperties, FontFamilyType},
+    util::{FontCssProperties, FontFamilyType, get_scoped_font_family},
 };
 
 #[turbo_tasks::function]
@@ -78,12 +78,12 @@ pub(super) async fn build_font_face_definitions(
                 .weight
                 .as_ref()
                 .or(options.default_weight.as_ref())
-                .map_or_else(|| "".to_owned(), |w| format!("font-weight: {};", w)),
+                .map_or_else(|| "".to_owned(), |w| format!("font-weight: {w};")),
             &font
                 .style
                 .as_ref()
                 .or(options.default_style.as_ref())
-                .map_or_else(|| "".to_owned(), |s| format!("font-style: {};", s)),
+                .map_or_else(|| "".to_owned(), |s| format!("font-style: {s};")),
         ));
     }
 
