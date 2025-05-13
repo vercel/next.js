@@ -1,9 +1,9 @@
 #[cfg(feature = "hanging_detection")]
 use std::sync::Arc;
 #[cfg(feature = "hanging_detection")]
-use std::task::ready;
-#[cfg(feature = "hanging_detection")]
 use std::task::Poll;
+#[cfg(feature = "hanging_detection")]
+use std::task::ready;
 #[cfg(feature = "hanging_detection")]
 use std::time::Duration;
 use std::{
@@ -14,9 +14,9 @@ use std::{
 };
 
 #[cfg(feature = "hanging_detection")]
-use tokio::time::timeout;
-#[cfg(feature = "hanging_detection")]
 use tokio::time::Timeout;
+#[cfg(feature = "hanging_detection")]
+use tokio::time::timeout;
 
 pub struct Event {
     #[cfg(feature = "hanging_detection")]

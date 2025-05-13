@@ -9,11 +9,11 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks_hash::DeterministicHash;
 
 use crate::{
+    SharedReference, Vc, VcRead, VcValueType,
     debug::{ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
     triomphe_utils::unchecked_sidecast_triomphe_arc,
     vc::VcCellMode,
-    SharedReference, Vc, VcRead, VcValueType,
 };
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;

@@ -1,10 +1,10 @@
 use anyhow::Result;
-use serde::{ser::SerializeSeq, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, ser::SerializeSeq};
 
 use crate::{
+    CellId, RawVc, TaskId,
     backend::{CachedTaskType, CellContent},
     task::shared_reference::TypedSharedReference,
-    CellId, RawVc, TaskId,
 };
 
 #[derive(Clone, Debug)]
@@ -217,7 +217,7 @@ pub trait PersistedGraph: Sync + Send {
     /// This is usually called after the initial build has finished and all
     /// external keep alives has been renewed.
     fn remove_outdated_externally_active(&self, api: &dyn PersistedGraphApi)
-        -> Result<Vec<TaskId>>;
+    -> Result<Vec<TaskId>>;
 
     /// update the dirty flag for a stored task
     /// Returns true, when the task is active and should be scheduled
