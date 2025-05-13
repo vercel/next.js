@@ -1,7 +1,26 @@
 import execa from 'execa'
-import { existsSync } from 'node:fs'
-import { writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { existsSync } from 'fs'
+import { writeFile, readFile, unlink } from 'fs/promises'
+import { join } from 'path'
+
+// NOTE: This type may change over time.
+type ChangesetStatusJson = {
+  changesets: {
+    releases: {
+      name: string
+      type: string
+      summary: string
+      id: string
+    }[]
+  }[]
+  releases: {
+    name: string
+    type: string
+    oldVersion: string
+    changesets: string[]
+    newVersion: string
+  }[]
+}
 
 async function versionPackages() {
   const preConfigPath = join(process.cwd(), '.changeset', 'pre.json')
@@ -28,18 +47,33 @@ async function versionPackages() {
     console.log(
       '▲   Preparing to bump the canary version, checking if there are any changesets.'
     )
+
     // Create an empty changeset for `next` to bump the canary version
     // even if there are no changesets for `next`.
-    const res = await execa('pnpm', ['changeset', 'status'], {
-      // If there are no changesets, this will error. Set reject: false
-      // to avoid trycatch and handle the rest based on the stdout.
-      reject: false,
-    })
+    await execa('pnpm', [
+      'changeset',
+      'status',
+      '--output',
+      './changeset-status.json',
+    ])
 
-    console.log('▲   Changeset Status:')
-    console.log({ ...res })
+    let hasNextChangeset = false
+    if (existsSync('./changeset-status.json')) {
+      const changesetStatus: ChangesetStatusJson = JSON.parse(
+        await readFile('./changeset-status.json', 'utf8')
+      )
 
-    if (!res.stdout.includes('- next')) {
+      console.log('▲   Changeset Status:')
+      console.log(changesetStatus)
+
+      hasNextChangeset =
+        changesetStatus.releases.find((release) => release.name === 'next') !==
+        undefined
+
+      await unlink('./changeset-status.json')
+    }
+
+    if (!hasNextChangeset) {
       console.log(
         '▲   No changesets found for `next`, creating an empty changeset.'
       )
@@ -55,6 +89,8 @@ async function versionPackages() {
   await execa('pnpm', ['changeset', 'version'], {
     stdio: 'inherit',
   })
+  // TODO: Update the pnpm-lock.yaml since the packages' depend on
+  // each other. Remove this once they use `workspace:` protocol.
   await execa('pnpm', ['install', '--no-frozen-lockfile'], {
     stdio: 'inherit',
   })
