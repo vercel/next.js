@@ -120,7 +120,13 @@ pub fn generate_js_source_map(
         &mappings,
         None,
         InlineSourcesContentConfig {
-            inline_sources_content,
+            // If we are going to adjust the source map, we are going to throw the source contents
+            // of this source map away regardless.
+            //
+            // In other words, we don't need the content of `B` in source map chain of A -> B -> C.
+            // We only need the source content of `A`, and a way to map the content of `B` back to
+            // `A`, while constructing the final source map, `C`.
+            inline_sources_content: inline_sources_content && input_map.is_none(),
         },
     );
 
