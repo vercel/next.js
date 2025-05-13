@@ -1,7 +1,7 @@
-import type { CSSProperties, Dispatch, SetStateAction } from 'react'
+import type { CSSProperties } from 'react'
 import { STORAGE_KEY_POSITION, type OverlayState } from '../../../../shared'
 
-import { useState, useEffect, useRef, createContext, useContext } from 'react'
+import { useState, useRef } from 'react'
 import { Toast } from '../../toast'
 import { NextLogo } from './next-logo'
 import { useIsDevBuilding } from '../../../../../../dev/dev-build-indicator/internal/initialize'
@@ -11,17 +11,13 @@ import { TurbopackInfo } from './dev-tools-info/turbopack-info'
 import { RouteInfo } from './dev-tools-info/route-info'
 import GearIcon from '../../../icons/gear-icon'
 import { UserPreferences } from './dev-tools-info/user-preferences'
-import {
-  MENU_CURVE,
-  MENU_DURATION_MS,
-  useClickOutside,
-  useFocusTrap,
-} from './utils'
+import { MENU_CURVE, MENU_DURATION_MS } from './utils'
 import {
   getInitialPosition,
   type DevToolsScale,
 } from './dev-tools-info/preferences'
 import { Draggable } from './draggable'
+import { Menu, MenuItem } from './menu'
 
 // TODO: add E2E tests to cover different scenarios
 
@@ -67,18 +63,11 @@ export function DevToolsIndicator({
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-interface C {
-  closeMenu: () => void
-  selectedIndex: number
-  setSelectedIndex: Dispatch<SetStateAction<number>>
-}
-
-const Context = createContext({} as C)
-
 const OVERLAYS = {
   Root: 'root',
   Turbo: 'turbo',
   Route: 'route',
+  ResetDev: 'resetDev',
   Preferences: 'preferences',
 } as const
 
@@ -112,12 +101,10 @@ function DevToolsPopover({
   scale: DevToolsScale
   setScale: (value: DevToolsScale) => void
 }) {
-  const menuRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
 
   const [open, setOpen] = useState<Overlays | null>(null)
   const [position, setPosition] = useState(getInitialPosition())
-  const [selectedIndex, setSelectedIndex] = useState(-1)
 
   const isMenuOpen = open === OVERLAYS.Root
   const isTurbopackInfoOpen = open === OVERLAYS.Turbo
@@ -134,76 +121,6 @@ function DevToolsPopover({
     }
   )
 
-  // Features to make the menu accessible
-  useFocusTrap(menuRef, triggerRef, isMenuOpen)
-  useClickOutside(menuRef, triggerRef, isMenuOpen, closeMenu)
-
-  useEffect(() => {
-    if (open === null) {
-      // Avoid flashing selected state
-      const id = setTimeout(() => {
-        setSelectedIndex(-1)
-      }, MENU_DURATION_MS)
-      return () => clearTimeout(id)
-    }
-  }, [open])
-
-  function select(index: number | 'first' | 'last') {
-    if (index === 'first') {
-      setTimeout(() => {
-        const all = menuRef.current?.querySelectorAll('[role="menuitem"]')
-        if (all) {
-          const firstIndex = all[0].getAttribute('data-index')
-          select(Number(firstIndex))
-        }
-      })
-      return
-    }
-
-    if (index === 'last') {
-      setTimeout(() => {
-        const all = menuRef.current?.querySelectorAll('[role="menuitem"]')
-        if (all) {
-          const lastIndex = all.length - 1
-          select(lastIndex)
-        }
-      })
-      return
-    }
-
-    const el = menuRef.current?.querySelector(
-      `[data-index="${index}"]`
-    ) as HTMLElement
-
-    if (el) {
-      setSelectedIndex(index)
-      el?.focus()
-    }
-  }
-
-  function onMenuKeydown(e: React.KeyboardEvent<HTMLDivElement>) {
-    e.preventDefault()
-
-    switch (e.key) {
-      case 'ArrowDown':
-        const next = selectedIndex + 1
-        select(next)
-        break
-      case 'ArrowUp':
-        const prev = selectedIndex - 1
-        select(prev)
-        break
-      case 'Home':
-        select('first')
-        break
-      case 'End':
-        select('last')
-        break
-      default:
-        break
-    }
-  }
-
   function openErrorOverlay() {
     setOpen(null)
     if (issueCount > 0) {
@@ -216,21 +133,17 @@ function DevToolsPopover({
   }
 
   function openRootMenu() {
-    setOpen((prevOpen) => {
-      if (prevOpen === null) select('first')
-      return OVERLAYS.Root
-    })
+    setOpen(OVERLAYS.Root)
   }
 
   function onTriggerClick() {
-    if (open === OVERLAYS.Root) {
-      setOpen(null)
-    } else {
-      openRootMenu()
-      setTimeout(() => {
-        select('first')
-      })
-    }
+    setOpen((prevOpen) => {
+      if (prevOpen === OVERLAYS.Root) {
+        return null
+      } else {
+        return OVERLAYS.Root
+      }
+    })
   }
 
   function closeMenu() {
@@ -327,72 +240,58 @@ function DevToolsPopover({
 
       {/* Dropdown Menu */}
       {menuMounted && (
-        <div
-          ref={menuRef}
-          id="nextjs-dev-tools-menu"
-          role="menu"
-          dir="ltr"
-          aria-orientation="vertical"
+        <Menu
           aria-label="Next.js Dev Tools Items"
-          tabIndex={-1}
-          className="dev-tools-indicator-menu"
-          onKeyDown={onMenuKeydown}
-          data-rendered={menuRendered}
+          close={closeMenu}
+          isOpen={menuRendered}
           style={popover}
+          triggerRef={triggerRef}
         >
-          <Context.Provider
-            value={{
-              closeMenu,
-              selectedIndex,
-              setSelectedIndex,
-            }}
-          >
-            <div className="dev-tools-indicator-inner">
-              {issueCount > 0 && (
-                <MenuItem
-                  title={`${issueCount} ${issueCount === 1 ? 'issue' : 'issues'} found. Click to view details in the dev overlay.`}
-                  index={0}
-                  label="Issues"
-                  value={<IssueCount>{issueCount}</IssueCount>}
-                  onClick={openErrorOverlay}
-                />
-              )}
+          <div className="dev-tools-indicator-inner">
+            {issueCount > 0 && (
               <MenuItem
-                title={`Current route is ${isStaticRoute ? 'static' : 'dynamic'}.`}
-                label="Route"
-                index={1}
-                value={isStaticRoute ? 'Static' : 'Dynamic'}
-                onClick={() => setOpen(OVERLAYS.Route)}
-                data-nextjs-route-type={isStaticRoute ? 'static' : 'dynamic'}
+                title={`${issueCount} ${issueCount === 1 ? 'issue' : 'issues'} found. Click to view details in the dev overlay.`}
+                index={0}
+                label="Issues"
+                value={<IssueCount>{issueCount}</IssueCount>}
+                onClick={openErrorOverlay}
               />
-              {isTurbopack ? (
-                <MenuItem
-                  title="Turbopack is enabled."
-                  label="Turbopack"
-                  value="Enabled"
-                />
-              ) : (
-                <MenuItem
-                  index={2}
-                  title="Learn about Turbopack and how to enable it in your application."
-                  label="Try Turbopack"
-                  value={<ChevronRight />}
-                  onClick={() => setOpen(OVERLAYS.Turbo)}
-                />
-              )}
-            </div>
+            )}
+            <MenuItem
+              title={`Current route is ${isStaticRoute ? 'static' : 'dynamic'}.`}
+              label="Route"
+              index={1}
+              value={isStaticRoute ? 'Static' : 'Dynamic'}
+              onClick={() => setOpen(OVERLAYS.Route)}
+              data-nextjs-route-type={isStaticRoute ? 'static' : 'dynamic'}
+            />
+            {isTurbopack ? (
+              <MenuItem
+                title="Turbopack is enabled."
+                label="Turbopack"
+                value="Enabled"
+              />
+            ) : (
+              <MenuItem
+                index={2}
+                title="Learn about Turbopack and how to enable it in your application."
+                label="Try Turbopack"
+                value={<ChevronRight />}
+                onClick={() => setOpen(OVERLAYS.Turbo)}
+              />
+            )}
+          </div>
 
-            <div className="dev-tools-indicator-footer">
-              <MenuItem
-                data-preferences
-                label="Preferences"
-                value={<GearIcon />}
-                onClick={() => setOpen(OVERLAYS.Preferences)}
-                index={isTurbopack ? 2 : 3}
-              />
-            </div>
-          </Context.Provider>
-        </div>
+          <div className="dev-tools-indicator-footer">
+            <MenuItem
+              data-preferences
+              label="Preferences"
+              value={<GearIcon />}
+              onClick={() => setOpen(OVERLAYS.Preferences)}
+              index={isTurbopack ? 2 : 3}
+            />
+          </div>
+        </Menu>
       )}
     </Toast>
   )
@@ -417,65 +316,6 @@ function ChevronRight() {
   )
 }
 
-function MenuItem({
-  index,
-  label,
-  value,
-  onClick,
-  href,
-  ...props
-}: {
-  index?: number
-  title?: string
-  label: string
-  value: React.ReactNode
-  href?: string
-  onClick?: () => void
-}) {
-  const isInteractive =
-    typeof onClick === 'function' || typeof href === 'string'
-  const { closeMenu, selectedIndex, setSelectedIndex } = useContext(Context)
-  const selected = selectedIndex === index
-
-  function click() {
-    if (isInteractive) {
-      onClick?.()
-      closeMenu()
-      if (href) {
-        window.open(href, '_blank', 'noopener, noreferrer')
-      }
-    }
-  }
-
-  return (
-    <div
-      className="dev-tools-indicator-item"
-      data-index={index}
-      data-selected={selected}
-      onClick={click}
-      // Needs `onMouseMove` instead of enter to work together
-      // with keyboard and mouse input
-      onMouseMove={() => {
-        if (isInteractive && index !== undefined && selectedIndex !== index) {
-          setSelectedIndex(index)
-        }
-      }}
-      onMouseLeave={() => setSelectedIndex(-1)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          click()
-        }
-      }}
-      role={isInteractive ? 'menuitem' : undefined}
-      tabIndex={selected ? 0 : -1}
-      {...props}
-    >
-      <span className="dev-tools-indicator-label">{label}</span>
-      <span className="dev-tools-indicator-value">{value}</span>
-    </div>
-  )
-}
-
 function IssueCount({ children }: { children: number }) {
   return (
     <span
@@ -491,55 +331,9 @@ function IssueCount({ children }: { children: number }) {
 //////////////////////////////////////////////////////////////////////////////////////
 
 export const DEV_TOOLS_INDICATOR_STYLES = `
-  .dev-tools-indicator-menu {
-    -webkit-font-smoothing: antialiased;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    background: var(--color-background-100);
-    border: 1px solid var(--color-gray-alpha-400);
-    background-clip: padding-box;
-    box-shadow: var(--shadow-menu);
-    border-radius: var(--rounded-xl);
-    position: absolute;
-    font-family: var(--font-stack-sans);
-    z-index: 1000;
-    overflow: hidden;
-    opacity: 0;
-    outline: 0;
-    min-width: 248px;
-    transition: opacity var(--animate-out-duration-ms)
-      var(--animate-out-timing-function);
-
-    &[data-rendered='true'] {
-      opacity: 1;
-      scale: 1;
-    }
-  }
-
   .dev-tools-indicator-inner {
     padding: 6px;
     width: 100%;
-  }
-
-  .dev-tools-indicator-item {
-    display: flex;
-    align-items: center;
-    padding: 8px 6px;
-    height: var(--size-36);
-    border-radius: 6px;
-    text-decoration: none !important;
-    user-select: none;
-    white-space: nowrap;
-
-    svg {
-      width: var(--size-16);
-      height: var(--size-16);
-    }
-
-    &:focus-visible {
-      outline: 0;
-    }
   }
 
   .dev-tools-indicator-footer {

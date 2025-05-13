@@ -22,6 +22,7 @@ import { DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES } from '../components/errors/dev-t
 import { DEV_TOOLS_INFO_ROUTE_INFO_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-info/route-info'
 import { DEV_TOOLS_INFO_USER_PREFERENCES_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-info/user-preferences'
 import { FADER_STYLES } from '../components/fader'
+import { DEV_TOOLS_INDICATOR_MENU_STYLES } from '../components/errors/dev-tools-indicator/menu'
 
 export function ComponentStyles() {
   return (
@@ -45,6 +46,7 @@ export function ComponentStyles() {
         ${containerRuntimeErrorStyles}
         ${versionStaleness}
         ${DEV_TOOLS_INDICATOR_STYLES}
+        ${DEV_TOOLS_INDICATOR_MENU_STYLES}
         ${DEV_TOOLS_INFO_STYLES}
         ${DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES}
         ${DEV_TOOLS_INFO_ROUTE_INFO_STYLES}

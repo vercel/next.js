@@ -13,7 +13,7 @@ export type DialogProps = {
 const CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE = [
   '[data-next-mark]',
   '[data-issues-open]',
-  '#nextjs-dev-tools-menu',
+  '.dev-tools-indicator-menu',
   '[data-nextjs-error-overlay-nav]',
   '[data-info-popover]',
 ]
