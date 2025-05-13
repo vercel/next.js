@@ -22,7 +22,7 @@ use swc_core::{
         visit::{Visit, VisitMutWith, VisitWith, noop_visit_type},
     },
 };
-use tracing::Instrument;
+use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc, util::WrapFuture};
 use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
@@ -98,6 +98,7 @@ impl ParseResult {
     }
 }
 
+#[instrument(level = Level::INFO, skip_all)]
 pub fn generate_js_source_map(
     files_map: Arc<swc_core::common::SourceMap>,
     mappings: Vec<(BytePos, LineCol)>,
