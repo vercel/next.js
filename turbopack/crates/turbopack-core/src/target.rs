@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, Vc};
+use turbo_tasks::{NonLocalValue, Vc, trace::TraceRawVcs};
 
 #[turbo_tasks::value(shared, serialization = "auto_for_input")]
 #[derive(Hash, Debug, Copy, Clone)]
