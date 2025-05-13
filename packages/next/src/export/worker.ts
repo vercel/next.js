@@ -19,7 +19,6 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
-import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
@@ -402,6 +401,10 @@ export async function exportPages(
     let attempt = 0
     let result
 
+    const hasDebuggerAttached =
+      // Also tests for `inspect-brk`
+      process.env.NODE_OPTIONS?.includes('--inspect')
+
     while (attempt < maxAttempts) {
       try {
         result = await Promise.race<ExportPageResult | undefined>([
@@ -428,12 +431,15 @@ export async function exportPages(
             sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
             buildId: input.buildId,
           }),
-          // If exporting the page takes longer than the timeout, reject the promise.
-          new Promise((_, reject) => {
-            setTimeout(() => {
-              reject(new TimeoutError())
-            }, nextConfig.staticPageGenerationTimeout * 1000)
-          }),
+          hasDebuggerAttached
+            ? // With a debugger attached, exporting can take infinitely if we paused script execution.
+              new Promise(() => {})
+            : // If exporting the page takes longer than the timeout, reject the promise.
+              new Promise((_, reject) => {
+                setTimeout(() => {
+                  reject(new TimeoutError())
+                }, nextConfig.staticPageGenerationTimeout * 1000)
+              }),
         ])
 
         // If there was an error in the export, throw it immediately. In the catch block, we might retry the export,
@@ -571,12 +577,11 @@ async function exportPage(
       // A static generation bailout error is a framework signal to fail static generation but
       // and will encode a reason in the error message. If there is a message, we'll print it.
       // Otherwise there's nothing to show as we don't want to leak an error internal error stack to the user.
+      // TODO: Always log the full error. ignore-listing will take care of hiding internal stacks.
       if (isStaticGenBailoutError(err)) {
         if (err.message) {
           console.error(`Error: ${err.message}`)
         }
-      } else if (isError(err) && err.stack) {
-        console.error(err.stack)
       } else {
         console.error(err)
       }

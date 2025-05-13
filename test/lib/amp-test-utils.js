@@ -5,18 +5,50 @@ export async function validateAMP(/** @type {string} */ html) {
   const validatorPath = getBundledAmpValidatorFilepath()
   const validator = await getAmpValidatorInstance(validatorPath)
   const result = validator.validateString(html)
-  if (result.status !== 'PASS') {
-    for (let ii = 0; ii < result.errors.length; ii++) {
-      const error = result.errors[ii]
-      let msg =
-        'line ' + error.line + ', col ' + error.col + ': ' + error.message
-      if (error.specUrl !== null) {
-        msg += ' (see ' + error.specUrl + ')'
+  const errors = result.errors.filter((error) => {
+    if (error.severity === 'ERROR') {
+      // Unclear yet if these actually prevent the page from being indexed by the AMP cache.
+      // These are coming from React so all we can do is ignore them for now.
+
+      // <link rel="expect" blocking="render" />
+      // https://github.com/ampproject/amphtml/issues/40279
+      if (
+        error.code === 'DISALLOWED_ATTR' &&
+        error.params[0] === 'blocking' &&
+        error.params[1] === 'link'
+      ) {
+        return false
       }
-      ;(error.severity === 'ERROR' ? console.error : console.warn)(msg)
+      // <template> without type
+      // https://github.com/ampproject/amphtml/issues/40280
+      if (
+        error.code === 'MANDATORY_ATTR_MISSING' &&
+        error.params[0] === 'type' &&
+        error.params[1] === 'template'
+      ) {
+        return false
+      }
+      // <template> without type
+      // https://github.com/ampproject/amphtml/issues/40280
+      if (
+        error.code === 'MISSING_REQUIRED_EXTENSION' &&
+        error.params[0] === 'template' &&
+        error.params[1] === 'amp-mustache'
+      ) {
+        return false
+      }
+      return true
     }
-  }
-  expect(result.status).toBe('PASS')
+    return false
+  })
+  const warnings = result.errors.filter((error) => {
+    return error.severity !== 'ERROR'
+  })
+
+  expect({ errors, warnings }).toEqual({
+    errors: [],
+    warnings: [],
+  })
 }
 
 /** @typedef {import('next/dist/compiled/amphtml-validator').Validator} Validator */

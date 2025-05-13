@@ -1,13 +1,13 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use futures::future::BoxFuture;
 use next_core::{
-    all_assets_from_entries, create_page_loader_entry_module, get_asset_path_from_pathname,
-    get_edge_resolve_options_context,
+    PageLoaderAsset, all_assets_from_entries, create_page_loader_entry_module,
+    get_asset_path_from_pathname, get_edge_resolve_options_context,
     hmr_entry::HmrEntryModule,
     mode::NextMode,
     next_client::{
-        get_client_module_options_context, get_client_resolve_options_context,
-        get_client_runtime_entries, ClientContextType, RuntimeEntries,
+        ClientContextType, RuntimeEntries, get_client_module_options_context,
+        get_client_resolve_options_context, get_client_runtime_entries,
     },
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
@@ -17,44 +17,43 @@ use next_core::{
     },
     next_pages::create_page_ssr_entry_module,
     next_server::{
-        get_server_module_options_context, get_server_resolve_options_context,
-        get_server_runtime_entries, ServerContextType,
+        ServerContextType, get_server_module_options_context, get_server_resolve_options_context,
+        get_server_runtime_entries,
     },
     pages_structure::{
-        find_pages_structure, PagesDirectoryStructure, PagesStructure, PagesStructureItem,
+        PagesDirectoryStructure, PagesStructure, PagesStructureItem, find_pages_structure,
     },
-    util::{get_asset_prefix_from_pathname, parse_config_from_source, NextRuntime},
-    PageLoaderAsset,
+    util::{NextRuntime, get_asset_prefix_from_pathname, parse_config_from_source},
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, Completion, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput,
-    Value, ValueToString, Vc,
+    Completion, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Value, ValueToString, Vc,
+    fxindexmap, fxindexset, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
 };
 use turbopack::{
+    ModuleAssetContext,
     module_options::ModuleOptionsContext,
     resolve_options_context::ResolveOptionsContext,
     transition::{FullContextTransition, Transition, TransitionOptions},
-    ModuleAssetContext,
 };
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkGroupResult, ChunkingContext, ChunkingContextExt,
-        EvaluatableAsset, EvaluatableAssets,
+        ChunkGroupResult, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
+        availability_info::AvailabilityInfo,
     },
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
     module::Module,
     module_graph::{
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
@@ -67,7 +66,7 @@ use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
     dynamic_imports::{
-        collect_next_dynamic_chunks, DynamicImportedChunks, NextDynamicChunkAvailability,
+        DynamicImportedChunks, NextDynamicChunkAvailability, collect_next_dynamic_chunks,
     },
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
@@ -1375,7 +1374,7 @@ impl PageEndpoint {
                         "server/middleware-build-manifest.js".into(),
                         "server/next-font-manifest.js".into(),
                     ];
-                    let mut wasm_paths_from_root = vec![];
+                    let mut wasm_paths_from_root = fxindexset![];
 
                     let node_root_value = node_root.await?;
 
@@ -1404,7 +1403,7 @@ impl PageEndpoint {
                     let original_name = this.original_name.owned().await?;
                     let edge_function_definition = EdgeFunctionDefinition {
                         files: file_paths_from_root,
-                        wasm: wasm_paths_to_bindings(wasm_paths_from_root),
+                        wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                         assets: paths_to_bindings(all_assets),
                         name: pathname.clone(),
                         page: original_name.clone(),

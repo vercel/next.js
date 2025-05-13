@@ -200,8 +200,13 @@ async function main() {
   // Ensure we have the arguments awaited from yargs.
   argv = await argv
 
+  // `.github/workflows/build_reusable.yml` sets this, we should use it unless
+  // it's overridden by an explicit `--concurrency` argument.
+  const envConcurrency =
+    process.env.TEST_CONCURRENCY && parseInt(process.env.TEST_CONCURRENCY, 10)
+
   const options = {
-    concurrency: argv.concurrency || DEFAULT_CONCURRENCY,
+    concurrency: argv.concurrency ?? envConcurrency ?? DEFAULT_CONCURRENCY,
     debug: argv.debug ?? false,
     timings: argv.timings ?? false,
     writeTimings: argv.writeTimings ?? false,

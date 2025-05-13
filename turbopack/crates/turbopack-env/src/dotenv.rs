@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{fxindexmap, Vc};
+use turbo_tasks::{Vc, fxindexmap};
 use turbo_tasks_env::{CommandLineProcessEnv, CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::FileSystemPath;
 

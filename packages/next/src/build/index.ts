@@ -194,10 +194,6 @@ import {
 import { FallbackMode, fallbackModeToFallbackField } from '../lib/fallback'
 import { RenderingMode } from './rendering-mode'
 import { getParamKeys } from '../server/request/fallback-params'
-import {
-  formatNodeOptions,
-  getParsedNodeOptionsWithoutInspect,
-} from '../server/lib/utils'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import type { UseCacheTrackerKey } from './webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
@@ -214,6 +210,7 @@ import { populateStaticEnv } from '../lib/static-env'
 import { durationToString } from './duration-to-string'
 import { traceGlobals } from '../trace/shared'
 import { extractNextErrorCode } from '../lib/error-telemetry-utils'
+import { runAfterProductionCompile } from './after-production-compile'
 
 type Fallback = null | boolean | string
 
@@ -742,17 +739,15 @@ const staticWorkerExposedMethods = [
 type StaticWorker = typeof import('./worker') & Worker
 export function createStaticWorker(
   config: NextConfigComplete,
-  progress?: {
-    run: () => void
-    clear: () => void
+  options: {
+    debuggerPortOffset: number
+    progress?: {
+      run: () => void
+      clear: () => void
+    }
   }
 ): StaticWorker {
-  // Get the node options without inspect and also remove the
-  // --max-old-space-size flag as it can cause memory issues.
-  const nodeOptions = getParsedNodeOptionsWithoutInspect()
-  delete nodeOptions['max-old-space-size']
-  delete nodeOptions['max_old_space_size']
-
+  const { debuggerPortOffset, progress } = options
   return new Worker(staticWorkerPath, {
     logger: Log,
     numWorkers: getNumberOfWorkers(config),
@@ -762,9 +757,9 @@ export function createStaticWorker(
     onActivityAbort: () => {
       progress?.clear()
     },
-    forkOptions: {
-      env: { ...process.env, NODE_OPTIONS: formatNodeOptions(nodeOptions) },
-    },
+    debuggerPortOffset,
+    // remove --max-old-space-size flag as it can cause memory issues.
+    isolatedMemory: true,
     enableWorkerThreads: config.experimental.workerThreads,
     exposedMethods: staticWorkerExposedMethods,
   }) as StaticWorker
@@ -780,9 +775,6 @@ async function writeFullyStaticExport(
   const exportApp = require('../export')
     .default as typeof import('../export').default
 
-  const pagesWorker = createStaticWorker(config)
-  const appWorker = createStaticWorker(config)
-
   await exportApp(
     dir,
     {
@@ -795,9 +787,6 @@ async function writeFullyStaticExport(
     },
     nextBuildSpan
   )
-
-  pagesWorker.end()
-  appWorker.end()
 }
 
 async function getBuildId(
@@ -1321,6 +1310,11 @@ export default async function build(
               buildCustomRoute('redirect', r, restrictedRedirectPaths)
             ),
             headers: headers.map((r) => buildCustomRoute('header', r)),
+            rewrites: {
+              beforeFiles: [],
+              afterFiles: [],
+              fallback: [],
+            },
             dynamicRoutes,
             staticRoutes,
             dataRoutes: [],
@@ -1342,11 +1336,6 @@ export default async function build(
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,
               queryHeader: NEXT_REWRITTEN_QUERY_HEADER,
-            },
-            rewrites: {
-              beforeFiles: [],
-              afterFiles: [],
-              fallback: [],
             },
             skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
             ppr: isAppPPREnabled
@@ -1499,6 +1488,8 @@ export default async function build(
                 const buildTraceWorker = new Worker(
                   require.resolve('./collect-build-traces'),
                   {
+                    debuggerPortOffset: -1,
+                    isolatedMemory: false,
                     numWorkers: 1,
                     exposedMethods: ['collectBuildTraces'],
                   }
@@ -1515,6 +1506,7 @@ export default async function build(
                     hasSsrAmpPages: false,
                     buildTraceContext,
                     outputFileTracingRoot,
+                    isTurbopack: false,
                   })
                   .catch((err) => {
                     console.error(err)
@@ -1583,6 +1575,15 @@ export default async function build(
             )
           }
         }
+        await runAfterProductionCompile({
+          config,
+          buildSpan: nextBuildSpan,
+          telemetry,
+          metadata: {
+            projectDir: dir,
+            distDir,
+          },
+        })
       }
 
       // For app directory, we run type checking after build.
@@ -1645,7 +1646,7 @@ export default async function build(
 
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-      const worker = createStaticWorker(config)
+      const worker = createStaticWorker(config, { debuggerPortOffset: -1 })
 
       const analysisBegin = process.hrtime()
       const staticCheckSpan = nextBuildSpan.traceChild('static-check')
@@ -2431,6 +2432,7 @@ export default async function build(
           hasSsrAmpPages,
           buildTraceContext,
           outputFileTracingRoot,
+          isTurbopack: true,
         }).catch((err) => {
           console.error(err)
           process.exit(1)
@@ -3543,18 +3545,11 @@ export default async function build(
               ...routesManifest.staticRoutes,
               ...routesManifest.dynamicRoutes,
             ]) {
-              // We only want to handle pages that are using the app router. We
-              // need this path in order to determine if it's an app route or an
-              // app page.
-              const originalAppPath = pageInfos.get(route.page)?.originalAppPath
-              if (!originalAppPath) {
-                continue
-              }
-
-              // We only want to handle app pages, not app routes.
-              if (isAppRouteRoute(originalAppPath)) {
-                continue
-              }
+              // If the segment paths aren't defined, we need to insert a
+              // reverse routing rule so that there isn't any conflicts
+              // with other dynamic routes for the prefetch segment
+              // routes. This is true for any route that is not PPR-enabled,
+              // including all routes defined by Pages Router.
 
               // We don't need to add the prefetch segment data routes if it was
               // added due to a page that was already generated. This would have
@@ -3563,11 +3558,6 @@ export default async function build(
                 continue
               }
 
-              // If the segment paths aren't defined, we need to insert a
-              // reverse routing rule so that there isn't any conflicts
-              // with other dynamic routes for the prefetch segment
-              // routes. This is only an issue for pages that do not have
-              // partial prerendering enabled.
               route.prefetchSegmentDataRoutes = [
                 buildInversePrefetchSegmentDataRoute(
                   route.page,

@@ -6,7 +6,7 @@ use swc_core::{
         visit::AstParentKind,
     },
 };
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue};
+use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
 use crate::analyzer::{

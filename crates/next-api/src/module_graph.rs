@@ -4,8 +4,8 @@ use anyhow::Result;
 use either::Either;
 use next_core::{
     next_client_reference::{
-        find_server_entries, ClientReference, ClientReferenceGraphResult, ClientReferenceType,
-        ServerEntries, VisitedClientReferenceGraphNodes,
+        ClientReference, ClientReferenceGraphResult, ClientReferenceType, ServerEntries,
+        VisitedClientReferenceGraphNodes, find_server_entries,
     },
     next_dynamic::NextDynamicEntryModule,
     next_manifests::ActionLayer,
@@ -24,9 +24,9 @@ use turbopack_core::{
 };
 
 use crate::{
-    client_references::{map_client_references, ClientReferenceMapType, ClientReferencesSet},
-    dynamic_imports::{map_next_dynamic, DynamicImportEntries, DynamicImportEntriesMapType},
-    server_actions::{map_server_actions, to_rsc_context, AllActions, AllModuleActions},
+    client_references::{ClientReferenceMapType, ClientReferencesSet, map_client_references},
+    dynamic_imports::{DynamicImportEntries, DynamicImportEntriesMapType, map_next_dynamic},
+    server_actions::{AllActions, AllModuleActions, map_server_actions, to_rsc_context},
 };
 
 #[turbo_tasks::value]

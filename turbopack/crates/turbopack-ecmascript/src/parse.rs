@@ -1,47 +1,48 @@
 use std::{future::Future, sync::Arc};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use rustc_hash::FxHashSet;
 use swc_core::{
     base::SwcComments,
     common::{
-        errors::{Handler, HANDLER},
+        BytePos, FileName, GLOBALS, Globals, LineCol, Mark, SyntaxContext,
+        errors::{HANDLER, Handler},
         input::StringInput,
         source_map::SourceMapGenConfig,
-        BytePos, FileName, Globals, LineCol, Mark, SyntaxContext, GLOBALS,
+        util::take::Take,
     },
     ecma::{
         ast::{EsVersion, Id, ObjectPatProp, Pat, Program, VarDecl},
         lints::{config::LintConfig, rules::LintParams},
-        parser::{lexer::Lexer, EsSyntax, Parser, Syntax, TsSyntax},
+        parser::{EsSyntax, Parser, Syntax, TsSyntax, lexer::Lexer},
         transforms::base::{
-            helpers::{Helpers, HELPERS},
+            helpers::{HELPERS, Helpers},
             resolver,
         },
-        visit::{noop_visit_type, Visit, VisitMutWith, VisitWith},
+        visit::{Visit, VisitMutWith, VisitWith, noop_visit_type},
     },
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{util::WrapFuture, ResolvedVc, Value, ValueToString, Vc};
-use turbo_tasks_fs::{rope::Rope, FileContent, FileSystemPath};
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc, util::WrapFuture};
+use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
+    SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
     error::PrettyPrintError,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     source::Source,
     source_map::utils::add_default_ignore_list,
-    SOURCE_URL_PROTOCOL,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
 use super::EcmascriptModuleAssetType;
 use crate::{
-    analyzer::graph::EvalContext,
+    EcmascriptInputTransform,
+    analyzer::{ImportMap, graph::EvalContext},
     swc_comments::ImmutableComments,
     transform::{EcmascriptInputTransforms, TransformContext},
-    EcmascriptInputTransform,
 };
 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
@@ -75,6 +76,28 @@ impl PartialEq for ParseResult {
     }
 }
 
+#[turbo_tasks::value_impl]
+impl ParseResult {
+    #[turbo_tasks::function]
+    pub fn empty() -> Vc<ParseResult> {
+        let globals = Globals::new();
+        let eval_context = GLOBALS.set(&globals, || EvalContext {
+            unresolved_mark: Mark::new(),
+            top_level_mark: Mark::new(),
+            imports: ImportMap::default(),
+            force_free_values: Default::default(),
+        });
+        ParseResult::Ok {
+            program: Program::Module(swc_core::ecma::ast::Module::dummy()),
+            comments: Default::default(),
+            eval_context,
+            globals: Arc::new(globals),
+            source_map: Default::default(),
+        }
+        .cell()
+    }
+}
+
 pub fn generate_js_source_map(
     files_map: Arc<swc_core::common::SourceMap>,
     mappings: Vec<(BytePos, LineCol)>,
@@ -91,11 +114,16 @@ pub fn generate_js_source_map(
         None
     };
 
-    let mut map = files_map.build_source_map_with_config(
-        &mappings,
-        input_map.as_ref(),
-        InlineSourcesContentConfig {},
-    );
+    let map =
+        files_map.build_source_map_with_config(&mappings, None, InlineSourcesContentConfig {});
+
+    let mut map = match input_map {
+        Some(mut input_map) => {
+            input_map.adjust_mappings(&map);
+            input_map
+        }
+        None => map,
+    };
     add_default_ignore_list(&mut map);
 
     let mut result = vec![];

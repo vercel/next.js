@@ -1751,7 +1751,7 @@ export function isReservedPage(page: string) {
 }
 
 export function isAppBuiltinNotFoundPage(page: string) {
-  return /next[\\/]dist[\\/]client[\\/]components[\\/]not-found-error/.test(
+  return /next[\\/]dist[\\/]client[\\/]components[\\/](not-found-error|global-not-found)/.test(
     page
   )
 }

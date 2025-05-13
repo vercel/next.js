@@ -2,12 +2,11 @@ use anyhow::Result;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::resolve::{
-    find_context_file,
+    AliasMap, AliasPattern, ExternalTraced, ExternalType, FindContextFileResult, find_context_file,
     options::{
         ConditionValue, ImportMap, ImportMapping, ResolutionConditions, ResolveInPackage,
         ResolveIntoPackage, ResolveModules, ResolveOptions,
     },
-    AliasMap, AliasPattern, ExternalTraced, ExternalType, FindContextFileResult,
 };
 
 use crate::{

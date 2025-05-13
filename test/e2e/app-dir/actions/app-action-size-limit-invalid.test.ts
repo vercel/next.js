@@ -1,8 +1,9 @@
-import { NextInstance, nextTestSetup } from 'e2e-utils'
+import { FileRef, NextInstance, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { createRequestTracker } from 'e2e-utils/request-tracker'
 import stripAnsi from 'strip-ansi'
 import { accountForOverhead } from './account-for-overhead'
+import { join } from 'path'
 
 const CONFIG_ERROR =
   'Server Actions Size Limit must be a valid number or filesize format larger than 1MB'
@@ -10,6 +11,11 @@ const CONFIG_ERROR =
 describe('app-dir action size limit invalid config', () => {
   const { next, isNextStart, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
+    overrideFiles: process.env.TEST_NODE_MIDDLEWARE
+      ? {
+          'middleware.js': new FileRef(join(__dirname, 'middleware-node.js')),
+        }
+      : {},
     skipStart: true,
     dependencies: {
       nanoid: '4.0.1',
@@ -43,7 +49,8 @@ describe('app-dir action size limit invalid config', () => {
         `
       module.exports = {
         experimental: {
-          serverActions: { bodySizeLimit: -3000 }
+          serverActions: { bodySizeLimit: -3000 },
+          nodeMiddleware: true
         },
       }
       `
@@ -61,7 +68,8 @@ describe('app-dir action size limit invalid config', () => {
         `
       module.exports = {
         experimental: {
-          serverActions: { bodySizeLimit: 'testmb' }
+          serverActions: { bodySizeLimit: 'testmb' },
+          nodeMiddleware: true
         },
       }
       `
@@ -79,7 +87,8 @@ describe('app-dir action size limit invalid config', () => {
         `
       module.exports = {
         experimental: {
-          serverActions: { bodySizeLimit: '-3000mb' }
+          serverActions: { bodySizeLimit: '-3000mb' },
+          nodeMiddleware: true
         },
       }
       `

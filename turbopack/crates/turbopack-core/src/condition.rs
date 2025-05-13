@@ -1,7 +1,7 @@
 use anyhow::Result;
-use futures::{stream, StreamExt};
+use futures::{StreamExt, stream};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]

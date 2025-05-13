@@ -3,7 +3,7 @@ use std::fmt::Write;
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{rope::RopeBuilder, File, FileSystemPath};
+use turbo_tasks_fs::{File, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkItem, ChunkingContext, MinifyType},
@@ -15,7 +15,7 @@ use turbopack_core::{
 };
 
 use super::source_map::SingleItemCssChunkSourceMapAsset;
-use crate::chunk::{write_import_context, CssChunkItem};
+use crate::chunk::{CssChunkItem, write_import_context};
 
 /// A CSS chunk that only contains a single item. This is used for selectively
 /// loading CSS modules that are part of a larger chunk in development mode, and
@@ -60,7 +60,7 @@ impl SingleItemCssChunk {
             MinifyType::NoMinify
         ) {
             let id = this.item.asset_ident().to_string().await?;
-            writeln!(code, "/* {} */", id)?;
+            writeln!(code, "/* {id} */")?;
         }
         let content = this.item.content().await?;
         let close = write_import_context(&mut code, content.import_context).await?;

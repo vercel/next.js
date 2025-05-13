@@ -252,6 +252,7 @@ auto-hash-map = { path = "turbopack/crates/turbo-tasks-auto-hash-map" }
 swc-ast-explorer = { path = "turbopack/crates/turbopack-swc-ast-explorer" }
 turbo-prehash = { path = "turbopack/crates/turbo-prehash" }
 turbo-rcstr = { path = "turbopack/crates/turbo-rcstr" }
+turbo-esregex = { path = "turbopack/crates/turbo-esregex" }
 turbo-persistence = { path = "turbopack/crates/turbo-persistence" }
 turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }
 turbo-tasks = { path = "turbopack/crates/turbo-tasks" }
@@ -296,21 +297,21 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "22.3.1", features = [
+swc_core = { version = "24.0.0", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
-testing = { version = "9.0.0" }
+testing = { version = "10.0.0" }
 
 # Keep consistent with preset_env_base through swc_core
-browserslist-rs = { version = "0.17.0" }
+browserslist-rs = { version = "0.18.0" }
 miette = { version = "5.10.0", features = ["fancy"] }
-mdxjs = "1"
-modularize_imports = { version = "0.82.0" }
-styled_components = { version = "0.110.0" }
-styled_jsx = { version = "0.86.0" }
-swc_emotion = { version = "0.86.0" }
-swc_relay = { version = "0.56.0" }
+mdxjs = "1.0.1"
+modularize_imports = { version = "0.84.0" }
+styled_components = { version = "0.112.1" }
+styled_jsx = { version = "0.88.0" }
+swc_emotion = { version = "0.88.0" }
+swc_relay = { version = "0.58.0" }
 
 # General Deps
 chromiumoxide = { version = "0.5.4", features = [
@@ -324,7 +325,7 @@ tungstenite = "0.20.1"
 allsorts = { version = "0.14.0", default-features = false, features = [
   "flate2_rust",
 ] }
-anyhow = "1.0.69"
+anyhow = "1.0.98"
 assert_cmd = "2.0.8"
 async-compression = { version = "0.3.13", default-features = false, features = [
   "gzip",
@@ -360,12 +361,12 @@ indoc = "2.0.0"
 itertools = "0.10.5"
 lazy_static = "1.4.0"
 log = "0.4.17"
-lightningcss = { version = "1.0.0-alpha.65", features = [
+lightningcss = { version = "1.0.0-alpha.66", features = [
   "serde",
   "visitor",
   "into_owned",
 ] }
-lightningcss-napi = { version = "0.4.3", default-features = false, features = [
+lightningcss-napi = { version = "0.4.4", default-features = false, features = [
   "visitor"
 ]}
 markdown = "1.0.0-alpha.18"
@@ -392,7 +393,7 @@ regex = "1.10.6"
 regress = "0.10.3"
 reqwest = { version = "=0.11.17", default-features = false }
 rstest = "0.16.0"
-rustc-hash = "2.1.0"
+rustc-hash = "2.1.1"
 semver = "1.0.16"
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.138"
@@ -429,9 +430,4 @@ vergen-gitcl = { git = "https://github.com/bgw/vergen.git", branch = "bgw/no-opt
 webbrowser = "0.8.7"
 
 [patch.crates-io]
-# Remove this once https://github.com/wasmerio/wasmer/pull/5333 is merged and released
-wasmer = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
-wasmer-cache = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
-wasmer-compiler-cranelift = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
-wasmer-wasix = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
-
+mdxjs = { git = "https://github.com/kdy1/mdxjs-rs", branch = "swc-core-24" }

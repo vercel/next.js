@@ -7,13 +7,15 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use auto_hash_map::AutoMap;
 use rustc_hash::FxHasher;
 use tracing::Span;
 
 pub use crate::id::BackendJobId;
 use crate::{
+    FunctionId, RawVc, ReadCellOptions, ReadRef, SharedReference, TaskId, TaskIdSet, TraitRef,
+    TraitTypeId, ValueTypeId, VcRead, VcValueTrait, VcValueType,
     event::EventListener,
     magic_any::MagicAny,
     manager::{ReadConsistency, TurboTasksBackendApi},
@@ -22,8 +24,6 @@ use crate::{
     task::shared_reference::TypedSharedReference,
     task_statistics::TaskStatisticsApi,
     triomphe_utils::unchecked_sidecast_triomphe_arc,
-    FunctionId, RawVc, ReadCellOptions, ReadRef, SharedReference, TaskId, TaskIdSet, TraitRef,
-    TraitTypeId, ValueTypeId, VcRead, VcValueTrait, VcValueType,
 };
 
 pub type TransientTaskRoot =
@@ -104,9 +104,9 @@ mod ser {
     use std::any::Any;
 
     use serde::{
+        Deserialize, Deserializer, Serialize, Serializer,
         de::{self},
         ser::{SerializeSeq, SerializeTuple},
-        Deserialize, Deserializer, Serialize, Serializer,
     };
 
     use super::*;
@@ -117,7 +117,7 @@ mod ser {
             S: Serializer,
         {
             let value_type = registry::get_value_type(self.0);
-            let serializable = if let Some(value) = &self.1 .0 {
+            let serializable = if let Some(value) = &self.1.0 {
                 value_type.any_as_serializable(&value.0)
             } else {
                 None
@@ -314,7 +314,7 @@ impl Display for CellContent {
 
 impl TypedCellContent {
     pub fn cast<T: VcValueType>(self) -> Result<ReadRef<T>> {
-        let data = self.1 .0.ok_or_else(|| anyhow!("Cell is empty"))?;
+        let data = self.1.0.ok_or_else(|| anyhow!("Cell is empty"))?;
         let data = data
             .downcast::<<T::Read as VcRead<T>>::Repr>()
             .map_err(|_err| anyhow!("Unexpected type in cell"))?;
@@ -334,7 +334,7 @@ impl TypedCellContent {
     {
         let shared_reference = self
             .1
-             .0
+            .0
             .ok_or_else(|| anyhow!("Cell is empty"))?
             .into_typed(self.0);
         Ok(

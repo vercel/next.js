@@ -5,7 +5,7 @@ use std::{
 
 use anyhow::anyhow;
 
-use crate::{util::SharedError, RawVc};
+use crate::{RawVc, util::SharedError};
 
 /// A helper type representing the output of a resolved task.
 #[derive(Clone, Debug)]
@@ -29,9 +29,9 @@ impl OutputContent {
 impl Display for OutputContent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Link(raw_vc) => write!(f, "link {:?}", raw_vc),
-            Self::Error(err) => write!(f, "error {}", err),
-            Self::Panic(Some(message)) => write!(f, "panic {}", message),
+            Self::Link(raw_vc) => write!(f, "link {raw_vc:?}"),
+            Self::Error(err) => write!(f, "error {err}"),
+            Self::Panic(Some(message)) => write!(f, "panic {message}"),
             Self::Panic(None) => write!(f, "panic"),
         }
     }

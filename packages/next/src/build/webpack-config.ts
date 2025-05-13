@@ -1207,7 +1207,10 @@ export default async function getBaseWebpackConfig(
               // @ts-ignore No typings yet
               const { MinifyPlugin } =
                 require('./webpack/plugins/minify-webpack-plugin/src/index.js') as typeof import('./webpack/plugins/minify-webpack-plugin/src')
-              new MinifyPlugin({ noMangling }).apply(compiler)
+              new MinifyPlugin({
+                noMangling,
+                disableCharFreq: !isClient,
+              }).apply(compiler)
             },
             // Minify CSS
             (compiler: webpack.Compiler) => {
@@ -1945,7 +1948,7 @@ export default async function getBaseWebpackConfig(
           dev,
         }),
       // rspack doesn't support the parser hooks used here
-      (isClient || isEdgeServer) && new DropClientPage(),
+      !isRspack && (isClient || isEdgeServer) && new DropClientPage(),
       isNodeServer &&
         !dev &&
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
@@ -1959,6 +1962,7 @@ export default async function getBaseWebpackConfig(
             appDirEnabled: hasAppDir,
             traceIgnores: [],
             compilerType,
+            swcLoaderConfig: swcDefaultLoader,
           }
         ),
       // Moment.js is an extremely popular library that bundles large locale files

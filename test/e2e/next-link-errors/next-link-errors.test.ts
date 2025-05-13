@@ -83,4 +83,34 @@ describe('next-link', () => {
       `"Application error: a client-side exception has occurred while loading localhost (see the browser console for more information)."`
     )
   })
+
+  it('invalid `prefetch` causes runtime error (dev-only)', async () => {
+    const browser = await webdriver(next.appPort, '/invalid-prefetch')
+
+    if (isNextDev) {
+      // TODO(veil): https://linear.app/vercel/issue/NDX-554/hide-the-anonymous-frames-which-are-between-2-ignored-frames
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "Failed prop type: The prop \`prefetch\` expects a \`boolean | "auto"\` in \`<Link>\`, but got \`string\` instead.
+       Open your browser's console to view the Component stack trace.",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "app/invalid-prefetch/page.js (7:5) @ Hello
+       >  7 |     <Link prefetch="unknown" href="https://nextjs.org/">
+            |     ^",
+         "stack": [
+           "Array.forEach <anonymous> (0:0)",
+           "Hello app/invalid-prefetch/page.js (7:5)",
+         ],
+       }
+      `)
+      expect(await browser.elementByCss('body').text()).toMatchInlineSnapshot(
+        `"Application error: a client-side exception has occurred while loading localhost (see the browser console for more information)."`
+      )
+    } else {
+      expect(await browser.elementByCss('body').text()).toMatchInlineSnapshot(
+        `"Link with unknown \`prefetch\` renders in prod."`
+      )
+    }
+  })
 })
