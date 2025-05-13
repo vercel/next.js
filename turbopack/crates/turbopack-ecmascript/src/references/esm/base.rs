@@ -1,8 +1,12 @@
 use anyhow::{Result, anyhow, bail};
+use either::Either;
 use strsim::jaro;
 use swc_core::{
-    common::{BytePos, DUMMY_SP, Span},
-    ecma::ast::{Decl, Expr, ExprStmt, Ident, Stmt},
+    common::{BytePos, DUMMY_SP, Mark, Span, SyntaxContext},
+    ecma::ast::{
+        ComputedPropName, Decl, Expr, ExprStmt, Ident, Lit, MemberExpr, MemberProp, Number,
+        SeqExpr, Stmt, Str,
+    },
     quote,
 };
 use turbo_rcstr::{RcStr, rcstr};
@@ -34,10 +38,13 @@ use super::export::{all_known_export_names, is_export_missing};
 use crate::{
     ScopeHoistingContext, TreeShakingMode,
     analyzer::imports::ImportAnnotations,
-    chunk::EcmascriptChunkPlaceable,
+    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::CodeGeneration,
     magic_identifier,
-    references::util::{request_to_string, throw_module_not_found_expr},
+    references::{
+        esm::EsmExport,
+        util::{request_to_string, throw_module_not_found_expr},
+    },
     runtime_functions::{TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT},
     tree_shake::{TURBOPACK_PART_IMPORT_SOURCE, asset::EcmascriptModulePartAsset},
     utils::module_id_to_lit,
@@ -51,18 +58,185 @@ pub enum ReferencedAsset {
     Unresolvable,
 }
 
+pub enum ReferencedAssetIdent {
+    LocalBinding {
+        ident: RcStr,
+        ctxt: SyntaxContext,
+    },
+    Module {
+        namespace_ident: String,
+        export: Option<RcStr>,
+    },
+}
+
+impl ReferencedAssetIdent {
+    pub fn into_module_namespace_ident(self) -> Option<String> {
+        match self {
+            ReferencedAssetIdent::Module {
+                namespace_ident, ..
+            } => Some(namespace_ident),
+            ReferencedAssetIdent::LocalBinding { .. } => None,
+        }
+    }
+
+    pub fn as_expr_individual(&self, span: Span) -> Either<Ident, MemberExpr> {
+        match self {
+            ReferencedAssetIdent::LocalBinding { ident, ctxt } => {
+                Either::Left(Ident::new(ident.as_str().into(), span, *ctxt))
+            }
+            ReferencedAssetIdent::Module {
+                namespace_ident,
+                export,
+            } => {
+                if let Some(export) = export {
+                    Either::Right(MemberExpr {
+                        span,
+                        obj: Box::new(Expr::Ident(Ident::new(
+                            namespace_ident.as_str().into(),
+                            span,
+                            Default::default(),
+                        ))),
+                        prop: MemberProp::Computed(ComputedPropName {
+                            span,
+                            expr: Box::new(Expr::Lit(Lit::Str(Str {
+                                span,
+                                value: export.as_str().into(),
+                                raw: None,
+                            }))),
+                        }),
+                    })
+                } else {
+                    Either::Left(Ident::new(
+                        namespace_ident.as_str().into(),
+                        span,
+                        Default::default(),
+                    ))
+                }
+            }
+        }
+    }
+    pub fn as_expr(&self, span: Span, is_callee: bool) -> Expr {
+        match self.as_expr_individual(span) {
+            Either::Left(ident) => ident.into(),
+            Either::Right(member) => {
+                if is_callee {
+                    Expr::Seq(SeqExpr {
+                        exprs: vec![
+                            Box::new(Expr::Lit(Lit::Num(Number {
+                                span,
+                                value: 0.0,
+                                raw: None,
+                            }))),
+                            Box::new(member.into()),
+                        ],
+                        span,
+                    })
+                } else {
+                    member.into()
+                }
+            }
+        }
+    }
+}
+
 impl ReferencedAsset {
     pub async fn get_ident(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Option<String>> {
+        export: Option<RcStr>,
+        scope_hoisting_context: Option<ScopeHoistingContext<'_>>,
+    ) -> Result<Option<ReferencedAssetIdent>> {
         Ok(match self {
             ReferencedAsset::Some(asset) => {
-                Some(Self::get_ident_from_placeable(asset, chunking_context).await?)
+                if let Some(scope_hoisting_context) = scope_hoisting_context {
+                    if let Some(ctxt) = scope_hoisting_context
+                        .module_syntax_contexts
+                        .get(&ResolvedVc::upcast(*asset))
+                    {
+                        if let Some(export) = &export {
+                            if let EcmascriptExports::EsmExports(exports) =
+                                *asset.get_exports().await?
+                            {
+                                let exports = exports.await?;
+                                let export = exports.exports.get(export);
+                                match export {
+                                    Some(EsmExport::LocalBinding(name, _)) => {
+                                        // A local binding in a module that is merged in the same
+                                        // group
+                                        return Ok(Some(ReferencedAssetIdent::LocalBinding {
+                                            ident: name.clone(),
+                                            ctxt: *ctxt,
+                                        }));
+                                    }
+                                    Some(EsmExport::ImportedBinding(esm_ref, name, _)) => {
+                                        let referenced_asset =
+                                            ReferencedAsset::from_resolve_result(
+                                                esm_ref.resolve_reference(),
+                                            )
+                                            .await?;
+
+                                        // If the target module is still in the same group, we can
+                                        // refer it locally, otherwise it will be imported
+                                        return Box::pin(referenced_asset.get_ident(
+                                            chunking_context,
+                                            Some(name.clone()),
+                                            Some(scope_hoisting_context),
+                                        ))
+                                        .await;
+                                    }
+                                    _ => {
+                                        todo!("TODO {:?}", export)
+                                    }
+                                }
+                                .resolved_cell()
+                                .emit();
+                                return Ok(None);
+                            }
+
+                            // If the target module is still in the same group, we can
+                            // refer it locally, otherwise it will be imported
+                            return Ok(
+                                match Box::pin(referenced_asset.get_ident_inner(
+                                    chunking_context,
+                                    imported,
+                                    scope_hoisting_context,
+                                    Some(asset),
+                                ))
+                                .await?
+                                {
+                                    Some(ReferencedAssetIdent::Module {
+                                        namespace_ident,
+                                        // Overwrite the context. This import isn't
+                                        // inserted in the module that uses the import,
+                                        // but in the module containing the reexport
+                                        ctxt: None,
+                                        export,
+                                    }) => Some(ReferencedAssetIdent::Module {
+                                        namespace_ident,
+                                        ctxt: Some(ctxt),
+                                        export,
+                                    }),
+                                    ident => ident,
+                                },
+                            );
+                        }
+                        Some(EsmExport::Error) | None => {
+                            // Export not found, either there was already an error, or
+                            // this is some dynamic (CJS) (re)export situation.
+                        }
+                    }
+                }
+
+                Some(ReferencedAssetIdent::Module {
+                    namespace_ident: Self::get_ident_from_placeable(asset, chunking_context)
+                        .await?,
+                    export,
+                })
             }
-            ReferencedAsset::External(request, ty) => Some(magic_identifier::mangle(&format!(
-                "{ty} external {request}"
-            ))),
+            ReferencedAsset::External(request, ty) => Some(ReferencedAssetIdent::Module {
+                namespace_ident: magic_identifier::mangle(&format!("{ty} external {request}")),
+                export,
+            }),
             ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
         })
     }
@@ -321,7 +495,10 @@ impl EsmAssetReference {
                     span: DUMMY_SP,
                 });
                 Some((format!("throw {request}").into(), stmt))
-            } else if let Some(ident) = referenced_asset.get_ident(chunking_context).await? {
+            } else if let Some(ident) = referenced_asset
+                .get_ident(chunking_context, None, scope_hoisting_context)
+                .await?
+            {
                 let span = this
                     .issue_source
                     .to_swc_offsets()
@@ -342,13 +519,13 @@ impl EsmAssetReference {
                             None
                         } else {
                             let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
-                            let name = ident;
+                            let name = ident.as_expr_individual(DUMMY_SP).unwrap_left();
                             Some((
                                 id.to_string().into(),
                                 var_decl_with_span(
                                     quote!(
                                         "var $name = $turbopack_import($id);" as Stmt,
-                                        name = Ident::new(name.clone().into(), DUMMY_SP, Default::default()),
+                                        name = name,
                                         turbopack_import: Expr = TURBOPACK_IMPORT.into(),
                                         id: Expr = module_id_to_lit(&id),
                                     ),
@@ -370,20 +547,21 @@ impl EsmAssetReference {
                                 request
                             );
                         }
+                        let name = ident.as_expr_individual(DUMMY_SP).unwrap_left();
                         Some((
-                            ident.clone().into(),
+                            name.sym.as_str().into(),
                             var_decl_with_span(
                                 if import_externals {
                                     quote!(
                                         "var $name = $turbopack_external_import($id);" as Stmt,
-                                        name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
+                                        name = name,
                                         turbopack_external_import: Expr = TURBOPACK_EXTERNAL_IMPORT.into(),
                                         id: Expr = Expr::Lit(request.clone().to_string().into())
                                     )
                                 } else {
                                     quote!(
                                         "var $name = $turbopack_external_require($id, () => require($id), true);" as Stmt,
-                                        name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
+                                        name = name,
                                         turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
                                         id: Expr = Expr::Lit(request.clone().to_string().into())
                                     )
@@ -408,12 +586,13 @@ impl EsmAssetReference {
                                 request
                             );
                         }
+                        let name = ident.as_expr_individual(DUMMY_SP).unwrap_left();
                         Some((
-                            ident.clone().into(),
+                            name.sym.as_str().into(),
                             var_decl_with_span(
                                 quote!(
                                     "var $name = $turbopack_external_require($id, () => require($id), true);" as Stmt,
-                                    name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
+                                    name = name,
                                     turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
                                     id: Expr = Expr::Lit(request.clone().to_string().into())
                                 ),
