@@ -1,9 +1,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned};
-use syn::{
-    Attribute, ItemTrait, TraitItem, TraitItemFn, parse_macro_input, parse_quote, spanned::Spanned,
-};
+use syn::{ItemTrait, TraitItem, TraitItemFn, parse_macro_input, parse_quote, spanned::Spanned};
 use turbo_tasks_macros_shared::{
     ValueTraitArguments, get_trait_default_impl_function_id_ident,
     get_trait_default_impl_function_ident, get_trait_type_id_ident, get_trait_type_ident,
@@ -11,11 +9,8 @@ use turbo_tasks_macros_shared::{
 };
 
 use crate::{
-    func::{
-        DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
-        parse_with_optional_parens,
-    },
-    value_impl_macro::is_attribute,
+    func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes},
+    value_impl_macro::split_function_attributes,
 };
 
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
@@ -74,6 +69,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut trait_methods: Vec<TokenStream2> = Vec::new();
     let mut native_functions = Vec::new();
     let mut items = Vec::with_capacity(raw_items.len());
+    let mut errors = Vec::new();
 
     for item in raw_items.iter() {
         let TraitItem::Fn(TraitItemFn {
@@ -91,44 +87,16 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         };
 
         let ident = &sig.ident;
-
-        let func_attr = {
-            let func_args: Vec<&Attribute> = attrs
-                .iter()
-                .filter(|a| is_attribute(a, "function"))
-                .collect();
-            if func_args.is_empty() {
-                item.span()
-                    .unwrap()
-                    .error("value_trait items must be annotated with #[turbo_tasks::function]")
-                    .emit();
-                continue;
-            }
-            if func_args.len() > 1 {
-                // annotate the second one
-                func_args[1]
-                    .span()
-                    .unwrap()
-                    .error("only one #[turbo_tasks::function]")
-                    .emit();
-                continue;
-            }
-            func_args[0]
-        };
-        let args = match parse_with_optional_parens::<FunctionArguments>(func_attr) {
-            Ok(args) => args,
-            Err(err) => {
-                err.span().unwrap().error("").emit();
-                continue;
-            }
-        };
-        if !args.is_default() {
-            func_attr
-                .span()
-                .unwrap()
-                .error("turbo_task functions in value_traits cannot be parameterized")
+        // This effectively parses and removes the function annotation ensureing that macro doesn't
+        // run after us.
+        let (func_args, attrs) = split_function_attributes(item, attrs);
+        let func_args = func_args
+            .inspect_err(|err| errors.push(err.to_compile_error()))
+            .unwrap_or_default();
+        if let Some(span) = func_args.operation {
+            span.unwrap()
+                .error("trait items cannot be operations")
                 .emit();
-            continue;
         }
 
         let Some(turbo_fn) = TurboFn::new(
@@ -156,7 +124,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 Ident::new(&format!("{trait_ident}_{ident}_inline"), ident.span());
             let (inline_signature, inline_block) =
                 turbo_fn.inline_signature_and_block(default, is_self_used);
-            let inline_attrs = filter_inline_attributes(&attrs[..]);
+            let inline_attrs = filter_inline_attributes(attrs.iter().copied());
 
             let native_function = NativeFn {
                 function_path_string: format!("{trait_ident}::{ident}"),
@@ -225,7 +193,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         items.push(TraitItem::Fn(TraitItemFn {
             sig: turbo_fn.trait_signature(),
             default,
-            attrs: attrs.clone(),
+            attrs: attrs.iter().map(|a| (*a).clone()).collect(),
             semi_token: Default::default(),
         }));
     }
@@ -300,6 +268,8 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         )*
 
         #value_debug_impl
+
+        #(#errors)*
     };
     expanded.into()
 }

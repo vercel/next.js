@@ -735,12 +735,6 @@ pub struct FunctionArguments {
     pub local: Option<Span>,
 }
 
-impl FunctionArguments {
-    pub fn is_default(&self) -> bool {
-        self.operation.is_none() && self.local.is_none() && self.io_markers.is_empty()
-    }
-}
-
 impl Parse for FunctionArguments {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut parsed_args = FunctionArguments::default();
