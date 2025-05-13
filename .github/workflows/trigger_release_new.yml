@@ -19,6 +19,8 @@ on:
         default: false
         type: boolean
 
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
 env:
   NAPI_CLI_VERSION: 2.14.7
   TURBO_VERSION: 2.3.3
@@ -92,15 +94,10 @@ jobs:
             pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
 
       - run: pnpm install
-
       - run: pnpm run build
 
-      - name: Create Release Pull Request or Publish to NPM
-        id: changesets
+      - name: Create Release Pull Request
+        id: version-packages
         uses: changesets/action@v1
         with:
           version: pnpm ci:version
-          publish: pnpm ci:publish
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}

@@ -13,8 +13,16 @@ const checkIsRelease = async () => {
 
   const versionString = commitMsg.split(' ').pop().trim()
   const publishMsgRegex = /^v\d{1,}\.\d{1,}\.\d{1,}(-\w{1,}\.\d{1,})?$/
+  const newPublishMsgRegex = /^Version Packages$/
 
-  if (publishMsgRegex.test(versionString)) {
+  if (newPublishMsgRegex.test(versionString)) {
+    process.env.__NEW_RELEASE = 'true'
+  }
+
+  if (
+    publishMsgRegex.test(versionString) ||
+    newPublishMsgRegex.test(versionString)
+  ) {
     console.log(versionString)
     process.exit(0)
   } else {

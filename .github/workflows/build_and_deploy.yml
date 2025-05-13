@@ -19,6 +19,9 @@ env:
   #
   # See https://doc.rust-lang.org/rustc/platform-support/apple-darwin.html#os-version for more details
   MACOSX_DEPLOYMENT_TARGET: 11.0
+  # This will become "true" if the latest commit is
+  # "Version Packages", set from check-is-release.js
+  __NEW_RELEASE: 'false'
 
 jobs:
   deploy-target:
@@ -586,9 +589,22 @@ jobs:
       - run: npm i -g npm@10.4.0 # need latest version for provenance (pinning to avoid bugs)
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run: ./scripts/publish-native.js
+      # Legacy release process
       - run: ./scripts/publish-release.js
+        if: ${{ env.__NEW_RELEASE == 'false' }}
         env:
           RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+
+      # New release process
+      - name: Publish to NPM
+        id: publish-packages
+        if: ${{ env.__NEW_RELEASE == 'true' }}
+        uses: changesets/action@v1
+        with:
+          publish: pnpm ci:publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
 
       - name: Upload npm log artifact
         uses: actions/upload-artifact@v4
