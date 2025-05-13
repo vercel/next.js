@@ -79,20 +79,24 @@ pub async fn compute_merged_modules(module_graph: &ModuleGraph) -> Result<Vc<Mer
             .flat_map(|g| g.entries())
             .collect::<Vec<_>>();
 
+        // For each module, the indices in the bitmap store which merge group entry modules
+        // transitively import that module. The bitmap can be treated as an opaque value, merging
+        // all modules with the same bitmap.
         let mut module_merged_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
             FxHashMap::default();
+        // Modules that have a reference to a module that is not in the same group (i.e. the
+        // quasi-leafs of the merged subgraph)
+        let mut modules_with_externals_references = FxHashSet::default();
+
         let mut next_index = 0u32;
 
         let visit_count = module_graph
             .traverse_edges_fixed_point_with_priority(
                 entries.iter().map(|e| (*e, 0)),
-                &mut module_merged_groups,
+                &mut (),
                 |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
                  node: &'_ SingleModuleGraphModuleNode,
-                 module_merged_groups: &mut FxHashMap<
-                    ResolvedVc<Box<dyn Module>>,
-                    RoaringBitmapWrapper,
-                >|
+                 _|
                  -> Result<GraphTraversalAction> {
                     // On the down traversal, establish which edges are mergable and set the list
                     // indices.
@@ -123,10 +127,8 @@ pub async fn compute_merged_modules(module_graph: &ModuleGraph) -> Result<Vc<Mer
                         } else {
                             module_merged_groups.entry(node.module).or_default();
                             let [Some(parent_merged_groups), Some(current_merged_groups)] =
-                                module_merged_groups.get_disjoint_mut([
-                                    &ResolvedVc::upcast(parent_module),
-                                    &node.module,
-                                ])
+                                module_merged_groups
+                                    .get_disjoint_mut([&parent_module, &node.module])
                             else {
                                 // All modules are inserted in the previous iteration
                                 unreachable!()
@@ -151,6 +153,10 @@ pub async fn compute_merged_modules(module_graph: &ModuleGraph) -> Result<Vc<Mer
                         // create a new group.
                         let idx = next_index;
                         next_index += 1;
+
+                        if let Some(parent_module) = parent_module {
+                            modules_with_externals_references.insert(parent_module);
+                        }
 
                         match module_merged_groups.entry(module) {
                             Entry::Occupied(mut entry) => {
