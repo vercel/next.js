@@ -136,6 +136,14 @@ pub mod tests {
         path.write(FileContent::NotFound.cell()).await?;
         Ok(())
     }
+    #[turbo_tasks::function(operation)]
+    pub async fn write(path: ResolvedVc<FileSystemPath>, contents: RcStr) -> anyhow::Result<()> {
+        path.write(
+            FileContent::Content(crate::File::from_bytes(contents.to_string().into_bytes())).cell(),
+        )
+        .await?;
+        Ok(())
+    }
 
     #[turbo_tasks::function(operation)]
     pub async fn track_star_star_glob(path: ResolvedVc<FileSystemPath>) -> Vc<Completion> {
@@ -170,12 +178,12 @@ pub mod tests {
             .write_all(b"ignore")
             .unwrap();
         // put a link in the dir that points at a file in the root.
-        let root_path = path.join("root_file.js");
-        File::create_new(&root_path)
+        let link_target = path.join("link_target.js");
+        File::create_new(&link_target)
             .unwrap()
-            .write_all(b"root_file")
+            .write_all(b"link_target")
             .unwrap();
-        symlink(&root_path, dir.join("link.js")).unwrap();
+        symlink(&link_target, dir.join("link.js")).unwrap();
 
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
@@ -212,6 +220,21 @@ pub mod tests {
             let read_dir2 = track_star_star_glob(dir).read_strongly_consistent().await?;
 
             assert!(!ReadRef::ptr_eq(&read_dir, &read_dir2));
+
+            // Modify a symlink target file
+            let write_result = write(
+                fs.root()
+                    .join("link_target.js".into())
+                    .to_resolved()
+                    .await?,
+                "new_contents".into(),
+            );
+            write_result.read_strongly_consistent().await?;
+            apply_effects(write_result).await?;
+            let read_dir3 = track_star_star_glob(dir).read_strongly_consistent().await?;
+
+            assert!(!ReadRef::ptr_eq(&read_dir3, &read_dir2));
+
             anyhow::Ok(())
         })
         .await
