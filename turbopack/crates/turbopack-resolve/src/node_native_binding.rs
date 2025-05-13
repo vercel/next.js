@@ -141,7 +141,7 @@ pub async fn resolve_node_pre_gyp_files(
                         let extension = compile_target.dylib_ext();
                         for (key, entry) in entries
                             .iter()
-                            .filter(|(k, _)| k.as_str().ends_with(extension))
+                            .filter(|(k, _)| k.ends_with(extension))
                         {
                             if let &DirectoryEntry::File(dylib) | &DirectoryEntry::Symlink(dylib) =
                                 entry
