@@ -2835,137 +2835,236 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/basic/hmr/basic.test.ts": {
+  "test/development/basic/hmr/basic-no-base-path-no-asset-prefix.test.ts": {
     "passed": [
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '' } should have correct compile timing after fixing error",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '' } should have correct router.isReady for auto-export page",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '' } should have correct router.isReady for getStaticProps page",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '' } should reload the page when the server restarts",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should have correct compile timing after fixing error",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should have correct router.isReady for auto-export page",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should have correct router.isReady for getStaticProps page",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should reload the page when the server restarts",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } should have correct compile timing after fixing error",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } should have correct router.isReady for auto-export page",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } should have correct router.isReady for getStaticProps page",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } should reload the page when the server restarts",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should have correct compile timing after fixing error",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should have correct router.isReady for auto-export page",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should have correct router.isReady for getStaticProps page",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should reload the page when the server restarts"
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should have correct compile timing after fixing error",
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should have correct router.isReady for auto-export page",
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should have correct router.isReady for getStaticProps page",
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should reload the page when the server restarts"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/basic/hmr/error-recovery.test.ts": {
+  "test/development/basic/hmr/basic-no-base-path-yes-asset-prefix.test.ts": {
     "passed": [
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should detect runtime errors on the module scope",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should detect syntax errors and recover",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after a bad return from the render function",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after an error reported via SSR",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after exporting an invalid page",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after loader parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after undefined exported as default",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after webpack parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover from 404 after a page has been added",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover from 404 after a page has been added with dynamic segments",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover from errors in getInitialProps in client",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover from errors in the render function",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should detect runtime errors on the module scope",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should detect syntax errors and recover",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after a bad return from the render function",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after an error reported via SSR",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after exporting an invalid page",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after loader parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after undefined exported as default",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after webpack parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover from 404 after a page has been added",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover from 404 after a page has been added with dynamic segments",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover from errors in getInitialProps in client",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover from errors in the render function",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should detect runtime errors on the module scope",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should detect syntax errors and recover",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after a bad return from the render function",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after an error reported via SSR",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after exporting an invalid page",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after loader parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after undefined exported as default",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after webpack parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from 404 after a page has been added",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from 404 after a page has been added with dynamic segments",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from errors in getInitialProps in client",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from errors in the render function",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should detect runtime errors on the module scope",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should detect syntax errors and recover",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after a bad return from the render function",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after an error reported via SSR",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after exporting an invalid page",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after loader parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after undefined exported as default",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after webpack parse error in an imported file",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover from 404 after a page has been added",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover from 404 after a page has been added with dynamic segments",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover from errors in getInitialProps in client",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover from errors in the render function"
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should have correct compile timing after fixing error",
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should have correct router.isReady for auto-export page",
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should have correct router.isReady for getStaticProps page",
+      "HMR - basic, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should reload the page when the server restarts"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/basic-yes-base-path-no-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should have correct compile timing after fixing error",
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should have correct router.isReady for auto-export page",
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should have correct router.isReady for getStaticProps page",
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should reload the page when the server restarts"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/basic-yes-base-path-yes-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should have correct compile timing after fixing error",
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should have correct router.isReady for auto-export page",
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should have correct router.isReady for getStaticProps page",
+      "HMR - basic, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should reload the page when the server restarts"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/error-recovery-no-base-path-no-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect runtime errors on the module scope",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after a bad return from the render function",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after an error reported via SSR",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after exporting an invalid page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after loader parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after undefined exported as default",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after webpack parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from 404 after a page has been added",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from 404 after a page has been added with dynamic segments",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from errors in getInitialProps in client",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover from errors in the render function"
     ],
     "failed": [],
     "pending": [
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should not continously poll a custom error page",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should not continously poll a custom error page",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should not continously poll a custom error page",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should not continously poll a custom error page"
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should not continously poll a custom error page"
     ],
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/basic/hmr/full-reload.test.ts": {
+  "test/development/basic/hmr/error-recovery-no-base-path-yes-asset-prefix.test.ts": {
     "passed": [
-      "HMR - Full Reload, nextConfig: { basePath: '', assetPrefix: '' } should warn about full reload in cli output - anonymous page function",
-      "HMR - Full Reload, nextConfig: { basePath: '', assetPrefix: '' } should warn about full reload in cli output - runtime-error",
-      "HMR - Full Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should warn about full reload in cli output - anonymous page function",
-      "HMR - Full Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should warn about full reload in cli output - runtime-error",
-      "HMR - Full Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } should warn about full reload in cli output - anonymous page function",
-      "HMR - Full Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } should warn about full reload in cli output - runtime-error",
-      "HMR - Full Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should warn about full reload in cli output - anonymous page function",
-      "HMR - Full Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should warn about full reload in cli output - runtime-error"
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should detect runtime errors on the module scope",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after a bad return from the render function",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after an error reported via SSR",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after exporting an invalid page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after loader parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after undefined exported as default",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after webpack parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover from 404 after a page has been added",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover from 404 after a page has been added with dynamic segments",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover from errors in getInitialProps in client",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover from errors in the render function"
+    ],
+    "failed": [],
+    "pending": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should not continously poll a custom error page"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/error-recovery-yes-base-path-no-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect runtime errors on the module scope",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after a bad return from the render function",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after an error reported via SSR",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after exporting an invalid page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after loader parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after undefined exported as default",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after webpack parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover from 404 after a page has been added",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover from 404 after a page has been added with dynamic segments",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover from errors in getInitialProps in client",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover from errors in the render function"
+    ],
+    "failed": [],
+    "pending": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should not continously poll a custom error page"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/error-recovery-yes-base-path-yes-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should detect runtime errors on the module scope",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after a bad return from the render function",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after an error reported via SSR",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after exporting an invalid page",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after loader parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after undefined exported as default",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after webpack parse error in an imported file",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover from 404 after a page has been added",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover from 404 after a page has been added with dynamic segments",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover from errors in getInitialProps in client",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover from errors in the render function"
+    ],
+    "failed": [],
+    "pending": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should not continously poll a custom error page"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/full-reload-no-base-path-no-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should warn about full reload in cli output - anonymous page function",
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should warn about full reload in cli output - runtime-error"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/basic/hmr/hot-module-reload.test.ts": {
+  "test/development/basic/hmr/full-reload-no-base-path-yes-asset-prefix.test.ts": {
     "passed": [
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } delete a page and add it back should load the page properly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should detect the changes and display it",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should not full reload when nonlatin characters are used",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should not reload unrelated pages",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should update styles correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should update styles in a dynamic component correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '' } editing a page should update styles in a stateful component correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } delete a page and add it back should load the page properly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should detect the changes and display it",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should not full reload when nonlatin characters are used",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should not reload unrelated pages",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should update styles correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should update styles in a dynamic component correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } editing a page should update styles in a stateful component correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } delete a page and add it back should load the page properly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should detect the changes and display it",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should not full reload when nonlatin characters are used",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should not reload unrelated pages",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should update styles correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should update styles in a dynamic component correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '' } editing a page should update styles in a stateful component correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } delete a page and add it back should load the page properly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should detect the changes and display it",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should not full reload when nonlatin characters are used",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should not reload unrelated pages",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should update styles correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should update styles in a dynamic component correctly",
-      "HMR - Hot Module Reload, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } editing a page should update styles in a stateful component correctly"
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should warn about full reload in cli output - anonymous page function",
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should warn about full reload in cli output - runtime-error"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/full-reload-yes-base-path-no-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should warn about full reload in cli output - anonymous page function",
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should warn about full reload in cli output - runtime-error"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/full-reload-yes-base-path-yes-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should warn about full reload in cli output - anonymous page function",
+      "HMR - Full Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should warn about full reload in cli output - runtime-error"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/hot-module-reload-no-base-path-no-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} delete a page and add it back should load the page properly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} editing a page should detect the changes and display it",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} editing a page should not full reload when nonlatin characters are used",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} editing a page should not reload unrelated pages",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} editing a page should update styles correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} editing a page should update styles in a dynamic component correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} editing a page should update styles in a stateful component correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/hot-module-reload-no-base-path-yes-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} delete a page and add it back should load the page properly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} editing a page should detect the changes and display it",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} editing a page should not full reload when nonlatin characters are used",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} editing a page should not reload unrelated pages",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} editing a page should update styles correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} editing a page should update styles in a dynamic component correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} editing a page should update styles in a stateful component correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/hot-module-reload-yes-base-path-no-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} delete a page and add it back should load the page properly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} editing a page should detect the changes and display it",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} editing a page should not full reload when nonlatin characters are used",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} editing a page should not reload unrelated pages",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} editing a page should update styles correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} editing a page should update styles in a dynamic component correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} editing a page should update styles in a stateful component correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/basic/hmr/hot-module-reload-yes-base-path-yes-asset-prefix.test.ts": {
+    "passed": [
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} delete a page and add it back should load the page properly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} editing a page should detect the changes and display it",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} editing a page should not full reload when nonlatin characters are used",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} editing a page should not reload unrelated pages",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} editing a page should update styles correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} editing a page should update styles in a dynamic component correctly",
+      "HMR - Hot Module Reload, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} editing a page should update styles in a stateful component correctly"
     ],
     "failed": [],
     "pending": [],
@@ -3790,6 +3889,25 @@
     "passed": [
       "typescript-auto-install should detect TypeScript being added and auto setup",
       "typescript-auto-install should work"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/typescript-plugin/index.test.ts": {
+    "passed": ["typescript-plugin should be able to get the language service"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/typescript-plugin/metadata/warn-no-type.test.ts": {
+    "passed": [
+      "typescript-plugin - metadata - warn-no-type should have diagnostics for generateMetadata with no type",
+      "typescript-plugin - metadata - warn-no-type should have diagnostics for metadata with no type",
+      "typescript-plugin - metadata - warn-no-type should not have diagnostics for generateMetadata with type",
+      "typescript-plugin - metadata - warn-no-type should not have diagnostics for metadata with type"
     ],
     "failed": [],
     "pending": [],
@@ -7185,6 +7303,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/next-config-ts/tsconfig-extends/index.test.ts": {
+    "passed": [
+      "next-config-ts-tsconfig-extends should support tsconfig extends"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/next-config-ts/type-error/index.test.ts": {
     "passed": [
       "next-config-ts-type-error should throw with type error on build"
@@ -9365,6 +9492,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/webpack-loader-set-environment-variable/webpack-loader-set-environment-variable.test.ts": {
+    "passed": [
+      "webpack-loader-set-environment-variable loader that sets an environment variable should work"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/webpack-loader-ts-transform/webpack-loader-ts-transform.test.ts": {
     "passed": [
       "webpack-loader-ts-transform should accept Typescript returned from Webpack loaders"
@@ -9479,23 +9615,9 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/basepath/basepath-trailing-slash.test.ts": {
-    "passed": [
-      "basePath + trailingSlash should allow URL query strings on index without refresh",
-      "basePath + trailingSlash should allow URL query strings without refresh",
-      "basePath + trailingSlash should correctly replace state when same asPath but different url"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/basepath/basepath.test.ts": {
     "passed": [
       "basePath should 404 for public file without basePath",
-      "basePath should 404 when manually adding basePath with <Link>",
-      "basePath should 404 when manually adding basePath with router.push",
-      "basePath should 404 when manually adding basePath with router.replace",
       "basePath should add header with basePath by default",
       "basePath should add header without basePath when set to false",
       "basePath should allow URL query strings on index without refresh",
@@ -9503,17 +9625,6 @@
       "basePath should correctly replace state when same asPath but different url",
       "basePath should fetch data for getServerSideProps without reloading",
       "basePath should fetch data for getStaticProps without reloading",
-      "basePath should handle 404 urls that start with basePath",
-      "basePath should handle query/hash correctly during query updating ## $search",
-      "basePath should handle query/hash correctly during query updating ##? $search",
-      "basePath should handle query/hash correctly during query updating ##hello $search",
-      "basePath should handle query/hash correctly during query updating ##hello? $search",
-      "basePath should handle query/hash correctly during query updating #? $search",
-      "basePath should handle query/hash correctly during query updating #a ?hello",
-      "basePath should handle query/hash correctly during query updating #a ?hello=",
-      "basePath should handle query/hash correctly during query updating #a ?hello=world",
-      "basePath should handle query/hash correctly during query updating #hello? $search",
-      "basePath should handle query/hash correctly during query updating #hello?world $search",
       "basePath should have basePath field on Router",
       "basePath should have correct href for a link",
       "basePath should have correct href for a link to /",
@@ -9523,44 +9634,103 @@
       "basePath should navigate an absolute local url without basePath",
       "basePath should navigate an absolute url",
       "basePath should navigate back correctly to a dynamic route",
-      "basePath should navigate to /404 correctly client-side",
-      "basePath should navigate to /_error correctly client-side",
       "basePath should navigate to external site and back",
       "basePath should navigate to index page with getStaticProps",
       "basePath should navigate to the page without refresh",
       "basePath should not add header with basePath when set to false",
       "basePath should not add header without basePath without disabling",
-      "basePath should not redirect with basePath when set to false",
-      "basePath should not redirect without basePath without disabling",
-      "basePath should not rewrite with basePath when set to false",
-      "basePath should not rewrite without basePath without disabling",
-      "basePath should not update URL for a 404",
       "basePath should redirect trailing slash correctly",
       "basePath should redirect trailing slash on root correctly",
-      "basePath should redirect with basePath by default",
-      "basePath should redirect without basePath when set to false",
       "basePath should respect basePath in amphtml link rel",
-      "basePath should rewrite with basePath by default",
-      "basePath should rewrite without basePath when set to false",
       "basePath should serve public file with basePath correctly",
       "basePath should show 404 for page not under the /docs prefix",
       "basePath should show the hello page under the /docs prefix",
       "basePath should show the other-page page under the /docs prefix",
       "basePath should update dynamic params after mount correctly",
-      "basePath should use urls with basepath in router events",
-      "basePath should use urls with basepath in router events for cancelled routes",
-      "basePath should use urls with basepath in router events for failed route change",
-      "basePath should use urls with basepath in router events for hash changes",
       "basePath should work with catch-all page",
-      "basePath should work with hash links",
       "basePath should work with nested folder with same name as basePath",
       "basePath should work with normal dynamic page"
     ],
     "failed": [],
     "pending": [
-      "basePath should navigate back to a non-basepath 404 that starts with basepath",
       "basePath should navigate to nested index page with getStaticProps"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/error-pages.test.ts": {
+    "passed": [
+      "basePath client-side navigation should navigate to /404 correctly client-side",
+      "basePath client-side navigation should navigate to /_error correctly client-side",
+      "basePath manually added basePath in application logic should 404 when manually adding basePath with <Link>",
+      "basePath manually added basePath in application logic should 404 when manually adding basePath with router.push",
+      "basePath manually added basePath in application logic should 404 when manually adding basePath with router.replace",
+      "basePath should handle 404 urls that start with basePath",
+      "basePath should not update URL for a 404",
+      "basePath should show 404 for page not under the /docs prefix"
+    ],
+    "failed": [],
+    "pending": [
+      "basePath should navigate back to a non-basepath 404 that starts with basepath"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/query-hash.test.ts": {
+    "passed": [
+      "basePath query/hash handling is correct during query updating ## $search",
+      "basePath query/hash handling is correct during query updating ##? $search",
+      "basePath query/hash handling is correct during query updating ##hello $search",
+      "basePath query/hash handling is correct during query updating ##hello? $search",
+      "basePath query/hash handling is correct during query updating #? $search",
+      "basePath query/hash handling is correct during query updating #a ?hello",
+      "basePath query/hash handling is correct during query updating #a ?hello=",
+      "basePath query/hash handling is correct during query updating #a ?hello=world",
+      "basePath query/hash handling is correct during query updating #hello? $search",
+      "basePath query/hash handling is correct during query updating #hello?world $search",
+      "basePath query/hash handling should work with hash links"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/redirect-and-rewrite.test.ts": {
+    "passed": [
+      "basePath should not redirect with basePath when set to false",
+      "basePath should not redirect without basePath without disabling",
+      "basePath should not rewrite with basePath when set to false",
+      "basePath should not rewrite without basePath without disabling",
+      "basePath should redirect with basePath by default",
+      "basePath should redirect without basePath when set to false",
+      "basePath should rewrite with basePath by default",
+      "basePath should rewrite without basePath when set to false"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/router-events.test.ts": {
+    "passed": [
+      "basePath should use urls with basepath in router events",
+      "basePath should use urls with basepath in router events for cancelled routes",
+      "basePath should use urls with basepath in router events for failed route change",
+      "basePath should use urls with basepath in router events for hash changes"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/basepath/trailing-slash.test.ts": {
+    "passed": [
+      "basePath + trailingSlash should allow URL query strings on index without refresh",
+      "basePath + trailingSlash should allow URL query strings without refresh",
+      "basePath + trailingSlash should correctly replace state when same asPath but different url"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -9975,20 +10145,8 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/i18n-data-fetching-redirect/index.test.ts": {
+  "test/e2e/i18n-data-fetching-redirect/redirect-from-context.test.ts": {
     "passed": [
-      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect sv -> en",
       "i18n-data-fetching-redirect Redirect to locale from context gsp-blocking-redirect en",
       "i18n-data-fetching-redirect Redirect to locale from context gsp-blocking-redirect sv",
       "i18n-data-fetching-redirect Redirect to locale from context gsp-fallback-redirect en",
@@ -10001,6 +10159,26 @@
       "i18n-data-fetching-redirect Redirect to locale from context next/link gsp-fallback-redirect sv",
       "i18n-data-fetching-redirect Redirect to locale from context next/link gssp-redirect en",
       "i18n-data-fetching-redirect Redirect to locale from context next/link gssp-redirect sv"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/i18n-data-fetching-redirect/redirect.test.ts": {
+    "passed": [
+      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect sv -> en"
     ],
     "failed": [],
     "pending": [],
