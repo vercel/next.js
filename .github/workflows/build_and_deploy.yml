@@ -47,7 +47,12 @@ jobs:
         # 'staging' for canary branch since that will eventually be published i.e. become the production build.
         id: deploy-target
         run: |
-          if [[ $(node ./scripts/check-is-release.js 2> /dev/null || :) = v* ]];
+          # TODO: Remove the new release check once the new release workflow is fully replaced.
+          RELEASE_CHECK=$(node ./scripts/check-is-release.js 2> /dev/null || :)
+          if [[ $RELEASE_CHECK =~ ^Version\ Packages\ \((canary|release-candidate|stable)\)$ ]];
+          then
+            echo "__NEW_RELEASE=true" >> $GITHUB_ENV
+          elif [[ $RELEASE_CHECK = v* ]];
           then
             echo "value=production" >> $GITHUB_OUTPUT
           elif [ '${{ github.ref }}' == 'refs/heads/canary' ]
