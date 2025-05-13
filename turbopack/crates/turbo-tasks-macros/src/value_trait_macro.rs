@@ -1,15 +1,21 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned};
-use syn::{ItemTrait, TraitItem, TraitItemFn, parse_macro_input, parse_quote, spanned::Spanned};
+use syn::{
+    Attribute, ItemTrait, TraitItem, TraitItemFn, parse_macro_input, parse_quote, spanned::Spanned,
+};
 use turbo_tasks_macros_shared::{
     ValueTraitArguments, get_trait_default_impl_function_id_ident,
     get_trait_default_impl_function_ident, get_trait_type_id_ident, get_trait_type_ident,
     is_self_used,
 };
 
-use crate::func::{
-    DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
+use crate::{
+    func::{
+        DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
+        parse_with_optional_parens,
+    },
+    value_impl_macro::is_attribute,
 };
 
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
@@ -86,9 +92,45 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
 
         let ident = &sig.ident;
 
-        // Value trait method declarations don't have `#[turbo_tasks::function]`
-        // annotations on them, though their `impl`s do. It may make sense to require it
-        // in the future when defining a default implementation.
+        let func_attr = {
+            let func_args: Vec<&Attribute> = attrs
+                .iter()
+                .filter(|a| is_attribute(a, "function"))
+                .collect();
+            if func_args.is_empty() {
+                item.span()
+                    .unwrap()
+                    .error("value_trait items must be annotated with #[turbo_tasks::function]")
+                    .emit();
+                continue;
+            }
+            if func_args.len() > 1 {
+                // annotate the second one
+                func_args[1]
+                    .span()
+                    .unwrap()
+                    .error("only one #[turbo_tasks::function]")
+                    .emit();
+                continue;
+            }
+            func_args[0]
+        };
+        let args = match parse_with_optional_parens::<FunctionArguments>(func_attr) {
+            Ok(args) => args,
+            Err(err) => {
+                err.span().unwrap().error("").emit();
+                continue;
+            }
+        };
+        if !args.is_default() {
+            func_attr
+                .span()
+                .unwrap()
+                .error("turbo_task functions in value_traits cannot be parameterized")
+                .emit();
+            continue;
+        }
+
         let Some(turbo_fn) = TurboFn::new(
             sig,
             DefinitionContext::ValueTrait,
