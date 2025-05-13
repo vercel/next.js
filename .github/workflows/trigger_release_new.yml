@@ -33,9 +33,8 @@ env:
   TURBO_VERSION: 2.3.3
   NODE_LTS_VERSION: 20
 
-# Limit the permissions of GITHUB_TOKEN for this
-# workflow which is good security practice.
 permissions:
+  # To create PR
   pull-requests: write
 
 jobs:

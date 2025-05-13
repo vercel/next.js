@@ -2,9 +2,8 @@ name: Force Merge Canary Release PR
 
 on: pull_request
 
-# Limit the permissions of GITHUB_TOKEN for this
-# workflow which is security good practice.
 permissions:
+  # To bypass and merge PR
   pull-requests: write
 
 jobs:
