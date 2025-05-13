@@ -177,7 +177,8 @@ export default function Page() {
 Components only opt into dynamic rendering when the value is accessed. For example, if you are reading `searchParams` from a `<Page />` component, you can forward this value to another component as a prop:
 
 ```tsx filename="app/page.tsx" switcher
-import { Table } from './table'
+import { Table, TableSkeleton } from './table'
+import { Suspense } from 'react'
 
 export default function Page({
   searchParams,
@@ -187,20 +188,25 @@ export default function Page({
   return (
     <section>
       <h1>This will be prerendered</h1>
-      <Table searchParams={searchParams} />
+      <Suspense fallback={<TableSkeleton />}>
+        <Table searchParams={searchParams} />
+      </Suspense>
     </section>
   )
 }
 ```
 
 ```jsx filename="app/page.js" switcher
-import { Table } from './table'
+import { Table, TableSkeleton } from './table'
+import { Suspense } from 'react'
 
 export default function Page({ searchParams }) {
   return (
     <section>
       <h1>This will be prerendered</h1>
-      <Table searchParams={searchParams} />
+      <Suspense fallback={<TableSkeleton />}>
+        <Table searchParams={searchParams} />
+      </Suspense>
     </section>
   )
 }
