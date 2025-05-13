@@ -142,6 +142,7 @@ impl MyTrait for MyStructValue {
 #[turbo_tasks::value_trait]
 trait MyTrait: ValueToString {
     // TODO #[turbo_tasks::function]
+    #[turbo_tasks::function]
     async fn my_trait_function(self: Vc<Self>) -> Result<Vc<RcStr>> {
         if *self.to_string().await? != "42" {
             bail!("my_trait_function must only be called with 42 as value")
@@ -150,7 +151,9 @@ trait MyTrait: ValueToString {
         Ok(self.to_string())
     }
 
+    #[turbo_tasks::function]
     fn my_trait_function2(self: Vc<Self>) -> Vc<RcStr>;
+    #[turbo_tasks::function]
     fn my_trait_function3(self: Vc<Self>) -> Vc<RcStr>;
 }
 
@@ -170,6 +173,7 @@ async fn my_function(
 
 #[turbo_tasks::value_trait]
 trait Add {
+    #[turbo_tasks::function]
     fn add(self: Vc<Self>, other: Vc<Box<dyn Add>>) -> Vc<Self>;
 }
 

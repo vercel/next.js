@@ -407,6 +407,7 @@ pub struct CssChunkItemContent {
 
 #[turbo_tasks::value_trait]
 pub trait CssChunkItem: ChunkItem {
+    #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<CssChunkItemContent>;
 }
 

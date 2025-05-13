@@ -10,6 +10,7 @@ use super::{ContentSource, route_tree::RouteTree};
 #[turbo_tasks::value_trait]
 pub trait GetContentSource {
     /// Returns the [ContentSource]
+    #[turbo_tasks::function]
     fn content_source(self: Vc<Self>) -> Vc<Box<dyn ContentSource>>;
 }
 

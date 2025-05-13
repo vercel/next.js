@@ -47,7 +47,9 @@ fn get_non_local_task_id() -> Vc<u32> {
 
 #[turbo_tasks::value_trait]
 trait SomeTrait {
+    #[turbo_tasks::function]
     fn get_local_task_id(self: Vc<Self>) -> Vc<u32>;
+    #[turbo_tasks::function]
     fn get_non_local_task_id(self: Vc<Self>) -> Vc<u32>;
 }
 #[turbo_tasks::value(shared)]

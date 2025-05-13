@@ -399,6 +399,7 @@ impl RouteTree {
 /// Transformation functor
 #[turbo_tasks::value_trait]
 pub trait MapGetContentSourceContent {
+    #[turbo_tasks::function]
     fn map_get_content(
         self: Vc<Self>,
         get_content: Vc<Box<dyn GetContentSourceContent>>,
