@@ -60,11 +60,11 @@ impl ModuleIdStrategy for GlobalModuleIdStrategy {
             ModuleIssue {
                 ident,
                 title: StyledString::Text(
-                    format!("ModuleId not found for ident: {:?}", ident_string).into(),
+                    format!("ModuleId not found for ident: {ident_string:?}").into(),
                 )
                 .resolved_cell(),
                 description: StyledString::Text(
-                    format!("ModuleId not found for ident: {:?}", ident_string).into(),
+                    format!("ModuleId not found for ident: {ident_string:?}").into(),
                 )
                 .resolved_cell(),
             }

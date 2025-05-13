@@ -139,7 +139,7 @@ impl SinglePatternMapping {
             ),
             Self::External(request, ty) => throw_module_not_found_error_expr(
                 request,
-                &format!("Unsupported external type {:?} for commonjs reference", ty),
+                &format!("Unsupported external type {ty:?} for commonjs reference"),
             ),
         }
     }
@@ -205,10 +205,7 @@ impl SinglePatternMapping {
             #[allow(unreachable_patterns)]
             Self::External(request, ty) => throw_module_not_found_error_expr(
                 request,
-                &format!(
-                    "Unsupported external type {:?} for dynamic import reference",
-                    ty
-                ),
+                &format!("Unsupported external type {ty:?} for dynamic import reference"),
             ),
             Self::ModuleLoader(module_id) => {
                 quote!("($turbopack_require($id))($turbopack_import)" as Expr,
@@ -352,8 +349,7 @@ async fn to_single_pattern_mapping(
                 message: StyledString::Text(
                     format!(
                         "the reference resolves to a non-trivial result, which is not supported \
-                         yet: {:?}",
-                        resolve_item
+                         yet: {resolve_item:?}"
                     )
                     .into(),
                 )

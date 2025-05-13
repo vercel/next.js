@@ -1,3 +1,12 @@
+// This is a patch added by Next.js
+const setTimeoutOrImmediate =
+  typeof globalThis["set" + "Immediate"] === "function" &&
+  // edge runtime sandbox defines a stub for setImmediate
+  // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
+  // but it's made non-enumerable, so we can detect it
+  globalThis.propertyIsEnumerable("setImmediate")
+    ? globalThis["set" + "Immediate"]
+    : (callback, ...args) => setTimeout(callback, 0, ...args);
 /**
  * @license React
  * react-dom-server.edge.production.js
@@ -4078,7 +4087,7 @@ function pingTask(request, task) {
         })
       : setTimeoutOrImmediate(function () {
           return performWork(request);
-        }, 0));
+        }));
 }
 function createSuspenseBoundary(
   request,
@@ -6262,7 +6271,7 @@ function startWork(request) {
             request
           )
         : enqueueEarlyPreloadsAfterInitialWork(request));
-  }, 0);
+  });
 }
 function enqueueEarlyPreloadsAfterInitialWork(request) {
   safelyEmitEarlyPreloads(request, 0 === request.pendingRootTasks);
@@ -6277,7 +6286,7 @@ function enqueueFlush(request) {
       destination
         ? flushCompletedQueues(request, destination)
         : (request.flushScheduled = !1);
-    }, 0));
+    }));
 }
 function startFlowing(request, destination) {
   if (13 === request.status)
@@ -6468,15 +6477,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-
-// This is a patch added by Next.js
-const setTimeoutOrImmediate =
-  typeof globalThis['set' + 'Immediate'] === 'function' &&
-  // edge runtime sandbox defines a stub for setImmediate
-  // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
-  // but it's made non-enumerable, so we can detect it
-  globalThis.propertyIsEnumerable('setImmediate')
-    ? globalThis['set' + 'Immediate']
-    : setTimeout;
-
 exports.version = "19.2.0-canary-197d6a04-20250424";

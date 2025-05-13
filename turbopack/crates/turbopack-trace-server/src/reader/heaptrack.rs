@@ -337,7 +337,7 @@ impl TraceFormat for HeaptrackFormat {
                             .context("function not found")?;
                         args.push((
                             "location".to_string(),
-                            format!("{} @ {file}:{line}", function),
+                            format!("{function} @ {file}:{line}"),
                         ));
                     }
 

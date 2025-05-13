@@ -119,7 +119,7 @@ impl From<ImportMetaRef> for CodeGen {
 fn encode_path(path: &'_ str) -> Cow<'_, str> {
     let mut encoded = String::new();
     let mut start = 0;
-    for (i, c) in path.chars().enumerate() {
+    for (i, c) in path.char_indices() {
         let mapping = match c {
             '%' => "%25",
             '\\' => "%5C",

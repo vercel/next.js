@@ -3,7 +3,7 @@ pub mod source_map;
 
 use std::fmt::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use swc_core::common::pass::Either;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -11,32 +11,33 @@ use turbo_tasks::{
     Vc,
 };
 use turbo_tasks_fs::{
-    rope::{Rope, RopeBuilder},
     File, FileSystem, FileSystemPath,
+    rope::{Rope, RopeBuilder},
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup,
-        ChunkItemExt, ChunkItemOrBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
+        AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup, ChunkItemExt,
+        ChunkItemOrBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
         ChunkableModule, ChunkingContext, MinifyType, OutputChunk, OutputChunkRuntimeInfo,
+        round_chunk_item_size,
     },
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     introspect::{
+        Introspectable, IntrospectableChildren,
         module::IntrospectableModule,
         utils::{children_from_output_assets, content_to_details},
-        Introspectable, IntrospectableChildren,
     },
     module::Module,
     output::{OutputAsset, OutputAssets},
     reference_type::ImportContext,
     server_fs::ServerFileSystem,
-    source_map::{utils::fileify_source_map, GenerateSourceMap, OptionStringifiedSourceMap},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, utils::fileify_source_map},
 };
 
 use self::{single_item_chunk::chunk::SingleItemCssChunk, source_map::CssChunkSourceMapAsset};
-use crate::{util::stringify_js, ImportAssetReference};
+use crate::{ImportAssetReference, util::stringify_js};
 
 #[turbo_tasks::value]
 pub struct CssChunk {
@@ -90,7 +91,7 @@ impl CssChunk {
                 MinifyType::NoMinify
             ) {
                 let id = css_item.asset_ident().to_string().await?;
-                writeln!(body, "/* {} */", id)?;
+                writeln!(body, "/* {id} */")?;
             }
 
             let close = write_import_context(&mut body, content.import_context).await?;
