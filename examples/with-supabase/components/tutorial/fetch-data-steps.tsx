@@ -88,6 +88,25 @@ export function FetchDataSteps() {
         <CodeBlock code={client} />
       </TutorialStep>
 
+      <TutorialStep title="Install more Supabase blocks!">
+        <p>
+          Head over to the{" "}
+          <a
+            href="https://supabase.com/ui/docs/nextjs/realtime-chat"
+            className="font-bold hover:underline text-foreground/80"
+          >
+            Supabase UI library
+          </a>{" "}
+          and try installing some of the blocks. For example, you can install
+          the Realtime Chat block by running:
+        </p>
+        <CodeBlock
+          code={
+            "npx shadcn@latest add https://supabase.com/ui/r/realtime-chat-nextjs.json"
+          }
+        />
+      </TutorialStep>
+
       <TutorialStep title="Build in a weekend and scale to millions!">
         <p>You&apos;re ready to launch your product to the world! 🚀</p>
       </TutorialStep>
