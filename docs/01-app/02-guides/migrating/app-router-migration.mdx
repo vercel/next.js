@@ -344,7 +344,7 @@ We recommend breaking down the migration of a page into two main steps:
 **Step 1: Create a new Client Component**
 
 - Create a new separate file inside the `app` directory (i.e. `app/home-page.tsx` or similar) that exports a Client Component. To define Client Components, add the `'use client'` directive to the top of the file (before any imports).
-  - Similar to the Pages Router, there is an [optimization step](/docs/app/getting-started/server-and-client-components#full-page-load) to prerender Client Components to static HTML on the initial page load.
+  - Similar to the Pages Router, there is an [optimization step](/docs/app/getting-started/server-and-client-components#on-the-client-first-load) to prerender Client Components to static HTML on the initial page load.
 - Move the default exported page component from `pages/index.js` to `app/home-page.tsx`.
 
 ```tsx filename="app/home-page.tsx" switcher
@@ -473,7 +473,7 @@ In addition, the new `useRouter` hook has the following changes:
 - The `locale`, `locales`, `defaultLocales`, `domainLocales` values have been removed because built-in i18n Next.js features are no longer necessary in the `app` directory. [Learn more about i18n](/docs/app/building-your-application/routing/internationalization).
 - `basePath` has been removed. The alternative will not be part of `useRouter`. It has not yet been implemented.
 - `asPath` has been removed because the concept of `as` has been removed from the new router.
-- `isReady` has been removed because it is no longer necessary. During [static rendering](/docs/app/getting-started/partial-prerendering#static-rendering-default), any component that uses the [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) hook will skip the prerendering step and instead be rendered on the client at runtime.
+- `isReady` has been removed because it is no longer necessary. During [static rendering](/docs/app/getting-started/partial-prerendering#static-rendering), any component that uses the [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) hook will skip the prerendering step and instead be rendered on the client at runtime.
 - `route` has been removed. `usePathname` or `useSelectedLayoutSegments()` provide an alternative.
 
 [View the `useRouter()` API reference](/docs/app/api-reference/functions/use-router).
