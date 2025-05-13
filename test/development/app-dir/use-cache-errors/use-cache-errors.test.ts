@@ -19,6 +19,7 @@ describe('use-cache-errors', () => {
     await browser.elementById('action-button').click()
 
     if (isTurbopack) {
+      // TODO(veil): The wrong stack frame is used for the source snippet.
       await expect(browser).toDisplayRedbox(`
        {
          "description": "Attempted to call useStuff() from the server but useStuff is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.",
@@ -46,11 +47,6 @@ describe('use-cache-errors', () => {
          "stack": [
            "<FIXME-file-protocol>",
            "useCachedStuff app/module-with-use-cache.ts (16:18)",
-           "serializeThenable rsc:/Cache/webpack-internal:///(react-server)/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-server.edge.development.js (808:22)",
-           "renderModelDestructive rsc:/Cache/webpack-internal:///(react-server)/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-server.edge.development.js (1829:28)",
-           "retryTask rsc:/Cache/webpack-internal:///(react-server)/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-server.edge.development.js (2512:31)",
-           "performWork rsc:/Cache/webpack-internal:///(react-server)/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-server.edge.development.js (2585:11)",
-           "eval rsc:/Cache/webpack-internal:///(react-server)/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-server.edge.development.js (2663:28)",
            "Page app/page.tsx (22:10)",
          ],
        }
