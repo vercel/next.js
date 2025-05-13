@@ -3,24 +3,24 @@ use std::{collections::BTreeMap, fmt::Write, hash::Hash, path::PathBuf, sync::Ar
 use anyhow::Error;
 use serde::Deserialize;
 use swc_core::{
-    common::{comments::SingleThreadedComments, util::take::Take, Mark, SourceMap, SyntaxContext},
+    common::{Mark, SourceMap, SyntaxContext, comments::SingleThreadedComments, util::take::Take},
     ecma::{
         ast::{EsVersion, Id, Module},
         atoms::Atom,
         codegen::text_writer::JsWriter,
-        parser::{parse_file_as_module, EsSyntax},
+        parser::{EsSyntax, parse_file_as_module},
         visit::VisitMutWith,
     },
-    testing::{self, fixture, NormalizedOutput},
+    testing::{self, NormalizedOutput, fixture},
 };
 use turbo_tasks::FxIndexSet;
 
 use super::{
+    Analyzer, Key,
     graph::{
         DepGraph, Dependency, InternedGraph, ItemId, ItemIdGroupKind, Mode, SplitModuleResult,
     },
     merge::Merger,
-    Analyzer, Key,
 };
 
 #[fixture("tests/tree-shaker/analyzer/**/input.js")]

@@ -11,7 +11,7 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use graph::VarGraph;
 use num_bigint::BigInt;
 use num_traits::identities::Zero;
@@ -2235,11 +2235,7 @@ impl JsValue {
                                     | (Null, Null)
                             )
                         };
-                        if same_type {
-                            Some(a == b)
-                        } else {
-                            None
-                        }
+                        if same_type { Some(a == b) } else { None }
                     }
                     (
                         PositiveBinaryOperator::Equal,
@@ -2485,11 +2481,7 @@ impl JsValue {
                     if item.ends_with(str) == Some(true) {
                         Some(true)
                     } else if let Some(s) = item.as_str() {
-                        if str.ends_with(s) {
-                            None
-                        } else {
-                            Some(false)
-                        }
+                        if str.ends_with(s) { None } else { Some(false) }
                     } else {
                         None
                     }
@@ -2539,11 +2531,7 @@ fn all_if_known<T: Copy>(
             _ => {}
         }
     }
-    if unknown {
-        None
-    } else {
-        Some(true)
-    }
+    if unknown { None } else { Some(true) }
 }
 
 /// Evaluates all elements of the list and returns Some(true) if any element is
@@ -2806,11 +2794,7 @@ impl JsValue {
     {
         let (v, modified) = self.visit_each_children_async(visitor).await?;
         let (v, m) = visitor(v).await?;
-        if m {
-            Ok((v, true))
-        } else {
-            Ok((v, modified))
-        }
+        if m { Ok((v, true)) } else { Ok((v, modified)) }
     }
 
     /// Visit all children of the node with an async function.
@@ -2859,11 +2843,7 @@ impl JsValue {
     /// Visit the node and all its children with a function.
     pub fn visit_mut(&mut self, visitor: &mut impl FnMut(&mut JsValue) -> bool) -> bool {
         let modified = self.for_each_children_mut(&mut |value| value.visit_mut(visitor));
-        if visitor(self) {
-            true
-        } else {
-            modified
-        }
+        if visitor(self) { true } else { modified }
     }
 
     /// Visit all children of the node with a function. Only visits nodes where
@@ -2875,11 +2855,7 @@ impl JsValue {
     ) -> bool {
         if condition(self) {
             let modified = self.for_each_children_mut(&mut |value| value.visit_mut(visitor));
-            if visitor(self) {
-                true
-            } else {
-                modified
-            }
+            if visitor(self) { true } else { modified }
         } else {
             false
         }
@@ -3875,14 +3851,15 @@ pub mod test_utils {
     use turbopack_core::{compile_time_info::CompileTimeInfo, error::PrettyPrintError};
 
     use super::{
-        builtin::early_replace_builtin, well_known::replace_well_known, ConstantValue, JsValue,
-        JsValueUrlKind, ModuleValue, WellKnownFunctionKind, WellKnownObjectKind,
+        ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
+        WellKnownObjectKind, builtin::early_replace_builtin, well_known::replace_well_known,
     };
     use crate::{
         analyzer::{
+            RequireContextValue,
             builtin::replace_builtin,
             imports::{ImportAnnotations, ImportAttributes},
-            parse_require_context, RequireContextValue,
+            parse_require_context,
         },
         utils::module_value_to_well_known_object,
     };
@@ -3945,11 +3922,14 @@ pub mod test_utils {
                 box JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
                 ref args,
             ) => {
-                if let [JsValue::Constant(ConstantValue::Str(url)), JsValue::Member(
-                    _,
-                    box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
-                    box JsValue::Constant(ConstantValue::Str(prop)),
-                )] = &args[..]
+                if let [
+                    JsValue::Constant(ConstantValue::Str(url)),
+                    JsValue::Member(
+                        _,
+                        box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
+                        box JsValue::Constant(ConstantValue::Str(prop)),
+                    ),
+                ] = &args[..]
                 {
                     if prop.as_str() == "url" {
                         // TODO avoid clone
@@ -4016,16 +3996,16 @@ mod tests {
     use parking_lot::Mutex;
     use rustc_hash::FxHashMap;
     use swc_core::{
-        common::{comments::SingleThreadedComments, Mark},
+        common::{Mark, comments::SingleThreadedComments},
         ecma::{
             ast::{EsVersion, Id},
             parser::parse_file_as_program,
             transforms::base::resolver,
             visit::VisitMutWith,
         },
-        testing::{fixture, run_test, NormalizedOutput},
+        testing::{NormalizedOutput, fixture, run_test},
     };
-    use turbo_tasks::{util::FormatDuration, ResolvedVc, Value};
+    use turbo_tasks::{ResolvedVc, Value, util::FormatDuration};
     use turbopack_core::{
         compile_time_info::CompileTimeInfo,
         environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
@@ -4033,9 +4013,9 @@ mod tests {
     };
 
     use super::{
-        graph::{create_graph, ConditionalKind, Effect, EffectArg, EvalContext, VarGraph},
-        linker::link,
         JsValue,
+        graph::{ConditionalKind, Effect, EffectArg, EvalContext, VarGraph, create_graph},
+        linker::link,
     };
     use crate::analyzer::imports::ImportAttributes;
 

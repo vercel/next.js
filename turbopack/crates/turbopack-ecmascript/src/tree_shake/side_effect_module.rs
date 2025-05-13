@@ -13,9 +13,9 @@ use turbopack_core::{
 };
 
 use crate::{
+    EcmascriptModuleAsset,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     tree_shake::chunk_item::SideEffectsModuleChunkItem,
-    EcmascriptModuleAsset,
 };
 
 #[turbo_tasks::value]

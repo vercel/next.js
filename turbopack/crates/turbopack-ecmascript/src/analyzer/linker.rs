@@ -5,7 +5,7 @@ use parking_lot::Mutex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::ecma::ast::Id;
 
-use super::{graph::VarGraph, JsValue};
+use super::{JsValue, graph::VarGraph};
 
 pub async fn link<'a, B, RB, F, RF>(
     graph: &VarGraph,

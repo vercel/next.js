@@ -1,13 +1,13 @@
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
-use turbo_tasks_fs::{glob::Glob, FileJsonContent, FileSystemPath};
+use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob};
 use turbopack_core::{
     asset::Asset,
     chunk::ChunkableModule,
     error::PrettyPrintError,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     module::Module,
-    resolve::{find_context_file, package_json, FindContextFileResult},
+    resolve::{FindContextFileResult, find_context_file, package_json},
 };
 
 use crate::references::{
