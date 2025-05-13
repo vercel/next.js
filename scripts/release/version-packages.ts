@@ -43,6 +43,8 @@ async function versionPackages() {
       console.log(
         '▲   No changesets found for `next`, creating an empty changeset.'
       )
+      // TODO: Since this is temporary until we hard-require a changeset, we will
+      // need to remove this in the future to prevent publishing empty releases.
       await writeFile(
         join(process.cwd(), '.changeset', `next-canary-${Date.now()}.md`),
         `---\n'next': patch\n---`
