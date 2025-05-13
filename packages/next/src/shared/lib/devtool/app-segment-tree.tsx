@@ -3,12 +3,21 @@
 import { type ReactNode, useEffect, useSyncExternalStore } from 'react'
 import { createTrie, type Trie } from './trie'
 
+export type SegmentNode = {
+  type: string
+  pagePath: string
+}
+
 type DevtoolClientState = {
-  tree?: Trie
+  tree?: Trie<SegmentNode>
 }
 
 const DEFAULT_CLIENT_STATE =
-  typeof window === 'undefined' ? undefined : createTrie()
+  typeof window === 'undefined'
+    ? undefined
+    : createTrie<SegmentNode>({
+        getKey: (item) => item.pagePath,
+      })
 
 declare global {
   interface Window {
@@ -62,11 +71,11 @@ const createSegmentTreeStore = (): {
 const { subscribe, getSnapshot, getServerSnapshot } = createSegmentTreeStore()
 
 export function SegmentViewNode({
-  name,
+  type,
   pagePath,
   children,
 }: {
-  name: string
+  type: string
   pagePath: string
   children: ReactNode
 }) {
@@ -77,11 +86,11 @@ export function SegmentViewNode({
     if (!tree) {
       return
     }
-    tree.insert(pagePath)
-
-    // Skip adding `context` to the dependency array to avoid re-rendering
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, pagePath])
+    tree.insert({
+      type,
+      pagePath,
+    })
+  }, [type, pagePath, tree])
 
   return children
 }

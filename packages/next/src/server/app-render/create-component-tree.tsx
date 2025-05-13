@@ -633,7 +633,7 @@ async function createComponentTreeInternal({
       ? (pageProps: any) => {
           return (
             <SegmentViewNode
-              name={nodeName}
+              type={nodeName}
               pagePath={normalizePageOrLayoutFilePath(dir, layoutOrPagePath)}
             >
               <Component {...pageProps} />
@@ -731,7 +731,7 @@ async function createComponentTreeInternal({
       ? (segmentProps: any) => {
           return (
             <SegmentViewNode
-              name={nodeName}
+              type={nodeName}
               pagePath={normalizePageOrLayoutFilePath(dir, layoutOrPagePath)}
             >
               <Component {...segmentProps} />

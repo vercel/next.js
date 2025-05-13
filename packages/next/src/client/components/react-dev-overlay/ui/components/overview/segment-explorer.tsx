@@ -1,14 +1,14 @@
 import type { HTMLProps } from 'react'
-import { css } from '../../../../../utils/css'
-import type { DevToolsInfoPropsCore } from './dev-tools-info'
-import { DevToolsInfo } from './dev-tools-info'
-import { cx } from '../../../../utils/cx'
-import { LeftArrow } from '../../../../icons/left-arrow'
-import { useSegmentTreeClientState } from '../../../../../../../../shared/lib/devtool/app-segment-tree'
-import type {
-  Trie,
-  TrieNode,
-} from '../../../../../../../../shared/lib/devtool/trie'
+import { css } from '../../../utils/css'
+import type { DevToolsInfoPropsCore } from '../errors/dev-tools-indicator/dev-tools-info/dev-tools-info'
+import { DevToolsInfo } from '../errors/dev-tools-indicator/dev-tools-info/dev-tools-info'
+import { cx } from '../../utils/cx'
+import { LeftArrow } from '../../icons/left-arrow'
+import {
+  useSegmentTreeClientState,
+  type SegmentNode,
+} from '../../../../../../shared/lib/devtool/app-segment-tree'
+import type { Trie, TrieNode } from '../../../../../../shared/lib/devtool/trie'
 
 const IconLayout = (props: React.SVGProps<SVGSVGElement>) => {
   return (
@@ -20,7 +20,7 @@ const IconLayout = (props: React.SVGProps<SVGSVGElement>) => {
     >
       <path
         d="M16 12.5L15.9873 12.7559C15.8677 13.9323 14.9323 14.8677 13.7559 14.9873L13.5 15H2.5L2.24414 14.9873C1.06772 14.8677 0.132274 13.9323 0.0126953 12.7559L0 12.5V1H16V12.5ZM1.5 6.25488V12.5C1.5 13.0523 1.94772 13.5 2.5 13.5H4.99512V6.25488H1.5ZM6.24512 6.25488V13.5H13.5C14.0523 13.5 14.5 13.0523 14.5 12.5V6.25488H6.24512ZM1.5 5.00488H14.5V2.5H1.5V5.00488Z"
-        fill="#666666"
+        fill="currentColor"
       />
     </svg>
   )
@@ -50,7 +50,7 @@ const ICONS = {
   page: <IconPage width={16} />,
 }
 
-function PageSegmentTree({ tree }: { tree: Trie | undefined }) {
+function PageSegmentTree({ tree }: { tree: Trie<SegmentNode> | undefined }) {
   if (!tree) {
     return null
   }
@@ -70,14 +70,14 @@ function PageSegmentTreeLayerPresentation({
   node,
   level,
 }: {
-  tree: Trie
-  node: TrieNode
+  tree: Trie<SegmentNode>
+  node: TrieNode<SegmentNode>
   level: number
 }) {
-  const segments = node.value?.split('/') || []
+  const segments = node.value?.pagePath?.split('/') || []
   const fileName = segments[segments.length - 1] || ''
-  const nodeName = fileName.split('.')[0] === 'layout' ? 'layout' : 'page'
-  const pagePath = segments.slice(0, -1).join('/')
+  const nodeName = node.value?.type
+  const pagePathPrefix = segments.slice(0, -1).join('/')
 
   return (
     <div className="segment-explorer-item">
@@ -93,7 +93,7 @@ function PageSegmentTreeLayerPresentation({
               >
                 {nodeName === 'layout' ? ICONS.layout : ICONS.page}
               </span>
-              {pagePath === '' ? '' : `${pagePath}/`}
+              {pagePathPrefix === '' ? '' : `${pagePathPrefix}/`}
               <span className="segment-explorer-filename-path">{fileName}</span>
             </div>
           </div>
@@ -125,7 +125,6 @@ export function SegmentsExplorer(
     return null
   }
 
-  // derive initial theme from system preference
   return (
     <DevToolsInfo
       title={
@@ -150,6 +149,7 @@ export function SegmentsExplorer(
 export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
   .segment-explorer-back-button {
     margin-right: 12px;
+    color: var(--color-gray-1000);
   }
   .segment-explorer-back-button svg {
     width: 20px;
@@ -171,7 +171,6 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
 
   .segment-explorer-filename-path {
     display: inline-block;
-    text-decoration-color: #b4b4b4;
 
     &:hover {
       color: var(--color-gray-1000);
@@ -190,6 +189,12 @@ export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
 
   .segment-explorer-line-icon {
     margin-right: 4px;
+  }
+  .segment-explorer-line-icon-page {
+    color: inherit;
+  }
+  .segment-explorer-line-icon-layout {
+    color: var(--color-gray-1-00);
   }
 
   .segment-explorer-line-text-page {

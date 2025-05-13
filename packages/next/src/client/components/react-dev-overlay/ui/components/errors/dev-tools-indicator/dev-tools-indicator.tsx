@@ -11,7 +11,7 @@ import { TurbopackInfo } from './dev-tools-info/turbopack-info'
 import { RouteInfo } from './dev-tools-info/route-info'
 import GearIcon from '../../../icons/gear-icon'
 import { UserPreferences } from './dev-tools-info/user-preferences'
-import { SegmentsExplorer } from './dev-tools-info/segment-explorer'
+import { SegmentsExplorer } from '../../overview/segment-explorer'
 import {
   MENU_CURVE,
   MENU_DURATION_MS,

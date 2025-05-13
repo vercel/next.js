@@ -15,28 +15,32 @@
  *          ├── page.js
  **/
 
-export type TrieNode = {
-  value?: string
+export type TrieNode<Value = string> = {
+  value?: Value
   children: {
-    [key: string]: TrieNode | undefined
+    [key: string]: TrieNode<Value> | undefined
   }
 }
 
-export type Trie = {
-  insert: (value: string) => void
-  search: (value: string) => boolean
-  getRoot: () => TrieNode
+export type Trie<Value = string> = {
+  insert: (value: Value) => void
+  getRoot: () => TrieNode<Value>
 }
 
-export function createTrie(): Trie {
-  const root: TrieNode = {
-    value: '',
+export function createTrie<Value = string>({
+  getKey = (k) => k as unknown as string,
+}: {
+  getKey: (k: Value) => string
+}): Trie<Value> {
+  const root: TrieNode<Value> = {
+    value: undefined,
     children: {},
   }
 
-  function insert(value: string) {
+  function insert(value: Value) {
     let currentNode = root
-    const segments = value.split('/')
+    const key = getKey(value)
+    const segments = key.split('/')
 
     for (const segment of segments) {
       if (!currentNode.children[segment]) {
@@ -51,23 +55,9 @@ export function createTrie(): Trie {
     currentNode.value = value
   }
 
-  function search(value: string): boolean {
-    let currentNode = root
-    const segments = value.split('/')
-
-    for (const segment of segments) {
-      if (!currentNode.children[segment]) {
-        return false
-      }
-      currentNode = currentNode.children[segment]!
-    }
-
-    return currentNode.value === value
-  }
-
-  function getRoot(): TrieNode {
+  function getRoot(): TrieNode<Value> {
     return root
   }
 
-  return { insert, search, getRoot }
+  return { insert, getRoot }
 }
