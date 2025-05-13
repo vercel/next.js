@@ -6,7 +6,7 @@ use std::{
     mem::{replace, take},
     num::NonZeroU32,
     pin::Pin,
-    sync::{atomic::AtomicU32, Arc},
+    sync::{Arc, atomic::AtomicU32},
     time::Duration,
 };
 
@@ -19,22 +19,23 @@ use smallvec::SmallVec;
 use tracing::Span;
 use turbo_prehash::PreHashed;
 use turbo_tasks::{
+    CellId, Invalidator, RawVc, ReadConsistency, TaskId, TaskIdSet, TraitTypeId,
+    TurboTasksBackendApi, TurboTasksBackendApiExt, ValueTypeId,
     backend::{CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec},
     event::{Event, EventListener},
-    get_invalidator, registry, CellId, Invalidator, RawVc, ReadConsistency, TaskId, TaskIdSet,
-    TraitTypeId, TurboTasksBackendApi, TurboTasksBackendApiExt, ValueTypeId,
+    get_invalidator, registry,
 };
 
 use crate::{
+    MemoryBackend,
     aggregation::{
-        aggregation_data, handle_new_edge, query_root_info, AggregationDataGuard, PreparedOperation,
+        AggregationDataGuard, PreparedOperation, aggregation_data, handle_new_edge, query_root_info,
     },
     cell::{Cell, ReadContentError},
     edges_set::{TaskEdge, TaskEdgesList, TaskEdgesSet},
     gc::{GcQueue, GcTaskState},
     output::Output,
     task::aggregation::{TaskAggregationContext, TaskChange},
-    MemoryBackend,
 };
 
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
@@ -625,12 +626,12 @@ impl Task {
     fn get_event_description_static(
         id: TaskId,
         ty: &TaskType,
-    ) -> impl Fn() -> String + Send + Sync + Clone {
+    ) -> impl Fn() -> String + Send + Sync + Clone + 'static {
         let ty = TaskTypeForDescription::from(ty);
         move || Self::format_description(&ty, id)
     }
 
-    fn get_event_description(&self) -> impl Fn() -> String + Send + Sync + Clone {
+    fn get_event_description(&self) -> impl Fn() -> String + Send + Sync + Clone + 'static {
         Self::get_event_description_static(self.id, &self.ty)
     }
 
