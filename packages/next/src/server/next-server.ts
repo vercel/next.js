@@ -284,7 +284,9 @@ export default class NextNodeServer extends BaseServer<
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
     }
-    process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.deploymentId || ''
+    process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.experimental.useSkewCookie
+      ? ''
+      : this.nextConfig.deploymentId || ''
 
     if (!this.minimalMode) {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
@@ -1527,26 +1529,31 @@ export default class NextNodeServer extends BaseServer<
   }
 
   private async loadNodeMiddleware() {
-    if (!this.nextConfig.experimental.nodeMiddleware) {
-      return
-    }
-
-    try {
-      const functionsConfig = this.renderOpts.dev
-        ? {}
-        : require(join(this.distDir, 'server', FUNCTIONS_CONFIG_MANIFEST))
-
-      if (this.renderOpts.dev || functionsConfig?.functions?.['/_middleware']) {
-        // if used with top level await, this will be a promise
-        return require(join(this.distDir, 'server', 'middleware.js'))
+    if (!process.env.NEXT_MINIMAL) {
+      if (!this.nextConfig.experimental.nodeMiddleware) {
+        return
       }
-    } catch (err) {
-      if (
-        isError(err) &&
-        err.code !== 'ENOENT' &&
-        err.code !== 'MODULE_NOT_FOUND'
-      ) {
-        throw err
+
+      try {
+        const functionsConfig = this.renderOpts.dev
+          ? {}
+          : require(join(this.distDir, 'server', FUNCTIONS_CONFIG_MANIFEST))
+
+        if (
+          this.renderOpts.dev ||
+          functionsConfig?.functions?.['/_middleware']
+        ) {
+          // if used with top level await, this will be a promise
+          return require(join(this.distDir, 'server', 'middleware.js'))
+        }
+      } catch (err) {
+        if (
+          isError(err) &&
+          err.code !== 'ENOENT' &&
+          err.code !== 'MODULE_NOT_FOUND'
+        ) {
+          throw err
+        }
       }
     }
   }

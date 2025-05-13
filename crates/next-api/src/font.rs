@@ -51,7 +51,7 @@ pub(crate) async fn create_font_manifest(
         Default::default()
     } else if app_dir {
         let dir_str = dir.to_string().await?;
-        let page_path = format!("{}{}", dir_str, original_name).into();
+        let page_path = format!("{dir_str}{original_name}").into();
 
         NextFontManifest {
             app: [(page_path, font_paths)].into_iter().collect(),

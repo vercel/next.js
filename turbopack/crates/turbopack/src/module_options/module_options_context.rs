@@ -1,6 +1,9 @@
+use std::fmt::Debug;
+
 use serde::{Deserialize, Serialize};
+use turbo_esregex::EsRegex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc, ValueDefault, Vc};
+use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{MinifyType, SourceMapsType},
@@ -8,7 +11,7 @@ use turbopack_core::{
     environment::Environment,
     resolve::options::ImportMapping,
 };
-use turbopack_ecmascript::{references::esm::UrlRewriteBehavior, TreeShakingMode};
+use turbopack_ecmascript::{TreeShakingMode, references::esm::UrlRewriteBehavior};
 pub use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::{
     execution_context::ExecutionContext,
@@ -31,10 +34,31 @@ pub struct WebpackRules(FxIndexMap<RcStr, LoaderRuleItem>);
 #[turbo_tasks::value(transparent)]
 pub struct OptionWebpackRules(Option<ResolvedVc<WebpackRules>>);
 
+#[derive(Default)]
+#[turbo_tasks::value(transparent)]
+pub struct WebpackConditions(pub FxIndexMap<RcStr, ConditionItem>);
+
+#[derive(Default)]
+#[turbo_tasks::value(transparent)]
+pub struct OptionWebpackConditions(Option<ResolvedVc<WebpackConditions>>);
+
+#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
+pub enum ConditionPath {
+    Glob(RcStr),
+    Regex(ResolvedVc<EsRegex>),
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug)]
+pub struct ConditionItem {
+    pub path: ConditionPath,
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct WebpackLoadersOptions {
     pub rules: ResolvedVc<WebpackRules>,
+    pub conditions: ResolvedVc<OptionWebpackConditions>,
     pub loader_runner_package: Option<ResolvedVc<ImportMapping>>,
 }
 

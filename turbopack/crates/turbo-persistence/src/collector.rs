@@ -1,10 +1,10 @@
 use crate::{
+    ValueBuffer,
     collector_entry::{CollectorEntry, CollectorEntryValue, EntryKey},
     constants::{
         DATA_THRESHOLD_PER_INITIAL_FILE, MAX_ENTRIES_PER_INITIAL_FILE, MAX_SMALL_VALUE_SIZE,
     },
-    key::{hash_key, StoreKey},
-    ValueBuffer,
+    key::{StoreKey, hash_key},
 };
 
 /// A collector accumulates entries that should be eventually written to a file. It keeps track of
@@ -93,7 +93,7 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
     /// Sorts the entries and returns them along with the total key and value sizes. This doesn't
     /// clear the entries.
     pub fn sorted(&mut self) -> (&[CollectorEntry<K>], usize, usize) {
-        self.entries.sort_by(|a, b| a.key.cmp(&b.key));
+        self.entries.sort_unstable_by(|a, b| a.key.cmp(&b.key));
         (&self.entries, self.total_key_size, self.total_value_size)
     }
 

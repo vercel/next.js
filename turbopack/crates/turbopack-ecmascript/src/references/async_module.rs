@@ -6,8 +6,8 @@ use swc_core::{
     quote,
 };
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc,
+    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModuleReference, ChunkingContext, ChunkingType},
@@ -87,7 +87,13 @@ async fn get_inherit_async_referenced_asset(
     let Some(ty) = &*r.chunking_type().await? else {
         return Ok(None);
     };
-    if !matches!(ty, ChunkingType::ParallelInheritAsync) {
+    if !matches!(
+        ty,
+        ChunkingType::Parallel {
+            inherit_async: true,
+            ..
+        }
+    ) {
         return Ok(None);
     };
     let referenced_asset: turbo_tasks::ReadRef<ReferencedAsset> =

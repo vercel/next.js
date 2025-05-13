@@ -189,7 +189,7 @@ export function makeExternalHandler({
       }
 
       const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|cache|document|link|form|head|image|legacy\/image|constants|dynamic|script|navigation|headers|router|compat\/router|server)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-server-reference|private-next-rsc-cache-wrapper$)/
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|cache|document|link|form|head|image|legacy\/image|constants|dynamic|script|navigation|headers|router|compat\/router|server)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-server-reference|private-next-rsc-cache-wrapper|private-next-rsc-track-dynamic-import$)/
       if (notExternalModules.test(request)) {
         return
       }

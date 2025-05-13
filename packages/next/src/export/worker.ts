@@ -401,6 +401,10 @@ export async function exportPages(
     let attempt = 0
     let result
 
+    const hasDebuggerAttached =
+      // Also tests for `inspect-brk`
+      process.env.NODE_OPTIONS?.includes('--inspect')
+
     while (attempt < maxAttempts) {
       try {
         result = await Promise.race<ExportPageResult | undefined>([
@@ -427,12 +431,15 @@ export async function exportPages(
             sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
             buildId: input.buildId,
           }),
-          // If exporting the page takes longer than the timeout, reject the promise.
-          new Promise((_, reject) => {
-            setTimeout(() => {
-              reject(new TimeoutError())
-            }, nextConfig.staticPageGenerationTimeout * 1000)
-          }),
+          hasDebuggerAttached
+            ? // With a debugger attached, exporting can take infinitely if we paused script execution.
+              new Promise(() => {})
+            : // If exporting the page takes longer than the timeout, reject the promise.
+              new Promise((_, reject) => {
+                setTimeout(() => {
+                  reject(new TimeoutError())
+                }, nextConfig.staticPageGenerationTimeout * 1000)
+              }),
         ])
 
         // If there was an error in the export, throw it immediately. In the catch block, we might retry the export,

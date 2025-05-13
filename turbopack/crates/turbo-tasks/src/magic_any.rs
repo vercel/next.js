@@ -7,7 +7,7 @@ use std::{
     sync::Arc,
 };
 
-use serde::{de::DeserializeSeed, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeSeed};
 
 use crate::trace::{TraceRawVcs, TraceRawVcsContext};
 

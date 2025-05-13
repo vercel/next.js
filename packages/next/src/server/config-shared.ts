@@ -26,6 +26,13 @@ export type NextConfigComplete = Required<NextConfig> & {
   experimental: Omit<ExperimentalConfig, 'turbo'>
 }
 
+export interface NextAdapter {
+  name: string
+  modifyConfig(
+    config: NextConfigComplete
+  ): Promise<NextConfigComplete> | NextConfigComplete
+}
+
 export type I18NDomains = readonly DomainLocale[]
 
 export interface I18NConfig {
@@ -105,6 +112,10 @@ export type TurbopackLoaderItem =
       options: Record<string, JSONValue>
     }
 
+export type TurbopackRuleCondition = {
+  path: string | RegExp
+}
+
 export type TurbopackRuleConfigItemOrShortcut =
   | TurbopackLoaderItem[]
   | TurbopackRuleConfigItem
@@ -143,6 +154,13 @@ export interface TurbopackOptions {
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
   rules?: Record<string, TurbopackRuleConfigItemOrShortcut>
+
+  /**
+   * (`next --turbopack` only) A list of conditions to apply when running webpack loaders with Turbopack.
+   *
+   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
+   */
+  conditions?: Record<string, TurbopackRuleCondition>
 
   /**
    * The module ID strategy to use for Turbopack.
@@ -262,6 +280,8 @@ export interface LoggingConfig {
 }
 
 export interface ExperimentalConfig {
+  adapterPath?: string
+  useSkewCookie?: boolean
   nodeMiddleware?: boolean
   cacheHandlers?: {
     default?: string
@@ -659,6 +679,12 @@ export interface ExperimentalConfig {
    * Note: Use with caution as this can negatively impact page loading performance.
    */
   clientInstrumentationHook?: boolean
+
+  /**
+   * Enables using the global-not-found.js file in the app directory
+   *
+   */
+  globalNotFound?: boolean
 }
 
 export type ExportPathMap = {
@@ -1226,6 +1252,8 @@ export const defaultConfig: NextConfig = {
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   allowedDevOrigins: undefined,
   experimental: {
+    adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
+    useSkewCookie: false,
     nodeMiddleware: false,
     cacheLife: {
       default: {
@@ -1353,6 +1381,7 @@ export const defaultConfig: NextConfig = {
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,
+    globalNotFound: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

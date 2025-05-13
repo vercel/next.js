@@ -14,12 +14,12 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{SessionId, TaskId, TurboTasksBackendApi};
+use turbo_tasks::{KeyValuePair, SessionId, TaskId, TurboTasksBackendApi};
 
 use crate::{
     backend::{
-        storage::{SpecificTaskDataCategory, StorageWriteGuard},
         OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
+        storage::{SpecificTaskDataCategory, StorageWriteGuard},
     },
     backing_storage::BackingStorage,
     data::{
@@ -451,7 +451,7 @@ impl<B: BackingStorage> Debug for TaskGuardImpl<'_, B> {
             d.field("task_type", &task_type);
         };
         for (key, value) in self.task.iter_all() {
-            d.field(&format!("{:?}", key), &value);
+            d.field(&format!("{key:?}"), &value);
         }
         d.finish()
     }
@@ -466,6 +466,9 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         let category = item.category();
         self.check_access(category);
         if !self.task_id.is_transient() && item.is_persistent() {
+            if self.task.contains_key(&item.key()) {
+                return false;
+            }
             self.task.track_modification(category.into_specific());
         }
         self.task.add(item)
@@ -642,8 +645,8 @@ impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
 pub use self::invalidate::TaskDirtyCause;
 pub use self::{
     aggregation_update::{
-        get_aggregation_number, get_uppers, is_aggregating_node, is_root_node,
-        AggregatedDataUpdate, AggregationUpdateJob,
+        AggregatedDataUpdate, AggregationUpdateJob, get_aggregation_number, get_uppers,
+        is_aggregating_node, is_root_node,
     },
     cleanup_old_edges::OutdatedEdge,
     connect_children::connect_children,

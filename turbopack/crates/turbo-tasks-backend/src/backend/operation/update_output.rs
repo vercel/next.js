@@ -1,19 +1,19 @@
 use std::{borrow::Cow, mem::take};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{util::SharedError, RawVc, TaskId};
+use turbo_tasks::{RawVc, TaskId, util::SharedError};
 
 #[cfg(feature = "trace_task_dirty")]
 use crate::backend::operation::invalidate::TaskDirtyCause;
 use crate::{
     backend::{
+        TaskDataCategory,
         operation::{
-            invalidate::{make_task_dirty, make_task_dirty_internal},
             AggregationUpdateQueue, ExecuteContext, Operation, TaskGuard,
+            invalidate::{make_task_dirty, make_task_dirty_internal},
         },
         storage::{get, get_many},
-        TaskDataCategory,
     },
     data::{
         CachedDataItem, CachedDataItemKey, CellRef, InProgressState, InProgressStateInner,
@@ -60,10 +60,11 @@ impl UpdateOutputOperation {
             // Skip updating the output when the task is stale
             return;
         }
-        let children = ctx
-            .should_track_children()
-            .then(|| new_children.iter().copied().collect())
-            .unwrap_or_default();
+        let children = if ctx.should_track_children() {
+            new_children.iter().copied().collect()
+        } else {
+            Default::default()
+        };
 
         let old_error = task.remove(&CachedDataItemKey::Error {});
         let current_output = get!(task, Output);
@@ -118,10 +119,11 @@ impl UpdateOutputOperation {
             value: output_value,
         });
 
-        let dependent_tasks = ctx
-            .should_track_dependencies()
-            .then(|| get_many!(task, OutputDependent { task } => task))
-            .unwrap_or_default();
+        let dependent_tasks = if ctx.should_track_dependencies() {
+            get_many!(task, OutputDependent { task } => task)
+        } else {
+            Default::default()
+        };
 
         let mut queue = AggregationUpdateQueue::new();
 

@@ -24,21 +24,21 @@ use std::{
 
 use anyhow::{Context, Result};
 use hyper::{
-    server::{conn::AddrIncoming, Builder},
-    service::{make_service_fn, service_fn},
     Request, Response, Server,
+    server::{Builder, conn::AddrIncoming},
+    service::{make_service_fn, service_fn},
 };
 use parking_lot::Mutex;
 use socket2::{Domain, Protocol, Socket, Type};
 use tokio::task::JoinHandle;
-use tracing::{event, info_span, Instrument, Level, Span};
+use tracing::{Instrument, Level, Span, event, info_span};
 use turbo_tasks::{
-    apply_effects, run_once_with_reason, trace::TraceRawVcs, util::FormatDuration, NonLocalValue,
-    OperationVc, TurboTasksApi, Vc,
+    NonLocalValue, OperationVc, TurboTasksApi, Vc, apply_effects, run_once_with_reason,
+    trace::TraceRawVcs, util::FormatDuration,
 };
 use turbopack_core::{
     error::PrettyPrintError,
-    issue::{handle_issues, IssueReporter, IssueSeverity},
+    issue::{IssueReporter, IssueSeverity, handle_issues},
 };
 
 use self::{source::ContentSource, update::UpdateServer};
@@ -190,7 +190,7 @@ impl DevServerBuilder {
                                     return Ok(response);
                                 }
 
-                                println!("[404] {} (WebSocket)", path);
+                                println!("[404] {path} (WebSocket)");
                                 if path == "/_next/webpack-hmr" {
                                     // Special-case requests to webpack-hmr as these are made by
                                     // Next.js clients built

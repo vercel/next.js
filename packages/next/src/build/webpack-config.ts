@@ -1948,7 +1948,7 @@ export default async function getBaseWebpackConfig(
           dev,
         }),
       // rspack doesn't support the parser hooks used here
-      (isClient || isEdgeServer) && new DropClientPage(),
+      !isRspack && (isClient || isEdgeServer) && new DropClientPage(),
       isNodeServer &&
         !dev &&
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
@@ -1962,6 +1962,7 @@ export default async function getBaseWebpackConfig(
             appDirEnabled: hasAppDir,
             traceIgnores: [],
             compilerType,
+            swcLoaderConfig: swcDefaultLoader,
           }
         ),
       // Moment.js is an extremely popular library that bundles large locale files

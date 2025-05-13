@@ -351,7 +351,7 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             vec![span],
         ),
         RSCErrorKind::NextRscErrIncompatibleRouteSegmentConfig(span, segment, property) => (
-            format!("Route segment config \"{}\" is not compatible with `nextConfig.{}`. Please remove it.", segment, property),
+            format!("Route segment config \"{segment}\" is not compatible with `nextConfig.{property}`. Please remove it."),
             vec![span],
         ),
     };

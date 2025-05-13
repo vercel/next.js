@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use turbo_tasks::Vc;
 
 use crate::{DiskFileSystem, FileSystemPath};
@@ -19,9 +19,8 @@ pub fn join_path(fs_path: &str, join: &str) -> Option<String> {
     // backslash.
     debug_assert!(
         !join.contains('\\'),
-        "joined path {} must not contain a Windows directory '\\', it must be normalized to Unix \
-         '/'",
-        join
+        "joined path {join} must not contain a Windows directory '\\', it must be normalized to \
+         Unix '/'"
     );
 
     // TODO: figure out why this freezes the benchmarks.
@@ -193,4 +192,35 @@ pub async fn uri_from_file(root: Vc<FileSystemPath>, path: Option<&str>) -> Resu
     let uri = format!("file:///{}", encoded_path);
 
     Ok(uri)
+}
+
+#[cfg(test)]
+mod tests {
+
+    use rstest::*;
+
+    use crate::util::normalize_path;
+
+    #[rstest]
+    #[case("file.js")]
+    #[case("a/b/c/d/e/file.js")]
+    fn test_normalize_path_no_op(#[case] path: &str) {
+        assert_eq!(path, normalize_path(path).unwrap());
+    }
+
+    #[rstest]
+    #[case("/file.js", "file.js")]
+    #[case("./file.js", "file.js")]
+    #[case("././file.js", "file.js")]
+    #[case("a/../c/../file.js", "file.js")]
+    fn test_normalize_path(#[case] path: &str, #[case] normalized: &str) {
+        assert_eq!(normalized, normalize_path(path).unwrap());
+    }
+
+    #[rstest]
+    #[case("../file.js")]
+    #[case("a/../../file.js")]
+    fn test_normalize_path_invalid(#[case] path: &str) {
+        assert_eq!(None, normalize_path(path));
+    }
 }

@@ -1,6 +1,6 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, ValueDefault, ValueToString, Vc};
+use turbo_tasks::{ValueDefault, ValueToString, Vc};
 
 use super::{FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent};
 use crate::RawDirectoryContent;
@@ -59,11 +59,6 @@ impl FileSystem for VirtualFileSystem {
     #[turbo_tasks::function]
     fn raw_read_dir(&self, _fs_path: Vc<FileSystemPath>) -> Result<Vc<RawDirectoryContent>> {
         bail!("Reading is not possible on the virtual file system")
-    }
-
-    #[turbo_tasks::function]
-    fn track(&self, _fs_path: Vc<FileSystemPath>) -> Result<Vc<Completion>> {
-        bail!("Tracking is not possible on the virtual file system")
     }
 
     #[turbo_tasks::function]

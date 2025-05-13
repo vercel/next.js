@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use rustc_hash::FxHashMap;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_hash::hash_xxh3_hash64;
@@ -6,7 +6,7 @@ use turbo_tasks_hash::hash_xxh3_hash64;
 use super::ModuleId;
 use crate::{
     ident::AssetIdent,
-    issue::{module::ModuleIssue, IssueExt, StyledString},
+    issue::{IssueExt, StyledString, module::ModuleIssue},
 };
 
 #[turbo_tasks::value_trait]
@@ -60,11 +60,11 @@ impl ModuleIdStrategy for GlobalModuleIdStrategy {
             ModuleIssue {
                 ident,
                 title: StyledString::Text(
-                    format!("ModuleId not found for ident: {:?}", ident_string).into(),
+                    format!("ModuleId not found for ident: {ident_string:?}").into(),
                 )
                 .resolved_cell(),
                 description: StyledString::Text(
-                    format!("ModuleId not found for ident: {:?}", ident_string).into(),
+                    format!("ModuleId not found for ident: {ident_string:?}").into(),
                 )
                 .resolved_cell(),
             }

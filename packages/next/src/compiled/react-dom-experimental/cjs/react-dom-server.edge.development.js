@@ -35,6 +35,15 @@
 "use strict";
 "production" !== process.env.NODE_ENV &&
   (function () {
+    // This is a patch added by Next.js
+    const setTimeoutOrImmediate =
+      typeof globalThis["set" + "Immediate"] === "function" &&
+      // edge runtime sandbox defines a stub for setImmediate
+      // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
+      // but it's made non-enumerable, so we can detect it
+      globalThis.propertyIsEnumerable("setImmediate")
+        ? globalThis["set" + "Immediate"]
+        : (callback, ...args) => setTimeout(callback, 0, ...args);
     function styleReplacer(match, prefix, s, suffix) {
       return "" + prefix + ("s" === s ? "\\73 " : "\\53 ") + suffix;
     }
@@ -317,9 +326,6 @@
           "precomputed chunks must be smaller than the view size configured for this host. This is a bug in React."
         );
       return content;
-    }
-    function byteLengthOfChunk(chunk) {
-      return chunk.byteLength;
     }
     function closeWithError(destination, error) {
       "function" === typeof destination.error
@@ -825,7 +831,7 @@
           void 0 === nonce
             ? startInlineScript
             : stringToPrecomputedChunk(
-                '<script nonce="' + escapeTextForBrowser(nonce) + '"'
+                '<script nonce="' + escapeTextForBrowser(nonce) + '">'
               ),
         idPrefix = resumableState.idPrefix,
         bootstrapChunks = [],
@@ -834,15 +840,13 @@
         bootstrapScripts = resumableState.bootstrapScripts,
         bootstrapModules = resumableState.bootstrapModules;
       void 0 !== bootstrapScriptContent &&
-        (bootstrapChunks.push(inlineScriptWithNonce),
-        pushCompletedShellIdAttribute(bootstrapChunks, resumableState),
         bootstrapChunks.push(
-          endOfStartTag,
+          inlineScriptWithNonce,
           stringToChunk(
             escapeEntireInlineScriptContent(bootstrapScriptContent)
           ),
           endInlineScript
-        ));
+        );
       void 0 !== externalRuntimeConfig &&
         ("string" === typeof externalRuntimeConfig
           ? ((externalRuntimeScript = {
@@ -965,28 +969,23 @@
             ),
             bootstrapChunks.push(
               startScriptSrc,
-              stringToChunk(escapeTextForBrowser(externalRuntimeScript)),
-              attributeEnd
+              stringToChunk(escapeTextForBrowser(externalRuntimeScript))
             ),
             nonce &&
               bootstrapChunks.push(
                 scriptNonce,
-                stringToChunk(escapeTextForBrowser(nonce)),
-                attributeEnd
+                stringToChunk(escapeTextForBrowser(nonce))
               ),
             "string" === typeof maxHeadersLength &&
               bootstrapChunks.push(
                 scriptIntegirty,
-                stringToChunk(escapeTextForBrowser(maxHeadersLength)),
-                attributeEnd
+                stringToChunk(escapeTextForBrowser(maxHeadersLength))
               ),
             "string" === typeof importMap &&
               bootstrapChunks.push(
                 scriptCrossOrigin,
-                stringToChunk(escapeTextForBrowser(importMap)),
-                attributeEnd
+                stringToChunk(escapeTextForBrowser(importMap))
               ),
-            pushCompletedShellIdAttribute(bootstrapChunks, resumableState),
             bootstrapChunks.push(endAsyncScript);
       if (void 0 !== bootstrapModules)
         for (
@@ -1023,28 +1022,23 @@
             ),
             bootstrapChunks.push(
               startModuleSrc,
-              stringToChunk(escapeTextForBrowser(idPrefix)),
-              attributeEnd
+              stringToChunk(escapeTextForBrowser(idPrefix))
             ),
             nonce &&
               bootstrapChunks.push(
                 scriptNonce,
-                stringToChunk(escapeTextForBrowser(nonce)),
-                attributeEnd
+                stringToChunk(escapeTextForBrowser(nonce))
               ),
             "string" === typeof importMap &&
               bootstrapChunks.push(
                 scriptIntegirty,
-                stringToChunk(escapeTextForBrowser(importMap)),
-                attributeEnd
+                stringToChunk(escapeTextForBrowser(importMap))
               ),
             "string" === typeof externalRuntimeScript &&
               bootstrapChunks.push(
                 scriptCrossOrigin,
-                stringToChunk(escapeTextForBrowser(externalRuntimeScript)),
-                attributeEnd
+                stringToChunk(escapeTextForBrowser(externalRuntimeScript))
               ),
-            pushCompletedShellIdAttribute(bootstrapChunks, resumableState),
             bootstrapChunks.push(endAsyncScript);
       return onHeaders;
     }
@@ -1732,29 +1726,14 @@
       return content;
     }
     function injectFormReplayingRuntime(resumableState, renderState) {
-      if (
-        (resumableState.instructions & 16) === NothingSent &&
-        !renderState.externalRuntimeScript
-      ) {
-        resumableState.instructions |= 16;
-        var preamble = renderState.preamble,
-          bootstrapChunks = renderState.bootstrapChunks;
-        (preamble.htmlChunks || preamble.headChunks) &&
-        0 === bootstrapChunks.length
-          ? (bootstrapChunks.push(renderState.startInlineScript),
-            pushCompletedShellIdAttribute(bootstrapChunks, resumableState),
-            bootstrapChunks.push(
-              endOfStartTag,
-              formReplayingRuntimeScript,
-              endInlineScript
-            ))
-          : bootstrapChunks.unshift(
-              renderState.startInlineScript,
-              endOfStartTag,
-              formReplayingRuntimeScript,
-              endInlineScript
-            );
-      }
+      (resumableState.instructions & 16) !== NothingSent ||
+        renderState.externalRuntimeScript ||
+        ((resumableState.instructions |= 16),
+        renderState.bootstrapChunks.unshift(
+          renderState.startInlineScript,
+          formReplayingRuntimeScript,
+          endInlineScript
+        ));
     }
     function pushLinkImpl(target, props) {
       target.push(startChunkForTag("link"));
@@ -3504,17 +3483,6 @@
       styleQueue.sheets.forEach(preloadLateStyle, this);
       styleQueue.sheets.clear();
     }
-    function pushCompletedShellIdAttribute(target, resumableState) {
-      (resumableState.instructions & SentCompletedShellId) === NothingSent &&
-        ((resumableState.instructions |= SentCompletedShellId),
-        target.push(
-          completedShellIdAttributeStart,
-          stringToChunk(
-            escapeTextForBrowser("\u00ab" + resumableState.idPrefix + "R\u00bb")
-          ),
-          attributeEnd
-        ));
-    }
     function writeStyleResourceDependenciesInJS(destination, hoistableState) {
       writeChunk(destination, arrayFirstOpenBracket);
       var nextArrayOpenBrackChunk = arrayFirstOpenBracket;
@@ -4700,7 +4668,6 @@
       this.fatalError = null;
       this.pendingRootTasks = this.allPendingTasks = this.nextSegmentId = 0;
       this.completedPreambleSegments = this.completedRootSegment = null;
-      this.byteSize = 0;
       this.abortableTasks = abortSet;
       this.pingedTasks = [];
       this.clientRenderedBoundaries = [];
@@ -4945,7 +4912,7 @@
             })
           : setTimeoutOrImmediate(function () {
               return performWork(request);
-            }, 0));
+            }));
     }
     function createSuspenseBoundary(
       request,
@@ -6012,8 +5979,7 @@
                     boundarySegment.lastPushedText &&
                       boundarySegment.textEmbedded &&
                       boundarySegment.chunks.push(textSeparator),
-                    (boundarySegment.status = COMPLETED),
-                    finishedSegment(request, parentBoundary, boundarySegment);
+                    (boundarySegment.status = COMPLETED);
                 } catch (thrownValue) {
                   throw (
                     ((boundarySegment.status = 12 === request.status ? 3 : 4),
@@ -6059,13 +6025,11 @@
                       contentRootSegment.textEmbedded &&
                       contentRootSegment.chunks.push(textSeparator),
                     (contentRootSegment.status = COMPLETED),
-                    finishedSegment(request, newBoundary, contentRootSegment),
                     queueCompletedSegment(newBoundary, contentRootSegment),
                     0 === newBoundary.pendingTasks &&
-                      newBoundary.status === PENDING &&
-                      ((newBoundary.status = COMPLETED),
-                      !(500 < newBoundary.byteSize)))
+                      newBoundary.status === PENDING)
                   ) {
+                    newBoundary.status = COMPLETED;
                     0 === request.pendingRootTasks &&
                       task.blockedPreamble &&
                       preparePreamble(request);
@@ -6273,7 +6237,6 @@
           (task.blockedSegment = resumedSegment),
           renderNode(request, task, node, childIndex),
           (resumedSegment.status = COMPLETED),
-          finishedSegment(request, blockedBoundary, resumedSegment),
           null === blockedBoundary
             ? (request.completedRootSegment = resumedSegment)
             : (queueCompletedSegment(blockedBoundary, resumedSegment),
@@ -7442,16 +7405,6 @@
           queueCompletedSegment(boundary, childSegment);
       } else boundary.completedSegments.push(segment);
     }
-    function finishedSegment(request, boundary, segment) {
-      if (null !== byteLengthOfChunk) {
-        segment = segment.chunks;
-        for (var segmentByteSize = 0, i = 0; i < segment.length; i++)
-          segmentByteSize += segment[i].byteLength;
-        null === boundary
-          ? (request.byteSize += segmentByteSize)
-          : (boundary.byteSize += segmentByteSize);
-      }
-    }
     function finishedTask(request, boundary, segment) {
       if (null === boundary) {
         if (null !== segment && segment.parentFlushed) {
@@ -7475,12 +7428,11 @@
                 boundary.parentFlushed &&
                   request.completedBoundaries.push(boundary),
                 boundary.status === COMPLETED &&
-                  (500 < boundary.byteSize ||
-                    (boundary.fallbackAbortableTasks.forEach(
-                      abortTaskSoft,
-                      request
-                    ),
-                    boundary.fallbackAbortableTasks.clear()),
+                  (boundary.fallbackAbortableTasks.forEach(
+                    abortTaskSoft,
+                    request
+                  ),
+                  boundary.fallbackAbortableTasks.clear(),
                   0 === request.pendingRootTasks &&
                     null === request.trackedPostpones &&
                     null !== boundary.contentPreamble &&
@@ -7605,11 +7557,6 @@
                         segment$jscomp$0.chunks.push(textSeparator),
                       task$jscomp$0.abortSet.delete(task$jscomp$0),
                       (segment$jscomp$0.status = COMPLETED),
-                      finishedSegment(
-                        request,
-                        task$jscomp$0.blockedBoundary,
-                        segment$jscomp$0
-                      ),
                       finishedTask(
                         request,
                         task$jscomp$0.blockedBoundary,
@@ -7968,10 +7915,7 @@
               hoistableState
             )),
           flushSubtree(request, destination, segment, hoistableState);
-      else if (
-        500 < boundary.byteSize &&
-        flushedByteSize + boundary.byteSize > request.progressiveChunkSize
-      )
+      else if (boundary.byteSize > request.progressiveChunkSize)
         (boundary.rootSegmentID = request.nextSegmentId++),
           request.completedBoundaries.push(boundary),
           writeStartPendingSuspenseBoundary(
@@ -7981,7 +7925,6 @@
           ),
           flushSubtree(request, destination, segment, hoistableState);
       else {
-        flushedByteSize += boundary.byteSize;
         hoistableState &&
           ((segment = boundary.contentState),
           segment.styles.forEach(hoistStyleQueueDependency, hoistableState),
@@ -8015,7 +7958,6 @@
       return writeEndSegment(destination, segment.parentFormatContext);
     }
     function flushCompletedBoundary(request, destination, boundary) {
-      flushedByteSize = boundary.byteSize;
       for (
         var completedSegments = boundary.completedSegments, i = 0;
         i < completedSegments.length;
@@ -8043,7 +7985,6 @@
         completedSegments.streamingFormat === ScriptStreamingFormat;
       scriptFormat
         ? (writeChunk(destination, request.startInlineScript),
-          writeChunk(destination, endOfStartTag),
           requiresStyleInsertion
             ? (completedSegments.instructions &
                 SentCompleteBoundaryFunction) ===
@@ -8132,7 +8073,6 @@
       request = request.renderState;
       (segment = boundary.streamingFormat === ScriptStreamingFormat)
         ? (writeChunk(destination, request.startInlineScript),
-          writeChunk(destination, endOfStartTag),
           (boundary.instructions & SentCompleteSegmentFunction) === NothingSent
             ? ((boundary.instructions |= SentCompleteSegmentFunction),
               writeChunk(destination, completeSegmentScript1Full))
@@ -8162,15 +8102,14 @@
             if (completedRootSegment.status === POSTPONED) return;
             var completedPreambleSegments = request.completedPreambleSegments;
             if (null === completedPreambleSegments) return;
-            flushedByteSize = request.byteSize;
-            var resumableState = request.resumableState,
-              renderState = request.renderState;
+            var renderState = request.renderState;
             if (
               (0 !== request.allPendingTasks ||
                 null !== request.trackedPostpones) &&
               renderState.externalRuntimeScript
             ) {
               var _renderState$external = renderState.externalRuntimeScript,
+                resumableState = request.resumableState,
                 src = _renderState$external.src,
                 chunks = _renderState$external.chunks;
               resumableState.scriptResources.hasOwnProperty(src) ||
@@ -8233,15 +8172,6 @@
             renderState.scripts.clear();
             renderState.bulkPreloads.forEach(flushResource, destination);
             renderState.bulkPreloads.clear();
-            if (htmlChunks || headChunks) {
-              var shellId = "\u00ab" + resumableState.idPrefix + "R\u00bb";
-              writeChunk(destination, blockingRenderChunkStart);
-              writeChunk(
-                destination,
-                stringToChunk(escapeTextForBrowser(shellId))
-              );
-              writeChunk(destination, blockingRenderChunkEnd);
-            }
             var hoistableChunks = renderState.hoistableChunks;
             for (
               i$jscomp$0 = 0;
@@ -8250,17 +8180,22 @@
             )
               writeChunk(destination, hoistableChunks[i$jscomp$0]);
             for (
-              resumableState = hoistableChunks.length = 0;
-              resumableState < completedPreambleSegments.length;
-              resumableState++
+              renderState = hoistableChunks.length = 0;
+              renderState < completedPreambleSegments.length;
+              renderState++
             ) {
-              var segments = completedPreambleSegments[resumableState];
+              var segments = completedPreambleSegments[renderState];
               for (
-                renderState = 0;
-                renderState < segments.length;
-                renderState++
+                _renderState$external = 0;
+                _renderState$external < segments.length;
+                _renderState$external++
               )
-                flushSegment(request, destination, segments[renderState], null);
+                flushSegment(
+                  request,
+                  destination,
+                  segments[_renderState$external],
+                  null
+                );
             }
             var preamble$jscomp$0 = request.renderState.preamble,
               headChunks$jscomp$0 = preamble$jscomp$0.headChunks;
@@ -8276,27 +8211,11 @@
                 writeChunk(destination, bodyChunks[completedPreambleSegments]);
             flushSegment(request, destination, completedRootSegment, null);
             request.completedRootSegment = null;
-            var resumableState$jscomp$0 = request.resumableState,
-              renderState$jscomp$0 = request.renderState,
-              preamble$jscomp$1 = renderState$jscomp$0.preamble;
-            if (
-              (preamble$jscomp$1.htmlChunks || preamble$jscomp$1.headChunks) &&
-              (resumableState$jscomp$0.instructions & SentCompletedShellId) ===
-                NothingSent
-            ) {
-              var bootstrapChunks = renderState$jscomp$0.bootstrapChunks;
-              bootstrapChunks.push(startChunkForTag("template"));
-              pushCompletedShellIdAttribute(
-                bootstrapChunks,
-                resumableState$jscomp$0
-              );
-              bootstrapChunks.push(endOfStartTag, endChunkForTag("template"));
-            }
-            writeBootstrap(destination, renderState$jscomp$0);
+            writeBootstrap(destination, request.renderState);
           }
-          var renderState$jscomp$1 = request.renderState;
+          var renderState$jscomp$0 = request.renderState;
           completedRootSegment = 0;
-          var viewportChunks$jscomp$0 = renderState$jscomp$1.viewportChunks;
+          var viewportChunks$jscomp$0 = renderState$jscomp$0.viewportChunks;
           for (
             completedRootSegment = 0;
             completedRootSegment < viewportChunks$jscomp$0.length;
@@ -8307,21 +8226,21 @@
               viewportChunks$jscomp$0[completedRootSegment]
             );
           viewportChunks$jscomp$0.length = 0;
-          renderState$jscomp$1.preconnects.forEach(flushResource, destination);
-          renderState$jscomp$1.preconnects.clear();
-          renderState$jscomp$1.fontPreloads.forEach(flushResource, destination);
-          renderState$jscomp$1.fontPreloads.clear();
-          renderState$jscomp$1.highImagePreloads.forEach(
+          renderState$jscomp$0.preconnects.forEach(flushResource, destination);
+          renderState$jscomp$0.preconnects.clear();
+          renderState$jscomp$0.fontPreloads.forEach(flushResource, destination);
+          renderState$jscomp$0.fontPreloads.clear();
+          renderState$jscomp$0.highImagePreloads.forEach(
             flushResource,
             destination
           );
-          renderState$jscomp$1.highImagePreloads.clear();
-          renderState$jscomp$1.styles.forEach(preloadLateStyles, destination);
-          renderState$jscomp$1.scripts.forEach(flushResource, destination);
-          renderState$jscomp$1.scripts.clear();
-          renderState$jscomp$1.bulkPreloads.forEach(flushResource, destination);
-          renderState$jscomp$1.bulkPreloads.clear();
-          var hoistableChunks$jscomp$0 = renderState$jscomp$1.hoistableChunks;
+          renderState$jscomp$0.highImagePreloads.clear();
+          renderState$jscomp$0.styles.forEach(preloadLateStyles, destination);
+          renderState$jscomp$0.scripts.forEach(flushResource, destination);
+          renderState$jscomp$0.scripts.clear();
+          renderState$jscomp$0.bulkPreloads.forEach(flushResource, destination);
+          renderState$jscomp$0.bulkPreloads.clear();
+          var hoistableChunks$jscomp$0 = renderState$jscomp$0.hoistableChunks;
           for (
             completedRootSegment = 0;
             completedRootSegment < hoistableChunks$jscomp$0.length;
@@ -8335,41 +8254,40 @@
           var clientRenderedBoundaries = request.clientRenderedBoundaries;
           for (i = 0; i < clientRenderedBoundaries.length; i++) {
             var boundary = clientRenderedBoundaries[i];
-            renderState$jscomp$1 = destination;
-            var resumableState$jscomp$1 = request.resumableState,
-              renderState$jscomp$2 = request.renderState,
+            renderState$jscomp$0 = destination;
+            var resumableState$jscomp$0 = request.resumableState,
+              renderState$jscomp$1 = request.renderState,
               id = boundary.rootSegmentID,
               errorDigest = boundary.errorDigest,
               errorMessage = boundary.errorMessage,
               errorStack = boundary.errorStack,
               errorComponentStack = boundary.errorComponentStack,
               scriptFormat =
-                resumableState$jscomp$1.streamingFormat ===
+                resumableState$jscomp$0.streamingFormat ===
                 ScriptStreamingFormat;
             scriptFormat
               ? (writeChunk(
-                  renderState$jscomp$1,
-                  renderState$jscomp$2.startInlineScript
+                  renderState$jscomp$0,
+                  renderState$jscomp$1.startInlineScript
                 ),
-                writeChunk(renderState$jscomp$1, endOfStartTag),
-                (resumableState$jscomp$1.instructions &
+                (resumableState$jscomp$0.instructions &
                   SentClientRenderFunction) ===
                 NothingSent
-                  ? ((resumableState$jscomp$1.instructions |=
+                  ? ((resumableState$jscomp$0.instructions |=
                       SentClientRenderFunction),
-                    writeChunk(renderState$jscomp$1, clientRenderScript1Full))
+                    writeChunk(renderState$jscomp$0, clientRenderScript1Full))
                   : writeChunk(
-                      renderState$jscomp$1,
+                      renderState$jscomp$0,
                       clientRenderScript1Partial
                     ))
-              : writeChunk(renderState$jscomp$1, clientRenderData1);
+              : writeChunk(renderState$jscomp$0, clientRenderData1);
             writeChunk(
-              renderState$jscomp$1,
-              renderState$jscomp$2.boundaryPrefix
+              renderState$jscomp$0,
+              renderState$jscomp$1.boundaryPrefix
             );
-            writeChunk(renderState$jscomp$1, stringToChunk(id.toString(16)));
+            writeChunk(renderState$jscomp$0, stringToChunk(id.toString(16)));
             scriptFormat &&
-              writeChunk(renderState$jscomp$1, clientRenderScript1A);
+              writeChunk(renderState$jscomp$0, clientRenderScript1A);
             if (
               errorDigest ||
               errorMessage ||
@@ -8378,74 +8296,74 @@
             )
               scriptFormat
                 ? (writeChunk(
-                    renderState$jscomp$1,
+                    renderState$jscomp$0,
                     clientRenderErrorScriptArgInterstitial
                   ),
                   writeChunk(
-                    renderState$jscomp$1,
+                    renderState$jscomp$0,
                     stringToChunk(
                       escapeJSStringsForInstructionScripts(errorDigest || "")
                     )
                   ))
-                : (writeChunk(renderState$jscomp$1, clientRenderData2),
+                : (writeChunk(renderState$jscomp$0, clientRenderData2),
                   writeChunk(
-                    renderState$jscomp$1,
+                    renderState$jscomp$0,
                     stringToChunk(escapeTextForBrowser(errorDigest || ""))
                   ));
             if (errorMessage || errorStack || errorComponentStack)
               scriptFormat
                 ? (writeChunk(
-                    renderState$jscomp$1,
+                    renderState$jscomp$0,
                     clientRenderErrorScriptArgInterstitial
                   ),
                   writeChunk(
-                    renderState$jscomp$1,
+                    renderState$jscomp$0,
                     stringToChunk(
                       escapeJSStringsForInstructionScripts(errorMessage || "")
                     )
                   ))
-                : (writeChunk(renderState$jscomp$1, clientRenderData3),
+                : (writeChunk(renderState$jscomp$0, clientRenderData3),
                   writeChunk(
-                    renderState$jscomp$1,
+                    renderState$jscomp$0,
                     stringToChunk(escapeTextForBrowser(errorMessage || ""))
                   ));
             if (errorStack || errorComponentStack)
               scriptFormat
                 ? (writeChunk(
-                    renderState$jscomp$1,
+                    renderState$jscomp$0,
                     clientRenderErrorScriptArgInterstitial
                   ),
                   writeChunk(
-                    renderState$jscomp$1,
+                    renderState$jscomp$0,
                     stringToChunk(
                       escapeJSStringsForInstructionScripts(errorStack || "")
                     )
                   ))
-                : (writeChunk(renderState$jscomp$1, clientRenderData4),
+                : (writeChunk(renderState$jscomp$0, clientRenderData4),
                   writeChunk(
-                    renderState$jscomp$1,
+                    renderState$jscomp$0,
                     stringToChunk(escapeTextForBrowser(errorStack || ""))
                   ));
             errorComponentStack &&
               (scriptFormat
                 ? (writeChunk(
-                    renderState$jscomp$1,
+                    renderState$jscomp$0,
                     clientRenderErrorScriptArgInterstitial
                   ),
                   writeChunk(
-                    renderState$jscomp$1,
+                    renderState$jscomp$0,
                     stringToChunk(
                       escapeJSStringsForInstructionScripts(errorComponentStack)
                     )
                   ))
-                : (writeChunk(renderState$jscomp$1, clientRenderData5),
+                : (writeChunk(renderState$jscomp$0, clientRenderData5),
                   writeChunk(
-                    renderState$jscomp$1,
+                    renderState$jscomp$0,
                     stringToChunk(escapeTextForBrowser(errorComponentStack))
                   )));
             var JSCompiler_inline_result = scriptFormat
-              ? writeChunkAndReturn(renderState$jscomp$1, clientRenderScriptEnd)
-              : writeChunkAndReturn(renderState$jscomp$1, clientRenderDataEnd);
+              ? writeChunkAndReturn(renderState$jscomp$0, clientRenderScriptEnd)
+              : writeChunkAndReturn(renderState$jscomp$0, clientRenderDataEnd);
             if (!JSCompiler_inline_result) {
               request.destination = null;
               i++;
@@ -8477,9 +8395,8 @@
             a: {
               clientRenderedBoundaries = request;
               boundary = destination;
-              var boundary$jscomp$0 = partialBoundaries[i];
-              flushedByteSize = boundary$jscomp$0.byteSize;
-              var completedSegments = boundary$jscomp$0.completedSegments;
+              var boundary$jscomp$0 = partialBoundaries[i],
+                completedSegments = boundary$jscomp$0.completedSegments;
               for (
                 JSCompiler_inline_result = 0;
                 JSCompiler_inline_result < completedSegments.length;
@@ -8565,7 +8482,7 @@
                 request
               )
             : enqueueEarlyPreloadsAfterInitialWork(request));
-      }, 0);
+      });
     }
     function enqueueEarlyPreloadsAfterInitialWork(request) {
       safelyEmitEarlyPreloads(request, 0 === request.pendingRootTasks);
@@ -8580,7 +8497,7 @@
           destination
             ? flushCompletedQueues(request, destination)
             : (request.flushScheduled = !1);
-        }, 0));
+        }));
     }
     function startFlowing(request, destination) {
       if (13 === request.status)
@@ -8669,7 +8586,6 @@
         resumableState.scriptResources = {};
         resumableState.moduleUnknownResources = {};
         resumableState.moduleScriptResources = {};
-        resumableState.instructions = NothingSent;
       }
       return {
         nextSegmentId: request.nextSegmentId,
@@ -8682,11 +8598,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-experimental-408d055a-20250430" !== isomorphicReactPackageVersion)
+      if ("19.2.0-experimental-197d6a04-20250424" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-experimental-408d055a-20250430\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-experimental-197d6a04-20250424\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -9772,19 +9688,18 @@
       SentCompleteBoundaryFunction = 2,
       SentClientRenderFunction = 4,
       SentStyleInsertionFunction = 8,
-      SentCompletedShellId = 32,
       EXISTS = null,
       PRELOAD_NO_CREDS = [];
     Object.freeze(PRELOAD_NO_CREDS);
     var dataElementQuotedEnd = stringToPrecomputedChunk('"></template>'),
-      startInlineScript = stringToPrecomputedChunk("<script"),
+      startInlineScript = stringToPrecomputedChunk("<script>"),
       endInlineScript = stringToPrecomputedChunk("\x3c/script>"),
       startScriptSrc = stringToPrecomputedChunk('<script src="'),
       startModuleSrc = stringToPrecomputedChunk('<script type="module" src="'),
-      scriptNonce = stringToPrecomputedChunk(' nonce="'),
-      scriptIntegirty = stringToPrecomputedChunk(' integrity="'),
-      scriptCrossOrigin = stringToPrecomputedChunk(' crossorigin="'),
-      endAsyncScript = stringToPrecomputedChunk(' async="">\x3c/script>'),
+      scriptNonce = stringToPrecomputedChunk('" nonce="'),
+      scriptIntegirty = stringToPrecomputedChunk('" integrity="'),
+      scriptCrossOrigin = stringToPrecomputedChunk('" crossorigin="'),
+      endAsyncScript = stringToPrecomputedChunk('" async="">\x3c/script>'),
       scriptRegex = /(<\/|<)(s)(cript)/gi,
       importMapScriptStart = stringToPrecomputedChunk(
         '<script type="importmap">'
@@ -9973,13 +9888,6 @@
       spaceSeparator = stringToPrecomputedChunk(" "),
       styleTagResourceOpen3 = stringToPrecomputedChunk('">'),
       styleTagResourceClose = stringToPrecomputedChunk("</style>"),
-      blockingRenderChunkStart = stringToPrecomputedChunk(
-        '<link rel="expect" href="#'
-      ),
-      blockingRenderChunkEnd = stringToPrecomputedChunk(
-        '" blocking="render"/>'
-      ),
-      completedShellIdAttributeStart = stringToPrecomputedChunk(' id="'),
       arrayFirstOpenBracket = stringToPrecomputedChunk("["),
       arraySubsequentOpenBracket = stringToPrecomputedChunk(",["),
       arrayInterstitial = stringToPrecomputedChunk(","),
@@ -10238,8 +10146,7 @@
       didWarnAboutGetDerivedStateOnFunctionComponent = {},
       didWarnAboutReassigningProps = !1,
       didWarnAboutGenerators = !1,
-      didWarnAboutMaps = !1,
-      flushedByteSize = 0;
+      didWarnAboutMaps = !1;
     ensureCorrectIsomorphicReactVersion();
     ensureCorrectIsomorphicReactVersion();
     exports.prerender = function (children, options) {
@@ -10494,16 +10401,5 @@
         startWork(request);
       });
     };
-
-// This is a patch added by Next.js
-const setTimeoutOrImmediate =
-  typeof globalThis['set' + 'Immediate'] === 'function' &&
-  // edge runtime sandbox defines a stub for setImmediate
-  // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
-  // but it's made non-enumerable, so we can detect it
-  globalThis.propertyIsEnumerable('setImmediate')
-    ? globalThis['set' + 'Immediate']
-    : setTimeout;
-
-    exports.version = "19.2.0-experimental-408d055a-20250430";
+    exports.version = "19.2.0-experimental-197d6a04-20250424";
   })();

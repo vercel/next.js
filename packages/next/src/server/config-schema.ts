@@ -13,6 +13,7 @@ import type {
   TurbopackRuleConfigItem,
   TurbopackRuleConfigItemOptions,
   TurbopackRuleConfigItemOrShortcut,
+  TurbopackRuleCondition,
 } from './config-shared'
 import type {
   Header,
@@ -128,8 +129,13 @@ const zTurboRuleConfigItem: zod.ZodType<TurbopackRuleConfigItem> = z.union([
 const zTurboRuleConfigItemOrShortcut: zod.ZodType<TurbopackRuleConfigItemOrShortcut> =
   z.union([z.array(zTurboLoaderItem), zTurboRuleConfigItem])
 
+const zTurboCondition: zod.ZodType<TurbopackRuleCondition> = z.object({
+  path: z.union([z.string(), z.instanceof(RegExp)]),
+})
+
 const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
   rules: z.record(z.string(), zTurboRuleConfigItemOrShortcut).optional(),
+  conditions: z.record(z.string(), zTurboCondition).optional(),
   resolveAlias: z
     .record(
       z.string(),
@@ -142,6 +148,7 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
     .optional(),
   resolveExtensions: z.array(z.string()).optional(),
   moduleIds: z.enum(['named', 'deterministic']).optional(),
+  root: z.string().optional(),
 })
 
 // Same as zTurbopackConfig but with deprecated properties. Unfortunately, base
@@ -167,6 +174,7 @@ const zDeprecatedExperimentalTurboConfig: zod.ZodType<DeprecatedExperimentalTurb
     moduleIds: z.enum(['named', 'deterministic']).optional(),
     minify: z.boolean().optional(),
     sourceMaps: z.boolean().optional(),
+    root: z.string().optional(),
   })
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
@@ -309,6 +317,8 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     excludeDefaultMomentLocales: z.boolean().optional(),
     experimental: z
       .strictObject({
+        adapterPath: z.string().optional(),
+        useSkewCookie: z.boolean().optional(),
         nodeMiddleware: z.boolean().optional(),
         after: z.boolean().optional(),
         appDocumentPreloading: z.boolean().optional(),
@@ -486,6 +496,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             buildTimeThresholdMs: z.number().int(),
           })
           .optional(),
+        globalNotFound: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z

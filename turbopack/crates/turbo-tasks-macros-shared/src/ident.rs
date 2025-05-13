@@ -1,5 +1,5 @@
 use quote::ToTokens;
-use syn::{spanned::Spanned, GenericArgument, Ident, Path, PathArguments, Type, TypeParamBound};
+use syn::{GenericArgument, Ident, Path, PathArguments, Type, TypeParamBound, spanned::Spanned};
 
 pub fn get_register_value_type_ident(struct_ident: &Ident) -> Ident {
     Ident::new(
