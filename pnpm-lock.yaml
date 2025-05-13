@@ -1027,6 +1027,9 @@ importers:
       '@playwright/test':
         specifier: 1.41.2
         version: 1.41.2
+      '@rspack/core':
+        specifier: 1.3.9
+        version: 1.3.9(@swc/helpers@0.5.15)
       '@storybook/addon-a11y':
         specifier: 8.6.0
         version: 8.6.0(storybook@8.6.0(prettier@3.3.3))
