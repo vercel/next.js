@@ -1,12 +1,12 @@
 use std::{env, str::from_utf8, sync::Arc};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use indexmap::map::Entry;
 use rustc_demangle::demangle;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::TraceFormat;
-use crate::{span::SpanIndex, store_container::StoreContainer, timestamp::Timestamp, FxIndexMap};
+use crate::{FxIndexMap, span::SpanIndex, store_container::StoreContainer, timestamp::Timestamp};
 
 #[derive(Debug, Clone, Copy)]
 struct TraceNode {

@@ -1,4 +1,4 @@
-use std::cmp::{max, Reverse};
+use std::cmp::{Reverse, max};
 
 use either::Either;
 use itertools::Itertools;
@@ -173,11 +173,7 @@ impl ValueMode {
 ///
 /// cases where count per time is very low is probably not important
 fn value_over_time(value: u64, time: Timestamp) -> u64 {
-    if *time == 0 {
-        0
-    } else {
-        value / *time
-    }
+    if *time == 0 { 0 } else { value / *time }
 }
 
 #[derive(Clone, Copy, Debug)]
