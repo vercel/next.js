@@ -57,7 +57,7 @@ export function DevToolsInfo({
       <div className="dev-tools-info-container">
         <h1 className="dev-tools-info-title">{title}</h1>
         {children}
-        {closeButton && learnMoreLink && (
+        {(closeButton || learnMoreLink) && (
           <div className="dev-tools-info-button-container">
             {closeButton ? (
               <button
