@@ -20,7 +20,7 @@ use crate::func::{
 };
 
 /// Returns true if this attribute is a turbo_tasks attribute with the given name.
-pub fn is_attribute(attr: &Attribute, name: &str) -> bool {
+fn is_attribute(attr: &Attribute, name: &str) -> bool {
     let path = &attr.path();
     if path.leading_colon.is_some() {
         return false;
@@ -35,8 +35,8 @@ pub fn is_attribute(attr: &Attribute, name: &str) -> bool {
     }
 }
 
-fn split_function_attributes<'a>(
-    item: &'a ImplItem,
+pub fn split_function_attributes<'a>(
+    item: &'a impl Spanned,
     attrs: &'a [Attribute],
 ) -> (syn::Result<FunctionArguments>, Vec<&'a Attribute>) {
     let (func_attrs_vec, attrs): (Vec<_>, Vec<_>) = attrs
@@ -48,7 +48,7 @@ fn split_function_attributes<'a>(
             parse_with_optional_parens::<FunctionArguments>(func_attr)
         } else {
             Err(syn::Error::new(
-                func_attr.span(),
+                func_attrs_vec[1].span(),
                 "Only one #[turbo_tasks::function] attribute is allowed per method",
             ))
         }
