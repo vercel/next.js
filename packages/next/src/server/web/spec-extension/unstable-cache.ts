@@ -195,13 +195,20 @@ export function unstable_cache<T extends Callback>(
 
         const isNestedUnstableCache =
           workUnitStore && workUnitStore.type === 'unstable-cache'
+
+        const isFullOnDemandRevalidate =
+          workStore.isOnDemandRevalidate &&
+          !workStore.isStaleRevalidationRequest
+        const isIncrementalOnDemandRevalidate =
+          incrementalCache.isOnDemandRevalidate &&
+          !workStore.isStaleRevalidationRequest
         if (
           // when we are nested inside of other unstable_cache's
           // we should bypass cache similar to fetches
           !isNestedUnstableCache &&
           workStore.fetchCache !== 'force-no-store' &&
-          !workStore.isOnDemandRevalidate &&
-          !incrementalCache.isOnDemandRevalidate &&
+          !isFullOnDemandRevalidate &&
+          !isIncrementalOnDemandRevalidate &&
           !workStore.isDraftMode
         ) {
           // We attempt to get the current cache entry from the incremental cache.
@@ -293,7 +300,7 @@ export function unstable_cache<T extends Callback>(
         // so we just call the callback directly when it needs to run.
         // If the entry is fresh we return it. If the entry is stale we return it but revalidate the entry in
         // the background. If the entry is missing or invalid we generate a new entry and return it.
-
+        //TODO: Should we also check if it is for an ISR revalidation request here?
         if (!incrementalCache.isOnDemandRevalidate) {
           // We aren't doing an on demand revalidation so we check use the cache if valid
           const cacheEntry = await incrementalCache.get(cacheKey, {

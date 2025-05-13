@@ -764,8 +764,11 @@ export function createPatchedFetcher(
           }
 
           if (isCacheableRevalidate && !cachedFetchData) {
+            const shouldUseFetchCache =
+              workStore.isOnDemandRevalidate &&
+              !workStore.isStaleRevalidationRequest
             handleUnlock = await incrementalCache.lock(cacheKey)
-            const entry = workStore.isOnDemandRevalidate
+            const entry = shouldUseFetchCache
               ? null
               : await incrementalCache.get(cacheKey, {
                   kind: IncrementalCacheKind.FETCH,

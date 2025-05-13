@@ -162,6 +162,22 @@ Using a custom cache handler will allow you to ensure consistency across all pod
 >
 > - `revalidatePath` is a convenience layer on top of cache tags. Calling `revalidatePath` will call the `revalidateTag` function with a special default tag for the provided page.
 
+#### Disable background revalidation
+
+When deploying multiple instance of the same Next.js app it could be useful to manually control the background revalidation for ISR requests to avoid multiple instances revalidating the same page at the same time. This can be achieved by setting the `disableBackgroundRevalidation` option to `true` in your `next.config.js` file.
+
+```jsx filename="next.config.js"
+module.exports = {
+  experimental: {
+    disableBackgroundRevalidation: true,
+  },
+}
+```
+
+Setting this option to `true` will disable the background revalidation for ISR pages, meaning that you're responsible for revalidating the pages yourself.
+In order to revalidate the pages yourself you need to send a `HEAD` request to the route you want to revalidate with the `x-prerender-revalidate` header set to `previewModeId` (this value is generated at build time and can be found in the `.next/prerender-manifest.json` file) and the `x-next-stale-isr` header set to `1`.
+Not setting the `x-next-stale-isr` header to `1` is equivalent to an [on-demand revalidation](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration#on-demand-validation-with-resrevalidate) with `res.revalidate()`
+
 ## Build Cache
 
 Next.js generates an ID during `next build` to identify which version of your application is being served. The same build should be used and boot up multiple containers.
