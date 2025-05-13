@@ -2,7 +2,7 @@ use anyhow::{Result, anyhow, bail};
 use either::Either;
 use strsim::jaro;
 use swc_core::{
-    common::{BytePos, DUMMY_SP, Mark, Span, SyntaxContext},
+    common::{BytePos, DUMMY_SP, Span, SyntaxContext},
     ecma::ast::{
         ComputedPropName, Decl, Expr, ExprStmt, Ident, Lit, MemberExpr, MemberProp, Number,
         SeqExpr, Stmt, Str,

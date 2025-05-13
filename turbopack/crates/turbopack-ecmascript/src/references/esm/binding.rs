@@ -1,14 +1,8 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use swc_core::{
-    common::{Span, SyntaxContext},
-    ecma::{
-        ast::{
-            ComputedPropName, Expr, Ident, KeyValueProp, Lit, MemberExpr, MemberProp, Number, Prop,
-            PropName, SeqExpr, SimpleAssignTarget, Str,
-        },
-        visit::fields::{CalleeField, PropField},
-    },
+use swc_core::ecma::{
+    ast::{Expr, KeyValueProp, Prop, PropName, SimpleAssignTarget},
+    visit::fields::{CalleeField, PropField},
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};

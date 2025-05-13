@@ -17,10 +17,7 @@ use turbopack_core::{
 };
 
 use super::esm::base::ReferencedAsset;
-use crate::{
-    code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
-    references::esm::base::ReferencedAssetIdent,
-};
+use crate::code_gen::{CodeGeneration, CodeGenerationHoistedStmt};
 
 /// Information needed for generating the async module wrapper for
 /// [EcmascriptChunkItem](crate::chunk::EcmascriptChunkItem)s.
