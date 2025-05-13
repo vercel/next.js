@@ -1,12 +1,12 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{
+    Attribute, Error, Expr, ExprLit, Generics, ImplItem, ImplItemFn, ItemImpl, Lit, LitStr, Meta,
+    MetaNameValue, Path, Token, Type,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
     spanned::Spanned,
-    Attribute, Error, Expr, ExprLit, Generics, ImplItem, ImplItemFn, ItemImpl, Lit, LitStr, Meta,
-    MetaNameValue, Path, Token, Type,
 };
 use turbo_tasks_macros_shared::{
     get_inherent_impl_function_id_ident, get_inherent_impl_function_ident, get_path_ident,
@@ -15,8 +15,8 @@ use turbo_tasks_macros_shared::{
 };
 
 use crate::func::{
-    filter_inline_attributes, parse_with_optional_parens, DefinitionContext, FunctionArguments,
-    NativeFn, TurboFn,
+    DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
+    parse_with_optional_parens,
 };
 
 fn is_attribute(attr: &Attribute, name: &str) -> bool {
@@ -93,7 +93,7 @@ impl Parse for ValueImplArguments {
                     return Err(Error::new_spanned(
                         &meta,
                         format!("unexpected {meta:?}, expected \"ident\""),
-                    ))
+                    ));
                 }
             }
         }

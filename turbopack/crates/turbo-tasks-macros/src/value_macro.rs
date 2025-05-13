@@ -2,14 +2,14 @@ use std::sync::OnceLock;
 
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{ToTokens, quote, quote_spanned};
 use regex::Regex;
 use syn::{
+    Error, Expr, ExprLit, Fields, FieldsUnnamed, Generics, Item, ItemEnum, ItemStruct, Lit, LitStr,
+    Meta, MetaNameValue, Result, Token,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
     spanned::Spanned,
-    Error, Expr, ExprLit, Fields, FieldsUnnamed, Generics, Item, ItemEnum, ItemStruct, Lit, LitStr,
-    Meta, MetaNameValue, Result, Token,
 };
 use turbo_tasks_macros_shared::{
     get_register_value_type_ident, get_value_type_id_ident, get_value_type_ident,
@@ -203,7 +203,7 @@ impl Parse for ValueArguments {
                              \"serialization\", \"cell\", \"eq\", \"transparent\", or \
                              \"operation\""
                         ),
-                    ))
+                    ));
                 }
             }
         }
