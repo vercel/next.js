@@ -5,19 +5,19 @@ use turbo_tasks::{
     FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_core::{
-    chunk::{availability_info::AvailabilityInfo, ChunkingContext},
+    chunk::{ChunkingContext, availability_info::AvailabilityInfo},
     module::Module,
-    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
+    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
     output::OutputAssets,
 };
 
 use crate::{
     next_client_reference::{
+        ClientReferenceType,
         ecmascript_client_reference::ecmascript_client_reference_module::{
             ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_CLIENT, ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_SSR,
         },
         visit_client_reference::ClientReferenceGraphResult,
-        ClientReferenceType,
     },
     next_server_component::server_component_module::NextServerComponentModule,
 };

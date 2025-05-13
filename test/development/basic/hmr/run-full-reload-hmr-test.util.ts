@@ -1,13 +1,10 @@
-import type { NextConfig } from 'next'
 import { getRedboxHeader, retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
-describe.each([
-  { basePath: '', assetPrefix: '' },
-  { basePath: '', assetPrefix: '/asset-prefix' },
-  { basePath: '/docs', assetPrefix: '' },
-  { basePath: '/docs', assetPrefix: '/asset-prefix' },
-])('HMR - Full Reload, nextConfig: %o', (nextConfig: Partial<NextConfig>) => {
+export function runFullReloadHmrTest(nextConfig: {
+  basePath: string
+  assetPrefix: string
+}) {
   const { next } = nextTestSetup({
     files: __dirname,
     nextConfig,
@@ -91,4 +88,4 @@ describe.each([
       )
     ).toBeTruthy()
   })
-})
+}

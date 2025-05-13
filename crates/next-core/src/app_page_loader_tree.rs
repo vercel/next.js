@@ -7,19 +7,19 @@ use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::{transition::Transition, ModuleAssetContext};
+use turbopack::{ModuleAssetContext, transition::Transition};
 use turbopack_core::{file_source::FileSource, module::Module};
 use turbopack_ecmascript::{magic_identifier, text::TextContentFileSource, utils::StringifyJs};
 
 use crate::{
     app_structure::{
-        get_metadata_route_name, AppDirModules, AppPageLoaderTree, GlobalMetadata, Metadata,
-        MetadataItem, MetadataWithAltItem,
+        AppDirModules, AppPageLoaderTree, GlobalMetadata, Metadata, MetadataItem,
+        MetadataWithAltItem, get_metadata_route_name,
     },
     base_loader_tree::{AppDirModuleType, BaseLoaderTreeBuilder},
     next_app::{
-        metadata::{get_content_type, image::dynamic_image_metadata_source},
         AppPage,
+        metadata::{get_content_type, image::dynamic_image_metadata_source},
     },
     next_image::module::{BlurPlaceholderMode, StructuredImageModuleType},
 };
@@ -136,7 +136,7 @@ impl AppPageLoaderTreeBuilder {
         let metadata_manifest_route = get_metadata_route_name(manifest).await?;
         // prefix with base_path if it exists
         let manifest_route = if let Some(base_path) = &self.base_path {
-            format!("{}/{}", base_path, metadata_manifest_route)
+            format!("{base_path}/{metadata_manifest_route}")
         } else {
             metadata_manifest_route.to_string()
         };
@@ -250,7 +250,7 @@ impl AppPageLoaderTreeBuilder {
         let s = "      ";
         writeln!(self.loader_tree_code, "{s}(async (props) => [{{")?;
         let pathname_prefix = if let Some(base_path) = &self.base_path {
-            format!("{}/{}", base_path, app_page)
+            format!("{base_path}/{app_page}")
         } else {
             app_page.to_string()
         };

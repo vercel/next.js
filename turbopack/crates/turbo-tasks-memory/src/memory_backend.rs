@@ -527,7 +527,7 @@ impl Backend for MemoryBackend {
                 match task.read_cell(
                     index,
                     self.gc_queue.as_ref(),
-                    move || format!("reading {} {} from {}", task_id, index, reader),
+                    move || format!("reading {task_id} {index} from {reader}"),
                     Some(reader),
                     self,
                     turbo_tasks,
@@ -564,7 +564,7 @@ impl Backend for MemoryBackend {
             match task.read_cell(
                 index,
                 self.gc_queue.as_ref(),
-                move || format!("reading {} {} untracked", task_id, index),
+                move || format!("reading {task_id} {index} untracked"),
                 None,
                 self,
                 turbo_tasks,

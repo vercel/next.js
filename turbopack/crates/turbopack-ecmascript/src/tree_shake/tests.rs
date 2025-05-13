@@ -40,7 +40,7 @@ fn run(input: PathBuf) {
     let config = input.with_file_name("config.json");
     let config = std::fs::read_to_string(config).unwrap_or_else(|_| "{}".into());
     let config = serde_json::from_str::<TestConfig>(&config).unwrap_or_else(|_e| {
-        panic!("failed to parse config.json: {}", config);
+        panic!("failed to parse config.json: {config}");
     });
 
     testing::run_test(false, |cm, _handler| {
@@ -170,8 +170,7 @@ fn run(input: PathBuf) {
             s,
             "```mermaid\n{}```",
             render_mermaid(&mut condensed, &|buf: &Vec<ItemId>| format!(
-                "Items: {:?}",
-                buf
+                "Items: {buf:?}"
             ))
         )
         .unwrap();
@@ -203,7 +202,7 @@ fn run(input: PathBuf) {
                 if !skip_parts {
                     writeln!(s, "# Modules ({})", if is_debug { "dev" } else { "prod" }).unwrap();
                     for (i, module) in modules.iter().enumerate() {
-                        writeln!(s, "## Part {}", i).unwrap();
+                        writeln!(s, "## Part {i}").unwrap();
                         writeln!(s, "```js\n{}\n```", print(&cm, &[module])).unwrap();
                     }
                 }
@@ -226,7 +225,7 @@ fn run(input: PathBuf) {
 
                 let module = merger.merge_recursively(entry).unwrap();
 
-                writeln!(s, "## Merged ({})", title).unwrap();
+                writeln!(s, "## Merged ({title})").unwrap();
                 writeln!(s, "```js\n{}\n```", print(&cm, &[&module])).unwrap();
             };
         describe(

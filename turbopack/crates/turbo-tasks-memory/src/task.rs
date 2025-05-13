@@ -616,8 +616,8 @@ impl Task {
 
     fn format_description(ty: &TaskTypeForDescription, id: TaskId) -> String {
         match ty {
-            TaskTypeForDescription::Root => format!("[{}] root", id),
-            TaskTypeForDescription::Once => format!("[{}] once", id),
+            TaskTypeForDescription::Root => format!("[{id}] root"),
+            TaskTypeForDescription::Once => format!("[{id}] once"),
             TaskTypeForDescription::Persistent(ty) => format!("[{id}] {ty}"),
         }
     }
@@ -737,10 +737,7 @@ impl Task {
                 }
                 Dirty { .. } => {
                     let state_type = Task::state_string(&state);
-                    panic!(
-                        "{:?} execution started in unexpected state {}",
-                        self, state_type
-                    )
+                    panic!("{self:?} execution started in unexpected state {state_type}")
                 }
             };
             self.make_execution_future()
@@ -869,7 +866,7 @@ impl Task {
                 }
                 Ok(Err(mut err)) => {
                     if let Some(name) = self.get_function_name() {
-                        err = err.context(format!("Execution of {} failed", name));
+                        err = err.context(format!("Execution of {name} failed"));
                     }
                     state.output.error(err, turbo_tasks)
                 }

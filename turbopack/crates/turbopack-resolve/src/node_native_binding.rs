@@ -74,11 +74,8 @@ impl ValueToString for NodePreGypConfigReference {
         let config_file_pattern = self.config_file_pattern.to_string().await?;
         let compile_target = self.compile_target.await?;
         Ok(Vc::cell(
-            format!(
-                "node-gyp in {} with {} for {}",
-                context_dir, config_file_pattern, compile_target
-            )
-            .into(),
+            format!("node-gyp in {context_dir} with {config_file_pattern} for {compile_target}")
+                .into(),
         ))
     }
 }
@@ -116,7 +113,7 @@ pub async fn resolve_node_pre_gyp_files(
                 for version in node_pre_gyp_config.binary.napi_versions.iter() {
                     let native_binding_path = NAPI_VERSION_TEMPLATE.replace(
                         node_pre_gyp_config.binary.module_path.as_str(),
-                        format!("{}", version),
+                        format!("{version}"),
                     );
                     let platform = compile_target.platform;
                     let native_binding_path =
@@ -258,7 +255,7 @@ impl ValueToString for NodeGypBuildReference {
         let context_dir = self.context_dir.to_string().await?;
         let compile_target = self.compile_target.await?;
         Ok(Vc::cell(
-            format!("node-gyp in {} for {}", context_dir, compile_target).into(),
+            format!("node-gyp in {context_dir} for {compile_target}").into(),
         ))
     }
 }
@@ -291,7 +288,7 @@ pub async fn resolve_node_gyp_build_files(
                         let target_path = context_dir.join("build/Release".into());
                         let resolved_prebuilt_file = resolve_raw(
                             target_path,
-                            Pattern::new(Pattern::Constant(format!("{}.node", name).into())),
+                            Pattern::new(Pattern::Constant(format!("{name}.node").into())),
                             true,
                         )
                         .await?;
@@ -328,11 +325,11 @@ pub async fn resolve_node_gyp_build_files(
     let compile_target = compile_target.await?;
     let arch = compile_target.arch;
     let platform = compile_target.platform;
-    let prebuilt_dir = format!("{}-{}", platform, arch);
+    let prebuilt_dir = format!("{platform}-{arch}");
     Ok(resolve_raw(
         context_dir,
         Pattern::new(Pattern::Concatenation(vec![
-            Pattern::Constant(format!("prebuilds/{}/", prebuilt_dir).into()),
+            Pattern::Constant(format!("prebuilds/{prebuilt_dir}/").into()),
             Pattern::Dynamic,
             Pattern::Constant(".node".into()),
         ])),

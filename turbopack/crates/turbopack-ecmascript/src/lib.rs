@@ -1032,7 +1032,7 @@ async fn process_parse_result(
             let path = ident.path().to_string().await?;
             let error_messages = messages
                 .as_ref()
-                .and_then(|m| m.first().map(|f| format!("\n{}", f)))
+                .and_then(|m| m.first().map(|f| format!("\n{f}")))
                 .unwrap_or("".into());
             let msg = format!("Could not parse module '{path}'\n{error_messages}");
             let body = vec![

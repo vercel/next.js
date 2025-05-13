@@ -64,7 +64,7 @@ async fn func(input: Vc<ValueContainer>, nesting: i32) -> Result<Vc<Value>> {
         return Ok(func(input, nesting + 1));
     }
     if nesting == *value {
-        println!("func {}", nesting);
+        println!("func {nesting}");
         return Ok(Value { value: *value }.cell());
     }
     bail!("func no longer valid {}", nesting)

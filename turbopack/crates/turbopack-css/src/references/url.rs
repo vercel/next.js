@@ -15,10 +15,10 @@ use turbopack_core::{
     output::OutputAsset,
     reference::ModuleReference,
     reference_type::{ReferenceType, UrlReferenceSubType},
-    resolve::{origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult},
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve},
 };
 
-use crate::{embed::CssEmbed, StyleSheetLike};
+use crate::{StyleSheetLike, embed::CssEmbed};
 
 #[turbo_tasks::value(into = "new")]
 pub enum ReferencedAsset {

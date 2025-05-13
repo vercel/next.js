@@ -8,9 +8,9 @@ use std::{
 use hashbrown::hash_map::HashMap;
 use rustc_hash::FxHasher;
 use serde::{
+    Deserialize, Deserializer, Serialize, Serializer,
     de::{MapAccess, Visitor},
     ser::SerializeMap,
-    Deserialize, Deserializer, Serialize, Serializer,
 };
 use smallvec::SmallVec;
 
@@ -287,10 +287,9 @@ impl<K: Eq + Hash, V, H: BuildHasher, const I: usize> AutoMap<K, V, H, I> {
         Q: Hash + Eq + ?Sized,
     {
         match self {
-            AutoMap::List(list) => {
-                list.iter()
-                    .find_map(|(k, v)| if *k.borrow() == *key { Some(v) } else { None })
-            }
+            AutoMap::List(list) => list
+                .iter()
+                .find_map(|(k, v)| if *k.borrow() == *key { Some(v) } else { None }),
             AutoMap::Map(map) => map.get(key),
         }
     }
@@ -298,10 +297,9 @@ impl<K: Eq + Hash, V, H: BuildHasher, const I: usize> AutoMap<K, V, H, I> {
     /// see [HashMap::get_mut](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.get_mut)
     pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
         match self {
-            AutoMap::List(list) => {
-                list.iter_mut()
-                    .find_map(|(k, v)| if *k == *key { Some(v) } else { None })
-            }
+            AutoMap::List(list) => list
+                .iter_mut()
+                .find_map(|(k, v)| if *k == *key { Some(v) } else { None }),
             AutoMap::Map(map) => map.get_mut(key),
         }
     }

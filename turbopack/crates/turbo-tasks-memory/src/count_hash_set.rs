@@ -348,7 +348,7 @@ mod tests {
         assert!(set.is_empty());
 
         assert_eq!(
-            format!("{:?}", set),
+            format!("{set:?}"),
             "CountHashSet { inner: {}, negative_entries: 0 }"
         );
     }
@@ -392,7 +392,7 @@ mod tests {
         assert!(set.is_empty());
 
         assert_eq!(
-            format!("{:?}", set),
+            format!("{set:?}"),
             "CountHashSet { inner: {}, negative_entries: 0 }"
         );
     }

@@ -108,7 +108,7 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
             for line in new_lines {
                 match line {
                     Ok(line) => {
-                        writeln!(log_write, "{}", line).unwrap();
+                        writeln!(log_write, "{line}").unwrap();
                     }
                     Err(_) => {
                         break;
@@ -169,7 +169,7 @@ pub fn get_target_triple() -> &'static str {
 pub trait MapErr<T>: Into<Result<T, anyhow::Error>> {
     fn convert_err(self) -> napi::Result<T> {
         self.into()
-            .map_err(|err| napi::Error::new(Status::GenericFailure, format!("{:?}", err)))
+            .map_err(|err| napi::Error::new(Status::GenericFailure, format!("{err:?}")))
     }
 }
 

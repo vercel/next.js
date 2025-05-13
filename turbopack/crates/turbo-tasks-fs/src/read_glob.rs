@@ -1,10 +1,10 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use futures::try_join;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{Completion, ResolvedVc, TryJoinIterExt, Vc};
 
-use crate::{glob::Glob, DirectoryContent, DirectoryEntry, FileSystem, FileSystemPath};
+use crate::{DirectoryContent, DirectoryEntry, FileSystem, FileSystemPath, glob::Glob};
 
 #[turbo_tasks::value]
 #[derive(Default, Debug)]
@@ -196,16 +196,16 @@ async fn track_glob_internal(
 pub mod tests {
 
     use std::{
-        fs::{create_dir, File},
+        fs::{File, create_dir},
         io::prelude::*,
     };
 
     use turbo_rcstr::RcStr;
-    use turbo_tasks::{apply_effects, Completion, ReadRef, ResolvedVc, Vc};
-    use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
+    use turbo_tasks::{Completion, ReadRef, ResolvedVc, Vc, apply_effects};
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
     use crate::{
-        glob::Glob, DirectoryEntry, DiskFileSystem, FileContent, FileSystem, FileSystemPath,
+        DirectoryEntry, DiskFileSystem, FileContent, FileSystem, FileSystemPath, glob::Glob,
     };
 
     #[tokio::test]

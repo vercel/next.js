@@ -25,25 +25,25 @@ mod watcher;
 
 use std::{
     borrow::Cow,
-    cmp::{min, Ordering},
+    cmp::{Ordering, min},
     fmt::{self, Debug, Display, Formatter},
     fs::FileType,
     future::Future,
     io::{self, BufRead, ErrorKind},
     mem::take,
-    path::{Path, PathBuf, MAIN_SEPARATOR},
+    path::{MAIN_SEPARATOR, Path, PathBuf},
     sync::Arc,
     time::Duration,
 };
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use bitflags::bitflags;
 use dunce::simplified;
 use glob::Glob;
 use indexmap::IndexSet;
 use invalidator_map::InvalidatorMap;
-use jsonc_parser::{parse_to_serde_value, ParseOptions};
+use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 pub use read_glob::ReadGlobResult;
@@ -59,11 +59,11 @@ use tokio::{
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, effect, mark_session_dependent, mark_stateful, trace::TraceRawVcs,
     ApplyEffectsContext, Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef,
-    ResolvedVc, ValueToString, Vc,
+    ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, effect, mark_session_dependent,
+    mark_stateful, trace::TraceRawVcs,
 };
-use turbo_tasks_hash::{hash_xxh3_hash64, DeterministicHash, DeterministicHasher};
+use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash64};
 use util::{extract_disk_access, join_path, normalize_path, sys_to_unix, unix_to_sys};
 pub use virtual_fs::VirtualFileSystem;
 use watcher::DiskWatcher;
@@ -486,18 +486,17 @@ struct PathLockGuard<'a>(
 );
 
 fn format_absolute_fs_path(path: &Path, name: &str, root_path: &Path) -> Option<String> {
-    let path = if let Ok(rel_path) = path.strip_prefix(root_path) {
+    if let Ok(rel_path) = path.strip_prefix(root_path) {
         let path = if MAIN_SEPARATOR != '/' {
             let rel_path = rel_path.to_string_lossy().replace(MAIN_SEPARATOR, "/");
-            format!("[{name}]/{}", rel_path)
+            format!("[{name}]/{rel_path}")
         } else {
             format!("[{name}]/{}", rel_path.display())
         };
         Some(path)
     } else {
         None
-    };
-    path
+    }
 }
 
 pub fn path_to_key(path: impl AsRef<Path>) -> String {
@@ -932,7 +931,7 @@ impl FileSystem for DiskFileSystem {
                         }
                     })
                     .await
-                    .with_context(|| format!("create symlink to {}", target))?;
+                    .with_context(|| format!("create symlink to {target}"))?;
                 }
                 LinkContent::Invalid => {
                     anyhow::bail!("invalid symlink target: {}", full_path.display())
@@ -1161,13 +1160,12 @@ impl FileSystemPath {
         // provided by the user, so we allow it.
         debug_assert!(
             MAIN_SEPARATOR != '\\' || !path.contains('\\'),
-            "path {} must not contain a Windows directory '\\', it must be normalized to Unix '/'",
-            path,
+            "path {path} must not contain a Windows directory '\\', it must be normalized to Unix \
+             '/'",
         );
         debug_assert!(
             normalize_path(&path).as_deref() == Some(&*path),
-            "path {} must be normalized",
-            path,
+            "path {path} must be normalized",
         );
         Self::cell(FileSystemPath { fs, path })
     }
@@ -1221,7 +1219,7 @@ impl FileSystemPath {
         if let (path, Some(ext)) = this.split_extension() {
             return Ok(Self::new_normalized(
                 *this.fs,
-                format!("{}{}.{}", path, appending, ext).into(),
+                format!("{path}{appending}.{ext}").into(),
             ));
         }
         Ok(Self::new_normalized(
@@ -1921,7 +1919,7 @@ mod mime_option_serde {
     use std::{fmt, str::FromStr};
 
     use mime::Mime;
-    use serde::{de, Deserializer, Serializer};
+    use serde::{Deserializer, Serializer, de};
 
     pub fn serialize<S>(mime: &Option<Mime>, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -1956,7 +1954,7 @@ mod mime_option_serde {
                 } else {
                     Mime::from_str(value)
                         .map(Some)
-                        .map_err(|e| E::custom(format!("{}", e)))
+                        .map_err(|e| E::custom(format!("{e}")))
                 }
             }
         }

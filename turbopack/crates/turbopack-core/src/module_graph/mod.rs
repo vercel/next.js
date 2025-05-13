@@ -343,7 +343,7 @@ impl SingleModuleGraph {
                 }
             }
             if !duplicates.is_empty() {
-                panic!("Duplicate module idents in graph: {:#?}", duplicates);
+                panic!("Duplicate module idents in graph: {duplicates:#?}");
             }
         }
 

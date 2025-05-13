@@ -3,7 +3,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
-use super::{route_tree::RouteTree, ContentSource};
+use super::{ContentSource, route_tree::RouteTree};
 
 /// A functor to get a [ContentSource]. Will be invoked when needed when using
 /// [LazyInstantiatedContentSource].

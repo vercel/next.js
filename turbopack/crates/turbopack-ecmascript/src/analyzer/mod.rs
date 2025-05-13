@@ -639,7 +639,7 @@ impl Display for JsValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             JsValue::Constant(v) => write!(f, "{v}"),
-            JsValue::Url(url, kind) => write!(f, "{} {}", url, kind),
+            JsValue::Url(url, kind) => write!(f, "{url} {kind}"),
             JsValue::Array { items, mutable, .. } => write!(
                 f,
                 "{}[{}]",
@@ -671,12 +671,12 @@ impl Display for JsValue {
                     .collect::<Vec<_>>()
                     .join(" | ");
                 if let Some(logical_property) = logical_property {
-                    write!(f, "({}){{{}}}", list, logical_property)
+                    write!(f, "({list}){{{logical_property}}}")
                 } else {
-                    write!(f, "({})", list)
+                    write!(f, "({list})")
                 }
             }
-            JsValue::FreeVar(name) => write!(f, "FreeVar({:?})", name),
+            JsValue::FreeVar(name) => write!(f, "FreeVar({name:?})"),
             JsValue::Variable(name) => write!(f, "Variable({}#{:?})", name.0, name.1),
             JsValue::Concat(_, list) => write!(
                 f,
@@ -684,7 +684,7 @@ impl Display for JsValue {
                 list.iter()
                     .map(|v| v
                         .as_str()
-                        .map_or_else(|| format!("${{{}}}", v), |str| str.to_string()))
+                        .map_or_else(|| format!("${{{v}}}"), |str| str.to_string()))
                     .collect::<Vec<_>>()
                     .join("")
             ),
@@ -696,7 +696,7 @@ impl Display for JsValue {
                     .collect::<Vec<_>>()
                     .join(" + ")
             ),
-            JsValue::Not(_, value) => write!(f, "!({})", value),
+            JsValue::Not(_, value) => write!(f, "!({value})"),
             JsValue::Logical(_, op, list) => write!(
                 f,
                 "({})",
@@ -706,7 +706,7 @@ impl Display for JsValue {
                     .join(op.joiner())
             ),
             JsValue::Binary(_, a, op, b) => write!(f, "({}{}{})", a, op.joiner(), b),
-            JsValue::Tenary(_, test, cons, alt) => write!(f, "({} ? {} : {})", test, cons, alt),
+            JsValue::Tenary(_, test, cons, alt) => write!(f, "({test} ? {cons} : {alt})"),
             JsValue::New(_, callee, list) => write!(
                 f,
                 "new {}({})",
@@ -743,26 +743,26 @@ impl Display for JsValue {
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
-            JsValue::Member(_, obj, prop) => write!(f, "{}[{}]", obj, prop),
+            JsValue::Member(_, obj, prop) => write!(f, "{obj}[{prop}]"),
             JsValue::Module(ModuleValue {
                 module: name,
                 annotations,
             }) => {
-                write!(f, "Module({}, {})", name, annotations)
+                write!(f, "Module({name}, {annotations})")
             }
             JsValue::Unknown { .. } => write!(f, "???"),
-            JsValue::WellKnownObject(obj) => write!(f, "WellKnownObject({:?})", obj),
-            JsValue::WellKnownFunction(func) => write!(f, "WellKnownFunction({:?})", func),
+            JsValue::WellKnownObject(obj) => write!(f, "WellKnownObject({obj:?})"),
+            JsValue::WellKnownFunction(func) => write!(f, "WellKnownFunction({func:?})"),
             JsValue::Function(_, func_ident, return_value) => {
-                write!(f, "Function#{}(return = {:?})", func_ident, return_value)
+                write!(f, "Function#{func_ident}(return = {return_value:?})")
             }
             JsValue::Argument(func_ident, index) => {
-                write!(f, "arguments[{}#{}]", index, func_ident)
+                write!(f, "arguments[{index}#{func_ident}]")
             }
-            JsValue::Iterated(_, iterable) => write!(f, "Iterated({})", iterable),
-            JsValue::TypeOf(_, operand) => write!(f, "typeof({})", operand),
-            JsValue::Promise(_, operand) => write!(f, "Promise<{}>", operand),
-            JsValue::Awaited(_, operand) => write!(f, "await({})", operand),
+            JsValue::Iterated(_, iterable) => write!(f, "Iterated({iterable})"),
+            JsValue::TypeOf(_, operand) => write!(f, "typeof({operand})"),
+            JsValue::Promise(_, operand) => write!(f, "Promise<{operand}>"),
+            JsValue::Awaited(_, operand) => write!(f, "await({operand})"),
         }
     }
 }
@@ -1201,8 +1201,7 @@ impl JsValue {
         assert_eq!(
             old,
             self.total_nodes(),
-            "total nodes not up to date {:?}",
-            self
+            "total nodes not up to date {self:?}"
         );
     }
 
@@ -1439,7 +1438,7 @@ impl JsValue {
                     ""
                 )
             ),
-            JsValue::Url(url, kind) => format!("{} {}", url, kind),
+            JsValue::Url(url, kind) => format!("{url} {kind}"),
             JsValue::Alternatives {
                 total_nodes: _,
                 values,
@@ -1458,17 +1457,17 @@ impl JsValue {
                     "| ",
                 );
                 if let Some(logical_property) = logical_property {
-                    format!("({}){{{}}}", list, logical_property)
+                    format!("({list}){{{logical_property}}}")
                 } else {
-                    format!("({})", list)
+                    format!("({list})")
                 }
             }
-            JsValue::FreeVar(name) => format!("FreeVar({})", name),
+            JsValue::FreeVar(name) => format!("FreeVar({name})"),
             JsValue::Variable(name) => {
                 format!("{}", name.0)
             }
             JsValue::Argument(_, index) => {
-                format!("arguments[{}]", index)
+                format!("arguments[{index}]")
             }
             JsValue::Concat(_, list) => format!(
                 "`{}`",
@@ -1654,7 +1653,7 @@ impl JsValue {
                 module: name,
                 annotations,
             }) => {
-                format!("module<{}, {}>", name, annotations)
+                format!("module<{name}, {annotations}>")
             }
             JsValue::Unknown {
                 original_value: inner,
@@ -1678,7 +1677,7 @@ impl JsValue {
                             ""
                         }
                     );
-                    format!("???*{}*", i)
+                    format!("???*{i}*")
                 } else {
                     let i = hints.len();
                     hints.push(String::new());
@@ -1692,7 +1691,7 @@ impl JsValue {
                             ""
                         }
                     );
-                    format!("???*{}*", i)
+                    format!("???*{i}*")
                 }
             }
             JsValue::WellKnownObject(obj) => {

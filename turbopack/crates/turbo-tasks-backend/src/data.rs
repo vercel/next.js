@@ -95,9 +95,7 @@ impl ActivenessState {
             active_counter: 0,
             root_ty: None,
             active_until_clean: false,
-            all_clean_event: Event::new(move || {
-                format!("ActivenessState::all_clean_event {:?}", id)
-            }),
+            all_clean_event: Event::new(move || format!("ActivenessState::all_clean_event {id:?}")),
         }
     }
 
@@ -345,9 +343,7 @@ impl Eq for InProgressCellState {}
 impl InProgressCellState {
     pub fn new(task_id: TaskId, cell: CellId) -> Self {
         InProgressCellState {
-            event: Event::new(move || {
-                format!("InProgressCellState::event ({} {:?})", task_id, cell)
-            }),
+            event: Event::new(move || format!("InProgressCellState::event ({task_id} {cell:?})")),
         }
     }
 }

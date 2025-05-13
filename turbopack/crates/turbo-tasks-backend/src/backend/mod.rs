@@ -534,10 +534,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     get!(task, Activeness).unwrap()
                 };
                 let listener = root.all_clean_event.listen_with_note(move || {
-                    format!(
-                        "try_read_task_output (strongly consistent) from {:?}",
-                        reader
-                    )
+                    format!("try_read_task_output (strongly consistent) from {reader:?}")
                 });
                 drop(task);
                 if !task_ids_to_schedule.is_empty() {
@@ -954,7 +951,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 persisted_task_cache_log,
                 task_snapshots,
             ) {
-                println!("Persisting failed: {:?}", err);
+                println!("Persisting failed: {err:?}");
                 return None;
             }
         }
@@ -989,7 +986,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
     fn stop(&self) {
         if let Err(err) = self.backing_storage.shutdown() {
-            println!("Shutting down failed: {}", err);
+            println!("Shutting down failed: {err}");
         }
     }
 

@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, io::Write};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use next_core::{
     next_manifests::{
         ActionLayer, ActionManifestModuleId, ActionManifestWorkerEntry, ServerReferenceManifest,
@@ -20,7 +20,7 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, Value, ValueToString, Vc};
-use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
+use turbo_tasks_fs::{self, File, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{ChunkItem, ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
@@ -29,8 +29,8 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::{
-        async_module_info::AsyncModulesInfo, ModuleGraph, SingleModuleGraph,
-        SingleModuleGraphModuleNode,
+        ModuleGraph, SingleModuleGraph, SingleModuleGraphModuleNode,
+        async_module_info::AsyncModulesInfo,
     },
     output::OutputAsset,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -39,8 +39,8 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
-    chunk::EcmascriptChunkPlaceable, parse::ParseResult,
-    tree_shake::asset::EcmascriptModulePartAsset, EcmascriptParsable,
+    EcmascriptParsable, chunk::EcmascriptChunkPlaceable, parse::ParseResult,
+    tree_shake::asset::EcmascriptModulePartAsset,
 };
 
 #[turbo_tasks::value]

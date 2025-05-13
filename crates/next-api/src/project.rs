@@ -1,6 +1,6 @@
 use std::{path::MAIN_SEPARATOR, time::Duration};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use indexmap::map::Entry;
 use next_core::{
     all_assets_from_entries,
@@ -13,36 +13,37 @@ use next_core::{
     next_client::{get_client_chunking_context, get_client_compile_time_info},
     next_config::{JsConfig, ModuleIds as ModuleIdStrategyConfig, NextConfig},
     next_server::{
-        get_server_chunking_context, get_server_chunking_context_with_client_assets,
-        get_server_compile_time_info, get_server_module_options_context,
-        get_server_resolve_options_context, ServerContextType,
+        ServerContextType, get_server_chunking_context,
+        get_server_chunking_context_with_client_assets, get_server_compile_time_info,
+        get_server_module_options_context, get_server_resolve_options_context,
     },
     next_telemetry::NextFeatureTelemetry,
-    util::{parse_config_from_source, NextRuntime},
+    util::{NextRuntime, parse_config_from_source},
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
+    Completion, Completions, FxIndexMap, IntoTraitRef, NonLocalValue, OperationValue, OperationVc,
+    ReadRef, ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc,
     debug::ValueDebugFormat,
     fxindexmap,
     graph::{AdjacencyMap, GraphTraversal},
     mark_root,
     trace::TraceRawVcs,
-    Completion, Completions, FxIndexMap, IntoTraitRef, NonLocalValue, OperationValue, OperationVc,
-    ReadRef, ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
-use turbo_tasks_fs::{invalidation, DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
+use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem, invalidation};
 use turbopack::{
-    evaluate_context::node_build_environment, global_module_ids::get_global_module_id_strategy,
-    transition::TransitionOptions, ModuleAssetContext,
+    ModuleAssetContext, evaluate_context::node_build_environment,
+    global_module_ids::get_global_module_id_strategy, transition::TransitionOptions,
 };
 use turbopack_core::{
+    PROJECT_FILESYSTEM_NAME,
     changed::content_changed,
     chunk::{
-        module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
         ChunkingContext, EvaluatableAssets, SourceMapsType,
+        module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
@@ -54,23 +55,22 @@ use turbopack_core::{
     },
     module::Module,
     module_graph::{
-        chunk_group_info::ChunkGroupEntry, GraphEntries, ModuleGraph, SingleModuleGraph,
-        VisitedModules,
+        GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
+        chunk_group_info::ChunkGroupEntry,
     },
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
-    resolve::{find_context_file, FindContextFileResult},
+    resolve::{FindContextFileResult, find_context_file},
     source_map::OptionStringifiedSourceMap,
     version::{
         NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
     },
-    PROJECT_FILESYSTEM_NAME,
 };
 use turbopack_node::execution_context::ExecutionContext;
 use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
-    app::{AppProject, OptionAppProject, ECMASCRIPT_CLIENT_TRANSITION_NAME},
+    app::{AppProject, ECMASCRIPT_CLIENT_TRANSITION_NAME, OptionAppProject},
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
@@ -1196,7 +1196,7 @@ impl Project {
                     ConflictIssue {
                         path: self.project_path().to_resolved().await?,
                         title: StyledString::Text(
-                            format!("App Router and Pages Router both match path: {}", pathname)
+                            format!("App Router and Pages Router both match path: {pathname}")
                                 .into(),
                         )
                         .resolved_cell(),

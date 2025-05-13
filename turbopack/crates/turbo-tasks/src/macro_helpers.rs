@@ -21,9 +21,9 @@ pub async fn value_debug_format_field(value: ValueDebugFormatString<'_>) -> Stri
     match value.try_to_value_debug_string().await {
         Ok(result) => match result.await {
             Ok(result) => result.to_string(),
-            Err(err) => format!("{0:?}", err),
+            Err(err) => format!("{err:?}"),
         },
-        Err(err) => format!("{0:?}", err),
+        Err(err) => format!("{err:?}"),
     }
 }
 

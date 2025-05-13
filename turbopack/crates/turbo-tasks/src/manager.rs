@@ -770,7 +770,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 let local_task_id = gts_write.create_local_task(LocalTask::Scheduled {
                     done_event: Event::new({
                         let ty = Arc::clone(&ty);
-                        move || format!("LocalTask({})::done_event", ty)
+                        move || format!("LocalTask({ty})::done_event")
                     }),
                 });
                 (
@@ -1578,10 +1578,7 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
 pub(crate) fn current_task(from: &str) -> TaskId {
     match CURRENT_TASK_STATE.try_with(|ts| ts.read().unwrap().task_id) {
         Ok(id) => id,
-        Err(_) => panic!(
-            "{} can only be used in the context of turbo_tasks task execution",
-            from
-        ),
+        Err(_) => panic!("{from} can only be used in the context of turbo_tasks task execution"),
     }
 }
 
