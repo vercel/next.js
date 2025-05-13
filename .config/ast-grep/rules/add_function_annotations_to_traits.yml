@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/ast-grep/ast-grep/main/schemas/rule.json
+
+id: add_function_annotations_to_traits
+message: Add your rule message here....
+severity: error # error, warning, info, hint
+language: Rust
+rule:
+  kind: function_signature_item
+  pattern: $FN
+  follows:
+    not:
+      kind: attribute_item
+      has:
+        kind: attribute
+        has:
+          kind: scoped_identifier
+          pattern: turbo_tasks::function
+  inside:
+    kind: declaration_list
+    inside:
+      kind: trait_item
+      follows:
+        kind: attribute_item
+        has:
+          kind: attribute
+          has:
+            kind: scoped_identifier
+            pattern: turbo_tasks::value_trait
+fix: '#[turbo_tasks::function] $FN'
