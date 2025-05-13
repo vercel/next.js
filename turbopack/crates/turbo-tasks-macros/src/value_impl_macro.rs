@@ -19,7 +19,8 @@ use crate::func::{
     parse_with_optional_parens,
 };
 
-fn is_attribute(attr: &Attribute, name: &str) -> bool {
+/// Returns true if this attribute is a turbo_tasks attribute with the given name.
+pub fn is_attribute(attr: &Attribute, name: &str) -> bool {
     let path = &attr.path();
     if path.leading_colon.is_some() {
         return false;
