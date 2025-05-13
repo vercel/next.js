@@ -1,8 +1,8 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use turbo_esregex::EsRegex;
-use turbo_tasks::{primitives::Regex, trace::TraceRawVcs, NonLocalValue, ReadRef, ResolvedVc};
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, primitives::Regex, trace::TraceRawVcs};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 use turbopack_core::{
     reference_type::ReferenceType, source::Source, virtual_source::VirtualSource,
 };

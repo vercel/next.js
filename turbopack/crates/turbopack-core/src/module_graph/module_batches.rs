@@ -1,10 +1,10 @@
 use std::{
-    collections::{hash_map::Entry, VecDeque},
+    collections::{VecDeque, hash_map::Entry},
     hash::BuildHasherDefault,
     mem::take,
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use either::Either;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
@@ -12,18 +12,18 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_prehash::BuildHasherExt;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput,
-    TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
+    Vc, trace::TraceRawVcs,
 };
 
 use crate::{
     chunk::{ChunkableModule, ChunkingType},
     module::Module,
     module_graph::{
+        GraphTraversalAction, ModuleGraph,
         chunk_group_info::{ChunkGroupInfo, ChunkGroupKey, RoaringBitmapWrapper},
         module_batch::{ModuleBatch, ModuleBatchGroup, ModuleOrBatch},
-        traced_di_graph::{iter_neighbors_rev, TracedDiGraph},
-        GraphTraversalAction, ModuleGraph,
+        traced_di_graph::{TracedDiGraph, iter_neighbors_rev},
     },
 };
 #[turbo_tasks::value]

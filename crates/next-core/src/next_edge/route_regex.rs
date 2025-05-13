@@ -134,7 +134,7 @@ fn get_parametrized_route(route: &str) -> (String, FxHashMap<String, Group>) {
 pub fn get_route_regex(normalized_route: &str) -> RouteRegex {
     let (parameterized_route, groups) = get_parametrized_route(normalized_route);
     RouteRegex {
-        regex: format!("^{}(?:/)?$", parameterized_route),
+        regex: format!("^{parameterized_route}(?:/)?$"),
         groups,
     }
 }
@@ -175,7 +175,7 @@ fn get_safe_key_from_segment(
     // the named regex
     let mut cleaned_key = key.replace(|c: char| !c.is_alphanumeric(), "");
     if let Some(prefix) = key_prefix {
-        cleaned_key = format!("{}{}", prefix, cleaned_key);
+        cleaned_key = format!("{prefix}{cleaned_key}");
     }
     let mut invalid_key = false;
 
@@ -191,15 +191,15 @@ fn get_safe_key_from_segment(
         cleaned_key = get_safe_route_key();
     }
     if let Some(prefix) = key_prefix {
-        route_keys.insert(cleaned_key.clone(), format!("{}{}", prefix, key));
+        route_keys.insert(cleaned_key.clone(), format!("{prefix}{key}"));
     } else {
         route_keys.insert(cleaned_key.clone(), key);
     }
     match (repeat, optional) {
-        (true, true) => format!(r"(?:/(?P<{}>.+?))?", cleaned_key),
-        (true, false) => format!(r"/(?P<{}>.+?)", cleaned_key),
-        (false, true) => format!(r"(?:/(?P<{}>[^/]+?))?", cleaned_key),
-        (false, false) => format!(r"/(?P<{}>[^/]+?)", cleaned_key),
+        (true, true) => format!(r"(?:/(?P<{cleaned_key}>.+?))?"),
+        (true, false) => format!(r"/(?P<{cleaned_key}>.+?)"),
+        (false, true) => format!(r"(?:/(?P<{cleaned_key}>[^/]+?))?"),
+        (false, false) => format!(r"/(?P<{cleaned_key}>[^/]+?)"),
     }
 }
 
@@ -254,7 +254,7 @@ pub fn get_named_route_regex(normalized_route: &str) -> NamedRouteRegex {
     let regex = get_route_regex(normalized_route);
     NamedRouteRegex {
         regex,
-        named_regex: format!("^{}(?:/)?$", parameterized_route),
+        named_regex: format!("^{parameterized_route}(?:/)?$"),
         route_keys,
     }
 }
@@ -263,5 +263,5 @@ pub fn get_named_route_regex(normalized_route: &str) -> NamedRouteRegex {
 /// This is intended to be using for build time only.
 pub fn get_named_middleware_regex(normalized_route: &str) -> String {
     let (parameterized_route, _route_keys) = get_named_parametrized_route(normalized_route, true);
-    format!("^{}(?:/)?$", parameterized_route)
+    format!("^{parameterized_route}(?:/)?$")
 }

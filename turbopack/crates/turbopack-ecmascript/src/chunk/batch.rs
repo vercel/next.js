@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, trace::TraceRawVcs};
 use turbopack_core::{
     chunk::{
         ChunkItem, ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo,

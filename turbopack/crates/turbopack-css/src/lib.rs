@@ -18,7 +18,7 @@ pub(crate) mod util;
 pub use asset::CssModuleAsset;
 pub use module_asset::ModuleCssAsset;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, TaskInput};
+use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 
 pub use self::process::*;
 use crate::references::import::ImportAssetReference;

@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    cmp::{min, Ordering},
+    cmp::{Ordering, min},
     fmt,
     io::{BufRead, Read, Result as IoResult, Write},
     mem,
@@ -9,6 +9,7 @@ use std::{
     task::{Context as TaskContext, Poll},
 };
 
+use RopeElem::{Local, Shared};
 use anyhow::{Context, Result};
 use bytes::{Buf, Bytes};
 use futures::Stream;
@@ -18,7 +19,6 @@ use tokio::io::{AsyncRead, ReadBuf};
 use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 use unsize::{CoerceUnsize, Coercion};
-use RopeElem::{Local, Shared};
 
 static EMPTY_BUF: &[u8] = &[];
 
@@ -380,7 +380,7 @@ impl<'de> Deserialize<'de> for Rope {
 }
 
 pub mod ser_as_string {
-    use serde::{ser::Error, Serializer};
+    use serde::{Serializer, ser::Error};
 
     use super::Rope;
 
@@ -392,7 +392,7 @@ pub mod ser_as_string {
 }
 
 pub mod ser_option_as_string {
-    use serde::{ser::Error, Serializer};
+    use serde::{Serializer, ser::Error};
 
     use super::Rope;
 

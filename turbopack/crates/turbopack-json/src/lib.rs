@@ -11,10 +11,10 @@
 
 use std::fmt::Write;
 
-use anyhow::{bail, Error, Result};
+use anyhow::{Error, Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{glob::Glob, FileContent, FileJsonContent};
+use turbo_tasks_fs::{FileContent, FileJsonContent, glob::Glob};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
@@ -149,7 +149,7 @@ impl EcmascriptChunkItem for JsonChunkItem {
                     let text = content.content().to_str()?;
                     e.write_with_content(&mut message, text.as_ref())?;
                 } else {
-                    write!(message, "{}", e)?;
+                    write!(message, "{e}")?;
                 }
 
                 Err(Error::msg(message))

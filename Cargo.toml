@@ -307,7 +307,7 @@ testing = { version = "10.0.0" }
 browserslist-rs = { version = "0.18.0" }
 miette = { version = "5.10.0", features = ["fancy"] }
 mdxjs = "1.0.1"
-modularize_imports = { version = "0.83.0" }
+modularize_imports = { version = "0.83.1" }
 styled_components = { version = "0.111.0" }
 styled_jsx = { version = "0.87.0" }
 swc_emotion = { version = "0.87.0" }
@@ -361,12 +361,12 @@ indoc = "2.0.0"
 itertools = "0.10.5"
 lazy_static = "1.4.0"
 log = "0.4.17"
-lightningcss = { version = "1.0.0-alpha.65", features = [
+lightningcss = { version = "1.0.0-alpha.66", features = [
   "serde",
   "visitor",
   "into_owned",
 ] }
-lightningcss-napi = { version = "0.4.3", default-features = false, features = [
+lightningcss-napi = { version = "0.4.4", default-features = false, features = [
   "visitor"
 ]}
 markdown = "1.0.0-alpha.18"

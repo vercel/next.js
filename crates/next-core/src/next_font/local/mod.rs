@@ -1,33 +1,33 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use font_fallback::FontFallbackResult;
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{
-    glob::Glob, json::parse_json_with_source_context, FileContent, FileSystemPath,
+    FileContent, FileSystemPath, glob::Glob, json::parse_json_with_source_context,
 };
 use turbopack_core::{
     asset::AssetContent,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     reference_type::ReferenceType,
     resolve::{
+        ResolveResult, ResolveResultItem, ResolveResultOption,
         parse::Request,
         plugin::{BeforeResolvePlugin, BeforeResolvePluginCondition},
-        ResolveResult, ResolveResultItem, ResolveResultOption,
     },
     virtual_source::VirtualSource,
 };
 
 use self::{
     font_fallback::get_font_fallbacks,
-    options::{options_from_request, FontDescriptors, NextFontLocalOptions},
+    options::{FontDescriptors, NextFontLocalOptions, options_from_request},
     stylesheet::build_stylesheet,
     util::build_font_family_string,
 };
 use super::{
     font_fallback::FontFallbacks,
-    util::{can_use_next_font, FontCssProperties},
+    util::{FontCssProperties, can_use_next_font},
 };
 use crate::{
     next_app::metadata::split_extension,
@@ -151,13 +151,13 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                         .weight
                         .await?
                         .as_ref()
-                        .map(|w| format!("fontWeight: {},\n", w))
+                        .map(|w| format!("fontWeight: {w},\n"))
                         .unwrap_or_else(|| "".to_owned()),
                     properties
                         .style
                         .await?
                         .as_ref()
-                        .map(|s| format!("fontStyle: \"{}\",\n", s))
+                        .map(|s| format!("fontStyle: \"{s}\",\n"))
                         .unwrap_or_else(|| "".to_owned()),
                 );
                 let js_asset = VirtualSource::new(
@@ -242,7 +242,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                     name.push_str(".p")
                 }
 
-                let font_virtual_path = lookup_path.join(format!("/{}.{}", name, ext).into());
+                let font_virtual_path = lookup_path.join(format!("/{name}.{ext}").into());
 
                 let font_file = lookup_path.join(path.clone()).read();
 
