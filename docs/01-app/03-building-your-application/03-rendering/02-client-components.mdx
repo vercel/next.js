@@ -16,9 +16,9 @@ There are a couple of benefits to doing the rendering work on the client, includ
 
 ## Using Client Components in Next.js
 
-To use Client Components, you can add the React [`"use client"` directive](https://react.dev/reference/react/use-client) at the top of a file, above your imports.
+To use Client Components, you can add the React [`'use client'` directive](https://react.dev/reference/react/use-client) at the top of a file, above your imports.
 
-`"use client"` is used to declare a [boundary](/docs/app/building-your-application/rendering#network-boundary) between a Server and Client Component modules. This means that by defining a `"use client"` in a file, all other modules imported into it, including child components, are considered part of the client bundle.
+`'use client'` is used to declare a [boundary](/docs/app/building-your-application/rendering#network-boundary) between a Server and Client Component modules. This means that by defining a `'use client'` in a file, all other modules imported into it, including child components, are considered part of the client bundle.
 
 ```tsx filename="app/counter.tsx" highlight={1} switcher
 'use client'
@@ -54,7 +54,7 @@ export default function Counter() {
 }
 ```
 
-The diagram below shows that using `onClick` and `useState` in a nested component (`toggle.js`) will cause an error if the `"use client"` directive is not defined. This is because, by default, all components in the App Router are Server Components where these APIs are not available. By defining the `"use client"` directive in `toggle.js`, you can tell React to enter the client boundary where these APIs are available.
+The diagram below shows that using `onClick` and `useState` in a nested component (`toggle.js`) will cause an error if the `'use client'` directive is not defined. This is because, by default, all components in the App Router are Server Components where these APIs are not available. By defining the `'use client'` directive in `toggle.js`, you can tell React to enter the client boundary where these APIs are available.
 
 <Image
   alt="Use Client Directive and Network Boundary"
@@ -64,11 +64,11 @@ The diagram below shows that using `onClick` and `useState` in a nested componen
   height="1320"
 />
 
-> **Defining multiple `use client` entry points**:
+> **Defining multiple `'use client'` entry points**:
 >
-> You can define multiple "use client" entry points in your React Component tree. This allows you to split your application into multiple client bundles.
+> You can define multiple `'use client'` entry points in your React Component tree. This allows you to split your application into multiple client bundles.
 >
-> However, `"use client"` doesn't need to be defined in every component that needs to be rendered on the client. Once you define the boundary, all child components and modules imported into it are considered part of the client bundle.
+> However, `'use client'` doesn't need to be defined in every component that needs to be rendered on the client. Once you define the boundary, all child components and modules imported into it are considered part of the client bundle.
 
 ## How are Client Components Rendered?
 
@@ -101,6 +101,6 @@ This means the Client Component JavaScript bundle is downloaded and parsed. Once
 
 ## Going back to the Server Environment
 
-Sometimes, after you've declared the `"use client"` boundary, you may want to go back to the server environment. For example, you may want to reduce the client bundle size, fetch data on the server, or use an API that is only available on the server.
+Sometimes, after you've declared the `'use client'` boundary, you may want to go back to the server environment. For example, you may want to reduce the client bundle size, fetch data on the server, or use an API that is only available on the server.
 
 You can keep code on the server even though it's theoretically nested inside Client Components by interleaving Client and Server Components and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations). See the [Composition Patterns](/docs/app/building-your-application/rendering/composition-patterns) page for more information.
