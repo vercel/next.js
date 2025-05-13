@@ -5,19 +5,19 @@ pub mod resolve;
 
 use std::{
     borrow::Cow,
-    cmp::{min, Ordering},
+    cmp::{Ordering, min},
     fmt::{Display, Formatter},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    emit, trace::TraceRawVcs, CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef,
-    ResolvedVc, TaskInput, TransientInstance, TransientValue, TryJoinIterExt, Upcast,
-    ValueToString, Vc,
+    CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc, TaskInput,
+    TransientInstance, TransientValue, TryJoinIterExt, Upcast, ValueToString, Vc, emit,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
@@ -672,7 +672,7 @@ impl Display for IssueStage {
             IssueStage::Unsupported => write!(f, "unsupported"),
             IssueStage::AppStructure => write!(f, "app structure"),
             IssueStage::Misc => write!(f, "misc"),
-            IssueStage::Other(s) => write!(f, "{}", s),
+            IssueStage::Other(s) => write!(f, "{s}"),
         }
     }
 }

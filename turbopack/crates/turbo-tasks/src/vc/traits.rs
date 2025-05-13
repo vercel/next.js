@@ -1,5 +1,5 @@
 use crate::{
-    vc::cell_mode::VcCellMode, NonLocalValue, ShrinkToFit, TraitTypeId, ValueTypeId, VcRead,
+    NonLocalValue, ShrinkToFit, TraitTypeId, ValueTypeId, VcRead, vc::cell_mode::VcCellMode,
 };
 
 /// A trait implemented on all values types that can be put into a Value Cell

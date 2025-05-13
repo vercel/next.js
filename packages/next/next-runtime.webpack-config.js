@@ -1,6 +1,5 @@
-const webpack = require('webpack')
+const webpack = require('@rspack/core')
 const path = require('path')
-const TerserPlugin = require('terser-webpack-plugin')
 const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
 const EvalSourceMapDevToolPlugin = require('./webpack-plugins/eval-source-map-dev-tool-plugin')
 const DevToolsIgnoreListPlugin = require('./webpack-plugins/devtools-ignore-list-plugin')
@@ -193,23 +192,7 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       moduleIds: 'named',
       minimize: true,
       concatenateModules: true,
-      minimizer: [
-        new TerserPlugin({
-          minify: TerserPlugin.swcMinify,
-          terserOptions: {
-            compress: {
-              dead_code: true,
-              // Zero means no limit.
-              passes: 0,
-            },
-            format: {
-              preamble: '',
-            },
-            mangle:
-              dev && !process.env.NEXT_SERVER_EVAL_SOURCE_MAPS ? false : true,
-          },
-        }),
-      ],
+      minimizer: [new webpack.SwcJsMinimizerRspackPlugin()],
     },
     plugins: [
       process.env.NEXT_SERVER_EVAL_SOURCE_MAPS

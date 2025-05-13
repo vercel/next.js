@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, Vc};
+use turbo_tasks::{NonLocalValue, Vc, trace::TraceRawVcs};
 
 #[turbo_tasks::value(shared, serialization = "auto_for_input")]
 #[derive(Hash, Debug, Copy, Clone)]
@@ -46,7 +46,7 @@ impl CompileTarget {
 
 impl Display for CompileTarget {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -60,12 +60,13 @@ impl CompileTarget {
         }
     }
 
+    /// Returns the expected extension of the dynamic library, including the `.`.
     pub fn dylib_ext(&self) -> &'static str {
         let platform = self.platform;
         match platform {
-            Platform::Win32 => "dll",
-            Platform::Darwin => "dylib",
-            _ => "so",
+            Platform::Win32 => ".dll",
+            Platform::Darwin => ".dylib",
+            _ => ".so",
         }
     }
 

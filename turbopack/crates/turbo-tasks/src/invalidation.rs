@@ -8,15 +8,15 @@ use std::{
 
 use anyhow::Result;
 use indexmap::map::Entry;
-use serde::{de::Visitor, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::Visitor};
 use tokio::runtime::Handle;
 
 use crate::{
+    FxIndexMap, FxIndexSet, TaskId, TurboTasksApi,
     magic_any::HasherMut,
     manager::{current_task, with_turbo_tasks},
     trace::TraceRawVcs,
     util::StaticOrArc,
-    FxIndexMap, FxIndexSet, TaskId, TurboTasksApi,
 };
 
 /// Get an [`Invalidator`] that can be used to invalidate the current task
@@ -302,7 +302,7 @@ impl Display for InvalidationReasonSet {
             }
             match entry {
                 MapEntry::Single { reason } => {
-                    write!(f, "{}", reason)?;
+                    write!(f, "{reason}")?;
                 }
                 MapEntry::Multiple { reasons } => {
                     let MapKey::Typed { kind } = key else {

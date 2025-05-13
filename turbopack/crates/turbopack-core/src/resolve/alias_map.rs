@@ -6,16 +6,16 @@ use std::{
 
 use patricia_tree::PatriciaMap;
 use serde::{
+    Deserialize, Deserializer, Serialize, Serializer,
     de::{MapAccess, Visitor},
     ser::SerializeMap,
-    Deserialize, Deserializer, Serialize, Serializer,
 };
 use serde_bytes::{ByteBuf, Bytes};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::{internal::PassthroughDebug, ValueDebugFormat, ValueDebugFormatString},
-    trace::{TraceRawVcs, TraceRawVcsContext},
     NonLocalValue,
+    debug::{ValueDebugFormat, ValueDebugFormatString, internal::PassthroughDebug},
+    trace::{TraceRawVcs, TraceRawVcsContext},
 };
 
 use super::pattern::Pattern;
@@ -146,7 +146,7 @@ where
                         value.value_debug_format(depth.saturating_sub(1)),
                     ),
                     AliasKey::Wildcard { suffix } => (
-                        format!("{}*{}", key, suffix),
+                        format!("{key}*{suffix}"),
                         value.value_debug_format(depth.saturating_sub(1)),
                     ),
                 })
@@ -165,7 +165,7 @@ where
                     }
                 }
             }
-            Ok(format!("{:#?}", values_string))
+            Ok(format!("{values_string:#?}"))
         }))
     }
 }
@@ -180,7 +180,7 @@ where
                 let key = String::from_utf8(key).expect("invalid UTF-8 key in AliasMap");
                 map.iter().map(move |(alias_key, value)| match alias_key {
                     AliasKey::Exact => (key.clone(), value),
-                    AliasKey::Wildcard { suffix } => (format!("{}*{}", key, suffix), value),
+                    AliasKey::Wildcard { suffix } => (format!("{key}*{suffix}"), value),
                 })
             }))
             .finish()
@@ -203,10 +203,7 @@ impl<T> AliasMap<T> {
         T: Debug,
     {
         if matches!(request, Pattern::Alternatives(_)) {
-            panic!(
-                "AliasMap::lookup must not be called on alternatives, received {:?}",
-                request
-            );
+            panic!("AliasMap::lookup must not be called on alternatives, received {request:?}");
         }
 
         // Invariant: prefixes should be sorted by increasing length (base lengths),

@@ -26,6 +26,13 @@ export type NextConfigComplete = Required<NextConfig> & {
   experimental: Omit<ExperimentalConfig, 'turbo'>
 }
 
+export interface NextAdapter {
+  name: string
+  modifyConfig(
+    config: NextConfigComplete
+  ): Promise<NextConfigComplete> | NextConfigComplete
+}
+
 export type I18NDomains = readonly DomainLocale[]
 
 export interface I18NConfig {
@@ -273,6 +280,7 @@ export interface LoggingConfig {
 }
 
 export interface ExperimentalConfig {
+  adapterPath?: string
   useSkewCookie?: boolean
   nodeMiddleware?: boolean
   cacheHandlers?: {
@@ -671,6 +679,12 @@ export interface ExperimentalConfig {
    * Note: Use with caution as this can negatively impact page loading performance.
    */
   clientInstrumentationHook?: boolean
+
+  /**
+   * Enables using the global-not-found.js file in the app directory
+   *
+   */
+  globalNotFound?: boolean
 }
 
 export type ExportPathMap = {
@@ -1238,6 +1252,7 @@ export const defaultConfig: NextConfig = {
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   allowedDevOrigins: undefined,
   experimental: {
+    adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
     useSkewCookie: false,
     nodeMiddleware: false,
     cacheLife: {
@@ -1366,6 +1381,7 @@ export const defaultConfig: NextConfig = {
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,
+    globalNotFound: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

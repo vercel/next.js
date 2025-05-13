@@ -51,12 +51,13 @@ export interface WorkStore {
   dynamicUsageStack?: string
 
   /**
-   * Invalid usage errors might be caught in userland. We attach them to the
-   * work store to ensure we can still fail the build or dev render.
+   * Invalid dynamic usage errors might be caught in userland. We attach them to
+   * the work store to ensure we can still fail the build, or show en error in
+   * dev mode.
    */
   // TODO: Collect an array of errors, and throw as AggregateError when
   // `serializeError` and the Dev Overlay support it.
-  invalidUsageError?: Error
+  invalidDynamicUsageError?: Error
 
   nextFetchId?: number
   pathWasRevalidated?: boolean
@@ -98,6 +99,18 @@ export interface WorkStore {
 
   dynamicIOEnabled: boolean
   dev: boolean
+
+  /**
+   * Run the given function inside a clean AsyncLocalStorage snapshot. This is
+   * useful when generating cache entries, to ensure that the cache generation
+   * cannot read anything from the context we're currently executing in, which
+   * might include request-specific things like `cookies()` inside a
+   * `React.cache()`.
+   */
+  runInCleanSnapshot: <R, TArgs extends any[]>(
+    fn: (...args: TArgs) => R,
+    ...args: TArgs
+  ) => R
 }
 
 export type WorkAsyncStorage = AsyncLocalStorage<WorkStore>

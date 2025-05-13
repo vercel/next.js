@@ -1,8 +1,8 @@
 use proc_macro2::Span;
 use syn::{
+    Meta, Token,
     parse::{Parse, ParseStream},
     spanned::Spanned,
-    Meta, Token,
 };
 
 /// Arguments to the `#[turbo_tasks::value_trait]` attribute macro.

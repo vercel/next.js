@@ -102,11 +102,11 @@ The corresponding package `client-only` can be used to mark modules that contain
 
 ### Using Third-party Packages and Providers
 
-Since Server Components are a new React feature, third-party packages and providers in the ecosystem are just beginning to add the `"use client"` directive to components that use client-only features like `useState`, `useEffect`, and `createContext`.
+Since Server Components are a new React feature, third-party packages and providers in the ecosystem are just beginning to add the `'use client'` directive to components that use client-only features like `useState`, `useEffect`, and `createContext`.
 
-Today, many components from `npm` packages that use client-only features do not yet have the directive. These third-party components will work as expected within Client Components since they have the `"use client"` directive, but they won't work within Server Components.
+Today, many components from `npm` packages that use client-only features do not yet have the directive. These third-party components will work as expected within Client Components since they have the `'use client'` directive, but they won't work within Server Components.
 
-For example, let's say you've installed the hypothetical `acme-carousel` package which has a `<Carousel />` component. This component uses `useState`, but it doesn't yet have the `"use client"` directive.
+For example, let's say you've installed the hypothetical `acme-carousel` package which has a `<Carousel />` component. This component uses `useState`, but it doesn't yet have the `'use client'` directive.
 
 If you use `<Carousel />` within a Client Component, it will work as expected:
 
@@ -348,11 +348,11 @@ With the provider rendered at the root, all other Client Components throughout y
 
 #### Advice for Library Authors
 
-In a similar fashion, library authors creating packages to be consumed by other developers can use the `"use client"` directive to mark client entry points of their package. This allows users of the package to import package components directly into their Server Components without having to create a wrapping boundary.
+In a similar fashion, library authors creating packages to be consumed by other developers can use the `'use client'` directive to mark client entry points of their package. This allows users of the package to import package components directly into their Server Components without having to create a wrapping boundary.
 
 You can optimize your package by using ['use client' deeper in the tree](#moving-client-components-down-the-tree), allowing the imported modules to be part of the Server Component module graph.
 
-It's worth noting some bundlers might strip out `"use client"` directives. You can find an example of how to configure esbuild to include the `"use client"` directive in the [React Wrap Balancer](https://github.com/shuding/react-wrap-balancer/blob/main/tsup.config.ts#L10-L13) and [Vercel Analytics](https://github.com/vercel/analytics/blob/main/packages/web/tsup.config.js#L26-L30) repositories.
+It's worth noting some bundlers might strip out `'use client'` directives. You can find an example of how to configure esbuild to include the `'use client'` directive in the [React Wrap Balancer](https://github.com/shuding/react-wrap-balancer/blob/main/tsup.config.ts#L10-L13) and [Vercel Analytics](https://github.com/vercel/analytics/blob/main/packages/web/tsup.config.js#L26-L30) repositories.
 
 ## Client Components
 
@@ -412,7 +412,7 @@ If your Client Components depend on data that is _not_ serializable, you can [fe
 
 ## Interleaving Server and Client Components
 
-When interleaving Client and Server Components, it may be helpful to visualize your UI as a tree of components. Starting with the [root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required), which is a Server Component, you can then render certain subtrees of components on the client by adding the `"use client"` directive.
+When interleaving Client and Server Components, it may be helpful to visualize your UI as a tree of components. Starting with the [root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required), which is a Server Component, you can then render certain subtrees of components on the client by adding the `'use client'` directive.
 
 {/* Diagram - interleaving */}
 

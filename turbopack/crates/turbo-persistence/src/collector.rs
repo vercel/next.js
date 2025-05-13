@@ -1,10 +1,10 @@
 use crate::{
+    ValueBuffer,
     collector_entry::{CollectorEntry, CollectorEntryValue, EntryKey},
     constants::{
         DATA_THRESHOLD_PER_INITIAL_FILE, MAX_ENTRIES_PER_INITIAL_FILE, MAX_SMALL_VALUE_SIZE,
     },
-    key::{hash_key, StoreKey},
-    ValueBuffer,
+    key::{StoreKey, hash_key},
 };
 
 /// A collector accumulates entries that should be eventually written to a file. It keeps track of

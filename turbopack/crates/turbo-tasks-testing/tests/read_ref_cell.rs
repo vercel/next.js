@@ -5,8 +5,8 @@
 use std::sync::Mutex;
 
 use anyhow::Result;
-use turbo_tasks::{get_invalidator, Invalidator, ReadRef, Vc};
-use turbo_tasks_testing::{register, run, Registration};
+use turbo_tasks::{Invalidator, ReadRef, Vc, get_invalidator};
+use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
