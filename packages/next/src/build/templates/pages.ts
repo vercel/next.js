@@ -51,6 +51,7 @@ export const routeModule = new PagesRouteModule({
     bundlePath: '',
     filename: '',
   },
+  distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
   components: {
     // default export might not exist when optimized for data only
     App: app.default,
