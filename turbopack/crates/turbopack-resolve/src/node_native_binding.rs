@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
-    DirectoryEntry, FileContent, FileSystemEntryType, FileSystemPath, glob::Glob,
+    DirectoryContent, DirectoryEntry, FileContent, FileSystemEntryType, FileSystemPath,
     json::parse_json_rope_with_source_context,
 };
 use turbopack_core::{
@@ -132,23 +132,24 @@ pub async fn resolve_node_pre_gyp_files(
                         )
                         .into();
 
-                    for (key, entry) in config_file_dir
+                    let dir = config_file_dir
                         .join(native_binding_path.clone())
-                        .read_glob(
-                            Glob::new(format!("*.{}", compile_target.dylib_ext()).into()),
-                            false,
-                        )
-                        .await?
-                        .results
-                        .iter()
-                    {
-                        if let &DirectoryEntry::File(dylib) | &DirectoryEntry::Symlink(dylib) =
-                            entry
+                        .read_dir()
+                        .await?;
+                    if let DirectoryContent::Entries(entries) = &*dir {
+                        let extension = format!("*.{}", compile_target.dylib_ext());
+                        for (key, entry) in entries
+                            .iter()
+                            .filter(|(k, _)| k.as_str().ends_with(&extension))
                         {
-                            sources.insert(
-                                format!("{native_binding_path}/{key}").into(),
-                                Vc::upcast(FileSource::new(*dylib)),
-                            );
+                            if let &DirectoryEntry::File(dylib) | &DirectoryEntry::Symlink(dylib) =
+                                entry
+                            {
+                                sources.insert(
+                                    format!("{native_binding_path}/{key}").into(),
+                                    Vc::upcast(FileSource::new(*dylib)),
+                                );
+                            }
                         }
                     }
 
@@ -165,33 +166,33 @@ pub async fn resolve_node_pre_gyp_files(
                         );
                     }
                 }
-                for (key, entry) in config_file_dir
+                let dir = config_file_dir
                     // TODO
                     // read the dependencies path from `bindings.gyp`
                     .join("deps/lib".into())
-                    .read_glob(Glob::new("*".into()), false)
-                    .await?
-                    .results
-                    .iter()
-                {
-                    match *entry {
-                        DirectoryEntry::File(dylib) => {
-                            sources.insert(
-                                format!("deps/lib/{key}").into(),
-                                Vc::upcast(FileSource::new(*dylib)),
-                            );
-                        }
-                        DirectoryEntry::Symlink(dylib) => {
-                            let realpath_with_links = dylib.realpath_with_links().await?;
-                            for &symlink in realpath_with_links.symlinks.iter() {
-                                affecting_paths.push(*symlink);
+                    .read_dir()
+                    .await?;
+                if let DirectoryContent::Entries(entries) = &*dir {
+                    for (key, entry) in entries.iter() {
+                        match *entry {
+                            DirectoryEntry::File(dylib) => {
+                                sources.insert(
+                                    format!("deps/lib/{key}").into(),
+                                    Vc::upcast(FileSource::new(*dylib)),
+                                );
                             }
-                            sources.insert(
-                                format!("deps/lib/{key}").into(),
-                                Vc::upcast(FileSource::new(*realpath_with_links.path)),
-                            );
+                            DirectoryEntry::Symlink(dylib) => {
+                                let realpath_with_links = dylib.realpath_with_links().await?;
+                                for &symlink in realpath_with_links.symlinks.iter() {
+                                    affecting_paths.push(*symlink);
+                                }
+                                sources.insert(
+                                    format!("deps/lib/{key}").into(),
+                                    Vc::upcast(FileSource::new(*realpath_with_links.path)),
+                                );
+                            }
+                            _ => {}
                         }
-                        _ => {}
                     }
                 }
                 return Ok(*ModuleResolveResult::modules_with_affecting_sources(
