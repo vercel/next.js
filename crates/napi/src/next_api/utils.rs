@@ -1,20 +1,20 @@
 use std::{future::Future, ops::Deref, path::PathBuf, sync::Arc, time::Duration};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use napi::{
+    JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
     bindgen_prelude::{External, ToNapiValue},
     threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
-    JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
 };
 use rustc_hash::FxHashMap;
 use serde::Serialize;
 use turbo_tasks::{
-    get_effects, task_statistics::TaskStatisticsApi, trace::TraceRawVcs, Effects, OperationVc,
-    ReadRef, TaskId, TryJoinIterExt, TurboTasks, TurboTasksApi, UpdateInfo, Vc, VcValueType,
+    Effects, OperationVc, ReadRef, TaskId, TryJoinIterExt, TurboTasks, TurboTasksApi, UpdateInfo,
+    Vc, VcValueType, get_effects, task_statistics::TaskStatisticsApi, trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{
-    default_backing_storage, noop_backing_storage, DefaultBackingStorage, GitVersionInfo,
-    NoopBackingStorage,
+    DefaultBackingStorage, GitVersionInfo, NoopBackingStorage, default_backing_storage,
+    noop_backing_storage,
 };
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
@@ -428,10 +428,12 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
         env: napi::sys::napi_env,
         val: Self,
     ) -> napi::Result<napi::sys::napi_value> {
-        let mut obj = napi::Env::from_raw(env).create_object()?;
+        let mut obj = unsafe { napi::Env::from_raw(env).create_object()? };
 
-        let result = T::to_napi_value(env, val.result)?;
-        let result = JsUnknown::from_raw(env, result)?;
+        let result = unsafe {
+            let result = T::to_napi_value(env, val.result)?;
+            JsUnknown::from_raw(env, result)?
+        };
         if matches!(result.get_type()?, napi::ValueType::Object) {
             // SAFETY: We know that result is an object, so we can cast it to a JsObject
             let result = unsafe { result.cast::<JsObject>() };
@@ -445,7 +447,7 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
         obj.set_named_property("issues", val.issues)?;
         obj.set_named_property("diagnostics", val.diagnostics)?;
 
-        Ok(obj.raw())
+        Ok(unsafe { obj.raw() })
     }
 }
 
