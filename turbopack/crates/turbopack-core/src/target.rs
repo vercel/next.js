@@ -60,12 +60,13 @@ impl CompileTarget {
         }
     }
 
+    /// Returns the expected extension of the dynamic library, including the `.`.
     pub fn dylib_ext(&self) -> &'static str {
         let platform = self.platform;
         match platform {
-            Platform::Win32 => "dll",
-            Platform::Darwin => "dylib",
-            _ => "so",
+            Platform::Win32 => ".dll",
+            Platform::Darwin => ".dylib",
+            _ => ".so",
         }
     }
 

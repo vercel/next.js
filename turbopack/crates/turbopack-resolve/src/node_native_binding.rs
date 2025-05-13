@@ -132,15 +132,16 @@ pub async fn resolve_node_pre_gyp_files(
                         )
                         .into();
 
+                    // Find all dynamic libraries in the given directory.
                     if let DirectoryContent::Entries(entries) = &*config_file_dir
                         .join(native_binding_path.clone())
                         .read_dir()
                         .await?
                     {
-                        let extension = format!("*.{}", compile_target.dylib_ext());
+                        let extension = compile_target.dylib_ext();
                         for (key, entry) in entries
                             .iter()
-                            .filter(|(k, _)| k.as_str().ends_with(&extension))
+                            .filter(|(k, _)| k.as_str().ends_with(extension))
                         {
                             if let &DirectoryEntry::File(dylib) | &DirectoryEntry::Symlink(dylib) =
                                 entry
