@@ -728,8 +728,6 @@ impl MergeableModule for EcmascriptModuleAsset {
     ) -> Result<Vc<MergeableModuleResult>> {
         let modules = modules.await?;
 
-        let mut skipped = 0u32;
-
         async fn is_eligible(
             module: ResolvedVc<Box<dyn MergeableModule>>,
         ) -> Result<Option<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>> {
@@ -781,38 +779,42 @@ impl MergeableModule for EcmascriptModuleAsset {
         // };
         // let consumed_modules = modules[start_idx..start_idx + length].to_vec();
 
-        let mut modules = modules.iter();
+        let mut modules = modules.iter().zip(0u32..);
         let mut merged_modules = vec![];
-        while let Some(first) = modules.next() {
+        let mut start_index = 0;
+        while let Some((first, first_i)) = modules.next() {
             // Skip some modules, try to find the first eligible module
             if let Some(first) = is_eligible(*first).await? {
+                if merged_modules.is_empty() {
+                    start_index = first_i;
+                }
                 merged_modules.push(first);
+
                 // Consume as many modules as possible to merge together
-                for m in &mut modules {
+                for (m, _) in &mut modules {
                     if let Some(m) = is_eligible(*m).await? {
                         merged_modules.push(m);
                     } else {
-                        skipped += 1 + (merged_modules.len() as u32);
                         break;
                     }
                 }
+
+                // List has ended or incompatible module encountered
                 if merged_modules.len() > 1 {
-                    // Successfully found something to merge
+                    // ... but we successfully found something to merge.
                     break;
-                } else {
-                    // Only a single module, ignore this one and try to find a bigger
-                    // sequence in the remaining list.
-                    merged_modules.clear();
                 }
-            } else {
-                skipped += 1;
+
+                // Only a single module, ignore and try to find a bigger sequence in the remaining
+                // list.
+                merged_modules.clear();
             }
         }
 
-        if !merged_modules.is_empty() {
+        if merged_modules.len() > 1 {
             Ok(MergeableModuleResult::Merged {
                 consumed: merged_modules.len() as u32,
-                skipped,
+                skipped: start_index,
                 merged_module: ResolvedVc::upcast(MergedEcmascriptModule::new(
                     merged_modules,
                     // TODO where to get options from?
