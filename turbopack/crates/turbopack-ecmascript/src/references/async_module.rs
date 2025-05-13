@@ -17,7 +17,10 @@ use turbopack_core::{
 };
 
 use super::esm::base::ReferencedAsset;
-use crate::code_gen::{CodeGeneration, CodeGenerationHoistedStmt};
+use crate::{
+    code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
+    references::esm::base::ReferencedAssetIdent,
+};
 
 /// Information needed for generating the async module wrapper for
 /// [EcmascriptChunkItem](crate::chunk::EcmascriptChunkItem)s.
@@ -123,7 +126,10 @@ impl AsyncModule {
                 Ok(match &*referenced_asset {
                     ReferencedAsset::External(_, ExternalType::EcmaScriptModule) => {
                         if self.import_externals {
-                            referenced_asset.get_ident(chunking_context).await?
+                            referenced_asset
+                                .get_ident(chunking_context, None, None)
+                                .await?
+                                .map(|i| i.into_module_namespace_ident().unwrap())
                         } else {
                             None
                         }
@@ -133,7 +139,10 @@ impl AsyncModule {
                             .referenced_async_modules
                             .contains(&ResolvedVc::upcast(*placeable))
                         {
-                            referenced_asset.get_ident(chunking_context).await?
+                            referenced_asset
+                                .get_ident(chunking_context, None, None)
+                                .await?
+                                .map(|i| i.into_module_namespace_ident().unwrap())
                         } else {
                             None
                         }

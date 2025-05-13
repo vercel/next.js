@@ -633,54 +633,41 @@ impl EsmExports {
                 EsmExport::ImportedBinding(esm_ref, name, mutable) => {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
-                    referenced_asset.get_ident(
-                        chunking_context
-                    ).await?.map(|ident| {
-                        let expr = MemberExpr {
-                            span: DUMMY_SP,
-                            obj: Box::new(Expr::Ident(Ident::new(
-                                ident.into(),
-                                DUMMY_SP,
-                                Default::default(),
-                            ))),
-                            prop: MemberProp::Computed(ComputedPropName {
-                                span: DUMMY_SP,
-                                expr: Box::new(Expr::Lit(Lit::Str(Str {
-                                    span: DUMMY_SP,
-                                    value: (name as &str).into(),
-                                    raw: None,
-                                }))),
-                            }),
-                        };
-                        if *mutable {
-                            quote!(
-                                "([() => $expr, ($new) => $lhs = $new])" as Expr,
-                                expr: Expr = Expr::Member(expr.clone()),
-                                lhs: AssignTarget = AssignTarget::Simple(SimpleAssignTarget::Member(expr)),
-                                new = Ident::new(
-                                    format!("new_{name}").into(),
-                                    DUMMY_SP,
-                                    Default::default()
-                                ),
-                            )
-                        } else {
-                            quote!(
-                                "(() => $expr)" as Expr,
-                                expr: Expr = Expr::Member(expr),
-                            )
-                        }
-                    })
+                    referenced_asset
+                        .get_ident(chunking_context, Some(name.clone()), scope_hoisting_context)
+                        .await?
+                        .map(|ident| {
+                            let expr = ident.as_expr_individual(DUMMY_SP);
+                            if *mutable {
+                                quote!(
+                                    "([() => $expr, ($new) => $lhs = $new])" as Expr,
+                                    expr: Expr = expr.clone().map_either(Expr::from, Expr::from).into_inner(),
+                                    lhs: AssignTarget = AssignTarget::Simple(
+                                        expr.map_either(|i| SimpleAssignTarget::Ident(i.into()), SimpleAssignTarget::Member).into_inner()),
+                                    new = Ident::new(
+                                        format!("new_{name}").into(),
+                                        DUMMY_SP,
+                                        Default::default()
+                                    ),
+                                )
+                            } else {
+                                quote!(
+                                    "(() => $expr)" as Expr,
+                                    expr: Expr = expr.map_either(Expr::from, Expr::from).into_inner()
+                                )
+                            }
+                        })
                 }
                 EsmExport::ImportedNamespace(esm_ref) => {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
                     referenced_asset
-                        .get_ident(chunking_context)
+                        .get_ident(chunking_context, None, scope_hoisting_context)
                         .await?
                         .map(|ident| {
                             quote!(
                                 "(() => $imported)" as Expr,
-                                imported = Ident::new(ident.into(), DUMMY_SP, Default::default())
+                                imported: Expr = ident.as_expr(DUMMY_SP, false)
                             )
                         })
                 }

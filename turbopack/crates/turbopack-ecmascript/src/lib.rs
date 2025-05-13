@@ -1155,22 +1155,31 @@ impl EcmascriptModuleContent {
                 } else {
                     unreachable!()
                 };
-                let (is_export_mark, module_marks) = GLOBALS.set(globals, || {
-                    (
-                        Mark::new(),
-                        FxIndexMap::from_iter(modules.keys().map(|m| (*m, Mark::new()))),
-                    )
+                let (is_export_mark, module_syntax_contexts) = GLOBALS.set(globals, || {
+                    let is_export_mark = Mark::new();
+                    let module_syntax_contexts: FxIndexMap<_, _> = modules
+                        .keys()
+                        .map(|m| {
+                            let mark = Mark::fresh(is_export_mark);
+                            (
+                                *m,
+                                SyntaxContext::empty()
+                                    .apply_mark(is_export_mark)
+                                    .apply_mark(mark),
+                            )
+                        })
+                        .collect();
+                    (is_export_mark, module_syntax_contexts)
                 });
                 let ctx = ScopeHoistingContext {
                     module,
                     modules: &modules,
-                    is_export_mark,
-                    module_marks: &module_marks,
+                    module_syntax_contexts: &module_syntax_contexts,
                 };
                 let code_gens = options.merged_code_gens(Some(ctx)).await?;
                 Ok((
                     module,
-                    module_marks,
+                    module_syntax_contexts,
                     is_export_mark,
                     process_parse_result(
                         *parsed,
@@ -1190,30 +1199,24 @@ impl EcmascriptModuleContent {
 
         struct SetSyntaxContextVisitor<'a> {
             current_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-            // A marker to identify the special cross-module variable references
+            // A marker to quickly identify the special cross-module variable references
             export_mark: Mark,
             // The syntax contexts in the merged AST (each module has its own)
             merged_ctxts:
                 &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
-            // The export marks in the current AST, which will be mapped to merged_ctxts
-            current_module_marks:
-                &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, Mark>,
+            // The export syntax contexts in the current AST, which will be mapped to merged_ctxts
+            current_module_contexts:
+                &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
         }
         impl VisitMut for SetSyntaxContextVisitor<'_> {
             fn visit_mut_syntax_context(&mut self, ctxt: &mut SyntaxContext) {
                 let module = if ctxt.has_mark(self.export_mark) {
                     *self
-                        .current_module_marks
+                        .current_module_contexts
                         .iter()
-                        .filter_map(|(module, mark)| {
-                            if ctxt.has_mark(*mark) {
-                                Some(module)
-                            } else {
-                                None
-                            }
-                        })
-                        .next()
+                        .find(|(_, module_ctxt)| *ctxt == **module_ctxt)
                         .unwrap()
+                        .0
                 } else {
                     self.current_module
                 };
@@ -1231,7 +1234,7 @@ impl EcmascriptModuleContent {
                 shebang: None,
                 body: contents
                     .into_iter()
-                    .flat_map(|(module, module_marks, export_mark, content)| {
+                    .flat_map(|(module, module_contexts, export_mark, content)| {
                         if let CodeGenResult {
                             program: Program::Module(mut content),
                             globals,
@@ -1243,7 +1246,7 @@ impl EcmascriptModuleContent {
                                     current_module: module,
                                     export_mark,
                                     merged_ctxts: &merged_ctxts,
-                                    current_module_marks: &module_marks,
+                                    current_module_contexts: &module_contexts,
                                 });
                             });
 
@@ -1303,8 +1306,9 @@ impl EcmascriptModuleContent {
 pub struct ScopeHoistingContext<'a> {
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     modules: &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, bool>,
-    is_export_mark: Mark,
-    module_marks: &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, Mark>,
+    /// To import a specifier from another module, apply this context to the Ident
+    module_syntax_contexts:
+        &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, SyntaxContext>,
 }
 
 struct CodeGenResult {
