@@ -7,3 +7,39 @@ description: Learn how you can use React Server and Client Components to render 
 By default, Next.js uses React [Server Components](https://react.dev/reference/rsc/server-components) which let you render parts of your UI on the server, optionally [cache](/docs/app/getting-started/caching-and-revalidating) the result, and [stream](/docs/app/building-your-application/rendering/server-components#streaming-server-components) it to the client. When needed, you can opt into using [Client Components](https://react.dev/reference/rsc/use-client) to add interactivity and use browser APIs.
 
 This page will go through how Server and Client Components work, and common examples of when to use them.
+
+## How do Server and Client Components work?
+
+### On the server
+
+On the server, Next.js uses React's APIs to orchestrate rendering. The rendering work is split into chunks, by individual route segments ([layouts and pages](/docs/app/getting-started/layouts-and-pages)):
+
+- **Server Components** are rendered into a special data format called the React Server Component Payload (RSC Payload).
+- **Client Components** are rendered into HTML.
+
+> **What is the React Server Component Payload (RSC)?**
+>
+> The RSC Payload is a compact binary representation of the rendered React Server Components tree. It's used by React on the client to update the browser's DOM. The RSC Payload contains:
+>
+> - The rendered result of Server Components
+> - Placeholders for where Client Components should be rendered and references to their JavaScript files
+> - Any props passed from a Server Component to a Client Component
+
+### On the client (first load)
+
+Then, on the client:
+
+1. **HTML** is used to immediately show a fast non-interactive preview of the route to the user.
+2. **RSC Payload** is used to reconcile the Client and Server Component trees.
+3. **JavaScript** is used to hydrate Client Components and make the application interactive.
+
+> **What is hydration?**
+>
+> Hydration is React's process for attaching [event handlers](https://react.dev/learn/responding-to-events) to the DOM, to make the static HTML interactive.
+
+### Subsequent Navigations
+
+On subsequent navigations:
+
+- The **RSC Payload** is prefetched and cached for instant navigation.
+- **Client Components** are rendered entirely on the client, without the server-rendered HTML.
