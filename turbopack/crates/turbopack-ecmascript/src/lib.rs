@@ -721,8 +721,6 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
 
 #[turbo_tasks::value_impl]
 impl MergeableModule for EcmascriptModuleAsset {
-    // Clippy is wrong here, they are not equivalent (the for-loop restarts the iterator)
-    #[allow(clippy::while_let_on_iterator)]
     #[turbo_tasks::function]
     async fn merge(
         self: ResolvedVc<Self>,
@@ -737,10 +735,34 @@ impl MergeableModule for EcmascriptModuleAsset {
         while let Some(m) = modules.next() {
             // Skip some modules, try to find the first eligible module
             if let Some(m) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(*m) {
+                if let Some(placeable) =
+                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(m)
+                {
+                    if matches!(
+                        &*placeable.get_exports().await?,
+                        |EcmascriptExports::DynamicNamespace| EcmascriptExports::CommonJs
+                            | EcmascriptExports::EmptyCommonJs
+                            | EcmascriptExports::Value
+                    ) {
+                        continue;
+                    }
+                }
                 consumed_modules.push(m);
-                // Consume as many as possible to merge together
-                while let Some(m) = modules.next() {
+                // Consume as many modules as possible to merge together
+                for m in &mut modules {
                     if let Some(m) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(*m) {
+                        if let Some(placeable) =
+                            ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(m)
+                        {
+                            if matches!(
+                                &*placeable.get_exports().await?,
+                                |EcmascriptExports::DynamicNamespace| EcmascriptExports::CommonJs
+                                    | EcmascriptExports::EmptyCommonJs
+                                    | EcmascriptExports::Value
+                            ) {
+                                break;
+                            }
+                        }
                         consumed_modules.push(m);
                     } else {
                         break;
