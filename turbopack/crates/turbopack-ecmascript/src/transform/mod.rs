@@ -29,7 +29,6 @@ use turbopack_core::{
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, Hash)]
 pub enum EcmascriptInputTransform {
-    CommonJs,
     Plugin(ResolvedVc<TransformPlugin>),
     PresetEnv(ResolvedVc<Environment>),
     React {
@@ -208,22 +207,6 @@ impl EcmascriptInputTransform {
                         }
                     }
                 }
-            }
-            EcmascriptInputTransform::CommonJs => {
-                // Explicit type annotation to ensure that we don't duplicate transforms in the
-                // final binary
-                program.mutate(swc_core::ecma::transforms::module::common_js(
-                    swc_core::ecma::transforms::module::path::Resolver::Default,
-                    unresolved_mark,
-                    swc_core::ecma::transforms::module::util::Config {
-                        allow_top_level_this: true,
-                        import_interop: Some(
-                            swc_core::ecma::transforms::module::util::ImportInterop::Swc,
-                        ),
-                        ..Default::default()
-                    },
-                    swc_core::ecma::transforms::base::feature::FeatureFlag::all(),
-                ));
             }
             EcmascriptInputTransform::PresetEnv(env) => {
                 let versions = env.runtime_versions().await?;
