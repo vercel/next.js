@@ -56,7 +56,7 @@ export const dynamic = 'auto'
   - Setting the option of every `fetch()` request in a layout or page to `{ cache: 'no-store', next: { revalidate: 0 } }`.
   - Setting the segment config to `export const fetchCache = 'force-no-store'`
 
-- **`'error'`**: Force static rendering and cache the data of a layout or page by causing an error if any components use [Dynamic APIs](/docs/app/getting-started/server-and-client-components#dynamic-apis) or uncached data. This option is equivalent to:
+- **`'error'`**: Force static rendering and cache the data of a layout or page by causing an error if any components use [Dynamic APIs](/docs/app/getting-started/partial-prerendering#dynamic-rendering) or uncached data. This option is equivalent to:
   - `getStaticProps()` in the `pages` directory.
   - Setting the option of every `fetch()` request in a layout or page to `{ cache: 'force-cache' }`.
   - Setting the segment config to `fetchCache = 'only-cache', dynamicParams = false`.
