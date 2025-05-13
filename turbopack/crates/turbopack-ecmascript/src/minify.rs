@@ -1,28 +1,28 @@
 use std::sync::Arc;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use swc_core::{
     base::try_with_handler,
     common::{
+        BytePos, FileName, FilePathMapping, GLOBALS, LineCol, Mark, SourceMap as SwcSourceMap,
         comments::{Comments, SingleThreadedComments},
-        BytePos, FileName, FilePathMapping, LineCol, Mark, SourceMap as SwcSourceMap, GLOBALS,
     },
     ecma::{
         self,
         ast::{EsVersion, Program},
         codegen::{
-            text_writer::{self, JsWriter, WriteJs},
             Emitter,
+            text_writer::{self, JsWriter, WriteJs},
         },
         minifier::option::{CompressOptions, ExtraOptions, MangleOptions, MinifyOptions},
-        parser::{lexer::Lexer, Parser, StringInput, Syntax},
+        parser::{Parser, StringInput, Syntax, lexer::Lexer},
         transforms::base::{
             fixer::paren_remover,
             hygiene::{self, hygiene_with_config},
         },
     },
 };
-use tracing::{instrument, Level};
+use tracing::{Level, instrument};
 use turbopack_core::{
     chunk::MangleType,
     code_builder::{Code, CodeBuilder},

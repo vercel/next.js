@@ -4,7 +4,7 @@ use anyhow::Result;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ReadRef, ResolvedVc, Vc,
+    NonLocalValue, ReadRef, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 

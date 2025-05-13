@@ -1,4 +1,4 @@
-use mdxjs::{compile, Options};
+use mdxjs::{Options, compile};
 use napi::bindgen_prelude::*;
 
 pub struct MdxCompileTask {

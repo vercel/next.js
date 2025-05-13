@@ -6,7 +6,6 @@ import {
   getRedboxHeader,
   getRedboxDescription,
   getRedboxSource,
-  renderViaHTTP,
   retry,
   waitFor,
   trimEndMultiline,
@@ -245,7 +244,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
       const aboutContent = await next.readFile(aboutPage)
       const browser = await next.browser(basePath + '/hmr/contact')
       try {
-        await renderViaHTTP(next.url, basePath + '/hmr/about2')
+        await next.render(basePath + '/hmr/about2')
 
         await next.patchFile(aboutPage, aboutContent.replace('</div>', 'div'))
 

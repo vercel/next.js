@@ -1,14 +1,15 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned};
-use syn::{parse_macro_input, parse_quote, spanned::Spanned, ItemTrait, TraitItem, TraitItemFn};
+use syn::{ItemTrait, TraitItem, TraitItemFn, parse_macro_input, parse_quote, spanned::Spanned};
 use turbo_tasks_macros_shared::{
-    get_trait_default_impl_function_id_ident, get_trait_default_impl_function_ident,
-    get_trait_type_id_ident, get_trait_type_ident, is_self_used, ValueTraitArguments,
+    ValueTraitArguments, get_trait_default_impl_function_id_ident,
+    get_trait_default_impl_function_ident, get_trait_type_id_ident, get_trait_type_ident,
+    is_self_used,
 };
 
 use crate::func::{
-    filter_inline_attributes, DefinitionContext, FunctionArguments, NativeFn, TurboFn,
+    DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
 };
 
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {

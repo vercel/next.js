@@ -1,11 +1,11 @@
 use std::{borrow::Borrow, cmp::max, sync::Arc};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use serde::Serialize;
 use smallvec::SmallVec;
 use tracing::Span;
-use turbo_tasks::{backend::CachedTaskType, turbo_tasks_scope, SessionId, TaskId};
+use turbo_tasks::{SessionId, TaskId, backend::CachedTaskType, turbo_tasks_scope};
 
 use crate::{
     backend::{AnyOperation, TaskDataCategory},
@@ -180,7 +180,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
 
         // Start organizing the updates in parallel
         match &mut batch {
-            WriteBatch::Concurrent(ref batch, _) => {
+            &mut WriteBatch::Concurrent(ref batch, _) => {
                 {
                     let _span = tracing::trace_span!("update task data").entered();
                     process_task_data(snapshots, Some(batch))?;

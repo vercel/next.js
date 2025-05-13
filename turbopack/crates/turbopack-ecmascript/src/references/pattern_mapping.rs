@@ -12,18 +12,18 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput,
-    TryJoinIterExt, Vc,
+    FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, debug::ValueDebugFormat,
+    trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkingContext, ModuleChunkItemIdExt, ModuleId},
     issue::{
-        code_gen::CodeGenerationIssue, module::emit_unknown_module_type_error, IssueExt,
-        IssueSeverity, StyledString,
+        IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue,
+        module::emit_unknown_module_type_error,
     },
     resolve::{
-        origin::ResolveOrigin, parse::Request, ExternalType, ModuleResolveResult,
-        ModuleResolveResultItem,
+        ExternalType, ModuleResolveResult, ModuleResolveResultItem, origin::ResolveOrigin,
+        parse::Request,
     },
 };
 
@@ -334,7 +334,7 @@ async fn to_single_pattern_mapping(
             ));
         }
         ModuleResolveResultItem::Error(str) => {
-            return Ok(SinglePatternMapping::Unresolvable(str.await?.to_string()))
+            return Ok(SinglePatternMapping::Unresolvable(str.await?.to_string()));
         }
         ModuleResolveResultItem::OutputAsset(_)
         | ModuleResolveResultItem::Empty

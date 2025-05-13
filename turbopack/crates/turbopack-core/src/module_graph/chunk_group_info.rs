@@ -3,7 +3,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use either::Either;
 use indexmap::map::Entry;
 use roaring::RoaringBitmap;
@@ -12,8 +12,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc,
-    TaskInput, TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
+    Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 
 use crate::{

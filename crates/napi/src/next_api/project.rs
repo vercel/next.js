@@ -1,10 +1,10 @@
 use std::{io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use napi::{
-    bindgen_prelude::{within_runtime_if_available, External},
-    threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
     JsFunction, Status,
+    bindgen_prelude::{External, within_runtime_if_available},
+    threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
 use next_api::{
     entrypoints::Entrypoints,
@@ -19,31 +19,31 @@ use next_api::{
     route::Endpoint,
 };
 use next_core::tracing_presets::{
-    TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,
-    TRACING_NEXT_TURBO_TASKS_TARGETS,
+    TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
+    TRACING_NEXT_TURBOPACK_TARGETS,
 };
 use once_cell::sync::Lazy;
 use rand::Rng;
 use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
+use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    get_effects, Completion, Effects, FxIndexSet, OperationVc, ReadRef, ResolvedVc,
-    TransientInstance, TryJoinIterExt, UpdateInfo, Vc,
+    Completion, Effects, FxIndexSet, OperationVc, ReadRef, ResolvedVc, TransientInstance,
+    TryJoinIterExt, UpdateInfo, Vc, get_effects,
 };
 use turbo_tasks_fs::{
-    get_relative_path_to, util::uri_from_file, DiskFileSystem, FileContent, FileSystem,
-    FileSystemPath,
+    DiskFileSystem, FileContent, FileSystem, FileSystemPath, get_relative_path_to,
+    util::uri_from_file,
 };
 use turbopack_core::{
+    PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
     issue::PlainIssue,
     output::{OutputAsset, OutputAssets},
     source_map::{OptionSourceMap, OptionStringifiedSourceMap, SourceMap, Token},
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
-    PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
 };
 use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier};
 use turbopack_trace_utils::{
@@ -57,8 +57,8 @@ use url::Url;
 use super::{
     endpoint::ExternalEndpoint,
     utils::{
-        create_turbo_tasks, get_diagnostics, get_issues, subscribe, NapiDiagnostic, NapiIssue,
-        NextTurboTasks, RootTask, TurbopackResult, VcArc,
+        NapiDiagnostic, NapiIssue, NextTurboTasks, RootTask, TurbopackResult, VcArc,
+        create_turbo_tasks, get_diagnostics, get_issues, subscribe,
     },
 };
 use crate::{register, util::DhatProfilerGuard};

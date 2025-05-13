@@ -7,31 +7,34 @@ use std::{
     panic::AssertUnwindSafe,
     pin::Pin,
     sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc, Mutex, RwLock, Weak,
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
     thread,
     time::{Duration, Instant},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use auto_hash_map::AutoMap;
 use futures::FutureExt;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use tokio::{runtime::Handle, select, task_local};
 use tokio_util::task::TaskTracker;
-use tracing::{info_span, instrument, trace_span, Instrument, Level, Span};
+use tracing::{Instrument, Level, Span, info_span, instrument, trace_span};
 use turbo_tasks_malloc::TurboMalloc;
 
 use crate::{
+    Completion, InvalidationReason, InvalidationReasonSet, OutputContent, ReadCellOptions,
+    ResolvedVc, SharedReference, TaskId, TaskIdSet, ValueTypeId, Vc, VcRead, VcValueTrait,
+    VcValueType,
     backend::{
         Backend, CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec,
         TransientTaskType, TypedCellContent,
     },
     capture_future::{self, CaptureFuture},
     event::{Event, EventListener},
-    id::{BackendJobId, ExecutionId, FunctionId, LocalTaskId, TraitTypeId, TRANSIENT_TASK_BIT},
+    id::{BackendJobId, ExecutionId, FunctionId, LocalTaskId, TRANSIENT_TASK_BIT, TraitTypeId},
     id_factory::IdFactoryWithReuse,
     magic_any::MagicAny,
     raw_vc::{CellId, RawVc},
@@ -43,9 +46,6 @@ use crate::{
     trait_helpers::get_trait_method,
     util::{IdFactory, StaticOrArc},
     vc::ReadVcFuture,
-    Completion, InvalidationReason, InvalidationReasonSet, OutputContent, ReadCellOptions,
-    ResolvedVc, SharedReference, TaskId, TaskIdSet, ValueTypeId, Vc, VcRead, VcValueTrait,
-    VcValueType,
 };
 
 /// Common base trait for [`TurboTasksApi`] and [`TurboTasksBackendApi`]. Provides APIs for creating
@@ -1866,7 +1866,7 @@ impl CurrentCellRef {
         let cell_content = tt
             .read_own_task_cell(self.current_task, self.index, ReadCellOptions::default())
             .ok();
-        let update = functor(cell_content.as_ref().and_then(|cc| cc.1 .0.as_ref()));
+        let update = functor(cell_content.as_ref().and_then(|cc| cc.1.0.as_ref()));
         if let Some(update) = update {
             tt.update_own_task_cell(self.current_task, self.index, CellContent(Some(update)))
         }

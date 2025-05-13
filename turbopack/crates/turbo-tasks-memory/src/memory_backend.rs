@@ -5,19 +5,21 @@ use std::{
     num::NonZeroU32,
     pin::Pin,
     sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
     time::Duration,
 };
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use auto_hash_map::AutoMap;
-use dashmap::{mapref::entry::Entry, DashMap};
+use dashmap::{DashMap, mapref::entry::Entry};
 use rustc_hash::FxHasher;
 use tracing::trace_span;
 use turbo_prehash::{BuildHasherExt, PassThroughHash, PreHashed};
 use turbo_tasks::{
+    CellId, FunctionId, RawVc, ReadCellOptions, ReadConsistency, TRANSIENT_TASK_BIT, TaskId,
+    TaskIdSet, TraitTypeId, TurboTasksBackendApi, Unused, ValueTypeId,
     backend::{
         Backend, BackendJobId, CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec,
         TransientTaskType, TypedCellContent,
@@ -25,8 +27,6 @@ use turbo_tasks::{
     event::EventListener,
     task_statistics::TaskStatisticsApi,
     util::{IdFactoryWithReuse, NoMoveVec},
-    CellId, FunctionId, RawVc, ReadCellOptions, ReadConsistency, TaskId, TaskIdSet, TraitTypeId,
-    TurboTasksBackendApi, Unused, ValueTypeId, TRANSIENT_TASK_BIT,
 };
 
 use crate::{

@@ -2,11 +2,11 @@ use anyhow::Result;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 
 use crate::{
     reference_type::ReferenceType,
-    resolve::{parse::Request, ResolveResultOption},
+    resolve::{ResolveResultOption, parse::Request},
 };
 
 /// A condition which determines if the hooks of a resolve plugin gets called.

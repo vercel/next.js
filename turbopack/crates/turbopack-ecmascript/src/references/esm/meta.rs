@@ -7,7 +7,7 @@ use swc_core::{
     ecma::ast::{Expr, Ident},
     quote,
 };
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 

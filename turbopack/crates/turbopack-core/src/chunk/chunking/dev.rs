@@ -1,6 +1,6 @@
 use std::{borrow::Cow, mem::take};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use either::Either;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -8,8 +8,8 @@ use tracing::Level;
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, ValueToString};
 
 use crate::chunk::{
-    chunking::{make_chunk, ChunkItemOrBatchWithInfo, SplitContext},
     ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
+    chunking::{ChunkItemOrBatchWithInfo, SplitContext, make_chunk},
 };
 
 /// Handle chunk items based on their total size. If the total size is too

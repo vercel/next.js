@@ -10,7 +10,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, Error};
+use anyhow::{Error, anyhow};
 use pin_project_lite::pin_project;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 

@@ -6,23 +6,23 @@ use std::{
     iter::once,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, SliceMap,
-    TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, SliceMap, TaskInput,
+    TryJoinIterExt, Value, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
-    util::normalize_request, FileSystemEntryType, FileSystemPath, RealPathResult,
+    FileSystemEntryType, FileSystemPath, RealPathResult, util::normalize_request,
 };
 
 use self::{
     options::{
-        resolve_modules_options, ConditionValue, ImportMapResult, ResolveInPackage,
-        ResolveIntoPackage, ResolveModules, ResolveModulesOptions, ResolveOptions,
+        ConditionValue, ImportMapResult, ResolveInPackage, ResolveIntoPackage, ResolveModules,
+        ResolveModulesOptions, ResolveOptions, resolve_modules_options,
     },
     origin::{ResolveOrigin, ResolveOriginExt},
     parse::Request,
@@ -35,17 +35,17 @@ use crate::{
     data_uri_source::DataUriSource,
     file_source::FileSource,
     issue::{
-        module::emit_unknown_module_type_error, resolve::ResolvingIssue, IssueExt, IssueSource,
+        IssueExt, IssueSource, module::emit_unknown_module_type_error, resolve::ResolvingIssue,
     },
     module::{Module, Modules, OptionModule},
     output::{OutputAsset, OutputAssets},
-    package_json::{read_package_json, PackageJsonIssue},
+    package_json::{PackageJsonIssue, read_package_json},
     raw_module::RawModule,
     reference_type::ReferenceType,
     resolve::{
         node::{node_cjs_resolve_options, node_esm_resolve_options},
         parse::stringify_data_uri,
-        pattern::{read_matches, PatternMatch},
+        pattern::{PatternMatch, read_matches},
         plugin::AfterResolvePlugin,
     },
     source::{OptionSource, Source, Sources},

@@ -4,19 +4,19 @@ use anyhow::Result;
 use either::Either;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
-    TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
+    Vc, trace::TraceRawVcs,
 };
 
 use crate::{
     chunk::{ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkableModule, ChunkingContext},
     module_graph::{
+        ModuleGraph,
         async_module_info::AsyncModulesInfo,
         chunk_group_info::RoaringBitmapWrapper,
         module_batch::{ChunkableModuleBatchGroup, ChunkableModuleOrBatch, ModuleBatch},
-        ModuleGraph,
     },
 };
 

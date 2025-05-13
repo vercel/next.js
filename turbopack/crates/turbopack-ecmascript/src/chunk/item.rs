@@ -1,23 +1,23 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
+    NonLocalValue, ResolvedVc, TaskInput, Upcast, ValueToString, Vc, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{rope::Rope, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkingContext},
     code_builder::{Code, CodeBuilder},
     error::PrettyPrintError,
-    issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
+    issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
     source_map::utils::fileify_source_map,
 };
 
 use crate::{
+    EcmascriptModuleContent, EcmascriptOptions,
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     utils::FormatIter,
-    EcmascriptModuleContent, EcmascriptOptions,
 };
 
 #[turbo_tasks::value(shared)]

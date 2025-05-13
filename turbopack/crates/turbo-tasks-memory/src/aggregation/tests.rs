@@ -4,14 +4,14 @@ use std::{
     iter::once,
     ops::{ControlFlow, Deref, DerefMut},
     sync::{
-        atomic::{AtomicU32, Ordering},
         Arc,
+        atomic::{AtomicU32, Ordering},
     },
     time::Instant,
 };
 
 use parking_lot::{Mutex, MutexGuard};
-use rand::{rngs::SmallRng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng, rngs::SmallRng};
 use ref_cast::RefCast;
 use rstest::*;
 use rustc_hash::FxHashSet;
@@ -19,10 +19,10 @@ use turbo_tasks::FxIndexSet;
 
 use self::aggregation_data::prepare_aggregation_data;
 use super::{
-    aggregation_data, handle_new_edge, lost_edge::handle_lost_edges, AggregationContext,
-    AggregationNode, AggregationNodeGuard, RootQuery,
+    AggregationContext, AggregationNode, AggregationNodeGuard, RootQuery, aggregation_data,
+    handle_new_edge, lost_edge::handle_lost_edges,
 };
-use crate::aggregation::{query_root_info, PreparedOperation, StackVec};
+use crate::aggregation::{PreparedOperation, StackVec, query_root_info};
 
 fn find_root(mut node: NodeRef) -> NodeRef {
     loop {

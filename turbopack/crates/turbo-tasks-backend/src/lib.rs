@@ -41,7 +41,7 @@ pub fn lmdb_backing_storage(
     version_info: &GitVersionInfo,
 ) -> Result<LmdbBackingStorage> {
     use crate::database::{
-        fresh_db_optimization::{is_fresh, FreshDbOptimization},
+        fresh_db_optimization::{FreshDbOptimization, is_fresh},
         read_transaction_cache::ReadTransactionCache,
         startup_cache::StartupCacheLayer,
     };

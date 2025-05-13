@@ -5,15 +5,15 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
-    glob::Glob, json::parse_json_rope_with_source_context, DirectoryEntry, FileContent,
-    FileSystemEntryType, FileSystemPath,
+    DirectoryEntry, FileContent, FileSystemEntryType, FileSystemPath, glob::Glob,
+    json::parse_json_rope_with_source_context,
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
     file_source::FileSource,
     raw_module::RawModule,
     reference::ModuleReference,
-    resolve::{pattern::Pattern, resolve_raw, ModuleResolveResult, RequestKey, ResolveResultItem},
+    resolve::{ModuleResolveResult, RequestKey, ResolveResultItem, pattern::Pattern, resolve_raw},
     source::Source,
     target::{CompileTarget, Platform},
 };
@@ -103,7 +103,7 @@ pub async fn resolve_node_pre_gyp_files(
     let compile_target = compile_target.await?;
     if let Some(config_asset) = *config {
         if let AssetContent::File(file) = &*config_asset.content().await? {
-            if let FileContent::Content(ref config_file) = &*file.await? {
+            if let FileContent::Content(config_file) = &*file.await? {
                 let config_file_path = config_asset.ident().path();
                 let mut affecting_paths = vec![config_file_path];
                 let config_file_dir = config_file_path.parent();
