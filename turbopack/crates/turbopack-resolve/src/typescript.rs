@@ -3,7 +3,7 @@ use std::{collections::HashMap, fmt::Write, mem::take};
 use anyhow::Result;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{fxindexset, ResolvedVc, Value, ValueDefault, Vc};
+use turbo_tasks::{ResolvedVc, Value, ValueDefault, Vc, fxindexset};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -13,7 +13,7 @@ use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{
-        handle_resolve_error,
+        AliasPattern, ModuleResolveResult, handle_resolve_error,
         node::node_cjs_resolve_options,
         options::{
             ConditionValue, ImportMap, ImportMapping, ResolveIntoPackage, ResolveModules,
@@ -22,7 +22,7 @@ use turbopack_core::{
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
         pattern::Pattern,
-        resolve, AliasPattern, ModuleResolveResult,
+        resolve,
     },
     source::{OptionSource, Source},
 };
