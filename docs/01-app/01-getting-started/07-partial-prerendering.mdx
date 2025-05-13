@@ -32,9 +32,9 @@ When a user visits a route:
 
 Partial Prerendering uses React's [Suspense](https://react.dev/reference/react/Suspense) to defer rendering parts of your application until some condition is met.
 
-The Suspense fallback is embedded into the initial HTML file along with the static content. At build time (or during revalidation), the static content is **prerendered** to create a static shell. The rendering of dynamic content is **postponed** until the user requests the route.
+The Suspense fallback is embedded into the initial HTML along with the static content. At build time (or during revalidation), the static content and fallback are **prerendered** to create a static shell. The rendering of dynamic content is **postponed** until the user requests the route.
 
-Wrapping a component in Suspense doesn't make the component itself dynamic, but rather Suspense is used as a boundary between your static and dynamic code. As long as you're using Suspense, Next.js will know which parts of your route are static and which are dynamic.
+Wrapping a component in Suspense doesn't make the component itself dynamic, but rather Suspense is used as a boundary that encapsulates dynamic content.
 
 ```jsx filename="app/page.js"
 import { Suspense } from 'react'
