@@ -7,7 +7,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::{
-    rope::Rope, util::uri_from_file, DiskFileSystem, FileContent, FileSystemPath,
+    DiskFileSystem, FileContent, FileSystemPath, rope::Rope, util::uri_from_file,
 };
 
 use crate::SOURCE_URL_PROTOCOL;

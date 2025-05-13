@@ -6,16 +6,16 @@ use std::{
 
 use patricia_tree::PatriciaMap;
 use serde::{
+    Deserialize, Deserializer, Serialize, Serializer,
     de::{MapAccess, Visitor},
     ser::SerializeMap,
-    Deserialize, Deserializer, Serialize, Serializer,
 };
 use serde_bytes::{ByteBuf, Bytes};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::{internal::PassthroughDebug, ValueDebugFormat, ValueDebugFormatString},
-    trace::{TraceRawVcs, TraceRawVcsContext},
     NonLocalValue,
+    debug::{ValueDebugFormat, ValueDebugFormatString, internal::PassthroughDebug},
+    trace::{TraceRawVcs, TraceRawVcsContext},
 };
 
 use super::pattern::Pattern;

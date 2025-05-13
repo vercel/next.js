@@ -3,7 +3,7 @@ use std::{
     future::Future,
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use petgraph::{
     graph::{DiGraph, EdgeIndex, NodeIndex},
     visit::{Dfs, EdgeRef, IntoNodeReferences, NodeIndexable, VisitMap, Visitable},
@@ -13,10 +13,10 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
-    trace::TraceRawVcs,
     CollectiblesSource, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt,
     ValueToString, Vc,
+    graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
+    trace::TraceRawVcs,
 };
 
 use crate::{
@@ -24,11 +24,11 @@ use crate::{
     issue::Issue,
     module::Module,
     module_graph::{
-        async_module_info::{compute_async_module_info, AsyncModulesInfo},
-        chunk_group_info::{compute_chunk_group_info, ChunkGroupEntry, ChunkGroupInfo},
-        module_batches::{compute_module_batches, ModuleBatchesGraph},
-        style_groups::{compute_style_groups, StyleGroups, StyleGroupsConfig},
-        traced_di_graph::{iter_neighbors_rev, TracedDiGraph},
+        async_module_info::{AsyncModulesInfo, compute_async_module_info},
+        chunk_group_info::{ChunkGroupEntry, ChunkGroupInfo, compute_chunk_group_info},
+        module_batches::{ModuleBatchesGraph, compute_module_batches},
+        style_groups::{StyleGroups, StyleGroupsConfig, compute_style_groups},
+        traced_di_graph::{TracedDiGraph, iter_neighbors_rev},
     },
     reference::primary_chunkable_referenced_modules,
 };
