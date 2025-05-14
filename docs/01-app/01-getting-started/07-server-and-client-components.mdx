@@ -14,14 +14,14 @@ By default, layouts and pages are [Server Components](https://react.dev/referenc
 
 This page explains how Server and Client Components work, when to use them, and how to compose them together in your application.
 
-## How do Server and Client Components work?
+## How do Server and Client Components work in Next.js?
 
 ### On the server
 
 On the server, Next.js uses React's APIs to orchestrate rendering. The rendering work is split into chunks, by individual route segments ([layouts and pages](/docs/app/getting-started/layouts-and-pages)):
 
 - **Server Components** are rendered into a special data format called the React Server Component Payload (RSC Payload).
-- **Client Components** are rendered into HTML.
+- **Client Components** and the RSC Payload are used to [prerender](/docs/app/getting-started/partial-prerendering#how-does-partial-prerendering-work) HTML.
 
 > **What is the React Server Component Payload (RSC)?**
 >
