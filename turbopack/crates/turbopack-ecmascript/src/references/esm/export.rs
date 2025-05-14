@@ -565,16 +565,42 @@ impl EsmExports {
         };
 
         let mut dynamic_exports = Vec::<Box<Expr>>::new();
-        for dynamic_export_asset in &expanded.dynamic_exports {
-            let ident =
-                ReferencedAsset::get_ident_from_placeable(dynamic_export_asset, chunking_context)
-                    .await?;
+        {
+            let id = if let Some(scope_hoisting_context) = scope_hoisting_context
+                && !expanded.dynamic_exports.is_empty()
+            {
+                Some(
+                    scope_hoisting_context
+                        .module
+                        .chunk_item_id(Vc::upcast(chunking_context))
+                        .await?,
+                )
+            } else {
+                None
+            };
 
-            dynamic_exports.push(quote_expr!(
-                "$turbopack_dynamic($arg)",
-                turbopack_dynamic: Expr = TURBOPACK_DYNAMIC.into(),
-                arg: Expr = Ident::new(ident.into(), DUMMY_SP, Default::default()).into()
-            ));
+            for dynamic_export_asset in &expanded.dynamic_exports {
+                let ident = ReferencedAsset::get_ident_from_placeable(
+                    dynamic_export_asset,
+                    chunking_context,
+                )
+                .await?;
+
+                if let Some(id) = &id {
+                    dynamic_exports.push(quote_expr!(
+                        "$turbopack_dynamic($arg, $id)",
+                        turbopack_dynamic: Expr = TURBOPACK_DYNAMIC.into(),
+                        arg: Expr = Ident::new(ident.into(), DUMMY_SP, Default::default()).into(),
+                        id: Expr = module_id_to_lit(id)
+                    ));
+                } else {
+                    dynamic_exports.push(quote_expr!(
+                        "$turbopack_dynamic($arg)",
+                        turbopack_dynamic: Expr = TURBOPACK_DYNAMIC.into(),
+                        arg: Expr = Ident::new(ident.into(), DUMMY_SP, Default::default()).into()
+                    ));
+                }
+            }
         }
 
         let mut getters = Vec::new();
@@ -709,10 +735,10 @@ impl EsmExports {
                             .module
                             .chunk_item_id(Vc::upcast(chunking_context))
                             .await?;
-                        quote!("$turbopack_esm_other($id, $getters);" as Stmt,
-                            turbopack_esm_other: Expr = TURBOPACK_ESM_OTHER.into(),
-                            id: Expr = module_id_to_lit(&id),
-                            getters: Expr = getters
+                        quote!("$turbopack_esm($getters, $id);" as Stmt,
+                            turbopack_esm: Expr = TURBOPACK_ESM.into(),
+                            getters: Expr = getters,
+                            id: Expr = module_id_to_lit(&id)
                         )
                     },
                 ))
