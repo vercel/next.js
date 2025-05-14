@@ -83,12 +83,24 @@ pub async fn compute_merged_modules(module_graph: &ModuleGraph) -> Result<Vc<Mer
         // transitively import that module. The bitmap can be treated as an opaque value, merging
         // all modules with the same bitmap.
         let mut module_merged_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
-            FxHashMap::default();
+            FxHashMap::with_capacity_and_hasher(module_count, Default::default());
+        // Entries that started a new merge group for some deopt reason
+        let mut entry_modules =
+            FxHashSet::with_capacity_and_hasher(module_count, Default::default());
         // Modules that have a reference to a module that is not in the same group (i.e. the
         // quasi-leafs of the merged subgraph)
         let mut modules_with_externals_references = FxHashSet::default();
 
         let mut next_index = 0u32;
+
+        // let idents = graphs
+        //     .iter()
+        //     .flat_map(|g| g.graph.node_weights())
+        //     .map(async |n| Ok((n.module(), n.module().ident().to_string().await?)))
+        //     .try_join()
+        //     .await?
+        //     .into_iter()
+        //     .collect::<FxIndexMap<_, _>>();
 
         let visit_count = module_graph
             .traverse_edges_fixed_point_with_priority(
@@ -112,7 +124,18 @@ pub async fn compute_merged_modules(module_graph: &ModuleGraph) -> Result<Vc<Mer
                         });
                     let module = node.module;
 
-                    if let (Some(parent_module), true, true) = (
+                    // println!(
+                    //     "{} -> {} {:?} {:?}",
+                    //     parent_module.map_or("".to_string(), |p| idents[&p].to_string()),
+                    //     idents[&module],
+                    //     parent_module,
+                    //     module,
+                    // );
+
+                    Ok(if parent_module.is_some_and(|p| p == module) {
+                        // A self-reference
+                        GraphTraversalAction::Skip
+                    } else if let (Some(parent_module), true, true) = (
                         parent_module.filter(|m| {
                             ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(*m).is_some()
                         }),
@@ -121,62 +144,63 @@ pub async fn compute_merged_modules(module_graph: &ModuleGraph) -> Result<Vc<Mer
                     ) {
                         // A hoisted reference from a mergeable module to a mergeable module,
                         // inherit bitmaps from parent.
-                        if parent_module == module {
-                            // A self-reference
-                            GraphTraversalAction::Skip
-                        } else {
-                            module_merged_groups.entry(node.module).or_default();
-                            let [Some(parent_merged_groups), Some(current_merged_groups)] =
-                                module_merged_groups
-                                    .get_disjoint_mut([&parent_module, &node.module])
-                            else {
-                                // All modules are inserted in the previous iteration
-                                unreachable!()
-                            };
+                        module_merged_groups.entry(node.module).or_default();
+                        let [Some(parent_merged_groups), Some(current_merged_groups)] =
+                            module_merged_groups.get_disjoint_mut([&parent_module, &node.module])
+                        else {
+                            // All modules are inserted in the previous iteration
+                            bail!("unreachable except for eventual consistency");
+                        };
 
-                            if current_merged_groups.is_empty() {
-                                // Initial visit, clone instead of merging
-                                *current_merged_groups = parent_merged_groups.clone();
-                                GraphTraversalAction::Continue
-                            } else if parent_merged_groups.is_proper_superset(current_merged_groups)
-                            {
-                                // Add bits from parent, and continue traversal because changed
-                                **current_merged_groups |= &**parent_merged_groups;
-                                GraphTraversalAction::Continue
-                            } else {
-                                // Unchanged, no need to forward to children
-                                GraphTraversalAction::Skip
-                            }
+                        if current_merged_groups.is_empty() {
+                            // Initial visit, clone instead of merging
+                            *current_merged_groups = parent_merged_groups.clone();
+                            GraphTraversalAction::Continue
+                        } else if parent_merged_groups.is_proper_superset(current_merged_groups) {
+                            // Add bits from parent, and continue traversal because changed
+                            **current_merged_groups |= &**parent_merged_groups;
+                            GraphTraversalAction::Continue
+                        } else {
+                            // Unchanged, no need to forward to children
+                            GraphTraversalAction::Skip
                         }
                     } else {
-                        // Either a non-hoisted reference or an incompatible parent or child module,
-                        // create a new group.
-                        let idx = next_index;
-                        next_index += 1;
+                        // Either a non-hoisted reference or an incompatible parent or child module
 
-                        if let Some(parent_module) = parent_module {
-                            modules_with_externals_references.insert(parent_module);
-                        }
+                        if entry_modules.insert(module) {
+                            // Not assigned a new group before, create a new one.
+                            let idx = next_index;
+                            next_index += 1;
 
-                        match module_merged_groups.entry(module) {
-                            Entry::Occupied(mut entry) => {
-                                let current = entry.get_mut();
-                                if !current.contains(idx) {
-                                    // Mark and continue traversal because modified
-                                    current.insert(idx);
+                            if let Some(parent_module) = parent_module {
+                                modules_with_externals_references.insert(parent_module);
+                            }
+
+                            match module_merged_groups.entry(module) {
+                                Entry::Occupied(mut entry) => {
+                                    let current = entry.get_mut();
+                                    if !current.contains(idx) {
+                                        // Mark and continue traversal because modified
+                                        current.insert(idx);
+                                        GraphTraversalAction::Continue
+                                    } else {
+                                        // Unchanged, no need to forward to children
+                                        GraphTraversalAction::Skip
+                                    }
+                                }
+                                Entry::Vacant(entry) => {
+                                    // First visit
+                                    entry.insert(RoaringBitmapWrapper(
+                                        RoaringBitmap::from_sorted_iter(std::iter::once(idx))
+                                            .unwrap(),
+                                    ));
                                     GraphTraversalAction::Continue
-                                } else {
-                                    // Unchanged, no need to forward to children
-                                    GraphTraversalAction::Skip
                                 }
                             }
-                            Entry::Vacant(entry) => {
-                                // First visit
-                                entry.insert(RoaringBitmapWrapper(
-                                    RoaringBitmap::from_sorted_iter(std::iter::once(idx)).unwrap(),
-                                ));
-                                GraphTraversalAction::Continue
-                            }
+                        } else {
+                            // Already visited and assigned a new group, no need to forward to
+                            // children.
+                            GraphTraversalAction::Skip
                         }
                     })
                 },
