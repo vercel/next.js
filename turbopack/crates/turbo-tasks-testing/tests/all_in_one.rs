@@ -141,7 +141,6 @@ impl MyTrait for MyStructValue {
 
 #[turbo_tasks::value_trait]
 trait MyTrait: ValueToString {
-    // TODO #[turbo_tasks::function]
     #[turbo_tasks::function]
     async fn my_trait_function(self: Vc<Self>) -> Result<Vc<RcStr>> {
         if *self.to_string().await? != "42" {
