@@ -1,0 +1,87 @@
+error: Expected return type to be `turbo_tasks::Vc<T>` or `anyhow::Result<Vc<T>>`. Unable to process type.
+ --> tests/value_trait/fail_missing_function_annotation.rs:8:23
+  |
+8 |     fn item(&self) -> bool;
+  |                       ^^^^
+
+error: trait items cannot be operations
+  --> tests/value_trait/fail_missing_function_annotation.rs:13:29
+   |
+13 |     #[turbo_tasks::function(operation)]
+   |                             ^^^^^^^^^
+
+error: #[turbo_tasks::function] attribute missing
+ --> tests/value_trait/fail_missing_function_annotation.rs:8:5
+  |
+8 |     fn item(&self) -> bool;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+error: Expected return type to be `turbo_tasks::Vc<T>` or `anyhow::Result<Vc<T>>`. Unable to process type.
+  --> tests/value_trait/fail_missing_function_annotation.rs:23:23
+   |
+23 |     fn item(&self) -> bool {
+   |                       ^^^^
+
+error[E0277]: the trait bound `bool: turbo_tasks::task::TaskOutput` is not satisfied
+ --> tests/value_trait/fail_missing_function_annotation.rs:8:23
+  |
+8 |     fn item(&self) -> bool;
+  |                       ^^^^ the trait `turbo_tasks::task::TaskOutput` is not implemented for `bool`
+  |
+  = help: the following other types implement trait `turbo_tasks::task::TaskOutput`:
+            ()
+            Result<T, turbo_tasks::Error>
+            Vc<T>
+
+error[E0277]: the trait bound `bool: turbo_tasks::task::TaskOutput` is not satisfied
+ --> tests/value_trait/fail_missing_function_annotation.rs:6:1
+  |
+6 | #[turbo_tasks::value_trait]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `turbo_tasks::task::TaskOutput` is not implemented for `bool`
+  |
+  = help: the following other types implement trait `turbo_tasks::task::TaskOutput`:
+            ()
+            Result<T, turbo_tasks::Error>
+            Vc<T>
+  = note: this error originates in the attribute macro `turbo_tasks::value_trait` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `bool: turbo_tasks::task::TaskOutput` is not satisfied
+  --> tests/value_trait/fail_missing_function_annotation.rs:23:23
+   |
+23 |     fn item(&self) -> bool {
+   |                       ^^^^ the trait `turbo_tasks::task::TaskOutput` is not implemented for `bool`
+   |
+   = help: the following other types implement trait `turbo_tasks::task::TaskOutput`:
+             ()
+             Result<T, turbo_tasks::Error>
+             Vc<T>
+
+error[E0277]: the trait bound `bool: turbo_tasks::task::TaskOutput` is not satisfied
+  --> tests/value_trait/fail_missing_function_annotation.rs:20:1
+   |
+20 | #[turbo_tasks::value_impl]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `turbo_tasks::task::TaskOutput` is not implemented for `bool`
+   |
+   = help: the following other types implement trait `turbo_tasks::task::TaskOutput`:
+             ()
+             Result<T, turbo_tasks::Error>
+             Vc<T>
+   = note: this error originates in the attribute macro `turbo_tasks::value_impl` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `fn() -> bool {<MyStruct as MyStruct_MyTrait_item_inline>::item_turbo_tasks_function_inline}: IntoTaskFn<_, _>` is not satisfied
+  --> tests/value_trait/fail_missing_function_annotation.rs:20:1
+   |
+20 | #[turbo_tasks::value_impl]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+   |
+   = help: the trait `turbo_tasks::task::function::TaskFnInputFunction<_, _>` is not implemented for fn item `fn() -> bool {<MyStruct as MyStruct_MyTrait_item_inline>::item_turbo_tasks_function_inline}`
+   = note: required for `fn() -> bool {<MyStruct as MyStruct_MyTrait_item_inline>::item_turbo_tasks_function_inline}` to implement `IntoTaskFn<_, _>`
+note: required by a bound in `NativeFunction::new_method_without_this`
+  --> $WORKSPACE/turbopack/crates/turbo-tasks/src/native_function.rs
+   |
+   |     pub fn new_method_without_this<Mode, Inputs, I>(
+   |            ----------------------- required by a bound in this associated function
+...
+   |         I: IntoTaskFn<Mode, Inputs>,
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `NativeFunction::new_method_without_this`
+   = note: this error originates in the attribute macro `turbo_tasks::value_impl` (in Nightly builds, run with -Z macro-backtrace for more info)
