@@ -184,6 +184,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
 
         let mut trait_registers = Vec::new();
         let mut trait_functions = Vec::with_capacity(items.len());
+        let mut trait_items = Vec::new();
         let mut all_definitions = Vec::with_capacity(items.len());
         let mut errors = Vec::new();
 
@@ -199,6 +200,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     Ok(None) => {
                         // Missing annotations are allowed if a turbo tasks trait has a trait item
                         // that is not a turbotasks function.
+                        trait_items.push(item);
                         continue;
                     }
                     Ok(Some(func_args)) => func_args,
@@ -308,6 +310,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             unsafe impl #impl_generics turbo_tasks::Upcast<Box<dyn #trait_path>> for #ty #where_clause {}
 
             impl #impl_generics #trait_path for #ty #where_clause {
+                #(#trait_items)*
                 #(#trait_functions)*
             }
 
