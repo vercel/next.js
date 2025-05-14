@@ -511,8 +511,10 @@ impl EsmAssetReference {
                         unreachable!()
                     }
                     ReferencedAsset::Some(asset) => {
+                        // TODO support namespace imports within a merged group as well
                         if scope_hoisting_context
                             .is_some_and(|c| c.modules.contains_key(&ResolvedVc::upcast(*asset)))
+                            && this.export_name.is_some()
                         {
                             // No need to import, the module is already available in the same scope
                             // hoisting group.
