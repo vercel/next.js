@@ -18122,6 +18122,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/adapter-config/adapter-config.test.ts": {
+    "passed": ["adapter-config should apply modifyConfig from adapter"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/allow-development-build/allow-development-build.test.ts": {
     "passed": [
       "allow-development-build with NODE_ENV not set to development should fail the build with a message about not setting NODE_ENV",
