@@ -989,7 +989,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         self.stopping_event.notify(usize::MAX);
     }
 
-    fn stop(&self) {
+    fn stop(&self, turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>) {
+        #[cfg(feature = "verify_aggregation_graph")]
+        self.verify_aggregation_graph(turbo_tasks);
         if let Err(err) = self.backing_storage.shutdown() {
             println!("Shutting down failed: {err}");
         }
@@ -2410,8 +2412,8 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         self.0.stopping();
     }
 
-    fn stop(&self, _turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
-        self.0.stop();
+    fn stop(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        self.0.stop(turbo_tasks);
     }
 
     fn idle_start(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
