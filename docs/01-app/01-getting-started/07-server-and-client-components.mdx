@@ -52,6 +52,8 @@ On subsequent navigations:
 
 ## When to use Server and Client Components?
 
+The client and server environments have different capabilities. Server and Client components allow you to run logic in each environment, and compose them together in the same application.
+
 Use **Client Components** when you need:
 
 - [State](https://react.dev/learn/managing-state) and [event handlers](https://react.dev/learn/responding-to-events). E.g. `onClick`, `onChange`.
@@ -62,10 +64,69 @@ Use **Client Components** when you need:
 Use **Server Components** when you need:
 
 - Fetch data from databases or APIs close to the source.
-- Prevent API keys, tokens, and other secrets from being exposed to the client.
+- Use API keys, tokens, and other secrets without exposing them to the client.
 - Reduce the amount of JavaScript sent to the browser.
 - Improve the [First Contentful Paint (FCP)](https://web.dev/fcp/), and stream content progressively to the client.
-- Improve SEO by rendering content on the server.
+
+For example, the `<Page>` component is a Server Component that fetches data about a post, and passes it as props to the `<LikeButton>` which handles client-side interactivity.
+
+```tsx filename="app/[id]/page.tsx" highlight={1} switcher
+import LikeButton from '@/app/ui/like-button'
+import { getPost } from '@/lib/data'
+
+export default async function Page({ params }: { params: { id: string } }) {
+  const post = await getPost(params.id)
+
+  return (
+    <div>
+      <main>
+        <h1>{post.title}</h1>
+        {/* ... */}
+        <LikeButton likes={post.likes} />
+      </main>
+    </div>
+  )
+}
+```
+
+```jsx filename="app/[id]/page.js" highlight={1} switcher
+import LikeButton from '@/app/ui/like-button'
+import { getPost } from '@/lib/data'
+
+export default async function Page({ params }) {
+  const post = await getPost(params.id)
+
+  return (
+    <div>
+      <main>
+        <h1>{post.title}</h1>
+        {/* ... */}
+        <LikeButton likes={post.likes} />
+      </main>
+    </div>
+  )
+}
+```
+
+```tsx filename="app/ui/like-button.tsx" highlight={1} switcher
+'use client'
+
+import { useState } from 'react'
+
+export default function LikeButton({ likes }: { likes: number }) {
+  // ...
+}
+```
+
+```jsx filename="app/ui/like-button.js" highlight={1} switcher
+'use client'
+
+import { useState } from 'react'
+
+export default function LikeButton({ likes }) {
+  // ...
+}
+```
 
 ## Examples
 
