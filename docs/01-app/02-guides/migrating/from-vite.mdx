@@ -43,7 +43,7 @@ Depending on your needs, Next.js allows you to choose your data fetching strateg
 
 ### Built-in Optimizations
 
-[Images](/docs/app/building-your-application/optimizing/images), [fonts](/docs/app/building-your-application/optimizing/fonts), and [third-party scripts](/docs/app/building-your-application/optimizing/scripts) often have significant impact on an application's performance. Next.js comes with built-in components that automatically optimize those for you.
+[Images](/docs/app/api-reference/components/image), [fonts](/docs/app/api-reference/components/font), and [third-party scripts](/docs/app/guides/scripts) often have significant impact on an application's performance. Next.js comes with built-in components that automatically optimize those for you.
 
 ## Migration Steps
 
@@ -140,7 +140,7 @@ The closest equivalent to the root layout file in a Vite application is the
 
 In this step, you'll convert your `index.html` file into a root layout file:
 
-1. Create a new `app` directory in your `src` directory.
+1. Create a new `app` directory in your `src` folder.
 2. Create a new `layout.tsx` file inside that `app` directory:
 
 ```tsx filename="app/layout.tsx" switcher
@@ -249,11 +249,11 @@ export default function RootLayout({ children }) {
 }
 ```
 
-5. Any [metadata files](/docs/app/building-your-application/optimizing/metadata#file-based-metadata)
+5. Any [metadata files](/docs/app/getting-started/metadata-and-og-images#file-based-metadata)
    such as `favicon.ico`, `icon.png`, `robots.txt` are automatically added to the application
    `<head>` tag as long as you have them placed into the top level of the `app` directory. After
    moving
-   [all supported files](/docs/app/building-your-application/optimizing/metadata#file-based-metadata)
+   [all supported files](/docs/app/getting-started/metadata-and-og-images#file-based-metadata)
    into the `app` directory you can safely delete their `<link>` tags:
 
 ```tsx filename="app/layout.tsx" switcher
@@ -293,7 +293,7 @@ export default function RootLayout({ children }) {
 ```
 
 6. Finally, Next.js can manage your last `<head>` tags with the
-   [Metadata API](/docs/app/building-your-application/optimizing/metadata). Move your final metadata
+   [Metadata API](/docs/app/getting-started/metadata-and-og-images). Move your final metadata
    info into an exported
    [`metadata` object](/docs/app/api-reference/functions/generate-metadata#metadata-object):
 
@@ -339,7 +339,7 @@ export default function RootLayout({ children }) {
 
 With the above changes, you shifted from declaring everything in your `index.html` to using Next.js'
 convention-based approach built into the framework
-([Metadata API](/docs/app/building-your-application/optimizing/metadata)). This approach enables you
+([Metadata API](/docs/app/getting-started/metadata-and-og-images)). This approach enables you
 to more easily improve your SEO and web shareability of your pages.
 
 ### Step 5: Create the Entrypoint Page
@@ -469,7 +469,7 @@ Next.js [`<Image>` component](/docs/app/api-reference/components/image), or you 
 `src` property with your existing `<img>` tag.
 
 The `<Image>` component has the added benefits of
-[automatic image optimization](/docs/app/building-your-application/optimizing/images). The `<Image>`
+[automatic image optimization](/docs/app/api-reference/components/image). The `<Image>`
 component automatically sets the `width` and `height` attributes of the resulting `<img>` based on
 the image's dimensions. This prevents layout shifts when the image loads. However, this can cause
 issues if your app contains images with only one of their dimensions being styled without the other
@@ -477,7 +477,7 @@ styled to `auto`. When not styled to `auto`, the dimension will default to the `
 attribute's value, which can cause the image to appear distorted.
 
 Keeping the `<img>` tag will reduce the amount of changes in your application and prevent the above
-issues. You can then optionally later migrate to the `<Image>` component to take advantage of optimizing images by [configuring a loader](/docs/app/building-your-application/optimizing/images#loaders), or moving to the default Next.js server which has automatic image optimization.
+issues. You can then optionally later migrate to the `<Image>` component to take advantage of optimizing images by [configuring a loader](/docs/app/api-reference/components/image#loader), or moving to the default Next.js server which has automatic image optimization.
 
 1. **Convert absolute import paths for images imported from `/public` into relative imports:**
 
@@ -507,7 +507,7 @@ Alternatively, you can reference the public URL for the image asset based on the
 ### Step 7: Migrate the Environment Variables
 
 Next.js has support for `.env`
-[environment variables](/docs/app/building-your-application/configuring/environment-variables)
+[environment variables](/docs/app/guides/environment-variables)
 similar to Vite. The main difference is the prefix used to expose environment variables on the
 client-side.
 
@@ -596,7 +596,7 @@ do next:
   - Automatic code splitting
   - [Streaming Server-Rendering](/docs/app/building-your-application/routing/loading-ui-and-streaming)
   - [React Server Components](/docs/app/building-your-application/rendering/server-components)
-- [Optimize images with the `<Image>` component](/docs/app/building-your-application/optimizing/images)
-- [Optimize fonts with `next/font`](/docs/app/building-your-application/optimizing/fonts)
-- [Optimize third-party scripts with the `<Script>` component](/docs/app/building-your-application/optimizing/scripts)
+- [Optimize images with the `<Image>` component](/docs/app/api-reference/components/image)
+- [Optimize fonts with `next/font`](/docs/app/api-reference/components/font)
+- [Optimize third-party scripts with the `<Script>` component](/docs/app/guides/scripts)
 - [Update your ESLint configuration to support Next.js rules](/docs/app/api-reference/config/eslint)

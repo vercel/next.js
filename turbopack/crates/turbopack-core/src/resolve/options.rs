@@ -1,21 +1,21 @@
 use std::{collections::BTreeMap, future::Future, pin::Pin};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexSet, NonLocalValue, ResolvedVc,
-    TryJoinIterExt, Value, ValueToString, Vc,
+    FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 
 use super::{
+    AliasPattern, ExternalType, ResolveResult, ResolveResultItem,
     alias_map::{AliasMap, AliasTemplate},
     pattern::Pattern,
     plugin::BeforeResolvePlugin,
-    AliasPattern, ExternalType, ResolveResult, ResolveResultItem,
 };
-use crate::resolve::{parse::Request, plugin::AfterResolvePlugin, ExternalTraced};
+use crate::resolve::{ExternalTraced, parse::Request, plugin::AfterResolvePlugin};
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]

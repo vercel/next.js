@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, fmt::Display, ops::Deref};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

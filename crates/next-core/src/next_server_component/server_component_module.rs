@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
@@ -27,7 +27,7 @@ use super::server_component_reference::NextServerComponentModuleReference;
 
 #[turbo_tasks::function]
 fn modifier() -> Vc<RcStr> {
-    Vc::cell("Next.js server component".into())
+    Vc::cell("Next.js Server Component".into())
 }
 
 #[turbo_tasks::value(shared)]
@@ -69,7 +69,7 @@ impl Module for NextServerComponentModule {
 impl Asset for NextServerComponentModule {
     #[turbo_tasks::function]
     fn content(&self) -> Result<Vc<AssetContent>> {
-        bail!("Next.js server component module has no content")
+        bail!("Next.js Server Component module has no content")
     }
 }
 

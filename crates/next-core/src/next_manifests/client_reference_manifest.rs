@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
+    Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -462,6 +462,6 @@ pub fn get_client_reference_module_key(server_path: &str, export_name: &str) -> 
     if export_name == "*" {
         server_path.into()
     } else {
-        format!("{}#{}", server_path, export_name).into()
+        format!("{server_path}#{export_name}").into()
     }
 }

@@ -11,7 +11,7 @@ import {
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
-import type { PrerenderManifest } from '../build'
+import type { PrerenderManifest, RoutesManifest } from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from './request/params'
@@ -94,7 +94,7 @@ import { pipeToNodeResponse } from './pipe-readable'
 import { createRequestResponseMocks } from './lib/mock-request'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
-import { loadManifest } from './load-manifest'
+import { loadManifest } from './load-manifest.external'
 import { lazyRenderAppPage } from './route-modules/app-page/module.render'
 import { lazyRenderPagesPage } from './route-modules/pages/module.render'
 import { interopDefault } from '../lib/interop-default'
@@ -284,7 +284,9 @@ export default class NextNodeServer extends BaseServer<
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
     }
-    process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.deploymentId || ''
+    process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.experimental.useSkewCookie
+      ? ''
+      : this.nextConfig.deploymentId || ''
 
     if (!this.minimalMode) {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
@@ -376,6 +378,9 @@ export default class NextNodeServer extends BaseServer<
   }
 
   public async unstable_preloadEntries(): Promise<void> {
+    // Ensure prepare process will be finished before preloading entries.
+    await this.prepare()
+
     const appPathsManifest = this.getAppPathsManifest()
     const pagesManifest = this.getPagesManifest()
 
@@ -1524,26 +1529,31 @@ export default class NextNodeServer extends BaseServer<
   }
 
   private async loadNodeMiddleware() {
-    if (!this.nextConfig.experimental.nodeMiddleware) {
-      return
-    }
-
-    try {
-      const functionsConfig = this.renderOpts.dev
-        ? {}
-        : require(join(this.distDir, 'server', FUNCTIONS_CONFIG_MANIFEST))
-
-      if (this.renderOpts.dev || functionsConfig?.functions?.['/_middleware']) {
-        // if used with top level await, this will be a promise
-        return require(join(this.distDir, 'server', 'middleware.js'))
+    if (!process.env.NEXT_MINIMAL) {
+      if (!this.nextConfig.experimental.nodeMiddleware) {
+        return
       }
-    } catch (err) {
-      if (
-        isError(err) &&
-        err.code !== 'ENOENT' &&
-        err.code !== 'MODULE_NOT_FOUND'
-      ) {
-        throw err
+
+      try {
+        const functionsConfig = this.renderOpts.dev
+          ? {}
+          : require(join(this.distDir, 'server', FUNCTIONS_CONFIG_MANIFEST))
+
+        if (
+          this.renderOpts.dev ||
+          functionsConfig?.functions?.['/_middleware']
+        ) {
+          // if used with top level await, this will be a promise
+          return require(join(this.distDir, 'server', 'middleware.js'))
+        }
+      } catch (err) {
+        if (
+          isError(err) &&
+          err.code !== 'ENOENT' &&
+          err.code !== 'MODULE_NOT_FOUND'
+        ) {
+          throw err
+        }
       }
     }
   }
@@ -1684,11 +1694,26 @@ export default class NextNodeServer extends BaseServer<
       const adapterFn: typeof import('./web/adapter').adapter =
         middlewareModule.default || middlewareModule
 
-      result = await adapterFn({
-        handler: middlewareModule.middleware || middlewareModule,
-        request: requestData,
-        page: 'middleware',
-      })
+      const hasRequestBody =
+        !['HEAD', 'GET'].includes(params.request.method) &&
+        Boolean(requestData.body)
+
+      try {
+        result = await adapterFn({
+          handler: middlewareModule.middleware || middlewareModule,
+          request: {
+            ...requestData,
+            body: hasRequestBody
+              ? requestData.body.cloneBodyStream()
+              : undefined,
+          },
+          page: 'middleware',
+        })
+      } finally {
+        if (hasRequestBody) {
+          requestData.body.finalize()
+        }
+      }
     } else {
       const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
 
@@ -1863,25 +1888,10 @@ export default class NextNodeServer extends BaseServer<
   }
 
   protected getRoutesManifest(): NormalizedRouteManifest | undefined {
-    return getTracer().trace(NextNodeServerSpan.getRoutesManifest, () => {
-      const manifest = loadManifest(join(this.distDir, ROUTES_MANIFEST)) as any
-
-      let rewrites = manifest.rewrites ?? {
-        beforeFiles: [],
-        afterFiles: [],
-        fallback: [],
-      }
-
-      if (Array.isArray(rewrites)) {
-        rewrites = {
-          beforeFiles: [],
-          afterFiles: rewrites,
-          fallback: [],
-        }
-      }
-
-      return { ...manifest, rewrites }
-    })
+    return getTracer().trace(
+      NextNodeServerSpan.getRoutesManifest,
+      () => loadManifest(join(this.distDir, ROUTES_MANIFEST)) as RoutesManifest
+    )
   }
 
   protected attachRequestMeta(

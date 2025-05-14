@@ -54,7 +54,7 @@ export default function Layout({ children }) {
 }
 ```
 
-> Since the `useReportWebVitals` hook requires the `"use client"` directive, the most performant approach is to create a separate component that the root layout imports. This confines the client boundary exclusively to the `WebVitals` component.
+> Since the `useReportWebVitals` hook requires the `'use client'` directive, the most performant approach is to create a separate component that the root layout imports. This confines the client boundary exclusively to the `WebVitals` component.
 
 </AppOnly>
 
@@ -193,11 +193,6 @@ function MyApp({ Component, pageProps }) {
 These metrics work in all browsers that support the [User Timing API](https://caniuse.com/#feat=user-timing).
 
 </PagesOnly>
-
-## Usage on Vercel
-
-[Vercel Speed Insights](https://vercel.com/docs/speed-insights/quickstart) does not `useReportWebVitals`, but `@vercel/speed-insights` package instead.
-`useReportWebVitals` hook is useful in local development, or if you're using a different service for collecting Web Vitals.
 
 ## Sending results to external systems
 

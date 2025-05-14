@@ -82,7 +82,7 @@ async function main() {
         }
       )
       // tarball name is printed as the last line of npm-pack
-      const tarballName = stdout.trim().split('\n').pop()
+      const tarballName = stdout.trim().split('\n').pop() || ''
       console.info(`Created tarball ${path.join(packDestination, tarballName)}`)
 
       nextSwcPackageNames.add(manifest.name)
@@ -97,16 +97,21 @@ async function main() {
   ])
   const packages = JSON.parse(lernaListJson.stdout)
   const packagesByVersion = new Map()
+  const PR_NUMBER = process.env.GH_PR_NUMBER
+  const basePackageUrl = PR_NUMBER
+    ? `https://vercel-packages.vercel.app/next/prs/${PR_NUMBER}/`
+    : `https://vercel-packages.vercel.app/next/commits/${commitSha}/`
+
   for (const packageInfo of packages) {
     packagesByVersion.set(
       packageInfo.name,
-      `https://vercel-packages.vercel.app/next/commits/${commitSha}/${packageInfo.name}`
+      `${basePackageUrl}${packageInfo.name}`
     )
   }
   for (const nextSwcPackageName of nextSwcPackageNames) {
     packagesByVersion.set(
       nextSwcPackageName,
-      `https://vercel-packages.vercel.app/next/commits/${commitSha}/${nextSwcPackageName}`
+      `${basePackageUrl}${nextSwcPackageName}`
     )
   }
 
@@ -164,7 +169,7 @@ async function main() {
       }
     )
     // tarball name is printed as the last line of npm-pack
-    const tarballName = stdout.trim().split('\n').pop()
+    const tarballName = stdout.trim().split('\n').pop() || ''
     console.info(`Created tarball ${path.join(packDestination, tarballName)}`)
   }
 

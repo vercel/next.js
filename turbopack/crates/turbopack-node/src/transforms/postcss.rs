@@ -1,14 +1,14 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, Completion, Completions, NonLocalValue, ResolvedVc, TaskInput,
-    TryFlatJoinIterExt, Value, Vc,
+    Completion, Completions, NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt, Value, Vc,
+    fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_fs::{
-    json::parse_json_with_source_context, File, FileContent, FileSystemEntryType, FileSystemPath,
+    File, FileContent, FileSystemEntryType, FileSystemPath, json::parse_json_with_source_context,
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -20,7 +20,7 @@ use turbopack_core::{
         Issue, IssueDescriptionExt, IssueSeverity, IssueStage, OptionStyledString, StyledString,
     },
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
-    resolve::{find_context_file_or_package_key, options::ImportMapping, FindContextFileResult},
+    resolve::{FindContextFileResult, find_context_file_or_package_key, options::ImportMapping},
     source::Source,
     source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
     source_transform::SourceTransform,
@@ -29,11 +29,11 @@ use turbopack_core::{
 use turbopack_ecmascript::runtime_functions::TURBOPACK_EXTERNAL_IMPORT;
 
 use super::{
-    util::{emitted_assets_to_virtual_sources, EmittedAsset},
+    util::{EmittedAsset, emitted_assets_to_virtual_sources},
     webpack::WebpackLoaderContext,
 };
 use crate::{
-    embed_js::embed_file, execution_context::ExecutionContext,
+    embed_js::embed_file_path, execution_context::ExecutionContext,
     transforms::webpack::evaluate_webpack_loader,
 };
 
@@ -410,15 +410,9 @@ async fn postcss_executor(
         .await?;
 
     Ok(asset_context.process(
-        Vc::upcast(VirtualSource::new(
-            postcss_config_path.join("transform.ts".into()),
-            AssetContent::File(
-                embed_file("transforms/postcss.ts".into())
-                    .to_resolved()
-                    .await?,
-            )
-            .cell(),
-        )),
+        Vc::upcast(FileSource::new(embed_file_path(
+            "transforms/postcss.ts".into(),
+        ))),
         Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
             "CONFIG".into() => config_asset
         }))),

@@ -4,8 +4,8 @@ use anyhow::Result;
 use either::Either;
 use next_core::{
     next_client_reference::{
-        find_server_entries, ClientReference, ClientReferenceGraphResult, ClientReferenceType,
-        ServerEntries, VisitedClientReferenceGraphNodes,
+        ClientReference, ClientReferenceGraphResult, ClientReferenceType, ServerEntries,
+        VisitedClientReferenceGraphNodes, find_server_entries,
     },
     next_dynamic::NextDynamicEntryModule,
     next_manifests::ActionLayer,
@@ -24,9 +24,9 @@ use turbopack_core::{
 };
 
 use crate::{
-    client_references::{map_client_references, ClientReferenceMapType, ClientReferencesSet},
-    dynamic_imports::{map_next_dynamic, DynamicImportEntries, DynamicImportEntriesMapType},
-    server_actions::{map_server_actions, to_rsc_context, AllActions, AllModuleActions},
+    client_references::{ClientReferenceMapType, ClientReferencesSet, map_client_references},
+    dynamic_imports::{DynamicImportEntries, DynamicImportEntriesMapType, map_next_dynamic},
+    server_actions::{AllActions, AllModuleActions, map_server_actions, to_rsc_context},
 };
 
 #[turbo_tasks::value]
@@ -532,6 +532,7 @@ impl ReducedGraphs {
         &self,
         entry: Vc<Box<dyn Module>>,
         has_layout_segments: bool,
+        include_traced: bool,
     ) -> Result<Vc<ClientReferenceGraphResult>> {
         let span = tracing::info_span!("collect all client references for endpoint");
         async move {
@@ -567,7 +568,7 @@ impl ReducedGraphs {
                 let ServerEntries {
                     server_utils,
                     server_component_entries,
-                } = &*find_server_entries(entry).await?;
+                } = &*find_server_entries(entry, include_traced).await?;
                 result.server_utils = server_utils.clone();
                 result.server_component_entries = server_component_entries.clone();
             }

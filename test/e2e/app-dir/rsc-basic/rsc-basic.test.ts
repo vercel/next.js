@@ -19,10 +19,6 @@ async function resolveStreamResponse(response: any, onData?: any) {
   return result
 }
 
-function stripHTMLComments(html: string): string {
-  return html.replace(/<!--[\s\S]*?-->/g, '')
-}
-
 describe('app dir - rsc basics', () => {
   const { next, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
@@ -74,39 +70,39 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should correctly render page returning null', async () => {
-    const homeHTML = await next.render('/return-null/page')
-    const $ = cheerio.load(homeHTML)
-    expect(stripHTMLComments($('#return-null-layout').html())).toBeEmpty()
+    const browser = await next.browser('/return-null/page')
+    expect(await browser.elementByCss('#return-null-layout').text()).toBeEmpty()
   })
 
   it('should correctly render component returning null', async () => {
-    const homeHTML = await next.render('/return-null/component')
-    const $ = cheerio.load(homeHTML)
-    expect(stripHTMLComments($('#return-null-layout').html())).toBeEmpty()
+    const browser = await next.browser('/return-null/component')
+    expect(await browser.elementByCss('#return-null-layout').text()).toBeEmpty()
   })
 
   it('should correctly render layout returning null', async () => {
-    const homeHTML = await next.render('/return-null/layout')
-    const $ = cheerio.load(homeHTML)
-    expect($('#return-null-layout').html()).toBeEmpty()
+    const browser = await next.browser('/return-null/layout')
+    expect(await browser.elementByCss('#return-null-layout').text()).toBeEmpty()
   })
 
   it('should correctly render page returning undefined', async () => {
-    const homeHTML = await next.render('/return-undefined/page')
-    const $ = cheerio.load(homeHTML)
-    expect(stripHTMLComments($('#return-undefined-layout').html())).toBeEmpty()
+    const browser = await next.browser('/return-undefined/page')
+    expect(
+      await browser.elementByCss('#return-undefined-layout').text()
+    ).toBeEmpty()
   })
 
   it('should correctly render component returning undefined', async () => {
-    const homeHTML = await next.render('/return-undefined/component')
-    const $ = cheerio.load(homeHTML)
-    expect(stripHTMLComments($('#return-undefined-layout').html())).toBeEmpty()
+    const browser = await next.browser('/return-undefined/component')
+    expect(
+      await browser.elementByCss('#return-undefined-layout').text()
+    ).toBeEmpty()
   })
 
   it('should correctly render layout returning undefined', async () => {
-    const homeHTML = await next.render('/return-undefined/layout')
-    const $ = cheerio.load(homeHTML)
-    expect($('#return-undefined-layout').html()).toBeEmpty()
+    const browser = await next.browser('/return-undefined/layout')
+    expect(
+      await browser.elementByCss('#return-undefined-layout').text()
+    ).toBeEmpty()
   })
 
   it('should handle named client components imported as page', async () => {

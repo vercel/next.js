@@ -531,7 +531,7 @@ There are two types of sessions:
 
 To create and manage stateless sessions, there are a few steps you need to follow:
 
-1. Generate a secret key, which will be used to sign your session, and store it as an [environment variable](/docs/app/building-your-application/configuring/environment-variables).
+1. Generate a secret key, which will be used to sign your session, and store it as an [environment variable](/docs/app/guides/environment-variables).
 2. Write logic to encrypt/decrypt session data using a session management library.
 3. Manage cookies using the Next.js [`cookies`](/docs/app/api-reference/functions/cookies) API.
 
@@ -547,7 +547,7 @@ There are a few ways you can generate secret key to sign your session. For examp
 openssl rand -base64 32
 ```
 
-This command generates a 32-character random string that you can use as your secret key and store in your [environment variables file](/docs/app/building-your-application/configuring/environment-variables):
+This command generates a 32-character random string that you can use as your secret key and store in your [environment variables file](/docs/app/guides/environment-variables):
 
 ```bash filename=".env"
 SESSION_SECRET=your_secret_key
@@ -561,7 +561,7 @@ const secretKey = process.env.SESSION_SECRET
 
 #### 2. Encrypting and decrypting sessions
 
-Next, you can use your preferred [session management library](#session-management-libraries) to encrypt and decrypt sessions. Continuing from the previous example, we'll use [Jose](https://www.npmjs.com/package/jose) (compatible with the [Edge Runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes)) and React's [`server-only`](https://www.npmjs.com/package/server-only) package to ensure that your session management logic is only executed on the server.
+Next, you can use your preferred [session management library](#session-management-libraries) to encrypt and decrypt sessions. Continuing from the previous example, we'll use [Jose](https://www.npmjs.com/package/jose) (compatible with the [Edge Runtime](/docs/app/api-reference/edge)) and React's [`server-only`](https://www.npmjs.com/package/server-only) package to ensure that your session management logic is only executed on the server.
 
 ```tsx filename="app/lib/session.ts" switcher
 import 'server-only'
@@ -801,7 +801,7 @@ import { cookies } from 'next/headers'
 import { deleteSession } from '@/app/lib/session'
 
 export async function logout() {
-  deleteSession()
+  await deleteSession()
   redirect('/login')
 }
 ```
@@ -811,7 +811,7 @@ import { cookies } from 'next/headers'
 import { deleteSession } from '@/app/lib/session'
 
 export async function logout() {
-  deleteSession()
+  await deleteSession()
   redirect('/login')
 }
 ```
@@ -949,7 +949,7 @@ export async function createSession(id) {
 
 > **Tips**:
 >
-> - For faster data retrieval, consider using a database like [Vercel Redis](https://vercel.com/docs/storage/vercel-kv). However, you can also keep the session data in your primary database, and combine data requests to reduce the number of queries.
+> - For faster access, you may consider adding server caching for the lifetime of the session. You can also keep the session data in your primary database, and combine data requests to reduce the number of queries.
 > - You may opt to use database sessions for more advanced use cases, such as keeping track of the last time a user logged in, or number of active devices, or give users the ability to log out of all devices.
 
 After implementing session management, you'll need to add authorization logic to control what users can access and do within your application. Continue to the [Authorization](#authorization) section to learn more.
@@ -1121,7 +1121,7 @@ While Middleware can be useful for initial checks, it should not be your only li
 > **Tips**:
 >
 > - In Middleware, you can also read cookies using `req.cookies.get('session').value`.
-> - Middleware uses the [Edge Runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes), check if your Auth library and session management library are compatible.
+> - Middleware uses the [Edge Runtime](/docs/app/api-reference/edge), check if your Auth library and session management library are compatible.
 > - You can use the `matcher` property in the Middleware to specify which routes Middleware should run on. Although, for auth, it's recommended Middleware runs on all routes.
 
 <AppOnly>
@@ -1516,7 +1516,7 @@ export default function RootLayout({ children }) {
 ```
 
 ```tsx filename="app/ui/profile.ts switcher
-"use client";
+'use client';
 
 import { useSession } from "auth-lib";
 
@@ -1531,7 +1531,7 @@ export default function Profile() {
 ```
 
 ```jsx filename="app/ui/profile.js switcher
-"use client";
+'use client';
 
 import { useSession } from "auth-lib";
 
@@ -1625,6 +1625,7 @@ Now that you've learned about authentication in Next.js, here are Next.js-compat
 ### Auth Libraries
 
 - [Auth0](https://auth0.com/docs/quickstart/webapp/nextjs/01-login)
+- [Better Auth](https://www.better-auth.com/docs/integrations/next)
 - [Clerk](https://clerk.com/docs/quickstarts/nextjs)
 - [Kinde](https://kinde.com/docs/developer-tools/nextjs-sdk)
 - [Logto](https://docs.logto.io/quick-starts/next-app-router)

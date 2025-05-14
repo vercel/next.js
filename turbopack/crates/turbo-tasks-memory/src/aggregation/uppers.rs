@@ -1,9 +1,9 @@
 use super::{
-    balance_queue::BalanceQueue,
-    in_progress::start_in_progress_count,
-    optimize::{optimize_aggregation_number_for_uppers, MAX_UPPERS},
     AggegatingNode, AggregationContext, AggregationNode, AggregationNodeGuard,
     PreparedInternalOperation, PreparedOperation, StackVec,
+    balance_queue::BalanceQueue,
+    in_progress::start_in_progress_count,
+    optimize::{MAX_UPPERS, optimize_aggregation_number_for_uppers},
 };
 
 /// Adds an upper node to a node. Returns the number of affected nodes by this

@@ -13,7 +13,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::chunk::EcmascriptChunk;
 
-use crate::{ecmascript::content::EcmascriptBrowserChunkContent, BrowserChunkingContext};
+use crate::{BrowserChunkingContext, ecmascript::content::EcmascriptBrowserChunkContent};
 
 /// Development Ecmascript chunk.
 #[turbo_tasks::value(shared)]

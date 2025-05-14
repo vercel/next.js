@@ -3,13 +3,13 @@ use std::{fs, path::PathBuf};
 use criterion::{Bencher, BenchmarkId, Criterion};
 use regex::Regex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{apply_effects, ReadConsistency, ResolvedVc, TurboTasks, Value, Vc};
+use turbo_tasks::{ReadConsistency, ResolvedVc, TurboTasks, Value, Vc, apply_effects};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, NullFileSystem};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    emit_with_completion_operation,
+    ModuleAssetContext, emit_with_completion_operation,
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext},
-    register, ModuleAssetContext,
+    register,
 };
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,

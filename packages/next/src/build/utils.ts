@@ -353,7 +353,7 @@ export interface PageInfo {
   pageDuration: number | undefined
   ssgPageDurations: number[] | undefined
   runtime: ServerRuntime
-  hasEmptyPrelude?: boolean
+  hasEmptyStaticShell?: boolean
   hasPostponed?: boolean
   isDynamicAppRoute?: boolean
 }
@@ -528,8 +528,9 @@ export async function printTreeView(
         symbol = 'ƒ'
       } else if (pageInfo?.isRoutePPREnabled) {
         if (
-          // If the page has an empty prelude, then it's equivalent to a dynamic page
-          pageInfo?.hasEmptyPrelude ||
+          // If the page has an empty static shell, then it's equivalent to a
+          // dynamic page
+          pageInfo?.hasEmptyStaticShell ||
           // ensure we don't mark dynamic paths that postponed as being dynamic
           // since in this case we're able to partially prerender it
           (pageInfo.isDynamicAppRoute && !pageInfo.hasPostponed)
@@ -1697,9 +1698,9 @@ export async function copyTracedFiles(
     `${
       moduleType
         ? `performance.mark('next-start');
-import path from 'path'
-import { fileURLToPath } from 'url'
-import module from 'module'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import module from 'node:module'
 const require = module.createRequire(import.meta.url)
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 `
@@ -1750,7 +1751,7 @@ export function isReservedPage(page: string) {
 }
 
 export function isAppBuiltinNotFoundPage(page: string) {
-  return /next[\\/]dist[\\/]client[\\/]components[\\/]not-found-error/.test(
+  return /next[\\/]dist[\\/]client[\\/]components[\\/](not-found-error|global-not-found)/.test(
     page
   )
 }

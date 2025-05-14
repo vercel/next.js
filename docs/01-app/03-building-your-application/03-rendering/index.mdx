@@ -63,7 +63,7 @@ It may be helpful to think about module graphs as a visual representation of how
 
 {/* For example, if you have a file called `Page.jsx` that imports a file called `Button.jsx` on the server, the module graph would look something like this: - Diagram - */}
 
-You can use the React `"use client"` convention to define the boundary. There's also a `"use server"` convention, which tells React to do some computational work on the server.
+You can use the React `'use client'` convention to define the boundary. There's also a `"use server"` convention, which tells React to do some computational work on the server.
 
 ## Building Hybrid Applications
 
@@ -75,4 +75,4 @@ If you need to access the server from the client, you send a **new** request to 
 
 In practice, this model encourages developers to think about what they want to execute on the server first, before sending the result to the client and making the application interactive.
 
-This concept will become clearer when we look at how you can [interleave client and server components](/docs/app/building-your-application/rendering/composition-patterns) in the same component tree.
+This concept will become clearer when we look at how you can [interleave Client and Server Components](/docs/app/building-your-application/rendering/composition-patterns) in the same component tree.

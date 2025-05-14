@@ -22,7 +22,7 @@ The Route Segment options allows you to configure the behavior of a [Page](/docs
 
 ### `experimental_ppr`
 
-Enable [Partial Prerendering (PPR)](/docs/app/building-your-application/rendering/partial-prerendering) for a layout or page.
+Enable [Partial Prerendering (PPR)](/docs/app/getting-started/partial-prerendering) for a layout or page.
 
 ```tsx filename="layout.tsx | page.tsx " switcher
 export const experimental_ppr = true
@@ -161,7 +161,7 @@ export const fetchCache = 'auto'
 
 ### `runtime`
 
-We recommend using the Node.js runtime for rendering your application, and the Edge runtime for Middleware (only supported option).
+We recommend using the Node.js runtime for rendering your application, and the Edge runtime for Middleware.
 
 ```tsx filename="layout.tsx | page.tsx | route.ts" switcher
 export const runtime = 'nodejs'
@@ -175,8 +175,6 @@ export const runtime = 'nodejs'
 
 - **`'nodejs'`** (default)
 - **`'edge'`**
-
-Learn more about the [different runtimes](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes).
 
 ### `preferredRegion`
 
@@ -201,7 +199,6 @@ Support for `preferredRegion`, and regions supported, is dependent on your deplo
 
 By default, Next.js does not limit the execution of server-side logic (rendering a page or handling an API).
 Deployment platforms can use `maxDuration` from the Next.js build output to add specific execution limits.
-For example, on [Vercel](https://vercel.com/docs/functions/serverless-functions/runtimes#max-duration).
 
 **Note**: This setting requires Next.js `13.4.10` or higher.
 

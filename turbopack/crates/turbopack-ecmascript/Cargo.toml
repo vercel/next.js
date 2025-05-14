@@ -3,7 +3,7 @@ name = "turbopack-ecmascript"
 version = "0.1.0"
 description = "TBD"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 autobenches = false
 
 [lib]
@@ -26,7 +26,6 @@ once_cell = { workspace = true }
 parking_lot = { workspace = true }
 petgraph = { workspace = true }
 regex = { workspace = true }
-regress = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -35,6 +34,7 @@ smallvec = { workspace = true }
 strsim = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+turbo-esregex = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }

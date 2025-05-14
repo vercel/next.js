@@ -157,7 +157,7 @@ The majority of core Next.js features needed to build a static site are supporte
 - [Dynamic Routes when using `getStaticPaths`](/docs/app/building-your-application/routing/dynamic-routes)
 - Prefetching with `next/link`
 - Preloading JavaScript
-- [Dynamic Imports](/docs/pages/building-your-application/optimizing/lazy-loading)
+- [Dynamic Imports](/docs/pages/guides/lazy-loading)
 - Any styling options (e.g. CSS Modules, styled-jsx)
 - [Client-side data fetching](/docs/pages/building-your-application/data-fetching/client-side)
 - [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props)
@@ -167,7 +167,7 @@ The majority of core Next.js features needed to build a static site are supporte
 
 ### Image Optimization
 
-[Image Optimization](/docs/app/building-your-application/optimizing/images) through `next/image` can be used with a static export by defining a custom image loader in `next.config.js`. For example, you can optimize images with a service like Cloudinary:
+[Image Optimization](/docs/app/api-reference/components/image) through `next/image` can be used with a static export by defining a custom image loader in `next.config.js`. For example, you can optimize images with a service like Cloudinary:
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */
@@ -286,8 +286,8 @@ Features that require a Node.js server, or dynamic logic that cannot be computed
 - [Headers](/docs/app/api-reference/config/next-config-js/headers)
 - [Middleware](/docs/app/building-your-application/routing/middleware)
 - [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration)
-- [Image Optimization](/docs/app/building-your-application/optimizing/images) with the default `loader`
-- [Draft Mode](/docs/app/building-your-application/configuring/draft-mode)
+- [Image Optimization](/docs/app/api-reference/components/image) with the default `loader`
+- [Draft Mode](/docs/app/guides/draft-mode)
 - [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations)
 - [Intercepting Routes](/docs/app/building-your-application/routing/intercepting-routes)
 
@@ -308,8 +308,8 @@ export const dynamic = 'error'
 - [Headers](/docs/pages/api-reference/config/next-config-js/headers)
 - [Middleware](/docs/pages/building-your-application/routing/middleware)
 - [Incremental Static Regeneration](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration)
-- [Image Optimization](/docs/pages/building-your-application/optimizing/images) with the default `loader`
-- [Draft Mode](/docs/pages/building-your-application/configuring/draft-mode)
+- [Image Optimization](/docs/pages/api-reference/components/image) with the default `loader`
+- [Draft Mode](/docs/pages/guides/draft-mode)
 - [`getStaticPaths` with `fallback: true`](/docs/pages/api-reference/functions/get-static-paths#fallback-true)
 - [`getStaticPaths` with `fallback: 'blocking'`](/docs/pages/api-reference/functions/get-static-paths#fallback-blocking)
 - [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props)

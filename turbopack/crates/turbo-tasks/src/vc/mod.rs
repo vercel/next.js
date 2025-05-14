@@ -31,10 +31,10 @@ pub use self::{
     traits::{Dynamic, TypedForInput, Upcast, VcValueTrait, VcValueType},
 };
 use crate::{
+    CellId, RawVc, ResolveTypeError,
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    CellId, RawVc, ResolveTypeError,
 };
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
@@ -281,7 +281,7 @@ where
     type Target = *const *mut *const T;
 
     fn deref(&self) -> &Self::Target {
-        extern "C" {
+        unsafe extern "C" {
             #[link_name = "\n\nERROR: you tried to dereference a `Vc<T>`\n"]
             fn trigger() -> !;
         }
@@ -307,7 +307,7 @@ where
     type Target = VcDeref<T>;
 
     fn deref(&self) -> &Self::Target {
-        extern "C" {
+        unsafe extern "C" {
             #[link_name = "\n\nERROR: you tried to dereference a `Vc<T>`\n"]
             fn trigger() -> !;
         }
@@ -431,7 +431,7 @@ where
     }
 
     /// Resolve the reference until it points to a cell directly, and wrap the
-    /// result in a [`ResolvedVc`], which strongly guarantees that the
+    /// result in a [`ResolvedVc`], which statically guarantees that the
     /// [`Vc`] was resolved.
     pub async fn to_resolved(self) -> Result<ResolvedVc<T>> {
         Ok(ResolvedVc {

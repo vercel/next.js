@@ -265,7 +265,7 @@ This example caches the result of the database query for 1 hour (3600 seconds). 
 
 Next.js uses APIs like `generateMetadata` and `generateStaticParams` where you will need to use the same data fetched in the `page`.
 
-If you are using `fetch`, requests can be [memoized](/docs/app/building-your-application/caching#request-memoization) by adding `cache: 'force-cache'`. This means you can safely call the same URL with the same options, and only one request will be made.
+If you are using `fetch`, requests can be [memoized](/docs/app/deep-dive/caching#request-memoization) by adding `cache: 'force-cache'`. This means you can safely call the same URL with the same options, and only one request will be made.
 
 > **Good to know:**
 >
@@ -411,7 +411,7 @@ When fetching data inside components, you need to be aware of two data fetching 
 
 #### Sequential data fetching
 
-If you have nested components, and each component fetches its own data, then data fetching will happen sequentially if those data requests are not [memoized](/docs/app/building-your-application/caching#request-memoization).
+If you have nested components, and each component fetches its own data, then data fetching will happen sequentially if those data requests are not [memoized](/docs/app/deep-dive/caching#request-memoization).
 
 There may be cases where you want this pattern because one fetch depends on the result of the other. For example, the `Playlists` component will only start fetching data once the `Artist` component has finished fetching data because `Playlists` depends on the `artistID` prop:
 

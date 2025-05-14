@@ -364,7 +364,9 @@ export default function Home() {
 
 ### `legacyBehavior`
 
-An `<a>` element is no longer required as a child of `<Link>`. Add the `legacyBehavior` prop to use the legacy behavior or remove the `<a>` to upgrade. A [codemod is available](/docs/app/guides/upgrading/codemods#new-link) to automatically upgrade your code.
+> **Warning**: The `legacyBehavior` prop will be removed in Next.js v16. To adopt the new `<Link>` behavior, remove any `<a>` tags used as children of `<Link>`. A [codemod is available](/docs/app/guides/upgrading/codemods#new-link) to help you automatically upgrade your codebase.
+
+Since version 13, an `<a>` element is no longer required as a child of the `<Link>` component. If you still need the old behavior for compatibility reasons, you can add the `legacyBehavior` prop.
 
 > **Good to know**: when `legacyBehavior` is not set to `true`, all [`anchor`](https://developer.mozilla.org/docs/Web/HTML/Element/a) tag properties can be passed to `next/link` as well such as, `className`, `onClick`, etc.
 

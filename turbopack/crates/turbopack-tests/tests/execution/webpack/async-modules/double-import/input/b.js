@@ -1,3 +1,3 @@
-import x from "./shared";
+import x from './shared'
 
-export default x + " world";
+export default x + ' world'
