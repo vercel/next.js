@@ -5,9 +5,22 @@ description: API Reference for the Edge Runtime.
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-The Next.js Edge Runtime is used for Middleware and supports the following APIs:
+Next.js has two server runtimes you can use in your application:
 
-## Network APIs
+- The **Node.js Runtime** (default), which has access to all Node.js APIs and is used for rendering your application.
+- The **Edge Runtime** which contains a more limited [set of APIs](#reference), used in [Middleware](/docs/app/api-reference/file-conventions/middleware).
+
+## Caveats
+
+- The Edge Runtime does not support all Node.js APIs. Some packages may not work as expected.
+- The Edge Runtime does not support Incremental Static Regeneration (ISR).
+- Both runtimes can support [streaming](/docs/app/building-your-application/routing/loading-ui-and-streaming) depending on your deployment adapter.
+
+## Reference
+
+The Edge Runtime supports the following APIs:
+
+### Network APIs
 
 | API                                                                             | Description                       |
 | ------------------------------------------------------------------------------- | --------------------------------- |
@@ -22,7 +35,7 @@ The Next.js Edge Runtime is used for Middleware and supports the following APIs:
 | [`URLSearchParams`](https://developer.mozilla.org/docs/Web/API/URLSearchParams) | Represents URL search parameters  |
 | [`WebSocket`](https://developer.mozilla.org/docs/Web/API/WebSocket)             | Represents a websocket connection |
 
-## Encoding APIs
+### Encoding APIs
 
 | API                                                                                 | Description                        |
 | ----------------------------------------------------------------------------------- | ---------------------------------- |
@@ -33,7 +46,7 @@ The Next.js Edge Runtime is used for Middleware and supports the following APIs:
 | [`TextEncoder`](https://developer.mozilla.org/docs/Web/API/TextEncoder)             | Encodes a string into a Uint8Array |
 | [`TextEncoderStream`](https://developer.mozilla.org/docs/Web/API/TextEncoderStream) | Chainable encoder for streams      |
 
-## Stream APIs
+### Stream APIs
 
 | API                                                                                                     | Description                             |
 | ------------------------------------------------------------------------------------------------------- | --------------------------------------- |
@@ -44,7 +57,7 @@ The Next.js Edge Runtime is used for Middleware and supports the following APIs:
 | [`WritableStream`](https://developer.mozilla.org/docs/Web/API/WritableStream)                           | Represents a writable stream            |
 | [`WritableStreamDefaultWriter`](https://developer.mozilla.org/docs/Web/API/WritableStreamDefaultWriter) | Represents a writer of a WritableStream |
 
-## Crypto APIs
+### Crypto APIs
 
 | API                                                                       | Description                                                                                         |
 | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
@@ -52,7 +65,7 @@ The Next.js Edge Runtime is used for Middleware and supports the following APIs:
 | [`CryptoKey`](https://developer.mozilla.org/docs/Web/API/CryptoKey)       | Represents a cryptographic key                                                                      |
 | [`SubtleCrypto`](https://developer.mozilla.org/docs/Web/API/SubtleCrypto) | Provides access to common cryptographic primitives, like hashing, signing, encryption or decryption |
 
-## Web Standard APIs
+### Web Standard APIs
 
 | API                                                                                                                   | Description                                                                                                                                                                                          |
 | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -120,15 +133,15 @@ The Next.js Edge Runtime is used for Middleware and supports the following APIs:
 | [`WeakSet`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/WeakSet)                       | Represents a collection of objects in which each object may occur only once                                                                                                                          |
 | [`WebAssembly`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly)               | Provides access to WebAssembly                                                                                                                                                                       |
 
-## Next.js Specific Polyfills
+### Next.js Specific Polyfills
 
 - [`AsyncLocalStorage`](https://nodejs.org/api/async_context.html#class-asynclocalstorage)
 
-## Environment Variables
+### Environment Variables
 
 You can use `process.env` to access [Environment Variables](/docs/app/guides/environment-variables) for both `next dev` and `next build`.
 
-## Unsupported APIs
+### Unsupported APIs
 
 The Edge Runtime has some restrictions including:
 
