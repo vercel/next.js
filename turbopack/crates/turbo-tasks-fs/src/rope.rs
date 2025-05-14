@@ -181,7 +181,7 @@ impl RopeBuilder {
         self.finish();
 
         self.length += bytes.len();
-        self.committed.push(Local(bytes.into()));
+        self.committed.push(Local(Bytes::from_static(bytes)));
     }
 
     /// Concatenate another Rope instance into our builder.
@@ -323,7 +323,7 @@ impl Uncommitted {
     fn finish(&mut self) -> Option<Bytes> {
         match mem::take(self) {
             Self::None => None,
-            Self::Static(s) => Some(s.into()),
+            Self::Static(s) => Some(Bytes::from_static(s)),
             Self::Owned(mut v) => {
                 v.shrink_to_fit();
                 Some(v.into())
