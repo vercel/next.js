@@ -8,9 +8,9 @@ use turbo_tasks_macros_shared::{
     is_self_used,
 };
 
-use crate::{
-    func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes},
-    value_impl_macro::split_function_attributes,
+use crate::func::{
+    DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
+    split_function_attributes,
 };
 
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
