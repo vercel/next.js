@@ -37,14 +37,16 @@ type EsmImport = (
   moduleId: ModuleId,
   allowExportDefault: boolean
 ) => EsmNamespaceObject | Promise<EsmNamespaceObject>
-type EsmExport = (exportGetters: Record<string, () => any>) => void
-type EsmExportOther = (
-  id: ModuleId,
-  exportGetters: Record<string, () => any>
+type EsmExport = (
+  exportGetters: Record<string, () => any>,
+  id: ModuleId | undefined
 ) => void
-type ExportValue = (value: any) => void
-type ExportNamespace = (namespace: any) => void
-type DynamicExport = (object: Record<string, any>) => void
+type ExportValue = (value: any, id: ModuleId | undefined) => void
+type ExportNamespace = (namespace: any, id: ModuleId | undefined) => void
+type DynamicExport = (
+  object: Record<string, any>,
+  id: ModuleId | undefined
+) => void
 
 type LoadChunk = (chunkPath: ChunkPath) => Promise<any> | undefined
 type LoadChunkByUrl = (chunkUrl: ChunkUrl) => Promise<any> | undefined
@@ -108,7 +110,6 @@ interface TurbopackBaseContext<M> {
   f: ModuleContextFactory
   i: EsmImport
   s: EsmExport
-  o: EsmExportOther
   j: DynamicExport
   v: ExportValue
   n: ExportNamespace
