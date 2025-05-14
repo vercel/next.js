@@ -274,6 +274,7 @@ function DevToolsPopover({
           localStorage.setItem(STORAGE_KEY_POSITION, p)
           setPosition(p)
         }}
+        hideDevTools={handleHideDevtools}
       >
         {/* Trigger */}
         <NextLogo
