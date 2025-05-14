@@ -12,6 +12,7 @@ use serde::{
     de::{MapAccess, Visitor},
     ser::SerializeMap,
 };
+use shrink_to_fit::ShrinkToFit;
 use smallvec::SmallVec;
 
 use crate::{MAX_LIST_SIZE, MIN_HASH_SIZE};
@@ -900,6 +901,21 @@ where
     }
 }
 
+impl<K, V, H, const I: usize> ShrinkToFit for AutoMap<K, V, H, I>
+where
+    K: Eq + Hash,
+    V: Eq,
+    H: BuildHasher + Default,
+{
+    fn shrink_to_fit(&mut self) {
+        match self {
+            AutoMap::List(list) => list.shrink_to_fit(),
+            AutoMap::Map(map) => {
+                hashbrown::HashMap::shrink_to_fit(map);
+            }
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
