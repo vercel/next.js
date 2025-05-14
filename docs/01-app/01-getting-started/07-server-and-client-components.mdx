@@ -134,12 +134,12 @@ export default function LikeButton({ likes }) {
 
 You can create a Client Component by adding the [`"use client"`](https://react.dev/reference/react/use-client) directive at the top of the file, above your imports.
 
-```tsx filename="app/ui/like-button.tsx" highlight={1} switcher
+```tsx filename="app/ui/counter.tsx" highlight={1} switcher
 'use client'
 
 import { useState } from 'react'
 
-export default function LikeButton() {
+export default function Counter() {
   const [count, setCount] = useState(0)
 
   return (
@@ -151,12 +151,12 @@ export default function LikeButton() {
 }
 ```
 
-```jsx filename="app/ui/like-button.tsx" highlight={1} switcher
+```jsx filename="app/ui/counter.tsx" highlight={1} switcher
 'use client'
 
 import { useState } from 'react'
 
-export default function LikeB() {
+export default function Counter() {
   const [count, setCount] = useState(0)
 
   return (
