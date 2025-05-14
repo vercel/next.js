@@ -4,7 +4,6 @@ use std::{
     future::Future,
     hash::BuildHasherDefault,
     mem::take,
-    panic::AssertUnwindSafe,
     pin::Pin,
     sync::{
         Arc, Mutex, RwLock, Weak,
@@ -16,7 +15,6 @@ use std::{
 
 use anyhow::{Result, anyhow};
 use auto_hash_map::AutoMap;
-use futures::FutureExt;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use tokio::{runtime::Handle, select, task_local};
@@ -30,7 +28,7 @@ use crate::{
     VcValueType,
     backend::{
         Backend, CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec,
-        TransientTaskType, TypedCellContent,
+        TransientTaskType, TurboTasksExecutionError, TypedCellContent,
     },
     capture_future::{self, CaptureFuture},
     event::{Event, EventListener},
@@ -44,7 +42,7 @@ use crate::{
     task_statistics::TaskStatisticsApi,
     trace::TraceRawVcs,
     trait_helpers::get_trait_method,
-    util::{IdFactory, StaticOrArc},
+    util::{IdFactory, SharedError, StaticOrArc},
     vc::ReadVcFuture,
 };
 
@@ -694,8 +692,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                     };
 
                     async {
-                        let (result, duration, memory_usage) =
-                            CaptureFuture::new(AssertUnwindSafe(future).catch_unwind()).await;
+                        let (result, duration, memory_usage) = CaptureFuture::new(future).await;
 
                         // wait for all spawned local tasks using `local` to finish
                         let ltt = CURRENT_TASK_STATE
@@ -703,13 +700,14 @@ impl<B: Backend + 'static> TurboTasks<B> {
                         ltt.close();
                         ltt.wait().await;
 
-                        let result = result.map_err(|any| match any.downcast::<String>() {
-                            Ok(owned) => Some(Cow::Owned(*owned)),
-                            Err(any) => match any.downcast::<&'static str>() {
-                                Ok(str) => Some(Cow::Borrowed(*str)),
-                                Err(_) => None,
-                            },
-                        });
+                        let result = match result {
+                            Ok(Ok(raw_vc)) => Ok(raw_vc),
+                            Ok(Err(err)) => Err(Arc::new(err.into())),
+                            Err(err) => {
+                                Err(Arc::new(TurboTasksExecutionError::Panic(Arc::new(err))))
+                            }
+                        };
+
                         this.backend.task_execution_result(task_id, result, &*this);
                         let stateful = this.finish_current_task_state();
                         let cell_counters = CURRENT_TASK_STATE
@@ -794,22 +792,30 @@ impl<B: Backend + 'static> TurboTasks<B> {
         let future = async move {
             let TaskExecutionSpec { future, span } =
                 crate::task::local_task::get_local_task_execution_spec(&*this, &ty, persistence);
+            let ty = ty.clone();
             async move {
-                let (result, _duration, _memory_usage) =
-                    CaptureFuture::new(AssertUnwindSafe(future).catch_unwind()).await;
+                let (result, _duration, _memory_usage) = CaptureFuture::new(future).await;
 
-                let result = result.map_err(|any| match any.downcast::<String>() {
-                    Ok(owned) => Some(Cow::Owned(*owned)),
-                    Err(any) => match any.downcast::<&'static str>() {
-                        Ok(str) => Some(Cow::Borrowed(*str)),
-                        Err(_) => None,
-                    },
-                });
+                let result = match result {
+                    Ok(Ok(raw_vc)) => Ok(raw_vc),
+                    Ok(Err(err)) => Err(Arc::new(err.into())),
+                    Err(err) => Err(Arc::new(TurboTasksExecutionError::Panic(Arc::new(err)))),
+                };
+
                 let local_task = LocalTask::Done {
                     output: match result {
-                        Ok(Ok(raw_vc)) => OutputContent::Link(raw_vc),
-                        Ok(Err(err)) => OutputContent::Error(err.into()),
-                        Err(panic_err) => OutputContent::Panic(panic_err.map(Box::new)),
+                        Ok(raw_vc) => OutputContent::Link(raw_vc),
+                        Err(err) => match &*err {
+                            TurboTasksExecutionError::Error { .. } => {
+                                OutputContent::Error(SharedError::new(
+                                    anyhow::Error::new(err)
+                                        .context(format!("Execution of {ty} failed")),
+                                ))
+                            }
+                            TurboTasksExecutionError::Panic(err) => {
+                                OutputContent::Panic(err.clone())
+                            }
+                        },
                     },
                 };
 
