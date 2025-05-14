@@ -3,13 +3,11 @@
 class Class {}
 
 export default function ClientComponent({
-  _functionAction,
   _arrowFunctionAction,
   // Doesn't make sense, but check for loophole
   _classAction,
   _constructorAction,
 }: {
-  _functionAction: () => void
   _arrowFunctionAction: () => void
   // Doesn't make sense, but check for loophole
   _classAction: Class

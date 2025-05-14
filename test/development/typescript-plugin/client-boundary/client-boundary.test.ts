@@ -60,13 +60,13 @@ describe('typescript-plugin - client-boundary', () => {
            "code": 71007,
            "length": 12,
            "messageText": "Props must be serializable for components in the "use client" entry file, "_classAction" is invalid.",
-           "start": 165,
+           "start": 146,
          },
          {
            "code": 71007,
            "length": 18,
            "messageText": "Props must be serializable for components in the "use client" entry file, "_constructorAction" is invalid.",
-           "start": 181,
+           "start": 162,
          },
        ],
      }
@@ -91,33 +91,27 @@ describe('typescript-plugin - client-boundary', () => {
        "app/non-serializable-props.tsx": [
          {
            "code": 71007,
-           "length": 9,
-           "messageText": "Props must be serializable for components in the "use client" entry file. "_function" is a function that's not a Server Action. Rename "_function" either to "action" or have its name end with "Action" e.g. "_functionAction" to indicate it is a Server Action.",
-           "start": 116,
-         },
-         {
-           "code": 71007,
            "length": 14,
            "messageText": "Props must be serializable for components in the "use client" entry file. "_arrowFunction" is a function that's not a Server Action. Rename "_arrowFunction" either to "action" or have its name end with "Action" e.g. "_arrowFunctionAction" to indicate it is a Server Action.",
-           "start": 129,
+           "start": 116,
          },
          {
            "code": 71007,
            "length": 23,
            "messageText": "Props must be serializable for components in the "use client" entry file. "_arrowFunctionTypeAlias" is a function that's not a Server Action. Rename "_arrowFunctionTypeAlias" either to "action" or have its name end with "Action" e.g. "_arrowFunctionTypeAliasAction" to indicate it is a Server Action.",
-           "start": 147,
+           "start": 134,
          },
          {
            "code": 71007,
            "length": 6,
            "messageText": "Props must be serializable for components in the "use client" entry file, "_class" is invalid.",
-           "start": 174,
+           "start": 161,
          },
          {
            "code": 71007,
            "length": 12,
            "messageText": "Props must be serializable for components in the "use client" entry file, "_constructor" is invalid.",
-           "start": 184,
+           "start": 171,
          },
        ],
      }
