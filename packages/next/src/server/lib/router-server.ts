@@ -334,9 +334,10 @@ export async function initialize(opts: {
         // so that the development bundler can find the correct file
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
           req.url = removePathPrefix(origUrl, config.basePath)
-        }
-
-        if (config.assetPrefix && pathHasPrefix(origUrl, config.assetPrefix)) {
+        } else if (
+          config.assetPrefix &&
+          pathHasPrefix(origUrl, config.assetPrefix)
+        ) {
           req.url = removePathPrefix(origUrl, config.assetPrefix)
         }
 
@@ -379,9 +380,10 @@ export async function initialize(opts: {
 
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
           req.url = removePathPrefix(origUrl, config.basePath)
-        }
-
-        if (config.assetPrefix && pathHasPrefix(origUrl, config.assetPrefix)) {
+        } else if (
+          config.assetPrefix &&
+          pathHasPrefix(origUrl, config.assetPrefix)
+        ) {
           req.url = removePathPrefix(origUrl, config.assetPrefix)
         }
 

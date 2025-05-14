@@ -193,9 +193,7 @@ export function getResolveRoutes(
 
       if (config.basePath && pathHasPrefix(normalizedPath, config.basePath)) {
         normalizedPath = removePathPrefix(normalizedPath, config.basePath)
-      }
-
-      if (
+      } else if (
         config.assetPrefix &&
         pathHasPrefix(normalizedPath, config.assetPrefix)
       ) {
