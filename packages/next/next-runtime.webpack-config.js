@@ -183,10 +183,7 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       }.runtime.${dev ? 'dev' : 'prod'}.js`,
       libraryTarget: 'commonjs2',
     },
-    devtool: process.env.NEXT_SERVER_NO_MANGLE
-      ? // We'll use a fork in plugins
-        false
-      : 'source-map',
+    devtool: 'source-map',
     optimization: {
       moduleIds: 'named',
       minimize: true,
