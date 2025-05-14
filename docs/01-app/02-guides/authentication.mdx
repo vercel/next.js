@@ -521,7 +521,7 @@ Session management ensures that the user's authenticated state is preserved acro
 There are two types of sessions:
 
 1. [**Stateless**](#stateless-sessions): Session data (or a token) is stored in the browser's cookies. The cookie is sent with each request, allowing the session to be verified on the server. This method is simpler, but can be less secure if not implemented correctly.
-2. [**Database**](#database-sessions): Session data is stored in a database, with the user's browser only receiving the encrypted session ID. This method is more secure, but can be complex and use more server resources.
+2. [**Database**](#database-sessions): Session data is stored in a database, with the user's browser only receiving the signed session ID. This method is more secure, but can be complex and use more server resources.
 
 > **Good to know:** While you can use either method, or both, we recommend using a session management library such as [iron-session](https://github.com/vvo/iron-session) or [Jose](https://github.com/panva/jose).
 
@@ -559,9 +559,9 @@ You can then reference this key in your session management logic:
 const secretKey = process.env.SESSION_SECRET
 ```
 
-#### 2. Encrypting and decrypting sessions
+#### 2. Signing and verifying sessions
 
-Next, you can use your preferred [session management library](#session-management-libraries) to encrypt and decrypt sessions. Continuing from the previous example, we'll use [Jose](https://www.npmjs.com/package/jose) (compatible with the [Edge Runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes)) and React's [`server-only`](https://www.npmjs.com/package/server-only) package to ensure that your session management logic is only executed on the server.
+Next, you can use your preferred [session management library](#session-management-libraries) to sign and verify sessions. Continuing from the previous example, we'll use [Jose](https://www.npmjs.com/package/jose) (compatible with the [Edge Runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes)) and React's [`server-only`](https://www.npmjs.com/package/server-only) package to ensure that your session management logic is only executed on the server.
 
 ```tsx filename="app/lib/session.ts" switcher
 import 'server-only'
@@ -571,7 +571,7 @@ import { SessionPayload } from '@/app/lib/definitions'
 const secretKey = process.env.SESSION_SECRET
 const encodedKey = new TextEncoder().encode(secretKey)
 
-export async function encrypt(payload: SessionPayload) {
+export async function sign(payload: SessionPayload) {
   return new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
@@ -579,7 +579,7 @@ export async function encrypt(payload: SessionPayload) {
     .sign(encodedKey)
 }
 
-export async function decrypt(session: string | undefined = '') {
+export async function verify(session: string | undefined = '') {
   try {
     const { payload } = await jwtVerify(session, encodedKey, {
       algorithms: ['HS256'],
@@ -598,7 +598,7 @@ import { SignJWT, jwtVerify } from 'jose'
 const secretKey = process.env.SESSION_SECRET
 const encodedKey = new TextEncoder().encode(secretKey)
 
-export async function encrypt(payload) {
+export async function sign(payload) {
   return new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
@@ -606,7 +606,7 @@ export async function encrypt(payload) {
     .sign(encodedKey)
 }
 
-export async function decrypt(session) {
+export async function verify(session) {
   try {
     const { payload } = await jwtVerify(session, encodedKey, {
       algorithms: ['HS256'],
@@ -640,7 +640,7 @@ import { cookies } from 'next/headers'
 
 export async function createSession(userId: string) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-  const session = await encrypt({ userId, expiresAt })
+  const session = await sign({ userId, expiresAt })
   const cookieStore = await cookies()
 
   cookieStore.set('session', session, {
@@ -659,7 +659,7 @@ import { cookies } from 'next/headers'
 
 export async function createSession(userId) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-  const session = await encrypt({ userId, expiresAt })
+  const session = await sign({ userId, expiresAt })
   const cookieStore = await cookies()
 
   cookieStore.set('session', session, {
@@ -720,11 +720,11 @@ You can also extend the session's expiration time. This is useful for keeping th
 ```ts filename="app/lib/session.ts" switcher
 import 'server-only'
 import { cookies } from 'next/headers'
-import { decrypt } from '@/app/lib/session'
+import { verify } from '@/app/lib/session'
 
 export async function updateSession() {
   const session = (await cookies()).get('session')?.value
-  const payload = await decrypt(session)
+  const payload = await verify(session)
 
   if (!session || !payload) {
     return null
@@ -746,11 +746,11 @@ export async function updateSession() {
 ```js filename="app/lib/session.js" switcher
 import 'server-only'
 import { cookies } from 'next/headers'
-import { decrypt } from '@/app/lib/session'
+import { verify } from '@/app/lib/session'
 
 export async function updateSession() {
   const session = (await cookies()).get('session')?.value
-  const payload = await decrypt(session)
+  const payload = await verify(session)
 
   if (!session || !payload) {
     return null
@@ -827,13 +827,13 @@ You can use [API Routes](/docs/pages/building-your-application/routing/api-route
 ```ts filename="pages/api/login.ts" switcher
 import { serialize } from 'cookie'
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { encrypt } from '@/app/lib/session'
+import { sign } from '@/app/lib/session'
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const sessionData = req.body
-  const encryptedSessionData = encrypt(sessionData)
+  const signedSessionData = sign(sessionData)
 
-  const cookie = serialize('session', encryptedSessionData, {
+  const cookie = serialize('session', signedSessionData, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     maxAge: 60 * 60 * 24 * 7, // One week
@@ -846,13 +846,13 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
 ```js filename="pages/api/login.js" switcher
 import { serialize } from 'cookie'
-import { encrypt } from '@/app/lib/session'
+import { sign } from '@/app/lib/session'
 
 export default function handler(req, res) {
   const sessionData = req.body
-  const encryptedSessionData = encrypt(sessionData)
+  const signedSessionData = sign(sessionData)
 
-  const cookie = serialize('session', encryptedSessionData, {
+  const cookie = serialize('session', signedSessionData, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     maxAge: 60 * 60 * 24 * 7, // One week
@@ -871,7 +871,7 @@ To create and manage database sessions, you'll need to follow these steps:
 
 1. Create a table in your database to store session and data (or check if your Auth Library handles this).
 2. Implement functionality to insert, update, and delete sessions
-3. Encrypt the session ID before storing it in the user's browser, and ensure the database and cookie stay in sync (this is optional, but recommended for optimistic auth checks in [Middleware](#optimistic-checks-with-middleware-optional)).
+3. Sign the session ID before storing it in the user's browser, and ensure the database and cookie stay in sync (this is optional, but recommended for optimistic auth checks in [Middleware](#optimistic-checks-with-middleware-optional)).
 
 <AppOnly>
 
@@ -880,7 +880,7 @@ For example:
 ```ts filename="app/lib/session.ts" switcher
 import cookies from 'next/headers'
 import { db } from '@/app/lib/db'
-import { encrypt } from '@/app/lib/session'
+import { sign } from '@/app/lib/session'
 
 export async function createSession(id: number) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
@@ -897,8 +897,8 @@ export async function createSession(id: number) {
 
   const sessionId = data[0].id
 
-  // 2. Encrypt the session ID
-  const session = await encrypt({ sessionId, expiresAt })
+  // 2. Sign the session ID
+  const session = await sign({ sessionId, expiresAt })
 
   // 3. Store the session in cookies for optimistic auth checks
   const cookieStore = await cookies()
@@ -915,7 +915,7 @@ export async function createSession(id: number) {
 ```js filename="app/lib/session.js" switcher
 import cookies from 'next/headers'
 import { db } from '@/app/lib/db'
-import { encrypt } from '@/app/lib/session'
+import { sign } from '@/app/lib/session'
 
 export async function createSession(id) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
@@ -932,8 +932,8 @@ export async function createSession(id) {
 
   const sessionId = data[0].id
 
-  // 2. Encrypt the session ID
-  const session = await encrypt({ sessionId, expiresAt })
+  // 2. Sign the session ID
+  const session = await sign({ sessionId, expiresAt })
 
   // 3. Store the session in cookies for optimistic auth checks
   const cookieStore = await cookies()
@@ -1034,7 +1034,7 @@ For example:
 
 ```tsx filename="middleware.ts" switcher
 import { NextRequest, NextResponse } from 'next/server'
-import { decrypt } from '@/app/lib/session'
+import { verify } from '@/app/lib/session'
 import { cookies } from 'next/headers'
 
 // 1. Specify protected and public routes
@@ -1047,9 +1047,9 @@ export default async function middleware(req: NextRequest) {
   const isProtectedRoute = protectedRoutes.includes(path)
   const isPublicRoute = publicRoutes.includes(path)
 
-  // 3. Decrypt the session from the cookie
+  // 3. Verify the session from the cookie
   const cookie = (await cookies()).get('session')?.value
-  const session = await decrypt(cookie)
+  const session = await verify(cookie)
 
   // 4. Redirect to /login if the user is not authenticated
   if (isProtectedRoute && !session?.userId) {
@@ -1076,7 +1076,7 @@ export const config = {
 
 ```js filename="middleware.js" switcher
 import { NextResponse } from 'next/server'
-import { decrypt } from '@/app/lib/session'
+import { verify } from '@/app/lib/session'
 import { cookies } from 'next/headers'
 
 // 1. Specify protected and public routes
@@ -1089,9 +1089,9 @@ export default async function middleware(req) {
   const isProtectedRoute = protectedRoutes.includes(path)
   const isPublicRoute = publicRoutes.includes(path)
 
-  // 3. Decrypt the session from the cookie
+  // 3. Verify the session from the cookie
   const cookie = (await cookies()).get('session')?.value
-  const session = await decrypt(cookie)
+  const session = await verify(cookie)
 
   // 5. Redirect to /login if the user is not authenticated
   if (isProtectedRoute && !session?.userId) {
@@ -1138,11 +1138,11 @@ For example, create a separate file for your DAL that includes a `verifySession(
 import 'server-only'
 
 import { cookies } from 'next/headers'
-import { decrypt } from '@/app/lib/session'
+import { verify } from '@/app/lib/session'
 
 export const verifySession = cache(async () => {
   const cookie = (await cookies()).get('session')?.value
-  const session = await decrypt(cookie)
+  const session = await verify(cookie)
 
   if (!session?.userId) {
     redirect('/login')
@@ -1156,11 +1156,11 @@ export const verifySession = cache(async () => {
 import 'server-only'
 
 import { cookies } from 'next/headers'
-import { decrypt } from '@/app/lib/session'
+import { verify } from '@/app/lib/session'
 
 export const verifySession = cache(async () => {
   const cookie = (await cookies()).get('session')?.value
-  const session = await decrypt(cookie)
+  const session = await verify(cookie)
 
   if (!session.userId) {
     redirect('/login')
