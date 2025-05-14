@@ -97,7 +97,7 @@ export const NextLogo = forwardRef(function NextLogo(
             display: flex;
             align-items: center;
             position: relative;
-            background: rgba(0, 0, 0, 0.8);
+            background: #323232;
             box-shadow:
               0 0 0 1px var(--color-outer-border),
               inset 0 0 0 1px var(--color-inner-border),

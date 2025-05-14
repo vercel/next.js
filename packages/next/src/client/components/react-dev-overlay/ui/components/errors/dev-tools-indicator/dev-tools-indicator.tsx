@@ -636,27 +636,57 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
 
   .dev-tools-indicator-hide-region {
     -webkit-font-smoothing: antialiased;
-    background: rgba(0, 0, 0, 0.8);
     position: fixed;
     transform: translateX(-50%);
     left: 50%;
+    width: 100%;
+    display: flex;
+    justify-content: center;
     bottom: 32px;
     pointer-events: none;
-    color: #EDEDED;
-    border-radius: 128px;
+
+    &:has(*[data-show="true"]) {
+      .dev-tools-indicator-hide-region-backdrop {
+        opacity: 1;
+      }
+      .dev-tools-indicator-hide-region-icon {
+        opacity: 1;
+        color: #FFF;
+      }
+    }
+  }
+
+  .dev-tools-indicator-hide-region-icon {
     display: flex;
     align-items: center;
     justify-content: center;
+    background: #323232;
+    border-radius: 128px;
     font-size: 14px;
+    color: #FFF;
     font-weight: 500;
-    transition: width 200ms var(--timing-swift), opacity 100ms var(--timing-swift);
+    position: absolute;
+    bottom: 0;
     opacity: 0;
+    color: transparent;
+    transition: width 200ms var(--timing-swift), opacity 150ms ease, color 150ms ease;
     box-shadow: 0 0 0 1px #171717,
       inset 0 0 0 1px hsla(0, 0%, 100%, 0.14),
       0px 16px 32px -8px rgba(0, 0, 0, 0.24);
 
-    &[data-show="true"] {
-      opacity: 1;
+    svg {
+      transform: translateZ(0);
     }
+  }
+
+  .dev-tools-indicator-hide-region-backdrop {
+    width: 100%;
+    height: 200px;
+    opacity: 0;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    mask-image: linear-gradient(to top, #000 25%, transparent);
+    transition: opacity 200ms ease;
+    inset: 0;
   }
 `

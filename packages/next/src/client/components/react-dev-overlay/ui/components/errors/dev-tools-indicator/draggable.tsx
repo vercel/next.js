@@ -31,29 +31,27 @@ export function Draggable({
   hideDevTools: () => void
 }) {
   const hideRegionRef = useRef<HTMLDivElement>(null)
-
   const { ref, animate, ...drag } = useDrag({
     hideRegionRef,
     threshold: 5,
     onDragStart,
     onDragEnd,
-    onAnimationEnd,
   })
 
   function onDragEnd(hide: Boolean, translation: Point, velocity: Point) {
     if (hide) {
-      const animation = ref.current!.animate(
+      const animation = ref.current?.animate(
         [
-          { opacity: 1, scale: 1, filter: 'blur(0px)' },
-          { opacity: 0, scale: 0, filter: 'blur(10px)' },
+          { opacity: 1, filter: 'blur(0px)' },
+          { opacity: 0, filter: 'blur(2px)' },
         ],
         {
-          duration: 250,
+          duration: 150,
           easing: 'ease-out',
           fill: 'forwards',
         }
       )
-      animation.finished.then(hideDevTools)
+      animation?.finished.then(hideDevTools)
       return
     }
 
@@ -61,15 +59,13 @@ export function Draggable({
       x: translation.x + project(velocity.x),
       y: translation.y + project(velocity.y),
     }
-    const nearestCorner = getNearestCorner(projectedPosition)
-    animate(nearestCorner)
-  }
 
-  function onAnimationEnd({ corner }: Corner) {
-    // Unset drag translation
-    setTimeout(() => {
-      ref.current?.style.removeProperty('translate')
-      setCurrentCorner(corner)
+    const nearestCorner = getNearestCorner(projectedPosition)
+    animate(nearestCorner, () => {
+      setTimeout(() => {
+        ref.current?.style.removeProperty('translate')
+        setCurrentCorner(nearestCorner.corner)
+      })
     })
   }
 
@@ -147,13 +143,15 @@ export function Draggable({
 
   return (
     <>
-      <div
-        aria-hidden
-        ref={hideRegionRef}
-        className="dev-tools-indicator-hide-region"
-        style={{ width: size, height: size }}
-      >
-        <IconCross />
+      <div aria-hidden className="dev-tools-indicator-hide-region">
+        <div className="dev-tools-indicator-hide-region-backdrop" />
+        <div
+          ref={hideRegionRef}
+          className="dev-tools-indicator-hide-region-icon"
+          style={{ width: size, height: size }}
+        >
+          <IconCross />
+        </div>
       </div>
       <div ref={ref} {...drag} style={{ touchAction: 'none' }}>
         {children}
@@ -166,7 +164,6 @@ interface UseDragOptions {
   onDragStart?: () => void
   onDrag?: (translation: Point) => void
   onDragEnd?: (hide: Boolean, translation: Point, velocity: Point) => void
-  onAnimationEnd?: (corner: Corner) => void
   threshold: number // Minimum movement before drag starts
   hideRegionRef: React.RefObject<HTMLDivElement | null>
 }
@@ -180,7 +177,6 @@ export function useDrag({
   onDragStart,
   onDrag,
   onDragEnd,
-  onAnimationEnd,
   threshold,
   hideRegionRef,
 }: UseDragOptions) {
@@ -201,38 +197,29 @@ export function useDrag({
     }
   }
 
-  function transition() {
+  function transition(transition: string, onTransitionEnd?: () => void) {
     const el = ref.current
     if (el === null) return
 
     function listener(e: TransitionEvent) {
       if (e.propertyName === 'translate') {
-        el!.style.transition = ''
-        el!.removeEventListener('transitionend', listener)
+        onTransitionEnd?.()
+        el?.style.removeProperty('transition')
+        el?.removeEventListener('transitionend', listener)
         animating.current = false
       }
     }
 
-    el.style.transition = 'translate 250ms var(--timing-bounce)'
+    el.style.setProperty('transition', transition)
     el.addEventListener('transitionend', listener)
   }
 
-  function animate(corner: Corner) {
-    const el = ref.current
-    if (el === null) return
-
-    function listener(e: TransitionEvent) {
-      if (e.propertyName === 'translate') {
-        onAnimationEnd?.(corner)
-        translation.current = { x: 0, y: 0 }
-        el!.style.transition = ''
-        el!.removeEventListener('transitionend', listener)
-      }
-    }
-
+  function animate(corner: Corner, onTransitionEnd?: () => void) {
     // Generated from https://www.easing.dev/spring
-    el.style.transition = 'translate 491.22ms var(--timing-bounce)'
-    el.addEventListener('transitionend', listener)
+    transition('translate 491.22ms var(--timing-bounce)', () => {
+      onTransitionEnd?.()
+      translation.current = { x: 0, y: 0 }
+    })
     set(corner.translation)
   }
 
@@ -307,7 +294,7 @@ export function useDrag({
           (triggerRect.top + triggerRect.height / 2)
 
         set(newTranslation)
-        transition()
+        transition('translate 250ms var(--timing-bounce)')
       }
     }
 
@@ -315,7 +302,6 @@ export function useDrag({
       // transition()
       // animating.current = true
       snapped.current = false
-      hideRegion?.style.setProperty('width', '37px')
     }
 
     if (!animating.current) {
@@ -339,7 +325,6 @@ export function useDrag({
 
   function onPointerUp(e: PointerEvent) {
     state.current = state.current === 'drag' ? 'drag-end' : 'idle'
-    hideRegionRef.current?.style.setProperty('width', '37px')
 
     window.removeEventListener('pointermove', onPointerMove)
     window.removeEventListener('pointerup', onPointerUp)

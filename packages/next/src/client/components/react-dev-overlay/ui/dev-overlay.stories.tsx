@@ -73,6 +73,7 @@ const state: OverlayState = {
       },
     },
   ],
+  // errors: [],
   refreshState: { type: 'idle' },
   notFound: false,
   staticIndicator: false,
