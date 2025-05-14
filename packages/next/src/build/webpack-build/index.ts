@@ -6,10 +6,6 @@ import { Worker } from '../../lib/worker'
 import origDebug from 'next/dist/compiled/debug'
 import path from 'path'
 import { exportTraceState, recordTraceEvents } from '../../trace'
-import {
-  formatNodeOptions,
-  getParsedNodeOptionsWithoutInspect,
-} from '../../server/lib/utils'
 import { mergeUseCacheTrackers } from '../webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
 import { durationToString } from '../duration-to-string'
 
@@ -48,17 +44,16 @@ async function webpackBuildWithWorker(
     buildTraceContext: {} as BuildTraceContext,
   }
 
-  const nodeOptions = getParsedNodeOptionsWithoutInspect()
-
   for (const compilerName of compilerNames) {
     const worker = new Worker(path.join(__dirname, 'impl.js'), {
       exposedMethods: ['workerMain'],
+      debuggerPortOffset: -1,
+      isolatedMemory: false,
       numWorkers: 1,
       maxRetries: 0,
       forkOptions: {
         env: {
           NEXT_PRIVATE_BUILD_WORKER: '1',
-          NODE_OPTIONS: formatNodeOptions(nodeOptions),
         },
       },
     }) as Worker & typeof import('./impl')

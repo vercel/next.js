@@ -93,6 +93,7 @@
     "@babel/plugin-transform-object-rest-spread": "7.25.9",
     "@babel/preset-flow": "7.25.9",
     "@babel/preset-react": "7.26.3",
+    "@changesets/cli": "2.29.3",
     "@edge-runtime/jest-environment": "4.0.0",
     "@emotion/cache": "11.11.0",
     "@emotion/react": "11.11.1",
