@@ -99,6 +99,47 @@ const item = await getItem() // cache HIT
 >   - It doesn't apply to `fetch` requests in Route Handlers as they are not a part of the React component tree.
 > - For cases where `fetch` is not suitable (e.g. some database clients, CMS clients, or GraphQL clients), you can use the [React `cache` function](#react-cache-function) to memoize functions.
 
+### Data Caching
+
+Next.js provides persistent caching for data fetched using `fetch` or `unstable_cache`, allowing you to:
+
+- Revalidate on demand with `cacheTag`.
+- Set a time-to-live (TTL) with `cacheLife`.
+
+#### Using `cacheTag`
+
+// Tag a fetch request
+fetch('https://api.example.com/products', {
+next: { tags: ['products'] }
+});
+
+// Revalidate later
+import { revalidateTag } from 'next/cache';
+revalidateTag('products'); // Purges all entries tagged 'products'
+
+#### Using `cacheLife(TTL)`
+
+// Revalidate data every hour
+fetch('https://api.example.com/products', {
+next: { revalidate: 3600 } // 3600 seconds = 1 hour
+});
+
+#### When to Use `cacheTag`
+
+- Group related data (e.g., all product listings).
+- Revalidate dynamically when data changes (e.g., after a CMS update).
+
+#### When to Use `cacheLife`
+
+- Set a fixed revalidation interval (e.g., refresh every hour).
+- Avoid stale data for time-sensitive content (e.g., stock prices).
+
+### Combining `cacheTag` and `cacheLife`
+
+- If both are set, the cache revalidates when either:
+  1. The `cacheLife` (TTL) expires.
+  2. `revalidateTag` is called manually.
+
 ### Duration
 
 The cache lasts the lifetime of a server request until the React component tree has finished rendering.
