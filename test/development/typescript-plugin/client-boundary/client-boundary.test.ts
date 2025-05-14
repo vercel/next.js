@@ -60,13 +60,13 @@ describe('typescript-plugin - client-boundary', () => {
            "code": 71007,
            "length": 12,
            "messageText": "Props must be serializable for components in the "use client" entry file, "_classAction" is invalid.",
-           "start": 146,
+           "start": 221,
          },
          {
            "code": 71007,
            "length": 18,
            "messageText": "Props must be serializable for components in the "use client" entry file, "_constructorAction" is invalid.",
-           "start": 162,
+           "start": 237,
          },
        ],
      }
