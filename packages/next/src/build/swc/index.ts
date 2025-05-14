@@ -27,6 +27,7 @@ import type {
 } from './generated-native'
 import type {
   Binding,
+  CompilationEvent,
   DefineEnv,
   Endpoint,
   HmrIdentifiers,
@@ -709,6 +710,18 @@ function bindingToApi(
           aggregationMs,
           callback
         )
+      )
+    }
+
+    compilationEventsSubscribe() {
+      return subscribe<TurbopackResult<CompilationEvent>>(
+        true,
+        async (callback) => {
+          binding.projectCompilationEventsSubscribe(
+            this._nativeProject,
+            callback
+          )
+        }
       )
     }
 

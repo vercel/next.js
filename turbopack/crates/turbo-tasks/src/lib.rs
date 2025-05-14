@@ -59,6 +59,7 @@ pub mod macro_helpers;
 mod magic_any;
 mod manager;
 mod marker_trait;
+pub mod message_queue;
 mod native_function;
 mod no_move_vec;
 mod once_map;
