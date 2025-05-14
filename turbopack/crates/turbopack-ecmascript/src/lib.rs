@@ -1123,6 +1123,7 @@ async fn emit_content(content: CodeGenResult) -> Result<Vc<EcmascriptModuleConte
         };
 
         emitter.emit_program(&program)?;
+        // Drop the AST eagerly so we don't keep it in memory while generating source maps
         drop(program);
     }
 
