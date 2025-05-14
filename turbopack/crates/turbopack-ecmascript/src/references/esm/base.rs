@@ -184,8 +184,16 @@ impl ReferencedAsset {
                                         ))
                                         .await;
                                     }
+                                    None => {
+                                        // Export not found, either there was already an error, or
+                                        // this is some dynamic (CJS) (re)export situation.
+                                    }
                                     _ => {
-                                        todo!("TODO {:?}", export)
+                                        todo!(
+                                            "TODO {:?} {:?}",
+                                            asset.ident().to_string().await?,
+                                            export
+                                        )
                                     }
                                 }
                                 .resolved_cell()
