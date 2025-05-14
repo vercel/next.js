@@ -63,6 +63,7 @@ import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-
 import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
 import { extractInfoFromServerReferenceId } from '../shared/lib/server-reference-info'
 import { convertSegmentPathToStaticExportFilename } from '../shared/lib/segment-cache/segment-value-encoding'
+import { getNextBuildDebuggerPortOffset } from '../lib/worker'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -581,7 +582,10 @@ async function exportAppImpl(
     options.statusMessage || 'Exporting'
   )
 
-  const worker = createStaticWorker(nextConfig, progress)
+  const worker = createStaticWorker(nextConfig, {
+    debuggerPortOffset: getNextBuildDebuggerPortOffset({ kind: 'export-page' }),
+    progress,
+  })
 
   const results = (
     await Promise.all(

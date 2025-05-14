@@ -6569,6 +6569,18 @@ export declare function Ewert<
   adjustFontFallback?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Exile<
+  T extends CssVariable | undefined = undefined,
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Exo<
   T extends CssVariable | undefined = undefined,
 >(options?: {
@@ -19626,7 +19638,104 @@ export declare function Playpen_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'emoji' | 'latin' | 'latin-ext' | 'math' | 'vietnamese'>
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'emoji'
+    | 'greek'
+    | 'latin'
+    | 'latin-ext'
+    | 'math'
+    | 'vietnamese'
+  >
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Playpen_Sans_Arabic<
+  T extends CssVariable | undefined = undefined,
+>(options?: {
+  weight?:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'arabic' | 'emoji' | 'latin' | 'latin-ext' | 'math'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Playpen_Sans_Deva<
+  T extends CssVariable | undefined = undefined,
+>(options?: {
+  weight?:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'devanagari' | 'emoji' | 'latin' | 'latin-ext'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Playpen_Sans_Hebrew<
+  T extends CssVariable | undefined = undefined,
+>(options?: {
+  weight?:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'emoji' | 'hebrew' | 'latin' | 'latin-ext' | 'math'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Playpen_Sans_Thai<
+  T extends CssVariable | undefined = undefined,
+>(options?: {
+  weight?:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'emoji' | 'latin' | 'latin-ext' | 'math' | 'thai'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Playwrite_AR<
   T extends CssVariable | undefined = undefined,

@@ -9796,6 +9796,8 @@
       "CLI Usage dev -p reserved",
       "CLI Usage dev Allow retry if default port is already in use",
       "CLI Usage dev NODE_OPTIONS='--inspect'",
+      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to --require.js'",
+      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to-require-with-node-require-option.js'",
       "CLI Usage dev PORT=0",
       "CLI Usage dev custom directory",
       "CLI Usage dev invalid directory",
@@ -9808,6 +9810,8 @@
       "CLI Usage export run export command",
       "CLI Usage info --help",
       "CLI Usage info -h",
+      "CLI Usage info should print output",
+      "CLI Usage info should print output with next.config.mjs",
       "CLI Usage no command --help",
       "CLI Usage no command --version",
       "CLI Usage no command -h",
@@ -9841,12 +9845,7 @@
       "CLI Usage production mode telemetry should not throw UnhandledPromiseRejectionWarning",
       "CLI Usage production mode telemetry should warn when unknown argument provided"
     ],
-    "failed": [
-      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to --require.js'",
-      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to-require-with-node-require-option.js'",
-      "CLI Usage info should print output",
-      "CLI Usage info should print output with next.config.mjs"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9949,8 +9948,10 @@
       "config-output-export should error with getStaticPaths and fallback true",
       "config-output-export should error with getStaticProps and revalidate 10 seconds (ISR)",
       "config-output-export should error with middleware function",
+      "config-output-export should work with getStaticPaths and fallback false",
       "config-output-export should work with getStaticProps and revalidate false",
       "config-output-export should work with getStaticProps and without revalidate",
+      "config-output-export should work with static homepage",
       "config-output-export when hasNextSupport = false should error with \"headers\" config",
       "config-output-export when hasNextSupport = false should error with \"redirects\" config",
       "config-output-export when hasNextSupport = false should error with \"rewrites\" config",
@@ -9958,10 +9959,7 @@
       "config-output-export when hasNextSupport = true should error with \"redirects\" config",
       "config-output-export when hasNextSupport = true should error with \"rewrites\" config"
     ],
-    "failed": [
-      "config-output-export should work with getStaticPaths and fallback false",
-      "config-output-export should work with static homepage"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10967,9 +10965,10 @@
       "distDir With basic usage production mode should build the app within the given `dist` directory",
       "distDir With basic usage production mode should not build the app within the default `.next` directory",
       "distDir With basic usage production mode should render the page",
+      "distDir production mode should handle undefined distDir",
       "distDir production mode should throw error with invalid distDir"
     ],
-    "failed": ["distDir production mode should handle undefined distDir"],
+    "failed": [],
     "pending": [
       "distDir development mode should build the app within the given `dist` directory",
       "distDir development mode should not build the app within the default `.next` directory",
@@ -17092,10 +17091,10 @@
     "runtimeError": false
   },
   "test/integration/production-build-dir/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Production Custom Build Directory production mode With basic usage should render the page"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18246,6 +18245,13 @@
     "pending": [
       "Web Workers with webpack 5 development mode should pass on both client and worker"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/adapter-config/adapter-config.test.ts": {
+    "passed": ["adapter-config should apply modifyConfig from adapter"],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
