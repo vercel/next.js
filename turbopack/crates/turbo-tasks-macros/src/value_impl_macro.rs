@@ -2,11 +2,10 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{ToTokens, quote};
 use syn::{
-    Attribute, Error, Expr, ExprLit, Generics, ImplItem, ImplItemFn, ItemImpl, Lit, LitStr, Meta,
+    Error, Expr, ExprLit, Generics, ImplItem, ImplItemFn, ItemImpl, Lit, LitStr, Meta,
     MetaNameValue, Path, Token, Type,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
-    spanned::Spanned,
 };
 use turbo_tasks_macros_shared::{
     get_inherent_impl_function_id_ident, get_inherent_impl_function_ident, get_path_ident,
@@ -15,51 +14,8 @@ use turbo_tasks_macros_shared::{
 };
 
 use crate::func::{
-    DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
-    parse_with_optional_parens,
+    DefinitionContext, NativeFn, TurboFn, filter_inline_attributes, split_function_attributes,
 };
-
-/// Returns true if this attribute is a turbo_tasks attribute with the given name.
-fn is_attribute(attr: &Attribute, name: &str) -> bool {
-    let path = &attr.path();
-    if path.leading_colon.is_some() {
-        return false;
-    }
-    let mut iter = path.segments.iter();
-    match iter.next() {
-        Some(seg) if seg.arguments.is_empty() && seg.ident == "turbo_tasks" => match iter.next() {
-            Some(seg) if seg.arguments.is_empty() && seg.ident == name => iter.next().is_none(),
-            _ => false,
-        },
-        _ => false,
-    }
-}
-
-pub fn split_function_attributes<'a>(
-    item: &'a impl Spanned,
-    attrs: &'a [Attribute],
-) -> (syn::Result<FunctionArguments>, Vec<&'a Attribute>) {
-    let (func_attrs_vec, attrs): (Vec<_>, Vec<_>) = attrs
-        .iter()
-        // TODO(alexkirsz) Replace this with function
-        .partition(|attr| is_attribute(attr, "function"));
-    let func_args = if let Some(func_attr) = func_attrs_vec.first() {
-        if func_attrs_vec.len() == 1 {
-            parse_with_optional_parens::<FunctionArguments>(func_attr)
-        } else {
-            Err(syn::Error::new(
-                func_attrs_vec[1].span(),
-                "Only one #[turbo_tasks::function] attribute is allowed per method",
-            ))
-        }
-    } else {
-        Err(syn::Error::new(
-            item.span(),
-            "#[turbo_tasks::function] attribute missing",
-        ))
-    };
-    (func_args, attrs)
-}
 
 struct ValueImplArguments {
     ident: Option<LitStr>,
