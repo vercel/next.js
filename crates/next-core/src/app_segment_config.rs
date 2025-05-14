@@ -14,6 +14,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
+    chunk::MinifyType,
     file_source::FileSource,
     ident::AssetIdent,
     issue::{
@@ -285,6 +286,7 @@ pub async fn parse_segment_config_from_source(
             EcmascriptModuleAssetType::Ecmascript
         }),
         EcmascriptInputTransforms::empty(),
+        MinifyType::NoMinify,
     )
     .await?;
 
