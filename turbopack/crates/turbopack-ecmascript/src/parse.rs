@@ -103,7 +103,6 @@ pub fn generate_js_source_map(
     files_map: Arc<swc_core::common::SourceMap>,
     mappings: Vec<(BytePos, LineCol)>,
     original_source_map: Option<&Rope>,
-    inline_sources_content: bool,
 ) -> Result<Rope> {
     let input_map = if let Some(original_source_map) = original_source_map {
         Some(match sourcemap::decode(original_source_map.read())? {
@@ -116,19 +115,8 @@ pub fn generate_js_source_map(
         None
     };
 
-    let map = files_map.build_source_map_with_config(
-        &mappings,
-        None,
-        InlineSourcesContentConfig {
-            // If we are going to adjust the source map, we are going to throw the source contents
-            // of this source map away regardless.
-            //
-            // In other words, we don't need the content of `B` in source map chain of A -> B -> C.
-            // We only need the source content of `A`, and a way to map the content of `B` back to
-            // `A`, while constructing the final source map, `C`.
-            inline_sources_content: inline_sources_content && input_map.is_none(),
-        },
-    );
+    let map =
+        files_map.build_source_map_with_config(&mappings, None, InlineSourcesContentConfig {});
 
     let mut map = match input_map {
         Some(mut input_map) => {
@@ -147,9 +135,7 @@ pub fn generate_js_source_map(
 /// A config to generate a source map which includes the source content of every
 /// source file. SWC doesn't inline sources content by default when generating a
 /// sourcemap, so we need to provide a custom config to do it.
-pub struct InlineSourcesContentConfig {
-    inline_sources_content: bool,
-}
+pub struct InlineSourcesContentConfig {}
 
 impl SourceMapGenConfig for InlineSourcesContentConfig {
     fn file_name_to_source(&self, f: &FileName) -> String {
@@ -162,7 +148,7 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
     }
 
     fn inline_sources_content(&self, _f: &FileName) -> bool {
-        self.inline_sources_content
+        false
     }
 }
 

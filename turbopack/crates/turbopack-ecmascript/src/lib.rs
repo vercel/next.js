@@ -1131,15 +1131,9 @@ async fn emit_content(content: CodeGenResult) -> Result<Vc<EcmascriptModuleConte
                 source_map.clone(),
                 mappings,
                 original_source_map.generate_source_map().await?.as_ref(),
-                true,
             )?)
         } else {
-            Some(generate_js_source_map(
-                source_map.clone(),
-                mappings,
-                None,
-                true,
-            )?)
+            Some(generate_js_source_map(source_map.clone(), mappings, None)?)
         }
     } else {
         None
