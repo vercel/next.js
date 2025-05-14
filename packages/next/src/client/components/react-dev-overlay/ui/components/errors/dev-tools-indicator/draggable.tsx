@@ -235,8 +235,7 @@ export function useDrag({
   function onPointerDown(e: React.PointerEvent) {
     origin.current = { x: e.clientX, y: e.clientY }
     state.current = 'press'
-    window.addEventListener('pointermove', onPointerMove)
-    window.addEventListener('pointerup', onPointerUp)
+    ref.current?.setPointerCapture(e.pointerId)
     ref.current?.addEventListener('click', onClick)
   }
 
@@ -248,7 +247,6 @@ export function useDrag({
 
       if (distance >= threshold) {
         state.current = 'drag'
-        ref.current?.setPointerCapture(e.pointerId)
         ref.current?.style.removeProperty('transition')
         ref.current?.classList.add('dev-tools-grabbing')
         document.body.style.setProperty('cursor', 'grabbing')
@@ -315,10 +313,6 @@ export function useDrag({
 
   function onPointerUp(e: PointerEvent) {
     state.current = state.current === 'drag' ? 'drag-end' : 'idle'
-
-    window.removeEventListener('pointermove', onPointerMove)
-    window.removeEventListener('pointerup', onPointerUp)
-
     const velocity = calculateVelocity(velocities.current)
     velocities.current = []
 
@@ -368,6 +362,8 @@ export function useDrag({
   return {
     ref,
     onPointerDown,
+    onPointerMove,
+    onPointerUp,
     animate,
   }
 }
