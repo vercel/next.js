@@ -647,7 +647,7 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
 
     &:has(*[data-show="true"]) {
       .dev-tools-indicator-hide-region-backdrop {
-        opacity: 1;
+        opacity: 0.8;
       }
       .dev-tools-indicator-hide-region-icon {
         opacity: 1;
@@ -669,7 +669,7 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
     bottom: 0;
     opacity: 0;
     color: transparent;
-    transition: width 200ms var(--timing-swift), opacity 150ms ease, color 150ms ease;
+    transition: width 200ms var(--timing-swift), opacity 150ms ease;
     box-shadow: 0 0 0 1px #171717,
       inset 0 0 0 1px hsla(0, 0%, 100%, 0.14),
       0px 16px 32px -8px rgba(0, 0, 0, 0.24);

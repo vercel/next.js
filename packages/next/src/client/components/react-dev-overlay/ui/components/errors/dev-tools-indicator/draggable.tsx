@@ -266,7 +266,7 @@ export function useDrag({
     const dy = currentPosition.y - origin.current.y
     origin.current = currentPosition
 
-    const intersecting = areIntersecting(ref.current, hideRegion, 10)
+    const intersecting = areIntersecting(ref.current, hideRegion, 20)
     const damping = intersecting ? 0.1 : 1
 
     const newTranslation = {
@@ -332,11 +332,40 @@ export function useDrag({
     const velocity = calculateVelocity(velocities.current)
     velocities.current = []
 
+    if (snapped.current) {
+      const hideRegion = hideRegionRef.current!
+      const hideRect = hideRegion.getBoundingClientRect()
+      const triggerRect = ref.current?.getBoundingClientRect()
+
+      if (triggerRect) {
+        // Center the trigger over the hide region on pointer up when snapped
+        const finalTranslation = {
+          x:
+            translation.current.x +
+            hideRect.left +
+            hideRect.width / 2 -
+            (triggerRect.left + triggerRect.width / 2),
+          y:
+            translation.current.y +
+            hideRect.top +
+            hideRect.height / 2 -
+            (triggerRect.top + triggerRect.height / 2),
+        }
+        set(finalTranslation)
+        transition('translate 250ms var(--timing-bounce)', () => {
+          onDragEnd?.(true, translation.current, velocity)
+          hideRegionRef.current?.removeAttribute('data-show')
+        })
+      }
+    }
+
     document.body.style.removeProperty('cursor')
-    hideRegionRef.current?.removeAttribute('data-show')
     ref.current?.classList.remove('dev-tools-grabbing')
+    if (!snapped.current) {
+      onDragEnd?.(false, translation.current, velocity)
+      hideRegionRef.current?.removeAttribute('data-show')
+    }
     ref.current?.releasePointerCapture(e.pointerId)
-    onDragEnd?.(snapped.current, translation.current, velocity)
     snapped.current = false
   }
 
