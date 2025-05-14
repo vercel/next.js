@@ -7,6 +7,7 @@ type ArrowFunctionTypeAlias = () => void
 export default function ClientComponent(props: {
   _arrowFunction: () => void
   _arrowFunctionTypeAlias: ArrowFunctionTypeAlias
+  _arrowFunctionConditional: (() => void) | null
   _class: Class
   _constructor: new () => void
 }) {

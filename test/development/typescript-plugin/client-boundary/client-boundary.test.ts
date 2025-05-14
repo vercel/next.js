@@ -60,13 +60,13 @@ describe('typescript-plugin - client-boundary', () => {
            "code": 71007,
            "length": 5,
            "messageText": "Props must be serializable for components in the "use client" entry file, "_classAction" is invalid.",
-           "start": 276,
+           "start": 331,
          },
          {
            "code": 71007,
            "length": 14,
            "messageText": "Props must be serializable for components in the "use client" entry file, "_constructorAction" is invalid.",
-           "start": 304,
+           "start": 359,
          },
        ],
      }
@@ -103,15 +103,21 @@ describe('typescript-plugin - client-boundary', () => {
          },
          {
            "code": 71007,
+           "length": 19,
+           "messageText": "Props must be serializable for components in the "use client" entry file. "_arrowFunctionConditional" is a function that's not a Server Action. Rename "_arrowFunctionConditional" either to "action" or have its name end with "Action" e.g. "_arrowFunctionConditionalAction" to indicate it is a Server Action.",
+           "start": 229,
+         },
+         {
+           "code": 71007,
            "length": 5,
            "messageText": "Props must be serializable for components in the "use client" entry file, "_class" is invalid.",
-           "start": 210,
+           "start": 259,
          },
          {
            "code": 71007,
            "length": 14,
            "messageText": "Props must be serializable for components in the "use client" entry file, "_constructor" is invalid.",
-           "start": 232,
+           "start": 281,
          },
        ],
      }
