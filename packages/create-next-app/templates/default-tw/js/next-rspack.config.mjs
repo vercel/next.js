@@ -4,5 +4,5 @@ import withRspack from "next-rspack";
 const nextConfig = {
   reactStrictMode: true,
 };
-  
+
 export default withRspack(nextConfig);

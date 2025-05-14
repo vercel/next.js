@@ -1,4 +1,4 @@
-import withRspack from 'next-rspack';
+import withRspack from "next-rspack";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {};

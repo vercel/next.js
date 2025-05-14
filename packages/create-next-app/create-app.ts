@@ -239,7 +239,7 @@ export async function createApp({
       importAlias,
       skipInstall,
       turbopack,
-      rspack
+      rspack,
     })
   }
 

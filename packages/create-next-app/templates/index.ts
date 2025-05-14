@@ -44,7 +44,7 @@ export const installTemplate = async ({
   importAlias,
   skipInstall,
   turbopack,
-  rspack
+  rspack,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -195,7 +195,18 @@ export const installTemplate = async ({
   };
 
   if (rspack) {
-    packageJson.dependencies["next-rspack"] = version;
+    const NEXT_PRIVATE_TEST_VERSION = process.env.NEXT_PRIVATE_TEST_VERSION;
+    if (
+      NEXT_PRIVATE_TEST_VERSION &&
+      path.isAbsolute(NEXT_PRIVATE_TEST_VERSION)
+    ) {
+      packageJson.dependencies["next-rspack"] = path.resolve(
+        path.dirname(NEXT_PRIVATE_TEST_VERSION),
+        "../next-rspack/next-rspack-packed.tgz",
+      );
+    } else {
+      packageJson.dependencies["next-rspack"] = version;
+    }
   }
 
   /**
