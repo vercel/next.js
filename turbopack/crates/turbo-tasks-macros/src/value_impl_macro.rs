@@ -6,6 +6,7 @@ use syn::{
     MetaNameValue, Path, Token, Type,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
+    spanned::Spanned,
 };
 use turbo_tasks_macros_shared::{
     get_inherent_impl_function_id_ident, get_inherent_impl_function_ident, get_path_ident,
@@ -14,7 +15,8 @@ use turbo_tasks_macros_shared::{
 };
 
 use crate::func::{
-    DefinitionContext, NativeFn, TurboFn, filter_inline_attributes, split_function_attributes,
+    DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
+    split_function_attributes,
 };
 
 struct ValueImplArguments {
@@ -77,10 +79,21 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             }) = item
             {
                 let ident = &sig.ident;
-                let (func_args, attrs) = split_function_attributes(item, attrs);
-                let func_args = func_args
-                    .inspect_err(|err| errors.push(err.to_compile_error()))
-                    .unwrap_or_default();
+                let (func_args, attrs) = split_function_attributes(attrs);
+                let func_args = match func_args {
+                    Ok(None) => {
+                        item.span()
+                            .unwrap()
+                            .error("#[turbo_tasks::function] attribute missing")
+                            .emit();
+                        FunctionArguments::default()
+                    }
+                    Ok(Some(func_args)) => func_args,
+                    Err(error) => {
+                        errors.push(error.to_compile_error());
+                        FunctionArguments::default()
+                    }
+                };
                 let local = func_args.local.is_some();
                 let is_self_used = func_args.operation.is_some() || is_self_used(block);
 
@@ -181,10 +194,19 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             {
                 let ident = &sig.ident;
 
-                let (func_args, attrs) = split_function_attributes(item, attrs);
-                let func_args = func_args
-                    .inspect_err(|err| errors.push(err.to_compile_error()))
-                    .unwrap_or_default();
+                let (func_args, attrs) = split_function_attributes(attrs);
+                let func_args = match func_args {
+                    Ok(None) => {
+                        // Missing annotations are allowed if a turbo tasks trait has a trait item
+                        // that is not a turbotasks function.
+                        continue;
+                    }
+                    Ok(Some(func_args)) => func_args,
+                    Err(error) => {
+                        errors.push(error.to_compile_error());
+                        FunctionArguments::default()
+                    }
+                };
                 let local = func_args.local.is_some();
                 let is_self_used = func_args.operation.is_some() || is_self_used(block);
 

@@ -89,10 +89,19 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         let ident = &sig.ident;
         // This effectively parses and removes the function annotation ensureing that macro doesn't
         // run after us.
-        let (func_args, attrs) = split_function_attributes(item, attrs);
-        let func_args = func_args
-            .inspect_err(|err| errors.push(err.to_compile_error()))
-            .unwrap_or_default();
+        let (func_args, attrs) = split_function_attributes(attrs);
+        let func_args = match func_args {
+            Ok(None) => {
+                // There is no turbo_tasks::function annotation, just skip this item.
+                continue;
+            }
+            Ok(Some(func_args)) => func_args,
+            Err(err) => {
+                errors.push(err.to_compile_error());
+                FunctionArguments::default()
+            }
+        };
+
         if let Some(span) = func_args.operation {
             span.unwrap()
                 .error("trait items cannot be operations")
