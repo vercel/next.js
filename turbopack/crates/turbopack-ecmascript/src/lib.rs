@@ -1123,6 +1123,7 @@ async fn emit_content(content: CodeGenResult) -> Result<Vc<EcmascriptModuleConte
         };
 
         emitter.emit_program(&program)?;
+        drop(program);
     }
 
     let source_map = if generate_source_map {
