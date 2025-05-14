@@ -911,10 +911,10 @@ where
         match self {
             AutoMap::List(list) => list.shrink_to_fit(),
             AutoMap::Map(map) => {
-                hashbrown::HashMap::shrink_to_fit(map);
-
                 if map.len() < MIN_HASH_SIZE {
                     self.convert_to_list();
+                } else {
+                    hashbrown::HashMap::shrink_to_fit(map);
                 }
             }
         }
