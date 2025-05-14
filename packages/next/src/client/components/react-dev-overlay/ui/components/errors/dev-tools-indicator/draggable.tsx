@@ -279,23 +279,13 @@ export function useDrag({
       animating.current = true
       hideRegion.style.setProperty('width', `${ref.current?.offsetWidth}px`)
 
-      const hideRect = hideRegion.getBoundingClientRect()
-      const triggerRect = ref.current?.getBoundingClientRect()
+      const hideRegionTranslation = getHideRegionTranslation()
+      // Center the trigger over the hide region
+      newTranslation.x += hideRegionTranslation.x
+      newTranslation.y += hideRegionTranslation.y
 
-      if (triggerRect) {
-        // Center the trigger over the hide region
-        newTranslation.x +=
-          hideRect.left +
-          hideRect.width / 2 -
-          (triggerRect.left + triggerRect.width / 2)
-        newTranslation.y +=
-          hideRect.top +
-          hideRect.height / 2 -
-          (triggerRect.top + triggerRect.height / 2)
-
-        set(newTranslation)
-        transition('translate 250ms var(--timing-bounce)')
-      }
+      set(newTranslation)
+      transition('translate 250ms var(--timing-bounce)')
     }
 
     if (!intersecting && snapped.current) {
@@ -333,30 +323,17 @@ export function useDrag({
     velocities.current = []
 
     if (snapped.current) {
-      const hideRegion = hideRegionRef.current!
-      const hideRect = hideRegion.getBoundingClientRect()
-      const triggerRect = ref.current?.getBoundingClientRect()
-
-      if (triggerRect) {
-        // Center the trigger over the hide region on pointer up when snapped
-        const finalTranslation = {
-          x:
-            translation.current.x +
-            hideRect.left +
-            hideRect.width / 2 -
-            (triggerRect.left + triggerRect.width / 2),
-          y:
-            translation.current.y +
-            hideRect.top +
-            hideRect.height / 2 -
-            (triggerRect.top + triggerRect.height / 2),
-        }
-        set(finalTranslation)
-        transition('translate 250ms var(--timing-bounce)', () => {
-          onDragEnd?.(true, translation.current, velocity)
-          hideRegionRef.current?.removeAttribute('data-show')
-        })
+      const hideRegionTranslation = getHideRegionTranslation()
+      // Center the trigger over the hide region on pointer up when snapped
+      const finalTranslation = {
+        x: translation.current.x + hideRegionTranslation.x,
+        y: translation.current.y + hideRegionTranslation.y,
       }
+      set(finalTranslation)
+      transition('translate 250ms var(--timing-bounce)', () => {
+        onDragEnd?.(true, translation.current, velocity)
+        hideRegionRef.current?.removeAttribute('data-show')
+      })
     }
 
     document.body.style.removeProperty('cursor')
@@ -367,6 +344,25 @@ export function useDrag({
     }
     ref.current?.releasePointerCapture(e.pointerId)
     snapped.current = false
+  }
+
+  function getHideRegionTranslation() {
+    const hideRegion = hideRegionRef.current!
+    const hideRect = hideRegion.getBoundingClientRect()
+    const triggerRect = ref.current?.getBoundingClientRect()
+
+    if (!triggerRect) return { x: 0, y: 0 }
+
+    return {
+      x:
+        hideRect.left +
+        hideRect.width / 2 -
+        (triggerRect.left + triggerRect.width / 2),
+      y:
+        hideRect.top +
+        hideRect.height / 2 -
+        (triggerRect.top + triggerRect.height / 2),
+    }
   }
 
   return {
