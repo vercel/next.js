@@ -95,7 +95,7 @@ function DevToolsPopover({
   isBuildError,
   hide,
   setIsErrorOverlayOpen,
-  scale,
+  scale = 1,
   setScale,
 }: {
   routerType: 'pages' | 'app'
@@ -251,6 +251,7 @@ function DevToolsPopover({
 
   const [vertical, horizontal] = position.split('-', 2)
   const popover = { [vertical]: 'calc(100% + 8px)', [horizontal]: 0 }
+  const size = 36 / scale
 
   return (
     <Toast
@@ -268,6 +269,7 @@ function DevToolsPopover({
     >
       <Draggable
         padding={INDICATOR_PADDING}
+        size={size}
         onDragStart={() => setOpen(null)}
         position={position}
         setPosition={(p) => {
@@ -291,7 +293,7 @@ function DevToolsPopover({
           isDevBuilding={useIsDevBuilding()}
           isDevRendering={useIsDevRendering()}
           isBuildError={isBuildError}
-          scale={scale}
+          size={size}
         />
       </Draggable>
 
@@ -629,6 +631,32 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
 
     > * {
       pointer-events: none;
+    }
+  }
+
+  .dev-tools-indicator-hide-region {
+    -webkit-font-smoothing: antialiased;
+    background: rgba(0, 0, 0, 0.8);
+    position: fixed;
+    transform: translateX(-50%);
+    left: 50%;
+    bottom: 32px;
+    pointer-events: none;
+    color: #EDEDED;
+    border-radius: 128px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 500;
+    transition: width 200ms var(--timing-swift), opacity 100ms var(--timing-swift);
+    opacity: 0;
+    box-shadow: 0 0 0 1px #171717,
+      inset 0 0 0 1px hsla(0, 0%, 100%, 0.14),
+      0px 16px 32px -8px rgba(0, 0, 0, 0.24);
+
+    &[data-show="true"] {
+      opacity: 1;
     }
   }
 `

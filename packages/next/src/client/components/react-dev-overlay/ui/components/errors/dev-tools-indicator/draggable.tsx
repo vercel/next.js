@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { IconCross } from '../../../icons/icon-cross'
 
 interface Point {
   x: number
@@ -16,6 +16,7 @@ interface Corner {
 export function Draggable({
   children,
   padding,
+  size,
   position: currentCorner,
   setPosition: setCurrentCorner,
   onDragStart,
@@ -24,21 +25,38 @@ export function Draggable({
   children: React.ReactElement
   position: Corners
   padding: number
+  size?: number
   setPosition: (position: Corners) => void
   onDragStart?: () => void
   hideDevTools: () => void
 }) {
-  const dismissRegionRef = useRef<HTMLDivElement>(null)
+  const hideRegionRef = useRef<HTMLDivElement>(null)
 
   const { ref, animate, ...drag } = useDrag({
-    dismissRegionRef,
+    hideRegionRef,
     threshold: 5,
     onDragStart,
     onDragEnd,
     onAnimationEnd,
   })
 
-  function onDragEnd(translation: Point, velocity: Point) {
+  function onDragEnd(hide: Boolean, translation: Point, velocity: Point) {
+    if (hide) {
+      const animation = ref.current!.animate(
+        [
+          { opacity: 1, scale: 1, filter: 'blur(0px)' },
+          { opacity: 0, scale: 0, filter: 'blur(10px)' },
+        ],
+        {
+          duration: 250,
+          easing: 'ease-out',
+          fill: 'forwards',
+        }
+      )
+      animation.finished.then(hideDevTools)
+      return
+    }
+
     const projectedPosition = {
       x: translation.x + project(velocity.x),
       y: translation.y + project(velocity.y),
@@ -127,70 +145,19 @@ export function Draggable({
     }
   }
 
-  const mounted = useState(false)
-
-  useEffect(() => {
-    mounted[1](true)
-  }, [])
-
-  const root = ref.current?.getRootNode()
-
   return (
     <>
+      <div
+        aria-hidden
+        ref={hideRegionRef}
+        className="dev-tools-indicator-hide-region"
+        style={{ width: size, height: size }}
+      >
+        <IconCross />
+      </div>
       <div ref={ref} {...drag} style={{ touchAction: 'none' }}>
         {children}
       </div>
-      {mounted &&
-        root &&
-        createPortal(
-          <div
-            ref={dismissRegionRef}
-            style={{
-              width: 37,
-              height: 37,
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
-              position: 'fixed',
-              transform: 'translateX(-50%)',
-              left: '50%',
-              bottom: 32,
-              borderRadius: 128,
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 14,
-              fontWeight: 500,
-              WebkitFontSmoothing: 'antialiased',
-              pointerEvents: 'none',
-              zIndex: 10000,
-              transition: 'width 200ms var(--timing-swift)',
-              boxShadow: `
-                     0 0 0 1px #171717,
-              inset 0 0 0 1px hsla(0, 0%, 100%, 0.14),
-              0px 16px 32px -8px rgba(0, 0, 0, 0.24)
-              `,
-            }}
-            onMouseEnter={() => {
-              console.log('hi')
-            }}
-          >
-            <svg
-              data-testid="geist-icon"
-              height="16"
-              stroke-linejoin="round"
-              viewBox="0 0 16 16"
-              width="16"
-            >
-              <path
-                fill-rule="evenodd"
-                clip-rule="evenodd"
-                d="M12.4697 13.5303L13 14.0607L14.0607 13L13.5303 12.4697L9.06065 7.99999L13.5303 3.53032L14.0607 2.99999L13 1.93933L12.4697 2.46966L7.99999 6.93933L3.53032 2.46966L2.99999 1.93933L1.93933 2.99999L2.46966 3.53032L6.93933 7.99999L2.46966 12.4697L1.93933 13L2.99999 14.0607L3.53032 13.5303L7.99999 9.06065L12.4697 13.5303Z"
-                fill="currentColor"
-              ></path>
-            </svg>
-          </div>,
-          root
-        )}
     </>
   )
 }
@@ -198,10 +165,10 @@ export function Draggable({
 interface UseDragOptions {
   onDragStart?: () => void
   onDrag?: (translation: Point) => void
-  onDragEnd?: (translation: Point, velocity: Point) => void
+  onDragEnd?: (hide: Boolean, translation: Point, velocity: Point) => void
   onAnimationEnd?: (corner: Corner) => void
   threshold: number // Minimum movement before drag starts
-  dismissRegionRef: React.RefObject<HTMLDivElement | null>
+  hideRegionRef: React.RefObject<HTMLDivElement | null>
 }
 
 interface Velocity {
@@ -215,7 +182,7 @@ export function useDrag({
   onDragEnd,
   onAnimationEnd,
   threshold,
-  dismissRegionRef,
+  hideRegionRef,
 }: UseDragOptions) {
   const ref = useRef<HTMLDivElement | null>(null)
   const state = useRef<'idle' | 'press' | 'drag' | 'drag-end'>('idle')
@@ -298,49 +265,45 @@ export function useDrag({
         ref.current?.style.removeProperty('transition')
         ref.current?.classList.add('dev-tools-grabbing')
         document.body.style.setProperty('cursor', 'grabbing')
+        hideRegionRef.current?.setAttribute('data-show', 'true')
         onDragStart?.()
       }
     }
 
     if (state.current !== 'drag') return
 
-    const dismissRegion = dismissRegionRef.current!
+    const hideRegion = hideRegionRef.current!
     const currentPosition = { x: e.clientX, y: e.clientY }
 
     const dx = currentPosition.x - origin.current.x
     const dy = currentPosition.y - origin.current.y
     origin.current = currentPosition
 
-    const damping = snapped.current ? 0.1 : 1
+    const intersecting = areIntersecting(ref.current, hideRegion, 10)
+    const damping = intersecting ? 0.1 : 1
+
     const newTranslation = {
       x: translation.current.x + dx * damping,
       y: translation.current.y + dy * damping,
     }
 
-    const undampenedTranslation = {
-      x: translation.current.x + dx,
-      y: translation.current.y + dy,
-    }
-
-    const intersecting = areIntersecting(ref.current, dismissRegion, 10)
-
     if (intersecting && !snapped.current) {
       snapped.current = true
       animating.current = true
-      dismissRegion.style.setProperty('width', `${ref.current?.offsetWidth}px`)
+      hideRegion.style.setProperty('width', `${ref.current?.offsetWidth}px`)
 
-      const dismissRect = dismissRegion.getBoundingClientRect()
+      const hideRect = hideRegion.getBoundingClientRect()
       const triggerRect = ref.current?.getBoundingClientRect()
 
       if (triggerRect) {
-        // Center the trigger over the dismiss region
+        // Center the trigger over the hide region
         newTranslation.x +=
-          dismissRect.left +
-          dismissRect.width / 2 -
+          hideRect.left +
+          hideRect.width / 2 -
           (triggerRect.left + triggerRect.width / 2)
         newTranslation.y +=
-          dismissRect.top +
-          dismissRect.height / 2 -
+          hideRect.top +
+          hideRect.height / 2 -
           (triggerRect.top + triggerRect.height / 2)
 
         set(newTranslation)
@@ -349,11 +312,10 @@ export function useDrag({
     }
 
     if (!intersecting && snapped.current) {
-      transition()
-      animating.current = true
+      // transition()
+      // animating.current = true
       snapped.current = false
-      set(undampenedTranslation)
-      dismissRegion?.style.setProperty('width', '37px')
+      hideRegion?.style.setProperty('width', '37px')
     }
 
     if (!animating.current) {
@@ -377,7 +339,7 @@ export function useDrag({
 
   function onPointerUp(e: PointerEvent) {
     state.current = state.current === 'drag' ? 'drag-end' : 'idle'
-    dismissRegionRef.current?.style.setProperty('width', '37px')
+    hideRegionRef.current?.style.setProperty('width', '37px')
 
     window.removeEventListener('pointermove', onPointerMove)
     window.removeEventListener('pointerup', onPointerUp)
@@ -386,9 +348,11 @@ export function useDrag({
     velocities.current = []
 
     document.body.style.removeProperty('cursor')
+    hideRegionRef.current?.removeAttribute('data-show')
     ref.current?.classList.remove('dev-tools-grabbing')
     ref.current?.releasePointerCapture(e.pointerId)
-    onDragEnd?.(translation.current, velocity)
+    onDragEnd?.(snapped.current, translation.current, velocity)
+    snapped.current = false
   }
 
   return {
