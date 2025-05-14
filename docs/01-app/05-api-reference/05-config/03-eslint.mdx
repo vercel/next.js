@@ -72,7 +72,7 @@ next lint --dir pages --dir utils --file bar.js
 
 If you're using `eslint-plugin-next` in a project where Next.js isn't installed in your root directory (such as a monorepo), you can tell `eslint-plugin-next` where to find your Next.js application using the `settings` property in your `.eslintrc`:
 
-```mjs filename="eslint.config.mjs"
+```js filename="eslint.config.mjs"
 import { FlatCompat } from '@eslint/eslintrc'
 
 const compat = new FlatCompat({
@@ -108,7 +108,7 @@ next lint --no-cache
 
 If you would like to modify or disable any rules provided by the supported plugins (`react`, `react-hooks`, `next`), you can directly change them using the `rules` property in your `.eslintrc`:
 
-```mjs filename="eslint.config.mjs"
+```js filename="eslint.config.mjs"
 import { FlatCompat } from '@eslint/eslintrc'
 
 const compat = new FlatCompat({
@@ -133,7 +133,7 @@ export default eslintConfig
 
 The `next/core-web-vitals` rule set is enabled when `next lint` is run for the first time and the **strict** option is selected.
 
-```mjs filename="eslint.config.mjs"
+```js filename="eslint.config.mjs"
 import { FlatCompat } from '@eslint/eslintrc'
 
 const compat = new FlatCompat({
@@ -158,7 +158,7 @@ export default eslintConfig
 
 In addition to the Next.js ESLint rules, `create-next-app --typescript` will also add TypeScript-specific lint rules with `next/typescript` to your config:
 
-```mjs filename="eslint.config.mjs"
+```js filename="eslint.config.mjs"
 import { FlatCompat } from '@eslint/eslintrc'
 
 const compat = new FlatCompat({
@@ -196,7 +196,7 @@ bun add --dev eslint-config-prettier
 
 Then, add `prettier` to your existing ESLint config:
 
-```mjs filename="eslint.config.mjs"
+```js filename="eslint.config.mjs"
 import { FlatCompat } from '@eslint/eslintrc'
 
 const compat = new FlatCompat({
@@ -305,7 +305,7 @@ This eliminates the risk of collisions or errors that can occur due to importing
 
 If you already use a separate ESLint configuration and want to include `eslint-config-next`, ensure that it is extended last after other configurations. For example:
 
-```mjs filename="eslint.config.mjs"
+```js filename="eslint.config.mjs"
 import js from '@eslint/js'
 import { FlatCompat } from '@eslint/eslintrc'
 
