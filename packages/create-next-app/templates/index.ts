@@ -44,6 +44,7 @@ export const installTemplate = async ({
   importAlias,
   skipInstall,
   turbopack,
+  rspack
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -56,11 +57,16 @@ export const installTemplate = async ({
   const copySource = ["**"];
   if (!eslint) copySource.push("!eslint.config.mjs");
   if (!tailwind) copySource.push("!postcss.config.mjs");
+  if (rspack) copySource.push("!next.config.*");
+  else copySource.push("!next-rspack.config.*");
 
   await copy(copySource, root, {
     parents: true,
     cwd: templatePath,
     rename(name) {
+      if (name.startsWith("next-rspack")) {
+        return name.replace("next-rspack", "next");
+      }
       switch (name) {
         case "gitignore": {
           return `.${name}`;
@@ -187,6 +193,10 @@ export const installTemplate = async ({
     },
     devDependencies: {},
   };
+
+  if (rspack) {
+    packageJson.dependencies["next-rspack"] = version;
+  }
 
   /**
    * TypeScript projects will have type definitions and other devDependencies.
