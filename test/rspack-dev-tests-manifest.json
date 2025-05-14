@@ -2300,8 +2300,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/build-error-logs/build-error-logs.test.ts": {
-    "passed": ["build-error-logs should only log error a single time"],
-    "failed": [],
+    "passed": [],
+    "failed": ["build-error-logs should only log error a single time"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2747,7 +2747,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/development/basic/allowed-dev-origins.test.ts": {
     "passed": [
@@ -13248,6 +13248,8 @@
       "CLI Usage dev -p reserved",
       "CLI Usage dev Allow retry if default port is already in use",
       "CLI Usage dev NODE_OPTIONS='--inspect'",
+      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to --require.js'",
+      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to-require-with-node-require-option.js'",
       "CLI Usage dev PORT=0",
       "CLI Usage dev custom directory",
       "CLI Usage dev invalid directory",
@@ -13260,6 +13262,8 @@
       "CLI Usage export run export command",
       "CLI Usage info --help",
       "CLI Usage info -h",
+      "CLI Usage info should print output",
+      "CLI Usage info should print output with next.config.mjs",
       "CLI Usage no command --help",
       "CLI Usage no command --version",
       "CLI Usage no command -h",
@@ -13267,12 +13271,7 @@
       "CLI Usage no command detects command typos",
       "CLI Usage no command invalid directory"
     ],
-    "failed": [
-      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to --require.js'",
-      "CLI Usage dev NODE_OPTIONS='--require=file with spaces to-require-with-node-require-option.js'",
-      "CLI Usage info should print output",
-      "CLI Usage info should print output with next.config.mjs"
-    ],
+    "failed": [],
     "pending": [
       "CLI Usage production mode build --help",
       "CLI Usage production mode build -h",
@@ -13403,8 +13402,10 @@
       "config-output-export should error with getStaticPaths and fallback true",
       "config-output-export should error with getStaticProps and revalidate 10 seconds (ISR)",
       "config-output-export should error with middleware function",
+      "config-output-export should work with getStaticPaths and fallback false",
       "config-output-export should work with getStaticProps and revalidate false",
       "config-output-export should work with getStaticProps and without revalidate",
+      "config-output-export should work with static homepage",
       "config-output-export when hasNextSupport = false should error with \"headers\" config",
       "config-output-export when hasNextSupport = false should error with \"redirects\" config",
       "config-output-export when hasNextSupport = false should error with \"rewrites\" config",
@@ -13412,10 +13413,7 @@
       "config-output-export when hasNextSupport = true should error with \"redirects\" config",
       "config-output-export when hasNextSupport = true should error with \"rewrites\" config"
     ],
-    "failed": [
-      "config-output-export should work with getStaticPaths and fallback false",
-      "config-output-export should work with static homepage"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
