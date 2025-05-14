@@ -236,87 +236,82 @@ export default function Layout({ children }) {
 
 ### Passing data from Server to Client Components
 
-Data passed as props from Server Components to Client Components need to be [serializable](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values) by React.
+You can pass data from Server Components to Client Components using props.
 
-If your Client Components depends on data, you can:
+```tsx filename="app/[id]/page.tsx" highlight={1} switcher
+import LikeButton from '@/app/ui/like-button'
+import { getPost } from '@/lib/data'
 
-- Fetch data on the client using a [community library](/docs/app/getting-started/fetching-data#community-libraries).
-- Fetch data on the server using a [Route Handler](/docs/app/api-reference/file-conventions/route).
-- [Stream data](/docs/app/getting-started/fetching-data#streaming-data-with-the-use-hook) from a Server Component to a Client Component with the [`use` Hook](https://react.dev/reference/react/use).
+export default async function Page({ params }: { params: { id: string } }) {
+  const post = await getPost(params.id)
+
+  return <LikeButton likes={post.likes} />
+}
+```
+
+```tsx filename="app/ui/like-button.tsx" highlight={1} switcher
+'use client'
+
+export default function LikeButton({ likes }: { likes: number }) {
+  // ...
+}
+```
+
+Alternatively, you can stream data from a Server Component to a Client Component with the [`use` Hook](https://react.dev/reference/react/use). See an [example](/docs/app/getting-started/fetching-data#with-the-use-hook).
+
+> **Good to know**: Props passed to Client Components need to be [serializable](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values) by React.
 
 ### Interleaving Server and Client Components
 
-You can pass Server Components as a prop to a Client Component. A common pattern is to use `children` to create a _slot_ in your Client Component.
+You can pass Server Components as a prop to a Client Component. This allows you to visually nest UI rendered on the server within the UI rendered on the client.
 
-For example, the `<ClientComponent>` accepts a `children` prop:
+A common pattern is to use `children` to create a _slot_ in a `<ClientComponent>`. For example, a `<Cart>` component that fetches data on the server, inside a `<Modal>` component that uses client state to toggle visibility.
 
-```tsx filename="app/client-component.tsx" switcher highlight={1,11}
+```tsx filename="app/ui/modal.tsx" switcher
 'use client'
 
-import { useState } from 'react'
-
-export default function ClientComponent({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <button onClick={() => setCount(count + 1)}>{count}</button>
-      {children}
-    </>
-  )
+export default function Modal({ children }: { children: React.ReactNode }) {
+  return <div>{children}</div>
 }
 ```
 
-```jsx filename="app/client-component.js" switcher highlight={1,11}
+```jsx filename="app/ui/modal.js" switcher
 'use client'
 
-import { useState } from 'react'
-
-export default function ClientComponent({ children }) {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <button onClick={() => setCount(count + 1)}>{count}</button>
-      {children}
-    </>
-  )
+export default function Modal({ children }) {
+  return <div>{children}</div>
 }
 ```
 
-In a parent Server Component (e.g.`<Page>`), you can pass a Server Component as the child of a Client Component:
+Then, in a parent Server Component (e.g.`<Page>`), you can pass a `<Cart>` as the child of the `<Modal>`:
 
 ```tsx filename="app/page.tsx"  highlight={7} switcher
-import ClientComponent from './client-component'
-import ServerComponent from './server-component'
+import Modal from './ui/modal'
+import Cart from './ui/cart'
 
 export default function Page() {
   return (
-    <ClientComponent>
-      <ServerComponent />
-    </ClientComponent>
+    <Modal>
+      <Cart />
+    </Modal>
   )
 }
 ```
 
 ```jsx filename="app/page.js" highlight={7} switcher
-import ClientComponent from './client-component'
-import ServerComponent from './server-component'
+import Modal from './ui/modal'
+import Cart from './ui/cart'
 
 export default function Page() {
   return (
-    <ClientComponent>
-      <ServerComponent />
-    </ClientComponent>
+    <Modal>
+      <Cart />
+    </Modal>
   )
 }
 ```
 
-Following this pattern, all Server Components will be rendered on the server ahead of time, including those passed to Client Components as props. The resulting RSC payload will contain references of where Client Components should be rendered within the component tree.
+In this pattern, all Server Components will be rendered on the server ahead of time, including those as props. The resulting RSC payload will contain references of where Client Components should be rendered within the component tree.
 
 ### Context providers
 
