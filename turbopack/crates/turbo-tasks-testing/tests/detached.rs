@@ -1,6 +1,7 @@
 #![allow(clippy::needless_return)] // clippy bug causes false positive
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
+#![feature(ptr_metadata)]
 
 use tokio::{
     sync::{Notify, watch},

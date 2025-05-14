@@ -1,6 +1,7 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
+#![feature(ptr_metadata)]
 
 use anyhow::{Result, bail};
 use turbo_rcstr::{RcStr, rcstr};

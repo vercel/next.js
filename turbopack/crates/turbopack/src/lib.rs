@@ -6,6 +6,7 @@
 #![recursion_limit = "256"]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
+#![feature(ptr_metadata)]
 
 pub mod evaluate_context;
 pub mod global_module_ids;

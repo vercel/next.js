@@ -1,6 +1,7 @@
 #![feature(type_alias_impl_trait)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
+#![feature(ptr_metadata)]
 
 pub mod build_options;
 

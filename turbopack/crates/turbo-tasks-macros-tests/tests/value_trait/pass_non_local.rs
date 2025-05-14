@@ -1,5 +1,6 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
+#![feature(ptr_metadata)]
 
 #[turbo_tasks::value_trait]
 trait MyTrait {}

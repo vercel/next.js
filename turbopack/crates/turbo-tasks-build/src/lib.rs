@@ -286,10 +286,12 @@ impl RegisterContext<'_> {
             }
 
             for item in &impl_item.items {
-                if let syn::ImplItem::Fn(method_item) = item {
-                    // TODO: if method_item.attrs.iter().any(|a|
-                    // is_attribute(a,
-                    // "function")) {
+                if let syn::ImplItem::Fn(method_item) = item
+                    && method_item
+                        .attrs
+                        .iter()
+                        .any(|a| is_turbo_attribute(a, "function"))
+                {
                     let method_ident = &method_item.sig.ident;
                     let function_type_ident = if let Some(trait_ident) = &trait_ident {
                         get_trait_impl_function_ident(&struct_ident, trait_ident, method_ident)
@@ -374,8 +376,10 @@ impl RegisterContext<'_> {
                 if let TraitItem::Fn(TraitItemFn {
                     default: Some(_),
                     sig,
+                    attrs,
                     ..
                 }) = item
+                    && attrs.iter().any(|a| is_turbo_attribute(a, "function"))
                 {
                     let method_ident = &sig.ident;
                     let function_type_ident =

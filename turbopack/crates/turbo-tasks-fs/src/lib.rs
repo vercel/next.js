@@ -6,6 +6,7 @@
 #![feature(round_char_boundary)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
+#![feature(ptr_metadata)]
 #![allow(clippy::mutable_key_type)]
 
 pub mod attach;

@@ -1,19 +1,5 @@
 error: trait items cannot be operations
-  --> tests/value_trait/fail_missing_function_annotation.rs:13:29
+  --> tests/value_trait/fail_missing_function_annotation.rs:14:29
    |
-13 |     #[turbo_tasks::function(operation)]
+14 |     #[turbo_tasks::function(operation)]
    |                             ^^^^^^^^^
-
-error: #[turbo_tasks::function] attribute missing
- --> tests/value_trait/fail_missing_function_annotation.rs:8:5
-  |
-8 |     fn item(&self) -> bool;
-  |     ^^^^^^^^^^^^^^^^^^^^^^^
-
-error: #[turbo_tasks::function] attribute missing
-  --> tests/value_trait/fail_missing_function_annotation.rs:22:5
-   |
-22 | /     fn item(&self) -> bool {
-23 | |         true
-24 | |     }
-   | |_____^

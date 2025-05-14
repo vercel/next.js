@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Vc, VcValueTrait,
-    registry::get_value_type,
+    registry::{self, get_value_type},
     task::shared_reference::TypedSharedReference,
     vc::{ReadVcFuture, VcValueTraitCast, cast::VcCast},
 };
@@ -72,6 +72,41 @@ impl<'de, T> Deserialize<'de> for TraitRef<T> {
     }
 }
 
+// This is a workaround for https://github.com/rust-lang/rust-analyzer/issues/19971
+// that ensures type inference keeps working with ptr_metadata.
+
+#[cfg(rust_analyzer)]
+impl<U> std::ops::Deref for TraitRef<Box<U>>
+where
+    U: ?Sized,
+    Box<U>: VcValueTrait,
+{
+    type Target = U;
+
+    fn deref(&self) -> &Self::Target {
+        unimplemented!("only exists for rust-analyzer type inference")
+    }
+}
+
+#[cfg(not(rust_analyzer))]
+impl<U> std::ops::Deref for TraitRef<Box<U>>
+where
+    Box<U>: VcValueTrait,
+    U: std::ptr::Pointee<Metadata = std::ptr::DynMetadata<U>> + ?Sized,
+{
+    type Target = U;
+
+    fn deref(&self) -> &Self::Target {
+        let trait_id = <Box<U> as VcValueTrait>::get_trait_type_id();
+        let downcast_ptr = registry::get_value_type(self.shared_reference.type_id)
+            .as_trait_ptr::<Self::Target>(trait_id, self.shared_reference.reference.0.as_ptr());
+        // SAFETY: the shared reference is guaranteed to outlive &self, and the returned reference
+        // is guaranteed to have a lifetime shorter than or equal to `&self` so this reference will
+        // not outlive the pointee
+        unsafe { &*downcast_ptr }
+    }
+}
+
 // Otherwise, TraitRef<Box<dyn Trait>> would not be Sync.
 // SAFETY: TraitRef doesn't actually contain a T.
 unsafe impl<T> Sync for TraitRef<T> where T: ?Sized {}
@@ -94,7 +129,10 @@ where
     }
 
     pub fn ptr_eq(this: &Self, other: &Self) -> bool {
-        triomphe::Arc::ptr_eq(&this.shared_reference.1.0, &other.shared_reference.1.0)
+        triomphe::Arc::ptr_eq(
+            &this.shared_reference.reference.0,
+            &other.shared_reference.reference.0,
+        )
     }
 }
 
@@ -108,7 +146,7 @@ where
         let TraitRef {
             shared_reference, ..
         } = trait_ref;
-        let value_type = get_value_type(shared_reference.0);
+        let value_type = get_value_type(shared_reference.type_id);
         (value_type.raw_cell)(shared_reference).into()
     }
 }

@@ -1,12 +1,12 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
+#![feature(ptr_metadata)]
 
 use turbo_tasks::Vc;
 
 #[turbo_tasks::value_trait]
 trait MyTrait {
-    #[turbo_tasks::function]
-    fn item(&self) -> Vc<bool>;
+    fn item(&self) -> bool;
 
     #[turbo_tasks::function]
     fn item2(&self) -> Vc<bool>;
@@ -20,9 +20,8 @@ struct MyStruct;
 
 #[turbo_tasks::value_impl]
 impl MyTrait for MyStruct {
-    #[turbo_tasks::function]
-    fn item(&self) -> Vc<bool> {
-        Vc::cell(true)
+    fn item(&self) -> bool {
+        true
     }
 
     #[turbo_tasks::function]

@@ -1,7 +1,9 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned};
-use syn::{ItemTrait, TraitItem, TraitItemFn, parse_macro_input, parse_quote, spanned::Spanned};
+use syn::{
+    FnArg, ItemTrait, Pat, TraitItem, TraitItemFn, parse_macro_input, parse_quote, spanned::Spanned,
+};
 use turbo_tasks_macros_shared::{
     ValueTraitArguments, get_trait_default_impl_function_id_ident,
     get_trait_default_impl_function_ident, get_trait_type_id_ident, get_trait_type_ident,
@@ -89,10 +91,50 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         let ident = &sig.ident;
         // This effectively parses and removes the function annotation ensuring that that macro
         // doesn't run after us.
-        let (func_args, attrs) = split_function_attributes(item, attrs);
-        let Ok(func_args) = func_args.inspect_err(|err| errors.push(err.to_compile_error())) else {
-            continue;
+        let (func_args, attrs) = split_function_attributes(attrs);
+        let func_args = match func_args {
+            Ok(None) => {
+                // There is no turbo_tasks::function annotation, preserve this item
+                items.push(item.clone());
+                // But we still need to add a forwarding implementation to the
+                // impl for `turbo_tasks::Dynamic<Box<dyn T>>`
+                // This will have the same signature, but simply forward the call
+                let mut args = Vec::new();
+                for arg in &sig.inputs {
+                    let ident = match arg {
+                        FnArg::Receiver(_) => {
+                            continue;
+                        }
+                        FnArg::Typed(pat) => match &*pat.pat {
+                            Pat::Ident(pat_ident) => &pat_ident.ident,
+                            _ => {
+                                pat.span()
+                                    .unwrap()
+                                    .error("can only support simple patterns")
+                                    .emit();
+                                continue;
+                            }
+                        },
+                    };
+                    args.push(ident);
+                }
+                // Add a dummy implementation that dereferneces the box and delegates to the
+                // actual implementation.
+                dynamic_trait_fns.push(quote! {
+                    #sig {
+                        let reference: &dyn #trait_ident = &*self;
+                        reference.#ident(#(#args),*)
+                    }
+                });
+                continue;
+            }
+            Ok(Some(func_args)) => func_args,
+            Err(err) => {
+                errors.push(err.to_compile_error());
+                continue;
+            }
         };
+
         if let Some(span) = func_args.operation {
             span.unwrap()
                 .error("trait items cannot be operations")

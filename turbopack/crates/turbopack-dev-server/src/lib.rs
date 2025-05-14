@@ -5,6 +5,7 @@
 #![feature(str_split_remainder)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
+#![feature(ptr_metadata)]
 
 pub mod html;
 mod http;
@@ -219,7 +220,7 @@ impl DevServerBuilder {
                             handle_issues(
                                 source_op,
                                 issue_reporter,
-                                IssueSeverity::Fatal.cell(),
+                                IssueSeverity::Fatal,
                                 Some(&path),
                                 Some("get source"),
                             )

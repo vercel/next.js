@@ -1,6 +1,7 @@
 #![feature(future_join)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
+#![feature(ptr_metadata)]
 #![feature(impl_trait_in_assoc_type)]
 
 mod app;

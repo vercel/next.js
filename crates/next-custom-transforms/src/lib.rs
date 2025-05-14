@@ -31,6 +31,7 @@ DEALINGS IN THE SOFTWARE.
 #![feature(box_patterns)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
+#![feature(ptr_metadata)]
 
 use std::hash::BuildHasherDefault;
 

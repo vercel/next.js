@@ -1,6 +1,7 @@
 #![feature(iter_intersperse)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
+#![feature(ptr_metadata)]
 
 pub(crate) mod chunking_context;
 pub(crate) mod ecmascript;

@@ -1,5 +1,6 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
+#![feature(ptr_metadata)]
 
 use criterion::{Criterion, criterion_group, criterion_main};
 

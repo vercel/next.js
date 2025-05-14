@@ -19,6 +19,9 @@ exclude = ["crates/next-error-code-swc-plugin"]
 [workspace.lints.clippy]
 too_many_arguments = "allow"
 
+[workspace.lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(rust_analyzer)'] }
+
 # This crate is particularly sensitive to compiler optimizations
 [profile.dev.package.turbo-persistence]
 opt-level = 1

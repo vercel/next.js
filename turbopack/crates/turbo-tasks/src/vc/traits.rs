@@ -26,6 +26,7 @@ pub unsafe trait VcValueType: ShrinkToFit + Sized + Send + Sync + 'static {
 /// A trait implemented on all values trait object references that can be put
 /// into a Value Cell ([`Vc<Box<dyn Trait>>`][crate::Vc]).
 pub trait VcValueTrait: NonLocalValue + Send + Sync + 'static {
+    /// Returns the type id of the trait object.
     fn get_trait_type_id() -> TraitTypeId;
 }
 
