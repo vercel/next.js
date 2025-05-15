@@ -6,6 +6,7 @@ use std::{
 
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
+use shrink_to_fit::ShrinkToFit;
 
 use crate::AutoMap;
 
@@ -237,6 +238,16 @@ where
 {
     fn from(array: [K; N]) -> Self {
         Self::from_iter(array)
+    }
+}
+
+impl<K, H, const I: usize> ShrinkToFit for AutoSet<K, H, I>
+where
+    K: Eq + Hash,
+    H: BuildHasher + Default,
+{
+    fn shrink_to_fit(&mut self) {
+        self.map.shrink_to_fit();
     }
 }
 

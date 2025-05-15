@@ -7,9 +7,9 @@ const defaultCacheHandler =
  * @type {import('next/dist/server/lib/cache-handlers/types').CacheHandlerV2}
  */
 const cacheHandler = {
-  async get(cacheKey) {
-    console.log('ModernCustomCacheHandler::get', cacheKey)
-    return defaultCacheHandler.get(cacheKey)
+  async get(cacheKey, softTags) {
+    console.log('ModernCustomCacheHandler::get', cacheKey, softTags)
+    return defaultCacheHandler.get(cacheKey, softTags)
   },
 
   async set(cacheKey, pendingEntry) {
