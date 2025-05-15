@@ -160,6 +160,21 @@ describe('next/font', () => {
       })
     })
 
+    test('page with local fonts path fallback', async () => {
+      const html = await renderViaHTTP(
+        next.url,
+        '/with-local-fonts-path-fallback'
+      )
+      const $ = cheerio.load(html)
+
+      expect(JSON.parse($('#first-local-font').text())).toEqual({
+        className: expect.stringMatching(getClassNameRegex('className')),
+        style: {
+          fontFamily: expect.stringMatching(/^'myFont'$/),
+        },
+      })
+    })
+
     test('Variable font without weight range', async () => {
       const html = await renderViaHTTP(
         next.url,
@@ -326,6 +341,43 @@ describe('next/font', () => {
         )
       ).toMatch(/^"Open Sans", system-ui, Arial$/)
     })
+
+    test('page with local fonts path fallback', async () => {
+      const browser = await webdriver(
+        next.url,
+        '/with-local-fonts-path-fallback'
+      )
+
+      const ascentOverrideNormal = await browser.eval(
+        'Array.from(document.fonts.values()).find(font => font.family.includes("myFont") && font.style == "normal").ascentOverride'
+      )
+      expect(ascentOverrideNormal).toBe('80%')
+
+      const unicodeRangeNormal = await browser.eval(
+        'Array.from(document.fonts.values()).find(font => font.family.includes("myFont") && font.style == "normal").unicodeRange'
+      )
+      expect(unicodeRangeNormal).toBe('U+0-5FF')
+
+      const stretchNormal = await browser.eval(
+        'Array.from(document.fonts.values()).find(font => font.family.includes("myFont") && font.style == "normal").stretch'
+      )
+      expect(stretchNormal).toBe('normal')
+
+      const ascentOverrideItalic = await browser.eval(
+        'Array.from(document.fonts.values()).find(font => font.family.includes("myFont") && font.style == "italic").ascentOverride'
+      )
+      expect(ascentOverrideItalic).toBe('80%')
+
+      const stretchItalic = await browser.eval(
+        'Array.from(document.fonts.values()).find(font => font.family.includes("myFont") && font.style == "italic").stretch'
+      )
+      expect(stretchItalic).toBe('50% 100%')
+
+      const unicodeRangeItalic = await browser.eval(
+        'Array.from(document.fonts.values()).find(font => font.family.includes("myFont") && font.style == "italic").unicodeRange'
+      )
+      expect(unicodeRangeItalic).toBe('U+0-10FFFF')
+    })
   })
 
   describe('preload', () => {
@@ -393,6 +445,36 @@ describe('next/font', () => {
         hrefMatchesFontWithSizeAdjust(href)
       }
       expect(hrefs.length).toBe(5)
+    })
+
+    test('page with local fonts path fallback', async () => {
+      const html = await renderViaHTTP(
+        next.url,
+        '/with-local-fonts-path-fallback'
+      )
+      const $ = cheerio.load(html)
+
+      const links = Array.from($('link[as="font"]'))
+        .map((node) => node.attribs)
+        .sort((a, b) => {
+          return a.href.localeCompare(b.href)
+        })
+
+      expect(links.length).toBe(2)
+
+      const attributes = links[0]
+      expect(attributes.as).toBe('font')
+      expect(attributes.crossorigin).toBe('anonymous')
+      hrefMatchesFontWithSizeAdjust(attributes.href)
+      expect(attributes.rel).toBe('preload')
+      expect(attributes.type).toBe('font/woff2')
+
+      const attributes2 = links[1]
+      expect(attributes2.as).toBe('font')
+      expect(attributes2.crossorigin).toBe('anonymous')
+      hrefMatchesFontWithoutSizeAdjust(attributes2.href)
+      expect(attributes2.rel).toBe('preload')
+      expect(attributes2.type).toBe('font/woff2')
     })
 
     test('google fonts with multiple weights/styles', async () => {

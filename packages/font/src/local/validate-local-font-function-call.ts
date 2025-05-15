@@ -13,19 +13,60 @@ const extToFormat = {
 type FontOptions = {
   src: Array<{
     path: string
+    pathFallback: Array<{
+      path: string
+      ext: string
+      format: string
+      preload: boolean
+    }>
     weight?: string
     style?: string
     ext: string
     format: string
+    declarations?: Array<{ prop: string; value: string }>
+    preload: boolean
   }>
   display: string
   weight?: string
   style?: string
   fallback?: string[]
-  preload: boolean
   variable?: string
   adjustFontFallback?: string | false
   declarations?: Array<{ prop: string; value: string }>
+}
+
+function validateLocalFontDeclarations(
+  declarations: Array<{ prop: string; value: string }> | undefined
+): void {
+  if (Array.isArray(declarations)) {
+    declarations.forEach((declaration) => {
+      if (
+        [
+          'font-family',
+          'src',
+          'font-display',
+          'font-weight',
+          'font-style',
+        ].includes(declaration?.prop)
+      ) {
+        nextFontError(`Invalid declaration prop: \`${declaration.prop}\``)
+      }
+    })
+  }
+}
+
+const getExtensionAndFormat = (path: string) => {
+  const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(path)?.[1] as
+    | 'woff'
+    | 'woff2'
+    | 'eot'
+    | 'ttf'
+    | 'otf'
+  if (!ext) {
+    nextFontError(`Unexpected file \`${path}\``)
+  }
+
+  return { ext, format: extToFormat[ext] }
 }
 
 /**
@@ -40,6 +81,7 @@ export function validateLocalFontFunctionCall(
   }
   let {
     src,
+    pathFallback = [],
     display = 'swap',
     weight,
     style,
@@ -63,40 +105,51 @@ export function validateLocalFontFunctionCall(
   }
 
   if (!Array.isArray(src)) {
-    src = [{ path: src, weight, style }]
+    src = [
+      {
+        path: src,
+        pathFallback: pathFallback.map((path: string) => ({
+          path,
+          preload: preload,
+          ...getExtensionAndFormat(path),
+        })),
+        weight,
+        style,
+      },
+    ]
   } else {
     if (src.length === 0) {
       nextFontError('Unexpected empty `src` array.')
     }
   }
 
-  src = src.map((fontFile: any) => {
-    const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile.path)?.[1]
-    if (!ext) {
-      nextFontError(`Unexpected file \`${fontFile.path}\``)
+  src = src.map(
+    (fontFile: {
+      path: string
+      pathFallback?: string[]
+      weight?: string
+      style?: string
+      preload?: boolean
+      declarations?: Array<{ prop: string; value: string }>
+    }) => {
+      validateLocalFontDeclarations(fontFile.declarations)
+      return {
+        ...fontFile,
+        ...getExtensionAndFormat(fontFile.path),
+        pathFallback: pathFallback
+          .concat(fontFile.pathFallback ?? [])
+          .map((path: string) => ({
+            path,
+            preload: fontFile.preload ?? preload,
+            ...getExtensionAndFormat(path),
+          })),
+        preload: fontFile.preload ?? preload,
+      }
     }
-
-    return {
-      ...fontFile,
-      ext,
-      format: extToFormat[ext as 'woff' | 'woff2' | 'eot' | 'ttf' | 'otf'],
-    }
-  })
+  )
 
   if (Array.isArray(declarations)) {
-    declarations.forEach((declaration) => {
-      if (
-        [
-          'font-family',
-          'src',
-          'font-display',
-          'font-weight',
-          'font-style',
-        ].includes(declaration?.prop)
-      ) {
-        nextFontError(`Invalid declaration prop: \`${declaration.prop}\``)
-      }
-    })
+    validateLocalFontDeclarations(declarations)
   }
 
   return {
@@ -105,7 +158,6 @@ export function validateLocalFontFunctionCall(
     weight,
     style,
     fallback,
-    preload,
     variable,
     adjustFontFallback,
     declarations,
