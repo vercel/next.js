@@ -57,16 +57,11 @@ export const installTemplate = async ({
   const copySource = ["**"];
   if (!eslint) copySource.push("!eslint.config.mjs");
   if (!tailwind) copySource.push("!postcss.config.mjs");
-  if (rspack) copySource.push("!next.config.*");
-  else copySource.push("!next-rspack.config.*");
 
   await copy(copySource, root, {
     parents: true,
     cwd: templatePath,
     rename(name) {
-      if (name.startsWith("next-rspack")) {
-        return name.replace("next-rspack", "next");
-      }
       switch (name) {
         case "gitignore": {
           return `.${name}`;
@@ -82,6 +77,21 @@ export const installTemplate = async ({
       }
     },
   });
+
+  if (rspack) {
+    const nextConfigFile = path.join(
+      root,
+      mode === "js" ? "next.config.mjs" : "next.config.ts",
+    );
+    await fs.writeFile(
+      nextConfigFile,
+      `import withRspack from "next-rspack";\n\n` +
+        (await fs.readFile(nextConfigFile, "utf8")).replace(
+          "export default nextConfig;",
+          "export default withRspack(nextConfig);",
+        ),
+    );
+  }
 
   const tsconfigFile = path.join(
     root,
