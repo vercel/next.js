@@ -70,7 +70,7 @@ Use **Server Components** when you need:
 
 For example, the `<Page>` component is a Server Component that fetches data about a post, and passes it as props to the `<LikeButton>` which handles client-side interactivity.
 
-```tsx filename="app/[id]/page.tsx" highlight={1} switcher
+```tsx filename="app/[id]/page.tsx" highlight={1,12} switcher
 import LikeButton from '@/app/ui/like-button'
 import { getPost } from '@/lib/data'
 
@@ -89,7 +89,7 @@ export default async function Page({ params }: { params: { id: string } }) {
 }
 ```
 
-```jsx filename="app/[id]/page.js" highlight={1} switcher
+```jsx filename="app/[id]/page.js" highlight={1,12} switcher
 import LikeButton from '@/app/ui/like-button'
 import { getPost } from '@/lib/data'
 
@@ -238,7 +238,7 @@ export default function Layout({ children }) {
 
 You can pass data from Server Components to Client Components using props.
 
-```tsx filename="app/[id]/page.tsx" highlight={1} switcher
+```tsx filename="app/[id]/page.tsx" highlight={1,7} switcher
 import LikeButton from '@/app/ui/like-button'
 import { getPost } from '@/lib/data'
 
@@ -249,10 +249,29 @@ export default async function Page({ params }: { params: { id: string } }) {
 }
 ```
 
+```jsx filename="app/[id]/page.js" highlight={1,7} switcher
+import LikeButton from '@/app/ui/like-button'
+import { getPost } from '@/lib/data'
+
+export default async function Page({ params }) {
+  const post = await getPost(params.id)
+
+  return <LikeButton likes={post.likes} />
+}
+```
+
 ```tsx filename="app/ui/like-button.tsx" highlight={1} switcher
 'use client'
 
 export default function LikeButton({ likes }: { likes: number }) {
+  // ...
+}
+```
+
+```jsx filename="app/ui/like-button.js" highlight={1} switcher
+'use client'
+
+export default function LikeButton({ likes }) {
   // ...
 }
 ```
@@ -492,18 +511,6 @@ export default function Page() {
 JavaScript modules can be shared between both Server and Client Components modules. This means it's possible to accidentanlly import server-only code into the client.
 
 For example, take the following function:
-
-```ts filename="lib/data.ts" switcher
-export async function getData() {
-  const res = await fetch('https://external-service.com/data', {
-    headers: {
-      authorization: process.env.API_KEY,
-    },
-  })
-
-  return res.json()
-}
-```
 
 ```js filename="lib/data.js" switcher
 export async function getData() {
