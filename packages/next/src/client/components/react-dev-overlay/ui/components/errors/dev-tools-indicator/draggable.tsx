@@ -35,31 +35,15 @@ export function Draggable({
     hideRegionRef,
     threshold: 5,
     onDragStart,
-    onDragEnd,
+    onSnapToCorner,
+    onHide,
   })
 
-  function onDragEnd(hide: Boolean, translation: Point, velocity: Point) {
-    if (hide) {
-      const animation = ref.current?.animate(
-        [
-          { opacity: 1, filter: 'blur(0px)' },
-          { opacity: 0, filter: 'blur(2px)' },
-        ],
-        {
-          duration: 150,
-          easing: 'ease-out',
-          fill: 'forwards',
-        }
-      )
-      animation?.finished.then(hideDevTools)
-      return
-    }
-
+  function onSnapToCorner(translation: Point, velocity: Point) {
     const projectedPosition = {
       x: translation.x + project(velocity.x),
       y: translation.y + project(velocity.y),
     }
-
     const nearestCorner = getNearestCorner(projectedPosition)
     animate(nearestCorner, () => {
       setTimeout(() => {
@@ -67,6 +51,21 @@ export function Draggable({
         setCurrentCorner(nearestCorner.corner)
       })
     })
+  }
+
+  function onHide() {
+    const animation = ref.current?.animate(
+      [
+        { opacity: 1, filter: 'blur(0px)' },
+        { opacity: 0, filter: 'blur(2px)' },
+      ],
+      {
+        duration: 150,
+        easing: 'ease-out',
+        fill: 'forwards',
+      }
+    )
+    animation?.finished.then(hideDevTools)
   }
 
   function getNearestCorner({ x, y }: Point): Corner {
@@ -163,7 +162,8 @@ export function Draggable({
 interface UseDragOptions {
   onDragStart?: () => void
   onDrag?: (translation: Point) => void
-  onDragEnd?: (hide: Boolean, translation: Point, velocity: Point) => void
+  onSnapToCorner: (translation: Point, velocity: Point) => void
+  onHide: () => void
   threshold: number // Minimum movement before drag starts
   hideRegionRef: React.RefObject<HTMLDivElement | null>
 }
@@ -176,7 +176,8 @@ interface Velocity {
 export function useDrag({
   onDragStart,
   onDrag,
-  onDragEnd,
+  onSnapToCorner,
+  onHide,
   threshold,
   hideRegionRef,
 }: UseDragOptions) {
@@ -223,7 +224,7 @@ export function useDrag({
     set(corner.translation)
   }
 
-  function onClick(e: MouseEvent) {
+  function onClick(e: React.MouseEvent) {
     if (state.current === 'drag-end') {
       e.preventDefault()
       e.stopPropagation()
@@ -323,7 +324,7 @@ export function useDrag({
       }
       set(finalTranslation)
       transition('translate 250ms var(--timing-bounce)', () => {
-        onDragEnd?.(true, translation.current, velocity)
+        onHide()
         hideRegionRef.current?.removeAttribute('data-show')
       })
     }
@@ -331,7 +332,7 @@ export function useDrag({
     document.body.style.removeProperty('cursor')
     ref.current?.classList.remove('dev-tools-grabbing')
     if (!snapped.current) {
-      onDragEnd?.(false, translation.current, velocity)
+      onSnapToCorner(translation.current, velocity)
       hideRegionRef.current?.removeAttribute('data-show')
     }
     ref.current?.releasePointerCapture(e.pointerId)
