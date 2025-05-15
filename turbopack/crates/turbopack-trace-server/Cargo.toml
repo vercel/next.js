@@ -19,6 +19,7 @@ hashbrown = { workspace = true, features = ["raw"] }
 indexmap = { workspace = true, features = ["serde"] }
 itertools = { workspace = true }
 postcard = { workspace = true }
+par-iter = { workspace = true }
 rayon = { workspace = true }
 rustc-demangle = "0.1"
 rustc-hash = { workspace = true }
