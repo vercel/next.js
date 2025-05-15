@@ -249,10 +249,29 @@ export default async function Page({ params }: { params: { id: string } }) {
 }
 ```
 
+```jsx filename="app/[id]/page.js" highlight={1,7} switcher
+import LikeButton from '@/app/ui/like-button'
+import { getPost } from '@/lib/data'
+
+export default async function Page({ params }) {
+  const post = await getPost(params.id)
+
+  return <LikeButton likes={post.likes} />
+}
+```
+
 ```tsx filename="app/ui/like-button.tsx" highlight={1} switcher
 'use client'
 
 export default function LikeButton({ likes }: { likes: number }) {
+  // ...
+}
+```
+
+```jsx filename="app/ui/like-button.js" highlight={1} switcher
+'use client'
+
+export default function LikeButton({ likes }) {
   // ...
 }
 ```
