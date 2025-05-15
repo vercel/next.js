@@ -1,7 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 
-const WITH_PPR = !!process.env.__NEXT_EXPERIMENTAL_PPR
-
 const stackStart = /\s+at /
 
 function createExpectError(cliOutput: string) {
@@ -75,15 +73,9 @@ function runTests(options: { withMinification: boolean }) {
           throw new Error('expected build not to fail for fully static project')
         }
 
-        if (WITH_PPR) {
-          expect(next.cliOutput).toContain('◐ / ')
-          const $ = await next.render$('/')
-          expect($('[data-fallback]').length).toBe(2)
-        } else {
-          expect(next.cliOutput).toContain('ƒ / ')
-          const $ = await next.render$('/')
-          expect($('[data-fallback]').length).toBe(2)
-        }
+        expect(next.cliOutput).toContain('◐ / ')
+        const $ = await next.render$('/')
+        expect($('[data-fallback]').length).toBe(2)
       })
     })
 
@@ -162,15 +154,9 @@ function runTests(options: { withMinification: boolean }) {
           throw new Error('expected build not to fail for fully static project')
         }
 
-        if (WITH_PPR) {
-          expect(next.cliOutput).toContain('◐ / ')
-          const $ = await next.render$('/')
-          expect($('[data-fallback]').length).toBe(2)
-        } else {
-          expect(next.cliOutput).toContain('ƒ / ')
-          const $ = await next.render$('/')
-          expect($('[data-fallback]').length).toBe(0)
-        }
+        expect(next.cliOutput).toContain('◐ / ')
+        const $ = await next.render$('/')
+        expect($('[data-fallback]').length).toBe(2)
       })
     })
 
@@ -249,15 +235,9 @@ function runTests(options: { withMinification: boolean }) {
           throw new Error('expected build not to fail for fully static project')
         }
 
-        if (WITH_PPR) {
-          expect(next.cliOutput).toContain('◐ / ')
-          const $ = await next.render$('/')
-          expect($('[data-fallback]').length).toBe(2)
-        } else {
-          expect(next.cliOutput).toContain('ƒ / ')
-          const $ = await next.render$('/')
-          expect($('[data-fallback]').length).toBe(0)
-        }
+        expect(next.cliOutput).toContain('◐ / ')
+        const $ = await next.render$('/')
+        expect($('[data-fallback]').length).toBe(2)
       })
     })
 
