@@ -2758,7 +2758,8 @@
     "passed": [
       "asset-prefix rewrites rewrites that do not start with assetPrefix should still work",
       "asset-prefix rewrites should respect rewrites that start with assetPrefix",
-      "asset-prefix should load the app properly without reloading"
+      "asset-prefix should load the app properly without reloading",
+      "asset-prefix should navigate to another page without hard navigating"
     ],
     "failed": [],
     "pending": [],
