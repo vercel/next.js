@@ -30,11 +30,39 @@ When a user visits a route:
 
 ## How does Partial Prerendering work?
 
-Partial Prerendering uses React's [Suspense](https://react.dev/reference/react/Suspense) to defer rendering parts of your application until some condition is met.
+To understand Partial Prerendering, it helps to be familiar with the rendering strategies available in Next.js.
 
-The Suspense fallback is embedded into the initial HTML along with the static content. At build time (or during revalidation), the static content and fallback are **prerendered** to create a static shell. The rendering of dynamic content is **postponed** until the user requests the route.
+### Static Rendering
 
-Wrapping a component in Suspense doesn't make the component itself dynamic, but rather Suspense is used as a boundary that encapsulates dynamic content.
+With Static Rendering, HTML is generated ahead of time—either at build time or through [revalidation](/docs/app/building-your-application/data-fetching/incremental-static-regeneration). The result is cached and shared across users and requests.
+
+In Partial Prerendering, Next.js prerenders a **static shell** for a route. This can include the layout and any other components that don't depend on request-time data.
+
+### Dynamic Rendering
+
+With Dynamic Rendering, HTML is generated at **request time**. This allows you to serve personalized content based on request-time data.
+
+A component becomes dynamic if it uses the following APIs:
+
+- [`cookies`](/docs/app/api-reference/functions/cookies)
+- [`headers`](/docs/app/api-reference/functions/headers)
+- [`connection`](/docs/app/api-reference/functions/connection)
+- [`draftMode`](/docs/app/api-reference/functions/draft-mode)
+- [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional)
+- [`unstable_noStore`](/docs/app/api-reference/functions/unstable_noStore)
+- [`fetch`](/docs/app/api-reference/functions/fetch) with `{ cache: 'no-store' }`
+
+In Partial Prerendering, using the APIs throws a special React error that informs Next.js the component cannot be statically rendered, causing a build error. You can use [Suspense](#suspense) to defer rendering until runtime.
+
+### Suspense
+
+React [Suspense](https://react.dev/reference/react/Suspense) is used to defer rendering parts of your application until some condition is met.
+
+In Partial Prerendering, Suspense is used to mark **dynamic boundaries** in your component tree.
+
+At build time, Next.js prerenders the static content and the `fallback` UI. The dynamic content is **postponed** until the user requests the route.
+
+Wrapping a component in Suspense doesn't make the component itself dynamic (your API usage does), but rather Suspense is used as a boundary that encapsulates dynamic content and enable [streaming](#streaming)
 
 ```jsx filename="app/page.js"
 import { Suspense } from 'react'
@@ -56,9 +84,29 @@ export default function Page() {
 }
 ```
 
-To avoid client-server waterfalls, dynamic components start streaming from the server in parallel with the static prerender. This allows them to begin rendering before the browser loads client-side JavaScript.
+### Streaming
 
-To reduce network overhead, PPR sends both static and dynamic content in a **single HTTP response**, avoiding extra roundtrips for each dynamic component.
+Streaming splits the route into chunks and progressively streams them to the client as they become ready. This allows the user to see parts of the page immediately, before the entire content has finished rendering.
+
+<Image
+  alt="Diagram showing partially rendered page on the client, with loading UI for chunks that are being streamed."
+  srcLight="/docs/light/server-rendering-with-streaming.png"
+  srcDark="/docs/dark/server-rendering-with-streaming.png"
+  width="1600"
+  height="785"
+/>
+
+In Partial Prerendering, dynamic components wrapped in Suspense start streaming from the server in parallel.
+
+<Image
+  alt="Diagram showing parallelization of route segments during streaming, showing data fetching, rendering, and hydration of individual chunks."
+  srcLight="/docs/light/sequential-parallel-data-fetching.png"
+  srcDark="/docs/dark/sequential-parallel-data-fetching.png"
+  width="1600"
+  height="525"
+/>
+
+To reduce network overhead, the full response—including static HTML and streamed dynamic parts—is sent in a **single HTTP request**. This avoids extra roundtrips and improves both initial load and overall performance.
 
 ## Enabling Partial Prerendering
 
@@ -87,7 +135,7 @@ const nextConfig = {
 
 The `'incremental'` value allows you to adopt PPR for specific routes:
 
-```tsx filename="/app/dashboard/layout.tsx" highlight={3}
+```tsx filename="/app/dashboard/layout.tsx"
 export const experimental_ppr = true
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -95,7 +143,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 }
 ```
 
-```jsx filename="/app/dashboard/layout.js" highlight={3}
+```jsx filename="/app/dashboard/layout.js"
 export const experimental_ppr = true
 
 export default function Layout({ children }) {

@@ -243,7 +243,7 @@ This means we don't have to wait for everything to render before caching the wor
 > - Placeholders for where Client Components should be rendered and references to their JavaScript files
 > - Any props passed from a Server Component to a Client Component
 >
-> To learn more, see the [Server Components](/docs/app/building-your-application/rendering/server-components) documentation.
+> To learn more, see the [Server Components](/docs/app/getting-started/server-and-client-components) documentation.
 
 ### 2. Next.js Caching on the Server (Full Route Cache)
 
@@ -289,7 +289,7 @@ This diagram shows the difference between statically and dynamically rendered ro
   height="1314"
 />
 
-Learn more about [static and dynamic rendering](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies).
+Learn more about [static and dynamic rendering](/docs/app/getting-started/partial-prerendering#static-rendering).
 
 ### Duration
 
@@ -331,7 +331,7 @@ With the Router Cache:
 The cache is stored in the browser's temporary memory. Two factors determine how long the router cache lasts:
 
 - **Session**: The cache persists across navigation. However, it's cleared on page refresh.
-- **Automatic Invalidation Period**: The cache of layouts and loading states is automatically invalidated after a specific time. The duration depends on how the resource was [prefetched](/docs/app/api-reference/components/link#prefetch), and if the resource was [statically generated](/docs/app/building-your-application/rendering/server-components#static-rendering-default):
+- **Automatic Invalidation Period**: The cache of layouts and loading states is automatically invalidated after a specific time. The duration depends on how the resource was [prefetched](/docs/app/api-reference/components/link#prefetch), and if the resource was [statically generated](/docs/app/getting-started/partial-prerendering#static-rendering):
   - **Default Prefetching** (`prefetch={null}` or unspecified): not cached for dynamic pages, 5 minutes for static pages.
   - **Full Prefetching** (`prefetch={true}` or `router.prefetch`): 5 minutes for both static & dynamic pages.
 

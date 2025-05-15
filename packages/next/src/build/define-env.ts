@@ -1,21 +1,17 @@
-import type {
-  I18NDomains,
-  NextConfigComplete,
-} from '../../../server/config-shared'
-import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
-import { needsExperimentalReact } from '../../../lib/needs-experimental-react'
-import { checkIsAppPPREnabled } from '../../../server/lib/experimental/ppr'
+import type { I18NDomains, NextConfigComplete } from '../server/config-shared'
+import type { MiddlewareMatcher } from './analysis/get-page-static-info'
+import { needsExperimentalReact } from '../lib/needs-experimental-react'
+import { checkIsAppPPREnabled } from '../server/lib/experimental/ppr'
 import {
   getNextConfigEnv,
   getNextPublicEnvironmentVariables,
-} from '../../../lib/static-env'
-import getWebpackBundler from '../../../shared/lib/get-webpack-bundler'
+} from '../lib/static-env'
 
 type BloomFilter = ReturnType<
-  import('../../../shared/lib/bloom-filter').BloomFilter['export']
+  import('../shared/lib/bloom-filter').BloomFilter['export']
 >
 
-export interface DefineEnvPluginOptions {
+export interface DefineEnvOptions {
   isTurbopack: boolean
   clientRouterFilters?: {
     staticFilter: BloomFilter
@@ -102,7 +98,7 @@ export function getDefineEnv({
   isNodeServer,
   middlewareMatchers,
   omitNonDeterministic,
-}: DefineEnvPluginOptions): SerializedDefineEnv {
+}: DefineEnvOptions): SerializedDefineEnv {
   const nextPublicEnv = getNextPublicEnvironmentVariables()
   const nextConfigEnv = getNextConfigEnv(config)
 
@@ -319,8 +315,4 @@ export function getDefineEnv({
   }
 
   return serializedDefineEnv
-}
-
-export function getDefineEnvPlugin(options: DefineEnvPluginOptions) {
-  return new (getWebpackBundler().DefinePlugin)(getDefineEnv(options))
 }

@@ -32,12 +32,9 @@ async fn test_trace_transient() {
         anyhow::Ok(())
     })
     .await;
-    assert!(
-        result
-            .unwrap_err()
-            .to_string()
-            .contains(&EXPECTED_TRACE.escape_debug().to_string())
-    );
+
+    let message = format!("{:#}", result.unwrap_err());
+    assert!(message.contains(&EXPECTED_TRACE.to_string()));
 }
 
 #[turbo_tasks::value]

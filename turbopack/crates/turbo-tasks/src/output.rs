@@ -1,27 +1,26 @@
 use std::{
-    borrow::Cow,
     fmt::{self, Display},
+    sync::Arc,
 };
 
 use anyhow::anyhow;
 
-use crate::{RawVc, util::SharedError};
+use crate::{RawVc, TurboTasksPanic, util::SharedError};
 
 /// A helper type representing the output of a resolved task.
 #[derive(Clone, Debug)]
 pub enum OutputContent {
     Link(RawVc),
     Error(SharedError),
-    Panic(Option<Box<Cow<'static, str>>>),
+    Panic(Arc<TurboTasksPanic>),
 }
 
 impl OutputContent {
     pub fn as_read_result(&self) -> anyhow::Result<RawVc> {
         match &self {
-            Self::Error(err) => Err(anyhow::Error::new(err.clone())),
+            Self::Error(err) => Err(anyhow!(err.clone())),
             Self::Link(raw_vc) => Ok(*raw_vc),
-            Self::Panic(Some(message)) => Err(anyhow!("A task panicked: {message}")),
-            Self::Panic(None) => Err(anyhow!("A task panicked")),
+            Self::Panic(err) => Err(anyhow!(err.clone())),
         }
     }
 }
@@ -31,8 +30,7 @@ impl Display for OutputContent {
         match self {
             Self::Link(raw_vc) => write!(f, "link {raw_vc:?}"),
             Self::Error(err) => write!(f, "error {err}"),
-            Self::Panic(Some(message)) => write!(f, "panic {message}"),
-            Self::Panic(None) => write!(f, "panic"),
+            Self::Panic(err) => write!(f, "panic {err}"),
         }
     }
 }

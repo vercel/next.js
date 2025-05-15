@@ -460,13 +460,13 @@ export const getItem = cache(async (id) => {
 })
 ```
 
-With this approach, you can eagerly fetch data, cache responses, and guarantee that this data fetching [only happens on the server](/docs/app/building-your-application/rendering/composition-patterns#keeping-server-only-code-out-of-the-client-environment).
+With this approach, you can eagerly fetch data, cache responses, and guarantee that this data fetching [only happens on the server](/docs/app/getting-started/server-and-client-components#examples#keeping-server-only-code-out-of-the-client-environment).
 
 The `utils/get-item` exports can be used by Layouts, Pages, or other components to give them control over when an item's data is fetched.
 
 > **Good to know:**
 >
-> - We recommend using the [`server-only` package](/docs/app/building-your-application/rendering/composition-patterns#keeping-server-only-code-out-of-the-client-environment) to make sure server data fetching functions are never used on the client.
+> - We recommend using the [`server-only` package](/docs/app/getting-started/server-and-client-components#examples#keeping-server-only-code-out-of-the-client-environment) to make sure server data fetching functions are never used on the client.
 
 ### Preventing sensitive data from being exposed to the client
 
