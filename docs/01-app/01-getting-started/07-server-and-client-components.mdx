@@ -263,7 +263,7 @@ Alternatively, you can stream data from a Server Component to a Client Component
 
 ### Interleaving Server and Client Components
 
-You can pass Server Components as a prop to a Client Component. This allows you to visually nest server-rendered UI within Client components. 
+You can pass Server Components as a prop to a Client Component. This allows you to visually nest server-rendered UI within Client components.
 
 A common pattern is to use `children` to create a _slot_ in a `<ClientComponent>`. For example, a `<Cart>` component that fetches data on the server, inside a `<Modal>` component that uses client state to toggle visibility.
 
