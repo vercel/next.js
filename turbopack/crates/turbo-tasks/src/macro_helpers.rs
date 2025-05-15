@@ -7,13 +7,13 @@ pub use shrink_to_fit;
 pub use tracing;
 
 use crate::{
-    debug::ValueDebugFormatString, task::TaskOutput, NonLocalValue, RawVc, TaskInput,
-    TaskPersistence, Vc,
+    NonLocalValue, RawVc, TaskInput, TaskPersistence, Vc, debug::ValueDebugFormatString,
+    task::TaskOutput,
 };
 pub use crate::{
     magic_any::MagicAny,
     manager::{find_cell_by_type, notify_scheduled_tasks, spawn_detached_for_testing},
-    native_function::{downcast_args_owned, downcast_args_ref, FunctionMeta, NativeFunction},
+    native_function::{FunctionMeta, NativeFunction, downcast_args_owned, downcast_args_ref},
 };
 
 #[inline(never)]
@@ -21,9 +21,9 @@ pub async fn value_debug_format_field(value: ValueDebugFormatString<'_>) -> Stri
     match value.try_to_value_debug_string().await {
         Ok(result) => match result.await {
             Ok(result) => result.to_string(),
-            Err(err) => format!("{0:?}", err),
+            Err(err) => format!("{err:?}"),
         },
-        Err(err) => format!("{0:?}", err),
+        Err(err) => format!("{err:?}"),
     }
 }
 

@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::{registry, FunctionId, TraitType, TraitTypeId, ValueTypeId};
+use crate::{FunctionId, TraitType, TraitTypeId, ValueTypeId, registry};
 
 pub fn get_trait_method(
     trait_type: TraitTypeId,

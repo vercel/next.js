@@ -43,17 +43,17 @@ use anyhow::Result;
 use chunk::EcmascriptChunkItem;
 use code_gen::{CodeGeneration, CodeGenerationHoistedStmt};
 use either::Either;
-use parse::{parse, ParseResult};
+use parse::{ParseResult, parse};
 use path_visitor::ApplyVisitors;
 use references::esm::UrlRewriteBehavior;
 pub use references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER};
 use serde::{Deserialize, Serialize};
 pub use static_code::StaticEcmascriptCode;
 use swc_core::{
-    common::{comments::Comments, util::take::Take, Globals, Mark, SourceMap, DUMMY_SP, GLOBALS},
+    common::{DUMMY_SP, GLOBALS, Globals, Mark, SourceMap, comments::Comments, util::take::Take},
     ecma::{
         ast::{self, Expr, ModuleItem, Program, Script},
-        codegen::{text_writer::JsWriter, Emitter},
+        codegen::{Emitter, text_writer::JsWriter},
         visit::{VisitMutWith, VisitMutWithAstPath},
     },
     quote,
@@ -65,10 +65,10 @@ pub use transform::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt,
-    Value, ValueToString, Vc,
+    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Value,
+    ValueToString, Vc, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{glob::Glob, rope::Rope, FileJsonContent, FileSystemPath};
+use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -82,8 +82,8 @@ use turbopack_core::{
     reference::ModuleReferences,
     reference_type::InnerAssets,
     resolve::{
-        find_context_file, origin::ResolveOrigin, package_json, parse::Request,
-        FindContextFileResult,
+        FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json,
+        parse::Request,
     },
     source::Source,
     source_map::GenerateSourceMap,
@@ -93,7 +93,7 @@ pub use turbopack_resolve::ecmascript as resolve;
 
 use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports};
 use crate::{
-    chunk::{placeable::is_marked_as_side_effect_free, EcmascriptChunkPlaceable},
+    chunk::{EcmascriptChunkPlaceable, placeable::is_marked_as_side_effect_free},
     code_gen::CodeGens,
     parse::generate_js_source_map,
     references::{
@@ -580,10 +580,10 @@ impl EcmascriptModuleAsset {
 
         match this.options.await?.specified_module_type {
             SpecifiedModuleType::EcmaScript => {
-                return ModuleTypeResult::new(SpecifiedModuleType::EcmaScript).await
+                return ModuleTypeResult::new(SpecifiedModuleType::EcmaScript).await;
             }
             SpecifiedModuleType::CommonJs => {
-                return ModuleTypeResult::new(SpecifiedModuleType::CommonJs).await
+                return ModuleTypeResult::new(SpecifiedModuleType::CommonJs).await;
             }
             SpecifiedModuleType::Automatic => {}
         }
@@ -1032,7 +1032,7 @@ async fn process_parse_result(
             let path = ident.path().to_string().await?;
             let error_messages = messages
                 .as_ref()
-                .and_then(|m| m.first().map(|f| format!("\n{}", f)))
+                .and_then(|m| m.first().map(|f| format!("\n{f}")))
                 .unwrap_or("".into());
             let msg = format!("Could not parse module '{path}'\n{error_messages}");
             let body = vec![
@@ -1123,6 +1123,8 @@ async fn emit_content(content: CodeGenResult) -> Result<Vc<EcmascriptModuleConte
         };
 
         emitter.emit_program(&program)?;
+        // Drop the AST eagerly so we don't keep it in memory while generating source maps
+        drop(program);
     }
 
     let source_map = if generate_source_map {
@@ -1131,9 +1133,15 @@ async fn emit_content(content: CodeGenResult) -> Result<Vc<EcmascriptModuleConte
                 source_map.clone(),
                 mappings,
                 original_source_map.generate_source_map().await?.as_ref(),
+                true,
             )?)
         } else {
-            Some(generate_js_source_map(source_map.clone(), mappings, None)?)
+            Some(generate_js_source_map(
+                source_map.clone(),
+                mappings,
+                None,
+                true,
+            )?)
         }
     } else {
         None

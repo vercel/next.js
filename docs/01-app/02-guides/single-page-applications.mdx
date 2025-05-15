@@ -25,7 +25,7 @@ Next.js can automatically code split your JavaScript bundles, and generate multi
 
 The [`next/link`](/docs/app/api-reference/components/link) component automatically [prefetches](/docs/app/api-reference/components/link#prefetch) routes, giving you the fast page transitions of a strict SPA, but with the advantage of persisting application routing state to the URL for linking and sharing.
 
-Next.js can start as a static site or even a strict SPA where everything is rendered client-side. If your project grows, Next.js allows you to progressively add more server features (e.g. [React Server Components](/docs/app/building-your-application/rendering/server-components), [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations), and more) as needed.
+Next.js can start as a static site or even a strict SPA where everything is rendered client-side. If your project grows, Next.js allows you to progressively add more server features (e.g. [React Server Components](/docs/app/getting-started/server-and-client-components), [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations), and more) as needed.
 
 ## Examples
 
@@ -79,7 +79,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-While you can [defer and pass a single Promise](/docs/app/getting-started/fetching-data#with-the-use-hook) as a prop to a Client Component, we generally see this pattern paired with a React context provider. This enables easier access from Client Components with a custom React Hook.
+While you can [defer and pass a single Promise](/docs/app/getting-started/fetching-data#streaming-data-with-the-use-hook) as a prop to a Client Component, we generally see this pattern paired with a React context provider. This enables easier access from Client Components with a custom React Hook.
 
 You can forward a Promise to the React context provider:
 

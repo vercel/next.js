@@ -1,28 +1,28 @@
 use std::sync::Arc;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use swc_core::{
     base::try_with_handler,
     common::{
+        BytePos, FileName, FilePathMapping, GLOBALS, LineCol, Mark, SourceMap as SwcSourceMap,
         comments::{Comments, SingleThreadedComments},
-        BytePos, FileName, FilePathMapping, LineCol, Mark, SourceMap as SwcSourceMap, GLOBALS,
     },
     ecma::{
         self,
         ast::{EsVersion, Program},
         codegen::{
-            text_writer::{self, JsWriter, WriteJs},
             Emitter,
+            text_writer::{self, JsWriter, WriteJs},
         },
         minifier::option::{CompressOptions, ExtraOptions, MangleOptions, MinifyOptions},
-        parser::{lexer::Lexer, Parser, StringInput, Syntax},
+        parser::{Parser, StringInput, Syntax, lexer::Lexer},
         transforms::base::{
             fixer::paren_remover,
             hygiene::{self, hygiene_with_config},
         },
     },
 };
-use tracing::{instrument, Level};
+use tracing::{Level, instrument};
 use turbopack_core::{
     chunk::MangleType,
     code_builder::{Code, CodeBuilder},
@@ -134,7 +134,15 @@ pub fn minify(code: &Code, source_maps: bool, mangle: Option<MangleType>) -> Res
         src_map_buf.shrink_to_fit();
         builder.push_source(
             &src.into(),
-            Some(generate_js_source_map(cm, src_map_buf, Some(original_map))?),
+            Some(generate_js_source_map(
+                cm,
+                src_map_buf,
+                Some(original_map),
+                // We do not inline source contents.
+                // We provide a synthesized value to `cm.new_source_file` above, so it cannot be
+                // the value user expect anyway.
+                false,
+            )?),
         );
     } else {
         builder.push_source(&src.into(), None);

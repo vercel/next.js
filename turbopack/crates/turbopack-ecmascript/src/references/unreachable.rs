@@ -3,7 +3,7 @@ use std::mem::take;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::{
-    common::{util::take::Take, Spanned},
+    common::{Spanned, util::take::Take},
     ecma::{
         ast::{
             ArrayPat, ArrowExpr, AssignPat, AssignPatProp, BindingIdent, BlockStmt, ClassDecl,
@@ -11,13 +11,13 @@ use swc_core::{
             VarDecl, VarDeclKind, VarDeclarator,
         },
         visit::{
-            fields::{BlockStmtField, SwitchCaseField},
             AstParentKind, VisitMut, VisitMutWith,
+            fields::{BlockStmtField, SwitchCaseField},
         },
     },
     quote,
 };
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, Vc};
+use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use crate::{

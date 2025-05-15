@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use turbo_tasks::Vc;
 
 use crate::{DiskFileSystem, FileSystemPath};
@@ -19,9 +19,8 @@ pub fn join_path(fs_path: &str, join: &str) -> Option<String> {
     // backslash.
     debug_assert!(
         !join.contains('\\'),
-        "joined path {} must not contain a Windows directory '\\', it must be normalized to Unix \
-         '/'",
-        join
+        "joined path {join} must not contain a Windows directory '\\', it must be normalized to \
+         Unix '/'"
     );
 
     // TODO: figure out why this freezes the benchmarks.

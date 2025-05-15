@@ -26,6 +26,13 @@ export type NextConfigComplete = Required<NextConfig> & {
   experimental: Omit<ExperimentalConfig, 'turbo'>
 }
 
+export interface NextAdapter {
+  name: string
+  modifyConfig(
+    config: NextConfigComplete
+  ): Promise<NextConfigComplete> | NextConfigComplete
+}
+
 export type I18NDomains = readonly DomainLocale[]
 
 export interface I18NConfig {
@@ -273,6 +280,7 @@ export interface LoggingConfig {
 }
 
 export interface ExperimentalConfig {
+  adapterPath?: string
   useSkewCookie?: boolean
   nodeMiddleware?: boolean
   cacheHandlers?: {
@@ -1244,6 +1252,7 @@ export const defaultConfig: NextConfig = {
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   allowedDevOrigins: undefined,
   experimental: {
+    adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
     useSkewCookie: false,
     nodeMiddleware: false,
     cacheLife: {

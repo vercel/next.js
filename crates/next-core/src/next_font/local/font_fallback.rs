@@ -1,8 +1,8 @@
 use allsorts::{
-    font_data::{DynamicFontTableProvider, FontData},
     Font,
+    font_data::{DynamicFontTableProvider, FontData},
 };
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 
@@ -13,10 +13,10 @@ use super::{
 };
 use crate::next_font::{
     font_fallback::{
-        AutomaticFontFallback, DefaultFallbackFont, FontAdjustment, FontFallback, FontFallbacks,
-        DEFAULT_SANS_SERIF_FONT, DEFAULT_SERIF_FONT,
+        AutomaticFontFallback, DEFAULT_SANS_SERIF_FONT, DEFAULT_SERIF_FONT, DefaultFallbackFont,
+        FontAdjustment, FontFallback, FontFallbacks,
     },
-    util::{get_scoped_font_family, FontFamilyType},
+    util::{FontFamilyType, get_scoped_font_family},
 };
 
 #[turbo_tasks::value(shared)]
@@ -56,7 +56,7 @@ pub(super) async fn get_font_fallbacks(
                     .resolved_cell(),
                 ),
                 FontResult::FontFileNotFound(err) => {
-                    return Ok(FontFallbackResult::FontFileNotFound(err).cell())
+                    return Ok(FontFallbackResult::FontFileNotFound(err).cell());
                 }
             };
         }
@@ -74,7 +74,7 @@ pub(super) async fn get_font_fallbacks(
                     .resolved_cell(),
                 ),
                 FontResult::FontFileNotFound(err) => {
-                    return Ok(FontFallbackResult::FontFileNotFound(err).cell())
+                    return Ok(FontFallbackResult::FontFileNotFound(err).cell());
                 }
             };
         }

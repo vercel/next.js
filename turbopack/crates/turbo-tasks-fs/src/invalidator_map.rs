@@ -2,7 +2,7 @@ use std::sync::{LockResult, Mutex, MutexGuard};
 
 use concurrent_queue::ConcurrentQueue;
 use rustc_hash::FxHashMap;
-use serde::{de::Visitor, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::Visitor};
 use turbo_tasks::{Invalidator, ReadRef};
 
 use crate::{FileContent, LinkContent};

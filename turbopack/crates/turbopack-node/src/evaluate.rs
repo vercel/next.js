@@ -1,24 +1,25 @@
 use std::{borrow::Cow, iter, ops::ControlFlow, thread::available_parallelism, time::Duration};
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use async_stream::try_stream as generator;
 use async_trait::async_trait;
 use futures::{
-    channel::mpsc::{unbounded, UnboundedSender},
-    pin_mut, SinkExt, StreamExt,
+    SinkExt, StreamExt,
+    channel::mpsc::{UnboundedSender, unbounded},
+    pin_mut,
 };
 use futures_retry::{FutureRetry, RetryPolicy};
 use parking_lot::Mutex;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{
-    apply_effects, duration_span, fxindexmap, mark_finished, prevent_gc, trace::TraceRawVcs,
-    util::SharedError, Completion, FxIndexMap, NonLocalValue, OperationVc, RawVc, ResolvedVc,
-    TaskInput, TryJoinIterExt, Value, Vc,
+    Completion, FxIndexMap, NonLocalValue, OperationVc, RawVc, ResolvedVc, TaskInput,
+    TryJoinIterExt, Value, Vc, apply_effects, duration_span, fxindexmap, mark_finished, prevent_gc,
+    trace::TraceRawVcs, util::SharedError,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
-use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
+use turbo_tasks_fs::{File, FileSystemPath, to_sys_path};
 use turbopack_core::{
     asset::AssetContent,
     changed::content_changed,
@@ -29,18 +30,18 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
     module::Module,
-    module_graph::{chunk_group_info::ChunkGroupEntry, ModuleGraph},
+    module_graph::{ModuleGraph, chunk_group_info::ChunkGroupEntry},
     output::{OutputAsset, OutputAssets},
     reference_type::{InnerAssets, ReferenceType},
     virtual_source::VirtualSource,
 };
 
 use crate::{
+    AssetsForSourceMapping,
     embed_js::embed_file_path,
     emit, emit_package_json, internal_assets_for_source_mapping,
     pool::{FormattingMode, NodeJsOperation, NodeJsPool},
     source_map::StructuredError,
-    AssetsForSourceMapping,
 };
 
 #[derive(Serialize)]

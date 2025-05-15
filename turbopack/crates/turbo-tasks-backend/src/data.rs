@@ -3,10 +3,10 @@ use std::cmp::Ordering;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
+    CellId, KeyValuePair, SessionId, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId,
     event::{Event, EventListener},
     registry,
     util::SharedError,
-    CellId, KeyValuePair, SessionId, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId,
 };
 
 use crate::{
@@ -57,7 +57,6 @@ pub enum OutputValue {
     Cell(CellRef),
     Output(TaskId),
     Error,
-    Panic,
 }
 impl OutputValue {
     fn is_transient(&self) -> bool {
@@ -65,7 +64,6 @@ impl OutputValue {
             OutputValue::Cell(cell) => cell.task.is_transient(),
             OutputValue::Output(task) => task.is_transient(),
             OutputValue::Error => false,
-            OutputValue::Panic => false,
         }
     }
 }
@@ -95,9 +93,7 @@ impl ActivenessState {
             active_counter: 0,
             root_ty: None,
             active_until_clean: false,
-            all_clean_event: Event::new(move || {
-                format!("ActivenessState::all_clean_event {:?}", id)
-            }),
+            all_clean_event: Event::new(move || format!("ActivenessState::all_clean_event {id:?}")),
         }
     }
 
@@ -345,9 +341,7 @@ impl Eq for InProgressCellState {}
 impl InProgressCellState {
     pub fn new(task_id: TaskId, cell: CellId) -> Self {
         InProgressCellState {
-            event: Event::new(move || {
-                format!("InProgressCellState::event ({} {:?})", task_id, cell)
-            }),
+            event: Event::new(move || format!("InProgressCellState::event ({task_id} {cell:?})")),
         }
     }
 }
