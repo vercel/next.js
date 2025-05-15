@@ -512,18 +512,6 @@ JavaScript modules can be shared between both Server and Client Components modul
 
 For example, take the following function:
 
-```ts filename="lib/data.ts" switcher
-export async function getData() {
-  const res = await fetch('https://external-service.com/data', {
-    headers: {
-      authorization: process.env.API_KEY,
-    },
-  })
-
-  return res.json()
-}
-```
-
 ```js filename="lib/data.js" switcher
 export async function getData() {
   const res = await fetch('https://external-service.com/data', {
