@@ -2223,14 +2223,19 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
-        use std::collections::VecDeque;
+        if env::var("TURBO_ENGINE_VERIFY_GRAPH").ok().as_deref() == Some("0") {
+            return;
+        }
+        use std::{collections::VecDeque, env};
 
         use crate::backend::operation::{get_uppers, is_aggregating_node};
 
         let mut ctx = self.execute_context(turbo_tasks);
         let root_tasks = self.root_tasks.lock().clone();
+        let len = root_tasks.len();
 
-        for task_id in root_tasks {
+        for (i, task_id) in root_tasks.into_iter().enumerate() {
+            println!("Verifying graph from root {task_id} {i}/{len}...");
             let mut queue = VecDeque::new();
             let mut visited = FxHashSet::default();
             let mut aggregated_nodes = FxHashSet::default();
@@ -2239,7 +2244,17 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             visited.insert(task_id);
             aggregated_nodes.insert(task_id);
             queue.push_back(task_id);
+            let mut counter = 0;
             while let Some(task_id) = queue.pop_front() {
+                counter += 1;
+                if counter % 100000 == 0 {
+                    println!(
+                        "queue={}, visited={}, aggregated_nodes={}",
+                        queue.len(),
+                        visited.len(),
+                        aggregated_nodes.len()
+                    );
+                }
                 let task = ctx.task(task_id, TaskDataCategory::All);
                 if !self.is_idle.load(Ordering::Relaxed) {
                     return;
