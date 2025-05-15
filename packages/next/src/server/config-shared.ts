@@ -637,8 +637,10 @@ export interface ExperimentalConfig {
   serverComponentsHmrCache?: boolean
 
   /**
-   * When enabled will cause IO in App Router to be excluded from prerenders
-   * unless explicitly cached.
+   * When enabled, will cause IO in App Router to be excluded from prerenders,
+   * unless explicitly cached. This also enables the experimental Partial
+   * Prerendering feature of Next.js, and it enables `react@experimental` being
+   * used for the `app` directory.
    */
   dynamicIO?: boolean
 
@@ -1200,7 +1202,7 @@ export interface NextConfig extends Record<string, any> {
   htmlLimitedBots?: RegExp
 }
 
-export const defaultConfig: NextConfig = {
+export const defaultConfig = {
   env: {},
   webpack: null,
   eslint: {
@@ -1393,7 +1395,7 @@ export const defaultConfig: NextConfig = {
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
-}
+} satisfies NextConfig
 
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {
